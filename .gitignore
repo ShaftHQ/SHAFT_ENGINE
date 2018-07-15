@@ -1,0 +1,5 @@
+/target/
+/allure-results/
+/test-output/
+/dependency-reduced-pom.xml
+/b.sh
