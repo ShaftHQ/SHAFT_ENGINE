@@ -1,0 +1,8 @@
+.side-nav__brand {
+    background-image: url('Shaft_logo.svg') !important;
+    background-repeat: no-repeat !important;
+    background-position: left center !important;
+    background-size: 150px !important;
+    padding-left: 180px !important;
+    margin-left: 10px !important;
+}

@@ -1,0 +1,260 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>com.mohies</groupId>
+	<artifactId>SHAFT_ENGINE</artifactId>
+	<version>1.0.20180715</version>
+	<name>SHAFT_ENGINE</name>
+	<description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
+
+
+	<properties>
+		<shaft_engine.version>SHAFT_ENGINE-1.0.20180715</shaft_engine.version>
+
+		<!-- Execution Properties -->
+		<!-- <testSuite.name>cucumber_testSuite</testSuite.name> -->
+		<testSuite.name>testSuite01</testSuite.name>
+		<operatingSystem.version>Linux-64</operatingSystem.version>
+		<!-- Acceptable Values: Windows-64 | Linux-64 | Mac-64 -->
+		<targetBrowser.name>GoogleChrome</targetBrowser.name>
+		<!-- Acceptable Values: Default | MozillaFirefox | MicrosoftInternetExplorer 
+			| GoogleChrome | MicrosoftEdge | Safari -->
+		<autoMaximizeBrowserWindow>true</autoMaximizeBrowserWindow>
+		<screenshooterFlag>Always</screenshooterFlag>
+		<!-- Acceptable Values: Always | Never | ValidationPointsOnly | FailuresOnly -->
+		<executionAddress>local</executionAddress>
+		<!-- <executionAddress>localhost:4444</executionAddress> -->
+		<testDataFolderPath>src/test/resources/TestDataFiles/</testDataFolderPath>
+		<testDataColumnNamePrefix>Data</testDataColumnNamePrefix>
+		<defaultElementIdentificationTimeout>30</defaultElementIdentificationTimeout>
+
+		<!-- Version Numbers Properties -->
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+		<jdk.version>1.8</jdk.version>
+
+		<selenium.version>3.13.0</selenium.version>
+		<allure.version>2.6.0</allure.version>
+		<aspectj.version>1.8.13</aspectj.version>
+
+		<rest-assured.version>3.0.7</rest-assured.version>
+
+		<testng.version>6.14.3</testng.version>
+
+		<ru.yandex.qatools.ashot.version>1.5.4</ru.yandex.qatools.ashot.version>
+
+		<apachepoi.version>3.17</apachepoi.version>
+		<org.slf4j.version>1.7.25</org.slf4j.version>
+		<maven-compiler-plugin.version>3.7.0</maven-compiler-plugin.version>
+		<maven-surefire-plugin.version>2.20.1</maven-surefire-plugin.version>
+		<maven-shade-plugin.version>3.1.0</maven-shade-plugin.version>
+		<maven-jar-plugin.version>3.0.2</maven-jar-plugin.version>
+		<maven-javadoc-plugin.version>3.0.0</maven-javadoc-plugin.version>
+
+		<cucumber.version>1.2.5</cucumber.version> <!-- reintegrate cucumber with the proper latest version -->
+	</properties>
+
+	<dependencies>
+		<!-- Selenium and Allure Dependencies -->
+		<dependency>
+			<groupId>org.seleniumhq.selenium</groupId>
+			<artifactId>selenium-java</artifactId>
+			<version>${selenium.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>io.qameta.allure</groupId>
+			<artifactId>allure-testng</artifactId>
+			<version>${allure.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>io.qameta.allure</groupId>
+			<artifactId>allure-cucumber-jvm</artifactId>
+			<version>${allure.version}</version>
+		</dependency>
+
+		<!-- REST Assured (includes JsonPath and XmlPath) Dependencies -->
+		<dependency>
+			<groupId>io.rest-assured</groupId>
+			<artifactId>rest-assured</artifactId>
+			<version>${rest-assured.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- TestNG Dependencies -->
+		<dependency>
+			<groupId>org.testng</groupId>
+			<artifactId>testng</artifactId>
+			<version>${testng.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- Cucumber Dependencies -->
+		<dependency>
+			<groupId>info.cukes</groupId>
+			<artifactId>cucumber-java</artifactId>
+			<version>${cucumber.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>info.cukes</groupId>
+			<artifactId>cucumber-jvm</artifactId>
+			<version>${cucumber.version}</version>
+			<type>pom</type>
+		</dependency>
+		<dependency>
+			<groupId>info.cukes</groupId>
+			<artifactId>cucumber-testng</artifactId>
+			<version>${cucumber.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- Other Dependencies -->
+		<dependency>
+			<groupId>org.apache.poi</groupId>
+			<artifactId>poi</artifactId>
+			<version>${apachepoi.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.poi</groupId>
+			<artifactId>poi-ooxml</artifactId>
+			<version>${apachepoi.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-simple</artifactId>
+			<version>${org.slf4j.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.aspectj</groupId>
+			<artifactId>aspectjweaver</artifactId>
+			<version>${aspectj.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>ru.yandex.qatools.ashot</groupId>
+			<artifactId>ashot</artifactId>
+			<version>${ru.yandex.qatools.ashot.version}</version>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<pluginManagement>
+			<!--Plugins -->
+			<plugins>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-compiler-plugin</artifactId>
+					<version>${maven-compiler-plugin.version}</version>
+					<configuration>
+						<source>${jdk.version}</source>
+						<target>${jdk.version}</target>
+					</configuration>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-surefire-plugin</artifactId>
+					<version>${maven-surefire-plugin.version}</version>
+					<configuration>
+						<systemPropertyVariables>
+							<shaftEngineVersion>${shaft_engine.version}</shaftEngineVersion>
+							<targetOperatingSystem>${operatingSystem.version}</targetOperatingSystem>
+							<targetBrowserName>${targetBrowser.name}</targetBrowserName>
+							<screenshooterFlag>${screenshooterFlag}</screenshooterFlag>
+							<executionAddress>${executionAddress}</executionAddress>
+							<autoMaximizeBrowserWindow>${autoMaximizeBrowserWindow}</autoMaximizeBrowserWindow>
+							<testDataFolderPath>${testDataFolderPath}</testDataFolderPath>
+							<testDataColumnNamePrefix>${testDataColumnNamePrefix}</testDataColumnNamePrefix>
+							<defaultElementIdentificationTimeout>${defaultElementIdentificationTimeout}</defaultElementIdentificationTimeout>
+						</systemPropertyVariables>
+						<!-- To continue execution after validation errors are thrown in the 
+							before method -->
+						<configfailurepolicy>continue</configfailurepolicy>
+						<suiteXmlFiles>
+							<suiteXmlFile>src\test\resources\TestSuites\${testSuite.name}.xml</suiteXmlFile>
+						</suiteXmlFiles>
+						<encoding>UTF-8</encoding>
+						<inputEncoding>UTF-8</inputEncoding>
+						<outputEncoding>UTF-8</outputEncoding>
+						<argLine>
+							-javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"
+						</argLine>
+					</configuration>
+					<dependencies>
+						<dependency>
+							<groupId>org.aspectj</groupId>
+							<artifactId>aspectjweaver</artifactId>
+							<version>${aspectj.version}</version>
+						</dependency>
+					</dependencies>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-jar-plugin</artifactId>
+					<version>${maven-jar-plugin.version}</version>
+					<configuration>
+						<archive>
+							<manifest>
+								<!-- <addDefaultImplementationEntries>true</addDefaultImplementationEntries> -->
+								<!-- <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries> -->
+								<addClasspath>true</addClasspath>
+								<!-- <classpathLayoutType>repository</classpathLayoutType> -->
+							</manifest>
+						</archive>
+						<excludes>
+							<exclude>allure/**</exclude>
+							<exclude>drivers/**</exclude>
+							<exclude>scripts/**</exclude>
+							<exclude>test/**</exclude>
+							<exclude>SHADE/**</exclude>
+							<exclude>test-output/**</exclude>
+							<exclude>allure-results/**</exclude>
+						</excludes>
+					</configuration>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-shade-plugin</artifactId>
+					<version>${maven-shade-plugin.version}</version>
+					<configuration>
+						<!-- put your configurations here -->
+						<!-- <createSourcesJar>true</createSourcesJar> -->
+						<!-- <finalName>SHAFT_Engine</finalName> -->
+						<minimizeJar>false</minimizeJar>
+						<outputDirectory>${project.build.directory}/SHADE</outputDirectory>
+						<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
+						<artifactSet>
+							<excludes>
+								<exclude>org.slf4j:slf4j-api:*</exclude>
+							</excludes>
+						</artifactSet>
+					</configuration>
+					<executions>
+						<execution>
+							<phase>package</phase>
+							<goals>
+								<goal>shade</goal>
+							</goals>
+						</execution>
+					</executions>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-javadoc-plugin</artifactId>
+					<version>${maven-javadoc-plugin.version}</version>
+					<configuration>
+						<sourcepath>${project.basedir}/src/main/java;${project.basedir}/target/generated-sources/annotations</sourcepath>
+					</configuration>
+					<executions>
+						<execution>
+							<id>attach-javadocs</id>
+							<goals>
+								<goal>jar</goal>
+							</goals>
+						</execution>
+					</executions>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+	</build>
+</project>
