@@ -9,7 +9,7 @@ public class JavaActions {
  * @param text
  * @return updated texts
  */
-	public String replaceRegex(String specialCharactersArray[], String text) {
+	public static String replaceRegex(String specialCharactersArray[], String text) {
 		String oldChar;
 		for(int i=0; i<(specialCharactersArray.length); i++)
 		{
