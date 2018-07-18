@@ -4,13 +4,13 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.mohies</groupId>
 	<artifactId>SHAFT_ENGINE</artifactId>
-	<version>1.0.20180715</version>
+	<version>1.0.20180715_1</version>
 	<name>SHAFT_ENGINE</name>
 	<description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
 
 
 	<properties>
-		<shaft_engine.version>SHAFT_ENGINE-1.0.20180715</shaft_engine.version>
+		<shaft_engine.version>SHAFT_ENGINE-1.0.20180715_1</shaft_engine.version>
 
 		<!-- Execution Properties -->
 		<!-- <testSuite.name>cucumber_testSuite</testSuite.name> -->
@@ -53,9 +53,23 @@
 		<maven-javadoc-plugin.version>3.0.0</maven-javadoc-plugin.version>
 
 		<cucumber.version>1.2.5</cucumber.version> <!-- reintegrate cucumber with the proper latest version -->
+
 	</properties>
 
 	<dependencies>
+		<!-- remote ssh commands -->
+		<dependency>
+			<groupId>com.jcraft</groupId>
+			<artifactId>jsch</artifactId>
+			<version>0.1.54</version>
+		</dependency>
+		<dependency>
+			<groupId>com.github.cverges</groupId>
+			<artifactId>expect4j</artifactId>
+			<version>1.9</version>
+		</dependency>
+
+
 		<!-- Selenium and Allure Dependencies -->
 		<dependency>
 			<groupId>org.seleniumhq.selenium</groupId>

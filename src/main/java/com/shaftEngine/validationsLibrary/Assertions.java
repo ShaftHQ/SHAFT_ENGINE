@@ -11,6 +11,8 @@ import com.shaftEngine.ioActionLibrary.ScreenshotManager;
 
 public class Assertions {
 
+	private static int elementDoesntExist_timeout = 4;
+
 	private static void fail(String message) {
 		ReportManager.log(message);
 		Assert.fail(message);
@@ -138,7 +140,7 @@ public class Assertions {
 			}
 		} else {
 			try {
-				ElementActions.internalCanFindUniqueElement(driver, elementLocator, 4);
+				ElementActions.internalCanFindUniqueElement(driver, elementLocator, elementDoesntExist_timeout);
 				fail(driver, elementLocator,
 						"Assertion Failed; element exists and is unique. Locator [" + elementLocator.toString() + "].");
 			} catch (AssertionError e) {

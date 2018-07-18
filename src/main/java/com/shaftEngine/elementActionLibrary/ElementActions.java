@@ -154,10 +154,17 @@ public class ElementActions {
 				}
 				ReportManager.log("Element with locator [" + elementLocator.toString() + "] was found ["
 						+ foundElementsCount + "] times on this page.");
-
 				break;
 			} catch (StaleElementReferenceException | ElementNotInteractableException
 					| UnreachableBrowserException ex) {
+				if (count + 1 == retriesBeforeThrowingStaleElementException) {
+					ReportManager.log(ex.getMessage());
+					ReportManager.log(
+							"Element with locator [" + elementLocator.toString() + "] was not found on this page.");
+					// failAction(driver, "canFindUniqueElement");
+					// return false;
+					break;
+				}
 				count++;
 			} catch (Throwable t) {
 				if (t.getMessage().contains("cannot focus element")) {
@@ -166,8 +173,9 @@ public class ElementActions {
 					ReportManager.log(t.getMessage());
 					ReportManager.log(
 							"Element with locator [" + elementLocator.toString() + "] was not found on this page.");
-					failAction(driver, "canFindUniqueElement");
-					return false;
+					// failAction(driver, "canFindUniqueElement");
+					// return false;
+					break;
 				}
 			}
 		}
@@ -689,14 +697,18 @@ public class ElementActions {
 	 */
 	public static void waitForTextToChange(WebDriver driver, By elementLocator, String initialValue,
 			int numberOfTries) {
-		if (internalCanFindUniqueElement(driver, elementLocator)) {
-			(new WebDriverWait(driver, defaultElementIdentificationTimeout * numberOfTries))
-					.until(ExpectedConditions.not(ExpectedConditions.textToBe(elementLocator, initialValue)));
 
-			if (internalCanFindUniqueElement(driver, elementLocator)) {
+		if (internalCanFindUniqueElement(driver, elementLocator)) {
+			try {
+				(new WebDriverWait(driver, defaultElementIdentificationTimeout * numberOfTries))
+						.until(ExpectedConditions.not(ExpectedConditions.textToBe(elementLocator, initialValue)));
+			} catch (Throwable t) {
+				//
+			}
+			try {
 				passAction(driver, elementLocator, "waitForTextToChange",
 						"from: \"" + initialValue + "\", to: \"" + getText(driver, elementLocator) + "\"");
-			} else {
+			} catch (Throwable t) {
 				passAction(driver, elementLocator, "waitForTextToChange",
 						"from: \"" + initialValue + "\", to a new value.");
 			}

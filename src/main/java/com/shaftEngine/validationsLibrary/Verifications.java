@@ -15,6 +15,8 @@ public class Verifications {
 
 	private static StringBuffer verificationFailures = new StringBuffer();
 	private static StringBuffer verificationSuccesses = new StringBuffer();
+	private static int elementDoesntExist_timeout = 4;
+
 
 	private static void reportVerificationResults(WebDriver driver, By elementLocator) {
 		String verificationSuccessesString = verificationSuccesses.toString().trim();
@@ -153,7 +155,7 @@ public class Verifications {
 			}
 		} else {
 			try {
-				Assert.assertFalse(ElementActions.internalCanFindUniqueElement(driver, elementLocator));
+				Assert.assertFalse(ElementActions.internalCanFindUniqueElement(driver, elementLocator, elementDoesntExist_timeout));
 				verificationSuccesses.append("Assertion Passed; element does not exist or is not unique. Locator ["
 						+ elementLocator.toString() + "].");
 				elementLocator = null; // workaround to force take a screenshot of the whole page
