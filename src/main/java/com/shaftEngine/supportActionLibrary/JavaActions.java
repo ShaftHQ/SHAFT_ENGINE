@@ -31,13 +31,6 @@ public class JavaActions {
 	
 	public static String replaceRegex(String text) {
 		String specialCharactersArray[]= {"[","]","^","$",".","|","?","*","+","(",")","{","}"};
-		String oldChar;
-		for(int i=0; i<(specialCharactersArray.length); i++)
-		{
-			oldChar = specialCharactersArray[i];
-			specialCharactersArray[i] = ("\\" + specialCharactersArray[i]);
-			text = text.replace(oldChar, specialCharactersArray[i]);
-		}
-		return text;
+		return replaceRegex(specialCharactersArray, text);
 	}
 }
