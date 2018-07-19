@@ -3,8 +3,11 @@ package com.shaftEngine.supportActionLibrary;
 public class JavaActions {
 	
 /**
- * replaceRegex method takes two parameters, one is the array of special characters that are needed to be replaced, and the text needed to be updated
- * It converts text with @#$%& ..etc (special characters) to return it with \\@\\#\\$\\%\\&
+ * Takes two parameters, one is the array of special characters that are needed 
+ * to be replaced, and the text needed to be updated
+ * It converts text with @#$%& ..etc (special characters)
+ * to return it with \\@\\#\\$\\%\\&
+ * 
  * @param specialCharactersArray
  * @param text
  * @return updated texts
@@ -18,5 +21,16 @@ public class JavaActions {
 			text = text.replace(oldChar, specialCharactersArray[i]);
 		}
 		return text;
+	}
+	
+	/**
+	 * Returns text after replaces its regular expressions which included in this set []^$.|?*+(){}
+	 * @param text
+	 * @return updated text after escaping its regular expressions
+	 */
+	
+	public static String replaceRegex(String text) {
+		String specialCharactersArray[]= {"[","]","^","$",".","|","?","*","+","(",")","{","}"};
+		return replaceRegex(specialCharactersArray, text);
 	}
 }
