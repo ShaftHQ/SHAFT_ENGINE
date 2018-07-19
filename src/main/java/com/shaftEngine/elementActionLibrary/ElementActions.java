@@ -28,7 +28,7 @@ import com.shaftEngine.ioActionLibrary.ScreenshotManager;
 public class ElementActions {
 	static int defaultElementIdentificationTimeout = Integer
 			.parseInt(System.getProperty("defaultElementIdentificationTimeout").trim());
-	static int retriesBeforeThrowingStaleElementException = 10;
+	static int retriesBeforeThrowingElementNotFoundException = 10;
 
 	/**
 	 * Returns True if only one element matches the locator specified, and Returns
@@ -141,7 +141,7 @@ public class ElementActions {
 		}
 		// implementing loop to try and break out of the stale element exception issue
 		int count = 0;
-		while (count < retriesBeforeThrowingStaleElementException) {
+		while (count < retriesBeforeThrowingElementNotFoundException) {
 			try {
 				(new WebDriverWait(driver, timeout)).until(ExpectedConditions.presenceOfElementLocated(elementLocator));
 				int foundElementsCount = driver.findElements(elementLocator).size();
@@ -155,14 +155,12 @@ public class ElementActions {
 				ReportManager.log("Element with locator [" + elementLocator.toString() + "] was found ["
 						+ foundElementsCount + "] times on this page.");
 				break;
-			} catch (StaleElementReferenceException | ElementNotInteractableException
-					| UnreachableBrowserException ex) {
-				if (count + 1 == retriesBeforeThrowingStaleElementException) {
-					ReportManager.log(ex.getMessage());
+			} catch (StaleElementReferenceException | ElementNotInteractableException | UnreachableBrowserException
+					| NoSuchElementException ex) {
+				if (count + 1 == retriesBeforeThrowingElementNotFoundException) {
+					ReportManager.log("Exception: " + ex.getMessage());
 					ReportManager.log(
 							"Element with locator [" + elementLocator.toString() + "] was not found on this page.");
-					// failAction(driver, "canFindUniqueElement");
-					// return false;
 					break;
 				}
 				count++;
@@ -170,11 +168,9 @@ public class ElementActions {
 				if (t.getMessage().contains("cannot focus element")) {
 					count++;
 				} else {
-					ReportManager.log(t.getMessage());
+					ReportManager.log("Unhandled Exception: " + t.getMessage());
 					ReportManager.log(
 							"Element with locator [" + elementLocator.toString() + "] was not found on this page.");
-					// failAction(driver, "canFindUniqueElement");
-					// return false;
 					break;
 				}
 			}
