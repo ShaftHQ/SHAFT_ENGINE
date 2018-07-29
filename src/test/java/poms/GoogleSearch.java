@@ -5,15 +5,15 @@ import org.openqa.selenium.WebDriver;
 
 import com.shaftEngine.browserActionLibrary.BrowserActions;
 import com.shaftEngine.elementActionLibrary.ElementActions;
-import com.shaftEngine.ioActionLibrary.ExcelFileManager;
 import com.shaftEngine.validationsLibrary.Assertions;
 import com.shaftEngine.validationsLibrary.Verifications;
 
 public class GoogleSearch {
 	WebDriver driver;
-	ExcelFileManager testDataReader = new ExcelFileManager(System.getProperty("testDataFilePath"));
+	// ExcelFileManager testDataReader = new
+	// ExcelFileManager(System.getProperty("testDataFilePath"));
 
-	String url = testDataReader.getCellData("URL");
+	// String url = testDataReader.getCellData("URL");
 	By googleLogo_image = By.id("hplogo");
 	By searchBox_textField = By.xpath("//input[@id='lst-ib' or @class='lst']");
 
@@ -22,7 +22,7 @@ public class GoogleSearch {
 	}
 
 	public void navigateToURL() {
-		BrowserActions.navigateToURL(driver, url);
+		BrowserActions.navigateToURL(driver, "https://www.google.com/ncr");
 	}
 
 	public void searchForQuery(String searchQuery) {
@@ -39,6 +39,26 @@ public class GoogleSearch {
 
 	public void typeQuery(String searchQuery) {
 		ElementActions.type(driver, searchBox_textField, searchQuery);
+	}
+
+	public void copyQuery() {
+		ElementActions.clipboardActions(driver, searchBox_textField, "copy");
+	}
+
+	public void pasteQuery() {
+		ElementActions.clipboardActions(driver, searchBox_textField, "paste");
+	}
+
+	public void cutQuery() {
+		ElementActions.clipboardActions(driver, searchBox_textField, "cut");
+	}
+
+	public void selectQuery() {
+		ElementActions.clipboardActions(driver, searchBox_textField, "select all");
+	}
+
+	public void unSelectQuery() {
+		ElementActions.clipboardActions(driver, searchBox_textField, "unselect");
 	}
 
 	public void assertPageIsOpen() {

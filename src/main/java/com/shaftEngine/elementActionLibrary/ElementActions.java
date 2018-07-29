@@ -1,5 +1,11 @@
 package com.shaftEngine.elementActionLibrary;
 
+import java.awt.HeadlessException;
+import java.awt.Toolkit;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.StringSelection;
+import java.awt.datatransfer.UnsupportedFlavorException;
+import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -759,6 +765,87 @@ public class ElementActions {
 		} else {
 			failAction(driver, "isElementClickable");
 			return false;
+		}
+	}
+
+	public static void clipboardActions(WebDriver driver, By elementLocator, String action) {
+		if (internalCanFindUniqueElement(driver, elementLocator)) {
+			if (!System.getProperty("targetOperatingSystem").equals("Mac-64")) {
+				switch (action.toLowerCase()) {
+				case "copy":
+					(new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "c")).perform();
+					// (new Actions(driver)).keyDown(driver.findElement(elementLocator),
+					// Keys.COMMAND).sendKeys("c") .keyUp(Keys.COMMAND);
+					break;
+				case "paste":
+					(new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "v")).perform();
+					// (new Actions(driver)).keyDown(driver.findElement(elementLocator),
+					// Keys.COMMAND).sendKeys("v") .keyUp(Keys.COMMAND);
+					break;
+				case "cut":
+					(new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "x")).perform();
+					// (new Actions(driver)).keyDown(driver.findElement(elementLocator),
+					// Keys.COMMAND).sendKeys("x") .keyUp(Keys.COMMAND);
+					break;
+				case "select all":
+					(new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "a")).perform();
+					// (new Actions(driver)).keyDown(driver.findElement(elementLocator),
+					// Keys.COMMAND).sendKeys("a") .keyUp(Keys.COMMAND);
+					break;
+				case "unselect":
+					(new Actions(driver)).sendKeys(Keys.ESCAPE).perform();
+					break;
+				default:
+					failAction(driver, "clipboardActions", "Unsupported Action");
+					break;
+				}
+				passAction(driver, elementLocator, "clipboardActions", action);
+			} else {
+
+				try {
+					switch (action.toLowerCase()) {
+					case "copy":
+						(Toolkit.getDefaultToolkit().getSystemClipboard())
+								.setContents((new StringSelection(getText(driver, elementLocator))), null);
+						break;
+					case "paste":
+						try {
+							typeAppend(driver, elementLocator,
+									(String) ((Toolkit.getDefaultToolkit().getSystemClipboard())
+											.getContents(ElementActions.class))
+													.getTransferData(DataFlavor.stringFlavor));
+						} catch (UnsupportedFlavorException e) {
+							ReportManager.log("Unsupported Flavor Exception: " + e.getMessage());
+							ReportManager.log(e.getStackTrace().toString());
+						} catch (IOException e) {
+							ReportManager.log("IO Exception: " + e.getMessage());
+							ReportManager.log(e.getStackTrace().toString());
+						}
+						break;
+					case "cut":
+						(Toolkit.getDefaultToolkit().getSystemClipboard())
+								.setContents((new StringSelection(getText(driver, elementLocator))), null);
+						type(driver, elementLocator, "");
+						break;
+					case "select all":
+						// (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "a")).perform();
+						break;
+					case "unselect":
+						// (new Actions(driver)).sendKeys(Keys.ESCAPE).perform();
+						break;
+					default:
+						failAction(driver, "clipboardActions", "Unsupported Action");
+						break;
+					}
+					passAction(driver, elementLocator, "clipboardActions", action);
+				} catch (HeadlessException e) {
+					ReportManager.log("Headless Exception: " + e.getMessage());
+					ReportManager.log(e.getStackTrace().toString());
+				}
+			}
+
+		} else {
+			failAction(driver, "clipboardActions");
 		}
 	}
 }
