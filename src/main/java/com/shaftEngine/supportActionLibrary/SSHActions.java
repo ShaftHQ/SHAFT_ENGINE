@@ -69,7 +69,6 @@ public class SSHActions {
 			e.printStackTrace();
 			failAction("createSSHsession", testData);
 		}
-
 		return session;
 	}
 

@@ -1,14 +1,16 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.mohies</groupId>
 	<artifactId>SHAFT_ENGINE</artifactId>
-	<version>1.0.20180724</version>
+	<version>1.0.20180731</version>
 	<name>SHAFT_ENGINE</name>
 	<description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
 
 
 	<properties>
-		<shaft_engine.version>SHAFT_ENGINE-1.0.20180724</shaft_engine.version>
+		<shaft_engine.version>SHAFT_ENGINE-1.0.20180731</shaft_engine.version>
 
 		<!-- Execution Properties -->
 		<!-- <testSuite.name>cucumber_testSuite</testSuite.name> -->
@@ -33,7 +35,7 @@
 		<jdk.version>1.8</jdk.version>
 
 		<selenium.version>3.13.0</selenium.version>
-		<allure.version>2.6.0</allure.version>
+		<allure.version>2.7.0</allure.version>
 		<aspectj.version>1.8.13</aspectj.version>
 
 		<rest-assured.version>3.0.7</rest-assured.version>
@@ -50,7 +52,7 @@
 		<maven-jar-plugin.version>3.0.2</maven-jar-plugin.version>
 		<maven-javadoc-plugin.version>3.0.0</maven-javadoc-plugin.version>
 
-		<cucumber.version>1.2.5</cucumber.version> <!-- reintegrate cucumber with the proper latest version -->
+		<cucumber.version>3.0.2</cucumber.version>
 
 	</properties>
 
@@ -85,6 +87,11 @@
 			<artifactId>allure-cucumber-jvm</artifactId>
 			<version>${allure.version}</version>
 		</dependency>
+		<dependency>
+			<groupId>io.qameta.allure</groupId>
+			<artifactId>allure-rest-assured</artifactId> <!-- for testing reasons -->
+			<version>${allure.version}</version>
+		</dependency>
 
 		<!-- REST Assured (includes JsonPath and XmlPath) Dependencies -->
 		<dependency>
@@ -102,21 +109,15 @@
 			<scope>test</scope>
 		</dependency>
 
-		<!-- Cucumber Dependencies -->
+		<!-- Cucumber Dependencies --> <!-- attempting upgrade -->
 		<dependency>
-			<groupId>info.cukes</groupId>
+			<groupId>io.cucumber</groupId>
 			<artifactId>cucumber-java</artifactId>
 			<version>${cucumber.version}</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>info.cukes</groupId>
-			<artifactId>cucumber-jvm</artifactId>
-			<version>${cucumber.version}</version>
-			<type>pom</type>
-		</dependency>
-		<dependency>
-			<groupId>info.cukes</groupId>
+			<groupId>io.cucumber</groupId>
 			<artifactId>cucumber-testng</artifactId>
 			<version>${cucumber.version}</version>
 			<scope>test</scope>
