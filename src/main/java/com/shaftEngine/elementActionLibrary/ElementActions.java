@@ -133,6 +133,30 @@ public class ElementActions {
 	 */
 	private static boolean internalCanFindUniqueElement(WebDriver driver, By elementLocator, int timeout,
 			Boolean isInternalCall) {
+		int foundElementsCount = countFoundElements(driver, elementLocator, timeout);
+		switch (foundElementsCount) {
+		case 0: // no elements found
+			ReportManager.log("Element with locator [" + elementLocator.toString() + "] was not found on this page.");
+			failAction(driver, "canFindUniqueElement");
+			return false;
+		case 1: // one element found
+			if (!isInternalCall) {
+				passAction(driver, elementLocator, "canFindUniqueElement");
+			}
+			return true;
+		default: // multiple elements found
+			ReportManager.log("Element with locator [" + elementLocator.toString() + "] was found ["
+					+ foundElementsCount + "] times on this page.");
+			failAction(driver, "canFindUniqueElement");
+			return false;
+		}
+	}
+
+	private static int countFoundElements(WebDriver driver, By elementLocator) {
+		return countFoundElements(driver, elementLocator, defaultElementIdentificationTimeout);
+	}
+
+	private static int countFoundElements(WebDriver driver, By elementLocator, int timeout) {
 		// JSWaiter.waitJQueryAngular();
 		try {
 			JSWaiter.waitForLazyLoading();
@@ -141,33 +165,29 @@ public class ElementActions {
 					| e.getMessage().contains("Error communicating with the remote browser. It may have died.")) {
 				// do nothing
 			} else {
-				failAction(driver, "internalCanFindUniqueElement", "Unhandled Exception: " + e.getMessage());
+				ReportManager.log("Unhandled Exception: " + e.getMessage());
+				return 0;
 			}
 
 		}
 		// implementing loop to try and break out of the stale element exception issue
 		int count = 0;
+		int foundElementsCount = 0;
 		while (count < retriesBeforeThrowingElementNotFoundException) {
 			try {
 				(new WebDriverWait(driver, timeout)).until(ExpectedConditions.presenceOfElementLocated(elementLocator));
-				int foundElementsCount = driver.findElements(elementLocator).size();
+				foundElementsCount = driver.findElements(elementLocator).size();
 				if (foundElementsCount == 1) {
 					moveToElement(driver, elementLocator);
-					if (!isInternalCall) {
-						passAction(driver, elementLocator, "canFindUniqueElement");
-					}
-					return true;
+					// will return 1
 				}
-				ReportManager.log("Element with locator [" + elementLocator.toString() + "] was found ["
-						+ foundElementsCount + "] times on this page.");
+				// will return count
 				break;
 			} catch (StaleElementReferenceException | ElementNotInteractableException | UnreachableBrowserException
 					| NoSuchElementException ex) {
 				if (count + 1 == retriesBeforeThrowingElementNotFoundException) {
 					ReportManager.log("Exception: " + ex.getMessage());
-					ReportManager.log(
-							"Element with locator [" + elementLocator.toString() + "] was not found on this page.");
-					break;
+					return 0;
 				}
 				count++;
 			} catch (Throwable t) {
@@ -175,14 +195,11 @@ public class ElementActions {
 					count++;
 				} else {
 					ReportManager.log("Unhandled Exception: " + t.getMessage());
-					ReportManager.log(
-							"Element with locator [" + elementLocator.toString() + "] was not found on this page.");
-					break;
+					return 0;
 				}
 			}
 		}
-		failAction(driver, "canFindUniqueElement");
-		return false;
+		return foundElementsCount;
 	}
 
 	private static void moveToElement(WebDriver driver, By elementLocator) {
@@ -847,5 +864,9 @@ public class ElementActions {
 		} else {
 			failAction(driver, "clipboardActions");
 		}
+	}
+
+	public static int getElementsCount(WebDriver driver, By elementLocator) {
+		return countFoundElements(driver, elementLocator);
 	}
 }
