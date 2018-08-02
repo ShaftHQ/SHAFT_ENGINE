@@ -286,17 +286,4 @@ public class Assertions {
 			}
 		}
 	}
-
-	/**
-	 * Escapes any special characters to make sure that they work with the .match
-	 * regex and return a realistic match or no match value
-	 * 
-	 * @param text
-	 *            represents the text that will have its special characters escaped
-	 * @return the same text variable after escaping the special characters
-	 */
-	/*
-	 * private static String escapeSpecialCharacters(String text) { return
-	 * text.replace("[", "\\[").replace("]", "\\]"); }
-	 */
 }

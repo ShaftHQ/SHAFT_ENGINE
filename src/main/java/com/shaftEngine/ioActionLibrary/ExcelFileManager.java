@@ -45,7 +45,7 @@ public class ExcelFileManager {
 		} catch (java.lang.OutOfMemoryError e) {
 			ReportManager.log("Couldn't open the desired file. [" + xlFilePath + "].");
 			Assert.fail("Couldn't open the desired file. [" + xlFilePath + "].");
-			//t.printStackTrace();
+			// t.printStackTrace();
 		}
 	}
 
@@ -136,7 +136,13 @@ public class ExcelFileManager {
 				if (cell.getCellTypeEnum() == CellType.STRING)
 					return cell.getStringCellValue();
 				else if (cell.getCellTypeEnum() == CellType.NUMERIC || cell.getCellTypeEnum() == CellType.FORMULA) {
-					String cellValue = String.valueOf(cell.getNumericCellValue());
+					String cellValue = "";
+					try {
+						cellValue = String.valueOf(Integer.parseInt(String.valueOf(cell.getNumericCellValue())));
+					} catch (NumberFormatException e) {
+						cellValue = String.valueOf(cell.getNumericCellValue());
+					}
+
 					if (HSSFDateUtil.isCellDateFormatted(cell)) {
 						DateFormat df = new SimpleDateFormat("dd/MM/yy");
 						Date date = cell.getDateCellValue();

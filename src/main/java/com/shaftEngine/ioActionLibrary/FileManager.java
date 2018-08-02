@@ -2,6 +2,10 @@ package com.shaftEngine.ioActionLibrary;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.List;
 
 import org.apache.commons.io.FileUtils;
 
@@ -39,6 +43,34 @@ public class FileManager {
 	public static void deleteFile(String filePath) {
 		FileUtils.deleteQuietly(new File(filePath));
 	}
+	// List<String> supplierNames = Arrays.asList("sup1", "sup2", "sup3");
+
+	public static void writeToFile(String fileFolderName, String fileName, List<String> text) {
+		String absoluteFilePath = getAbsoluteFilePath(fileFolderName, fileName);
+		Path filePath = Paths.get(absoluteFilePath);
+
+		try {
+			byte[] textToBytes = String.join(System.lineSeparator(), text).getBytes();
+			Files.write(filePath, textToBytes);
+		} catch (IOException e) {
+			e.printStackTrace();
+			ReportManager.log(e.getMessage());
+		}
+	}
+
+	public static String readFromFile(String fileFolderName, String fileName) {
+		String text = "";
+		String absoluteFilePath = getAbsoluteFilePath(fileFolderName, fileName);
+		Path filePath = Paths.get(absoluteFilePath);
+
+		try {
+			text = String.join(System.lineSeparator(), Files.readAllLines(filePath));
+		} catch (IOException e) {
+			e.printStackTrace();
+			ReportManager.log(e.getMessage());
+		}
+		return text;
+	}
 
 	/**
 	 * Returns the full (absolute) file path using the project-relative
@@ -46,7 +78,7 @@ public class FileManager {
 	 * 
 	 * @param fileFolderName
 	 *            The location of the folder that contains the target file, relative
-	 *            to the project's root folder
+	 *            to the project's root folder, ending with a /
 	 * @param fileName
 	 *            The name of the target file (including its extension if any)
 	 * @return

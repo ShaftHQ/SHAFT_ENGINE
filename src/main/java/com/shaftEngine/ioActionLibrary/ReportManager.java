@@ -2,6 +2,7 @@ package com.shaftEngine.ioActionLibrary;
 
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
 import org.testng.Reporter;
 import io.qameta.allure.Allure;
@@ -14,8 +15,8 @@ public class ReportManager {
 	private static int actionCounter = 1;
 	private static boolean isHeaderTyped = false;
 
-	// private static int attachementCounter = 1;
-	// TODO : implement attachemntCounter for both attachement functions
+	// private static int attachmentCounter = 1;
+	// TODO : implement attachemntCounter for both attachment functions
 
 	/**
 	 * Manages action counter and calls writeLog to format and print the log entry.
@@ -30,6 +31,21 @@ public class ReportManager {
 					+ "] © Copyrights Reserved to [Mohab Mohie].");
 			// calls parent log function recursively in order to log shaft version before
 			// performing the first action
+
+			// sets up some parameters to the allure report
+			FileManager.writeToFile(System.getProperty("allureResultsFolderPath"), "environment.properties",
+					Arrays.asList("Engine=" + System.getProperty("shaftEngineVersion"),
+							"OS=" + System.getProperty("targetOperatingSystem"),
+							"Browser=" + System.getProperty("targetBrowserName"),
+							"Location=" + System.getProperty("executionAddress")));
+			/*
+			 * "Flags_AutoMaximizeBrowserWindow=" +
+			 * System.getProperty("autoMaximizeBrowserWindow"), "Flags_ScreenshotManager=" +
+			 * System.getProperty("screenshooterFlag"),
+			 * "Config_DefaultElementIdentificationTimeout=" +
+			 * System.getProperty("defaultElementIdentificationTimeout")));
+			 */
+
 		}
 		writeLog(logText, actionCounter);
 		actionCounter++;
