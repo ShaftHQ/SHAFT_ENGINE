@@ -24,6 +24,7 @@ public class Test_remoteSSH {
 
 	@BeforeClass // Set-up method, to be run once before the first test
 	public void beforeClass() {
+
 	}
 
 	@AfterClass(alwaysRun = true) // Tear-down method, to be run once after the last test

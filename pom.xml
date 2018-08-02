@@ -4,13 +4,13 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.mohies</groupId>
 	<artifactId>SHAFT_ENGINE</artifactId>
-	<version>1.0.20180731</version>
+	<version>1.0.20180802</version>
 	<name>SHAFT_ENGINE</name>
 	<description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
 
 
 	<properties>
-		<shaft_engine.version>SHAFT_ENGINE-1.0.20180731</shaft_engine.version>
+		<shaft_engine.version>SHAFT_ENGINE-1.0.20180802</shaft_engine.version>
 
 		<!-- Execution Properties -->
 		<!-- <testSuite.name>cucumber_testSuite</testSuite.name> -->
@@ -28,6 +28,7 @@
 		<testDataFolderPath>src/test/resources/TestDataFiles/</testDataFolderPath>
 		<testDataColumnNamePrefix>Data</testDataColumnNamePrefix>
 		<defaultElementIdentificationTimeout>30</defaultElementIdentificationTimeout>
+		<allureResultsFolderPath>allure-results/</allureResultsFolderPath>
 
 		<!-- Version Numbers Properties -->
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -57,6 +58,19 @@
 	</properties>
 
 	<dependencies>
+		<dependency>
+			<groupId>io.appium</groupId>
+			<artifactId>java-client</artifactId>
+			<version>6.1.0</version>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.seleniumhq.selenium</groupId>
+					<artifactId>selenium-java</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
 		<!-- remote ssh commands -->
 		<dependency>
 			<groupId>com.jcraft</groupId>
@@ -179,6 +193,7 @@
 							<testDataFolderPath>${testDataFolderPath}</testDataFolderPath>
 							<testDataColumnNamePrefix>${testDataColumnNamePrefix}</testDataColumnNamePrefix>
 							<defaultElementIdentificationTimeout>${defaultElementIdentificationTimeout}</defaultElementIdentificationTimeout>
+							<allureResultsFolderPath>${allureResultsFolderPath}</allureResultsFolderPath>
 						</systemPropertyVariables>
 						<!-- To continue execution after validation errors are thrown in the 
 							before method -->
