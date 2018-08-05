@@ -4,16 +4,21 @@ import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
+
 import org.testng.Reporter;
 import io.qameta.allure.Allure;
 import io.qameta.allure.Attachment;
 import io.qameta.allure.Step;
+import com.shaftEngine.supportActionLibrary.SSHActions;
+import com.shaftEngine.ioActionLibrary.FileManager;
 
 public class ReportManager {
 
 	private static String fullLog = "";
 	private static int actionCounter = 1;
 	private static boolean isHeaderTyped = false;
+	private static boolean log = true;
 
 	// private static int attachmentCounter = 1;
 	// TODO : implement attachemntCounter for both attachment functions
@@ -32,23 +37,13 @@ public class ReportManager {
 			// calls parent log function recursively in order to log shaft version before
 			// performing the first action
 
-			// sets up some parameters to the allure report
-			FileManager.writeToFile(System.getProperty("allureResultsFolderPath"), "environment.properties",
-					Arrays.asList("Engine=" + System.getProperty("shaftEngineVersion"),
-							"OS=" + System.getProperty("targetOperatingSystem"),
-							"Browser=" + System.getProperty("targetBrowserName"),
-							"Location=" + System.getProperty("executionAddress")));
-			/*
-			 * "Flags_AutoMaximizeBrowserWindow=" +
-			 * System.getProperty("autoMaximizeBrowserWindow"), "Flags_ScreenshotManager=" +
-			 * System.getProperty("screenshooterFlag"),
-			 * "Config_DefaultElementIdentificationTimeout=" +
-			 * System.getProperty("defaultElementIdentificationTimeout")));
-			 */
+			populateEnvironmentData();
 
 		}
-		writeLog(logText, actionCounter);
-		actionCounter++;
+		if (log) {
+			writeLog(logText, actionCounter);
+			actionCounter++;
+		}
 	}
 
 	/**
@@ -62,7 +57,7 @@ public class ReportManager {
 	 *            this test run
 	 */
 	@Step("Action [{actionCounter}]: {logText}")
-	public static void writeLog(String logText, int actionCounter) {
+	private static void writeLog(String logText, int actionCounter) {
 		performLogEntry(logText);
 		actionCounter++;
 	}
@@ -89,8 +84,10 @@ public class ReportManager {
 	 */
 	@Step("Attachement: {attachmentType} - {attachmentName}")
 	public static void attach(String attachmentType, String attachmentName, InputStream attachmentContent) {
-		Allure.addAttachment(attachmentName, attachmentContent);
-		performLogEntry("Successfully created attachment [" + attachmentType + " - " + attachmentName + "]");
+		if (log) {
+			Allure.addAttachment(attachmentName, attachmentContent);
+			performLogEntry("Successfully created attachment [" + attachmentType + " - " + attachmentName + "]");
+		}
 	}
 
 	/**
@@ -104,8 +101,10 @@ public class ReportManager {
 	 */
 	@Step("Attachment: {attachmentName}")
 	public static void attach(String attachmentName, String attachmentContent) {
-		Allure.addAttachment(attachmentName, attachmentContent);
-		performLogEntry("Successfully created attachment [" + attachmentName + "]");
+		if (log) {
+			Allure.addAttachment(attachmentName, attachmentContent);
+			performLogEntry("Successfully created attachment [" + attachmentName + "]");
+		}
 	}
 
 	/**
@@ -129,10 +128,16 @@ public class ReportManager {
 	 * Returns the complete log of the current execution session, and attaches it in
 	 * the end of the test execution report.
 	 * 
-	 * @return the full execution log of the whole run
 	 */
+	public static void getFullLog() {
+		attachFullLog();
+		if (Boolean.valueOf(System.getProperty("automaticallyGenerateAllureReport").trim())) {
+			generateAllureReportArchive();
+		}
+	}
+
 	@Attachment("Full log")
-	public static String getFullLog() {
+	private static String attachFullLog() {
 		return fullLog;
 	}
 
@@ -144,5 +149,45 @@ public class ReportManager {
 	 */
 	private static void appendToFullLog(String log) {
 		fullLog += log;
+	}
+
+	private static void generateAllureReportArchive() {
+		log("Generating Allure Report Archive...");
+		log = false;
+		List<String> commandToCreateAllureReport = Arrays.asList(
+				"src/main/resources/allure/bin/allure generate \"allure-results\" -o \"generatedReport/allure-report\"");
+		SSHActions.executeShellCommand(commandToCreateAllureReport);
+
+		FileManager.copyFolder(FileManager.getAbsolutePath("src/main/resources/", "allure"), "generatedReport/allure");
+
+		// "src/main/resources/allure/bin/allure open \"allure-report\""
+
+		List<String> commandToOpenAllureReport = Arrays.asList("#!/bin/bash",
+				"parent_path=$( cd \"$(dirname \"${BASH_SOURCE[0]}\")\" ; pwd -P )", "cd \"$parent_path/allure/bin/\"",
+				"bash allure open \"$parent_path/allure-report\"", "exit");
+		FileManager.writeToFile("generatedReport/", "open_allure_report.sh", commandToOpenAllureReport);
+
+		FileManager.zipFiles("generatedReport/", "generatedReport.zip");
+
+		FileManager.deleteFile("generatedReport/");
+		log = true;
+		log("This test run was powered by SHAFT Engine Version: [" + System.getProperty("shaftEngineVersion")
+				+ "] © Copyrights Reserved to [Mohab Mohie].");
+	}
+
+	private static void populateEnvironmentData() {
+		// sets up some parameters to the allure report
+		FileManager.writeToFile(System.getProperty("allureResultsFolderPath"), "environment.properties",
+				Arrays.asList("Engine=" + System.getProperty("shaftEngineVersion"),
+						"OS=" + System.getProperty("targetOperatingSystem"),
+						"Browser=" + System.getProperty("targetBrowserName"),
+						"Location=" + System.getProperty("executionAddress")));
+		/*
+		 * "Flags_AutoMaximizeBrowserWindow=" +
+		 * System.getProperty("autoMaximizeBrowserWindow"), "Flags_ScreenshotManager=" +
+		 * System.getProperty("screenshooterFlag"),
+		 * "Config_DefaultElementIdentificationTimeout=" +
+		 * System.getProperty("defaultElementIdentificationTimeout")));
+		 */
 	}
 }

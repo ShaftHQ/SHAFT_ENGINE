@@ -1,5 +1,7 @@
 /target/
 /allure-results/
+/allure-report/
 /test-output/
 /dependency-reduced-pom.xml
 /b.sh
+/generatedReport.zip

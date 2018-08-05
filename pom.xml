@@ -29,6 +29,7 @@
 		<testDataColumnNamePrefix>Data</testDataColumnNamePrefix>
 		<defaultElementIdentificationTimeout>30</defaultElementIdentificationTimeout>
 		<allureResultsFolderPath>allure-results/</allureResultsFolderPath>
+		<automaticallyGenerateAllureReport>false</automaticallyGenerateAllureReport>
 
 		<!-- Version Numbers Properties -->
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -194,6 +195,7 @@
 							<testDataColumnNamePrefix>${testDataColumnNamePrefix}</testDataColumnNamePrefix>
 							<defaultElementIdentificationTimeout>${defaultElementIdentificationTimeout}</defaultElementIdentificationTimeout>
 							<allureResultsFolderPath>${allureResultsFolderPath}</allureResultsFolderPath>
+							<automaticallyGenerateAllureReport>${automaticallyGenerateAllureReport}</automaticallyGenerateAllureReport>
 						</systemPropertyVariables>
 						<!-- To continue execution after validation errors are thrown in the 
 							before method -->
