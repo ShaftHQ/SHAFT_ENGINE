@@ -136,13 +136,10 @@ public class ExcelFileManager {
 				if (cell.getCellTypeEnum() == CellType.STRING)
 					return cell.getStringCellValue();
 				else if (cell.getCellTypeEnum() == CellType.NUMERIC || cell.getCellTypeEnum() == CellType.FORMULA) {
-					String cellValue = "";
-					try {
-						cellValue = String.valueOf(Integer.parseInt(String.valueOf(cell.getNumericCellValue())));
-					} catch (NumberFormatException e) {
-						cellValue = String.valueOf(cell.getNumericCellValue());
+					String cellValue = String.valueOf(cell.getNumericCellValue());
+					if (cellValue.contains(".0")) {
+						cellValue = cellValue.split("\\.")[0];
 					}
-
 					if (HSSFDateUtil.isCellDateFormatted(cell)) {
 						DateFormat df = new SimpleDateFormat("dd/MM/yy");
 						Date date = cell.getDateCellValue();

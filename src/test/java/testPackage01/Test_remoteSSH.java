@@ -1,5 +1,8 @@
 package testPackage01;
 
+import java.util.Arrays;
+import java.util.List;
+
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -20,6 +23,13 @@ public class Test_remoteSSH {
 		String sshCommand = "ls -ltr";
 
 		SSHActions.performSSHcommand(hostname, sshPortNumber, username, keyFileFolderName, keyFileName, sshCommand);
+	}
+
+	@Test
+	public void test_localShellCommand() {
+
+		List<String> commands = Arrays.asList("ls", "ls -ltr");
+		SSHActions.executeShellCommand(commands);
 	}
 
 	@BeforeClass // Set-up method, to be run once before the first test

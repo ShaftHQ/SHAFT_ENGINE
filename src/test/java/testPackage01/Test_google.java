@@ -30,7 +30,7 @@ public class Test_google {
 	@Test(priority = 1, description = "TC002 - Search for Query and Assert that the number of results is displayed")
 	public void searchForQueryandAssertResultsNumDisplayed() {
 		// temp steps for debugging changes to the type function
-		searchObject.searchForQuery(testDataReader.getCellData("Search Query")); // Perform search for the query that is
+		searchObject.searchForQuery(testDataReader.getCellData("Search Query 2")); // Perform search for the query that is
 																					// retrieved from test data
 		resultsObject = new GoogleSearchResults(driver); // initialize a new instance of the page
 		resultsObject.assertResultsStatsExistsAndIsNotEmpty(); // Check that search results counter holds a value

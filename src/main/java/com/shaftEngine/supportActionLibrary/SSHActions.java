@@ -2,8 +2,9 @@ package com.shaftEngine.supportActionLibrary;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Properties;
 
 import org.testng.Assert;
@@ -24,7 +25,7 @@ public class SSHActions {
 		}
 		ReportManager.log(message);
 		if (log != null) {
-			ReportManager.attach("SSH Response data", log);
+			ReportManager.attach("Command Response data", log);
 		}
 	}
 
@@ -39,7 +40,7 @@ public class SSHActions {
 		}
 		ReportManager.log(message);
 		if (log != null) {
-			ReportManager.attach("SSH Response data", log);
+			ReportManager.attach("Command Response data", log);
 		}
 		Assert.fail(message);
 	}
@@ -58,7 +59,7 @@ public class SSHActions {
 			config.put("StrictHostKeyChecking", "no");
 			JSch jsch = new JSch();
 
-			jsch.addIdentity(FileManager.getAbsoluteFilePath(keyFileFolderName, keyFileName));
+			jsch.addIdentity(FileManager.getAbsolutePath(keyFileFolderName, keyFileName));
 			session = jsch.getSession(username, hostname, sshPortNumber);
 			session.setConfig(config);
 
@@ -66,7 +67,8 @@ public class SSHActions {
 			// System.out.println("Connected");
 			passAction("createSSHsession", testData);
 		} catch (JSchException e) {
-			e.printStackTrace();
+			// e.printStackTrace();
+			ReportManager.log(e.getMessage());
 			failAction("createSSHsession", testData);
 		}
 		return session;
@@ -81,12 +83,21 @@ public class SSHActions {
 			channelExec.setCommand(sshCommand);
 			channelExec.connect();
 
-			InputStream in = channelExec.getInputStream();
-			BufferedReader reader = new BufferedReader(new InputStreamReader(in));
-			String line;
+			BufferedReader reader = new BufferedReader(new InputStreamReader(channelExec.getInputStream()));
+			BufferedReader errorReader = new BufferedReader(new InputStreamReader(channelExec.getErrStream()));
+
+			if (log.equals("")) {
+				log = sshCommand + ":" + System.lineSeparator();
+			} else {
+				log = log + System.lineSeparator() + System.lineSeparator() + "Command: " + sshCommand
+						+ System.lineSeparator();
+			}
+
+			String line = "";
 			while ((line = reader.readLine()) != null) {
-				// System.out.println(line);
-				// line = line.replace("<br>", System.lineSeparator());
+				log = log + System.lineSeparator() + line;
+			}
+			while ((line = errorReader.readLine()) != null) {
 				log = log + System.lineSeparator() + line;
 			}
 
@@ -103,10 +114,11 @@ public class SSHActions {
 			session.disconnect();
 			// System.out.println("DONE");
 			passAction("performSSHcommand", sshCommand, log);
-
+			reader.close();
 			return log;
 		} catch (JSchException | IOException | NullPointerException e) {
-			e.printStackTrace();
+			// e.printStackTrace();
+			ReportManager.log(e.getMessage());
 			failAction("performSSHcommand", sshCommand, log);
 			return log;
 		}
@@ -128,7 +140,7 @@ public class SSHActions {
 	 * @param keyFileName
 	 *            Name of the key file including its extension (if any)
 	 * @param sshCommand
-	 *            The target commang that should be executed on the SSH server
+	 *            The target command that should be executed on the SSH server
 	 * @return
 	 */
 	public static String performSSHcommand(String hostname, int sshPortNumber, String username,
@@ -139,4 +151,51 @@ public class SSHActions {
 
 		return log;
 	}
+
+	public static String executeShellCommand(List<String> commands) {
+		String log = "";
+		String command = "";
+		// String command = String.join(" && ", commands);
+		try {
+			for (Iterator<String> i = commands.iterator(); i.hasNext();) {
+				command = i.next();
+
+				if (log.equals("")) {
+					log = command + ":" + System.lineSeparator();
+				} else {
+					log = log + System.lineSeparator() + System.lineSeparator() + "Command: " + command
+							+ System.lineSeparator();
+				}
+
+				Process p = Runtime.getRuntime().exec(command);
+				p.waitFor();
+
+				BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
+				BufferedReader errorReader = new BufferedReader(new InputStreamReader(p.getErrorStream()));
+
+				String line = "";
+				while ((line = reader.readLine()) != null) {
+					log = log + System.lineSeparator() + line;
+				}
+				while ((line = errorReader.readLine()) != null) {
+					log = log + System.lineSeparator() + line;
+				}
+				reader.close();
+				errorReader.close();
+			}
+		} catch (IOException e) {
+			// e.printStackTrace();
+			ReportManager.log(e.getMessage());
+			failAction("executeShellCommand", command, log);
+			return log;
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+			ReportManager.log(e.getMessage());
+			failAction("executeShellCommand", command, log);
+			return log;
+		}
+		passAction("executeShellCommand", String.join(" && ", commands), log);
+		return log;
+	}
+
 }
