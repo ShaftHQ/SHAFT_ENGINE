@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 import org.openqa.selenium.By;
@@ -35,6 +36,10 @@ public class ElementActions {
 	static int defaultElementIdentificationTimeout = Integer
 			.parseInt(System.getProperty("defaultElementIdentificationTimeout").trim());
 	static int retriesBeforeThrowingElementNotFoundException = 10;
+
+	private ElementActions() {
+		throw new IllegalStateException("Utility class");
+	}
 
 	/**
 	 * Returns True if only one element matches the locator specified, and Returns
@@ -157,32 +162,16 @@ public class ElementActions {
 	}
 
 	private static int countFoundElements(WebDriver driver, By elementLocator, int timeout) {
-		// JSWaiter.waitJQueryAngular();
-		try {
-			JSWaiter.waitForLazyLoading();
-		} catch (Exception e) {
-			if (e.getMessage().contains("jQuery is not defined")
-					| e.getMessage().contains("Error communicating with the remote browser. It may have died.")) {
-				// do nothing
-			} else {
-				ReportManager.log("Unhandled Exception: " + e.getMessage());
-				return 0;
-			}
-
+		if (!isWaitForLazyLoadingSuccessful()) {
+			return 0;
 		}
 		// implementing loop to try and break out of the stale element exception issue
 		int count = 0;
 		int foundElementsCount = 0;
 		while (count < retriesBeforeThrowingElementNotFoundException) {
 			try {
-				(new WebDriverWait(driver, timeout)).until(ExpectedConditions.presenceOfElementLocated(elementLocator));
-				foundElementsCount = driver.findElements(elementLocator).size();
-				if (foundElementsCount == 1) {
-					moveToElement(driver, elementLocator);
-					// will return 1
-				}
-				// will return count
-				break;
+				// attempt to find elements
+				foundElementsCount = attemptToFindElements(driver, elementLocator, timeout);
 			} catch (StaleElementReferenceException | ElementNotInteractableException | UnreachableBrowserException
 					| NoSuchElementException ex) {
 				if (count + 1 == retriesBeforeThrowingElementNotFoundException) {
@@ -190,16 +179,47 @@ public class ElementActions {
 					return 0;
 				}
 				count++;
-			} catch (Throwable t) {
-				if (t.getMessage().contains("cannot focus element")) {
+			} catch (Exception e) {
+				if (e.getMessage().contains("cannot focus element")) {
 					count++;
 				} else {
-					ReportManager.log("Unhandled Exception: " + t.getMessage());
+					ReportManager.log("Unhandled Exception: " + e.getMessage());
 					return 0;
 				}
 			}
 		}
 		return foundElementsCount;
+	}
+
+	private static int attemptToFindElements(WebDriver driver, By elementLocator, int timeout) {
+
+		(new WebDriverWait(driver, timeout)).until(ExpectedConditions.presenceOfElementLocated(elementLocator));
+		int foundElements = driver.findElements(elementLocator).size();
+		if (foundElements == 1) {
+			if (!elementLocator.toString().contains("input[@type='file']")) {
+				(new WebDriverWait(driver, defaultElementIdentificationTimeout))
+						.until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
+			}
+			moveToElement(driver, elementLocator);
+			return 1;
+		}
+		return foundElements;
+	}
+
+	private static boolean isWaitForLazyLoadingSuccessful() {
+		try {
+			JSWaiter.waitForLazyLoading();
+		} catch (Exception e) {
+			if (e.getMessage().contains("jQuery is not defined")
+					|| e.getMessage().contains("Error communicating with the remote browser. It may have died.")) {
+				// do nothing
+			} else {
+				ReportManager.log("Unhandled Exception: " + e.getMessage());
+				return false;
+			}
+
+		}
+		return true;
 	}
 
 	private static void moveToElement(WebDriver driver, By elementLocator) {
@@ -238,7 +258,7 @@ public class ElementActions {
 			// moveToElement(driver, elementLocator);
 			ScreenshotManager.captureScreenShot(driver, elementLocator, actionName + "_performed", true);
 			ReportManager.log(message);
-		} catch (Throwable t) {
+		} catch (Exception e) {
 			// t.printStackTrace();
 			ReportManager.log(
 					"Failed to take a screenshot of the element as it doesn't exist anymore. Taking a screenshot of the whole page.");
@@ -279,17 +299,17 @@ public class ElementActions {
 						.until(ExpectedConditions.elementToBeClickable(elementLocator));
 				// wait for element to be clickable
 				driver.findElement(elementLocator).click();
-			} catch (Throwable t) {
-				if (t.getMessage().contains("Other element would receive the click")
-						|| t.getMessage().contains("Expected condition failed: waiting for element to be clickable")
-						|| t.getMessage().matches(
+			} catch (Exception e) {
+				if (e.getMessage().contains("Other element would receive the click")
+						|| e.getMessage().contains("Expected condition failed: waiting for element to be clickable")
+						|| e.getMessage().matches(
 								"([\\s\\S]*Element.*is not clickable at point.*because another element.*obscures it\\s[\\s\\S]*)")) {
 					((JavascriptExecutor) driver).executeScript("arguments[0].click();",
 							driver.findElement(elementLocator));
 					// attempting to click using javascript if the regular click fails due to a
 					// webdriver error
 				} else {
-					failAction(driver, "click", "Unhandled Exception: " + t.getMessage());
+					failAction(driver, "click", "Unhandled Exception: " + e.getMessage());
 				}
 			}
 		} else {
@@ -308,16 +328,11 @@ public class ElementActions {
 	 */
 	public static void clickAndHold(WebDriver driver, By elementLocator) {
 		if (internalCanFindUniqueElement(driver, elementLocator)) {
-			(new WebDriverWait(driver, 30)).until(ExpectedConditions.elementToBeClickable(elementLocator)); // wait for
-																											// element
-																											// to be
-																											// clickable
+			(new WebDriverWait(driver, 30)).until(ExpectedConditions.elementToBeClickable(elementLocator));
+			// wait for element to be clickable
 			passAction(driver, elementLocator, "clickAndHold");
-			(new Actions(driver)).clickAndHold(driver.findElement(elementLocator)).build().perform(); // takes
-																										// screenshot
-																										// before
-																										// holding the
-																										// element
+			(new Actions(driver)).clickAndHold(driver.findElement(elementLocator)).build().perform();
+			// takes screenshot before holding the element
 		} else {
 			failAction(driver, "clickAndHold");
 		}
@@ -336,7 +351,7 @@ public class ElementActions {
 	 *            the target text that needs to be typed into the target webElement
 	 */
 	public static void type(WebDriver driver, By elementLocator, String text) {
-		if (internalCanFindUniqueElement(driver, elementLocator) && (text != null)) {
+		if (internalCanFindUniqueElement(driver, elementLocator) && (!text.equals(""))) {
 			String successfulTextLocationStrategy;
 			String elementText = driver.findElement(elementLocator).getText();
 			successfulTextLocationStrategy = "text";
@@ -349,56 +364,67 @@ public class ElementActions {
 				successfulTextLocationStrategy = "value";
 			}
 			if (!elementText.trim().equals("")) {
-				driver.findElement(elementLocator).clear(); // attempt to clear element then check text size
-				switch (successfulTextLocationStrategy) {
-				case "text":
-					elementText = driver.findElement(elementLocator).getText();
-					break;
-				case "textContent":
-					elementText = driver.findElement(elementLocator).getAttribute("textContent");
-					break;
-				case "value":
-					elementText = driver.findElement(elementLocator).getAttribute("value");
-					break;
-				default:
-					break;
-				}
-				if (!elementText.trim().equals("")) {
-					int counter = elementText.length(); // delete text manually if clear didn't work
-					while (counter > 0) {
-						driver.findElement(elementLocator).sendKeys(Keys.BACK_SPACE);
-						counter--;
-					}
-				}
+				// attempt to clear element then check text size
+				clearBeforeTyping(driver, elementLocator, elementText, successfulTextLocationStrategy);
 			}
-			if (internalCanFindUniqueElement(driver, elementLocator) && (text != null)) {
+			if (internalCanFindUniqueElement(driver, elementLocator) && (!text.equals(""))) {
 				driver.findElement(elementLocator).sendKeys(text);
 			}
 
 			// to confirm that the text was written successfully
-			String actualText = "";
-			switch (successfulTextLocationStrategy) {
-			case "text":
-				actualText = driver.findElement(elementLocator).getText();
-				break;
-			case "textContent":
-				actualText = driver.findElement(elementLocator).getAttribute("textContent");
-				break;
-			case "value":
-				actualText = driver.findElement(elementLocator).getAttribute("value");
-				break;
-			default:
-				break;
-			}
-			if (actualText.equals(text)) {
-				passAction(driver, elementLocator, "type", text);
-			} else {
-				failAction(driver, "type",
-						"Expected to type: \"" + text + "\", but ended up with: \"" + actualText + "\"");
-			}
+			confirmTypingWasSuccessful(driver, elementLocator, text, successfulTextLocationStrategy);
 
 		} else {
 			failAction(driver, "type", text);
+		}
+	}
+
+	private static void clearBeforeTyping(WebDriver driver, By elementLocator, String elementText,
+			String successfulTextLocationStrategy) {
+		driver.findElement(elementLocator).clear();
+		switch (successfulTextLocationStrategy) {
+		case "text":
+			elementText = driver.findElement(elementLocator).getText();
+			break;
+		case "textContent":
+			elementText = driver.findElement(elementLocator).getAttribute("textContent");
+			break;
+		case "value":
+			elementText = driver.findElement(elementLocator).getAttribute("value");
+			break;
+		default:
+			break;
+		}
+		if (!elementText.trim().equals("")) {
+			int counter = elementText.length(); // delete text manually if clear didn't work
+			while (counter > 0) {
+				driver.findElement(elementLocator).sendKeys(Keys.BACK_SPACE);
+				counter--;
+			}
+		}
+	}
+
+	private static void confirmTypingWasSuccessful(WebDriver driver, By elementLocator, String text,
+			String successfulTextLocationStrategy) {
+		// to confirm that the text was written successfully
+		String actualText = "";
+		switch (successfulTextLocationStrategy) {
+		case "text":
+			actualText = driver.findElement(elementLocator).getText();
+			break;
+		case "textContent":
+			actualText = driver.findElement(elementLocator).getAttribute("textContent");
+			break;
+		case "value":
+			actualText = driver.findElement(elementLocator).getAttribute("value");
+			break;
+		default:
+			break;
+		}
+		if (actualText.equals(text)) {
+			passAction(driver, elementLocator, "type", text);
+		} else {
+			failAction(driver, "type", "Expected to type: \"" + text + "\", but ended up with: \"" + actualText + "\"");
 		}
 	}
 
@@ -415,7 +441,7 @@ public class ElementActions {
 	 *            the full path to the file that needs to be uploaded
 	 */
 	public static void typeFileLocationForUpload(WebDriver driver, By elementLocator, String absoluteFilePath) {
-		absoluteFilePath.replace("/", FileSystems.getDefault().getSeparator());
+		absoluteFilePath = absoluteFilePath.replace("/", FileSystems.getDefault().getSeparator());
 		if (internalCanFindUniqueElement(driver, elementLocator)) {
 			passAction(driver, elementLocator, "typeFileLocationForUpload", absoluteFilePath);
 			try {
@@ -585,8 +611,8 @@ public class ElementActions {
 				dragAndDropHelper = dragAndDropHelper + "$(arguments[0]).simulateDragDrop({dropTarget:arguments[1]});";
 
 				((JavascriptExecutor) driver).executeScript(dragAndDropHelper, sourceElement, destinationElement);
-			} catch (Throwable t) {
-				ReportManager.log(t.getMessage());
+			} catch (Exception e) {
+				ReportManager.log(e.getMessage());
 				failAction(driver, "dragAndDrop");
 			}
 
@@ -721,13 +747,13 @@ public class ElementActions {
 			try {
 				(new WebDriverWait(driver, defaultElementIdentificationTimeout * numberOfTries))
 						.until(ExpectedConditions.not(ExpectedConditions.textToBe(elementLocator, initialValue)));
-			} catch (Throwable t) {
+			} catch (Exception e) {
 				//
 			}
 			try {
 				passAction(driver, elementLocator, "waitForTextToChange",
 						"from: \"" + initialValue + "\", to: \"" + getText(driver, elementLocator) + "\"");
-			} catch (Throwable t) {
+			} catch (Exception e) {
 				passAction(driver, elementLocator, "waitForTextToChange",
 						"from: \"" + initialValue + "\", to a new value.");
 			}
@@ -788,82 +814,85 @@ public class ElementActions {
 	public static void clipboardActions(WebDriver driver, By elementLocator, String action) {
 		if (internalCanFindUniqueElement(driver, elementLocator)) {
 			if (!System.getProperty("targetOperatingSystem").equals("Mac-64")) {
-				switch (action.toLowerCase()) {
-				case "copy":
-					(new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "c")).perform();
-					// (new Actions(driver)).keyDown(driver.findElement(elementLocator),
-					// Keys.COMMAND).sendKeys("c") .keyUp(Keys.COMMAND);
-					break;
-				case "paste":
-					(new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "v")).perform();
-					// (new Actions(driver)).keyDown(driver.findElement(elementLocator),
-					// Keys.COMMAND).sendKeys("v") .keyUp(Keys.COMMAND);
-					break;
-				case "cut":
-					(new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "x")).perform();
-					// (new Actions(driver)).keyDown(driver.findElement(elementLocator),
-					// Keys.COMMAND).sendKeys("x") .keyUp(Keys.COMMAND);
-					break;
-				case "select all":
-					(new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "a")).perform();
-					// (new Actions(driver)).keyDown(driver.findElement(elementLocator),
-					// Keys.COMMAND).sendKeys("a") .keyUp(Keys.COMMAND);
-					break;
-				case "unselect":
-					(new Actions(driver)).sendKeys(Keys.ESCAPE).perform();
-					break;
-				default:
-					failAction(driver, "clipboardActions", "Unsupported Action");
-					break;
-				}
-				passAction(driver, elementLocator, "clipboardActions", action);
+				performClipboardActionsForMac(driver, elementLocator, action);
 			} else {
-
-				try {
-					switch (action.toLowerCase()) {
-					case "copy":
-						(Toolkit.getDefaultToolkit().getSystemClipboard())
-								.setContents((new StringSelection(getText(driver, elementLocator))), null);
-						break;
-					case "paste":
-						try {
-							typeAppend(driver, elementLocator,
-									(String) ((Toolkit.getDefaultToolkit().getSystemClipboard())
-											.getContents(ElementActions.class))
-													.getTransferData(DataFlavor.stringFlavor));
-						} catch (UnsupportedFlavorException e) {
-							ReportManager.log("Unsupported Flavor Exception: " + e.getMessage());
-							ReportManager.log(e.getStackTrace().toString());
-						} catch (IOException e) {
-							ReportManager.log("IO Exception: " + e.getMessage());
-							ReportManager.log(e.getStackTrace().toString());
-						}
-						break;
-					case "cut":
-						(Toolkit.getDefaultToolkit().getSystemClipboard())
-								.setContents((new StringSelection(getText(driver, elementLocator))), null);
-						type(driver, elementLocator, "");
-						break;
-					case "select all":
-						// (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "a")).perform();
-						break;
-					case "unselect":
-						// (new Actions(driver)).sendKeys(Keys.ESCAPE).perform();
-						break;
-					default:
-						failAction(driver, "clipboardActions", "Unsupported Action");
-						break;
-					}
-					passAction(driver, elementLocator, "clipboardActions", action);
-				} catch (HeadlessException e) {
-					ReportManager.log("Headless Exception: " + e.getMessage());
-					ReportManager.log(e.getStackTrace().toString());
-				}
+				performClipboardActions(driver, elementLocator, action);
 			}
 
 		} else {
 			failAction(driver, "clipboardActions");
 		}
+	}
+
+	private static void performClipboardActions(WebDriver driver, By elementLocator, String action) {
+
+		try {
+			switch (action.toLowerCase()) {
+			case "copy":
+				(Toolkit.getDefaultToolkit().getSystemClipboard())
+						.setContents((new StringSelection(getText(driver, elementLocator))), null);
+				break;
+			case "paste":
+				pasteFromClipboard(driver, elementLocator);
+				break;
+			case "cut":
+				(Toolkit.getDefaultToolkit().getSystemClipboard())
+						.setContents((new StringSelection(getText(driver, elementLocator))), null);
+				type(driver, elementLocator, "");
+				break;
+			case "select all":
+				// (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "a")).perform();
+				break;
+			case "unselect":
+				// (new Actions(driver)).sendKeys(Keys.ESCAPE).perform();
+				break;
+			default:
+				failAction(driver, "clipboardActions", "Unsupported Action");
+				break;
+			}
+			passAction(driver, elementLocator, "clipboardActions", action);
+		} catch (HeadlessException e) {
+			ReportManager.log("Headless Exception: " + e.getMessage());
+			ReportManager.log(Arrays.toString(e.getStackTrace()));
+		}
+	}
+
+	private static void pasteFromClipboard(WebDriver driver, By elementLocator) {
+		try {
+			typeAppend(driver, elementLocator,
+					(String) ((Toolkit.getDefaultToolkit().getSystemClipboard()).getContents(ElementActions.class))
+							.getTransferData(DataFlavor.stringFlavor));
+		} catch (UnsupportedFlavorException e) {
+			ReportManager.log("Unsupported Flavor Exception: " + e.getMessage());
+			ReportManager.log(Arrays.toString(e.getStackTrace()));
+		} catch (IOException e) {
+			ReportManager.log("IO Exception: " + e.getMessage());
+			ReportManager.log(Arrays.toString(e.getStackTrace()));
+		}
+	}
+
+	private static void performClipboardActionsForMac(WebDriver driver, By elementLocator, String action) {
+		switch (action.toLowerCase()) {
+		case "copy":
+			(new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "c")).perform();
+			break;
+		case "paste":
+			(new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "v")).perform();
+			break;
+		case "cut":
+			(new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "x")).perform();
+			break;
+		case "select all":
+			(new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "a")).perform();
+			break;
+		case "unselect":
+			(new Actions(driver)).sendKeys(Keys.ESCAPE).perform();
+			break;
+		default:
+			failAction(driver, "clipboardActions", "Unsupported Action");
+			break;
+		}
+		passAction(driver, elementLocator, "clipboardActions", action);
 	}
 
 	public static int getElementsCount(WebDriver driver, By elementLocator) {
