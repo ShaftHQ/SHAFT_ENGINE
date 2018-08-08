@@ -21,7 +21,7 @@
 		<!-- Acceptable Values: Default | MozillaFirefox | MicrosoftInternetExplorer 
 			| GoogleChrome | MicrosoftEdge | Safari -->
 		<autoMaximizeBrowserWindow>true</autoMaximizeBrowserWindow>
-		<screenshooterFlag>Always</screenshooterFlag>
+		<screenshooterFlag>ValidationPointsOnly</screenshooterFlag>
 		<!-- Acceptable Values: Always | Never | ValidationPointsOnly | FailuresOnly -->
 		<executionAddress>local</executionAddress>
 		<!-- <executionAddress>localhost:4444</executionAddress> -->
