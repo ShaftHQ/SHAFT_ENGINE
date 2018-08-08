@@ -172,6 +172,7 @@ public class ElementActions {
 			try {
 				// attempt to find elements
 				foundElementsCount = attemptToFindElements(driver, elementLocator, timeout);
+				return foundElementsCount;
 			} catch (StaleElementReferenceException | ElementNotInteractableException | UnreachableBrowserException
 					| NoSuchElementException ex) {
 				if (count + 1 == retriesBeforeThrowingElementNotFoundException) {

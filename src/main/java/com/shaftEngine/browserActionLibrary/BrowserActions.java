@@ -8,6 +8,7 @@ import org.openqa.selenium.Dimension;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Point;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
@@ -27,6 +28,10 @@ public class BrowserActions {
 	 * driver.switchTo().frame(arg0); driver.switchTo().parentFrame();
 	 * driver.switchTo().window(arg0);
 	 */
+
+	private BrowserActions() {
+		throw new IllegalStateException("Utility class");
+	}
 
 	private static void passAction(WebDriver driver, String actionName) {
 		passAction(driver, actionName, null);
@@ -66,9 +71,9 @@ public class BrowserActions {
 		triggerWaitForLazyLoading(driver);
 		String currentURL = "";
 		try {
-			currentURL = driver.getCurrentUrl().toString();
+			currentURL = driver.getCurrentUrl();
 			passAction(driver, "getCurrentURL", currentURL);
-		} catch (Throwable t) {
+		} catch (Exception e) {
 			failAction(driver, "getCurrentURL", currentURL);
 		}
 		return currentURL;
@@ -85,9 +90,9 @@ public class BrowserActions {
 		triggerWaitForLazyLoading(driver);
 		String currentWindowTitle = "";
 		try {
-			currentWindowTitle = driver.getTitle().toString();
+			currentWindowTitle = driver.getTitle();
 			passAction(driver, "getCurrentWindowTitle", currentWindowTitle);
-		} catch (Throwable t) {
+		} catch (Exception e) {
 			failAction(driver, "getCurrentWindowTitle", currentWindowTitle);
 		}
 		return currentWindowTitle;
@@ -104,9 +109,9 @@ public class BrowserActions {
 		triggerWaitForLazyLoading(driver);
 		String pageSource = "";
 		try {
-			pageSource = driver.getPageSource().toString();
+			pageSource = driver.getPageSource();
 			passAction(driver, "getPageSource", pageSource);
-		} catch (Throwable t) {
+		} catch (Exception e) {
 			failAction(driver, "getPageSource", pageSource);
 		}
 		return pageSource;
@@ -123,9 +128,9 @@ public class BrowserActions {
 		triggerWaitForLazyLoading(driver);
 		String windowHandle = "";
 		try {
-			windowHandle = driver.getWindowHandle().toString();
+			windowHandle = driver.getWindowHandle();
 			passAction(driver, "getWindowHandle", windowHandle);
-		} catch (Throwable t) {
+		} catch (Exception e) {
 			failAction(driver, "getWindowHandle", windowHandle);
 		}
 		return windowHandle;
@@ -144,7 +149,7 @@ public class BrowserActions {
 		try {
 			windowPosition = driver.manage().window().getPosition().toString();
 			passAction(driver, "getWindowPosition", windowPosition);
-		} catch (Throwable t) {
+		} catch (Exception e) {
 			failAction(driver, "getWindowPosition", windowPosition);
 		}
 		return windowPosition;
@@ -163,7 +168,7 @@ public class BrowserActions {
 		try {
 			windowSize = driver.manage().window().getSize().toString();
 			passAction(driver, "getWindowSize", windowSize);
-		} catch (Throwable t) {
+		} catch (Exception e) {
 			failAction(driver, "getWindowSize", windowSize);
 		}
 		return windowSize;
@@ -184,18 +189,23 @@ public class BrowserActions {
 		try {
 			currentUrl = driver.getCurrentUrl();
 			if (!currentUrl.equals(targetUrl)) {
-				try {
-					driver.navigate().to(targetUrl);
-				} catch (org.openqa.selenium.WebDriverException ex) {
-					failAction(driver, "navigateToURL", targetUrl);
-				}
+				// navigate to new url
+				navigateToNewURL(driver, targetUrl);
 				(new WebDriverWait(driver, 30)).until(ExpectedConditions.not(ExpectedConditions.urlToBe(currentUrl)));
 			} else {
 				// already on the same page
 				driver.navigate().refresh();
 			}
 			passAction(driver, "navigateToURL", targetUrl);
-		} catch (Throwable y) {
+		} catch (Exception e) {
+			failAction(driver, "navigateToURL", targetUrl);
+		}
+	}
+
+	private static void navigateToNewURL(WebDriver driver, String targetUrl) {
+		try {
+			driver.navigate().to(targetUrl);
+		} catch (WebDriverException ex) {
 			failAction(driver, "navigateToURL", targetUrl);
 		}
 	}
