@@ -4,13 +4,13 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.mohies</groupId>
 	<artifactId>SHAFT_ENGINE</artifactId>
-	<version>1.0.20180807</version>
+	<version>1.0.20180809</version>
 	<name>SHAFT_ENGINE</name>
 	<description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
 
 
 	<properties>
-		<shaft_engine.version>SHAFT_ENGINE-1.0.20180807</shaft_engine.version>
+		<shaft_engine.version>SHAFT_ENGINE-1.0.20180809</shaft_engine.version>
 
 		<!-- Execution Properties -->
 		<!-- <testSuite.name>cucumber_testSuite</testSuite.name> -->
@@ -38,9 +38,9 @@
 
 		<selenium.version>3.13.0</selenium.version>
 		<allure.version>2.7.0</allure.version>
-		<aspectj.version>1.8.13</aspectj.version>
+		<aspectj.version>1.9.1</aspectj.version>
 
-		<rest-assured.version>3.0.7</rest-assured.version>
+		<rest-assured.version>3.1.0</rest-assured.version>
 
 		<testng.version>6.14.3</testng.version>
 
@@ -48,13 +48,18 @@
 
 		<apachepoi.version>3.17</apachepoi.version>
 		<org.slf4j.version>1.7.25</org.slf4j.version>
-		<maven-compiler-plugin.version>3.7.0</maven-compiler-plugin.version>
-		<maven-surefire-plugin.version>2.20.1</maven-surefire-plugin.version>
-		<maven-shade-plugin.version>3.1.0</maven-shade-plugin.version>
-		<maven-jar-plugin.version>3.0.2</maven-jar-plugin.version>
-		<maven-javadoc-plugin.version>3.0.0</maven-javadoc-plugin.version>
+		<maven-compiler-plugin.version>3.8.0</maven-compiler-plugin.version>
+		<maven-surefire-plugin.version>2.22.0</maven-surefire-plugin.version>
+		<maven-shade-plugin.version>3.1.1</maven-shade-plugin.version>
+		<maven-jar-plugin.version>3.1.0</maven-jar-plugin.version>
+		<maven-javadoc-plugin.version>3.0.1</maven-javadoc-plugin.version>
+		<maven-source-plugin.version>3.0.1</maven-source-plugin.version>
+
+		<jcraft-jsch.version>0.1.54</jcraft-jsch.version>
 
 		<cucumber.version>3.0.2</cucumber.version>
+		<appium-java-client.version>6.1.0</appium-java-client.version>
+		<cverges-expect4j.version>1.9</cverges-expect4j.version>
 
 	</properties>
 
@@ -62,7 +67,7 @@
 		<dependency>
 			<groupId>io.appium</groupId>
 			<artifactId>java-client</artifactId>
-			<version>6.1.0</version>
+			<version>${appium-java-client.version}</version>
 			<scope>test</scope>
 			<exclusions>
 				<exclusion>
@@ -76,12 +81,12 @@
 		<dependency>
 			<groupId>com.jcraft</groupId>
 			<artifactId>jsch</artifactId>
-			<version>0.1.54</version>
+			<version>${jcraft-jsch.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.github.cverges</groupId>
 			<artifactId>expect4j</artifactId>
-			<version>1.9</version>
+			<version>${cverges-expect4j.version}</version>
 		</dependency>
 
 
@@ -280,6 +285,20 @@
 							<id>attach-javadocs</id>
 							<goals>
 								<goal>jar</goal>
+							</goals>
+						</execution>
+					</executions>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-source-plugin</artifactId>
+					<version>${maven-source-plugin.version}</version>
+					<executions>
+						<execution>
+							<id>attach-sources</id>
+							<phase>verify</phase>
+							<goals>
+								<goal>jar-no-fork</goal>
 							</goals>
 						</execution>
 					</executions>
