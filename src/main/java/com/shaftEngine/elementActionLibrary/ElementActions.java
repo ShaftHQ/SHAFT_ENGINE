@@ -197,11 +197,11 @@ public class ElementActions {
 		(new WebDriverWait(driver, timeout)).until(ExpectedConditions.presenceOfElementLocated(elementLocator));
 		int foundElements = driver.findElements(elementLocator).size();
 		if (foundElements == 1) {
+			moveToElement(driver, elementLocator);
 			if (!elementLocator.toString().contains("input[@type='file']")) {
 				(new WebDriverWait(driver, defaultElementIdentificationTimeout))
 						.until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
 			}
-			moveToElement(driver, elementLocator);
 			return 1;
 		}
 		return foundElements;
@@ -352,7 +352,8 @@ public class ElementActions {
 	 *            the target text that needs to be typed into the target webElement
 	 */
 	public static void type(WebDriver driver, By elementLocator, String text) {
-		if (internalCanFindUniqueElement(driver, elementLocator) && (!text.equals(""))) {
+		if (internalCanFindUniqueElement(driver, elementLocator)) {
+			// attempt to type
 			String successfulTextLocationStrategy;
 			String elementText = driver.findElement(elementLocator).getText();
 			successfulTextLocationStrategy = "text";
@@ -371,12 +372,11 @@ public class ElementActions {
 			if (internalCanFindUniqueElement(driver, elementLocator) && (!text.equals(""))) {
 				driver.findElement(elementLocator).sendKeys(text);
 			}
+			if (internalCanFindUniqueElement(driver, elementLocator) && (!text.equals(""))) {
+				// to confirm that the text was written successfully
+				confirmTypingWasSuccessful(driver, elementLocator, text, successfulTextLocationStrategy);
+			}
 
-			// to confirm that the text was written successfully
-			confirmTypingWasSuccessful(driver, elementLocator, text, successfulTextLocationStrategy);
-
-		} else {
-			failAction(driver, "type", text);
 		}
 	}
 
