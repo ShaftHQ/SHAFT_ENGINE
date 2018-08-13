@@ -3,6 +3,7 @@ package com.shaftEngine.supportActionLibrary;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
@@ -17,6 +18,10 @@ import com.shaftEngine.ioActionLibrary.FileManager;
 import com.shaftEngine.ioActionLibrary.ReportManager;
 
 public class SSHActions {
+
+	private SSHActions() {
+		throw new IllegalStateException("Utility class");
+	}
 
 	private static void passAction(String actionName, String testData, String log) {
 		String message = "Successfully performed action [" + actionName + "].";
@@ -67,61 +72,60 @@ public class SSHActions {
 			// System.out.println("Connected");
 			passAction("createSSHsession", testData);
 		} catch (JSchException e) {
-			// e.printStackTrace();
-			ReportManager.log(e.getMessage());
+			ReportManager.log(e);
 			failAction("createSSHsession", testData);
 		}
 		return session;
 	}
 
-	private static String performSSHcommand(Session session, String sshCommand) {
+	private static String performSSHcommand(Session session, List<String> commands) {
+		// StringBuilder logBuilder = new StringBuilder();
 		String log = "";
+		String command = "";
 
 		try {
+			for (Iterator<String> i = commands.iterator(); i.hasNext();) {
+				command = i.next();
+				ReportManager.log("Attempting to perform the following command remotely. Command: [" + command + "]");
 
-			ChannelExec channelExec = (ChannelExec) session.openChannel("exec");
-			channelExec.setCommand(sshCommand);
-			channelExec.connect();
+				ChannelExec channelExec = (ChannelExec) session.openChannel("exec");
+				channelExec.setCommand(command);
+				channelExec.connect();
+				BufferedReader reader = new BufferedReader(new InputStreamReader(channelExec.getInputStream()));
+				BufferedReader errorReader = new BufferedReader(new InputStreamReader(channelExec.getErrStream()));
 
-			BufferedReader reader = new BufferedReader(new InputStreamReader(channelExec.getInputStream()));
-			BufferedReader errorReader = new BufferedReader(new InputStreamReader(channelExec.getErrStream()));
+				String line = "";
+				while ((line = reader.readLine()) != null) {
+					log = log + System.lineSeparator() + line;
+					// System.out.println(line);
+				}
+				while ((line = errorReader.readLine()) != null) {
+					log = log + System.lineSeparator() + line;
+					// System.out.println(line);
+				}
 
-			if (log.equals("")) {
-				log = sshCommand + ":" + System.lineSeparator();
-			} else {
-				log = log + System.lineSeparator() + System.lineSeparator() + "Command: " + sshCommand
-						+ System.lineSeparator();
-			}
+				// Command execution completed here.
 
-			String line = "";
-			while ((line = reader.readLine()) != null) {
-				log = log + System.lineSeparator() + line;
-			}
-			while ((line = errorReader.readLine()) != null) {
-				log = log + System.lineSeparator() + line;
-			}
+				// Retrieve the exit status of the executed command
+				int exitStatus = channelExec.getExitStatus();
+				if (exitStatus > 0) {
+					// System.out.println("Remote script exec error! " + exitStatus);
+				}
 
-			// Command execution completed here.
+				reader.close();
+				errorReader.close();
 
-			// Retrieve the exit status of the executed command
-			int exitStatus = channelExec.getExitStatus();
-			if (exitStatus > 0) {
-				System.out.println("Remote script exec error! " + exitStatus);
 			}
 			// Disconnect the Session
 			session.disconnect();
-
-			session.disconnect();
 			// System.out.println("DONE");
-			passAction("performSSHcommand", sshCommand, log);
-			reader.close();
-			return log;
-		} catch (JSchException | IOException | NullPointerException e) {
-			// e.printStackTrace();
-			ReportManager.log(e.getMessage());
-			failAction("performSSHcommand", sshCommand, log);
+		} catch (IOException | NullPointerException | JSchException e) {
+			ReportManager.log(e);
+			failAction("performSSHcommand", String.join(" && ", commands), log);
 			return log;
 		}
+		passAction("performSSHcommand", String.join(" && ", commands), log);
+		return log;
 	}
 
 	/**
@@ -139,33 +143,32 @@ public class SSHActions {
 	 *            project directory
 	 * @param keyFileName
 	 *            Name of the key file including its extension (if any)
-	 * @param sshCommand
+	 * @param commands
 	 *            The target command that should be executed on the SSH server
 	 * @return
 	 */
 	public static String performSSHcommand(String hostname, int sshPortNumber, String username,
-			String keyFileFolderName, String keyFileName, String sshCommand) {
+			String keyFileFolderName, String keyFileName, List<String> commands) {
 
 		Session session = createSSHsession(hostname, sshPortNumber, username, keyFileFolderName, keyFileName);
-		String log = performSSHcommand(session, sshCommand);
+		return performSSHcommand(session, commands);
+	}
 
-		return log;
+	public static String performSSHcommand(String hostname, int sshPortNumber, String username,
+			String keyFileFolderName, String keyFileName, String command) {
+		return performSSHcommand(hostname, sshPortNumber, username, keyFileFolderName, keyFileName,
+				Arrays.asList(command));
 	}
 
 	public static String executeShellCommand(List<String> commands) {
 		String log = "";
 		String command = "";
-		// String command = String.join(" && ", commands);
+
 		try {
 			for (Iterator<String> i = commands.iterator(); i.hasNext();) {
 				command = i.next();
 
-				if (log.equals("")) {
-					log = command + ":" + System.lineSeparator();
-				} else {
-					log = log + System.lineSeparator() + System.lineSeparator() + "Command: " + command
-							+ System.lineSeparator();
-				}
+				ReportManager.log("Attempting to perform the following command locally. Command: [" + command + "]");
 
 				Process p = Runtime.getRuntime().exec(command);
 				p.waitFor();
@@ -183,19 +186,17 @@ public class SSHActions {
 				reader.close();
 				errorReader.close();
 			}
-		} catch (IOException e) {
-			// e.printStackTrace();
-			ReportManager.log(e.getMessage());
-			failAction("executeShellCommand", command, log);
-			return log;
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-			ReportManager.log(e.getMessage());
+		} catch (IOException | InterruptedException e) {
+			ReportManager.log(e);
 			failAction("executeShellCommand", command, log);
 			return log;
 		}
+
 		passAction("executeShellCommand", String.join(" && ", commands), log);
 		return log;
 	}
 
+	public static String executeShellCommand(String command) {
+		return executeShellCommand(Arrays.asList(command));
+	}
 }

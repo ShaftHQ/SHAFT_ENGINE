@@ -44,7 +44,7 @@ public class Verifications {
 				String oldMessage = Reporter.getCurrentTestResult().getThrowable().getMessage();
 				Reporter.getCurrentTestResult()
 						.setThrowable(new Throwable(oldMessage + "\nAND " + verificationFailuresString));
-			} catch (NullPointerException ex) {
+			} catch (NullPointerException e) {
 				Reporter.getCurrentTestResult().setThrowable(new Throwable(verificationFailuresString));
 			}
 			Reporter.getCurrentTestResult().setStatus(ITestResult.FAILURE);
@@ -77,7 +77,7 @@ public class Verifications {
 				Assert.assertTrue((String.valueOf(actualValue)).matches(String.valueOf(expectedValue)));
 				verificationSuccesses
 						.append("Verification Passed; actual value does match expected value [" + expectedValue + "].");
-			} catch (Throwable t) {
+			} catch (Exception e) {
 				verificationFailures.append("Verification Failed; actual value [" + actualValue
 						+ "] does not match expected value [" + expectedValue + "].");
 			}
@@ -86,7 +86,7 @@ public class Verifications {
 				Assert.assertFalse((String.valueOf(actualValue)).matches(String.valueOf(expectedValue)));
 				verificationSuccesses.append("Verification Passed; actual value [" + actualValue
 						+ "] does not match expected value [" + expectedValue + "].");
-			} catch (Throwable t) {
+			} catch (Exception e) {
 				verificationFailures
 						.append("Verification Failed; actual value does match expected value [" + actualValue + "].");
 			}
@@ -112,14 +112,14 @@ public class Verifications {
 			try {
 				Assert.assertNull(object);
 				verificationSuccesses.append("Verification Passed; actual value is null.");
-			} catch (Throwable t) {
+			} catch (Exception e) {
 				verificationFailures.append("Verification Failed; actual value is not null.");
 			}
 		} else {
 			try {
 				Assert.assertNotNull(object);
 				verificationSuccesses.append("Verification Passed; actual value is not null.");
-			} catch (Throwable t) {
+			} catch (Exception e) {
 				verificationFailures.append("Verification Failed; actual value is null.");
 			}
 		}
@@ -148,7 +148,7 @@ public class Verifications {
 				Assert.assertTrue(ElementActions.internalCanFindUniqueElement(driver, elementLocator));
 				verificationSuccesses.append(
 						"Assertion Passed; element exists and is unique. Locator [" + elementLocator.toString() + "].");
-			} catch (Throwable t) {
+			} catch (Exception e) {
 				verificationFailures.append("Assertion Failed; element does not exist or is not unique. Locator ["
 						+ elementLocator.toString() + "].");
 				elementLocator = null; // workaround to force take a screenshot of the whole page
@@ -159,7 +159,7 @@ public class Verifications {
 				verificationSuccesses.append("Assertion Passed; element does not exist or is not unique. Locator ["
 						+ elementLocator.toString() + "].");
 				elementLocator = null; // workaround to force take a screenshot of the whole page
-			} catch (Throwable t) {
+			} catch (Exception e) {
 				verificationFailures.append(
 						"Assertion Failed; element exists and is unique. Locator [" + elementLocator.toString() + "].");
 			}
@@ -216,7 +216,7 @@ public class Verifications {
 				Assert.assertTrue((String.valueOf(actualValue)).matches(String.valueOf(expectedValue)));
 				verificationSuccesses.append("Verification Passed; actual value of [" + elementAttribute
 						+ "] does match expected value [" + expectedValue + "].");
-			} catch (Throwable t) {
+			} catch (Exception e) {
 				verificationFailures.append("Verification Failed; actual value of [" + elementAttribute + "] equals ["
 						+ actualValue + "] which does not match expected value [" + expectedValue + "].");
 			}
@@ -225,7 +225,7 @@ public class Verifications {
 				Assert.assertFalse((String.valueOf(actualValue)).matches(String.valueOf(expectedValue)));
 				verificationSuccesses.append("Verification Passed; actual value of [" + elementAttribute + "] equals ["
 						+ actualValue + "] which does not match expected value [" + expectedValue + "].");
-			} catch (Throwable t) {
+			} catch (Exception e) {
 				verificationFailures.append("Verification Failed; actual value of [" + elementAttribute
 						+ "] does match expected value [" + actualValue + "].");
 			}
@@ -288,7 +288,7 @@ public class Verifications {
 				Assert.assertTrue((String.valueOf(actualValue)).matches(String.valueOf(expectedValue)));
 				verificationSuccesses.append("Verification Passed; actual value of [" + browserAttribute
 						+ "] does match expected value [" + expectedValue + "].");
-			} catch (Throwable t) {
+			} catch (Exception e) {
 				verificationFailures.append("Verification Failed; actual value [" + actualValue
 						+ "] does not match expected value [" + expectedValue + "].");
 			}
@@ -297,7 +297,7 @@ public class Verifications {
 				Assert.assertFalse((String.valueOf(actualValue)).matches(String.valueOf(expectedValue)));
 				verificationSuccesses.append("Verification Passed; actual value of[" + browserAttribute + "] equals ["
 						+ actualValue + "] which does not match expected value [" + expectedValue + "].");
-			} catch (Throwable t) {
+			} catch (Exception e) {
 				verificationFailures.append("Verification Failed; actual value of [" + browserAttribute
 						+ "] does match expected value [" + actualValue + "].");
 			}

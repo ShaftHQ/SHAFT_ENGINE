@@ -207,8 +207,7 @@ public class ScreenshotManager {
 			try {
 				JSWaiter.waitForLazyLoading();
 			} catch (Exception e) {
-				e.printStackTrace();
-				ReportManager.log(e.getMessage());
+				ReportManager.log(e);
 			}
 
 			/**
@@ -222,14 +221,9 @@ public class ScreenshotManager {
 			 */
 			try {
 				src = ScreenshotUtils.makeFullScreenshot(driver);
-			} catch (IOException e2) {
+			} catch (IOException | InterruptedException e) {
 				src = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
-				// TODO Auto-generated catch block
-				e2.printStackTrace();
-			} catch (InterruptedException e2) {
-				src = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
-				// TODO Auto-generated catch block
-				e2.printStackTrace();
+				ReportManager.log(e);
 			}
 
 			/**
@@ -259,8 +253,7 @@ public class ScreenshotManager {
 			try {
 				FileUtils.copyFile(src, screenshotFile);
 			} catch (IOException e) {
-				// e.printStackTrace();
-				ReportManager.log(e.getMessage());
+				ReportManager.log(e);
 			}
 
 			/**
@@ -270,9 +263,8 @@ public class ScreenshotManager {
 			try {
 				ReportManager.attach("Screenshot", screenshotFileName, new FileInputStream(src));
 
-			} catch (FileNotFoundException e1) {
-				// e1.printStackTrace();
-				ReportManager.log(e1.getMessage());
+			} catch (FileNotFoundException e) {
+				ReportManager.log(e);
 			}
 		}
 	}

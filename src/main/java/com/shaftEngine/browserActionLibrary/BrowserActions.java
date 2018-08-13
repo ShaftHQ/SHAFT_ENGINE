@@ -74,6 +74,7 @@ public class BrowserActions {
 			currentURL = driver.getCurrentUrl();
 			passAction(driver, "getCurrentURL", currentURL);
 		} catch (Exception e) {
+			ReportManager.log(e);
 			failAction(driver, "getCurrentURL", currentURL);
 		}
 		return currentURL;
@@ -93,6 +94,7 @@ public class BrowserActions {
 			currentWindowTitle = driver.getTitle();
 			passAction(driver, "getCurrentWindowTitle", currentWindowTitle);
 		} catch (Exception e) {
+			ReportManager.log(e);
 			failAction(driver, "getCurrentWindowTitle", currentWindowTitle);
 		}
 		return currentWindowTitle;
@@ -112,6 +114,7 @@ public class BrowserActions {
 			pageSource = driver.getPageSource();
 			passAction(driver, "getPageSource", pageSource);
 		} catch (Exception e) {
+			ReportManager.log(e);
 			failAction(driver, "getPageSource", pageSource);
 		}
 		return pageSource;
@@ -131,6 +134,7 @@ public class BrowserActions {
 			windowHandle = driver.getWindowHandle();
 			passAction(driver, "getWindowHandle", windowHandle);
 		} catch (Exception e) {
+			ReportManager.log(e);
 			failAction(driver, "getWindowHandle", windowHandle);
 		}
 		return windowHandle;
@@ -150,6 +154,7 @@ public class BrowserActions {
 			windowPosition = driver.manage().window().getPosition().toString();
 			passAction(driver, "getWindowPosition", windowPosition);
 		} catch (Exception e) {
+			ReportManager.log(e);
 			failAction(driver, "getWindowPosition", windowPosition);
 		}
 		return windowPosition;
@@ -169,6 +174,7 @@ public class BrowserActions {
 			windowSize = driver.manage().window().getSize().toString();
 			passAction(driver, "getWindowSize", windowSize);
 		} catch (Exception e) {
+			ReportManager.log(e);
 			failAction(driver, "getWindowSize", windowSize);
 		}
 		return windowSize;
@@ -198,6 +204,7 @@ public class BrowserActions {
 			}
 			passAction(driver, "navigateToURL", targetUrl);
 		} catch (Exception e) {
+			ReportManager.log(e);
 			failAction(driver, "navigateToURL", targetUrl);
 		}
 	}
@@ -205,7 +212,8 @@ public class BrowserActions {
 	private static void navigateToNewURL(WebDriver driver, String targetUrl) {
 		try {
 			driver.navigate().to(targetUrl);
-		} catch (WebDriverException ex) {
+		} catch (WebDriverException e) {
+			ReportManager.log(e);
 			failAction(driver, "navigateToURL", targetUrl);
 		}
 	}
@@ -221,7 +229,8 @@ public class BrowserActions {
 		try {
 			driver.close();
 			passAction(driver, "closeCurrentWindow");
-		} catch (org.openqa.selenium.WebDriverException ex) {
+		} catch (WebDriverException e) {
+			ReportManager.log(e);
 			failAction(driver, "closeCurrentWindow");
 		}
 	}
@@ -250,7 +259,7 @@ public class BrowserActions {
 				// ReportManager.log("Current screen size is ["+Width+"x"+Height+"].");
 				driver.manage().window().setPosition(new Point(0, 0));
 				driver.manage().window().setSize(new Dimension(width, height));
-			} catch (HeadlessException ex) {
+			} catch (HeadlessException e) {
 				// happens with headless firefox browsers // remote // linux and windows
 			}
 		}
@@ -275,6 +284,7 @@ public class BrowserActions {
 			if (e.getMessage().contains("jQuery is not defined")) {
 				// do nothing
 			} else {
+				ReportManager.log(e);
 				failAction(driver, "triggerWaitForLazyLoading");
 			}
 		}

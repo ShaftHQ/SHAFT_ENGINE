@@ -1,7 +1,5 @@
 package com.shaftEngine.elementActionLibrary;
 
-import java.util.Arrays;
-
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.support.ui.ExpectedCondition;
@@ -161,8 +159,9 @@ public class JSWaiter {
 		try {
 			// check if angular is defined
 			waitForAngularIfDefined();
-		} catch (org.openqa.selenium.WebDriverException ex) {
+		} catch (org.openqa.selenium.WebDriverException e) {
 			if (debug) {
+				ReportManager.log(e);
 				ReportManager.log("Angular is not defined on this site!");
 			}
 		}
@@ -203,8 +202,8 @@ public class JSWaiter {
 		try {
 			Thread.sleep(secondsLong);
 		} catch (Exception e) {
+			ReportManager.log(e);
 			// InterruptedException
-			ReportManager.log(Arrays.toString(e.getStackTrace()));
 		}
 	}
 }

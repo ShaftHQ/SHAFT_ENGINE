@@ -66,7 +66,7 @@ public class Assertions {
 				// Assert.assertEquals(expectedValue, actualValue);
 				Assert.assertTrue((String.valueOf(actualValue)).matches(String.valueOf(expectedValue)));
 				pass("Assertion Passed; actual value does match expected value [" + expectedValue + "].");
-			} catch (Throwable t) {
+			} catch (Exception e) {
 				fail("Assertion Failed; actual value [" + actualValue + "] does not match expected value ["
 						+ expectedValue + "].");
 			}
@@ -76,7 +76,7 @@ public class Assertions {
 				Assert.assertFalse((String.valueOf(actualValue)).matches(String.valueOf(expectedValue)));
 				pass("Assertion Passed; actual value [" + actualValue + "] does not match expected value ["
 						+ expectedValue + "].");
-			} catch (Throwable t) {
+			} catch (Exception e) {
 				fail("Assertion Failed; actual value does match expected value [" + expectedValue + "].");
 			}
 		}
@@ -100,14 +100,14 @@ public class Assertions {
 			try {
 				Assert.assertNull(object);
 				pass("Assertion Passed; actual value is null.");
-			} catch (Throwable t) {
+			} catch (Exception e) {
 				fail("Assertion Failed; actual value is not null.");
 			}
 		} else {
 			try {
 				Assert.assertNotNull(object);
 				pass("Assertion Passed; actual value is not null.");
-			} catch (Throwable t) {
+			} catch (Exception e) {
 				fail("Assertion Failed; actual value is null.");
 			}
 		}
@@ -199,7 +199,7 @@ public class Assertions {
 				Assert.assertTrue((String.valueOf(actualValue)).matches(String.valueOf(expectedValue)));
 				pass(driver, elementLocator, "Assertion Passed; actual value of [" + elementAttribute
 						+ "] does match expected value [" + expectedValue + "].");
-			} catch (Throwable t) {
+			} catch (Exception e) {
 				fail(driver, elementLocator, "Assertion Failed; actual value of [" + elementAttribute + "] equals ["
 						+ actualValue + "] which does not match expected value [" + expectedValue + "].");
 			}
@@ -208,7 +208,7 @@ public class Assertions {
 				Assert.assertFalse((String.valueOf(actualValue)).matches(String.valueOf(expectedValue)));
 				pass(driver, elementLocator, "Assertion Passed; actual value of [" + elementAttribute + "] equals ["
 						+ actualValue + "] which does not match expected value [" + expectedValue + "].");
-			} catch (Throwable t) {
+			} catch (Exception e) {
 				fail(driver, elementLocator, "Assertion Failed; actual value of [" + elementAttribute
 						+ "] does match expected value [" + expectedValue + "].");
 			}
@@ -271,7 +271,7 @@ public class Assertions {
 				Assert.assertTrue((String.valueOf(actualValue)).matches(String.valueOf(expectedValue)));
 				pass(driver, "Assertion Passed; actual value of [" + browserAttribute + "] does match expected value ["
 						+ expectedValue + "].");
-			} catch (Throwable t) {
+			} catch (Exception e) {
 				fail(driver, "Assertion Failed; actual value of [" + browserAttribute + "] equals [" + actualValue
 						+ "] which does not match expected value [" + expectedValue + "].");
 			}
@@ -280,7 +280,7 @@ public class Assertions {
 				Assert.assertFalse((String.valueOf(actualValue)).matches(String.valueOf(expectedValue)));
 				pass(driver, "Assertion Passed; actual value of [" + browserAttribute + "] equals [" + actualValue
 						+ "] which does not match expected value [" + expectedValue + "].");
-			} catch (Throwable t) {
+			} catch (Exception e) {
 				fail(driver, "Assertion Failed; actual value of [" + browserAttribute + "] does match expected value ["
 						+ expectedValue + "].");
 			}

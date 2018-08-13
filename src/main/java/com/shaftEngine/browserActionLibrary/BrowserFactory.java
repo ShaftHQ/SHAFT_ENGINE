@@ -2,7 +2,6 @@ package com.shaftEngine.browserActionLibrary;
 
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -127,8 +126,8 @@ public class BrowserFactory {
 				BrowserActions.maximizeWindow(driver); // Automatically maximize driver window after opening it
 			}
 		} catch (NullPointerException e) {
+			ReportManager.log(e);
 			ReportManager.log("Unhandled Exception with Browser Type [" + browserName + "].");
-			ReportManager.log(Arrays.toString(e.getStackTrace()));
 			Assert.fail("Unhandled Exception with Browser Type [" + browserName + "].");
 		}
 
@@ -268,8 +267,9 @@ public class BrowserFactory {
 				break;
 			}
 			((RemoteWebDriver) driver).setFileDetector(new LocalFileDetector());
-		} catch (WebDriverException ex) {
-			if (ex.getMessage().contains("Error forwarding the new session cannot find")) {
+		} catch (WebDriverException e) {
+			ReportManager.log(e);
+			if (e.getMessage().contains("Error forwarding the new session cannot find")) {
 				ReportManager.log(
 						"Error forwarding the new session: Couldn't find a node that matches the desired capabilities.");
 				ReportManager.log("Failed to run remotely on: [" + TARGET_OPERATING_SYSTEM + "], [" + browserName
@@ -314,7 +314,7 @@ public class BrowserFactory {
 				break;
 			}
 		} catch (MalformedURLException | SessionNotCreatedException e) {
-			ReportManager.log(Arrays.toString(e.getStackTrace()));
+			ReportManager.log(e);
 		}
 		return driver;
 	}
@@ -434,7 +434,7 @@ public class BrowserFactory {
 				entry.getValue().quit();
 			}
 		} catch (Exception e) {
-			// ReportManager.log(e.getMessage());
+			ReportManager.log(e);
 		}
 		drivers.clear();
 		ReportManager.log("Successfully Closed All Browsers.");
