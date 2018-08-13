@@ -2,7 +2,6 @@ package com.shaftEngine.ioActionLibrary;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -20,8 +19,7 @@ public class FileManager {
 		try {
 			FileUtils.copyFile(sourceFile, destinationFile);
 		} catch (IOException e) {
-			e.printStackTrace();
-			ReportManager.log(e.getMessage());
+			ReportManager.log(e);
 		}
 	}
 
@@ -64,11 +62,9 @@ public class FileManager {
 			}
 			Files.write(filePath, textToBytes);
 		} catch (NoSuchFileException e) {
-			e.printStackTrace();
-			ReportManager.log(e.getMessage());
+			ReportManager.log(e);
 		} catch (IOException e) {
-			e.printStackTrace();
-			ReportManager.log(e.getMessage());
+			ReportManager.log(e);
 		}
 	}
 
@@ -80,8 +76,7 @@ public class FileManager {
 		try {
 			text = String.join(System.lineSeparator(), Files.readAllLines(filePath));
 		} catch (IOException e) {
-			e.printStackTrace();
-			ReportManager.log(e.getMessage());
+			ReportManager.log(e);
 		}
 		return text;
 	}
@@ -102,7 +97,7 @@ public class FileManager {
 		try {
 			filePath = (new File(fileFolderName + fileName)).getAbsolutePath();
 		} catch (Exception e) {
-			e.printStackTrace();
+			ReportManager.log(e);
 		}
 		return filePath;
 	}
@@ -113,8 +108,7 @@ public class FileManager {
 		try {
 			FileUtils.copyDirectory(sourceFolder, destinationFolder);
 		} catch (IOException e) {
-			e.printStackTrace();
-			ReportManager.log(e.getMessage());
+			ReportManager.log(e);
 		}
 	}
 
@@ -130,6 +124,7 @@ public class FileManager {
 			result = true;
 			System.out.println("Given files are successfully zipped");
 		} catch (Exception e) {
+			ReportManager.log(e);
 			System.out.println("Some Errors happned during the zip process");
 		} finally {
 			return result;
@@ -158,12 +153,8 @@ public class FileManager {
 			 */
 			zip.flush();
 			zip.close();
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-			ReportManager.log(e.getMessage());
 		} catch (IOException e) {
-			e.printStackTrace();
-			ReportManager.log(e.getMessage());
+			ReportManager.log(e);
 		}
 	}
 

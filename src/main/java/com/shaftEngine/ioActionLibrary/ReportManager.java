@@ -20,6 +20,10 @@ public class ReportManager {
 	private static boolean isHeaderTyped = false;
 	private static boolean log = true;
 
+	private ReportManager() {
+		throw new IllegalStateException("Utility class");
+	}
+
 	// private static int attachmentCounter = 1;
 	// TODO : implement attachemntCounter for both attachment functions
 
@@ -42,6 +46,42 @@ public class ReportManager {
 		}
 		if (log) {
 			writeLog(logText, actionCounter);
+			actionCounter++;
+		}
+	}
+
+	/**
+	 *
+	 * Format an exception message and stack trace, and calls attach to add it as a
+	 * log entry.
+	 * 
+	 * @param e
+	 *            the exception that will be logged in this action
+	 */
+	public static void log(Exception e) {
+		if (!isHeaderTyped) {
+			isHeaderTyped = true;
+			log("Detected SHAFT Engine Version: [" + System.getProperty("shaftEngineVersion")
+					+ "] © Copyrights Reserved to [Mohab Mohie].");
+			// calls parent log function recursively in order to log shaft version before
+			// performing the first action
+
+			populateEnvironmentData();
+
+		}
+		if (log) {
+			StringBuilder logBuilder = new StringBuilder();
+			String logText = "";
+			StackTraceElement[] trace = e.getStackTrace();
+
+			logBuilder.append(e.getMessage() + System.lineSeparator());
+
+			for (int i = 0; i < trace.length; ++i) {
+				logBuilder.append(trace[i].toString() + System.lineSeparator());
+			}
+			logText = logBuilder.toString();
+
+			attach("Exception [" + e.getMessage() + "] Stack Trace", logText);
 			actionCounter++;
 		}
 	}

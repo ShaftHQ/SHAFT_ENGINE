@@ -122,6 +122,7 @@ public class ScreenshotUtils {
 			waitUntilItIsScrolledToPosition(driver, scroll);
 		} catch (InterruptedException e) {
 			// LOG.trace("Interrupt error during scrolling occurred.", e);
+			// ReportManager.log(e);
 		}
 	}
 

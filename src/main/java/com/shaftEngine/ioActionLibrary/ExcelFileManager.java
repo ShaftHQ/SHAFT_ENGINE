@@ -39,10 +39,11 @@ public class ExcelFileManager {
 			fis.close();
 			CurrentFilePath = xlFilePath;
 		} catch (IOException e) {
+			ReportManager.log(e);
 			ReportManager.log("Couldn't find the desired file. [" + xlFilePath + "].");
 			Assert.fail("Couldn't find the desired file. [" + xlFilePath + "].");
 			// e.printStackTrace();
-		} catch (java.lang.OutOfMemoryError e) {
+		} catch (OutOfMemoryError e) {
 			ReportManager.log("Couldn't open the desired file. [" + xlFilePath + "].");
 			Assert.fail("Couldn't open the desired file. [" + xlFilePath + "].");
 			// t.printStackTrace();
@@ -150,11 +151,11 @@ public class ExcelFileManager {
 					return String.valueOf(cell.getBooleanCellValue());
 				else
 					return "";
-			} catch (Throwable t) {
+			} catch (Exception e) {
 				return "";
 			}
-		} catch (Throwable t) {
-			// ReportManager.log(t.getMessage());
+		} catch (Exception e) {
+			ReportManager.log(e);
 			ReportManager.log("Failed to read data from row [" + rowName + "] and column [" + colName
 					+ "] in the Test Data Sheet [" + sheetName + ".xlsx].");
 			Assert.fail("Failed to read data from row [" + rowName + "] and column [" + colName
@@ -197,7 +198,7 @@ public class ExcelFileManager {
 				} else {
 					return lastColumnNumber - 1;
 				}
-			} catch (java.lang.NullPointerException ex) {
+			} catch (java.lang.NullPointerException e) {
 				return lastColumnNumber - 1;
 			}
 		}

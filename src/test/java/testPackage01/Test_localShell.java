@@ -11,20 +11,7 @@ import org.testng.annotations.Test;
 import com.shaftEngine.ioActionLibrary.ReportManager;
 import com.shaftEngine.supportActionLibrary.SSHActions;
 
-public class Test_remoteSSH {
-
-	@Test
-	public void test_executeRemoteSSH() {
-		String hostname = "72.55.136.10";
-		int sshPortNumber = 5022;
-		String username = "incorta";
-		String keyFileFolderName = System.getProperty("testDataFolderPath");
-		String keyFileName = "iWebQAEnv_Key.txt";
-		String sshCommand = "ls -ltr";
-
-		SSHActions.performSSHcommand(hostname, sshPortNumber, username, keyFileFolderName, keyFileName, sshCommand);
-	}
-
+public class Test_localShell {
 	@Test
 	public void test_localShellCommand() {
 

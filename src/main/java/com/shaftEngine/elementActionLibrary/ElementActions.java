@@ -9,7 +9,6 @@ import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 import org.openqa.selenium.By;
@@ -174,9 +173,9 @@ public class ElementActions {
 				foundElementsCount = attemptToFindElements(driver, elementLocator, timeout);
 				return foundElementsCount;
 			} catch (StaleElementReferenceException | ElementNotInteractableException | UnreachableBrowserException
-					| NoSuchElementException ex) {
+					| NoSuchElementException e) {
 				if (count + 1 == retriesBeforeThrowingElementNotFoundException) {
-					ReportManager.log("Exception: " + ex.getMessage());
+					ReportManager.log(e);
 					return 0;
 				}
 				count++;
@@ -184,6 +183,7 @@ public class ElementActions {
 				if (e.getMessage().contains("cannot focus element")) {
 					count++;
 				} else {
+					ReportManager.log(e);
 					ReportManager.log("Unhandled Exception: " + e.getMessage());
 					return 0;
 				}
@@ -215,6 +215,7 @@ public class ElementActions {
 					|| e.getMessage().contains("Error communicating with the remote browser. It may have died.")) {
 				// do nothing
 			} else {
+				ReportManager.log(e);
 				ReportManager.log("Unhandled Exception: " + e.getMessage());
 				return false;
 			}
@@ -232,7 +233,7 @@ public class ElementActions {
 			// ((JavascriptExecutor)
 			// driver).executeScript("arguments[0].scrollIntoView(true);",
 			// driver.findElement(elementLocator));
-		} catch (Exception ex) {
+		} catch (Exception e) {
 			// ReportManager.log("moveToElement");
 			// (new
 			// Actions(driver)).moveToElement(driver.findElement(elementLocator)).perform();
@@ -242,7 +243,7 @@ public class ElementActions {
 			// driver.findElement(elementLocator));
 			// ReportManager.log("sendKeys");
 			driver.findElement(elementLocator).sendKeys("");
-			ReportManager.log(ex.getMessage());
+			ReportManager.log(e);
 		}
 	}
 
@@ -260,7 +261,7 @@ public class ElementActions {
 			ScreenshotManager.captureScreenShot(driver, elementLocator, actionName + "_performed", true);
 			ReportManager.log(message);
 		} catch (Exception e) {
-			// t.printStackTrace();
+			ReportManager.log(e);
 			ReportManager.log(
 					"Failed to take a screenshot of the element as it doesn't exist anymore. Taking a screenshot of the whole page.");
 			ScreenshotManager.captureScreenShot(driver, actionName + "_performed", true);
@@ -310,6 +311,7 @@ public class ElementActions {
 					// attempting to click using javascript if the regular click fails due to a
 					// webdriver error
 				} else {
+					ReportManager.log(e);
 					failAction(driver, "click", "Unhandled Exception: " + e.getMessage());
 				}
 			}
@@ -454,6 +456,7 @@ public class ElementActions {
 				try {
 					driver.findElement(elementLocator).sendKeys(absoluteFilePath);
 				} catch (WebDriverException e2) {
+					ReportManager.log(e2);
 					// happened for the first time on MacOSX due to incorrect file path separator
 					failAction(driver, "typeFileLocationForUpload", absoluteFilePath);
 				}
@@ -509,7 +512,8 @@ public class ElementActions {
 		if (internalCanFindUniqueElement(driver, elementLocator)) {
 			try {
 				(new Select(driver.findElement(elementLocator))).selectByVisibleText(text);
-			} catch (NoSuchElementException ex) {
+			} catch (NoSuchElementException e) {
+				ReportManager.log(e);
 				ReportManager.log("Value not found in the dropdown menu.");
 				failAction(driver, "select", text);
 			}
@@ -613,7 +617,7 @@ public class ElementActions {
 
 				((JavascriptExecutor) driver).executeScript(dragAndDropHelper, sourceElement, destinationElement);
 			} catch (Exception e) {
-				ReportManager.log(e.getMessage());
+				ReportManager.log(e);
 				failAction(driver, "dragAndDrop");
 			}
 
@@ -853,8 +857,8 @@ public class ElementActions {
 			}
 			passAction(driver, elementLocator, "clipboardActions", action);
 		} catch (HeadlessException e) {
+			ReportManager.log(e);
 			ReportManager.log("Headless Exception: " + e.getMessage());
-			ReportManager.log(Arrays.toString(e.getStackTrace()));
 		}
 	}
 
@@ -864,11 +868,11 @@ public class ElementActions {
 					(String) ((Toolkit.getDefaultToolkit().getSystemClipboard()).getContents(ElementActions.class))
 							.getTransferData(DataFlavor.stringFlavor));
 		} catch (UnsupportedFlavorException e) {
+			ReportManager.log(e);
 			ReportManager.log("Unsupported Flavor Exception: " + e.getMessage());
-			ReportManager.log(Arrays.toString(e.getStackTrace()));
 		} catch (IOException e) {
+			ReportManager.log(e);
 			ReportManager.log("IO Exception: " + e.getMessage());
-			ReportManager.log(Arrays.toString(e.getStackTrace()));
 		}
 	}
 

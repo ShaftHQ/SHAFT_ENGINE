@@ -79,10 +79,11 @@ public class RestActions {
 			switch (requestType.toLowerCase()) {
 
 			case "post":
-				response = given().header("X-XSRF-TOKEN", cookie_XSRF_TOKEN).cookies("JSESSIONID", cookie_JSESSIONID , "XSRF-TOKEN", cookie_XSRF_TOKEN)
-						.when().post(request).andReturn();
-				
-				if (response.getCookie("JSESSIONID") !=null) {
+				response = given().header("X-XSRF-TOKEN", cookie_XSRF_TOKEN)
+						.cookies("JSESSIONID", cookie_JSESSIONID, "XSRF-TOKEN", cookie_XSRF_TOKEN).when().post(request)
+						.andReturn();
+
+				if (response.getCookie("JSESSIONID") != null) {
 					cookie_JSESSIONID = response.getCookie("JSESSIONID");
 				}
 				if (response.getCookie("XSRF-TOKEN") != null) {
@@ -91,9 +92,10 @@ public class RestActions {
 				break;
 
 			case "get":
-				response = given().header("X-XSRF-TOKEN", cookie_XSRF_TOKEN).cookies("JSESSIONID", cookie_JSESSIONID , "XSRF-TOKEN", cookie_XSRF_TOKEN)
-						.when().get(request).andReturn();
-				if (response.getCookie("JSESSIONID") !=null) {
+				response = given().header("X-XSRF-TOKEN", cookie_XSRF_TOKEN)
+						.cookies("JSESSIONID", cookie_JSESSIONID, "XSRF-TOKEN", cookie_XSRF_TOKEN).when().get(request)
+						.andReturn();
+				if (response.getCookie("JSESSIONID") != null) {
 					cookie_JSESSIONID = response.getCookie("JSESSIONID");
 				}
 				if (response.getCookie("XSRF-TOKEN") != null) {
@@ -114,11 +116,11 @@ public class RestActions {
 				failAction("performRequest",
 						request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", response);
 			}
-		} catch (NullPointerException t) {
-			ReportManager.log(t.getMessage());
+		} catch (NullPointerException e) {
+			ReportManager.log(e);
 			failAction("performRequest", request);
-		} catch (Throwable t) {
-			ReportManager.log(t.getMessage());
+		} catch (Exception e) {
+			ReportManager.log(e);
 			failAction("performRequest", request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms",
 					response);
 		}
