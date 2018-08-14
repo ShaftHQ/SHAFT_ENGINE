@@ -119,12 +119,13 @@ public class BrowserFactory {
 					// Manage remote execution
 					driver = createNewRemoteDriverInstance(browserName);
 				}
+				driver.manage().timeouts().pageLoadTimeout(60, TimeUnit.SECONDS);
+				JSWaiter.setDriver(driver);
+				if (AUTO_MAXIMIZE) {
+					BrowserActions.maximizeWindow(driver); // Automatically maximize driver window after opening it
+				}
 			}
-			driver.manage().timeouts().pageLoadTimeout(60, TimeUnit.SECONDS);
-			JSWaiter.setDriver(driver);
-			if (AUTO_MAXIMIZE) {
-				BrowserActions.maximizeWindow(driver); // Automatically maximize driver window after opening it
-			}
+
 		} catch (NullPointerException e) {
 			ReportManager.log(e);
 			ReportManager.log("Unhandled Exception with Browser Type [" + browserName + "].");
@@ -436,6 +437,7 @@ public class BrowserFactory {
 		} catch (Exception e) {
 			ReportManager.log(e);
 		}
+		driver = null;
 		drivers.clear();
 		ReportManager.log("Successfully Closed All Browsers.");
 	}
