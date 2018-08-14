@@ -209,6 +209,24 @@ public class BrowserActions {
 		}
 	}
 
+	/**
+	 * Attempts to refresh the current page
+	 * 
+	 * @param driver
+	 *            the current instance of Selenium webdriver
+	 */
+	public static void refreshCurrentPage(WebDriver driver) {
+		triggerWaitForLazyLoading(driver);
+		try {
+			driver.navigate().refresh();
+			passAction(driver, "refreshCurrentPage");
+		} catch (Exception e) {
+			ReportManager.log(e);
+			failAction(driver, "refreshCurrentPage");
+		}
+
+	}
+
 	private static void navigateToNewURL(WebDriver driver, String targetUrl) {
 		try {
 			driver.navigate().to(targetUrl);

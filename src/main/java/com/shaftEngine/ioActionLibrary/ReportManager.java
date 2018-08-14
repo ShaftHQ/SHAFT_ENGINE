@@ -99,7 +99,6 @@ public class ReportManager {
 	@Step("Action [{actionCounter}]: {logText}")
 	private static void writeLog(String logText, int actionCounter) {
 		performLogEntry(logText);
-		actionCounter++;
 	}
 
 	private static void performLogEntry(String logText) {
