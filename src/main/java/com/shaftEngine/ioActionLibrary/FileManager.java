@@ -5,7 +5,6 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -15,6 +14,10 @@ import java.util.zip.ZipOutputStream;
 import org.apache.commons.io.FileUtils;
 
 public class FileManager {
+	private FileManager() {
+		throw new IllegalStateException("Utility class");
+	}
+
 	private static void copyFile(File sourceFile, File destinationFile) {
 		try {
 			FileUtils.copyFile(sourceFile, destinationFile);
@@ -57,12 +60,10 @@ public class FileManager {
 			byte[] textToBytes = String.join(System.lineSeparator(), text).getBytes();
 
 			Path parentDir = filePath.getParent();
-			if (!Files.exists(parentDir)) {
+			if (!parentDir.toFile().exists()) {
 				Files.createDirectories(parentDir);
 			}
 			Files.write(filePath, textToBytes);
-		} catch (NoSuchFileException e) {
-			ReportManager.log(e);
 		} catch (IOException e) {
 			ReportManager.log(e);
 		}
@@ -112,23 +113,39 @@ public class FileManager {
 		}
 	}
 
-	@SuppressWarnings("finally")
+	public static void deleteFolder(String folderPath) {
+		File directory = new File(folderPath);
+		try {
+			FileUtils.forceDelete(directory);
+		} catch (IOException e) {
+			ReportManager.log(e);
+		}
+	}
+
+	public static void createFolder(String folderPath) {
+		File directory = new File(folderPath);
+		try {
+			FileUtils.forceMkdir(directory);
+		} catch (IOException e) {
+			ReportManager.log(e);
+		}
+	}
+
 	public static boolean zipFiles(String srcFolder, String destZipFile) {
 		boolean result = false;
 		try {
-			System.out.println("Program Start zipping the given files");
+			// System.out.println("Program Start zipping the given files");
 			/*
 			 * send to the zip procedure
 			 */
 			zipFolder(srcFolder, destZipFile);
 			result = true;
-			System.out.println("Given files are successfully zipped");
+			// System.out.println("Given files are successfully zipped");
 		} catch (Exception e) {
 			ReportManager.log(e);
-			System.out.println("Some Errors happned during the zip process");
-		} finally {
-			return result;
+			// System.out.println("Some Errors happned during the zip process");
 		}
+		return result;
 	}
 
 	/*
@@ -171,7 +188,7 @@ public class FileManager {
 		/*
 		 * if the folder is empty add empty folder to the Zip file
 		 */
-		if (flag == true) {
+		if (flag) {
 			zip.putNextEntry(new ZipEntry(path + "/" + folder.getName() + "/"));
 		} else { /*
 					 * if the current name is directory, recursively traverse it to get the files
@@ -185,17 +202,21 @@ public class FileManager {
 				/*
 				 * write the file to the output
 				 */
-				byte[] buf = new byte[1024];
-				int len;
-				FileInputStream in = new FileInputStream(srcFile);
-				zip.putNextEntry(new ZipEntry(path + "/" + folder.getName()));
-				while ((len = in.read(buf)) > 0) {
-					/*
-					 * Write the Result
-					 */
-					zip.write(buf, 0, len);
+				try {
+					byte[] buf = new byte[1024];
+					int len;
+					FileInputStream in = new FileInputStream(srcFile);
+					zip.putNextEntry(new ZipEntry(path + "/" + folder.getName()));
+					while ((len = in.read(buf)) > 0) {
+						/*
+						 * Write the Result
+						 */
+						zip.write(buf, 0, len);
+					}
+					in.close();
+				} catch (Exception e) {
+					ReportManager.log(e);
 				}
-				in.close();
 			}
 		}
 	}
@@ -210,7 +231,7 @@ public class FileManager {
 		 * check the empty folder
 		 */
 		if (folder.list().length == 0) {
-			System.out.println(folder.getName());
+			// System.out.println(folder.getName());
 			addFileToZip(path, srcFolder, zip, true);
 		} else {
 			/*

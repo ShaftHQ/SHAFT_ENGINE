@@ -15,15 +15,15 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 public class ExcelFileManager {
-	public FileInputStream fis = null;
-	public XSSFWorkbook workbook = null;
-	public XSSFSheet sheet = null;
-	public XSSFRow row = null;
-	public XSSFCell cell = null;
+	private FileInputStream fis = null;
+	private XSSFWorkbook workbook = null;
+	private XSSFSheet sheet = null;
+	private XSSFRow row = null;
+	private XSSFCell cell = null;
 
 	private String testDataColumnNamePrefix = System.getProperty("testDataColumnNamePrefix");
 
-	private String CurrentFilePath;
+	private String currentFilePath;
 
 	/**
 	 * Creates a new instance of the test data excel reader using the expected excel
@@ -37,12 +37,11 @@ public class ExcelFileManager {
 			fis = new FileInputStream(xlFilePath);
 			workbook = new XSSFWorkbook(fis);
 			fis.close();
-			CurrentFilePath = xlFilePath;
+			currentFilePath = xlFilePath;
 		} catch (IOException e) {
 			ReportManager.log(e);
 			ReportManager.log("Couldn't find the desired file. [" + xlFilePath + "].");
 			Assert.fail("Couldn't find the desired file. [" + xlFilePath + "].");
-			// e.printStackTrace();
 		} catch (OutOfMemoryError e) {
 			ReportManager.log("Couldn't open the desired file. [" + xlFilePath + "].");
 			Assert.fail("Couldn't open the desired file. [" + xlFilePath + "].");
@@ -96,14 +95,14 @@ public class ExcelFileManager {
 		try {
 			// get the row number that corresponds to the desired rowName within the first
 			// column [0]
-			int row_Num = -1;
+			int rowNum = -1;
 			sheet = workbook.getSheet(sheetName);
 			for (int i = 0; i <= sheet.getLastRowNum(); i++) {
 				row = sheet.getRow(i);
 				// get the first cell of each row, and compare it to rowName
 				// if they match then that's the row we want
 				if (row.getCell(0).getStringCellValue().equals(rowName)) {
-					row_Num = i;
+					rowNum = i;
 					i = sheet.getLastRowNum();
 				}
 			}
@@ -112,25 +111,25 @@ public class ExcelFileManager {
 			// target row [row_Num]
 			// if no column name is provided, retrieves data from the 2nd
 			// column (1st Value in the test data file)
-			int col_Num = -1;
+			int colNum = -1;
 			if (!colName.equals("")) {
 				row = sheet.getRow(0);
 				for (int i = 0; i < row.getLastCellNum(); i++) {
 					// get the first cell of each column, and compare it to colName
 					// if they match then that's the column we want
 					if (row.getCell(i).getStringCellValue().equals(colName)) {
-						col_Num = i;
+						colNum = i;
 						i = row.getLastCellNum();
 					}
 				}
 			} else {
-				col_Num = 1;
+				colNum = 1;
 			}
 
 			// get the desired row
-			row = sheet.getRow(row_Num); // why use -1 here?
+			row = sheet.getRow(rowNum); // why use -1 here?
 			// get the desired cell
-			cell = row.getCell(col_Num);
+			cell = row.getCell(colNum);
 
 			// return cell value given the different cell types
 			try {
@@ -147,11 +146,19 @@ public class ExcelFileManager {
 						cellValue = df.format(date);
 					}
 					return cellValue;
-				} else if (cell.getCellTypeEnum() == CellType.BOOLEAN)
+				} else if (cell.getCellTypeEnum() == CellType.BOOLEAN) {
 					return String.valueOf(cell.getBooleanCellValue());
-				else
+				} else {
 					return "";
+				}
 			} catch (Exception e) {
+				// ReportManager.log(e);
+				// ReportManager.log("Failed to read data from row [" + rowName + "] and column
+				// [" + colName
+				// + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
+				// Assert.fail("Failed to read data from row [" + rowName + "] and column [" +
+				// colName
+				// + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
 				return "";
 			}
 		} catch (Exception e) {
@@ -211,8 +218,8 @@ public class ExcelFileManager {
 	 * @return the default sheet name for the current test data file
 	 */
 	private String getDefaultSheetName() {
-		return (CurrentFilePath.split("/")[CurrentFilePath.split("/").length - 1]).split(
-				"\\.")[(CurrentFilePath.split("/")[CurrentFilePath.split("/").length - 1]).split("\\.").length - 2];
+		return (currentFilePath.split("/")[currentFilePath.split("/").length - 1]).split(
+				"\\.")[(currentFilePath.split("/")[currentFilePath.split("/").length - 1]).split("\\.").length - 2];
 	}
 
 	/**
