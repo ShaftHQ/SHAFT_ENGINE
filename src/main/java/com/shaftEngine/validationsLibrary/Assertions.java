@@ -286,4 +286,20 @@ public class Assertions {
 			}
 		}
 	}
+	/*
+	 * public static void assertFileExists(String fileFolderName, String fileName,
+	 * Boolean assertionType) { if (assertionType) { try {
+	 * FileManager.getAbsolutePath(fileFolderName, fileName);
+	 * pass("Assertion Passed; a file was found in this directory [" +
+	 * fileFolderName + "] with this name [" + fileName + "]."); } catch (Exception
+	 * e) { fail("Assertion Failed; no file was found in this directory [" +
+	 * fileFolderName + "] with this name [" + fileName + "]."); } } else { try {
+	 * FileManager.getAbsolutePath(fileFolderName, fileName);
+	 * fail("Assertion Failed; a file was found in this directory [" +
+	 * fileFolderName + "] with this name [" + fileName + "]."); } catch (Exception
+	 * e) { pass("Assertion Passed; no file was found in this directory [" +
+	 * fileFolderName + "] with this name [" + fileName + "]."); }
+	 * 
+	 * } }
+	 */
 }
