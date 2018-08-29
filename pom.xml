@@ -8,7 +8,6 @@
 	<name>SHAFT_ENGINE</name>
 	<description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
 
-
 	<properties>
 		<shaft_engine.version>SHAFT_ENGINE-1.0.20180829</shaft_engine.version>
 
