@@ -19,6 +19,7 @@ public class ReportManager {
 	private static int actionCounter = 1;
 	private static boolean isHeaderTyped = false;
 	private static boolean log = true;
+	private static String lastTestCase = "";
 
 	private ReportManager() {
 		throw new IllegalStateException("Utility class");
@@ -34,18 +35,11 @@ public class ReportManager {
 	 *            the text that needs to be logged in this action
 	 */
 	public static void log(String logText) {
-		if (!isHeaderTyped) {
-			isHeaderTyped = true;
-			log("Detected SHAFT Engine Version: [" + System.getProperty("shaftEngineVersion")
-					+ "] © Copyrights Reserved to [Mohab Mohie].");
-			// calls parent log function recursively in order to log shaft version before
-			// performing the first action
+		logEngineVersionAndEnvironmentData();
+		logTestInformation();
 
-			populateEnvironmentData();
-
-		}
 		if (log) {
-			writeLog(logText, actionCounter);
+			writeLogStepToReport(logText, actionCounter);
 			actionCounter++;
 		}
 	}
@@ -58,17 +52,10 @@ public class ReportManager {
 	 * @param e
 	 *            the exception that will be logged in this action
 	 */
-	public static void log(Exception e) {
-		if (!isHeaderTyped) {
-			isHeaderTyped = true;
-			log("Detected SHAFT Engine Version: [" + System.getProperty("shaftEngineVersion")
-					+ "] © Copyrights Reserved to [Mohab Mohie].");
-			// calls parent log function recursively in order to log shaft version before
-			// performing the first action
+	public static void log(Throwable e) {
+		logEngineVersionAndEnvironmentData();
+		logTestInformation();
 
-			populateEnvironmentData();
-
-		}
 		if (log) {
 			StringBuilder logBuilder = new StringBuilder();
 			String logText = "";
@@ -81,7 +68,7 @@ public class ReportManager {
 			}
 			logText = logBuilder.toString();
 
-			attach("Exception [" + e.getMessage() + "] Stack Trace", logText);
+			attach("Exception Stack Trace for [" + e.getMessage() + "]", logText);
 			actionCounter++;
 		}
 	}
@@ -97,7 +84,7 @@ public class ReportManager {
 	 *            this test run
 	 */
 	@Step("Action [{actionCounter}]: {logText}")
-	private static void writeLog(String logText, int actionCounter) {
+	private static void writeLogStepToReport(String logText, int actionCounter) {
 		performLogEntry(logText);
 	}
 
@@ -155,6 +142,7 @@ public class ReportManager {
 	@Attachment("Test log")
 	public static String getTestLog() {
 		String log = "";
+
 		for (String s : Reporter.getOutput()) {
 			s = s.replace("<br>", System.lineSeparator());
 			log = log + s;
@@ -229,4 +217,45 @@ public class ReportManager {
 		 * System.getProperty("defaultElementIdentificationTimeout")));
 		 */
 	}
+
+	private static void logEngineVersion() {
+		log("Detected SHAFT Engine Version: [" + System.getProperty("shaftEngineVersion")
+				+ "] © Copyrights Reserved to [Mohab Mohie].");
+		// calls parent log function recursively in order to log shaft version before
+		// performing the first action
+	}
+
+	private static void logEngineVersionAndEnvironmentData() {
+		if (!isHeaderTyped) {
+			isHeaderTyped = true;
+
+			logEngineVersion();
+			populateEnvironmentData();
+		}
+	}
+
+	private static void logTestInformation() {
+		try {
+			String currentTestCase = "";
+
+			if (Reporter.getCurrentTestResult().getMethod().getDescription() != null) {
+				currentTestCase = Reporter.getCurrentTestResult().getMethod().getDescription();
+			} else {
+				currentTestCase = Reporter.getCurrentTestResult().getMethod().getMethodName();
+			}
+
+			if ((!currentTestCase.equals(lastTestCase)) && (!currentTestCase.equals(""))) {
+				String testClass = Reporter.getCurrentTestResult().getTestClass().getName();
+				performLogEntry(
+						"Starting Execution; class name [" + testClass + "], and test name [" + currentTestCase + "].");
+				lastTestCase = currentTestCase;
+			}
+		} catch (Throwable e) {
+			// several errors are thrown in case of calling this method outside a test case,
+			// like in browser setup or teardown, therefor the correct response here is to
+			// do nothing
+			// this method gets called with every single action
+		}
+	}
+
 }
