@@ -52,7 +52,7 @@ public class ReportManager {
 	 * @param e
 	 *            the exception that will be logged in this action
 	 */
-	public static void log(Throwable e) {
+	public static void log(Exception e) {
 		logEngineVersionAndEnvironmentData();
 		logTestInformation();
 
