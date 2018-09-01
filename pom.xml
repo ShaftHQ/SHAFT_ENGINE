@@ -4,12 +4,12 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.mohies</groupId>
 	<artifactId>SHAFT_ENGINE</artifactId>
-	<version>1.0.20180829</version>
+	<version>1.0.20180901</version>
 	<name>SHAFT_ENGINE</name>
 	<description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
 
 	<properties>
-		<shaft_engine.version>SHAFT_ENGINE-1.0.20180829</shaft_engine.version>
+		<shaft_engine.version>SHAFT_ENGINE-1.0.20180901</shaft_engine.version>
 
 		<!-- Execution Properties -->
 		<!-- <testSuite.name>cucumber_testSuite</testSuite.name> -->
@@ -20,6 +20,7 @@
 		<!-- Acceptable Values: Default | MozillaFirefox | MicrosoftInternetExplorer 
 			| GoogleChrome | MicrosoftEdge | Safari -->
 		<autoMaximizeBrowserWindow>true</autoMaximizeBrowserWindow>
+		<takeFullPageScreenshots>false</takeFullPageScreenshots>
 		<screenshooterFlag>ValidationPointsOnly</screenshooterFlag>
 		<!-- Acceptable Values: Always | Never | ValidationPointsOnly | FailuresOnly -->
 		<executionAddress>local</executionAddress>
@@ -195,6 +196,7 @@
 							<screenshooterFlag>${screenshooterFlag}</screenshooterFlag>
 							<executionAddress>${executionAddress}</executionAddress>
 							<autoMaximizeBrowserWindow>${autoMaximizeBrowserWindow}</autoMaximizeBrowserWindow>
+							<takeFullPageScreenshots>${takeFullPageScreenshots}</takeFullPageScreenshots>
 							<testDataFolderPath>${testDataFolderPath}</testDataFolderPath>
 							<testDataColumnNamePrefix>${testDataColumnNamePrefix}</testDataColumnNamePrefix>
 							<defaultElementIdentificationTimeout>${defaultElementIdentificationTimeout}</defaultElementIdentificationTimeout>

@@ -10,6 +10,7 @@ import org.testng.Assert;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.file.FileSystems;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -218,8 +219,8 @@ public class ExcelFileManager {
 	 * @return the default sheet name for the current test data file
 	 */
 	private String getDefaultSheetName() {
-		return (currentFilePath.split("/")[currentFilePath.split("/").length - 1]).split(
-				"\\.")[(currentFilePath.split("/")[currentFilePath.split("/").length - 1]).split("\\.").length - 2];
+		return (currentFilePath.split(FileSystems.getDefault().getSeparator())[currentFilePath.split(FileSystems.getDefault().getSeparator()).length - 1]).split(
+				"\\.")[(currentFilePath.split(FileSystems.getDefault().getSeparator())[currentFilePath.split(FileSystems.getDefault().getSeparator()).length - 1]).split("\\.").length - 2];
 	}
 
 	/**

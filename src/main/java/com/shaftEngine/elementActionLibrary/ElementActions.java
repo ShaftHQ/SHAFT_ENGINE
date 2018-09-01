@@ -903,4 +903,8 @@ public class ElementActions {
 	public static int getElementsCount(WebDriver driver, By elementLocator) {
 		return countFoundElements(driver, elementLocator);
 	}
+
+	public static int getElementsCount(WebDriver driver, By elementLocator, int customElementIdentificationTimeout) {
+		return countFoundElements(driver, elementLocator, customElementIdentificationTimeout);
+	}
 }
