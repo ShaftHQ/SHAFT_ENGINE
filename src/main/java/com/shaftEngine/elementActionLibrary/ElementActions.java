@@ -193,16 +193,20 @@ public class ElementActions {
 	}
 
 	private static int attemptToFindElements(WebDriver driver, By elementLocator, int timeout) {
-
-		(new WebDriverWait(driver, timeout)).until(ExpectedConditions.presenceOfElementLocated(elementLocator));
-		int foundElements = driver.findElements(elementLocator).size();
-		if (foundElements == 1) {
-			moveToElement(driver, elementLocator);
-			if (!elementLocator.toString().contains("input[@type='file']")) {
-				(new WebDriverWait(driver, timeout))
-						.until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
+		int foundElements = 0;
+		try {
+			(new WebDriverWait(driver, timeout)).until(ExpectedConditions.presenceOfElementLocated(elementLocator));
+			foundElements = driver.findElements(elementLocator).size();
+			if (foundElements == 1) {
+				moveToElement(driver, elementLocator);
+				if (!elementLocator.toString().contains("input[@type='file']")) {
+					(new WebDriverWait(driver, timeout))
+							.until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
+				}
+				return 1;
 			}
-			return 1;
+		} catch (Exception e) {
+			ReportManager.log(e);
 		}
 		return foundElements;
 	}
