@@ -199,7 +199,7 @@ public class ElementActions {
 		if (foundElements == 1) {
 			moveToElement(driver, elementLocator);
 			if (!elementLocator.toString().contains("input[@type='file']")) {
-				(new WebDriverWait(driver, defaultElementIdentificationTimeout))
+				(new WebDriverWait(driver, timeout))
 						.until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
 			}
 			return 1;
