@@ -242,14 +242,18 @@ public class BrowserActions {
 	 */
 	public static void refreshCurrentPage(WebDriver driver) {
 		triggerWaitForLazyLoading(driver);
+		String currentURL = getCurrentURL(driver);
 		try {
 			driver.navigate().refresh();
 			passAction(driver, "refreshCurrentPage");
 		} catch (Exception e) {
-			ReportManager.log(e);
-			failAction(driver, "refreshCurrentPage");
+			if (currentURL.equals(getCurrentURL(driver))) {
+				passAction(driver, "refreshCurrentPage");
+			} else {
+				ReportManager.log(e);
+				failAction(driver, "refreshCurrentPage");
+			}
 		}
-
 	}
 
 	private static void navigateToNewURL(WebDriver driver, String targetUrl) {
