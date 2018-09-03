@@ -21,7 +21,7 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.Actions;
-import org.openqa.selenium.interactions.internal.Locatable;
+import org.openqa.selenium.interactions.Locatable;
 import org.openqa.selenium.remote.UnreachableBrowserException;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
@@ -206,7 +206,7 @@ public class ElementActions {
 				return 1;
 			}
 		} catch (Exception e) {
-			ReportManager.log(e);
+			// ReportManager.log(e);
 		}
 		return foundElements;
 	}
@@ -339,8 +339,11 @@ public class ElementActions {
 			// wait for element to be clickable
 			passAction(driver, elementLocator, "clickAndHold");
 			(new Actions(driver)).clickAndHold(driver.findElement(elementLocator)).build().perform();
+
 			// takes screenshot before holding the element
-		} else {
+		} else
+
+		{
 			failAction(driver, "clickAndHold");
 		}
 	}
