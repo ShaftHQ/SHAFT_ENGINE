@@ -251,6 +251,10 @@ public class ElementActions {
 		}
 	}
 
+	private static void passAction(WebDriver driver, String actionName) {
+		passAction(driver, null, actionName, null);
+	}
+
 	protected static void passAction(WebDriver driver, By elementLocator, String actionName) {
 		passAction(driver, elementLocator, actionName, null);
 	}
@@ -261,8 +265,12 @@ public class ElementActions {
 			message = message + " With the following test data [" + testData + "].";
 		}
 		try {
-			// moveToElement(driver, elementLocator);
-			ScreenshotManager.captureScreenShot(driver, elementLocator, actionName + "_performed", true);
+			if (elementLocator != null) {
+				// moveToElement(driver, elementLocator);
+				ScreenshotManager.captureScreenShot(driver, elementLocator, actionName + "_performed", true);
+			} else {
+				ScreenshotManager.captureScreenShot(driver, actionName + "_performed", true);
+			}
 			ReportManager.log(message);
 		} catch (Exception e) {
 			ReportManager.log(e);
@@ -913,5 +921,24 @@ public class ElementActions {
 
 	public static int getElementsCount(WebDriver driver, By elementLocator, int customElementIdentificationTimeout) {
 		return countFoundElements(driver, elementLocator, customElementIdentificationTimeout);
+	}
+
+	public static void switchToIframe(WebDriver driver, By elementLocator) {
+		if (internalCanFindUniqueElement(driver, elementLocator)) {
+			driver.switchTo().frame((WebElement) driver.findElement(elementLocator));
+			passAction(driver, elementLocator, "switchToIframe"); // remove elementLocator in case of bug in screenshot
+																	// manager
+		} else {
+			failAction(driver, "switchToIframe");
+		}
+	}
+
+	public static void switchToDefaultContent(WebDriver driver) {
+		try {
+			driver.switchTo().defaultContent();
+			passAction(driver, "switchToDefaultContent");
+		} catch (Exception e) {
+			failAction(driver, "switchToDefaultContent");
+		}
 	}
 }

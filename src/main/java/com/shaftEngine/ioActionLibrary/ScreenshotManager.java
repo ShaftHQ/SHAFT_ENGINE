@@ -106,9 +106,10 @@ public class ScreenshotManager {
 	}
 
 	/**
-	 * Used in all browser actions, in failed element actions, and in passed element
-	 * actions where the element can no longer be found. passFailStatus; true means
-	 * pass and false means fail.
+	 * Used in all browser actions, in failed element actions, in passed element
+	 * actions where the element can no longer be found, and in passed
+	 * switchToDefaultContent element action which requires no locator.
+	 * passFailStatus; true means pass and false means fail.
 	 * 
 	 * @param driver
 	 *            the current instance of Selenium webdriver
