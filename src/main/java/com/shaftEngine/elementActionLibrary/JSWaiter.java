@@ -30,10 +30,10 @@ public class JSWaiter {
 	public static void waitForJQueryLoad() {
 		// Wait for jQuery to load
 		ExpectedCondition<Boolean> jQueryLoad = driver -> ((Long) ((JavascriptExecutor) jsWaitDriver)
-				.executeScript("return jQuery.active") == 0);
+				.executeScript("return jQuery.active;") == 0);
 
 		// Get JQuery is Ready
-		boolean jqueryReady = (Boolean) jsExec.executeScript("return jQuery.active==0");
+		boolean jqueryReady = (Boolean) jsExec.executeScript("return jQuery.active==0;");
 
 		if (!jqueryReady) {
 			// Wait JQuery until it is Ready!
@@ -49,7 +49,7 @@ public class JSWaiter {
 				jsWait.until(jQueryLoad);
 				sleep(20);
 				tryCounter++;
-				jqueryReady = (Boolean) jsExec.executeScript("return jQuery.active==0");
+				jqueryReady = (Boolean) jsExec.executeScript("return jQuery.active==0;");
 			}
 			if (debug) {
 				ReportManager.log("JQuery is Ready!");
@@ -66,7 +66,10 @@ public class JSWaiter {
 		WebDriverWait wait = new WebDriverWait(jsWaitDriver, 15);
 		JavascriptExecutor jsExec = (JavascriptExecutor) jsWaitDriver;
 
-		String angularReadyScript = "return angular.element(document).injector().get('$http').pendingRequests.length === 0";
+		// String angularReadyScript = "return
+		// angular.element(document).injector().get('$http').pendingRequests.length ===
+		// 0";
+		String angularReadyScript = "return angular.element(document.body).injector().get(\'$http\').pendingRequests.length == 0;";
 
 		// Wait for ANGULAR to load
 		ExpectedCondition<Boolean> angularLoad = driver -> Boolean
@@ -109,10 +112,10 @@ public class JSWaiter {
 
 		// Wait for Javascript to load
 		ExpectedCondition<Boolean> jsLoad = driver -> ((JavascriptExecutor) jsWaitDriver)
-				.executeScript("return document.readyState").toString().equals("complete");
+				.executeScript("return document.readyState;").toString().equals("complete");
 
 		// Get JS is Ready
-		boolean jsReady = (Boolean) jsExec.executeScript("return document.readyState").toString().equals("complete");
+		boolean jsReady = (Boolean) jsExec.executeScript("return document.readyState;").toString().equals("complete");
 
 		// Wait Javascript until it is Ready!
 		if (!jsReady) {
@@ -175,6 +178,7 @@ public class JSWaiter {
 			}
 		}
 
+		// waitForJSandJQueryToLoad(); //extra wait
 	}
 
 	private static void waitForAngularIfDefined() {

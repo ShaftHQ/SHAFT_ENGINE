@@ -3,11 +3,10 @@ package com.shaftEngine.ioActionLibrary;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.IOException;
+import java.nio.file.FileSystems;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-import org.apache.commons.io.FileUtils;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.OutputType;
@@ -20,10 +19,17 @@ import com.shaftEngine.elementActionLibrary.ElementActions;
 import com.shaftEngine.elementActionLibrary.JSWaiter;
 
 public class ScreenshotManager {
-	private static final String screenshotFolderPath = "allure-results/screenshots/";
-	private static final String screenshotFolderName = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
+	private static final String SCREENSHOT_FOLDERPATH = "allure-results/screenshots/";
+	private static final String SCREENSHOT_FOLDERNAME = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
 	private static String screenshotFileName = "Screenshot";
-	private static final String screenshooterFlag = System.getProperty("screenshooterFlag");
+	private static final String SCREENSHOT_FLAG_WHENTOTAKEASCREENSHOT = System.getProperty("screenshooterFlag");
+	private static final Boolean SCREENSHOT_FLAG_TAKEFULLPAGESCREENSHOT = Boolean
+			.valueOf(System.getProperty("takeFullPageScreenshots"));
+
+	private ScreenshotManager() {
+		throw new IllegalStateException("Utility class");
+	}
+
 	/*
 	 * A flag to determine when to take a screenshot. Always; after every browser
 	 * and element action. Never; never. ValidationPointsOnly; after every assertion
@@ -55,8 +61,9 @@ public class ScreenshotManager {
 			appendedText = "failed";
 		}
 
-		if ((screenshooterFlag.equals("Always")) || (screenshooterFlag.equals("ValidationPointsOnly"))
-				|| ((screenshooterFlag.equals("FailuresOnly") && (!passFailStatus)))) {
+		if ((SCREENSHOT_FLAG_WHENTOTAKEASCREENSHOT.equals("Always"))
+				|| (SCREENSHOT_FLAG_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly"))
+				|| (SCREENSHOT_FLAG_WHENTOTAKEASCREENSHOT.equals("FailuresOnly") && (!passFailStatus))) {
 			internalCaptureScreenShot(driver, null, appendedText, true);
 		} else {
 			internalCaptureScreenShot(driver, null, appendedText, false);
@@ -86,8 +93,9 @@ public class ScreenshotManager {
 			appendedText = "failed";
 		}
 
-		if ((screenshooterFlag.equals("Always")) || (screenshooterFlag.equals("ValidationPointsOnly"))
-				|| ((screenshooterFlag.equals("FailuresOnly") && (!passFailStatus)))) {
+		if ((SCREENSHOT_FLAG_WHENTOTAKEASCREENSHOT.equals("Always"))
+				|| (SCREENSHOT_FLAG_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly"))
+				|| (SCREENSHOT_FLAG_WHENTOTAKEASCREENSHOT.equals("FailuresOnly") && (!passFailStatus))) {
 			internalCaptureScreenShot(driver, elementLocator, appendedText, true);
 		} else {
 			internalCaptureScreenShot(driver, elementLocator, appendedText, false);
@@ -98,9 +106,10 @@ public class ScreenshotManager {
 	}
 
 	/**
-	 * Used in all browser actions, in failed element actions, and in passed element
-	 * actions where the element can no longer be found. passFailStatus; true means
-	 * pass and false means fail.
+	 * Used in all browser actions, in failed element actions, in passed element
+	 * actions where the element can no longer be found, and in passed
+	 * switchToDefaultContent element action which requires no locator.
+	 * passFailStatus; true means pass and false means fail.
 	 * 
 	 * @param driver
 	 *            the current instance of Selenium webdriver
@@ -113,9 +122,9 @@ public class ScreenshotManager {
 	public static void captureScreenShot(WebDriver driver, String appendedText, boolean passFailStatus) {
 		globalPassFailStatus = passFailStatus;
 
-		if ((screenshooterFlag.equals("Always"))
-				|| (screenshooterFlag.equals("ValidationPointsOnly") && (!passFailStatus))
-				|| ((screenshooterFlag.equals("FailuresOnly")) && (!passFailStatus))) {
+		if ((SCREENSHOT_FLAG_WHENTOTAKEASCREENSHOT.equals("Always"))
+				|| (SCREENSHOT_FLAG_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly") && (!passFailStatus))
+				|| ((SCREENSHOT_FLAG_WHENTOTAKEASCREENSHOT.equals("FailuresOnly")) && (!passFailStatus))) {
 			internalCaptureScreenShot(driver, null, appendedText, true);
 		} else {
 			internalCaptureScreenShot(driver, null, appendedText, false);
@@ -139,7 +148,7 @@ public class ScreenshotManager {
 			boolean passFailStatus) {
 		globalPassFailStatus = passFailStatus;
 
-		if (screenshooterFlag.equals("Always")) {
+		if (SCREENSHOT_FLAG_WHENTOTAKEASCREENSHOT.equals("Always")) {
 			internalCaptureScreenShot(driver, elementLocator, appendedText, true);
 		} else {
 			internalCaptureScreenShot(driver, elementLocator, appendedText, false);
@@ -163,7 +172,7 @@ public class ScreenshotManager {
 	 */
 	private static void internalCaptureScreenShot(WebDriver driver, By elementLocator, String appendedText,
 			boolean takeScreenshot) {
-		new File(screenshotFolderPath).mkdirs();
+		new File(SCREENSHOT_FOLDERPATH).mkdirs();
 		if (takeScreenshot) {
 			/**
 			 * Force screenshot link to be shown in the results as a link not text
@@ -171,43 +180,21 @@ public class ScreenshotManager {
 			System.setProperty("org.uncommons.reportng.escape-output", "false");
 
 			/**
-			 * Declare styles and Javascript Executor to highlight and unhighlight elements
+			 * Declare regularElementStyle, the WebElemnt, and Javascript Executor to
+			 * highlight and unhighlight the WebElement
 			 */
-
-			String highlightedElementStyle;
-			if (globalPassFailStatus == true) {
-				highlightedElementStyle = "outline-offset:-3px !important; outline:3px solid #808080 !important; background:#46aad2 !important; background-color:#A5D2A5 !important; color:#000000 !important; -webkit-transition: none !important; -moz-transition: none !important; -o-transition: none !important; transition: none !important;";
-				// [incorta-blue: #46aad2] background-color:#A5D2A5
-			} else {
-				highlightedElementStyle = "outline-offset:-3px !important; outline:3px solid #808080 !important; background:#FFFF99 !important; background-color:#FFFF99 !important; color:#000000 !important; -webkit-transition: none !important; -moz-transition: none !important; -o-transition: none !important; transition: none !important;";
-				// background-color:#ffff66
-			}
-
 			String regularElementStyle = "";
 			JavascriptExecutor js = null;
 			WebElement element = null;
 
 			/**
-			 * If an elementLocator was passed, store current element style and highlight
-			 * that element before taking the screenshot
+			 * If an elementLocator was passed, store regularElementStyle and highlight that
+			 * element before taking the screenshot
 			 */
 			if (elementLocator != null && ElementActions.internalCanFindUniqueElement(driver, elementLocator)) {
 				element = driver.findElement(elementLocator);
 				js = (JavascriptExecutor) driver;
-				regularElementStyle = element.getAttribute("style");
-				if (regularElementStyle != null && !regularElementStyle.equals("")) {
-					js.executeScript("arguments[0].style.cssText = arguments[1];", element,
-							regularElementStyle + highlightedElementStyle);
-				} else {
-					js.executeScript("arguments[0].setAttribute('style', arguments[1]);", element,
-							highlightedElementStyle);
-				}
-			}
-
-			try {
-				JSWaiter.waitForLazyLoading();
-			} catch (Exception e) {
-				ReportManager.log(e);
+				regularElementStyle = highlightElementAndReturnDefaultStyle(element, js, setHighlightedElementStyle());
 			}
 
 			/**
@@ -219,11 +206,15 @@ public class ScreenshotManager {
 			 * Attempt to take a full page screenshot, take a regular screenshot upon
 			 * failure
 			 */
-			try {
-				src = ScreenshotUtils.makeFullScreenshot(driver);
-			} catch (IOException | InterruptedException e) {
+			if (SCREENSHOT_FLAG_TAKEFULLPAGESCREENSHOT) {
+				try {
+					src = ScreenshotUtils.makeFullScreenshot(driver);
+				} catch (Exception e) {
+					src = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
+					ReportManager.log(e);
+				}
+			} else {
 				src = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
-				ReportManager.log(e);
 			}
 
 			/**
@@ -248,24 +239,60 @@ public class ScreenshotManager {
 			 * Copy the screenshot to desired path, and append the appropriate filename.
 			 * 
 			 */
-			File screenshotFile = new File(
-					screenshotFolderPath + screenshotFolderName + "/" + screenshotFileName + ".png");
-			try {
-				FileUtils.copyFile(src, screenshotFile);
-			} catch (IOException e) {
-				ReportManager.log(e);
-			}
+			FileManager.copyFile(src.getAbsolutePath(), SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME
+					+ FileSystems.getDefault().getSeparator() + screenshotFileName + ".png");
 
-			/**
-			 * Adding Screenshot to the Report.
-			 * 
+			/*
+			 * File screenshotFile = new File(SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME
+			 * + FileSystems.getDefault().getSeparator() + screenshotFileName + ".png"); try
+			 * { FileUtils.copyFile(src, screenshotFile); } catch (IOException e) {
+			 * ReportManager.log(e); }
 			 */
-			try {
-				ReportManager.attach("Screenshot", screenshotFileName, new FileInputStream(src));
 
-			} catch (FileNotFoundException e) {
-				ReportManager.log(e);
-			}
+			addScreenshotToReport(src);
 		}
+	}
+
+	private static void addScreenshotToReport(File screenshotFile) {
+		/**
+		 * Adding Screenshot to the Report.
+		 * 
+		 */
+		try {
+			ReportManager.attach("Screenshot", screenshotFileName, new FileInputStream(screenshotFile));
+
+		} catch (FileNotFoundException e) {
+			ReportManager.log(e);
+		}
+	}
+
+	private static String highlightElementAndReturnDefaultStyle(WebElement element, JavascriptExecutor js,
+			String highlightedElementStyle) {
+		String regularElementStyle = element.getAttribute("style");
+		if (regularElementStyle != null && !regularElementStyle.equals("")) {
+			js.executeScript("arguments[0].style.cssText = arguments[1];", element,
+					regularElementStyle + highlightedElementStyle);
+		} else {
+			js.executeScript("arguments[0].setAttribute('style', arguments[1]);", element, highlightedElementStyle);
+		}
+
+		try {
+			JSWaiter.waitForLazyLoading();
+		} catch (Exception e) {
+			ReportManager.log(e);
+		}
+		return regularElementStyle;
+	}
+
+	private static String setHighlightedElementStyle() {
+		String highlightedElementStyle = "";
+		if (globalPassFailStatus) {
+			highlightedElementStyle = "outline-offset:-3px !important; outline:3px solid #808080 !important; background:#46aad2 !important; background-color:#A5D2A5 !important; color:#000000 !important; -webkit-transition: none !important; -moz-transition: none !important; -o-transition: none !important; transition: none !important;";
+			// [incorta-blue: #46aad2] background-color:#A5D2A5
+		} else {
+			highlightedElementStyle = "outline-offset:-3px !important; outline:3px solid #808080 !important; background:#FFFF99 !important; background-color:#FFFF99 !important; color:#000000 !important; -webkit-transition: none !important; -moz-transition: none !important; -o-transition: none !important; transition: none !important;";
+			// background-color:#ffff66
+		}
+		return highlightedElementStyle;
 	}
 }
