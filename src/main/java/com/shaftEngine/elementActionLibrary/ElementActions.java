@@ -21,7 +21,7 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.Actions;
-import org.openqa.selenium.interactions.internal.Locatable;
+import org.openqa.selenium.interactions.Locatable;
 import org.openqa.selenium.remote.UnreachableBrowserException;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
@@ -193,16 +193,20 @@ public class ElementActions {
 	}
 
 	private static int attemptToFindElements(WebDriver driver, By elementLocator, int timeout) {
-
-		(new WebDriverWait(driver, timeout)).until(ExpectedConditions.presenceOfElementLocated(elementLocator));
-		int foundElements = driver.findElements(elementLocator).size();
-		if (foundElements == 1) {
-			moveToElement(driver, elementLocator);
-			if (!elementLocator.toString().contains("input[@type='file']")) {
-				(new WebDriverWait(driver, defaultElementIdentificationTimeout))
-						.until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
+		int foundElements = 0;
+		try {
+			(new WebDriverWait(driver, timeout)).until(ExpectedConditions.presenceOfElementLocated(elementLocator));
+			foundElements = driver.findElements(elementLocator).size();
+			if (foundElements == 1) {
+				moveToElement(driver, elementLocator);
+				if (!elementLocator.toString().contains("input[@type='file']")) {
+					(new WebDriverWait(driver, timeout))
+							.until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
+				}
+				return 1;
 			}
-			return 1;
+		} catch (Exception e) {
+			// ReportManager.log(e);
 		}
 		return foundElements;
 	}
@@ -247,6 +251,10 @@ public class ElementActions {
 		}
 	}
 
+	private static void passAction(WebDriver driver, String actionName) {
+		passAction(driver, null, actionName, null);
+	}
+
 	protected static void passAction(WebDriver driver, By elementLocator, String actionName) {
 		passAction(driver, elementLocator, actionName, null);
 	}
@@ -257,8 +265,12 @@ public class ElementActions {
 			message = message + " With the following test data [" + testData + "].";
 		}
 		try {
-			// moveToElement(driver, elementLocator);
-			ScreenshotManager.captureScreenShot(driver, elementLocator, actionName + "_performed", true);
+			if (elementLocator != null) {
+				// moveToElement(driver, elementLocator);
+				ScreenshotManager.captureScreenShot(driver, elementLocator, actionName + "_performed", true);
+			} else {
+				ScreenshotManager.captureScreenShot(driver, actionName + "_performed", true);
+			}
 			ReportManager.log(message);
 		} catch (Exception e) {
 			ReportManager.log(e);
@@ -335,8 +347,11 @@ public class ElementActions {
 			// wait for element to be clickable
 			passAction(driver, elementLocator, "clickAndHold");
 			(new Actions(driver)).clickAndHold(driver.findElement(elementLocator)).build().perform();
+
 			// takes screenshot before holding the element
-		} else {
+		} else
+
+		{
 			failAction(driver, "clickAndHold");
 		}
 	}
@@ -902,5 +917,28 @@ public class ElementActions {
 
 	public static int getElementsCount(WebDriver driver, By elementLocator) {
 		return countFoundElements(driver, elementLocator);
+	}
+
+	public static int getElementsCount(WebDriver driver, By elementLocator, int customElementIdentificationTimeout) {
+		return countFoundElements(driver, elementLocator, customElementIdentificationTimeout);
+	}
+
+	public static void switchToIframe(WebDriver driver, By elementLocator) {
+		if (internalCanFindUniqueElement(driver, elementLocator)) {
+			driver.switchTo().frame((WebElement) driver.findElement(elementLocator));
+			passAction(driver, elementLocator, "switchToIframe"); // remove elementLocator in case of bug in screenshot
+																	// manager
+		} else {
+			failAction(driver, "switchToIframe");
+		}
+	}
+
+	public static void switchToDefaultContent(WebDriver driver) {
+		try {
+			driver.switchTo().defaultContent();
+			passAction(driver, "switchToDefaultContent");
+		} catch (Exception e) {
+			failAction(driver, "switchToDefaultContent");
+		}
 	}
 }

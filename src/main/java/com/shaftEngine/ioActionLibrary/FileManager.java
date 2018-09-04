@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -189,7 +190,7 @@ public class FileManager {
 		 * if the folder is empty add empty folder to the Zip file
 		 */
 		if (flag) {
-			zip.putNextEntry(new ZipEntry(path + "/" + folder.getName() + "/"));
+			zip.putNextEntry(new ZipEntry(path + FileSystems.getDefault().getSeparator() + folder.getName() + FileSystems.getDefault().getSeparator()));
 		} else { /*
 					 * if the current name is directory, recursively traverse it to get the files
 					 */
@@ -206,7 +207,7 @@ public class FileManager {
 					byte[] buf = new byte[1024];
 					int len;
 					FileInputStream in = new FileInputStream(srcFile);
-					zip.putNextEntry(new ZipEntry(path + "/" + folder.getName()));
+					zip.putNextEntry(new ZipEntry(path + FileSystems.getDefault().getSeparator() + folder.getName()));
 					while ((len = in.read(buf)) > 0) {
 						/*
 						 * Write the Result
@@ -239,9 +240,9 @@ public class FileManager {
 			 */
 			for (String fileName : folder.list()) {
 				if (path.equals("")) {
-					addFileToZip(folder.getName(), srcFolder + "/" + fileName, zip, false);
+					addFileToZip(folder.getName(), srcFolder + FileSystems.getDefault().getSeparator() + fileName, zip, false);
 				} else {
-					addFileToZip(path + "/" + folder.getName(), srcFolder + "/" + fileName, zip, false);
+					addFileToZip(path + FileSystems.getDefault().getSeparator() + folder.getName(), srcFolder + FileSystems.getDefault().getSeparator() + fileName, zip, false);
 				}
 			}
 		}

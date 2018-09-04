@@ -21,8 +21,8 @@ Supports Firefox 57 (and greater)
 =============================
 chromedriver:
 =============================
-ChromeDriver 2.40
-Supports Chrome v66-68
+ChromeDriver 2.41
+Supports Chrome v67-69
 =============================
 
 selenium-server-standalone

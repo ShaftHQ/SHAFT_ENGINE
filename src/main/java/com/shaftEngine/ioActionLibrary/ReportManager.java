@@ -52,7 +52,7 @@ public class ReportManager {
 	 * @param e
 	 *            the exception that will be logged in this action
 	 */
-	public static void log(Throwable e) {
+	public static void log(Exception e) {
 		logEngineVersionAndEnvironmentData();
 		logTestInformation();
 
@@ -68,7 +68,7 @@ public class ReportManager {
 			}
 			logText = logBuilder.toString();
 
-			attach("Exception Stack Trace for [" + e.getMessage() + "]", logText);
+			attach("Exception Stack Trace for [" + e.toString().substring(0, 100) + "...]", logText);
 			actionCounter++;
 		}
 	}

@@ -210,6 +210,31 @@ public class BrowserActions {
 	}
 
 	/**
+	 * Navigates one step back from the browsers history
+	 * 
+	 * @param driver
+	 *            the current instance of Selenium webdriver
+	 */
+	public static void navigateBack(WebDriver driver) {
+		triggerWaitForLazyLoading(driver);
+		String initialURL = "";
+		try {
+			initialURL = driver.getCurrentUrl();
+			driver.navigate().back();
+			triggerWaitForLazyLoading(driver);
+			(new WebDriverWait(driver, 30)).until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
+			if (!initialURL.equals(driver.getCurrentUrl())) {
+				passAction(driver, "navigateBack");
+			} else {
+				failAction(driver, "navigateBack");
+			}
+		} catch (Exception e) {
+			ReportManager.log(e);
+			failAction(driver, "navigateBack");
+		}
+	}
+
+	/**
 	 * Attempts to refresh the current page
 	 * 
 	 * @param driver
@@ -217,14 +242,18 @@ public class BrowserActions {
 	 */
 	public static void refreshCurrentPage(WebDriver driver) {
 		triggerWaitForLazyLoading(driver);
+		String currentURL = getCurrentURL(driver);
 		try {
 			driver.navigate().refresh();
 			passAction(driver, "refreshCurrentPage");
 		} catch (Exception e) {
-			ReportManager.log(e);
-			failAction(driver, "refreshCurrentPage");
+			if (currentURL.equals(getCurrentURL(driver))) {
+				passAction(driver, "refreshCurrentPage");
+			} else {
+				ReportManager.log(e);
+				failAction(driver, "refreshCurrentPage");
+			}
 		}
-
 	}
 
 	private static void navigateToNewURL(WebDriver driver, String targetUrl) {
