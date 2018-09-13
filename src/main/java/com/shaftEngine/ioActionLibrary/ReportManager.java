@@ -68,7 +68,7 @@ public class ReportManager {
 			}
 			logText = logBuilder.toString();
 
-			attach("Exception Stack Trace for [" + e.toString().substring(0, 100) + "...]", logText);
+			attach("Exception Stack Trace for [" + e.toString().substring(0, 30) + "...]", logText);
 			actionCounter++;
 		}
 	}
@@ -212,7 +212,7 @@ public class ReportManager {
 		/*
 		 * "Flags_AutoMaximizeBrowserWindow=" +
 		 * System.getProperty("autoMaximizeBrowserWindow"), "Flags_ScreenshotManager=" +
-		 * System.getProperty("screenshooterFlag"),
+		 * System.getProperty("screenshotParams_whenToTakeAScreenshot"),
 		 * "Config_DefaultElementIdentificationTimeout=" +
 		 * System.getProperty("defaultElementIdentificationTimeout")));
 		 */

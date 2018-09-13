@@ -4,12 +4,12 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.mohies</groupId>
 	<artifactId>SHAFT_ENGINE</artifactId>
-	<version>1.0.20180904</version>
+	<version>1.0.20180909</version>
 	<name>SHAFT_ENGINE</name>
 	<description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
 
 	<properties>
-		<shaft_engine.version>SHAFT_ENGINE-1.0.20180904</shaft_engine.version>
+		<shaft_engine.version>SHAFT_ENGINE-1.0.20180909</shaft_engine.version>
 
 		<!-- Execution Properties -->
 		<!-- <testSuite.name>cucumber_testSuite</testSuite.name> -->
@@ -20,9 +20,10 @@
 		<!-- Acceptable Values: Default | MozillaFirefox | MicrosoftInternetExplorer 
 			| GoogleChrome | MicrosoftEdge | Safari -->
 		<autoMaximizeBrowserWindow>true</autoMaximizeBrowserWindow>
-		<takeFullPageScreenshots>false</takeFullPageScreenshots>
-		<screenshooterFlag>ValidationPointsOnly</screenshooterFlag>
+		<screenshotParams_whenToTakeAScreenshot>ValidationPointsOnly</screenshotParams_whenToTakeAScreenshot>
 		<!-- Acceptable Values: Always | Never | ValidationPointsOnly | FailuresOnly -->
+		<screenshotParams_isFullPageScreenshot>false</screenshotParams_isFullPageScreenshot>
+		<screenshotParams_skippedElementsFromScreenshot></screenshotParams_skippedElementsFromScreenshot>
 		<executionAddress>local</executionAddress>
 		<!-- <executionAddress>localhost:4444</executionAddress> -->
 		<testDataFolderPath>src/test/resources/TestDataFiles/</testDataFolderPath>
@@ -75,6 +76,12 @@
 					<artifactId>selenium-java</artifactId>
 				</exclusion>
 			</exclusions>
+		</dependency>
+		<dependency>
+			<artifactId>image-processing</artifactId>
+			<groupId>org.openimaj</groupId>
+			<version>1.3.6</version>
+			<scope>compile</scope>
 		</dependency>
 
 		<!-- remote ssh commands -->
@@ -203,10 +210,11 @@
 							<shaftEngineVersion>${shaft_engine.version}</shaftEngineVersion>
 							<targetOperatingSystem>${operatingSystem.version}</targetOperatingSystem>
 							<targetBrowserName>${targetBrowser.name}</targetBrowserName>
-							<screenshooterFlag>${screenshooterFlag}</screenshooterFlag>
+							<screenshotParams_whenToTakeAScreenshot>${screenshotParams_whenToTakeAScreenshot}</screenshotParams_whenToTakeAScreenshot>
+							<screenshotParams_isFullPageScreenshot>${screenshotParams_isFullPageScreenshot}</screenshotParams_isFullPageScreenshot>
+							<screenshotParams_skippedElementsFromScreenshot>${screenshotParams_skippedElementsFromScreenshot}</screenshotParams_skippedElementsFromScreenshot>
 							<executionAddress>${executionAddress}</executionAddress>
 							<autoMaximizeBrowserWindow>${autoMaximizeBrowserWindow}</autoMaximizeBrowserWindow>
-							<takeFullPageScreenshots>${takeFullPageScreenshots}</takeFullPageScreenshots>
 							<testDataFolderPath>${testDataFolderPath}</testDataFolderPath>
 							<testDataColumnNamePrefix>${testDataColumnNamePrefix}</testDataColumnNamePrefix>
 							<defaultElementIdentificationTimeout>${defaultElementIdentificationTimeout}</defaultElementIdentificationTimeout>
