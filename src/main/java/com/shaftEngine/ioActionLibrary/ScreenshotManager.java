@@ -5,7 +5,9 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.nio.file.FileSystems;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
@@ -22,9 +24,12 @@ public class ScreenshotManager {
 	private static final String SCREENSHOT_FOLDERPATH = "allure-results/screenshots/";
 	private static final String SCREENSHOT_FOLDERNAME = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
 	private static String screenshotFileName = "Screenshot";
-	private static final String SCREENSHOT_FLAG_WHENTOTAKEASCREENSHOT = System.getProperty("screenshooterFlag");
-	private static final Boolean SCREENSHOT_FLAG_TAKEFULLPAGESCREENSHOT = Boolean
-			.valueOf(System.getProperty("takeFullPageScreenshots"));
+	private static final String SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT = System
+			.getProperty("screenshotParams_whenToTakeAScreenshot");
+	private static final Boolean SCREENSHOT_PARAMS_ISFULLPAGESCREENSHOT = Boolean
+			.valueOf(System.getProperty("screenshotParams_isFullPageScreenshot"));
+	private static final String SCREENSHOT_PARAMS_SKIPPEDELEMENTSFROMSCREENSHOT = System
+			.getProperty("screenshotParams_skippedElementsFromScreenshot");
 
 	private ScreenshotManager() {
 		throw new IllegalStateException("Utility class");
@@ -61,9 +66,9 @@ public class ScreenshotManager {
 			appendedText = "failed";
 		}
 
-		if ((SCREENSHOT_FLAG_WHENTOTAKEASCREENSHOT.equals("Always"))
-				|| (SCREENSHOT_FLAG_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly"))
-				|| (SCREENSHOT_FLAG_WHENTOTAKEASCREENSHOT.equals("FailuresOnly") && (!passFailStatus))) {
+		if ((SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always"))
+				|| (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly"))
+				|| (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly") && (!passFailStatus))) {
 			internalCaptureScreenShot(driver, null, appendedText, true);
 		} else {
 			internalCaptureScreenShot(driver, null, appendedText, false);
@@ -93,9 +98,9 @@ public class ScreenshotManager {
 			appendedText = "failed";
 		}
 
-		if ((SCREENSHOT_FLAG_WHENTOTAKEASCREENSHOT.equals("Always"))
-				|| (SCREENSHOT_FLAG_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly"))
-				|| (SCREENSHOT_FLAG_WHENTOTAKEASCREENSHOT.equals("FailuresOnly") && (!passFailStatus))) {
+		if ((SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always"))
+				|| (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly"))
+				|| (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly") && (!passFailStatus))) {
 			internalCaptureScreenShot(driver, elementLocator, appendedText, true);
 		} else {
 			internalCaptureScreenShot(driver, elementLocator, appendedText, false);
@@ -122,9 +127,9 @@ public class ScreenshotManager {
 	public static void captureScreenShot(WebDriver driver, String appendedText, boolean passFailStatus) {
 		globalPassFailStatus = passFailStatus;
 
-		if ((SCREENSHOT_FLAG_WHENTOTAKEASCREENSHOT.equals("Always"))
-				|| (SCREENSHOT_FLAG_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly") && (!passFailStatus))
-				|| ((SCREENSHOT_FLAG_WHENTOTAKEASCREENSHOT.equals("FailuresOnly")) && (!passFailStatus))) {
+		if ((SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always"))
+				|| (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly") && (!passFailStatus))
+				|| ((SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly")) && (!passFailStatus))) {
 			internalCaptureScreenShot(driver, null, appendedText, true);
 		} else {
 			internalCaptureScreenShot(driver, null, appendedText, false);
@@ -148,7 +153,7 @@ public class ScreenshotManager {
 			boolean passFailStatus) {
 		globalPassFailStatus = passFailStatus;
 
-		if (SCREENSHOT_FLAG_WHENTOTAKEASCREENSHOT.equals("Always")) {
+		if (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always")) {
 			internalCaptureScreenShot(driver, elementLocator, appendedText, true);
 		} else {
 			internalCaptureScreenShot(driver, elementLocator, appendedText, false);
@@ -156,7 +161,8 @@ public class ScreenshotManager {
 	}
 
 	/**
-	 * Internal use only. Considers the screenshooterFlag parameter.
+	 * Internal use only. Considers the screenshotParams_whenToTakeAScreenshot
+	 * parameter.
 	 * 
 	 * @param driver
 	 *            the current instance of Selenium webdriver
@@ -168,7 +174,8 @@ public class ScreenshotManager {
 	 *            to make it more recognizable
 	 * @param takeScreenshot
 	 *            determines whether or not to take a screenshot given the
-	 *            screenshooterFlag parameter from the pom.xml file
+	 *            screenshotParams_whenToTakeAScreenshot parameter from the pom.xml
+	 *            file
 	 */
 	private static void internalCaptureScreenShot(WebDriver driver, By elementLocator, String appendedText,
 			boolean takeScreenshot) {
@@ -206,9 +213,22 @@ public class ScreenshotManager {
 			 * Attempt to take a full page screenshot, take a regular screenshot upon
 			 * failure
 			 */
-			if (SCREENSHOT_FLAG_TAKEFULLPAGESCREENSHOT) {
+			if (SCREENSHOT_PARAMS_ISFULLPAGESCREENSHOT) {
 				try {
-					src = ScreenshotUtils.makeFullScreenshot(driver);
+					if (SCREENSHOT_PARAMS_SKIPPEDELEMENTSFROMSCREENSHOT.length() > 0) {
+						List<WebElement> skippedElementsList = new ArrayList<>();
+						String[] skippedElementLocators = SCREENSHOT_PARAMS_SKIPPEDELEMENTSFROMSCREENSHOT.split(";");
+						for (String locator : skippedElementLocators) {
+							skippedElementsList.add(driver.findElement(By.xpath(locator)));
+						}
+
+						WebElement[] skippedElementsArray = new WebElement[skippedElementsList.size()];
+						skippedElementsArray = skippedElementsList.toArray(skippedElementsArray);
+
+						src = ScreenshotUtils.makeFullScreenshot(driver, skippedElementsArray);
+					} else {
+						src = ScreenshotUtils.makeFullScreenshot(driver);
+					}
 				} catch (Exception e) {
 					src = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
 					ReportManager.log(e);

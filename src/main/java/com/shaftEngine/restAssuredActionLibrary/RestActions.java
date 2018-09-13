@@ -139,12 +139,14 @@ public class RestActions {
 		}
 	}
 
-	public static boolean assertResponse_StatusCode(Response response, String targetStatusCode) {
+	private static boolean assertResponse_StatusCode(Response response, String targetStatusCode) {
 		if (String.valueOf(response.getStatusCode()).equals(targetStatusCode)) {
-			passAction("assertResponse_StatusCode", String.valueOf(response.getStatusCode()));
+			// passAction("assertResponse_StatusCode",
+			// String.valueOf(response.getStatusCode()));
 			return true;
 		} else {
-			failAction("assertResponse_StatusCode", String.valueOf(response.getStatusCode()));
+			// failAction("assertResponse_StatusCode",
+			// String.valueOf(response.getStatusCode()));
 			return false;
 		}
 	}
