@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
+import java.util.function.Consumer;
 
 import org.testng.Assert;
 
@@ -158,6 +159,30 @@ public class SSHActions {
 			String keyFileFolderName, String keyFileName, String command) {
 		return performSSHcommand(hostname, sshPortNumber, username, keyFileFolderName, keyFileName,
 				Arrays.asList(command));
+	}
+
+	public static String performSSHcommand(String hostname, int sshPortNumber, String username,
+			String keyFileFolderName, String keyFileName, String dockerName, String dockerUsername,
+			List<String> commands) {
+
+		List<String> dockerCommands = Arrays.asList();
+
+		commands.forEach(new Consumer<String>() {
+			public void accept(String command) {
+				dockerCommands.add("docker exec -u " + dockerUsername + " -i " + dockerName + " sh -c " + command);
+			}
+		});
+
+		Session session = createSSHsession(hostname, sshPortNumber, username, keyFileFolderName, keyFileName);
+		return performSSHcommand(session, dockerCommands);
+	}
+
+	public static String performSSHcommand(String hostname, int sshPortNumber, String username,
+			String keyFileFolderName, String keyFileName, String dockerName, String dockerUsername, String command) {
+		String dockerCommand = "docker exec -u " + dockerUsername + " -i " + dockerName + " sh -c " + command;
+
+		return performSSHcommand(hostname, sshPortNumber, username, keyFileFolderName, keyFileName,
+				Arrays.asList(dockerCommand));
 	}
 
 	public static String executeShellCommand(List<String> commands) {
