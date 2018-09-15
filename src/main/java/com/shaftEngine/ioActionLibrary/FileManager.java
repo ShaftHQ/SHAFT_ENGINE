@@ -2,6 +2,7 @@ package com.shaftEngine.ioActionLibrary;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.FileSystems;
@@ -118,6 +119,9 @@ public class FileManager {
 		File directory = new File(folderPath);
 		try {
 			FileUtils.forceDelete(directory);
+		} catch (FileNotFoundException e) {
+			// file is already deleted or was not found
+			ReportManager.log("Folder [" + folderPath + "] was not found, it may have already been deleted.");
 		} catch (IOException e) {
 			ReportManager.log(e);
 		}
@@ -190,7 +194,8 @@ public class FileManager {
 		 * if the folder is empty add empty folder to the Zip file
 		 */
 		if (flag) {
-			zip.putNextEntry(new ZipEntry(path + FileSystems.getDefault().getSeparator() + folder.getName() + FileSystems.getDefault().getSeparator()));
+			zip.putNextEntry(new ZipEntry(path + FileSystems.getDefault().getSeparator() + folder.getName()
+					+ FileSystems.getDefault().getSeparator()));
 		} else { /*
 					 * if the current name is directory, recursively traverse it to get the files
 					 */
@@ -240,9 +245,11 @@ public class FileManager {
 			 */
 			for (String fileName : folder.list()) {
 				if (path.equals("")) {
-					addFileToZip(folder.getName(), srcFolder + FileSystems.getDefault().getSeparator() + fileName, zip, false);
+					addFileToZip(folder.getName(), srcFolder + FileSystems.getDefault().getSeparator() + fileName, zip,
+							false);
 				} else {
-					addFileToZip(path + FileSystems.getDefault().getSeparator() + folder.getName(), srcFolder + FileSystems.getDefault().getSeparator() + fileName, zip, false);
+					addFileToZip(path + FileSystems.getDefault().getSeparator() + folder.getName(),
+							srcFolder + FileSystems.getDefault().getSeparator() + fileName, zip, false);
 				}
 			}
 		}

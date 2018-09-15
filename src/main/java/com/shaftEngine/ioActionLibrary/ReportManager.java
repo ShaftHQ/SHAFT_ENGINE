@@ -61,6 +61,8 @@ public class ReportManager {
 			String logText = "";
 			StackTraceElement[] trace = e.getStackTrace();
 
+			// enhance to include exception type
+
 			logBuilder.append(e.getMessage() + System.lineSeparator());
 
 			for (int i = 0; i < trace.length; ++i) {
