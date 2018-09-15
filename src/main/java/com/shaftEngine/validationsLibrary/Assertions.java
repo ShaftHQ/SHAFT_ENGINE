@@ -66,9 +66,12 @@ public class Assertions {
 				// Assert.assertEquals(expectedValue, actualValue);
 				Assert.assertTrue((String.valueOf(actualValue)).matches(String.valueOf(expectedValue)));
 				pass("Assertion Passed; actual value does match expected value [" + expectedValue + "].");
-			} catch (Exception e) {
+			} catch (AssertionError e) {
 				fail("Assertion Failed; actual value [" + actualValue + "] does not match expected value ["
 						+ expectedValue + "].");
+			} catch (Exception e) {
+				ReportManager.log(e);
+				fail("Assertion Failed; an unhandled exception occured.");
 			}
 		} else {
 			try {
@@ -76,8 +79,11 @@ public class Assertions {
 				Assert.assertFalse((String.valueOf(actualValue)).matches(String.valueOf(expectedValue)));
 				pass("Assertion Passed; actual value [" + actualValue + "] does not match expected value ["
 						+ expectedValue + "].");
-			} catch (Exception e) {
+			} catch (AssertionError e) {
 				fail("Assertion Failed; actual value does match expected value [" + expectedValue + "].");
+			} catch (Exception e) {
+				ReportManager.log(e);
+				fail("Assertion Failed; an unhandled exception occured.");
 			}
 		}
 	}
@@ -100,15 +106,21 @@ public class Assertions {
 			try {
 				Assert.assertNull(object);
 				pass("Assertion Passed; actual value is null.");
-			} catch (Exception e) {
+			} catch (AssertionError e) {
 				fail("Assertion Failed; actual value is not null.");
+			} catch (Exception e) {
+				ReportManager.log(e);
+				fail("Assertion Failed; an unhandled exception occured.");
 			}
 		} else {
 			try {
 				Assert.assertNotNull(object);
 				pass("Assertion Passed; actual value is not null.");
-			} catch (Exception e) {
+			} catch (AssertionError e) {
 				fail("Assertion Failed; actual value is null.");
+			} catch (Exception e) {
+				ReportManager.log(e);
+				fail("Assertion Failed; an unhandled exception occured.");
 			}
 		}
 	}
@@ -137,6 +149,9 @@ public class Assertions {
 			} catch (AssertionError e) {
 				fail(driver, "Assertion Failed; element does not exist or is not unique. Locator ["
 						+ elementLocator.toString() + "].");
+			} catch (Exception e) {
+				ReportManager.log(e);
+				fail("Assertion Failed; an unhandled exception occured.");
 			}
 		} else {
 			try {
@@ -146,6 +161,9 @@ public class Assertions {
 			} catch (AssertionError e) {
 				pass(driver, "Assertion Passed; element does not exist or is not unique. Locator ["
 						+ elementLocator.toString() + "].");
+			} catch (Exception e) {
+				ReportManager.log(e);
+				fail("Assertion Failed; an unhandled exception occured.");
 			}
 		}
 	}
@@ -199,18 +217,24 @@ public class Assertions {
 				Assert.assertTrue((String.valueOf(actualValue)).matches(String.valueOf(expectedValue)));
 				pass(driver, elementLocator, "Assertion Passed; actual value of [" + elementAttribute
 						+ "] does match expected value [" + expectedValue + "].");
-			} catch (Exception e) {
+			} catch (AssertionError e) {
 				fail(driver, elementLocator, "Assertion Failed; actual value of [" + elementAttribute + "] equals ["
 						+ actualValue + "] which does not match expected value [" + expectedValue + "].");
+			} catch (Exception e) {
+				ReportManager.log(e);
+				fail("Assertion Failed; an unhandled exception occured.");
 			}
 		} else {
 			try {
 				Assert.assertFalse((String.valueOf(actualValue)).matches(String.valueOf(expectedValue)));
 				pass(driver, elementLocator, "Assertion Passed; actual value of [" + elementAttribute + "] equals ["
 						+ actualValue + "] which does not match expected value [" + expectedValue + "].");
-			} catch (Exception e) {
+			} catch (AssertionError e) {
 				fail(driver, elementLocator, "Assertion Failed; actual value of [" + elementAttribute
 						+ "] does match expected value [" + expectedValue + "].");
+			} catch (Exception e) {
+				ReportManager.log(e);
+				fail("Assertion Failed; an unhandled exception occured.");
 			}
 		}
 	}
@@ -271,18 +295,24 @@ public class Assertions {
 				Assert.assertTrue((String.valueOf(actualValue)).matches(String.valueOf(expectedValue)));
 				pass(driver, "Assertion Passed; actual value of [" + browserAttribute + "] does match expected value ["
 						+ expectedValue + "].");
-			} catch (Exception e) {
+			} catch (AssertionError e) {
 				fail(driver, "Assertion Failed; actual value of [" + browserAttribute + "] equals [" + actualValue
 						+ "] which does not match expected value [" + expectedValue + "].");
+			} catch (Exception e) {
+				ReportManager.log(e);
+				fail("Assertion Failed; an unhandled exception occured.");
 			}
 		} else {
 			try {
 				Assert.assertFalse((String.valueOf(actualValue)).matches(String.valueOf(expectedValue)));
 				pass(driver, "Assertion Passed; actual value of [" + browserAttribute + "] equals [" + actualValue
 						+ "] which does not match expected value [" + expectedValue + "].");
-			} catch (Exception e) {
+			} catch (AssertionError e) {
 				fail(driver, "Assertion Failed; actual value of [" + browserAttribute + "] does match expected value ["
 						+ expectedValue + "].");
+			} catch (Exception e) {
+				ReportManager.log(e);
+				fail("Assertion Failed; an unhandled exception occured.");
 			}
 		}
 	}
@@ -302,4 +332,33 @@ public class Assertions {
 	 * 
 	 * } }
 	 */
+
+	public static void assertGreaterThanOrEquals(Number expectedValue, Number actualValue, Boolean assertionType) {
+		ReportManager.log("Assertion [" + "assertGreaterThanOrEquals" + "] is being performed, with expectedValue ["
+				+ expectedValue + "], actualValue [" + actualValue + "], and assertionType [" + assertionType + "].");
+
+		if (assertionType) {
+			try {
+				Assert.assertTrue(actualValue.floatValue() >= expectedValue.floatValue());
+				pass("Assertion Passed; actual value [" + actualValue + "] is greater than or equals expected value ["
+						+ expectedValue + "].");
+			} catch (AssertionError e) {
+				fail("Assertion Failed; actual value [" + actualValue
+						+ "] is not greater than or equals expected value [" + expectedValue + "].");
+			}
+		} else {
+			try {
+				Assert.assertFalse(actualValue.floatValue() >= expectedValue.floatValue());
+				pass("Assertion Passed; actual value [" + actualValue
+						+ "] is not greater than or equals expected value [" + expectedValue + "].");
+			} catch (AssertionError e) {
+				fail("Assertion Failed; actual value [" + actualValue + "] is greater than or equals expected value ["
+						+ expectedValue + "].");
+			} catch (Exception e) {
+				ReportManager.log(e);
+				fail("Assertion Failed; an unhandled exception occured.");
+			}
+		}
+	}
+
 }

@@ -12,10 +12,10 @@ import com.shaftEngine.ioActionLibrary.ReportManager;
 import io.restassured.response.Response;
 
 public class RestActions {
-	private static String cookie_JSESSIONID = "";
-	private static String cookie_XSRF_TOKEN = "";
+	private static String cookieJSessionID = "";
+	private static String cookieXsrfToken = "";
 
-	private static final String argumentSeparator = "?";
+	private static final String ARGUMENTSEPARATOR = "?";
 
 	private static void passAction(String actionName, String testData, Response response) {
 		String message = "Successfully performed action [" + actionName + "].";
@@ -70,7 +70,7 @@ public class RestActions {
 		String request;
 		Response response = null;
 		if (!argument.equals("")) {
-			request = serviceURI + serviceName + argumentSeparator + argument;
+			request = serviceURI + serviceName + ARGUMENTSEPARATOR + argument;
 		} else {
 			request = serviceURI + serviceName;
 		}
@@ -79,27 +79,27 @@ public class RestActions {
 			switch (requestType.toLowerCase()) {
 
 			case "post":
-				response = given().header("X-XSRF-TOKEN", cookie_XSRF_TOKEN)
-						.cookies("JSESSIONID", cookie_JSESSIONID, "XSRF-TOKEN", cookie_XSRF_TOKEN).when().post(request)
+				response = given().header("X-XSRF-TOKEN", cookieXsrfToken)
+						.cookies("JSESSIONID", cookieJSessionID, "XSRF-TOKEN", cookieXsrfToken).when().post(request)
 						.andReturn();
 
 				if (response.getCookie("JSESSIONID") != null) {
-					cookie_JSESSIONID = response.getCookie("JSESSIONID");
+					cookieJSessionID = response.getCookie("JSESSIONID");
 				}
 				if (response.getCookie("XSRF-TOKEN") != null) {
-					cookie_XSRF_TOKEN = response.getCookie("XSRF-TOKEN");
+					cookieXsrfToken = response.getCookie("XSRF-TOKEN");
 				}
 				break;
 
 			case "get":
-				response = given().header("X-XSRF-TOKEN", cookie_XSRF_TOKEN)
-						.cookies("JSESSIONID", cookie_JSESSIONID, "XSRF-TOKEN", cookie_XSRF_TOKEN).when().get(request)
+				response = given().header("X-XSRF-TOKEN", cookieXsrfToken)
+						.cookies("JSESSIONID", cookieJSessionID, "XSRF-TOKEN", cookieXsrfToken).when().get(request)
 						.andReturn();
 				if (response.getCookie("JSESSIONID") != null) {
-					cookie_JSESSIONID = response.getCookie("JSESSIONID");
+					cookieJSessionID = response.getCookie("JSESSIONID");
 				}
 				if (response.getCookie("XSRF-TOKEN") != null) {
-					cookie_XSRF_TOKEN = response.getCookie("XSRF-TOKEN");
+					cookieXsrfToken = response.getCookie("XSRF-TOKEN");
 				}
 				break;
 
@@ -108,7 +108,7 @@ public class RestActions {
 				break;
 			}
 
-			if (assertResponse_StatusCode(response, targetStatusCode)) {
+			if (assertResponseStatusCode(response, targetStatusCode)) {
 				passAction("performRequest",
 						request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", response);
 				return response;
@@ -128,25 +128,32 @@ public class RestActions {
 		return null;
 	}
 
-	public static boolean assertResponse_JSON_ContainsValue(Response response, String jsonPath, String expectedValue) {
+	public static boolean assertResponseJSONContainsValue(Response response, String jsonPath, String expectedValue) {
 		List<String> searchPool = response.jsonPath().get(jsonPath);
 		if (searchPool.contains(expectedValue)) {
-			passAction("assertResponse_JSON_ContainsValue", jsonPath + ", " + expectedValue);
+			passAction("assertResponseJSONContainsValue", jsonPath + ", " + expectedValue);
 			return true;
 		} else {
-			failAction("assertResponse_JSON_ContainsValue", jsonPath + ", " + expectedValue);
+			failAction("assertResponseJSONContainsValue", jsonPath + ", " + expectedValue);
 			return false;
 		}
 	}
 
-	private static boolean assertResponse_StatusCode(Response response, String targetStatusCode) {
-		if (String.valueOf(response.getStatusCode()).equals(targetStatusCode)) {
-			// passAction("assertResponse_StatusCode",
-			// String.valueOf(response.getStatusCode()));
+	public static boolean assertResponseXMLContainsValue(Response response, String xmlPath, String expectedValue) {
+		String searchPool = response.xmlPath().get(xmlPath);
+		if (searchPool.contains(expectedValue)) {
+			passAction("assertResponseXMLContainsValue", xmlPath + ", " + expectedValue);
 			return true;
 		} else {
-			// failAction("assertResponse_StatusCode",
-			// String.valueOf(response.getStatusCode()));
+			failAction("assertResponseXMLContainsValue", xmlPath + ", " + expectedValue);
+			return false;
+		}
+	}
+
+	private static boolean assertResponseStatusCode(Response response, String targetStatusCode) {
+		if (String.valueOf(response.getStatusCode()).equals(targetStatusCode)) {
+			return true;
+		} else {
 			return false;
 		}
 	}
