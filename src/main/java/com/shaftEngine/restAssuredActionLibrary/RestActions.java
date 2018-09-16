@@ -2,18 +2,23 @@ package com.shaftEngine.restAssuredActionLibrary;
 
 import static io.restassured.RestAssured.given;
 
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.testng.Assert;
 
 import com.shaftEngine.ioActionLibrary.ReportManager;
+import com.shaftEngine.supportActionLibrary.JavaActions;
+import com.shaftEngine.validationsLibrary.Assertions;
 
+import io.restassured.http.Cookies;
 import io.restassured.response.Response;
 
 public class RestActions {
 	private static String cookieJSessionID = "";
-	private static String cookieXsrfToken = "";
+	private static String headerXsrfToken = "";
+	private static String headerAuthorization = "";
+
+	private static Cookies sessionCookies;
 
 	private static final String ARGUMENTSEPARATOR = "?";
 
@@ -53,22 +58,21 @@ public class RestActions {
 	 * status code, if it matches the target code the step is passed and the
 	 * response is returned. Otherwise the action fails and NULL is returned.
 	 * 
-	 * @param requestType;
-	 *            POST/GET
-	 * @param targetStatusCode;
-	 *            200
-	 * @param serviceURI;
-	 *            http://serviceURL.com:PORT/serviceROOT
-	 * @param serviceName;
-	 *            /servicePATH/serviceNAME
-	 * @param argument;
-	 *            arguments without a preceding ?
+	 * @param requestType; POST/GET
+	 * @param targetStatusCode; 200
+	 * @param serviceURI; http://serviceURL.com:PORT/serviceROOT
+	 * @param serviceName; /servicePATH/serviceNAME
+	 * @param argument; arguments without a preceding ?
 	 * @return Response; returns the full response object for further manipulation
 	 */
 	public static Response performRequest(String requestType, String targetStatusCode, String serviceURI,
 			String serviceName, String argument) {
 		String request;
 		Response response = null;
+
+		String userName = "admin";
+		String password = "admin";
+
 		if (!argument.equals("")) {
 			request = serviceURI + serviceName + ARGUMENTSEPARATOR + argument;
 		} else {
@@ -79,27 +83,60 @@ public class RestActions {
 			switch (requestType.toLowerCase()) {
 
 			case "post":
-				response = given().header("X-XSRF-TOKEN", cookieXsrfToken)
-						.cookies("JSESSIONID", cookieJSessionID, "XSRF-TOKEN", cookieXsrfToken).when().post(request)
-						.andReturn();
+				if (headerAuthorization.equals("")) {
+					headerAuthorization = "Basic " + JavaActions.convertBase64(userName + ":" + password);
+				}
+
+				if (sessionCookies == null) {
+					response = given().headers("X-XSRF-TOKEN", headerXsrfToken, "Authorization", headerAuthorization)
+							.when().post(request).andReturn();
+					sessionCookies = response.getDetailedCookies();
+				} else {
+					response = given().headers("X-XSRF-TOKEN", headerXsrfToken, "Authorization", headerAuthorization)
+							.cookies(sessionCookies).when().post(request).andReturn();
+				}
 
 				if (response.getCookie("JSESSIONID") != null) {
 					cookieJSessionID = response.getCookie("JSESSIONID");
 				}
 				if (response.getCookie("XSRF-TOKEN") != null) {
-					cookieXsrfToken = response.getCookie("XSRF-TOKEN");
+					headerXsrfToken = response.getCookie("XSRF-TOKEN");
+				}
+				try {
+					if (getResponseJSONValue(response, "type").equals("Bearer")) {
+						headerAuthorization = "Bearer " + getResponseJSONValue(response, "token");
+					}
+				} catch (AssertionError e) {
+					// do nothing if the "type" variable was not found
 				}
 				break;
 
 			case "get":
-				response = given().header("X-XSRF-TOKEN", cookieXsrfToken)
-						.cookies("JSESSIONID", cookieJSessionID, "XSRF-TOKEN", cookieXsrfToken).when().get(request)
-						.andReturn();
+				if (headerAuthorization.equals("")) {
+					headerAuthorization = "Basic " + JavaActions.convertBase64(userName + ":" + password);
+				}
+
+				if (sessionCookies == null) {
+					response = given().headers("X-XSRF-TOKEN", headerXsrfToken, "Authorization", headerAuthorization)
+							.when().get(request).andReturn();
+					sessionCookies = response.getDetailedCookies();
+				} else {
+					response = given().headers("X-XSRF-TOKEN", headerXsrfToken, "Authorization", headerAuthorization)
+							.cookies(sessionCookies).when().get(request).andReturn();
+				}
+
 				if (response.getCookie("JSESSIONID") != null) {
 					cookieJSessionID = response.getCookie("JSESSIONID");
 				}
 				if (response.getCookie("XSRF-TOKEN") != null) {
-					cookieXsrfToken = response.getCookie("XSRF-TOKEN");
+					headerXsrfToken = response.getCookie("XSRF-TOKEN");
+				}
+				try {
+					if (getResponseJSONValue(response, "type").equals("Bearer")) {
+						headerAuthorization = "Bearer " + getResponseJSONValue(response, "token");
+					}
+				} catch (AssertionError e) {
+					// do nothing if the "type" variable was not found
 				}
 				break;
 
@@ -129,7 +166,7 @@ public class RestActions {
 	}
 
 	public static boolean assertResponseJSONContainsValue(Response response, String jsonPath, String expectedValue) {
-		List<String> searchPool = response.jsonPath().get(jsonPath);
+		String searchPool = response.jsonPath().getString(jsonPath);
 		if (searchPool.contains(expectedValue)) {
 			passAction("assertResponseJSONContainsValue", jsonPath + ", " + expectedValue);
 			return true;
@@ -139,8 +176,20 @@ public class RestActions {
 		}
 	}
 
+	public static String getResponseJSONValue(Response response, String jsonPath) {
+		String searchPool = response.jsonPath().getString(jsonPath);
+		if (searchPool != null) {
+			passAction("getResponseJSONValue", jsonPath);
+			return searchPool;
+		} else {
+			ReportManager.log("Couldn't find anything that matches with the desired jsonPath [" + jsonPath + "]");
+			failAction("getResponseJSONValue", jsonPath);
+			return "";
+		}
+	}
+
 	public static boolean assertResponseXMLContainsValue(Response response, String xmlPath, String expectedValue) {
-		String searchPool = response.xmlPath().get(xmlPath);
+		String searchPool = response.xmlPath().getString(xmlPath);
 		if (searchPool.contains(expectedValue)) {
 			passAction("assertResponseXMLContainsValue", xmlPath + ", " + expectedValue);
 			return true;
@@ -150,12 +199,29 @@ public class RestActions {
 		}
 	}
 
-	private static boolean assertResponseStatusCode(Response response, String targetStatusCode) {
-		if (String.valueOf(response.getStatusCode()).equals(targetStatusCode)) {
-			return true;
+	public static String getResponseXMLValue(Response response, String xmlPath) {
+		String searchPool = response.xmlPath().getString(xmlPath);
+		if (searchPool != null) {
+			passAction("getResponseXMLValue", xmlPath);
+			return searchPool;
 		} else {
+			ReportManager.log("Couldn't find anything that matches with the desired xmlPath [" + xmlPath + "]");
+			failAction("getResponseXMLValue", xmlPath);
+			return "";
+		}
+	}
+
+	private static boolean assertResponseStatusCode(Response response, String targetStatusCode) {
+		try {
+			Assertions.assertEquals(targetStatusCode, response.getStatusCode(), true);
+			return true;
+		} catch (AssertionError e) {
 			return false;
 		}
+	}
+
+	public static int getResponseStatusCode(Response response) {
+		return response.getStatusCode();
 	}
 
 }
