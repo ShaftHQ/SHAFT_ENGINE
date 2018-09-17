@@ -31,8 +31,7 @@ public class ReportManager {
 	/**
 	 * Manages action counter and calls writeLog to format and print the log entry.
 	 * 
-	 * @param logText
-	 *            the text that needs to be logged in this action
+	 * @param logText the text that needs to be logged in this action
 	 */
 	public static void log(String logText) {
 		logEngineVersionAndEnvironmentData();
@@ -49,8 +48,7 @@ public class ReportManager {
 	 * Format an exception message and stack trace, and calls attach to add it as a
 	 * log entry.
 	 * 
-	 * @param e
-	 *            the exception that will be logged in this action
+	 * @param e the exception that will be logged in this action
 	 */
 	public static void log(Exception e) {
 		logEngineVersionAndEnvironmentData();
@@ -63,14 +61,15 @@ public class ReportManager {
 
 			// enhance to include exception type
 
-			logBuilder.append(e.getMessage() + System.lineSeparator());
+			logBuilder.append(
+					e.getClass().getName() + ":" + System.lineSeparator() + e.getMessage() + System.lineSeparator());
 
 			for (int i = 0; i < trace.length; ++i) {
 				logBuilder.append(trace[i].toString() + System.lineSeparator());
 			}
 			logText = logBuilder.toString();
 
-			attach("Exception Stack Trace for [" + e.toString().substring(0, 30) + "...]", logText);
+			attach("Exception Stack Trace for [" + e.getClass().getName() + "...]", logText);
 			actionCounter++;
 		}
 	}
@@ -79,11 +78,9 @@ public class ReportManager {
 	 * Formats logText and adds timestamp, then logs it as a step in the execution
 	 * report.
 	 * 
-	 * @param logText
-	 *            the text that needs to be logged in this action
-	 * @param actionCounter
-	 *            a number that represents the serial number of this action within
-	 *            this test run
+	 * @param logText       the text that needs to be logged in this action
+	 * @param actionCounter a number that represents the serial number of this
+	 *                      action within this test run
 	 */
 	@Step("Action [{actionCounter}]: {logText}")
 	private static void writeLogStepToReport(String logText, int actionCounter) {
@@ -103,12 +100,9 @@ public class ReportManager {
 	 * Adds a new attachment using the input parameters provided. The attachment is
 	 * displayed as a step in the execution report. Used for Screenshots.
 	 * 
-	 * @param attachmentType
-	 *            the type of this attachment
-	 * @param attachmentName
-	 *            the name of this attachment
-	 * @param attachmentContent
-	 *            the content of this attachment
+	 * @param attachmentType    the type of this attachment
+	 * @param attachmentName    the name of this attachment
+	 * @param attachmentContent the content of this attachment
 	 */
 	@Step("Attachement: {attachmentType} - {attachmentName}")
 	public static void attach(String attachmentType, String attachmentName, InputStream attachmentContent) {
@@ -122,10 +116,8 @@ public class ReportManager {
 	 * Adds a new attachment using the input parameters provided. The attachment is
 	 * displayed as a step in the execution report. Used for REST API Responses.
 	 * 
-	 * @param attachmentName
-	 *            the name of this attachment
-	 * @param attachmentContent
-	 *            the content of this attachment
+	 * @param attachmentName    the name of this attachment
+	 * @param attachmentContent the content of this attachment
 	 */
 	@Step("Attachment: {attachmentName}")
 	public static void attach(String attachmentName, String attachmentContent) {
@@ -173,8 +165,7 @@ public class ReportManager {
 	/**
 	 * Appends a log entry to the complete log of the current execution session.
 	 * 
-	 * @param log
-	 *            the log entry that needs to be appended to the full log
+	 * @param log the log entry that needs to be appended to the full log
 	 */
 	private static void appendToFullLog(String log) {
 		fullLog += log;

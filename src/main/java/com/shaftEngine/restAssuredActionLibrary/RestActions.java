@@ -2,23 +2,27 @@ package com.shaftEngine.restAssuredActionLibrary;
 
 import static io.restassured.RestAssured.given;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.testng.Assert;
 
 import com.shaftEngine.ioActionLibrary.ReportManager;
 import com.shaftEngine.supportActionLibrary.JavaActions;
-import com.shaftEngine.validationsLibrary.Assertions;
 
-import io.restassured.http.Cookies;
+import io.restassured.http.Cookie;
+import io.restassured.http.Header;
+import io.restassured.path.json.exception.JsonPathException;
 import io.restassured.response.Response;
 
 public class RestActions {
-	private static String cookieJSessionID = "";
-	private static String headerXsrfToken = "";
+//	private static String cookieJSessionID = "";
+//	private static String headerXsrfToken = "";
 	private static String headerAuthorization = "";
 
-	private static Cookies sessionCookies;
+	private static Map<String, String> sessionCookies = new HashMap<>();
+	private static Map<String, String> sessionHeaders = new HashMap<>();
 
 	private static final String ARGUMENTSEPARATOR = "?";
 
@@ -66,12 +70,9 @@ public class RestActions {
 	 * @return Response; returns the full response object for further manipulation
 	 */
 	public static Response performRequest(String requestType, String targetStatusCode, String serviceURI,
-			String serviceName, String argument) {
+			String serviceName, String argument, String... credentials) {
 		String request;
 		Response response = null;
-
-		String userName = "admin";
-		String password = "admin";
 
 		if (!argument.equals("")) {
 			request = serviceURI + serviceName + ARGUMENTSEPARATOR + argument;
@@ -79,89 +80,106 @@ public class RestActions {
 			request = serviceURI + serviceName;
 		}
 
-		try {
-			switch (requestType.toLowerCase()) {
+		if (headerAuthorization.equals("") && credentials.length == 2) {
+			headerAuthorization = "Basic " + JavaActions.convertBase64(credentials[0] + ":" + credentials[1]);
 
-			case "post":
-				if (headerAuthorization.equals("")) {
-					headerAuthorization = "Basic " + JavaActions.convertBase64(userName + ":" + password);
-				}
-
-				if (sessionCookies == null) {
-					response = given().headers("X-XSRF-TOKEN", headerXsrfToken, "Authorization", headerAuthorization)
-							.when().post(request).andReturn();
-					sessionCookies = response.getDetailedCookies();
-				} else {
-					response = given().headers("X-XSRF-TOKEN", headerXsrfToken, "Authorization", headerAuthorization)
-							.cookies(sessionCookies).when().post(request).andReturn();
-				}
-
-				if (response.getCookie("JSESSIONID") != null) {
-					cookieJSessionID = response.getCookie("JSESSIONID");
-				}
-				if (response.getCookie("XSRF-TOKEN") != null) {
-					headerXsrfToken = response.getCookie("XSRF-TOKEN");
-				}
-				try {
-					if (getResponseJSONValue(response, "type").equals("Bearer")) {
-						headerAuthorization = "Bearer " + getResponseJSONValue(response, "token");
-					}
-				} catch (AssertionError e) {
-					// do nothing if the "type" variable was not found
-				}
-				break;
-
-			case "get":
-				if (headerAuthorization.equals("")) {
-					headerAuthorization = "Basic " + JavaActions.convertBase64(userName + ":" + password);
-				}
-
-				if (sessionCookies == null) {
-					response = given().headers("X-XSRF-TOKEN", headerXsrfToken, "Authorization", headerAuthorization)
-							.when().get(request).andReturn();
-					sessionCookies = response.getDetailedCookies();
-				} else {
-					response = given().headers("X-XSRF-TOKEN", headerXsrfToken, "Authorization", headerAuthorization)
-							.cookies(sessionCookies).when().get(request).andReturn();
-				}
-
-				if (response.getCookie("JSESSIONID") != null) {
-					cookieJSessionID = response.getCookie("JSESSIONID");
-				}
-				if (response.getCookie("XSRF-TOKEN") != null) {
-					headerXsrfToken = response.getCookie("XSRF-TOKEN");
-				}
-				try {
-					if (getResponseJSONValue(response, "type").equals("Bearer")) {
-						headerAuthorization = "Bearer " + getResponseJSONValue(response, "token");
-					}
-				} catch (AssertionError e) {
-					// do nothing if the "type" variable was not found
-				}
-				break;
-
-			default:
-				failAction("performRequest", request);
-				break;
-			}
-
-			if (assertResponseStatusCode(response, targetStatusCode)) {
-				passAction("performRequest",
-						request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", response);
-				return response;
-			} else {
-				failAction("performRequest",
-						request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", response);
-			}
-		} catch (NullPointerException e) {
-			ReportManager.log(e);
-			failAction("performRequest", request);
-		} catch (Exception e) {
-			ReportManager.log(e);
-			failAction("performRequest", request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms",
-					response);
+			sessionHeaders.put("Authorization", headerAuthorization);
 		}
 
+		try {
+
+			if (sessionCookies.size() == 0 && sessionHeaders.size() > 0) {
+				switch (requestType.toLowerCase()) {
+				case "post":
+					response = given().headers(sessionHeaders).when().post(request).andReturn();
+					break;
+				case "get":
+					response = given().headers(sessionHeaders).when().get(request).andReturn();
+					break;
+				default:
+					failAction("performRequest", request);
+					break;
+				}
+			} else if (sessionCookies.size() == 0 && sessionHeaders.size() == 0) {
+				switch (requestType.toLowerCase()) {
+				case "post":
+					response = given().when().post(request).andReturn();
+					break;
+				case "get":
+					response = given().when().get(request).andReturn();
+					break;
+				default:
+					failAction("performRequest", request);
+					break;
+				}
+			} else {
+				switch (requestType.toLowerCase()) {
+				case "post":
+					response = given().headers(sessionHeaders).cookies(sessionCookies).when().post(request).andReturn();
+					break;
+				case "get":
+					response = given().headers(sessionHeaders).cookies(sessionCookies).when().get(request).andReturn();
+					break;
+				default:
+					failAction("performRequest", request);
+					break;
+				}
+			}
+
+			if (response != null) {
+				if (response.getDetailedCookies().size() > 0) {
+					if (sessionCookies == null) {
+						sessionCookies = response.getCookies();
+					} else {
+						for (Cookie cookie : response.getDetailedCookies()) {
+							sessionCookies.put(cookie.getName(), cookie.getValue());
+							///////////////////////
+
+							if (cookie.getName().equals("XSRF-TOKEN")) {
+								sessionHeaders.put("X-XSRF-TOKEN", cookie.getValue());
+							}
+						}
+					}
+				}
+
+				if (response.getHeaders().size() > 0) {
+					for (Header header : response.getHeaders()) {
+						if (header.getName().equals("X-XSRF-TOKEN") || header.getName().equals("Set-Cookie")) {
+							sessionHeaders.put(header.getName(), header.getValue());
+						}
+					}
+				}
+
+				try {
+					if (response.jsonPath().getString("type").equals("Bearer")) {
+						headerAuthorization = "Bearer " + getResponseJSONValue(response, "token");
+						sessionHeaders.put("Authorization", headerAuthorization);
+					}
+				} catch (JsonPathException | NullPointerException e) {
+					// do nothing if the "type" variable was not found
+					// or if response was not json
+
+					// JsonPathException | NullPointerException
+				}
+
+				if (assertResponseStatusCode(response, targetStatusCode)) {
+					passAction("performRequest",
+							request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", response);
+					return response;
+				} else {
+					failAction("performRequest",
+							request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", response);
+				}
+			}
+		} catch (Exception e) {
+			ReportManager.log(e);
+			if (response != null) {
+				failAction("performRequest",
+						request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", response);
+			} else {
+				failAction("performRequest", request);
+			}
+		}
 		return null;
 	}
 
@@ -212,12 +230,7 @@ public class RestActions {
 	}
 
 	private static boolean assertResponseStatusCode(Response response, String targetStatusCode) {
-		try {
-			Assertions.assertEquals(targetStatusCode, response.getStatusCode(), true);
-			return true;
-		} catch (AssertionError e) {
-			return false;
-		}
+		return String.valueOf(response.getStatusCode()).equals(targetStatusCode);
 	}
 
 	public static int getResponseStatusCode(Response response) {
