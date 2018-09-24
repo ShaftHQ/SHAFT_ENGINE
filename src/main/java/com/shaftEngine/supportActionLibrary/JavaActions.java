@@ -1,5 +1,7 @@
 package com.shaftEngine.supportActionLibrary;
 
+import java.util.Base64;
+
 public class JavaActions {
 	
 /**
@@ -32,5 +34,9 @@ public class JavaActions {
 	public static String replaceRegex(String text) {
 		String specialCharactersArray[]= {"[","]","^","$",".","|","?","*","+","(",")","{","}"};
 		return replaceRegex(specialCharactersArray, text);
+	}
+	
+	public static String convertBase64(String text) {
+		return Base64.getEncoder().encodeToString(text.getBytes());
 	}
 }
