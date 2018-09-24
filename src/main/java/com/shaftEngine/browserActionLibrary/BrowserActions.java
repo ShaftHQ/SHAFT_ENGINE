@@ -307,21 +307,50 @@ public class BrowserActions {
 				driver.manage().window().setPosition(new Point(0, 0));
 				driver.manage().window().setSize(new Dimension(width, height));
 			} catch (HeadlessException e) {
-				// happens with headless firefox browsers // remote // linux and windows
+				try {
+					// happens with headless firefox browsers // remote // linux and windows
+					driver.manage().window().setPosition(new Point(0, 0));
+					driver.manage().window().setSize(new Dimension(width, height));
+				} catch (HeadlessException e2) {
+					// just in case (this exception was never thrown)
+				}
 			}
 		}
 
 		if (windowSize.equals(driver.manage().window().getSize().toString())) {
-			((JavascriptExecutor) driver).executeScript("window.resizeTo(" + width + ", " + height + ");");
-			((JavascriptExecutor) driver).executeScript("window.moveTo(0,0);");
 			((JavascriptExecutor) driver).executeScript("window.focus();");
+			((JavascriptExecutor) driver).executeScript("window.moveTo(0,0);");
+			((JavascriptExecutor) driver).executeScript("window.resizeTo(" + width + ", " + height + ");");
 		}
 
 		if (windowSize.equals(driver.manage().window().getSize().toString())) {
 			// failAction(driver, "maximizeWindow");
-			ReportManager.log("skipping window maximization due to unknown error, marking step as passed.");
+			fullScreenWindow(driver);
+			// ReportManager.log("skipping window maximization due to unknown error, marking
+			// step as passed.");
 		}
 		passAction(driver, "maximizeWindow");
+	}
+
+	public static void fullScreenWindow(WebDriver driver) {
+		String windowSize = "";
+		int width = 1920;
+		int height = 1080;
+
+		windowSize = driver.manage().window().getSize().toString();
+		driver.manage().window().fullscreen();
+
+		if (windowSize.equals(driver.manage().window().getSize().toString())) {
+			((JavascriptExecutor) driver).executeScript("window.focus();");
+			((JavascriptExecutor) driver).executeScript("window.moveTo(0,0);");
+			((JavascriptExecutor) driver).executeScript("window.resizeTo(" + width + ", " + height + ");");
+		}
+
+		if (windowSize.equals(driver.manage().window().getSize().toString())) {
+			// failAction(driver, "fullScreenWindow");
+			ReportManager.log("skipping switching window to full screen due to unknown error, marking step as passed.");
+		}
+		passAction(driver, "fullScreenWindow");
 	}
 
 	private static void triggerWaitForLazyLoading(WebDriver driver) {
