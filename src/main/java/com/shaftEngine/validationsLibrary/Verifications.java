@@ -17,7 +17,6 @@ public class Verifications {
 	private static StringBuffer verificationSuccesses = new StringBuffer();
 	private static int elementDoesntExist_timeout = 4;
 
-
 	private static void reportVerificationResults(WebDriver driver, By elementLocator) {
 		String verificationSuccessesString = verificationSuccesses.toString().trim();
 		if (!"".equals(verificationSuccessesString)) {
@@ -80,6 +79,9 @@ public class Verifications {
 			} catch (AssertionError e) {
 				verificationFailures.append("Verification Failed; actual value [" + actualValue
 						+ "] does not match expected value [" + expectedValue + "].");
+			} catch (Exception e) {
+				ReportManager.log(e);
+				verificationFailures.append("Verification Failed; an unhandled exception occured.");
 			}
 		} else {
 			try {
@@ -89,6 +91,9 @@ public class Verifications {
 			} catch (AssertionError e) {
 				verificationFailures
 						.append("Verification Failed; actual value does match expected value [" + actualValue + "].");
+			} catch (Exception e) {
+				ReportManager.log(e);
+				verificationFailures.append("Verification Failed; an unhandled exception occured.");
 			}
 		}
 		reportVerificationResults(null, null);
@@ -114,6 +119,9 @@ public class Verifications {
 				verificationSuccesses.append("Verification Passed; actual value is null.");
 			} catch (AssertionError e) {
 				verificationFailures.append("Verification Failed; actual value is not null.");
+			} catch (Exception e) {
+				ReportManager.log(e);
+				verificationFailures.append("Verification Failed; an unhandled exception occured.");
 			}
 		} else {
 			try {
@@ -121,6 +129,9 @@ public class Verifications {
 				verificationSuccesses.append("Verification Passed; actual value is not null.");
 			} catch (AssertionError e) {
 				verificationFailures.append("Verification Failed; actual value is null.");
+			} catch (Exception e) {
+				ReportManager.log(e);
+				verificationFailures.append("Verification Failed; an unhandled exception occured.");
 			}
 		}
 		reportVerificationResults(null, null);
@@ -152,16 +163,23 @@ public class Verifications {
 				verificationFailures.append("Assertion Failed; element does not exist or is not unique. Locator ["
 						+ elementLocator.toString() + "].");
 				elementLocator = null; // workaround to force take a screenshot of the whole page
+			} catch (Exception e) {
+				ReportManager.log(e);
+				verificationFailures.append("Verification Failed; an unhandled exception occured.");
 			}
 		} else {
 			try {
-				Assert.assertFalse(ElementActions.internalCanFindUniqueElement(driver, elementLocator, elementDoesntExist_timeout));
+				Assert.assertFalse(ElementActions.internalCanFindUniqueElement(driver, elementLocator,
+						elementDoesntExist_timeout));
 				verificationSuccesses.append("Assertion Passed; element does not exist or is not unique. Locator ["
 						+ elementLocator.toString() + "].");
 				elementLocator = null; // workaround to force take a screenshot of the whole page
 			} catch (AssertionError e) {
 				verificationFailures.append(
 						"Assertion Failed; element exists and is unique. Locator [" + elementLocator.toString() + "].");
+			} catch (Exception e) {
+				ReportManager.log(e);
+				verificationFailures.append("Verification Failed; an unhandled exception occured.");
 			}
 		}
 		reportVerificationResults(driver, elementLocator);
@@ -219,6 +237,9 @@ public class Verifications {
 			} catch (AssertionError e) {
 				verificationFailures.append("Verification Failed; actual value of [" + elementAttribute + "] equals ["
 						+ actualValue + "] which does not match expected value [" + expectedValue + "].");
+			} catch (Exception e) {
+				ReportManager.log(e);
+				verificationFailures.append("Verification Failed; an unhandled exception occured.");
 			}
 		} else {
 			try {
@@ -228,6 +249,9 @@ public class Verifications {
 			} catch (AssertionError e) {
 				verificationFailures.append("Verification Failed; actual value of [" + elementAttribute
 						+ "] does match expected value [" + actualValue + "].");
+			} catch (Exception e) {
+				ReportManager.log(e);
+				verificationFailures.append("Verification Failed; an unhandled exception occured.");
 			}
 		}
 		reportVerificationResults(driver, elementLocator);
@@ -291,6 +315,9 @@ public class Verifications {
 			} catch (AssertionError e) {
 				verificationFailures.append("Verification Failed; actual value [" + actualValue
 						+ "] does not match expected value [" + expectedValue + "].");
+			} catch (Exception e) {
+				ReportManager.log(e);
+				verificationFailures.append("Verification Failed; an unhandled exception occured.");
 			}
 		} else {
 			try {
@@ -300,6 +327,9 @@ public class Verifications {
 			} catch (AssertionError e) {
 				verificationFailures.append("Verification Failed; actual value of [" + browserAttribute
 						+ "] does match expected value [" + actualValue + "].");
+			} catch (Exception e) {
+				ReportManager.log(e);
+				verificationFailures.append("Verification Failed; an unhandled exception occured.");
 			}
 		}
 		reportVerificationResults(driver, null);
@@ -318,4 +348,33 @@ public class Verifications {
 	 * text.replace("[", "\\[").replace("]", "\\]"); }
 	 */
 
+	public static void verifyGreaterThanOrEquals(Number expectedValue, Number actualValue, Boolean verificationType) {
+		ReportManager.log("Verification [" + "verifyGreaterThanOrEquals" + "] is being performed, with expectedValue ["
+				+ expectedValue + "], actualValue [" + actualValue + "], and verificationType [" + verificationType
+				+ "].");
+
+		if (verificationType) {
+			try {
+				Assert.assertTrue(actualValue.floatValue() >= expectedValue.floatValue());
+				verificationSuccesses.append("Verification Passed; actual value [" + actualValue
+						+ "] is greater than or equals expected value [" + expectedValue + "].");
+			} catch (AssertionError e) {
+				verificationFailures.append("Verification Failed; actual value [" + actualValue
+						+ "] is not greater than or equals expected value [" + expectedValue + "].");
+			}
+		} else {
+			try {
+				Assert.assertFalse(actualValue.floatValue() >= expectedValue.floatValue());
+				verificationSuccesses.append("Verification Passed; actual value [" + actualValue
+						+ "] is not greater than or equals expected value [" + expectedValue + "].");
+			} catch (AssertionError e) {
+				verificationFailures.append("Verification Failed; actual value [" + actualValue
+						+ "] is greater than or equals expected value [" + expectedValue + "].");
+			} catch (Exception e) {
+				ReportManager.log(e);
+				verificationFailures.append("Verification Failed; an unhandled exception occured.");
+			}
+		}
+		reportVerificationResults(null, null);
+	}
 }

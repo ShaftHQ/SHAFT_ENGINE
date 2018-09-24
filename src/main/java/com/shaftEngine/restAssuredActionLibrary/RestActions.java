@@ -2,22 +2,34 @@ package com.shaftEngine.restAssuredActionLibrary;
 
 import static io.restassured.RestAssured.given;
 
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.testng.Assert;
 
 import com.shaftEngine.ioActionLibrary.ReportManager;
+import com.shaftEngine.supportActionLibrary.JavaActions;
 
+import io.restassured.http.Cookie;
+import io.restassured.http.Header;
+import io.restassured.path.json.exception.JsonPathException;
 import io.restassured.response.Response;
 
 public class RestActions {
-	private static String cookie_JSESSIONID = "";
-	private static String cookie_XSRF_TOKEN = "";
+	private static final String ARGUMENTSEPARATOR = "?";
 
-	private static final String argumentSeparator = "?";
+	private String headerAuthorization;
+	private Map<String, String> sessionCookies;
+	private Map<String, String> sessionHeaders;
 
-	private static void passAction(String actionName, String testData, Response response) {
+	public RestActions() {
+		headerAuthorization = "";
+		sessionCookies = new HashMap<>();
+		sessionHeaders = new HashMap<>();
+	}
+
+	private void passAction(String actionName, String testData, Response response) {
 		String message = "Successfully performed action [" + actionName + "].";
 		if (testData != null) {
 			message = message + " With the following test data [" + testData + "].";
@@ -28,11 +40,11 @@ public class RestActions {
 		}
 	}
 
-	private static void passAction(String actionName, String testData) {
+	private void passAction(String actionName, String testData) {
 		passAction(actionName, testData, null);
 	}
 
-	private static void failAction(String actionName, String testData, Response response) {
+	private void failAction(String actionName, String testData, Response response) {
 		String message = "Failed to perform action [" + actionName + "].";
 		if (testData != null) {
 			message = message + " With the following test data [" + testData + "].";
@@ -44,7 +56,7 @@ public class RestActions {
 		Assert.fail(message);
 	}
 
-	private static void failAction(String actionName, String testData) {
+	private void failAction(String actionName, String testData) {
 		failAction(actionName, testData, null);
 	}
 
@@ -65,90 +77,175 @@ public class RestActions {
 	 *            arguments without a preceding ?
 	 * @return Response; returns the full response object for further manipulation
 	 */
-	public static Response performRequest(String requestType, String targetStatusCode, String serviceURI,
-			String serviceName, String argument) {
+	public Response performRequest(String requestType, String targetStatusCode, String serviceURI, String serviceName,
+			String argument, String... credentials) {
 		String request;
 		Response response = null;
+
 		if (!argument.equals("")) {
-			request = serviceURI + serviceName + argumentSeparator + argument;
+			request = serviceURI + serviceName + ARGUMENTSEPARATOR + argument;
 		} else {
 			request = serviceURI + serviceName;
 		}
 
-		try {
-			switch (requestType.toLowerCase()) {
+		if (headerAuthorization.equals("") && credentials.length == 2) {
+			headerAuthorization = "Basic " + JavaActions.convertBase64(credentials[0] + ":" + credentials[1]);
 
-			case "post":
-				response = given().header("X-XSRF-TOKEN", cookie_XSRF_TOKEN)
-						.cookies("JSESSIONID", cookie_JSESSIONID, "XSRF-TOKEN", cookie_XSRF_TOKEN).when().post(request)
-						.andReturn();
-
-				if (response.getCookie("JSESSIONID") != null) {
-					cookie_JSESSIONID = response.getCookie("JSESSIONID");
-				}
-				if (response.getCookie("XSRF-TOKEN") != null) {
-					cookie_XSRF_TOKEN = response.getCookie("XSRF-TOKEN");
-				}
-				break;
-
-			case "get":
-				response = given().header("X-XSRF-TOKEN", cookie_XSRF_TOKEN)
-						.cookies("JSESSIONID", cookie_JSESSIONID, "XSRF-TOKEN", cookie_XSRF_TOKEN).when().get(request)
-						.andReturn();
-				if (response.getCookie("JSESSIONID") != null) {
-					cookie_JSESSIONID = response.getCookie("JSESSIONID");
-				}
-				if (response.getCookie("XSRF-TOKEN") != null) {
-					cookie_XSRF_TOKEN = response.getCookie("XSRF-TOKEN");
-				}
-				break;
-
-			default:
-				failAction("performRequest", request);
-				break;
-			}
-
-			if (assertResponse_StatusCode(response, targetStatusCode)) {
-				passAction("performRequest",
-						request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", response);
-				return response;
-			} else {
-				failAction("performRequest",
-						request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", response);
-			}
-		} catch (NullPointerException e) {
-			ReportManager.log(e);
-			failAction("performRequest", request);
-		} catch (Exception e) {
-			ReportManager.log(e);
-			failAction("performRequest", request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms",
-					response);
+			sessionHeaders.put("Authorization", headerAuthorization);
 		}
 
+		try {
+
+			if (sessionCookies.size() == 0 && sessionHeaders.size() > 0) {
+				switch (requestType.toLowerCase()) {
+				case "post":
+					response = given().headers(sessionHeaders).when().post(request).andReturn();
+					break;
+				case "get":
+					response = given().headers(sessionHeaders).when().get(request).andReturn();
+					break;
+				default:
+					failAction("performRequest", request);
+					break;
+				}
+			} else if (sessionCookies.size() == 0 && sessionHeaders.size() == 0) {
+				switch (requestType.toLowerCase()) {
+				case "post":
+					response = given().when().post(request).andReturn();
+					break;
+				case "get":
+					response = given().when().get(request).andReturn();
+					break;
+				default:
+					failAction("performRequest", request);
+					break;
+				}
+			} else {
+				switch (requestType.toLowerCase()) {
+				case "post":
+					response = given().headers(sessionHeaders).cookies(sessionCookies).when().post(request).andReturn();
+					break;
+				case "get":
+					response = given().headers(sessionHeaders).cookies(sessionCookies).when().get(request).andReturn();
+					break;
+				default:
+					failAction("performRequest", request);
+					break;
+				}
+			}
+
+			if (response != null) {
+				if (response.getDetailedCookies().size() > 0) {
+					if (sessionCookies == null) {
+						sessionCookies = response.getCookies();
+					} else {
+						for (Cookie cookie : response.getDetailedCookies()) {
+							sessionCookies.put(cookie.getName(), cookie.getValue());
+
+							if (cookie.getName().equals("XSRF-TOKEN")) {
+								sessionHeaders.put("X-XSRF-TOKEN", cookie.getValue());
+							}
+						}
+					}
+				}
+
+				if (response.getHeaders().size() > 0) {
+					for (Header header : response.getHeaders()) {
+						if (header.getName().equals("X-XSRF-TOKEN") || header.getName().equals("Set-Cookie")) {
+							sessionHeaders.put(header.getName(), header.getValue());
+						}
+					}
+				}
+
+				try {
+					if (response.jsonPath().getString("type").equals("Bearer")) {
+						headerAuthorization = "Bearer " + getResponseJSONValue(response, "token");
+						sessionHeaders.put("Authorization", headerAuthorization);
+					}
+				} catch (JsonPathException | NullPointerException e) {
+					// do nothing if the "type" variable was not found
+					// or if response was not json
+
+					// JsonPathException | NullPointerException
+				}
+
+				if (assertResponseStatusCode(response, targetStatusCode)) {
+					passAction("performRequest",
+							request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", response);
+					return response;
+				} else {
+					failAction("performRequest",
+							request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", response);
+				}
+			}
+		} catch (Exception e) {
+			ReportManager.log(e);
+			if (response != null) {
+				failAction("performRequest",
+						request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", response);
+			} else {
+				failAction("performRequest", request);
+			}
+		}
 		return null;
 	}
 
-	public static boolean assertResponse_JSON_ContainsValue(Response response, String jsonPath, String expectedValue) {
-		List<String> searchPool = response.jsonPath().get(jsonPath);
-		if (searchPool.contains(expectedValue)) {
-			passAction("assertResponse_JSON_ContainsValue", jsonPath + ", " + expectedValue);
-			return true;
+	// public boolean assertResponseJSONContainsValue(Response response,
+	// String jsonPath, String expectedValue) {
+	// String searchPool = response.jsonPath().getString(jsonPath);
+	// if (searchPool != null && searchPool.contains(expectedValue)) {
+	// passAction("assertResponseJSONContainsValue", jsonPath + ", " +
+	// expectedValue);
+	// return true;
+	// } else {
+	// failAction("assertResponseJSONContainsValue", jsonPath + ", " +
+	// expectedValue);
+	// return false;
+	// }
+	// }
+
+	public String getResponseJSONValue(Response response, String jsonPath) {
+		String searchPool = response.jsonPath().getString(jsonPath);
+		if (searchPool != null) {
+			passAction("getResponseJSONValue", jsonPath);
+			return searchPool;
 		} else {
-			failAction("assertResponse_JSON_ContainsValue", jsonPath + ", " + expectedValue);
-			return false;
+			ReportManager.log("Couldn't find anything that matches with the desired jsonPath [" + jsonPath + "]");
+			failAction("getResponseJSONValue", jsonPath);
+			return "";
 		}
 	}
 
-	private static boolean assertResponse_StatusCode(Response response, String targetStatusCode) {
-		if (String.valueOf(response.getStatusCode()).equals(targetStatusCode)) {
-			// passAction("assertResponse_StatusCode",
-			// String.valueOf(response.getStatusCode()));
-			return true;
+	// public boolean assertResponseXMLContainsValue(Response response,
+	// String xmlPath, String expectedValue) {
+	// String searchPool = response.xmlPath().getString(xmlPath);
+	// if (searchPool != null && searchPool.contains(expectedValue)) {
+	// passAction("assertResponseXMLContainsValue", xmlPath + ", " + expectedValue);
+	// return true;
+	// } else {
+	// failAction("assertResponseXMLContainsValue", xmlPath + ", " + expectedValue);
+	// return false;
+	// }
+	// }
+
+	public String getResponseXMLValue(Response response, String xmlPath) {
+		String searchPool = response.xmlPath().getString(xmlPath);
+		if (searchPool != null) {
+			passAction("getResponseXMLValue", xmlPath);
+			return searchPool;
 		} else {
-			// failAction("assertResponse_StatusCode",
-			// String.valueOf(response.getStatusCode()));
-			return false;
+			ReportManager.log("Couldn't find anything that matches with the desired xmlPath [" + xmlPath + "]");
+			failAction("getResponseXMLValue", xmlPath);
+			return "";
 		}
+	}
+
+	private boolean assertResponseStatusCode(Response response, String targetStatusCode) {
+		return String.valueOf(response.getStatusCode()).equals(targetStatusCode);
+	}
+
+	public int getResponseStatusCode(Response response) {
+		return response.getStatusCode();
 	}
 
 }
