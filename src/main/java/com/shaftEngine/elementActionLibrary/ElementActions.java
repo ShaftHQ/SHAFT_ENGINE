@@ -768,7 +768,9 @@ public class ElementActions {
 				(new WebDriverWait(driver, defaultElementIdentificationTimeout * numberOfTries))
 						.until(ExpectedConditions.not(ExpectedConditions.textToBe(elementLocator, initialValue)));
 			} catch (Exception e) {
-				//
+				ReportManager.log(e);
+				failAction(driver, "waitForTextToChange",
+						"waited for [" + defaultElementIdentificationTimeout * numberOfTries + "] seconds");
 			}
 			try {
 				passAction(driver, elementLocator, "waitForTextToChange",
@@ -779,7 +781,7 @@ public class ElementActions {
 			}
 		} else {
 			failAction(driver, "waitForTextToChange",
-					"waited for [" + defaultElementIdentificationTimeout * numberOfTries + "] seconds");
+					"Element with locator [" + elementLocator.toString() + "] was not found on this page.");
 		}
 	}
 

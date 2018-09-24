@@ -17,16 +17,19 @@ import io.restassured.path.json.exception.JsonPathException;
 import io.restassured.response.Response;
 
 public class RestActions {
-//	private static String cookieJSessionID = "";
-//	private static String headerXsrfToken = "";
-	private static String headerAuthorization = "";
-
-	private static Map<String, String> sessionCookies = new HashMap<>();
-	private static Map<String, String> sessionHeaders = new HashMap<>();
-
 	private static final String ARGUMENTSEPARATOR = "?";
 
-	private static void passAction(String actionName, String testData, Response response) {
+	private String headerAuthorization;
+	private Map<String, String> sessionCookies;
+	private Map<String, String> sessionHeaders;
+
+	public RestActions() {
+		headerAuthorization = "";
+		sessionCookies = new HashMap<>();
+		sessionHeaders = new HashMap<>();
+	}
+
+	private void passAction(String actionName, String testData, Response response) {
 		String message = "Successfully performed action [" + actionName + "].";
 		if (testData != null) {
 			message = message + " With the following test data [" + testData + "].";
@@ -37,11 +40,11 @@ public class RestActions {
 		}
 	}
 
-	private static void passAction(String actionName, String testData) {
+	private void passAction(String actionName, String testData) {
 		passAction(actionName, testData, null);
 	}
 
-	private static void failAction(String actionName, String testData, Response response) {
+	private void failAction(String actionName, String testData, Response response) {
 		String message = "Failed to perform action [" + actionName + "].";
 		if (testData != null) {
 			message = message + " With the following test data [" + testData + "].";
@@ -53,7 +56,7 @@ public class RestActions {
 		Assert.fail(message);
 	}
 
-	private static void failAction(String actionName, String testData) {
+	private void failAction(String actionName, String testData) {
 		failAction(actionName, testData, null);
 	}
 
@@ -62,15 +65,20 @@ public class RestActions {
 	 * status code, if it matches the target code the step is passed and the
 	 * response is returned. Otherwise the action fails and NULL is returned.
 	 * 
-	 * @param requestType; POST/GET
-	 * @param targetStatusCode; 200
-	 * @param serviceURI; http://serviceURL.com:PORT/serviceROOT
-	 * @param serviceName; /servicePATH/serviceNAME
-	 * @param argument; arguments without a preceding ?
+	 * @param requestType;
+	 *            POST/GET
+	 * @param targetStatusCode;
+	 *            200
+	 * @param serviceURI;
+	 *            http://serviceURL.com:PORT/serviceROOT
+	 * @param serviceName;
+	 *            /servicePATH/serviceNAME
+	 * @param argument;
+	 *            arguments without a preceding ?
 	 * @return Response; returns the full response object for further manipulation
 	 */
-	public static Response performRequest(String requestType, String targetStatusCode, String serviceURI,
-			String serviceName, String argument, String... credentials) {
+	public Response performRequest(String requestType, String targetStatusCode, String serviceURI, String serviceName,
+			String argument, String... credentials) {
 		String request;
 		Response response = null;
 
@@ -133,7 +141,6 @@ public class RestActions {
 					} else {
 						for (Cookie cookie : response.getDetailedCookies()) {
 							sessionCookies.put(cookie.getName(), cookie.getValue());
-							///////////////////////
 
 							if (cookie.getName().equals("XSRF-TOKEN")) {
 								sessionHeaders.put("X-XSRF-TOKEN", cookie.getValue());
@@ -183,18 +190,21 @@ public class RestActions {
 		return null;
 	}
 
-	public static boolean assertResponseJSONContainsValue(Response response, String jsonPath, String expectedValue) {
-		String searchPool = response.jsonPath().getString(jsonPath);
-		if (searchPool.contains(expectedValue)) {
-			passAction("assertResponseJSONContainsValue", jsonPath + ", " + expectedValue);
-			return true;
-		} else {
-			failAction("assertResponseJSONContainsValue", jsonPath + ", " + expectedValue);
-			return false;
-		}
-	}
+	// public boolean assertResponseJSONContainsValue(Response response,
+	// String jsonPath, String expectedValue) {
+	// String searchPool = response.jsonPath().getString(jsonPath);
+	// if (searchPool != null && searchPool.contains(expectedValue)) {
+	// passAction("assertResponseJSONContainsValue", jsonPath + ", " +
+	// expectedValue);
+	// return true;
+	// } else {
+	// failAction("assertResponseJSONContainsValue", jsonPath + ", " +
+	// expectedValue);
+	// return false;
+	// }
+	// }
 
-	public static String getResponseJSONValue(Response response, String jsonPath) {
+	public String getResponseJSONValue(Response response, String jsonPath) {
 		String searchPool = response.jsonPath().getString(jsonPath);
 		if (searchPool != null) {
 			passAction("getResponseJSONValue", jsonPath);
@@ -206,18 +216,19 @@ public class RestActions {
 		}
 	}
 
-	public static boolean assertResponseXMLContainsValue(Response response, String xmlPath, String expectedValue) {
-		String searchPool = response.xmlPath().getString(xmlPath);
-		if (searchPool.contains(expectedValue)) {
-			passAction("assertResponseXMLContainsValue", xmlPath + ", " + expectedValue);
-			return true;
-		} else {
-			failAction("assertResponseXMLContainsValue", xmlPath + ", " + expectedValue);
-			return false;
-		}
-	}
+	// public boolean assertResponseXMLContainsValue(Response response,
+	// String xmlPath, String expectedValue) {
+	// String searchPool = response.xmlPath().getString(xmlPath);
+	// if (searchPool != null && searchPool.contains(expectedValue)) {
+	// passAction("assertResponseXMLContainsValue", xmlPath + ", " + expectedValue);
+	// return true;
+	// } else {
+	// failAction("assertResponseXMLContainsValue", xmlPath + ", " + expectedValue);
+	// return false;
+	// }
+	// }
 
-	public static String getResponseXMLValue(Response response, String xmlPath) {
+	public String getResponseXMLValue(Response response, String xmlPath) {
 		String searchPool = response.xmlPath().getString(xmlPath);
 		if (searchPool != null) {
 			passAction("getResponseXMLValue", xmlPath);
@@ -229,11 +240,11 @@ public class RestActions {
 		}
 	}
 
-	private static boolean assertResponseStatusCode(Response response, String targetStatusCode) {
+	private boolean assertResponseStatusCode(Response response, String targetStatusCode) {
 		return String.valueOf(response.getStatusCode()).equals(targetStatusCode);
 	}
 
-	public static int getResponseStatusCode(Response response) {
+	public int getResponseStatusCode(Response response) {
 		return response.getStatusCode();
 	}
 
