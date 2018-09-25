@@ -1,4 +1,4 @@
-package com.shaftEngine.elementActionLibrary;
+package com.shaft.element;
 
 import java.awt.HeadlessException;
 import java.awt.Toolkit;
@@ -28,8 +28,8 @@ import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.testng.Assert;
 
-import com.shaftEngine.ioActionLibrary.ReportManager;
-import com.shaftEngine.ioActionLibrary.ScreenshotManager;
+import com.shaft.io.ReportManager;
+import com.shaft.io.ScreenshotManager;
 
 public class ElementActions {
 	static int defaultElementIdentificationTimeout = Integer
@@ -304,8 +304,8 @@ public class ElementActions {
 	 *            the locator of the webElement under test (By xpath, id, selector,
 	 *            name ...etc)
 	 */
-	// Waits for the element to be clickable, and then clicks it.
 	public static void click(WebDriver driver, By elementLocator) {
+		// Waits for the element to be clickable, and then clicks it.
 		if (internalCanFindUniqueElement(driver, elementLocator)) {
 			passAction(driver, elementLocator, "click"); // takes screenshot before clicking the element out of view
 			try {

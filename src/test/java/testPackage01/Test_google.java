@@ -1,8 +1,8 @@
 package testPackage01;
 
-import com.shaftEngine.browserActionLibrary.*;
-import com.shaftEngine.ioActionLibrary.ExcelFileManager;
-import com.shaftEngine.ioActionLibrary.ReportManager;
+import com.shaft.browser.*;
+import com.shaft.io.ExcelFileManager;
+import com.shaft.io.ReportManager;
 
 import poms.*;
 import org.testng.annotations.Test;

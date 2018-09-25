@@ -6,8 +6,8 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.shaftEngine.browserActionLibrary.BrowserFactory;
-import com.shaftEngine.ioActionLibrary.ReportManager;
+import com.shaft.browser.BrowserFactory;
+import com.shaft.io.ReportManager;
 
 import poms.GoogleSearch;
 import poms.GoogleSearchResults;
