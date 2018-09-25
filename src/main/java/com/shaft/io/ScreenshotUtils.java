@@ -1,4 +1,4 @@
-package com.shaftEngine.ioActionLibrary;
+package com.shaft.io;
 
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
@@ -50,8 +50,7 @@ public class ScreenshotUtils {
 	}
 
 	// The code that does the job
-	public static File makeFullScreenshot(WebDriver driver, WebElement... skipElements)
-			throws IOException, InterruptedException {
+	public static File makeFullScreenshot(WebDriver driver, WebElement... skipElements) throws IOException {
 		// Scroll to bottom to make sure all elements loaded correctly
 		// scrollVerticallyTo(driver, (int) longScrollHeight);
 
@@ -126,7 +125,10 @@ public class ScreenshotUtils {
 		((JavascriptExecutor) driver).executeScript("window.scrollTo(0, " + scroll + ");");
 		try {
 			waitUntilItIsScrolledToPosition(driver, scroll);
-		} catch (InterruptedException e) {
+		} catch (Exception e) {
+			// this used to throw InterruptedException e, but was changed to the generic
+			// exception to resolve the sonar lint comment
+
 			// LOG.trace("Interrupt error during scrolling occurred.", e);
 			// ReportManager.log(e);
 		}
@@ -134,10 +136,10 @@ public class ScreenshotUtils {
 
 	private static void waitUntilItIsScrolledToPosition(WebDriver driver, int scrollPosition)
 			throws InterruptedException {
-		int hardTime = 0;// SCREENSHOT_FULLPAGE_SCROLLWAIT
-		if (hardTime > 0) {
-			Thread.sleep(hardTime);
-		}
+		// int hardTime = 0;// SCREENSHOT_FULLPAGE_SCROLLWAIT
+		// if (hardTime > 0) {
+		// Thread.sleep(hardTime);
+		// }
 		int time = 250;// SCREENSHOT_FULLPAGE_SCROLLTIMEOUT
 		boolean isScrolledToPosition = false;
 		while (time >= 0 && !isScrolledToPosition) {

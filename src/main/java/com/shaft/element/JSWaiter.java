@@ -1,11 +1,11 @@
-package com.shaftEngine.elementActionLibrary;
+package com.shaft.element;
 
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.support.ui.ExpectedCondition;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
-import com.shaftEngine.ioActionLibrary.ReportManager;
+import com.shaft.io.ReportManager;
 
 public class JSWaiter {
 

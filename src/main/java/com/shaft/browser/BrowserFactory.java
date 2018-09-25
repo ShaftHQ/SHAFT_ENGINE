@@ -1,4 +1,4 @@
-package com.shaftEngine.browserActionLibrary;
+package com.shaft.browser;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -25,9 +25,9 @@ import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.safari.SafariDriver;
 import org.testng.Assert;
 
-import com.shaftEngine.elementActionLibrary.JSWaiter;
-import com.shaftEngine.ioActionLibrary.ExcelFileManager;
-import com.shaftEngine.ioActionLibrary.ReportManager;
+import com.shaft.element.JSWaiter;
+import com.shaft.io.ExcelFileManager;
+import com.shaft.io.ReportManager;
 
 public class BrowserFactory {
 
