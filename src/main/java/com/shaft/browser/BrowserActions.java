@@ -1,4 +1,4 @@
-package com.shaftEngine.browserActionLibrary;
+package com.shaft.browser;
 
 import java.awt.HeadlessException;
 import java.awt.Toolkit;
@@ -12,21 +12,15 @@ import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
-import com.shaftEngine.elementActionLibrary.JSWaiter;
-import com.shaftEngine.ioActionLibrary.ReportManager;
-import com.shaftEngine.ioActionLibrary.ScreenshotManager;
+import com.shaft.element.JSWaiter;
+import com.shaft.io.ReportManager;
+import com.shaft.io.ScreenshotManager;
 
 public class BrowserActions {
 
 	/*
-	 * Driver actions that should be implemented:
-	 * 
-	 * driver.manage().window().maximize(); driver.manage().window().fullscreen();
-	 * driver.navigate().back(); driver.navigate().forward();
-	 * driver.navigate().refresh(); driver.switchTo().activeElement();
-	 * driver.switchTo().alert(); driver.switchTo().defaultContent();
-	 * driver.switchTo().frame(arg0); driver.switchTo().parentFrame();
-	 * driver.switchTo().window(arg0);
+	 * Driver actions that should be implemented: driver.switchTo().activeElement();
+	 * driver.switchTo().alert(); driver.switchTo().window(arg0);
 	 */
 
 	private BrowserActions() {
@@ -234,6 +228,25 @@ public class BrowserActions {
 		}
 	}
 
+	public static void navigateForward(WebDriver driver) {
+		triggerWaitForLazyLoading(driver);
+		String initialURL = "";
+		try {
+			initialURL = driver.getCurrentUrl();
+			driver.navigate().forward();
+			triggerWaitForLazyLoading(driver);
+			(new WebDriverWait(driver, 30)).until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
+			if (!initialURL.equals(driver.getCurrentUrl())) {
+				passAction(driver, "navigateForward");
+			} else {
+				failAction(driver, "navigateForward");
+			}
+		} catch (Exception e) {
+			ReportManager.log(e);
+			failAction(driver, "navigateForward");
+		}
+	}
+
 	/**
 	 * Attempts to refresh the current page
 	 * 
@@ -242,18 +255,10 @@ public class BrowserActions {
 	 */
 	public static void refreshCurrentPage(WebDriver driver) {
 		triggerWaitForLazyLoading(driver);
-		String currentURL = getCurrentURL(driver);
-		try {
-			driver.navigate().refresh();
-			passAction(driver, "refreshCurrentPage");
-		} catch (Exception e) {
-			if (currentURL.equals(getCurrentURL(driver))) {
-				passAction(driver, "refreshCurrentPage");
-			} else {
-				ReportManager.log(e);
-				failAction(driver, "refreshCurrentPage");
-			}
-		}
+		driver.navigate().refresh();
+		passAction(driver, "refreshCurrentPage");
+		// removed all exception handling as there was no comments on when and why this
+		// exception happens
 	}
 
 	private static void navigateToNewURL(WebDriver driver, String targetUrl) {
@@ -289,64 +294,99 @@ public class BrowserActions {
 	 *            the current instance of Selenium webdriver
 	 */
 	public static void maximizeWindow(WebDriver driver) {
-		String windowSize = "";
+		Dimension initialWindowSize;
 		int width = 1920;
 		int height = 1080;
+		Boolean heightNotChanged;
+		Boolean widthNotChanged;
 
-		windowSize = driver.manage().window().getSize().toString();
+		ReportManager.log("Initial window size: " + driver.manage().window().getSize().toString());
+		initialWindowSize = driver.manage().window().getSize();
 		driver.manage().window().maximize();
+		ReportManager.log("Window size after SWD Maximize: " + driver.manage().window().getSize().toString());
 
-		if (windowSize.equals(driver.manage().window().getSize().toString())) {
+		heightNotChanged = String.valueOf(initialWindowSize.height)
+				.equals(String.valueOf(driver.manage().window().getSize().height));
+		widthNotChanged = String.valueOf(initialWindowSize.width)
+				.equals(String.valueOf(driver.manage().window().getSize().width));
+
+		if (heightNotChanged && widthNotChanged) {
 			try {
 				Toolkit toolkit = Toolkit.getDefaultToolkit();
 				width = (int) toolkit.getScreenSize().getWidth();
 				height = (int) toolkit.getScreenSize().getHeight(); // height = height * 95 / 100; // subtracting 5% to
 																	// // account for the start bar
 
-				// ReportManager.log("Current screen size is ["+Width+"x"+Height+"].");
 				driver.manage().window().setPosition(new Point(0, 0));
 				driver.manage().window().setSize(new Dimension(width, height));
+				ReportManager.log("Window size after Toolkit: " + driver.manage().window().getSize().toString());
 			} catch (HeadlessException e) {
-				try {
-					// happens with headless firefox browsers // remote // linux and windows
-					driver.manage().window().setPosition(new Point(0, 0));
-					driver.manage().window().setSize(new Dimension(width, height));
-				} catch (HeadlessException e2) {
-					// just in case (this exception was never thrown)
-				}
+				// happens with headless firefox browsers // remote // linux and windows
+				driver.manage().window().setPosition(new Point(0, 0));
+				driver.manage().window().setSize(new Dimension(width, height));
+				ReportManager.log("Window size after HeadlessException on using Toolkit: "
+						+ driver.manage().window().getSize().toString());
 			}
 		}
 
-		if (windowSize.equals(driver.manage().window().getSize().toString())) {
+		heightNotChanged = String.valueOf(initialWindowSize.height)
+				.equals(String.valueOf(driver.manage().window().getSize().height));
+		widthNotChanged = String.valueOf(initialWindowSize.width)
+				.equals(String.valueOf(driver.manage().window().getSize().width));
+
+		if (heightNotChanged && widthNotChanged) {
 			((JavascriptExecutor) driver).executeScript("window.focus();");
 			((JavascriptExecutor) driver).executeScript("window.moveTo(0,0);");
 			((JavascriptExecutor) driver).executeScript("window.resizeTo(" + width + ", " + height + ");");
+			ReportManager.log("Window size after JavascriptExecutor: " + driver.manage().window().getSize().toString());
 		}
 
-		if (windowSize.equals(driver.manage().window().getSize().toString())) {
-			// failAction(driver, "maximizeWindow");
+		heightNotChanged = String.valueOf(initialWindowSize.height)
+				.equals(String.valueOf(driver.manage().window().getSize().height));
+		widthNotChanged = String.valueOf(initialWindowSize.width)
+				.equals(String.valueOf(driver.manage().window().getSize().width));
+
+		if (heightNotChanged && widthNotChanged) {
 			fullScreenWindow(driver);
-			// ReportManager.log("skipping window maximization due to unknown error, marking
-			// step as passed.");
+
+			ReportManager.log("Window size after fullScreenWindow: " + driver.manage().window().getSize().toString());
 		}
+
+		heightNotChanged = String.valueOf(initialWindowSize.height)
+				.equals(String.valueOf(driver.manage().window().getSize().height));
+		widthNotChanged = String.valueOf(initialWindowSize.width)
+				.equals(String.valueOf(driver.manage().window().getSize().width));
+
+		if (heightNotChanged && widthNotChanged) {
+			// failAction(driver, "maximizeWindow");
+			ReportManager.log("skipping window maximization due to unknown error, marking step as passed.");
+		}
+
 		passAction(driver, "maximizeWindow");
 	}
 
 	public static void fullScreenWindow(WebDriver driver) {
-		String windowSize = "";
+		Dimension initialWindowSize;
 		int width = 1920;
 		int height = 1080;
+		Boolean heightNotChanged;
+		Boolean widthNotChanged;
 
-		windowSize = driver.manage().window().getSize().toString();
+		initialWindowSize = driver.manage().window().getSize();
 		driver.manage().window().fullscreen();
 
-		if (windowSize.equals(driver.manage().window().getSize().toString())) {
+		heightNotChanged = String.valueOf(initialWindowSize.height)
+				.equals(String.valueOf(driver.manage().window().getSize().height));
+		widthNotChanged = String.valueOf(initialWindowSize.width)
+				.equals(String.valueOf(driver.manage().window().getSize().width));
+
+		if (heightNotChanged && widthNotChanged) {
 			((JavascriptExecutor) driver).executeScript("window.focus();");
 			((JavascriptExecutor) driver).executeScript("window.moveTo(0,0);");
 			((JavascriptExecutor) driver).executeScript("window.resizeTo(" + width + ", " + height + ");");
 		}
 
-		if (windowSize.equals(driver.manage().window().getSize().toString())) {
+		if (heightNotChanged && widthNotChanged) {
 			// failAction(driver, "fullScreenWindow");
 			ReportManager.log("skipping switching window to full screen due to unknown error, marking step as passed.");
 		}

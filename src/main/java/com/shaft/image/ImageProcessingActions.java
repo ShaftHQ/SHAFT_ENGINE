@@ -1,4 +1,4 @@
-package com.shaftEngine.imageProcessingActionLibrary;
+package com.shaft.image;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
@@ -12,16 +12,16 @@ import javax.imageio.ImageIO;
 
 import org.testng.Assert;
 
-import com.shaftEngine.ioActionLibrary.FileManager;
-import com.shaftEngine.ioActionLibrary.ReportManager;
-import com.shaftEngine.validationsLibrary.Verifications;
+import com.shaft.io.FileManager;
+import com.shaft.io.ReportManager;
+import com.shaft.validation.Verifications;
 
 public class ImageProcessingActions {
 	private ImageProcessingActions() {
 		throw new IllegalStateException("Utility class");
 	}
 
-	public static void compareFolders(String refrenceFolderPath, String testFolderPath, double threshhold) {
+	public static void compareImageFolders(String refrenceFolderPath, String testFolderPath, double threshhold) {
 
 		try {
 			// long screenshotsCount = 0;
@@ -75,66 +75,8 @@ public class ImageProcessingActions {
 				Arrays.sort(testProcessingFiles);
 
 				// compare images from the test directory against the reference directory
-				for (File screenshot : testProcessingFiles) {
-					// MBFImage refrenceImage = ImageUtilities.readMBF(screenshot);
-					// MBFImage testImage = ImageUtilities.readMBF(new File(testFolderPath + "/" +
-					// screenshot.getName()));
-					//
-					// DoGSIFTEngine engine = new DoGSIFTEngine();
-					// LocalFeatureList<Keypoint> queryKeypoints =
-					// engine.findFeatures(query.flatten());
-					// LocalFeatureList<Keypoint> targetKeypoints =
-					// engine.findFeatures(target.flatten());
-
-					float percentage = 0;
-					// take buffer data from both image files //
-					// ReportManager.log("Attempting to read test image: [" + screenshot + "].");
-
-					BufferedImage biA = ImageIO.read(screenshot);
-					DataBuffer dbA = biA.getData().getDataBuffer();
-					float sizeA = dbA.getSize();
-
-					// ReportManager.log("Attempting to read reference image: [" +
-					// refrenceProcessingFolder+ FileSystems.getDefault().getSeparator() +
-					// screenshot.getName() + "].");
-					BufferedImage biB = ImageIO.read(new File(
-							refrenceProcessingFolder + FileSystems.getDefault().getSeparator() + screenshot.getName()));
-					DataBuffer dbB = biB.getData().getDataBuffer();
-					float sizeB = dbB.getSize();
-					float count = 0;
-
-					// compare data-buffer objects //
-					if (sizeA == sizeB) {
-						// ReportManager.log("Comparing images of equal size...");
-						for (int i = 0; i < sizeA; i++) {
-
-							if (dbA.getElem(i) == dbB.getElem(i)) {
-								count = count + 1;
-							}
-
-						}
-						percentage = (count * 100) / sizeA;
-
-						// fetch the related reference screenshot file name using the current file
-						// name/number as index
-						String relatedReferenceFileName = refrenceFiles[Integer.parseInt(screenshot.getName()) - 1]
-								.getName();
-						ReportManager.attach("Reference Screenshot", relatedReferenceFileName,
-								new FileInputStream(new File(refrenceProcessingFolder
-										+ FileSystems.getDefault().getSeparator() + screenshot.getName())));
-
-						String relatedTestFileName = testFiles[Integer.parseInt(screenshot.getName()) - 1].getName();
-
-						ReportManager.attach("Test Screenshot", relatedTestFileName, new FileInputStream(screenshot));
-
-						ReportManager.log("Test Screenshot [" + relatedTestFileName + "] and related Refrence Image ["
-								+ relatedReferenceFileName + "] match by [" + percentage + "] percent.");
-					} else {
-						ReportManager.log("Both the images are not of same size");
-					}
-
-					Verifications.verifyGreaterThanOrEquals(threshhold, percentage, true);
-				}
+				compareImageFolders(refrenceFiles, testFiles, testProcessingFiles, refrenceProcessingFolder,
+						threshhold);
 
 				// cleaning processing folders
 				FileManager.deleteFolder(refrenceFolder.getAbsolutePath() + "/processingDirectory/");
@@ -155,5 +97,59 @@ public class ImageProcessingActions {
 			ReportManager.log(e);
 			ReportManager.log("Failed to compare image files ...");
 		}
+	}
+
+	private static void compareImageFolders(File[] refrenceFiles, File[] testFiles, File[] testProcessingFiles,
+			File refrenceProcessingFolder, double threshhold) throws IOException {
+		// compare images from the test directory against the reference directory
+		for (File screenshot : testProcessingFiles) {
+			float percentage = 0;
+			// take buffer data from both image files //
+			// ReportManager.log("Attempting to read test image: [" + screenshot + "].");
+
+			BufferedImage biA = ImageIO.read(screenshot);
+			DataBuffer dbA = biA.getData().getDataBuffer();
+			float sizeA = dbA.getSize();
+
+			// ReportManager.log("Attempting to read reference image: [" +
+			// refrenceProcessingFolder+ FileSystems.getDefault().getSeparator() +
+			// screenshot.getName() + "].");
+			BufferedImage biB = ImageIO.read(new File(
+					refrenceProcessingFolder + FileSystems.getDefault().getSeparator() + screenshot.getName()));
+			DataBuffer dbB = biB.getData().getDataBuffer();
+			float sizeB = dbB.getSize();
+			float count = 0;
+
+			// compare data-buffer objects //
+			if (sizeA == sizeB) {
+				// ReportManager.log("Comparing images of equal size...");
+				for (int i = 0; i < sizeA; i++) {
+
+					if (dbA.getElem(i) == dbB.getElem(i)) {
+						count = count + 1;
+					}
+
+				}
+				percentage = (count * 100) / sizeA;
+
+				// fetch the related reference screenshot file name using the current file
+				// name/number as index
+				String relatedReferenceFileName = refrenceFiles[Integer.parseInt(screenshot.getName()) - 1].getName();
+				ReportManager.attach("Reference Screenshot", relatedReferenceFileName, new FileInputStream(new File(
+						refrenceProcessingFolder + FileSystems.getDefault().getSeparator() + screenshot.getName())));
+
+				String relatedTestFileName = testFiles[Integer.parseInt(screenshot.getName()) - 1].getName();
+
+				ReportManager.attach("Test Screenshot", relatedTestFileName, new FileInputStream(screenshot));
+
+				ReportManager.log("Test Screenshot [" + relatedTestFileName + "] and related Refrence Image ["
+						+ relatedReferenceFileName + "] match by [" + percentage + "] percent.");
+			} else {
+				ReportManager.log("Both the images are not of same size");
+			}
+
+			Verifications.verifyGreaterThanOrEquals(threshhold, percentage, true);
+		}
+
 	}
 }

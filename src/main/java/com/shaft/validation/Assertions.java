@@ -1,17 +1,21 @@
-package com.shaftEngine.validationsLibrary;
+package com.shaft.validation;
 
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.testng.Assert;
 
-import com.shaftEngine.browserActionLibrary.BrowserActions;
-import com.shaftEngine.elementActionLibrary.ElementActions;
-import com.shaftEngine.ioActionLibrary.ReportManager;
-import com.shaftEngine.ioActionLibrary.ScreenshotManager;
+import com.shaft.browser.BrowserActions;
+import com.shaft.element.ElementActions;
+import com.shaft.io.ReportManager;
+import com.shaft.io.ScreenshotManager;
 
 public class Assertions {
 
-	private static int elementDoesntExist_timeout = 4;
+	private static int elementDoesntExistTimeout = 4;
+
+	private Assertions() {
+		throw new IllegalStateException("Utility class");
+	}
 
 	private static void fail(String message) {
 		ReportManager.log(message);
@@ -155,7 +159,7 @@ public class Assertions {
 			}
 		} else {
 			try {
-				ElementActions.internalCanFindUniqueElement(driver, elementLocator, elementDoesntExist_timeout);
+				ElementActions.internalCanFindUniqueElement(driver, elementLocator, elementDoesntExistTimeout);
 				fail(driver, elementLocator,
 						"Assertion Failed; element exists and is unique. Locator [" + elementLocator.toString() + "].");
 			} catch (AssertionError e) {

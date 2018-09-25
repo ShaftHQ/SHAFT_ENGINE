@@ -7,10 +7,10 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.shaftEngine.browserActionLibrary.BrowserActions;
-import com.shaftEngine.browserActionLibrary.BrowserFactory;
-import com.shaftEngine.ioActionLibrary.ReportManager;
-import com.shaftEngine.validationsLibrary.Assertions;
+import com.shaft.browser.BrowserActions;
+import com.shaft.browser.BrowserFactory;
+import com.shaft.io.ReportManager;
+import com.shaft.validation.Assertions;
 
 public class Test_fullPageScreenshotWithHeader {
 	WebDriver driver;

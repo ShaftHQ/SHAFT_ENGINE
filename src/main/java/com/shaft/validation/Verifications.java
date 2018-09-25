@@ -1,4 +1,4 @@
-package com.shaftEngine.validationsLibrary;
+package com.shaft.validation;
 
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -6,24 +6,32 @@ import org.testng.Assert;
 import org.testng.ITestResult;
 import org.testng.Reporter;
 
-import com.shaftEngine.browserActionLibrary.BrowserActions;
-import com.shaftEngine.elementActionLibrary.ElementActions;
-import com.shaftEngine.ioActionLibrary.ReportManager;
-import com.shaftEngine.ioActionLibrary.ScreenshotManager;
+import com.shaft.browser.BrowserActions;
+import com.shaft.element.ElementActions;
+import com.shaft.io.ReportManager;
+import com.shaft.io.ScreenshotManager;
 
 public class Verifications {
 
-	private static StringBuffer verificationFailures = new StringBuffer();
-	private static StringBuffer verificationSuccesses = new StringBuffer();
-	private static int elementDoesntExist_timeout = 4;
+	private static StringBuilder verificationFailures = new StringBuilder();
+	private static StringBuilder verificationSuccesses = new StringBuilder();
+	private static int elementDoesntExistTimeout = 4;
+
+	private Verifications() {
+		throw new IllegalStateException("Utility class");
+	}
 
 	private static void reportVerificationResults(WebDriver driver, By elementLocator) {
 		String verificationSuccessesString = verificationSuccesses.toString().trim();
 		if (!"".equals(verificationSuccessesString)) {
-			if (driver != null && elementLocator != null) {
-				ScreenshotManager.captureScreenShot(driver, elementLocator, true);
-			} else if (driver != null && elementLocator == null) {
-				ScreenshotManager.captureScreenShot(driver, true);
+			if (driver != null) {
+				try {
+					ScreenshotManager.captureScreenShot(driver, elementLocator, true);
+				} catch (NullPointerException e) {
+					// elementLocator is null, meaning that there is no element attached to this
+					// verification
+					ScreenshotManager.captureScreenShot(driver, true);
+				}
 			}
 			ReportManager.log(verificationSuccessesString);
 			verificationSuccesses.delete(0, verificationSuccesses.length());
@@ -31,10 +39,14 @@ public class Verifications {
 
 		String verificationFailuresString = verificationFailures.toString().trim();
 		if (!"".equals(verificationFailuresString)) {
-			if (driver != null && elementLocator != null) {
-				ScreenshotManager.captureScreenShot(driver, elementLocator, false);
-			} else if (driver != null && elementLocator == null) {
-				ScreenshotManager.captureScreenShot(driver, false);
+			if (driver != null) {
+				try {
+					ScreenshotManager.captureScreenShot(driver, elementLocator, false);
+				} catch (NullPointerException e) {
+					// elementLocator is null, meaning that there is no element attached to this
+					// verification
+					ScreenshotManager.captureScreenShot(driver, false);
+				}
 			}
 			ReportManager.log(verificationFailuresString);
 			// Throw a new exception with the failure string, or append to current exception
@@ -169,8 +181,8 @@ public class Verifications {
 			}
 		} else {
 			try {
-				Assert.assertFalse(ElementActions.internalCanFindUniqueElement(driver, elementLocator,
-						elementDoesntExist_timeout));
+				Assert.assertFalse(
+						ElementActions.internalCanFindUniqueElement(driver, elementLocator, elementDoesntExistTimeout));
 				verificationSuccesses.append("Assertion Passed; element does not exist or is not unique. Locator ["
 						+ elementLocator.toString() + "].");
 				elementLocator = null; // workaround to force take a screenshot of the whole page

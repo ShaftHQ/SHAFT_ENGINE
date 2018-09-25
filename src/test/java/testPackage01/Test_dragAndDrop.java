@@ -1,8 +1,8 @@
 package testPackage01;
 
-import com.shaftEngine.browserActionLibrary.*;
-import com.shaftEngine.elementActionLibrary.ElementActions;
-import com.shaftEngine.ioActionLibrary.ReportManager;
+import com.shaft.browser.*;
+import com.shaft.element.ElementActions;
+import com.shaft.io.ReportManager;
 
 import org.testng.annotations.Test;
 import org.testng.annotations.AfterClass;

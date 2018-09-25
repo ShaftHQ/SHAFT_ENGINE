@@ -1,4 +1,4 @@
-package com.shaftEngine.ioActionLibrary;
+package com.shaft.io;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -157,15 +157,12 @@ public class FileManager {
 	 * zip the folders
 	 */
 	private static void zipFolder(String srcFolder, String destZipFile) {
-		ZipOutputStream zip = null;
-		FileOutputStream fileWriter = null;
 		/*
 		 * create the output stream to zip file result
 		 */
-		try {
-			fileWriter = new FileOutputStream(destZipFile);
+		try (FileOutputStream fileWriter = new FileOutputStream(destZipFile);
+				ZipOutputStream zip = new ZipOutputStream(fileWriter);) {
 
-			zip = new ZipOutputStream(fileWriter);
 			/*
 			 * add the folder to the zip
 			 */
@@ -174,7 +171,6 @@ public class FileManager {
 			 * close the zip objects
 			 */
 			zip.flush();
-			zip.close();
 		} catch (IOException e) {
 			ReportManager.log(e);
 		}
@@ -208,10 +204,9 @@ public class FileManager {
 				/*
 				 * write the file to the output
 				 */
-				try {
+				try (FileInputStream in = new FileInputStream(srcFile);) {
 					byte[] buf = new byte[1024];
 					int len;
-					FileInputStream in = new FileInputStream(srcFile);
 					zip.putNextEntry(new ZipEntry(path + FileSystems.getDefault().getSeparator() + folder.getName()));
 					while ((len = in.read(buf)) > 0) {
 						/*
@@ -219,7 +214,6 @@ public class FileManager {
 						 */
 						zip.write(buf, 0, len);
 					}
-					in.close();
 				} catch (Exception e) {
 					ReportManager.log(e);
 				}
