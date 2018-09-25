@@ -8,15 +8,15 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.shaftEngine.ioActionLibrary.ReportManager;
-import com.shaftEngine.supportActionLibrary.SSHActions;
+import com.shaft.io.ReportManager;
+import com.shaft.support.SSHActions;
 
 public class Test_localShell {
 	@Test
 	public void test_localShellCommand() {
 
 		List<String> commands = Arrays.asList("ls", "ls -ltr");
-		SSHActions.executeShellCommand(commands);
+		(new SSHActions()).executeShellCommand(commands);
 	}
 
 	@BeforeClass // Set-up method, to be run once before the first test

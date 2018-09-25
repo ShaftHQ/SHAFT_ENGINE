@@ -1,4 +1,4 @@
-package com.shaftEngine.ioActionLibrary;
+package com.shaft.io;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -17,8 +17,8 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.testng.Reporter;
 
-import com.shaftEngine.elementActionLibrary.ElementActions;
-import com.shaftEngine.elementActionLibrary.JSWaiter;
+import com.shaft.element.ElementActions;
+import com.shaft.element.JSWaiter;
 
 public class ScreenshotManager {
 	private static final String SCREENSHOT_FOLDERPATH = "allure-results/screenshots/";
@@ -213,29 +213,7 @@ public class ScreenshotManager {
 			 * Attempt to take a full page screenshot, take a regular screenshot upon
 			 * failure
 			 */
-			if (SCREENSHOT_PARAMS_ISFULLPAGESCREENSHOT) {
-				try {
-					if (SCREENSHOT_PARAMS_SKIPPEDELEMENTSFROMSCREENSHOT.length() > 0) {
-						List<WebElement> skippedElementsList = new ArrayList<>();
-						String[] skippedElementLocators = SCREENSHOT_PARAMS_SKIPPEDELEMENTSFROMSCREENSHOT.split(";");
-						for (String locator : skippedElementLocators) {
-							skippedElementsList.add(driver.findElement(By.xpath(locator)));
-						}
-
-						WebElement[] skippedElementsArray = new WebElement[skippedElementsList.size()];
-						skippedElementsArray = skippedElementsList.toArray(skippedElementsArray);
-
-						src = ScreenshotUtils.makeFullScreenshot(driver, skippedElementsArray);
-					} else {
-						src = ScreenshotUtils.makeFullScreenshot(driver);
-					}
-				} catch (Exception e) {
-					src = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
-					ReportManager.log(e);
-				}
-			} else {
-				src = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
-			}
+			src = takeScreenshot(driver);
 
 			/**
 			 * Declare screenshot file name
@@ -270,6 +248,32 @@ public class ScreenshotManager {
 			 */
 
 			addScreenshotToReport(src);
+		}
+	}
+
+	private static File takeScreenshot(WebDriver driver) {
+		if (SCREENSHOT_PARAMS_ISFULLPAGESCREENSHOT) {
+			try {
+				if (SCREENSHOT_PARAMS_SKIPPEDELEMENTSFROMSCREENSHOT.length() > 0) {
+					List<WebElement> skippedElementsList = new ArrayList<>();
+					String[] skippedElementLocators = SCREENSHOT_PARAMS_SKIPPEDELEMENTSFROMSCREENSHOT.split(";");
+					for (String locator : skippedElementLocators) {
+						skippedElementsList.add(driver.findElement(By.xpath(locator)));
+					}
+
+					WebElement[] skippedElementsArray = new WebElement[skippedElementsList.size()];
+					skippedElementsArray = skippedElementsList.toArray(skippedElementsArray);
+
+					return ScreenshotUtils.makeFullScreenshot(driver, skippedElementsArray);
+				} else {
+					return ScreenshotUtils.makeFullScreenshot(driver);
+				}
+			} catch (Exception e) {
+				ReportManager.log(e);
+				return ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
+			}
+		} else {
+			return ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
 		}
 	}
 

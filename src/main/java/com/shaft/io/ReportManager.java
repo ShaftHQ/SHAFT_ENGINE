@@ -1,4 +1,4 @@
-package com.shaftEngine.ioActionLibrary;
+package com.shaft.io;
 
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
@@ -10,8 +10,9 @@ import org.testng.Reporter;
 import io.qameta.allure.Allure;
 import io.qameta.allure.Attachment;
 import io.qameta.allure.Step;
-import com.shaftEngine.supportActionLibrary.SSHActions;
-import com.shaftEngine.ioActionLibrary.FileManager;
+
+import com.shaft.io.FileManager;
+import com.shaft.support.SSHActions;
 
 public class ReportManager {
 
@@ -25,13 +26,11 @@ public class ReportManager {
 		throw new IllegalStateException("Utility class");
 	}
 
-	// private static int attachmentCounter = 1;
-	// TODO : implement attachemntCounter for both attachment functions
-
 	/**
 	 * Manages action counter and calls writeLog to format and print the log entry.
 	 * 
-	 * @param logText the text that needs to be logged in this action
+	 * @param logText
+	 *            the text that needs to be logged in this action
 	 */
 	public static void log(String logText) {
 		logEngineVersionAndEnvironmentData();
@@ -48,7 +47,8 @@ public class ReportManager {
 	 * Format an exception message and stack trace, and calls attach to add it as a
 	 * log entry.
 	 * 
-	 * @param e the exception that will be logged in this action
+	 * @param e
+	 *            the exception that will be logged in this action
 	 */
 	public static void log(Exception e) {
 		logEngineVersionAndEnvironmentData();
@@ -78,9 +78,11 @@ public class ReportManager {
 	 * Formats logText and adds timestamp, then logs it as a step in the execution
 	 * report.
 	 * 
-	 * @param logText       the text that needs to be logged in this action
-	 * @param actionCounter a number that represents the serial number of this
-	 *                      action within this test run
+	 * @param logText
+	 *            the text that needs to be logged in this action
+	 * @param actionCounter
+	 *            a number that represents the serial number of this action within
+	 *            this test run
 	 */
 	@Step("Action [{actionCounter}]: {logText}")
 	private static void writeLogStepToReport(String logText, int actionCounter) {
@@ -100,9 +102,12 @@ public class ReportManager {
 	 * Adds a new attachment using the input parameters provided. The attachment is
 	 * displayed as a step in the execution report. Used for Screenshots.
 	 * 
-	 * @param attachmentType    the type of this attachment
-	 * @param attachmentName    the name of this attachment
-	 * @param attachmentContent the content of this attachment
+	 * @param attachmentType
+	 *            the type of this attachment
+	 * @param attachmentName
+	 *            the name of this attachment
+	 * @param attachmentContent
+	 *            the content of this attachment
 	 */
 	@Step("Attachement: {attachmentType} - {attachmentName}")
 	public static void attach(String attachmentType, String attachmentName, InputStream attachmentContent) {
@@ -116,8 +121,10 @@ public class ReportManager {
 	 * Adds a new attachment using the input parameters provided. The attachment is
 	 * displayed as a step in the execution report. Used for REST API Responses.
 	 * 
-	 * @param attachmentName    the name of this attachment
-	 * @param attachmentContent the content of this attachment
+	 * @param attachmentName
+	 *            the name of this attachment
+	 * @param attachmentContent
+	 *            the content of this attachment
 	 */
 	@Step("Attachment: {attachmentName}")
 	public static void attach(String attachmentName, String attachmentContent) {
@@ -135,14 +142,26 @@ public class ReportManager {
 	 */
 	@Attachment("Test log")
 	public static String getTestLog() {
-		String log = "";
+
+		StringBuilder logBuilder = new StringBuilder();
+		String logText = "";
 
 		for (String s : Reporter.getOutput()) {
 			s = s.replace("<br>", System.lineSeparator());
-			log = log + s;
+			logBuilder.append(s);
 		}
+		logText = logBuilder.toString();
 		Reporter.clear();
-		return log;
+		return logText;
+
+		// String log = "";
+		//
+		// for (String s : Reporter.getOutput()) {
+		// s = s.replace("<br>", System.lineSeparator());
+		// log = log + s;
+		// }
+		// Reporter.clear();
+		// return log;
 	}
 
 	/**
@@ -165,7 +184,8 @@ public class ReportManager {
 	/**
 	 * Appends a log entry to the complete log of the current execution session.
 	 * 
-	 * @param log the log entry that needs to be appended to the full log
+	 * @param log
+	 *            the log entry that needs to be appended to the full log
 	 */
 	private static void appendToFullLog(String log) {
 		fullLog += log;
@@ -176,7 +196,8 @@ public class ReportManager {
 		log = false;
 		List<String> commandToCreateAllureReport = Arrays.asList(
 				"src/main/resources/allure/bin/allure generate \"allure-results\" -o \"generatedReport/allure-report\"");
-		SSHActions.executeShellCommand(commandToCreateAllureReport);
+
+		(new SSHActions()).executeShellCommand(commandToCreateAllureReport);
 
 		FileManager.copyFolder(FileManager.getAbsolutePath("src/main/resources/", "allure"), "generatedReport/allure");
 
@@ -228,27 +249,27 @@ public class ReportManager {
 	}
 
 	private static void logTestInformation() {
-		try {
-			String currentTestCase = "";
+		// try {
+		String currentTestCase = "";
 
-			if (Reporter.getCurrentTestResult().getMethod().getDescription() != null) {
-				currentTestCase = Reporter.getCurrentTestResult().getMethod().getDescription();
-			} else {
-				currentTestCase = Reporter.getCurrentTestResult().getMethod().getMethodName();
-			}
-
-			if ((!currentTestCase.equals(lastTestCase)) && (!currentTestCase.equals(""))) {
-				String testClass = Reporter.getCurrentTestResult().getTestClass().getName();
-				performLogEntry(
-						"Starting Execution; class name [" + testClass + "], and test name [" + currentTestCase + "].");
-				lastTestCase = currentTestCase;
-			}
-		} catch (Throwable e) {
-			// several errors are thrown in case of calling this method outside a test case,
-			// like in browser setup or teardown, therefor the correct response here is to
-			// do nothing
-			// this method gets called with every single action
+		if (Reporter.getCurrentTestResult().getMethod().getDescription() != null) {
+			currentTestCase = Reporter.getCurrentTestResult().getMethod().getDescription();
+		} else {
+			currentTestCase = Reporter.getCurrentTestResult().getMethod().getMethodName();
 		}
+
+		if ((!currentTestCase.equals(lastTestCase)) && (!currentTestCase.equals(""))) {
+			String testClass = Reporter.getCurrentTestResult().getTestClass().getName();
+			performLogEntry(
+					"Starting Execution; class name [" + testClass + "], and test name [" + currentTestCase + "].");
+			lastTestCase = currentTestCase;
+		}
+		// } catch (Throwable e) {
+		// several errors are thrown in case of calling this method outside a test case,
+		// like in browser setup or tear-down, therefore the correct response here is to
+		// do nothing
+		// this method gets called with every single action
+		// }
 	}
 
 }

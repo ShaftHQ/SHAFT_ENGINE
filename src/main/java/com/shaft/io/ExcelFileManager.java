@@ -1,4 +1,10 @@
-package com.shaftEngine.ioActionLibrary;
+package com.shaft.io;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 import org.apache.poi.hssf.usermodel.HSSFDateUtil;
 import org.apache.poi.ss.usermodel.CellType;
@@ -7,13 +13,6 @@ import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.testng.Assert;
-
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.nio.file.FileSystems;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 
 public class ExcelFileManager {
 	private FileInputStream fis = null;
@@ -24,7 +23,7 @@ public class ExcelFileManager {
 
 	private String testDataColumnNamePrefix = System.getProperty("testDataColumnNamePrefix");
 
-	private String currentFilePath;
+	// private String currentFilePath;
 
 	/**
 	 * Creates a new instance of the test data excel reader using the expected excel
@@ -38,7 +37,7 @@ public class ExcelFileManager {
 			fis = new FileInputStream(xlFilePath);
 			workbook = new XSSFWorkbook(fis);
 			fis.close();
-			currentFilePath = xlFilePath;
+			// currentFilePath = xlFilePath;
 		} catch (IOException e) {
 			ReportManager.log(e);
 			ReportManager.log("Couldn't find the desired file. [" + xlFilePath + "].");
@@ -51,9 +50,9 @@ public class ExcelFileManager {
 	}
 
 	/**
-	 * Reads cell data given that sheet name and the excel file's name are the same
-	 * Reads cell data using row name (1st column) only Reads cell data from the 2nd
-	 * column (1st Value in the test data file)
+	 * Reads cell data from the first sheet in the desired excel workbook Reads cell
+	 * data using row name (1st column) only Reads cell data from the 2nd column
+	 * (1st Value in the test data file)
 	 * 
 	 * @param rowName
 	 *            the value of the first cell of the target row
@@ -65,8 +64,8 @@ public class ExcelFileManager {
 	}
 
 	/**
-	 * Reads cell data given that sheet name and the excel file's name are the same
-	 * Reads cell data using row name (1st column) and column name
+	 * Reads cell data from the first sheet in the desired excel workbook Reads cell
+	 * data using row name (1st column) and column name
 	 * 
 	 * @param rowName
 	 *            the value of the first cell of the target row
@@ -104,7 +103,8 @@ public class ExcelFileManager {
 				// if they match then that's the row we want
 				if (row.getCell(0).getStringCellValue().equals(rowName)) {
 					rowNum = i;
-					i = sheet.getLastRowNum();
+					break;
+					// i = sheet.getLastRowNum();
 				}
 			}
 
@@ -120,7 +120,8 @@ public class ExcelFileManager {
 					// if they match then that's the column we want
 					if (row.getCell(i).getStringCellValue().equals(colName)) {
 						colNum = i;
-						i = row.getLastCellNum();
+						break;
+						// i = row.getLastCellNum();
 					}
 				}
 			} else {
@@ -133,41 +134,46 @@ public class ExcelFileManager {
 			cell = row.getCell(colNum);
 
 			// return cell value given the different cell types
-			try {
-				if (cell.getCellTypeEnum() == CellType.STRING)
-					return cell.getStringCellValue();
-				else if (cell.getCellTypeEnum() == CellType.NUMERIC || cell.getCellTypeEnum() == CellType.FORMULA) {
-					String cellValue = String.valueOf(cell.getNumericCellValue());
-					if (cellValue.contains(".0")) {
-						cellValue = cellValue.split("\\.")[0];
-					}
-					if (HSSFDateUtil.isCellDateFormatted(cell)) {
-						DateFormat df = new SimpleDateFormat("dd/MM/yy");
-						Date date = cell.getDateCellValue();
-						cellValue = df.format(date);
-					}
-					return cellValue;
-				} else if (cell.getCellTypeEnum() == CellType.BOOLEAN) {
-					return String.valueOf(cell.getBooleanCellValue());
-				} else {
-					return "";
-				}
-			} catch (Exception e) {
-				// ReportManager.log(e);
-				// ReportManager.log("Failed to read data from row [" + rowName + "] and column
-				// [" + colName
-				// + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
-				// Assert.fail("Failed to read data from row [" + rowName + "] and column [" +
-				// colName
-				// + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
-				return "";
-			}
+			return getCellData();
+
 		} catch (Exception e) {
 			ReportManager.log(e);
 			ReportManager.log("Failed to read data from row [" + rowName + "] and column [" + colName
 					+ "] in the Test Data Sheet [" + sheetName + ".xlsx].");
 			Assert.fail("Failed to read data from row [" + rowName + "] and column [" + colName
 					+ "] in the Test Data Sheet [" + sheetName + ".xlsx].");
+			return "";
+		}
+	}
+
+	private String getCellData() {
+		try {
+			if (cell.getCellTypeEnum() == CellType.STRING)
+				return cell.getStringCellValue();
+			else if (cell.getCellTypeEnum() == CellType.NUMERIC || cell.getCellTypeEnum() == CellType.FORMULA) {
+				String cellValue = String.valueOf(cell.getNumericCellValue());
+				if (cellValue.contains(".0")) {
+					cellValue = cellValue.split("\\.")[0];
+				}
+				if (HSSFDateUtil.isCellDateFormatted(cell)) {
+					DateFormat df = new SimpleDateFormat("dd/MM/yy");
+					Date date = cell.getDateCellValue();
+					cellValue = df.format(date);
+				}
+				return cellValue;
+			} else if (cell.getCellTypeEnum() == CellType.BOOLEAN) {
+				return String.valueOf(cell.getBooleanCellValue());
+			} else {
+				return "";
+			}
+		} catch (Exception e) {
+			// ReportManager.log(e);
+			// ReportManager.log("Failed to read data from row [" + rowName + "] and column
+			// [" + colName
+			// + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
+			// Assert.fail("Failed to read data from row [" + rowName + "] and column [" +
+			// colName
+			// + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
 			return "";
 		}
 	}
@@ -212,15 +218,27 @@ public class ExcelFileManager {
 		}
 	}
 
+	//
+	// /**
+	// * Extracts the default sheet name from the file name, assuming that the sheet
+	// * has the same name as the file.
+	// *
+	// * @return the default sheet name for the current test data file
+	// */
 	/**
-	 * Extracts the default sheet name from the file name, assuming that the sheet
-	 * has the same name as the file.
+	 * Extracts the first sheet name from the desired workbook.
 	 * 
-	 * @return the default sheet name for the current test data file
+	 * @return the first sheet name for the current test data file
 	 */
 	private String getDefaultSheetName() {
-		return (currentFilePath.split(FileSystems.getDefault().getSeparator())[currentFilePath.split(FileSystems.getDefault().getSeparator()).length - 1]).split(
-				"\\.")[(currentFilePath.split(FileSystems.getDefault().getSeparator())[currentFilePath.split(FileSystems.getDefault().getSeparator()).length - 1]).split("\\.").length - 2];
+		// return (currentFilePath.split(FileSystems.getDefault()
+		// .getSeparator())[currentFilePath.split(FileSystems.getDefault().getSeparator()).length
+		// - 1])
+		// .split("\\.")[(currentFilePath.split(FileSystems.getDefault()
+		// .getSeparator())[currentFilePath.split(FileSystems.getDefault().getSeparator()).length
+		// - 1]).split("\\.").length
+		// - 2];
+		return workbook.getSheetName(0);
 	}
 
 	/**

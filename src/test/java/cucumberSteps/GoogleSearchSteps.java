@@ -2,9 +2,9 @@ package cucumberSteps;
 
 import org.openqa.selenium.WebDriver;
 
-import com.shaftEngine.browserActionLibrary.BrowserFactory;
-import com.shaftEngine.ioActionLibrary.ExcelFileManager;
-import com.shaftEngine.ioActionLibrary.ReportManager;
+import com.shaft.browser.BrowserFactory;
+import com.shaft.io.ExcelFileManager;
+import com.shaft.io.ReportManager;
 
 import cucumber.api.java.After;
 import cucumber.api.java.en.Given;
