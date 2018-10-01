@@ -165,34 +165,33 @@ public class Verifications {
 	 */
 	public static void verifyElementExists(WebDriver driver, By elementLocator, Boolean verificationType) {
 		ReportManager.log("Verification [" + "verifyElementExists" + "] is being performed.");
-
-		if (verificationType) {
-			try {
-				Assert.assertTrue(ElementActions.internalCanFindUniqueElement(driver, elementLocator));
-				verificationSuccesses.append(
-						"Assertion Passed; element exists and is unique. Locator [" + elementLocator.toString() + "].");
-			} catch (AssertionError e) {
-				verificationFailures.append("Assertion Failed; element does not exist or is not unique. Locator ["
-						+ elementLocator.toString() + "].");
+		try {
+			switch (ElementActions.getElementsCount(driver, elementLocator, elementDoesntExistTimeout)) {
+			case 0:
+				if (verificationType) {
+					verificationFailures.append("Verification Failed; element does not exist. Locator [" + elementLocator.toString() + "].");
+				} else {
+					verificationSuccesses.append("Verification Passed; element does not exist. Locator [" + elementLocator.toString() + "].");
+				}
 				elementLocator = null; // workaround to force take a screenshot of the whole page
-			} catch (Exception e) {
-				ReportManager.log(e);
-				verificationFailures.append("Verification Failed; an unhandled exception occured.");
-			}
-		} else {
-			try {
-				Assert.assertFalse(
-						ElementActions.internalCanFindUniqueElement(driver, elementLocator, elementDoesntExistTimeout));
-				verificationSuccesses.append("Assertion Passed; element does not exist or is not unique. Locator ["
-						+ elementLocator.toString() + "].");
+				break;
+			case 1:
+				if (verificationType) {
+					verificationSuccesses.append("Verification Passed; element exists and is unique. Locator ["
+							+ elementLocator.toString() + "].");
+				} else {
+					verificationFailures.append("Verification Failed; element exists and is unique. Locator ["
+							+ elementLocator.toString() + "].");
+				}
+				break;
+			default:
+				verificationFailures.append("Verification Failed; element is not unique. Locator [" + elementLocator.toString() + "].");
 				elementLocator = null; // workaround to force take a screenshot of the whole page
-			} catch (AssertionError e) {
-				verificationFailures.append(
-						"Assertion Failed; element exists and is unique. Locator [" + elementLocator.toString() + "].");
-			} catch (Exception e) {
-				ReportManager.log(e);
-				verificationFailures.append("Verification Failed; an unhandled exception occured.");
+				break;
 			}
+		} catch (Exception e) {
+			ReportManager.log(e);
+			verificationFailures.append("Verification Failed; an unhandled exception occured.");
 		}
 		reportVerificationResults(driver, elementLocator);
 	}
@@ -220,10 +219,6 @@ public class Verifications {
 			String expectedValue, Boolean verificationType) {
 		ReportManager.log("Verification [" + "verifyElementAttribute" + "] is being performed for target attribute ["
 				+ elementAttribute + "].");
-
-		// String escapedExpectedValue = String.valueOf(expectedValue);
-		// escapedExpectedValue =
-		// escapeSpecialCharacters(String.valueOf(expectedValue));
 
 		String actualValue = null;
 

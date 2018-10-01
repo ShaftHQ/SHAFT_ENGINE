@@ -63,6 +63,7 @@ public class GoogleSearch {
 
 	public void assertPageIsOpen() {
 		Assertions.assertElementExists(driver, googleLogo_image, true);
+		//Assertions.assertElementExists(driver, googleLogo_image, false);
 	}
 
 	public void verifyPageTitle(String expectedValue) {
