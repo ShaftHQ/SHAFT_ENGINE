@@ -17,14 +17,29 @@ public class Assertions {
 		throw new IllegalStateException("Utility class");
 	}
 
+	private static void fail(String message, Throwable realCause) {
+		ReportManager.log(message);
+		Assert.fail(message, realCause);
+	}
+
 	private static void fail(String message) {
 		ReportManager.log(message);
 		Assert.fail(message);
 	}
 
+	private static void fail(WebDriver driver, String message, Throwable realCause) {
+		ScreenshotManager.captureScreenShot(driver, false);
+		fail(message, realCause);
+	}
+
 	private static void fail(WebDriver driver, String message) {
 		ScreenshotManager.captureScreenShot(driver, false);
 		fail(message);
+	}
+
+	private static void fail(WebDriver driver, By elementLocator, String message, Throwable realCause) {
+		ScreenshotManager.captureScreenShot(driver, elementLocator, false);
+		fail(message, realCause);
 	}
 
 	private static void fail(WebDriver driver, By elementLocator, String message) {
@@ -72,10 +87,10 @@ public class Assertions {
 				pass("Assertion Passed; actual value does match expected value [" + expectedValue + "].");
 			} catch (AssertionError e) {
 				fail("Assertion Failed; actual value [" + actualValue + "] does not match expected value ["
-						+ expectedValue + "].");
+						+ expectedValue + "].", e);
 			} catch (Exception e) {
 				ReportManager.log(e);
-				fail("Assertion Failed; an unhandled exception occured.");
+				fail("Assertion Failed; an unhandled exception occured.", e);
 			}
 		} else {
 			try {
@@ -84,10 +99,10 @@ public class Assertions {
 				pass("Assertion Passed; actual value [" + actualValue + "] does not match expected value ["
 						+ expectedValue + "].");
 			} catch (AssertionError e) {
-				fail("Assertion Failed; actual value does match expected value [" + expectedValue + "].");
+				fail("Assertion Failed; actual value does match expected value [" + expectedValue + "].", e);
 			} catch (Exception e) {
 				ReportManager.log(e);
-				fail("Assertion Failed; an unhandled exception occured.");
+				fail("Assertion Failed; an unhandled exception occured.", e);
 			}
 		}
 	}
@@ -111,20 +126,20 @@ public class Assertions {
 				Assert.assertNull(object);
 				pass("Assertion Passed; actual value is null.");
 			} catch (AssertionError e) {
-				fail("Assertion Failed; actual value is not null.");
+				fail("Assertion Failed; actual value is not null.", e);
 			} catch (Exception e) {
 				ReportManager.log(e);
-				fail("Assertion Failed; an unhandled exception occured.");
+				fail("Assertion Failed; an unhandled exception occured.", e);
 			}
 		} else {
 			try {
 				Assert.assertNotNull(object);
 				pass("Assertion Passed; actual value is not null.");
 			} catch (AssertionError e) {
-				fail("Assertion Failed; actual value is null.");
+				fail("Assertion Failed; actual value is null.", e);
 			} catch (Exception e) {
 				ReportManager.log(e);
-				fail("Assertion Failed; an unhandled exception occured.");
+				fail("Assertion Failed; an unhandled exception occured.", e);
 			}
 		}
 	}
@@ -144,31 +159,33 @@ public class Assertions {
 	 */
 	public static void assertElementExists(WebDriver driver, By elementLocator, Boolean assertionType) {
 		ReportManager.log("Assertion [" + "assertElementExists" + "] is being performed.");
-
-		if (assertionType) {
-			try {
-				ElementActions.internalCanFindUniqueElement(driver, elementLocator);
-				pass(driver, elementLocator,
-						"Assertion Passed; element exists and is unique. Locator [" + elementLocator.toString() + "].");
-			} catch (AssertionError e) {
-				fail(driver, "Assertion Failed; element does not exist or is not unique. Locator ["
-						+ elementLocator.toString() + "].");
-			} catch (Exception e) {
-				ReportManager.log(e);
-				fail("Assertion Failed; an unhandled exception occured.");
+		try {
+			switch (ElementActions.getElementsCount(driver, elementLocator, elementDoesntExistTimeout)) {
+			case 0:
+				if (assertionType) {
+					fail(driver,
+							"Assertion Failed; element does not exist. Locator [" + elementLocator.toString() + "].");
+				} else {
+					pass(driver,
+							"Assertion Passed; element does not exist. Locator [" + elementLocator.toString() + "].");
+				}
+				break;
+			case 1:
+				if (assertionType) {
+					pass(driver, elementLocator, "Assertion Passed; element exists and is unique. Locator ["
+							+ elementLocator.toString() + "].");
+				} else {
+					fail(driver, elementLocator, "Assertion Failed; element exists and is unique. Locator ["
+							+ elementLocator.toString() + "].");
+				}
+				break;
+			default:
+				fail(driver, "Assertion Failed; element is not unique. Locator [" + elementLocator.toString() + "].");
+				break;
 			}
-		} else {
-			try {
-				ElementActions.internalCanFindUniqueElement(driver, elementLocator, elementDoesntExistTimeout);
-				fail(driver, elementLocator,
-						"Assertion Failed; element exists and is unique. Locator [" + elementLocator.toString() + "].");
-			} catch (AssertionError e) {
-				pass(driver, "Assertion Passed; element does not exist or is not unique. Locator ["
-						+ elementLocator.toString() + "].");
-			} catch (Exception e) {
-				ReportManager.log(e);
-				fail("Assertion Failed; an unhandled exception occured.");
-			}
+		} catch (Exception e) {
+			ReportManager.log(e);
+			fail("Assertion Failed; an unhandled exception occured.", e);
 		}
 	}
 
@@ -217,16 +234,17 @@ public class Assertions {
 		}
 
 		if (assertionType) {
+			// handle returned special characters that are seen as regex
 			try {
 				Assert.assertTrue((String.valueOf(actualValue)).matches(String.valueOf(expectedValue)));
 				pass(driver, elementLocator, "Assertion Passed; actual value of [" + elementAttribute
 						+ "] does match expected value [" + expectedValue + "].");
 			} catch (AssertionError e) {
 				fail(driver, elementLocator, "Assertion Failed; actual value of [" + elementAttribute + "] equals ["
-						+ actualValue + "] which does not match expected value [" + expectedValue + "].");
+						+ actualValue + "] which does not match expected value [" + expectedValue + "].", e);
 			} catch (Exception e) {
 				ReportManager.log(e);
-				fail("Assertion Failed; an unhandled exception occured.");
+				fail("Assertion Failed; an unhandled exception occured.", e);
 			}
 		} else {
 			try {
@@ -235,10 +253,10 @@ public class Assertions {
 						+ actualValue + "] which does not match expected value [" + expectedValue + "].");
 			} catch (AssertionError e) {
 				fail(driver, elementLocator, "Assertion Failed; actual value of [" + elementAttribute
-						+ "] does match expected value [" + expectedValue + "].");
+						+ "] does match expected value [" + expectedValue + "].", e);
 			} catch (Exception e) {
 				ReportManager.log(e);
-				fail("Assertion Failed; an unhandled exception occured.");
+				fail("Assertion Failed; an unhandled exception occured.", e);
 			}
 		}
 	}
@@ -301,10 +319,10 @@ public class Assertions {
 						+ expectedValue + "].");
 			} catch (AssertionError e) {
 				fail(driver, "Assertion Failed; actual value of [" + browserAttribute + "] equals [" + actualValue
-						+ "] which does not match expected value [" + expectedValue + "].");
+						+ "] which does not match expected value [" + expectedValue + "].", e);
 			} catch (Exception e) {
 				ReportManager.log(e);
-				fail("Assertion Failed; an unhandled exception occured.");
+				fail("Assertion Failed; an unhandled exception occured.", e);
 			}
 		} else {
 			try {
@@ -313,29 +331,13 @@ public class Assertions {
 						+ "] which does not match expected value [" + expectedValue + "].");
 			} catch (AssertionError e) {
 				fail(driver, "Assertion Failed; actual value of [" + browserAttribute + "] does match expected value ["
-						+ expectedValue + "].");
+						+ expectedValue + "].", e);
 			} catch (Exception e) {
 				ReportManager.log(e);
-				fail("Assertion Failed; an unhandled exception occured.");
+				fail("Assertion Failed; an unhandled exception occured.", e);
 			}
 		}
 	}
-	/*
-	 * public static void assertFileExists(String fileFolderName, String fileName,
-	 * Boolean assertionType) { if (assertionType) { try {
-	 * FileManager.getAbsolutePath(fileFolderName, fileName);
-	 * pass("Assertion Passed; a file was found in this directory [" +
-	 * fileFolderName + "] with this name [" + fileName + "]."); } catch (Exception
-	 * e) { fail("Assertion Failed; no file was found in this directory [" +
-	 * fileFolderName + "] with this name [" + fileName + "]."); } } else { try {
-	 * FileManager.getAbsolutePath(fileFolderName, fileName);
-	 * fail("Assertion Failed; a file was found in this directory [" +
-	 * fileFolderName + "] with this name [" + fileName + "]."); } catch (Exception
-	 * e) { pass("Assertion Passed; no file was found in this directory [" +
-	 * fileFolderName + "] with this name [" + fileName + "]."); }
-	 * 
-	 * } }
-	 */
 
 	public static void assertGreaterThanOrEquals(Number expectedValue, Number actualValue, Boolean assertionType) {
 		ReportManager.log("Assertion [" + "assertGreaterThanOrEquals" + "] is being performed, with expectedValue ["
@@ -348,7 +350,10 @@ public class Assertions {
 						+ expectedValue + "].");
 			} catch (AssertionError e) {
 				fail("Assertion Failed; actual value [" + actualValue
-						+ "] is not greater than or equals expected value [" + expectedValue + "].");
+						+ "] is not greater than or equals expected value [" + expectedValue + "].", e);
+			} catch (Exception e) {
+				ReportManager.log(e);
+				fail("Assertion Failed; an unhandled exception occured.", e);
 			}
 		} else {
 			try {
@@ -357,10 +362,10 @@ public class Assertions {
 						+ "] is not greater than or equals expected value [" + expectedValue + "].");
 			} catch (AssertionError e) {
 				fail("Assertion Failed; actual value [" + actualValue + "] is greater than or equals expected value ["
-						+ expectedValue + "].");
+						+ expectedValue + "].", e);
 			} catch (Exception e) {
 				ReportManager.log(e);
-				fail("Assertion Failed; an unhandled exception occured.");
+				fail("Assertion Failed; an unhandled exception occured.", e);
 			}
 		}
 	}
