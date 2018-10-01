@@ -8,6 +8,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.testng.Assert;
 
+import com.google.gson.JsonObject;
 import com.shaft.io.ReportManager;
 import com.shaft.support.JavaActions;
 import com.shaft.validation.Assertions;
@@ -24,14 +25,12 @@ public class RestActions {
 	private Map<String, String> sessionCookies;
 	private Map<String, String> sessionHeaders;
 	private String serviceURI;
-	private String serviceName;
 
-	public RestActions(String serviceURI, String serviceName) {
+	public RestActions(String serviceURI) {
 		headerAuthorization = "";
 		sessionCookies = new HashMap<>();
 		sessionHeaders = new HashMap<>();
 		this.serviceURI = serviceURI;
-		this.serviceName = serviceName;
 	}
 
 	private void passAction(String actionName, String testData, Response response) {
@@ -66,12 +65,12 @@ public class RestActions {
 	}
 
 	/**
-	 * Attempts to perform POST/GET request to a REST API, then checks the response
-	 * status code, if it matches the target code the step is passed and the
-	 * response is returned. Otherwise the action fails and NULL is returned.
+	 * Attempts to perform POST/GET/DELETE request to a REST API, then checks the
+	 * response status code, if it matches the target code the step is passed and
+	 * the response is returned. Otherwise the action fails and NULL is returned.
 	 * 
 	 * @param requestType;
-	 *            POST/GET
+	 *            POST/GET/DELETE
 	 * @param targetStatusCode;
 	 *            200
 	 * @param serviceURI;
@@ -82,15 +81,15 @@ public class RestActions {
 	 *            arguments without a preceding ?
 	 * @return Response; returns the full response object for further manipulation
 	 */
-	public Response performRequest(String requestType, String targetStatusCode, String argument,
+	public Response performRequest(String requestType, String targetStatusCode, String serviceName, String argument,
 			String... credentials) {
 
-		String request = prepareRequest(argument);
+		String request = prepareRequest(argument, serviceName);
 		prepareHeaders(credentials);
 
 		Response response = null;
 		try {
-			if (requestType.equalsIgnoreCase("post") || requestType.equalsIgnoreCase("get")) {
+			if (requestType.equalsIgnoreCase("post") || requestType.equalsIgnoreCase("get")|| requestType.equalsIgnoreCase("delete")) {
 				response = sendRequest(requestType, request);
 			} else {
 				failAction("performRequest", request);
@@ -114,7 +113,59 @@ public class RestActions {
 		return null;
 	}
 
-	private String prepareRequest(String argument) {
+	/**
+	 * Attempts to perform POST/PATCH request with Json body to a REST API, then
+	 * checks the response status code, if it matches the target code the step is
+	 * passed and the response is returned. Otherwise the action fails and NULL is
+	 * returned.
+	 * 
+	 * @param requestType;
+	 *            POST/Patch
+	 * @param targetStatusCode;
+	 *            200
+	 * @param serviceURI;
+	 *            http://serviceURL.com:PORT/serviceROOT
+	 * @param serviceName;
+	 *            /servicePATH/serviceNAME
+	 * @param argument;
+	 *            arguments without a preceding ?
+	 * @param body;
+	 *            Json Object for body data
+	 * @return Response; returns the full response object for further manipulation
+	 */
+	public Response performRequest(String requestType, String targetStatusCode, String serviceName, String argument,
+			JsonObject body, String... credentials) {
+
+		String request = prepareRequest(argument, serviceName);
+		prepareHeaders(credentials);
+
+		Response response = null;
+		try {
+			if (requestType.equalsIgnoreCase("post") || requestType.equalsIgnoreCase("patch")) {
+				response = sendRequest(requestType, request, body);
+			} else {
+				failAction("performRequest", request);
+			}
+
+			if (response != null) {
+				extractCookiesFromResponse(response);
+				extractHeadersFromResponse(response);
+
+				assertResponseStatusCode(request, response, targetStatusCode);
+			}
+		} catch (Exception e) {
+			ReportManager.log(e);
+			if (response != null) {
+				failAction("performRequest",
+						request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", response);
+			} else {
+				failAction("performRequest", request);
+			}
+		}
+		return null;
+	}
+
+	private String prepareRequest(String argument, String serviceName) {
 		if (!argument.equals("")) {
 			return serviceURI + serviceName + ARGUMENTSEPARATOR + argument;
 		} else {
@@ -137,6 +188,8 @@ public class RestActions {
 				return given().headers(sessionHeaders).when().post(request).andReturn();
 			case "get":
 				return given().headers(sessionHeaders).when().get(request).andReturn();
+			case "delete":
+				return given().headers(sessionHeaders).when().delete(request).andReturn();
 			default:
 				break;
 			}
@@ -146,6 +199,8 @@ public class RestActions {
 				return given().when().post(request).andReturn();
 			case "get":
 				return given().when().get(request).andReturn();
+			case "delete":
+				return given().when().delete(request).andReturn();
 			default:
 				break;
 			}
@@ -155,6 +210,42 @@ public class RestActions {
 				return given().headers(sessionHeaders).cookies(sessionCookies).when().post(request).andReturn();
 			case "get":
 				return given().headers(sessionHeaders).cookies(sessionCookies).when().get(request).andReturn();
+			case "delete":
+				return given().headers(sessionHeaders).cookies(sessionCookies).when().delete(request).andReturn();
+			default:
+				break;
+			}
+		}
+		return null;
+	}
+
+	private Response sendRequest(String requestType, String request, JsonObject body) {
+		if (sessionCookies.size() == 0 && sessionHeaders.size() > 0) {
+			switch (requestType.toLowerCase()) {
+			case "post":
+				return given().headers(sessionHeaders).body(body.toString()).when().post(request).andReturn();
+			case "patch":
+				return given().headers(sessionHeaders).body(body.toString()).when().get(request).andReturn();
+			default:
+				break;
+			}
+		} else if (sessionCookies.size() == 0 && sessionHeaders.size() == 0) {
+			switch (requestType.toLowerCase()) {
+			case "post":
+				return given().when().body(body.toString()).post(request).andReturn();
+			case "patch":
+				return given().when().body(body.toString()).get(request).andReturn();
+			default:
+				break;
+			}
+		} else {
+			switch (requestType.toLowerCase()) {
+			case "post":
+				return given().headers(sessionHeaders).cookies(sessionCookies).when().body(body.toString())
+						.post(request).andReturn();
+			case "patch":
+				return given().headers(sessionHeaders).cookies(sessionCookies).when().body(body.toString()).get(request)
+						.andReturn();
 			default:
 				break;
 			}
@@ -191,6 +282,7 @@ public class RestActions {
 			if (response.jsonPath().getString("type").equals("Bearer")) {
 				headerAuthorization = "Bearer " + getResponseJSONValue(response, "token");
 				sessionHeaders.put("Authorization", headerAuthorization);
+				sessionHeaders.put("Content-Type", "application/json");
 			}
 		} catch (JsonPathException | NullPointerException e) {
 			// do nothing if the "type" variable was not found
