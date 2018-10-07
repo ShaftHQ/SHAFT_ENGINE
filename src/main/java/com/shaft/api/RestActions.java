@@ -89,7 +89,8 @@ public class RestActions {
 
 		Response response = null;
 		try {
-			if (requestType.equalsIgnoreCase("post") || requestType.equalsIgnoreCase("get")|| requestType.equalsIgnoreCase("delete")) {
+			if (requestType.equalsIgnoreCase("post") || requestType.equalsIgnoreCase("get")
+					|| requestType.equalsIgnoreCase("delete")) {
 				response = sendRequest(requestType, request);
 			} else {
 				failAction("performRequest", request);
@@ -110,7 +111,7 @@ public class RestActions {
 				failAction("performRequest", request);
 			}
 		}
-		return null;
+		return response;
 	}
 
 	/**
@@ -162,7 +163,7 @@ public class RestActions {
 				failAction("performRequest", request);
 			}
 		}
-		return null;
+		return response;
 	}
 
 	private String prepareRequest(String argument, String serviceName) {
@@ -301,6 +302,49 @@ public class RestActions {
 			ReportManager.log("Couldn't find anything that matches with the desired jsonPath [" + jsonPath + "]");
 			failAction("getResponseJSONValue", jsonPath);
 			return "";
+		}
+	}
+
+	/**
+	 * Check that given response body contains certain key, it transform response
+	 * body to string & assert if It contains this value
+	 * 
+	 * @param response
+	 * @param key
+	 */
+
+	public void assertResponseContains(Response response, String key) {
+		String bodyStringValue = response.getBody().asString();
+		if (bodyStringValue != null) {
+			if (bodyStringValue.contains(key))
+				passAction("assertResponseContains", key);
+			else
+				failAction("assertResponseContains", key);
+		} else {
+			ReportManager.log("Couldn't find anything that matches with the desired text [" + key + "]");
+			failAction("assertResponseContains", key);
+		}
+	}
+
+	/**
+	 * Check that given response body contains Array of keys, it transform response
+	 * body to string & assert if It contains these values
+	 * 
+	 * @param response
+	 * @param key[]
+	 */
+	public void assertResponseContains(Response response, String[] key) {
+		String bodyStringValue = response.getBody().asString();
+		if (bodyStringValue != null) {
+			for (int i = 0; i < key.length; i++) {
+				if (bodyStringValue.contains(key[i]))
+					passAction("assertResponseContains", key[i]);
+				else
+					failAction("assertResponseContains", key[i]);
+			}
+		} else {
+			ReportManager.log("Couldn't find anything that matches with the desired text");
+			failAction("assertResponseContains", key.toString());
 		}
 	}
 
