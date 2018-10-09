@@ -68,7 +68,7 @@ public class ReportManager {
 	    }
 	    logText = logBuilder.toString();
 
-	    attach("Exception Stack Trace for [" + e.getClass().getName() + "]", logText);
+	    attach("Exception Stack Trace for (" + e.getClass().getName() + ")", logText);
 	    actionCounter++;
 	}
     }
