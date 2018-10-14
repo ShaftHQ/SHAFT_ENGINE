@@ -73,8 +73,6 @@ public class RestActions {
 	 *            POST/GET/DELETE
 	 * @param targetStatusCode;
 	 *            200
-	 * @param serviceURI;
-	 *            http://serviceURL.com:PORT/serviceROOT
 	 * @param serviceName;
 	 *            /servicePATH/serviceNAME
 	 * @param argument;
@@ -124,8 +122,6 @@ public class RestActions {
 	 *            POST/Patch
 	 * @param targetStatusCode;
 	 *            200
-	 * @param serviceURI;
-	 *            http://serviceURL.com:PORT/serviceROOT
 	 * @param serviceName;
 	 *            /servicePATH/serviceNAME
 	 * @param argument;

@@ -10,14 +10,18 @@ public class JavaActions {
 
 	/**
 	 * Takes two parameters, one is the array of special characters that are needed
-	 * to be replaced, and the text needed to be updated It converts text with @#$%&
-	 * ..etc (special characters) to return it with \\@\\#\\$\\%\\&
+	 * to be replaced, and the text needed to be updated It converts text with
+	 * %40%23%24%25%26 ..etc (special characters) to return it with
+	 * %5C%5C%40%5C%5C%23%5C%5C%24%5C%5C%25%5C%5C%26
 	 * 
 	 * @param specialCharactersArray
 	 * @param text
 	 * @return updated texts
 	 */
 	public static String replaceRegex(String[] specialCharactersArray, String text) {
+		// @#$%&
+		// \\@\\#\\$\\%\\&
+
 		String oldChar;
 		for (int i = 0; i < (specialCharactersArray.length); i++) {
 			oldChar = specialCharactersArray[i];
