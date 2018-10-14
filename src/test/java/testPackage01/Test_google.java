@@ -27,7 +27,7 @@ public class Test_google {
 		searchObject.verifyPageTitle(testDataReader.getCellData("Expected Page Title")); // Check that page title is
 	}
 
-	@Test(priority = 1, description = "TC002 - Search for Query and Assert that the number of results is displayed")
+	//@Test(priority = 1, description = "TC002 - Search for Query and Assert that the number of results is displayed")
 	public void searchForQueryandAssertResultsNumDisplayed() {
 		// temp steps for debugging changes to the type function
 		searchObject.searchForQuery(testDataReader.getCellData("Search Query 2")); // Perform search for the query that is
@@ -39,7 +39,7 @@ public class Test_google {
 		// resultsObject.verifyResultsStatsDoesNotExist(); // expected to fail
 	}
 
-	@Test(priority = 2, description = "TC003 - Clicks the next button thrice to make sure that the framework can scroll element into view before clicking it", enabled = true)
+	//@Test(priority = 2, description = "TC003 - Clicks the next button thrice to make sure that the framework can scroll element into view before clicking it", enabled = true)
 	public void clickNextThrice() {
 		resultsObject = new GoogleSearchResults(driver); // initialize a new instance of the page
 		resultsObject.clickNext(); // Clicks the next button to make sure that the framework can scroll element into

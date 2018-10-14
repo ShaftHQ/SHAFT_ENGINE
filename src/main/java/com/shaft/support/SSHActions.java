@@ -168,17 +168,6 @@ public class SSHActions {
 	 * Establish a connection to a remote SSH server using a key file, then perform
 	 * a certain command and return its logs.
 	 * 
-	 * @param hostname
-	 *            IP address of the SSH server
-	 * @param sshPortNumber
-	 *            Port number of the SSH service on the target server
-	 * @param username
-	 *            User name used to connect to the target server
-	 * @param keyFileFolderName
-	 *            Name of the folder that contains the key file, relative to the
-	 *            project directory
-	 * @param keyFileName
-	 *            Name of the key file including its extension (if any)
 	 * @param commands
 	 *            The target command that should be executed on the SSH server
 	 * @return
