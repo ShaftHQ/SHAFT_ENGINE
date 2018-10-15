@@ -420,19 +420,6 @@ public class Verifications {
 	reportVerificationResults(driver, null);
     }
 
-    /**
-     * Escapes any special characters to make sure that they work with the .match
-     * regex and return a realistic match or no match value
-     * 
-     * @param text
-     *            represents the text that will have its special characters escaped
-     * @return the same text variable after escaping the special characters
-     */
-    /*
-     * private static String escapeSpecialCharacters(String text) { return
-     * text.replace("[", "\\[").replace("]", "\\]"); }
-     */
-
     public static void verifyGreaterThanOrEquals(Number expectedValue, Number actualValue, Boolean verificationType) {
 	ReportManager.log("Verification [" + "verifyGreaterThanOrEquals" + "] is being performed, with expectedValue [" + expectedValue + "], actualValue [" + actualValue + "], and verificationType [" + verificationType + "].");
 

@@ -73,8 +73,6 @@ public class RestActions {
 	 *            POST/GET/DELETE
 	 * @param targetStatusCode;
 	 *            200
-	 * @param serviceURI;
-	 *            http://serviceURL.com:PORT/serviceROOT
 	 * @param serviceName;
 	 *            /servicePATH/serviceNAME
 	 * @param argument;
@@ -89,7 +87,8 @@ public class RestActions {
 
 		Response response = null;
 		try {
-			if (requestType.equalsIgnoreCase("post") || requestType.equalsIgnoreCase("get")|| requestType.equalsIgnoreCase("delete")) {
+			if (requestType.equalsIgnoreCase("post") || requestType.equalsIgnoreCase("get")
+					|| requestType.equalsIgnoreCase("delete")) {
 				response = sendRequest(requestType, request);
 			} else {
 				failAction("performRequest", request);
@@ -123,8 +122,6 @@ public class RestActions {
 	 *            POST/Patch
 	 * @param targetStatusCode;
 	 *            200
-	 * @param serviceURI;
-	 *            http://serviceURL.com:PORT/serviceROOT
 	 * @param serviceName;
 	 *            /servicePATH/serviceNAME
 	 * @param argument;

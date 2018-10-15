@@ -3,6 +3,8 @@
 
 *This project is stable but still is in BETA testing phase, and it requires Java 8 and above.*
 
+**Link to javadocs** https://mohabmohie.github.io/SHAFT_ENGINE/
+
 **SHAFT_ENGINE** is a Test Automation Engine that provides a unified high-level interface to any underlying test automation frameworks (such as selenium webdriver and rest assured), in order to provide an easily understandable and user friendly syntax that is simple, robust, maintainable, and extendable. The goal is to eventually include multiple free-for-use test automation frameworks that will also cover mobile (android/iOS) and desktop (windows/linux/mac) test automation, in order to provide a single open-source solution with a standerdized implementation and unified reporting/integration with the most commonly used test management and CI tools.
 
 ### This project makes use of the following libraries:
