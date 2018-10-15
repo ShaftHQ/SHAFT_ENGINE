@@ -307,6 +307,120 @@ public class ElementActions {
 	}
     }
 
+    private static void clearBeforeTyping(WebDriver driver, By elementLocator, String elementText, String successfulTextLocationStrategy) {
+	driver.findElement(elementLocator).clear();
+	switch (successfulTextLocationStrategy) {
+	case "text":
+	    elementText = driver.findElement(elementLocator).getText();
+	    break;
+	case "textContent":
+	    elementText = driver.findElement(elementLocator).getAttribute("textContent");
+	    break;
+	case "value":
+	    elementText = driver.findElement(elementLocator).getAttribute("value");
+	    break;
+	default:
+	    break;
+	}
+	if (!elementText.trim().equals("")) {
+	    int counter = elementText.length(); // delete text manually if clear didn't work
+	    while (counter > 0) {
+		driver.findElement(elementLocator).sendKeys(Keys.BACK_SPACE);
+		counter--;
+	    }
+	}
+    }
+
+    private static void confirmTypingWasSuccessful(WebDriver driver, By elementLocator, String text, String successfulTextLocationStrategy) {
+	// to confirm that the text was written successfully
+	String actualText = "";
+	switch (successfulTextLocationStrategy) {
+	case "text":
+	    actualText = driver.findElement(elementLocator).getText();
+	    break;
+	case "textContent":
+	    actualText = driver.findElement(elementLocator).getAttribute("textContent");
+	    break;
+	case "value":
+	    actualText = driver.findElement(elementLocator).getAttribute("value");
+	    break;
+	default:
+	    break;
+	}
+	if (actualText.equals(text)) {
+	    passAction(driver, elementLocator, "type", text);
+	} else {
+	    failAction(driver, "type", "Expected to type: \"" + text + "\", but ended up with: \"" + actualText + "\"");
+	}
+    }
+
+    private static void performClipboardActions(WebDriver driver, By elementLocator, String action) {
+
+	try {
+	    switch (action.toLowerCase()) {
+	    case "copy":
+		(Toolkit.getDefaultToolkit().getSystemClipboard()).setContents((new StringSelection(getText(driver, elementLocator))), null);
+		break;
+	    case "paste":
+		pasteFromClipboard(driver, elementLocator);
+		break;
+	    case "cut":
+		(Toolkit.getDefaultToolkit().getSystemClipboard()).setContents((new StringSelection(getText(driver, elementLocator))), null);
+		type(driver, elementLocator, "");
+		break;
+	    case "select all":
+		// (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "a")).perform();
+		break;
+	    case "unselect":
+		// (new Actions(driver)).sendKeys(Keys.ESCAPE).perform();
+		break;
+	    default:
+		failAction(driver, "clipboardActions", "Unsupported Action");
+		break;
+	    }
+	    passAction(driver, elementLocator, "clipboardActions", action);
+	} catch (HeadlessException e) {
+	    ReportManager.log(e);
+	    ReportManager.log("Headless Exception: " + e.getMessage());
+	}
+    }
+
+    private static void pasteFromClipboard(WebDriver driver, By elementLocator) {
+	try {
+	    typeAppend(driver, elementLocator, (String) ((Toolkit.getDefaultToolkit().getSystemClipboard()).getContents(ElementActions.class)).getTransferData(DataFlavor.stringFlavor));
+	} catch (UnsupportedFlavorException e) {
+	    ReportManager.log(e);
+	    ReportManager.log("Unsupported Flavor Exception: " + e.getMessage());
+	} catch (IOException e) {
+	    ReportManager.log(e);
+	    ReportManager.log("IO Exception: " + e.getMessage());
+	}
+    }
+
+    private static void performClipboardActionsForMac(WebDriver driver, By elementLocator, String action) {
+	switch (action.toLowerCase()) {
+	case "copy":
+	    (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "c")).perform();
+	    break;
+	case "paste":
+	    (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "v")).perform();
+	    break;
+	case "cut":
+	    (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "x")).perform();
+	    break;
+	case "select all":
+	    (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "a")).perform();
+	    break;
+	case "unselect":
+	    (new Actions(driver)).sendKeys(Keys.ESCAPE).perform();
+	    break;
+	default:
+	    failAction(driver, "clipboardActions", "Unsupported Action");
+	    break;
+	}
+	passAction(driver, elementLocator, "clipboardActions", action);
+    }
+
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////// [Public] Core Element Actions
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -372,6 +486,14 @@ public class ElementActions {
 	}
     }
 
+    /**
+     * Switches focus to default content, is mainly used in coordination with
+     * {@link ElementActions.switchToIframe(driver, elementLocator)} to exit any
+     * iframe layer and go back to the main page
+     * 
+     * @param driver
+     *            the current instance of Selenium webdriver
+     */
     public static void switchToDefaultContent(WebDriver driver) {
 	try {
 	    driver.switchTo().defaultContent();
@@ -382,7 +504,8 @@ public class ElementActions {
     }
 
     /**
-     * Clicks Element
+     * Attempts to Click on a certain web element using selenium webdriver, or using
+     * javascript
      * 
      * @param driver
      *            the current instance of Selenium webdriver
@@ -475,53 +598,6 @@ public class ElementActions {
 		confirmTypingWasSuccessful(driver, elementLocator, text, successfulTextLocationStrategy);
 	    }
 
-	}
-    }
-
-    private static void clearBeforeTyping(WebDriver driver, By elementLocator, String elementText, String successfulTextLocationStrategy) {
-	driver.findElement(elementLocator).clear();
-	switch (successfulTextLocationStrategy) {
-	case "text":
-	    elementText = driver.findElement(elementLocator).getText();
-	    break;
-	case "textContent":
-	    elementText = driver.findElement(elementLocator).getAttribute("textContent");
-	    break;
-	case "value":
-	    elementText = driver.findElement(elementLocator).getAttribute("value");
-	    break;
-	default:
-	    break;
-	}
-	if (!elementText.trim().equals("")) {
-	    int counter = elementText.length(); // delete text manually if clear didn't work
-	    while (counter > 0) {
-		driver.findElement(elementLocator).sendKeys(Keys.BACK_SPACE);
-		counter--;
-	    }
-	}
-    }
-
-    private static void confirmTypingWasSuccessful(WebDriver driver, By elementLocator, String text, String successfulTextLocationStrategy) {
-	// to confirm that the text was written successfully
-	String actualText = "";
-	switch (successfulTextLocationStrategy) {
-	case "text":
-	    actualText = driver.findElement(elementLocator).getText();
-	    break;
-	case "textContent":
-	    actualText = driver.findElement(elementLocator).getAttribute("textContent");
-	    break;
-	case "value":
-	    actualText = driver.findElement(elementLocator).getAttribute("value");
-	    break;
-	default:
-	    break;
-	}
-	if (actualText.equals(text)) {
-	    passAction(driver, elementLocator, "type", text);
-	} else {
-	    failAction(driver, "type", "Expected to type: \"" + text + "\", but ended up with: \"" + actualText + "\"");
 	}
     }
 
@@ -933,6 +1009,19 @@ public class ElementActions {
 	}
     }
 
+    /**
+     * Attempts to perform a native clipboard action on the text from a certain web
+     * element, like copy/cut/paste
+     * 
+     * @param driver
+     *            the current instance of Selenium webdriver
+     * @param elementLocator
+     *            the locator of the webElement under test (By xpath, id, selector,
+     *            name ...etc)
+     * @param action
+     *            supports the following actions "copy", "paste", "cut", "select
+     *            all", "unselect"
+     */
     public static void clipboardActions(WebDriver driver, By elementLocator, String action) {
 	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
 	    if (!System.getProperty("targetOperatingSystem").equals("Mac-64")) {
@@ -944,72 +1033,5 @@ public class ElementActions {
 	} else {
 	    failAction(driver, "clipboardActions");
 	}
-    }
-
-    private static void performClipboardActions(WebDriver driver, By elementLocator, String action) {
-
-	try {
-	    switch (action.toLowerCase()) {
-	    case "copy":
-		(Toolkit.getDefaultToolkit().getSystemClipboard()).setContents((new StringSelection(getText(driver, elementLocator))), null);
-		break;
-	    case "paste":
-		pasteFromClipboard(driver, elementLocator);
-		break;
-	    case "cut":
-		(Toolkit.getDefaultToolkit().getSystemClipboard()).setContents((new StringSelection(getText(driver, elementLocator))), null);
-		type(driver, elementLocator, "");
-		break;
-	    case "select all":
-		// (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "a")).perform();
-		break;
-	    case "unselect":
-		// (new Actions(driver)).sendKeys(Keys.ESCAPE).perform();
-		break;
-	    default:
-		failAction(driver, "clipboardActions", "Unsupported Action");
-		break;
-	    }
-	    passAction(driver, elementLocator, "clipboardActions", action);
-	} catch (HeadlessException e) {
-	    ReportManager.log(e);
-	    ReportManager.log("Headless Exception: " + e.getMessage());
-	}
-    }
-
-    private static void pasteFromClipboard(WebDriver driver, By elementLocator) {
-	try {
-	    typeAppend(driver, elementLocator, (String) ((Toolkit.getDefaultToolkit().getSystemClipboard()).getContents(ElementActions.class)).getTransferData(DataFlavor.stringFlavor));
-	} catch (UnsupportedFlavorException e) {
-	    ReportManager.log(e);
-	    ReportManager.log("Unsupported Flavor Exception: " + e.getMessage());
-	} catch (IOException e) {
-	    ReportManager.log(e);
-	    ReportManager.log("IO Exception: " + e.getMessage());
-	}
-    }
-
-    private static void performClipboardActionsForMac(WebDriver driver, By elementLocator, String action) {
-	switch (action.toLowerCase()) {
-	case "copy":
-	    (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "c")).perform();
-	    break;
-	case "paste":
-	    (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "v")).perform();
-	    break;
-	case "cut":
-	    (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "x")).perform();
-	    break;
-	case "select all":
-	    (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "a")).perform();
-	    break;
-	case "unselect":
-	    (new Actions(driver)).sendKeys(Keys.ESCAPE).perform();
-	    break;
-	default:
-	    failAction(driver, "clipboardActions", "Unsupported Action");
-	    break;
-	}
-	passAction(driver, elementLocator, "clipboardActions", action);
     }
 }
