@@ -650,10 +650,10 @@ public class ElementActions {
 		// attempt to clear element then check text size
 		clearBeforeTyping(driver, elementLocator, elementText, successfulTextLocationStrategy);
 	    }
-	    if (canFindUniqueElementForInternalUse(driver, elementLocator) && (!text.equals(""))) {
+	    if ((countFoundElements(driver, elementLocator, defaultElementIdentificationTimeout, attemptsBeforeThrowingElementNotFoundException) == 1) && (!text.equals(""))) {
 		driver.findElement(elementLocator).sendKeys(text);
 	    }
-	    if (canFindUniqueElementForInternalUse(driver, elementLocator) && (!text.equals(""))) {
+	    if ((countFoundElements(driver, elementLocator, defaultElementIdentificationTimeout, attemptsBeforeThrowingElementNotFoundException) == 1) && (!text.equals(""))) {
 		// to confirm that the text was written successfully
 		confirmTypingWasSuccessful(driver, elementLocator, text, successfulTextLocationStrategy);
 	    }
