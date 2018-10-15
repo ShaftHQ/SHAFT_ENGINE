@@ -464,18 +464,78 @@ public class ElementActions {
 	return attemptToFindUniqueElement(driver, elementLocator, timeout, false);
     }
 
+    /**
+     * Returns the number of elements that match a certain elementLocator
+     * 
+     * @param driver
+     *            the current instance of Selenium webdriver
+     * @param elementLocator
+     *            the locator of the webElement under test (By xpath, id, selector,
+     *            name ...etc)
+     * @return integer value that represents the number of elements that match the
+     *         desired elementLocator
+     */
     public static int getElementsCount(WebDriver driver, By elementLocator) {
 	return countFoundElements(driver, elementLocator, defaultElementIdentificationTimeout, attemptsBeforeThrowingElementNotFoundException);
     }
 
+    /**
+     * Returns the number of elements that match a certain elementLocator, and
+     * respects the provided customElementIdentificationTimeout while attempting to
+     * locate those elements. This is multiplied by the default
+     * attemptsBeforeThrowingElementNotFoundException (10).
+     * 
+     * @param driver
+     *            the current instance of Selenium webdriver
+     * @param elementLocator
+     *            the locator of the webElement under test (By xpath, id, selector,
+     *            name ...etc)
+     * @param customElementIdentificationTimeout
+     *            the desired timeout in seconds that should be respected while
+     *            attempting to locate an element using the provided elementLocator
+     * @return integer value that represents the number of elements that match the
+     *         desired elementLocator
+     */
     public static int getElementsCount(WebDriver driver, By elementLocator, int customElementIdentificationTimeout) {
 	return countFoundElements(driver, elementLocator, customElementIdentificationTimeout, attemptsBeforeThrowingElementNotFoundException);
     }
 
+    /**
+     * Returns the number of elements that match a certain elementLocator, and
+     * respects the provided customElementIdentificationTimeout while attempting to
+     * locate those elements. This is multiplied by the provided
+     * retriesBeforeThrowingElementNotFoundException (default value is 10).
+     * 
+     * @param driver
+     *            the current instance of Selenium webdriver
+     * @param elementLocator
+     *            the locator of the webElement under test (By xpath, id, selector,
+     *            name ...etc)
+     * @param customElementIdentificationTimeout
+     *            the desired timeout in seconds that should be respected while
+     *            attempting to locate an element using the provided elementLocator
+     * @param retriesBeforeThrowingElementNotFoundException
+     *            the number of retries/attempts for each of which the
+     *            customElementIdentificationTimeout is honored, and after all of
+     *            which an ElementNotFoundException is thrown
+     * @return integer value that represents the number of elements that match the
+     *         desired elementLocator
+     */
     public static int getElementsCount(WebDriver driver, By elementLocator, int customElementIdentificationTimeout, int retriesBeforeThrowingElementNotFoundException) {
 	return countFoundElements(driver, elementLocator, customElementIdentificationTimeout, retriesBeforeThrowingElementNotFoundException);
     }
 
+    /**
+     * Switches focus to a certain iFrame, is mainly used in coordination with
+     * {@link ElementActions.switchToDefaultContent(driver)} to navigate inside any
+     * iFrame layer and go back to the main page
+     * 
+     * @param driver
+     *            the current instance of Selenium webdriver
+     * @param elementLocator
+     *            the locator of the iFrame webElement under test (By xpath, id,
+     *            selector, name ...etc)
+     */
     public static void switchToIframe(WebDriver driver, By elementLocator) {
 	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
 	    driver.switchTo().frame((WebElement) driver.findElement(elementLocator));
@@ -489,7 +549,7 @@ public class ElementActions {
     /**
      * Switches focus to default content, is mainly used in coordination with
      * {@link ElementActions.switchToIframe(driver, elementLocator)} to exit any
-     * iframe layer and go back to the main page
+     * iFrame layer and go back to the main page
      * 
      * @param driver
      *            the current instance of Selenium webdriver
