@@ -1,0 +1,128 @@
+{
+  "path" : [ {
+    "id" : 112,
+    "name" : "MYINCORTA",
+    "permissionCode" : 0
+  } ],
+  "folders" : [ {
+    "id" : 114,
+    "path" : [ ],
+    "name" : "Activity Monitor",
+    "permissionCode" : 7,
+    "folderCount" : 0,
+    "dashboardCount" : 2,
+    "creation" : {
+      "date" : 1536768745000,
+      "id" : 125,
+      "name" : "Super User",
+      "username" : "admin"
+    },
+    "modification" : {
+      "date" : 1536768745000,
+      "id" : 125,
+      "name" : "Super User",
+      "username" : "admin"
+    },
+    "shared" : false
+  }, {
+    "id" : 326,
+    "path" : [ ],
+    "name" : "Automation_Folder_Rename",
+    "permissionCode" : 7,
+    "folderCount" : 0,
+    "dashboardCount" : 0,
+    "creation" : {
+      "date" : 1538998369000,
+      "id" : 125,
+      "name" : "Super User",
+      "username" : "admin"
+    },
+    "modification" : {
+      "date" : 1538998369000,
+      "id" : 125,
+      "name" : "Super User",
+      "username" : "admin"
+    },
+    "shared" : false
+  }, {
+    "id" : 242,
+    "path" : [ ],
+    "name" : "Automation_Folder_SharedEdit_ToAnalyzer",
+    "permissionCode" : 7,
+    "folderCount" : 0,
+    "dashboardCount" : 0,
+    "creation" : {
+      "date" : 1538050325000,
+      "id" : 125,
+      "name" : "Super User",
+      "username" : "admin"
+    },
+    "modification" : {
+      "date" : 1538051902000,
+      "id" : 125,
+      "name" : "Super User",
+      "username" : "admin"
+    },
+    "shared" : false
+  }, {
+    "id" : 244,
+    "path" : [ ],
+    "name" : "Automation_Folder_SharedShare_ToAnalyzer",
+    "permissionCode" : 7,
+    "folderCount" : 0,
+    "dashboardCount" : 0,
+    "creation" : {
+      "date" : 1538051953000,
+      "id" : 125,
+      "name" : "Super User",
+      "username" : "admin"
+    },
+    "modification" : {
+      "date" : 1538051953000,
+      "id" : 125,
+      "name" : "Super User",
+      "username" : "admin"
+    },
+    "shared" : false
+  }, {
+    "id" : 243,
+    "path" : [ ],
+    "name" : "Automation_Folder_SharedView_ToAnalyzer",
+    "permissionCode" : 7,
+    "folderCount" : 0,
+    "dashboardCount" : 0,
+    "creation" : {
+      "date" : 1538051920000,
+      "id" : 125,
+      "name" : "Super User",
+      "username" : "admin"
+    },
+    "modification" : {
+      "date" : 1538051920000,
+      "id" : 125,
+      "name" : "Super User",
+      "username" : "admin"
+    },
+    "shared" : false
+  }, {
+    "id" : 113,
+    "path" : [ ],
+    "name" : "Dashboards Demo",
+    "permissionCode" : 7,
+    "folderCount" : 0,
+    "dashboardCount" : 2,
+    "creation" : {
+      "date" : 1536768745000,
+      "id" : 125,
+      "name" : "Super User",
+      "username" : "admin"
+    },
+    "modification" : {
+      "date" : 1536768745000,
+      "id" : 125,
+      "name" : "Super User",
+      "username" : "admin"
+    },
+    "shared" : false
+  } ]
+}
