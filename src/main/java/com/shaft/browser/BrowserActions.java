@@ -18,6 +18,8 @@ import com.shaft.io.ScreenshotManager;
 
 public class BrowserActions {
 
+    private static final int NAVIGATION_TIMEOUT = 60;
+
     /*
      * Driver actions that should be implemented: driver.switchTo().activeElement();
      * driver.switchTo().alert(); driver.switchTo().window(arg0);
@@ -184,13 +186,31 @@ public class BrowserActions {
      *            a string that represents the URL that you wish to navigate to
      */
     public static void navigateToURL(WebDriver driver, String targetUrl) {
+	navigateToURL(driver, targetUrl, targetUrl);
+    }
+
+    /**
+     * Navigates to targetUrl in case the current URL is different, else refreshes
+     * the current page. Waits for successfully navigating to the final url after
+     * redirection.
+     * 
+     * @param driver
+     *            the current instance of Selenium webdriver
+     * @param targetUrl
+     *            a string that represents the URL that you wish to navigate to
+     * @param targetUrlAfterRedirection
+     *            a string that represents a part of the url that should be present
+     *            after redirection, this string is used to confirm successful
+     *            navigation
+     */
+    public static void navigateToURL(WebDriver driver, String targetUrl, String targetUrlAfterRedirection) {
 	triggerWaitForLazyLoading(driver);
-	String currentUrl = "";
+	String initialURL = "";
 	try {
-	    currentUrl = driver.getCurrentUrl();
-	    if (!currentUrl.equals(targetUrl)) {
+	    initialURL = driver.getCurrentUrl();
+	    if (!initialURL.equals(targetUrl)) {
 		// navigate to new url
-		navigateToNewURL(driver, targetUrl);
+		navigateToNewURL(driver, targetUrl, targetUrlAfterRedirection);
 
 		// in case of google/ncr or any other navigation that causes redirection to a
 		// new url, given that the user is already navigated + redirected, when the user
@@ -200,7 +220,7 @@ public class BrowserActions {
 		// navigation and force pass here. This may prove problematic in the future.
 
 		// (new WebDriverWait(driver,
-		// 30)).until(ExpectedConditions.not(ExpectedConditions.urlToBe(currentUrl)));
+		// NAVIGATION_TIMEOUT)).until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
 	    } else {
 		// already on the same page
 		driver.navigate().refresh();
@@ -270,9 +290,15 @@ public class BrowserActions {
 	// exception happens
     }
 
-    private static void navigateToNewURL(WebDriver driver, String targetUrl) {
+    private static void navigateToNewURL(WebDriver driver, String targetUrl, String targetUrlAfterRedirection) {
 	try {
 	    driver.navigate().to(targetUrl);
+	    // will use contains here instead of equals, because sometimes the url after
+	    // redirection contains a random token that cannot be predefined, also as a
+	    // precaution against the failure in case the user tries to navigate back to the
+	    // source url which already redirected him
+
+	    (new WebDriverWait(driver, NAVIGATION_TIMEOUT)).until(ExpectedConditions.urlContains(targetUrlAfterRedirection));
 	} catch (WebDriverException e) {
 	    ReportManager.log(e);
 	    failAction(driver, "navigateToURL", targetUrl);

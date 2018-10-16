@@ -4,12 +4,12 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.mohies</groupId>
 	<artifactId>SHAFT_ENGINE</artifactId>
-	<version>2.0.20181009</version>
+	<version>2.0.20181016</version>
 	<name>SHAFT_ENGINE</name>
 	<description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
 
 	<properties>
-		<shaft_engine.version>SHAFT_ENGINE-2.0.20181009</shaft_engine.version>
+		<shaft_engine.version>SHAFT_ENGINE-2.0.20181016</shaft_engine.version>
 
 		<!-- Execution Properties -->
 		<!-- <testSuite.name>cucumber_testSuite</testSuite.name> -->

@@ -64,23 +64,23 @@ public class RestActions {
 		failAction(actionName, testData, null);
 	}
 
-	/**
-	 * Attempts to perform POST/GET/DELETE request to a REST API, then checks the
-	 * response status code, if it matches the target code the step is passed and
-	 * the response is returned. Otherwise the action fails and NULL is returned.
-	 * 
-	 * @param requestType;
-	 *            POST/GET/DELETE
-	 * @param targetStatusCode;
-	 *            200
-	 * @param serviceName;
-	 *            /servicePATH/serviceNAME
-	 * @param argument;
-	 *            arguments without a preceding ?
-	 * @return Response; returns the full response object for further manipulation
-	 */
-	public Response performRequest(String requestType, String targetStatusCode, String serviceName, String argument,
-			String... credentials) {
+    /**
+     * Attempts to perform POST/GET/DELETE request to a REST API, then checks the
+     * response status code, if it matches the target code the step is passed and
+     * the response is returned. Otherwise the action fails and NULL is returned.
+     * 
+     * @param requestType
+     *            POST/GET/DELETE
+     * @param targetStatusCode
+     *            200
+     * @param serviceName
+     *            /servicePATH/serviceNAME
+     * @param argument
+     *            arguments without a preceding ?
+     * @param credentials
+     * @return Response; returns the full response object for further manipulation
+     */
+    public Response performRequest(String requestType, String targetStatusCode, String serviceName, String argument, String... credentials) {
 
 		String request = prepareRequest(argument, serviceName);
 		prepareHeaders(credentials);
@@ -112,26 +112,26 @@ public class RestActions {
 		return response;
 	}
 
-	/**
-	 * Attempts to perform POST/PATCH request with Json body to a REST API, then
-	 * checks the response status code, if it matches the target code the step is
-	 * passed and the response is returned. Otherwise the action fails and NULL is
-	 * returned.
-	 * 
-	 * @param requestType;
-	 *            POST/Patch
-	 * @param targetStatusCode;
-	 *            200
-	 * @param serviceName;
-	 *            /servicePATH/serviceNAME
-	 * @param argument;
-	 *            arguments without a preceding ?
-	 * @param body;
-	 *            Json Object for body data
-	 * @return Response; returns the full response object for further manipulation
-	 */
-	public Response performRequest(String requestType, String targetStatusCode, String serviceName, String argument,
-			JsonObject body, String... credentials) {
+    /**
+     * Attempts to perform POST/PATCH request with Json body to a REST API, then
+     * checks the response status code, if it matches the target code the step is
+     * passed and the response is returned. Otherwise the action fails and NULL is
+     * returned.
+     * 
+     * @param requestType
+     *            POST/Patch
+     * @param targetStatusCode
+     *            200
+     * @param serviceName
+     *            /servicePATH/serviceNAME
+     * @param argument
+     *            arguments without a preceding ?
+     * @param body
+     *            Json Object for body data
+     * @param credentials
+     * @return Response; returns the full response object for further manipulation
+     */
+    public Response performRequest(String requestType, String targetStatusCode, String serviceName, String argument, JsonObject body, String... credentials) {
 
 		String request = prepareRequest(argument, serviceName);
 		prepareHeaders(credentials);
