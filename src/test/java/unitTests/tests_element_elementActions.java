@@ -18,13 +18,13 @@ public class tests_element_elementActions {
 
     @Test
     public void waitForElementToBePresent_true_expectedToPass() {
-	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr");
+	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 	ElementActions.waitForElementToBePresent(driver, By.id("hplogo"), 1, true);
     }
 
     @Test
     public void waitForElementToBePresent_true_expectedToFail() {
-	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr");
+	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 	try {
 	    ElementActions.waitForElementToBePresent(driver, By.id("bla"), 1, true);
 	} catch (AssertionError e) {
@@ -34,13 +34,13 @@ public class tests_element_elementActions {
 
     @Test
     public void waitForElementToBePresent_false_expectedToPass() {
-	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr");
+	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 	ElementActions.waitForElementToBePresent(driver, By.id("bla"), 1, false);
     }
 
     @Test
     public void waitForElementToBePresent_false_expectedToFail() {
-	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr");
+	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 	try {
 	    ElementActions.waitForElementToBePresent(driver, By.id("hplogo"), 1, false);
 	} catch (AssertionError e) {
@@ -50,7 +50,7 @@ public class tests_element_elementActions {
 
     @Test
     public void waitForElementToBePresent_moreThanOneElement_expectedToFail() {
-	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr");
+	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 	try {
 	    ElementActions.waitForElementToBePresent(driver, By.xpath("//*"), 1, false);
 	} catch (AssertionError e) {

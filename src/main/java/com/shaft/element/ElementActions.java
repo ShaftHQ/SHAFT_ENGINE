@@ -117,8 +117,7 @@ public class ElementActions {
     }
 
     /**
-     * @deprecated use {@link ElementActions.getElementsCount(driver,
-     *             elementLocator)} instead.
+     * @deprecated use {@link #getElementsCount(WebDriver, By)} instead.
      * 
      *             Returns True if only one element matches the locator specified,
      *             and Fails the test (with a descriptive error) if no elements were
@@ -527,8 +526,8 @@ public class ElementActions {
 
     /**
      * Switches focus to a certain iFrame, is mainly used in coordination with
-     * {@link ElementActions.switchToDefaultContent(driver)} to navigate inside any
-     * iFrame layer and go back to the main page
+     * {@link #switchToDefaultContent(WebDriver)} to navigate inside any iFrame
+     * layer and go back to the main page
      * 
      * @param driver
      *            the current instance of Selenium webdriver
@@ -548,8 +547,8 @@ public class ElementActions {
 
     /**
      * Switches focus to default content, is mainly used in coordination with
-     * {@link ElementActions.switchToIframe(driver, elementLocator)} to exit any
-     * iFrame layer and go back to the main page
+     * {@link #switchToIframe(WebDriver, By)} to exit any iFrame layer and go back
+     * to the main page
      * 
      * @param driver
      *            the current instance of Selenium webdriver
