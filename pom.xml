@@ -13,7 +13,7 @@
 
 		<!-- Execution Properties -->
 		<!-- <testSuite.name>cucumber_testSuite</testSuite.name> -->
-		<testSuite.name>testSuite01</testSuite.name>
+		<testSuite.name>unitTestSuite</testSuite.name>
 		<operatingSystem.version>Linux-64</operatingSystem.version>
 		<!-- Acceptable Values: Windows-64 | Linux-64 | Mac-64 -->
 		<targetBrowser.name>GoogleChrome</targetBrowser.name>
