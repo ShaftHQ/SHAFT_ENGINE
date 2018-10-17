@@ -27,6 +27,7 @@
 		<executionAddress>local</executionAddress>
 		<!-- <executionAddress>localhost:4444</executionAddress> -->
 		<testDataFolderPath>src/test/resources/TestDataFiles/</testDataFolderPath>
+		<jsonFolderPath>src/test/resources/TestJsonFiles/</jsonFolderPath>
 		<testDataColumnNamePrefix>Data</testDataColumnNamePrefix>
 		<defaultElementIdentificationTimeout>30</defaultElementIdentificationTimeout>
 		<allureResultsFolderPath>allure-results/</allureResultsFolderPath>
@@ -124,7 +125,20 @@
 			<version>${cucumber.version}</version>
 		</dependency>
 
+		<!-- https://mvnrepository.com/artifact/com.googlecode.json-simple/json-simple -->
+		<dependency>
+			<groupId>com.googlecode.json-simple</groupId>
+			<artifactId>json-simple</artifactId>
+			<version>1.1.1</version>
+		</dependency>
+
 		<!-- Other Dependencies -->
+		<dependency>
+			<groupId>org.skyscreamer</groupId>
+			<artifactId>jsonassert</artifactId>
+			<version>1.5.0</version>
+			<scope>test</scope>
+		</dependency>
 		<dependency>
 			<groupId>org.apache.poi</groupId>
 			<artifactId>poi</artifactId>
@@ -208,6 +222,7 @@
 							<executionAddress>${executionAddress}</executionAddress>
 							<autoMaximizeBrowserWindow>${autoMaximizeBrowserWindow}</autoMaximizeBrowserWindow>
 							<testDataFolderPath>${testDataFolderPath}</testDataFolderPath>
+							<jsonFolderPath>${jsonFolderPath}</jsonFolderPath>
 							<testDataColumnNamePrefix>${testDataColumnNamePrefix}</testDataColumnNamePrefix>
 							<defaultElementIdentificationTimeout>${defaultElementIdentificationTimeout}</defaultElementIdentificationTimeout>
 							<allureResultsFolderPath>${allureResultsFolderPath}</allureResultsFolderPath>
