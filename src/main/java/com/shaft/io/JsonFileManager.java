@@ -1,6 +1,5 @@
 package com.shaft.io;
 
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 
@@ -15,7 +14,7 @@ import org.testng.Assert;
 
 public class JsonFileManager {
 
-	JSONObject expactedJsonObject;
+	JSONObject expectedJsonObject;
 
 	/**
 	 * Creates a new instance of the json file reader using the expected json file
@@ -28,10 +27,8 @@ public class JsonFileManager {
 
 		JSONParser parser = new JSONParser();
 		try {
-			expactedJsonObject = (JSONObject) parser.parse(new FileReader(jsFilePath));
+			expectedJsonObject = (JSONObject) parser.parse(new FileReader(jsFilePath));
 
-		} catch (FileNotFoundException e) {
-			ReportManager.log(e);
 		} catch (IOException e) {
 			ReportManager.log(e);
 		    ReportManager.log("Couldn't find the desired file. [" + jsFilePath + "].");
@@ -54,7 +51,7 @@ public class JsonFileManager {
 	public boolean compareEqual_Strict_Order(JSONObject actualJsonObject) {
 		JSONCompareResult result = null;
 		try {
-			result = JSONCompare.compareJSON(actualJsonObject.toJSONString(), expactedJsonObject.toJSONString(),
+			result = JSONCompare.compareJSON(actualJsonObject.toJSONString(), expectedJsonObject.toJSONString(),
 					JSONCompareMode.STRICT);
 		} catch (JSONException e) {
 			 ReportManager.log(e);
@@ -77,7 +74,7 @@ public class JsonFileManager {
 	public boolean compareEqual_NonStrict_Order(JSONObject actualJsonObject) {
 		JSONCompareResult result = null;
 		try {
-			result = JSONCompare.compareJSON(actualJsonObject.toJSONString(), expactedJsonObject.toJSONString(),
+			result = JSONCompare.compareJSON(actualJsonObject.toJSONString(), expectedJsonObject.toJSONString(),
 					JSONCompareMode.NON_EXTENSIBLE);
 		} catch (JSONException e) {
 			 ReportManager.log(e);

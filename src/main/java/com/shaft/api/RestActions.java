@@ -222,7 +222,7 @@ public class RestActions {
 			case "post":
 				return given().headers(sessionHeaders).body(body.toString()).when().post(request).andReturn();
 			case "patch":
-				return given().headers(sessionHeaders).body(body.toString()).when().get(request).andReturn();
+				return given().headers(sessionHeaders).body(body.toString()).when().patch(request).andReturn();
 			default:
 				break;
 			}
@@ -231,7 +231,7 @@ public class RestActions {
 			case "post":
 				return given().when().body(body.toString()).post(request).andReturn();
 			case "patch":
-				return given().when().body(body.toString()).get(request).andReturn();
+				return given().when().body(body.toString()).patch(request).andReturn();
 			default:
 				break;
 			}
@@ -241,8 +241,8 @@ public class RestActions {
 				return given().headers(sessionHeaders).cookies(sessionCookies).when().body(body.toString())
 						.post(request).andReturn();
 			case "patch":
-				return given().headers(sessionHeaders).cookies(sessionCookies).when().body(body.toString()).get(request)
-						.andReturn();
+				return given().headers(sessionHeaders).cookies(sessionCookies).when().body(body.toString())
+						.patch(request).andReturn();
 			default:
 				break;
 			}
