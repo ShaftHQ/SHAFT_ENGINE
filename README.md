@@ -6,6 +6,7 @@
 ### Getting Started:
 
 - Simply create a new Maven project, and model your pom.xml file after the included sampleProjectPOM.xml
+- Download the entire "src/main/resources/" folder and include it in your project
 - Make sure to refer to the latest version of SHAFT_Engine in your pom.xml file [ ![Download](https://api.bintray.com/packages/mohabmohie/SHAFT/SHAFT_Engine/images/download.svg) ](https://bintray.com/mohabmohie/SHAFT/SHAFT_Engine/_latestVersion)
 - Refer to the published javadocs for detailed information on the available functions/classes/packages https://mohabmohie.github.io/SHAFT_ENGINE/
 
