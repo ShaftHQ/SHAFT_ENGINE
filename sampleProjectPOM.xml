@@ -1,0 +1,145 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId></groupId>
+	<artifactId></artifactId>
+	<version></version>
+
+	<properties>
+		<!-- Execution Properties -->
+		<testSuite.name>newCertificationPath</testSuite.name>
+		<operatingSystem.version>Linux-64</operatingSystem.version> <!-- Acceptable Values: Windows-64 | Linux-64 | Mac-64 -->
+		<targetBrowser.name>GoogleChrome</targetBrowser.name> <!-- Acceptable Values: Default | MozillaFirefox | MicrosoftInternetExplorer | GoogleChrome | MicrosoftEdge | Safari -->
+		<autoMaximizeBrowserWindow>true</autoMaximizeBrowserWindow>
+		<screenshotParams_whenToTakeAScreenshot>ValidationPointsOnly</screenshotParams_whenToTakeAScreenshot> <!-- Acceptable Values: Always | Never | ValidationPointsOnly | FailuresOnly -->
+		<screenshotParams_isFullPageScreenshot>false</screenshotParams_isFullPageScreenshot>
+		<screenshotParams_skippedElementsFromScreenshot></screenshotParams_skippedElementsFromScreenshot>
+		<executionAddress>local</executionAddress> <!-- <executionAddress>localhost:4444</executionAddress> -->
+		<testDataFolderPath>src/test/resources/TestDataFiles/</testDataFolderPath>
+		<jsonFolderPath>src/test/resources/TestJsonFiles/</jsonFolderPath>
+		<testDataColumnNamePrefix>Data</testDataColumnNamePrefix>
+		<defaultElementIdentificationTimeout>10</defaultElementIdentificationTimeout>
+		<attemptsBeforeThrowingElementNotFoundException>6</attemptsBeforeThrowingElementNotFoundException>
+		<allureResultsFolderPath>allure-results/</allureResultsFolderPath>
+		<automaticallyGenerateAllureReport>false</automaticallyGenerateAllureReport>
+
+		<!-- Version Numbers Properties -->
+		<shaft_engine.version>2.0.20181018</shaft_engine.version> <!-- Make sure you point to the latest version: https://bintray.com/mohabmohie/SHAFT/SHAFT_Engine/_latestVersion -->
+		<jdk.version>1.8</jdk.version>
+		<maven-compiler-plugin.version>3.8.0</maven-compiler-plugin.version>
+		<maven-surefire-plugin.version>2.22.0</maven-surefire-plugin.version>
+		<aspectj.version>1.9.1</aspectj.version>
+	</properties>
+
+	<dependencies>
+		<dependency>
+			<groupId>com.mohies</groupId>
+			<artifactId>SHAFT_ENGINE</artifactId>
+			<version>${shaft_engine.version}</version>
+			<type>pom</type>
+		</dependency>
+		<dependency>
+			<groupId>com.mohies</groupId>
+			<artifactId>SHAFT_ENGINE</artifactId>
+			<version>${shaft_engine.version}</version>
+			<type>jar</type>
+		</dependency>
+		<dependency>
+			<groupId>com.mohies</groupId>
+			<artifactId>SHAFT_ENGINE</artifactId>
+			<version>${shaft_engine.version}</version>
+			<type>jar</type>
+			<classifier>javadoc</classifier>
+		</dependency>
+		<dependency>
+			<groupId>com.mohies</groupId>
+			<artifactId>SHAFT_ENGINE</artifactId>
+			<version>${shaft_engine.version}</version>
+			<type>jar</type>
+			<classifier>sources</classifier>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-compiler-plugin</artifactId>
+					<version>${maven-compiler-plugin.version}</version>
+					<configuration>
+						<source>${jdk.version}</source>
+						<target>${jdk.version}</target>
+					</configuration>
+				</plugin>
+
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-surefire-plugin</artifactId>
+					<version>${maven-surefire-plugin.version}</version>
+					<configuration>
+						<systemPropertyVariables>
+							<incortaRoot>${incortaRoot}</incortaRoot>
+							<incortaVersion>${incortaVersion}</incortaVersion>
+							<shaftEngineVersion>${shaft_engine.version}</shaftEngineVersion>
+							<targetOperatingSystem>${operatingSystem.version}</targetOperatingSystem>
+							<targetBrowserName>${targetBrowser.name}</targetBrowserName>
+							<screenshotParams_whenToTakeAScreenshot>${screenshotParams_whenToTakeAScreenshot}</screenshotParams_whenToTakeAScreenshot>
+							<screenshotParams_isFullPageScreenshot>${screenshotParams_isFullPageScreenshot}</screenshotParams_isFullPageScreenshot>
+							<screenshotParams_skippedElementsFromScreenshot>${screenshotParams_skippedElementsFromScreenshot}</screenshotParams_skippedElementsFromScreenshot>
+							<executionAddress>${executionAddress}</executionAddress>
+							<autoMaximizeBrowserWindow>${autoMaximizeBrowserWindow}</autoMaximizeBrowserWindow>
+							<testDataFolderPath>${testDataFolderPath}</testDataFolderPath>
+							<jsonFolderPath>${jsonFolderPath}</jsonFolderPath>
+							<testDataColumnNamePrefix>${testDataColumnNamePrefix}</testDataColumnNamePrefix>
+							<defaultElementIdentificationTimeout>${defaultElementIdentificationTimeout}</defaultElementIdentificationTimeout>
+							<attemptsBeforeThrowingElementNotFoundException>${attemptsBeforeThrowingElementNotFoundException}</attemptsBeforeThrowingElementNotFoundException>
+							<allureResultsFolderPath>${allureResultsFolderPath}</allureResultsFolderPath>
+							<automaticallyGenerateAllureReport>${automaticallyGenerateAllureReport}</automaticallyGenerateAllureReport>
+						</systemPropertyVariables>
+						<configfailurepolicy>continue</configfailurepolicy>
+						<suiteXmlFiles>
+							<suiteXmlFile>src\test\resources\TestSuites\${testSuite.name}.xml</suiteXmlFile>
+						</suiteXmlFiles>
+						<encoding>UTF-8</encoding>
+						<inputEncoding>UTF-8</inputEncoding>
+						<outputEncoding>UTF-8</outputEncoding>
+						<argLine>
+							-javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"
+						</argLine>
+					</configuration>
+					<dependencies>
+						<dependency>
+							<groupId>org.aspectj</groupId>
+							<artifactId>aspectjweaver</artifactId>
+							<version>${aspectj.version}</version>
+						</dependency>
+					</dependencies>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+	</build>
+
+	<repositories>
+		<repository>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+			<id>bintray-mohabmohie-SHAFT</id>
+			<name>bintray</name>
+			<url>https://dl.bintray.com/mohabmohie/SHAFT</url>
+		</repository>
+	</repositories>
+	<pluginRepositories>
+		<pluginRepository>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+			<id>bintray-mohabmohie-SHAFT</id>
+			<name>bintray-plugins</name>
+			<url>https://dl.bintray.com/mohabmohie/SHAFT</url>
+		</pluginRepository>
+	</pluginRepositories>
+
+</project>
