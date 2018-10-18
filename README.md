@@ -3,13 +3,11 @@
 
 *This project is stable but still is in BETA testing phase, and it requires Java 8 and above.*
 
-**Link to download the latest version**
+### Getting Started:
 
-[ ![Download](https://api.bintray.com/packages/mohabmohie/SHAFT/SHAFT_Engine/images/download.svg) ](https://bintray.com/mohabmohie/SHAFT/SHAFT_Engine/_latestVersion)
-
-**Link to javadocs**
-
-https://mohabmohie.github.io/SHAFT_ENGINE/
+- Simply create a new Maven project, and model your pom.xml file after the included sampleProjectPOM.xml
+- Make sure to refer to the latest version of SHAFT_Engine in your pom.xml file [ ![Download](https://api.bintray.com/packages/mohabmohie/SHAFT/SHAFT_Engine/images/download.svg) ](https://bintray.com/mohabmohie/SHAFT/SHAFT_Engine/_latestVersion)
+- Refer to the published javadocs for detailed information on the available functions/classes/packages https://mohabmohie.github.io/SHAFT_ENGINE/
 
 **SHAFT_ENGINE** is a Test Automation Engine that provides a unified high-level interface to any underlying test automation frameworks (such as selenium webdriver and rest assured), in order to provide an easily understandable and user friendly syntax that is simple, robust, maintainable, and extendable. The goal is to eventually include multiple free-for-use test automation frameworks that will also cover mobile (android/iOS) and desktop (windows/linux/mac) test automation, in order to provide a single open-source solution with a standerdized implementation and unified reporting/integration with the most commonly used test management and CI tools.
 
