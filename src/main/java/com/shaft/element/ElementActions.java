@@ -34,7 +34,7 @@ import com.shaft.io.ScreenshotManager;
 
 public class ElementActions {
     static int defaultElementIdentificationTimeout = Integer.parseInt(System.getProperty("defaultElementIdentificationTimeout").trim());
-    static int attemptsBeforeThrowingElementNotFoundException = 10;
+    static int attemptsBeforeThrowingElementNotFoundException = Integer.parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
 
     private ElementActions() {
 	throw new IllegalStateException("Utility class");
