@@ -22,7 +22,7 @@ public class GoogleSearch {
 	}
 
 	public void navigateToURL() {
-		BrowserActions.navigateToURL(driver, "https://www.google.com/ncr");
+		BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "https://www.google.com");
 	}
 
 	public void searchForQuery(String searchQuery) {
