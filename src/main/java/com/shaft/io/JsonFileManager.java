@@ -31,53 +31,89 @@ public class JsonFileManager {
 
 		} catch (IOException e) {
 			ReportManager.log(e);
-		    ReportManager.log("Couldn't find the desired file. [" + jsFilePath + "].");
-		    Assert.fail("Couldn't find the desired file. [" + jsFilePath + "].");
+			ReportManager.log("Couldn't find the desired file. [" + jsFilePath + "].");
+			Assert.fail("Couldn't find the desired file. [" + jsFilePath + "].");
 		} catch (ParseException e) {
-			 ReportManager.log(e);
+			ReportManager.log(e);
 		}
 	}
 
 	/**
-	 * Receive actual jsonObject of response and compare it with expected one
-	 * initialized in the constructor then return comparison result as boolean value
-	 * (true if two objects are strictly equal, otherwise return false)
+	 * Typically comparison between actual jsonObject of response and expected one
+	 * initialized in the constructor Return True if files are typically (order,
+	 * size, keys and values) equal and false otherwise
 	 * 
 	 * @param actualJsonObject
 	 *            JSONObject
 	 * @return boolean value
 	 */
 
-	public boolean compareEqual_Strict_Order(JSONObject actualJsonObject) {
+	public boolean compareTypically(JSONObject actualJsonObject) {
+		return expectedJsonObject.equals(actualJsonObject);
+	}
+
+	/**
+	 * Strictly comparison between actual jsonObject of response and expected one
+	 * initialized in the constructor. Return comparison result as boolean value,
+	 * true if two objects are strictly matching (strict array ordering),
+	 * otherwise return false
+	 * 
+	 * @param actualJsonObject
+	 *            JSONObject
+	 * @return boolean value
+	 */
+
+	public boolean compareStrictly(JSONObject actualJsonObject) {
 		JSONCompareResult result = null;
 		try {
 			result = JSONCompare.compareJSON(actualJsonObject.toJSONString(), expectedJsonObject.toJSONString(),
 					JSONCompareMode.STRICT);
 		} catch (JSONException e) {
-			 ReportManager.log(e);
+			ReportManager.log(e);
 		}
 		return result.passed();
 	}
 
 	/**
-	 * Receive actual jsonObject of response and compare it with expected one
-	 * initialized in the constructor then return comparison result as boolean value
-	 * (true if two objects are equal, otherwise return false)
-	 * 
-	 * It is non-strict comparison (ignore the elements' order)
+	 * Non Strictly comparison between actual jsonObject of response and expected one
+	 * initialized in the constructor. Return comparison result as boolean value,
+	 * true if two objects are non-strictly matching (non-strict array ordering),
+	 * otherwise return false
 	 * 
 	 * @param actualJsonObject
 	 *            JSONObject
 	 * @return boolean value
 	 */
 
-	public boolean compareEqual_NonStrict_Order(JSONObject actualJsonObject) {
+	public boolean compareNonStrictly(JSONObject actualJsonObject) {
 		JSONCompareResult result = null;
 		try {
 			result = JSONCompare.compareJSON(actualJsonObject.toJSONString(), expectedJsonObject.toJSONString(),
 					JSONCompareMode.NON_EXTENSIBLE);
 		} catch (JSONException e) {
-			 ReportManager.log(e);
+			ReportManager.log(e);
+		}
+		return result.passed();
+	}
+	
+	/**
+	 * Comparison between actual jsonObject of response and expected one
+	 * initialized in the constructor. Return comparison result as boolean value,
+	 * true if expected object contains all elements in actual object, otherwise return false
+	 * (if element is array, it should be as same as expected)
+	 * 
+	 * @param actualJsonObject
+	 *            JSONObject
+	 * @return boolean value
+	 */
+
+	public boolean containElements(JSONObject actualJsonObject) {
+		JSONCompareResult result = null;
+		try {
+			result = JSONCompare.compareJSON(actualJsonObject.toJSONString(), expectedJsonObject.toJSONString(),
+					JSONCompareMode.LENIENT);
+		} catch (JSONException e) {
+			ReportManager.log(e);
 		}
 		return result.passed();
 	}
