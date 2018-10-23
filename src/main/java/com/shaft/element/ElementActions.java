@@ -330,6 +330,29 @@ public class ElementActions {
 	}
     }
 
+    private static void performType(WebDriver driver, By elementLocator, String text) {
+	// driver.findElement(elementLocator).sendKeys(text);
+	// implementing loop to try and break out of the stale element exception issue
+	for (int i = 0; i < attemptsBeforeThrowingElementNotFoundException; i++) {
+	    try {
+		// attempt to perform action
+		driver.findElement(elementLocator).sendKeys(text);
+		break;
+	    } catch (StaleElementReferenceException | ElementNotInteractableException | UnreachableBrowserException | NoSuchElementException | TimeoutException e) {
+		if (i + 1 == attemptsBeforeThrowingElementNotFoundException) {
+		    ReportManager.log(e);
+		}
+	    } catch (Exception e) {
+		if (e.getMessage().contains("cannot focus element") && (i + 1 == attemptsBeforeThrowingElementNotFoundException)) {
+		    ReportManager.log(e);
+		} else {
+		    ReportManager.log(e);
+		    ReportManager.log("Unhandled Exception: " + e.getMessage());
+		}
+	    }
+	}
+    }
+
     private static void confirmTypingWasSuccessful(WebDriver driver, By elementLocator, String text, String successfulTextLocationStrategy) {
 	// to confirm that the text was written successfully
 	String actualText = "";
@@ -539,7 +562,7 @@ public class ElementActions {
 	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
 	    driver.switchTo().frame((WebElement) driver.findElement(elementLocator));
 	    passAction(driver, elementLocator, "switchToIframe"); // remove elementLocator in case of bug in screenshot
-								  // manager
+	    // manager
 	} else {
 	    failAction(driver, "switchToIframe");
 	}
@@ -650,7 +673,7 @@ public class ElementActions {
 		clearBeforeTyping(driver, elementLocator, elementText, successfulTextLocationStrategy);
 	    }
 	    if ((countFoundElements(driver, elementLocator, defaultElementIdentificationTimeout, attemptsBeforeThrowingElementNotFoundException) == 1) && (!text.equals(""))) {
-		driver.findElement(elementLocator).sendKeys(text);
+		performType(driver, elementLocator, text);
 	    }
 	    if ((countFoundElements(driver, elementLocator, defaultElementIdentificationTimeout, attemptsBeforeThrowingElementNotFoundException) == 1) && (!text.equals(""))) {
 		// to confirm that the text was written successfully
