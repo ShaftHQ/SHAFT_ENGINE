@@ -11,7 +11,6 @@ import io.qameta.allure.Allure;
 import io.qameta.allure.Attachment;
 import io.qameta.allure.Step;
 
-import com.shaft.io.FileManager;
 import com.shaft.support.SSHActions;
 
 public class ReportManager {
