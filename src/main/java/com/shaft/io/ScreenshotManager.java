@@ -25,8 +25,13 @@ public class ScreenshotManager {
     private static final String SCREENSHOT_FOLDERNAME = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
     private static String screenshotFileName = "Screenshot";
     private static final String SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT = System.getProperty("screenshotParams_whenToTakeAScreenshot");
-    private static final Boolean SCREENSHOT_PARAMS_ISFULLPAGESCREENSHOT = Boolean.valueOf(System.getProperty("screenshotParams_isFullPageScreenshot"));
+    private static final Boolean SCREENSHOT_PARAMS_HIGHLIGHTELEMENTS = Boolean.valueOf(System.getProperty("screenshotParams_highlightElements"));
+    private static final String SCREENSHOT_PARAMS_SCREENSHOTTYPE = System.getProperty("screenshotParams_screenshotType");
     private static final String SCREENSHOT_PARAMS_SKIPPEDELEMENTSFROMSCREENSHOT = System.getProperty("screenshotParams_skippedElementsFromScreenshot");
+    private static By targetElementLocator;
+
+    private static final int CUSTOMELEMENTIDENTIFICATIONTIMEOUT = 1;
+    private static final int RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION = 1;
 
     private ScreenshotManager() {
 	throw new IllegalStateException("Utility class");
@@ -63,11 +68,8 @@ public class ScreenshotManager {
 	    appendedText = "failed";
 	}
 
-	if ((SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always")) || (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly")) || (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly") && (!passFailStatus))) {
-	    internalCaptureScreenShot(driver, null, appendedText, true);
-	} else {
-	    internalCaptureScreenShot(driver, null, appendedText, false);
-	}
+	internalCaptureScreenShot(driver, null, appendedText, (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always")) || (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly")) || (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly") && (!passFailStatus)));
+
 	// Note: Excluded the "Always" case as there will already be another screenshot
 	// taken by the browser/element action // reversed this option to be able to
 	// take a failure screenshot
@@ -87,17 +89,15 @@ public class ScreenshotManager {
      */
     public static void captureScreenShot(WebDriver driver, By elementLocator, boolean passFailStatus) {
 	globalPassFailStatus = passFailStatus;
+	targetElementLocator = elementLocator;
+
 	if (passFailStatus) {
 	    appendedText = "passed";
 	} else {
 	    appendedText = "failed";
 	}
 
-	if ((SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always")) || (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly")) || (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly") && (!passFailStatus))) {
-	    internalCaptureScreenShot(driver, elementLocator, appendedText, true);
-	} else {
-	    internalCaptureScreenShot(driver, elementLocator, appendedText, false);
-	}
+	internalCaptureScreenShot(driver, elementLocator, appendedText, (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always")) || (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly")) || (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly") && (!passFailStatus)));
 	// Note: Excluded the "Always" case as there will already be another screenshot
 	// taken by the browser/element action // reversed this option to be able to
 	// take a failure screenshot
@@ -120,11 +120,7 @@ public class ScreenshotManager {
     public static void captureScreenShot(WebDriver driver, String appendedText, boolean passFailStatus) {
 	globalPassFailStatus = passFailStatus;
 
-	if ((SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always")) || (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly") && (!passFailStatus)) || ((SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly")) && (!passFailStatus))) {
-	    internalCaptureScreenShot(driver, null, appendedText, true);
-	} else {
-	    internalCaptureScreenShot(driver, null, appendedText, false);
-	}
+	internalCaptureScreenShot(driver, null, appendedText, (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always")) || (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly") && (!passFailStatus)) || ((SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly")) && (!passFailStatus)));
     }
 
     /**
@@ -142,12 +138,9 @@ public class ScreenshotManager {
      */
     public static void captureScreenShot(WebDriver driver, By elementLocator, String appendedText, boolean passFailStatus) {
 	globalPassFailStatus = passFailStatus;
+	targetElementLocator = elementLocator;
 
-	if (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always")) {
-	    internalCaptureScreenShot(driver, elementLocator, appendedText, true);
-	} else {
-	    internalCaptureScreenShot(driver, elementLocator, appendedText, false);
-	}
+	internalCaptureScreenShot(driver, elementLocator, appendedText, SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always"));
     }
 
     /**
@@ -187,7 +180,7 @@ public class ScreenshotManager {
 	     * If an elementLocator was passed, store regularElementStyle and highlight that
 	     * element before taking the screenshot
 	     */
-	    if (elementLocator != null && (ElementActions.getElementsCount(driver, elementLocator) == 1)) {
+	    if (SCREENSHOT_PARAMS_HIGHLIGHTELEMENTS && elementLocator != null && (ElementActions.getElementsCount(driver, elementLocator, CUSTOMELEMENTIDENTIFICATIONTIMEOUT, RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1)) {
 		element = driver.findElement(elementLocator);
 		js = (JavascriptExecutor) driver;
 		regularElementStyle = highlightElementAndReturnDefaultStyle(element, js, setHighlightedElementStyle());
@@ -240,27 +233,51 @@ public class ScreenshotManager {
     }
 
     private static File takeScreenshot(WebDriver driver) {
-	if (SCREENSHOT_PARAMS_ISFULLPAGESCREENSHOT) {
-	    try {
-		if (SCREENSHOT_PARAMS_SKIPPEDELEMENTSFROMSCREENSHOT.length() > 0) {
-		    List<WebElement> skippedElementsList = new ArrayList<>();
-		    String[] skippedElementLocators = SCREENSHOT_PARAMS_SKIPPEDELEMENTSFROMSCREENSHOT.split(";");
-		    for (String locator : skippedElementLocators) {
+	switch (SCREENSHOT_PARAMS_SCREENSHOTTYPE.toLowerCase().trim()) {
+	case "regular":
+	    return ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
+	case "fullpage":
+	    return takeFullPageScreenshot(driver);
+	case "element":
+	    return takeElementScreenshot(driver);
+	default:
+	    return ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
+	}
+    }
+
+    private static File takeFullPageScreenshot(WebDriver driver) {
+	try {
+	    if (SCREENSHOT_PARAMS_SKIPPEDELEMENTSFROMSCREENSHOT.length() > 0) {
+		List<WebElement> skippedElementsList = new ArrayList<>();
+		String[] skippedElementLocators = SCREENSHOT_PARAMS_SKIPPEDELEMENTSFROMSCREENSHOT.split(";");
+		for (String locator : skippedElementLocators) {
+		    if (ElementActions.getElementsCount(driver, By.xpath(locator), CUSTOMELEMENTIDENTIFICATIONTIMEOUT, RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1) {
 			skippedElementsList.add(driver.findElement(By.xpath(locator)));
 		    }
-
-		    WebElement[] skippedElementsArray = new WebElement[skippedElementsList.size()];
-		    skippedElementsArray = skippedElementsList.toArray(skippedElementsArray);
-
-		    return ScreenshotUtils.makeFullScreenshot(driver, skippedElementsArray);
-		} else {
-		    return ScreenshotUtils.makeFullScreenshot(driver);
 		}
-	    } catch (Exception e) {
-		ReportManager.log(e);
+
+		WebElement[] skippedElementsArray = new WebElement[skippedElementsList.size()];
+		skippedElementsArray = skippedElementsList.toArray(skippedElementsArray);
+
+		return ScreenshotUtils.makeFullScreenshot(driver, skippedElementsArray);
+	    } else {
+		return ScreenshotUtils.makeFullScreenshot(driver);
+	    }
+	} catch (Exception e) {
+	    ReportManager.log(e);
+	    return ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
+	}
+    }
+
+    private static File takeElementScreenshot(WebDriver driver) {
+	try {
+	    if (targetElementLocator != null && ElementActions.getElementsCount(driver, targetElementLocator, CUSTOMELEMENTIDENTIFICATIONTIMEOUT, RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1) {
+		return ScreenshotUtils.makeElementScreenshot(driver, targetElementLocator);
+	    } else {
 		return ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
 	    }
-	} else {
+	} catch (Exception e) {
+	    ReportManager.log(e);
 	    return ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
 	}
     }
