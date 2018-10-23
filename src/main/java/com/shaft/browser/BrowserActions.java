@@ -332,8 +332,8 @@ public class BrowserActions {
 	public static void maximizeWindow(WebDriver driver) {
 		Dimension initialWindowSize;
 		Dimension currentWindowSize;
-		int width = 1920;
-		int height = 1080;
+		int width = 1920 + 1;
+		int height = 1080 + 1;
 
 		initialWindowSize = driver.manage().window().getSize();
 		ReportManager.log("Initial window size: " + initialWindowSize.toString());
@@ -416,7 +416,9 @@ public class BrowserActions {
 		ReportManager.log("Initial window size: " + initialWindowSize.toString());
 
 		driver.manage().window().setPosition(new Point(0, 0));
-		driver.manage().window().setSize(new Dimension(width, height));
+		driver.manage().window().setSize(new Dimension(width + 1, height + 1));
+		// apparently we need to add +1 here to ensure that the new window size matches
+		// the expected window size
 
 		currentWindowSize = driver.manage().window().getSize();
 		ReportManager.log("Window size after SWD: " + currentWindowSize.toString());
@@ -425,7 +427,7 @@ public class BrowserActions {
 				&& (initialWindowSize.width == currentWindowSize.width)) {
 			((JavascriptExecutor) driver).executeScript("window.focus();");
 			((JavascriptExecutor) driver).executeScript("window.moveTo(0,0);");
-			((JavascriptExecutor) driver).executeScript("window.resizeTo(" + width + ", " + height + ");");
+			((JavascriptExecutor) driver).executeScript("window.resizeTo(" + width + 1 + ", " + height + 1 + ");");
 
 			currentWindowSize = driver.manage().window().getSize();
 			ReportManager.log("Window size after JavascriptExecutor: " + currentWindowSize.toString());

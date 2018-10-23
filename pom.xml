@@ -11,36 +11,31 @@
 	<properties>
 		<shaft_engine.version>SHAFT_ENGINE-2.0.20181023</shaft_engine.version>
 
-		<!-- Execution Properties -->
+		<!-- SHAFT Test Run Parameters -->
 		<testSuite.name>unitTestSuite</testSuite.name>
-		<operatingSystem.version>Linux-64</operatingSystem.version>
-		<!-- Acceptable Values: Windows-64 | Linux-64 | Mac-64 -->
-		<targetBrowser.name>GoogleChrome</targetBrowser.name>
-		<!-- Acceptable Values: Default | MozillaFirefox | MicrosoftInternetExplorer 
-			| GoogleChrome | MicrosoftEdge | Safari -->
-		<autoMaximizeBrowserWindow>true</autoMaximizeBrowserWindow>
-		<!-- Acceptable Values: true | false -->
-		<screenshotParams_whenToTakeAScreenshot>ValidationPointsOnly</screenshotParams_whenToTakeAScreenshot>
-		<!-- Acceptable Values: Always | Never | ValidationPointsOnly | FailuresOnly -->
-		<screenshotParams_highlightElements>true</screenshotParams_highlightElements>
-		<!-- Acceptable Values: true | false -->
-		<screenshotParams_screenshotType>Regular</screenshotParams_screenshotType>
-		<!-- Acceptable Values: Regular | FullPage | Element -->
-		<screenshotParams_skippedElementsFromScreenshot></screenshotParams_skippedElementsFromScreenshot>
-		<!-- The above element will be skipped in case of persistent elements/menus 
-			that show up multiple times in the full page screenshots -->
-		<executionAddress>local</executionAddress>
-		<!-- <executionAddress>localhost:4444</executionAddress> -->
+		
+		<executionAddress>local</executionAddress> <!-- Acceptable Values: local | seleniumGridHubIP:port -->
+		<operatingSystem.version>Linux-64</operatingSystem.version> <!-- Acceptable Values: Windows-64 | Linux-64 | Mac-64 -->
+		<targetBrowser.name>GoogleChrome</targetBrowser.name> 		<!-- Acceptable Values: Default | MozillaFirefox | MicrosoftInternetExplorer | GoogleChrome | MicrosoftEdge | Safari -->
+		<autoMaximizeBrowserWindow>true</autoMaximizeBrowserWindow> <!-- Acceptable Values: true | false -->
+		
+		<defaultElementIdentificationTimeout>10</defaultElementIdentificationTimeout> <!-- Accepts integer values that represent the default timeout for finding a webElement -->
+		<attemptsBeforeThrowingElementNotFoundException>6</attemptsBeforeThrowingElementNotFoundException> <!-- Accepts integer values that represent the number of attempts before failing to find a webElement -->
+		
+		<screenshotParams_whenToTakeAScreenshot>ValidationPointsOnly</screenshotParams_whenToTakeAScreenshot> <!-- Acceptable Values: Always | Never | ValidationPointsOnly | FailuresOnly -->
+		<screenshotParams_highlightElements>true</screenshotParams_highlightElements> <!-- Acceptable Values: true | false -->
+		<screenshotParams_screenshotType>Regular</screenshotParams_screenshotType> <!-- Acceptable Values: Regular | FullPage | Element -->
+		<screenshotParams_skippedElementsFromScreenshot></screenshotParams_skippedElementsFromScreenshot> <!-- The above element will be skipped in case of persistent elements/menus that show up multiple times in the full page screenshots -->
+		
+		<automaticallyGenerateAllureReport>false</automaticallyGenerateAllureReport> <!-- Acceptable Values: true | false -->
+		
+		<!-- SHAFT Configuration Parameters -->
 		<testDataFolderPath>src/test/resources/TestDataFiles/</testDataFolderPath>
 		<jsonFolderPath>src/test/resources/TestJsonFiles/</jsonFolderPath>
 		<testDataColumnNamePrefix>Data</testDataColumnNamePrefix>
-		<defaultElementIdentificationTimeout>10</defaultElementIdentificationTimeout>
-		<attemptsBeforeThrowingElementNotFoundException>6</attemptsBeforeThrowingElementNotFoundException>
 		<allureResultsFolderPath>allure-results/</allureResultsFolderPath>
-		<automaticallyGenerateAllureReport>false</automaticallyGenerateAllureReport>
-		<!-- Acceptable Values: true | false -->
-
-		<!-- Version Numbers Properties -->
+		
+		<!-- Dependencies/Plugins Version Numbers Parameters -->
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<jdk.version>1.8</jdk.version>
