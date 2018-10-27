@@ -10,7 +10,12 @@
 - Make sure to refer to the latest version of SHAFT_Engine in your pom.xml file [ ![Download](https://api.bintray.com/packages/mohabmohie/SHAFT/SHAFT_Engine/images/download.svg) ](https://bintray.com/mohabmohie/SHAFT/SHAFT_Engine/_latestVersion)
 - Refer to the published javadocs for detailed information on the available functions/classes/packages https://mohabmohie.github.io/SHAFT_ENGINE/
 
-**SHAFT_ENGINE** is a Test Automation Engine that provides a unified high-level interface to any underlying test automation frameworks (such as selenium webdriver and rest assured), in order to provide an easily understandable and user friendly syntax that is simple, robust, maintainable, and extendable. The goal is to eventually include multiple free-for-use test automation frameworks that will also cover mobile (android/iOS) and desktop (windows/linux/mac) test automation, in order to provide a single open-source solution with a standerdized implementation and unified reporting/integration with the most commonly used test management and CI tools.
+**SHAFT_ENGINE** is a Test Automation Engine that provides a unified high-level interface to any underlying test automation frameworks (such as Selenium WebDriver and Rest Assured).
+- Provides an easily understandable and user friendly syntax for writing simple, robust, maintainable, and extendable tests.
+- Provides support for Data-Driven, Keyword-Driven, and Behavior-Driven tests.
+- Provides extensive, yet user friendly GUI/API reporting on test execution.
+- Aims to include multiple free-for-use test automation frameworks to cover web, mobile (android/iOS) and desktop (windows/linux/mac) test automation.
+- Aims to provide a single open-source solution with a standardized implementation and unified reporting/integration with the most commonly used test management and CI tools.
 
 ### This project makes use of the following libraries:
 - Selenium WebDriver
@@ -19,9 +24,6 @@
 - Rest Assured
 - Cucumber [BDD]
 - Apache POI
-- slf4j [Logging]
-- aspectjweaver
-- ashot
 
 ### SHAFT is the Selenium Hybrid Automation Framework for Testing, SHAFT is:
 - A Test Automation Engine.
@@ -30,7 +32,7 @@
 - Fully documented with standard JavaDocs.
 - A single jar file that can be used in any Automation project.
 - Provides a high level Keyword interface without having to learn the syntax for any of the low level frameworks that it uses.
-- Supports dataDriven test automation.
+- Supports data driven test automation.
 - Provides m2m reporting.
 - Provides human readable GUI reporting.
 - Supports web apps on Chrome, Firefox, Edge, IE, and Safari.
