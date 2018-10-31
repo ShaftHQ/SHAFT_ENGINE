@@ -7,26 +7,40 @@
 	<version></version>
 
 	<properties>
-		<!-- Execution Properties -->
-		<testSuite.name>newCertificationPath</testSuite.name>
+		<!-- SHAFT Test Run Parameters -->
+		<testSuite.name>unitTestSuite</testSuite.name>
+
+		<executionAddress>local</executionAddress> <!-- Acceptable Values: local | seleniumGridHubIP:port -->
 		<operatingSystem.version>Linux-64</operatingSystem.version> <!-- Acceptable Values: Windows-64 | Linux-64 | Mac-64 -->
-		<targetBrowser.name>GoogleChrome</targetBrowser.name> <!-- Acceptable Values: Default | MozillaFirefox | MicrosoftInternetExplorer | GoogleChrome | MicrosoftEdge | Safari -->
-		<autoMaximizeBrowserWindow>true</autoMaximizeBrowserWindow>
+		<targetBrowser.name>GoogleChrome</targetBrowser.name> 		<!-- Acceptable Values: Default | MozillaFirefox | MicrosoftInternetExplorer 
+			| GoogleChrome | MicrosoftEdge | Safari -->
+		<autoMaximizeBrowserWindow>true</autoMaximizeBrowserWindow> <!-- Acceptable Values: true | false -->
+
+		<defaultElementIdentificationTimeout>10</defaultElementIdentificationTimeout> <!-- Accepts integer values that represent the default timeout for finding 
+			a webElement -->
+		<attemptsBeforeThrowingElementNotFoundException>6</attemptsBeforeThrowingElementNotFoundException> <!-- Accepts integer values that represent the number of attempts before 
+			failing to find a webElement -->
+
 		<screenshotParams_whenToTakeAScreenshot>ValidationPointsOnly</screenshotParams_whenToTakeAScreenshot> <!-- Acceptable Values: Always | Never | ValidationPointsOnly | FailuresOnly -->
-		<screenshotParams_isFullPageScreenshot>false</screenshotParams_isFullPageScreenshot>
-		<screenshotParams_skippedElementsFromScreenshot></screenshotParams_skippedElementsFromScreenshot>
-		<executionAddress>local</executionAddress> <!-- <executionAddress>localhost:4444</executionAddress> -->
+		<screenshotParams_highlightElements>true</screenshotParams_highlightElements> <!-- Acceptable Values: true | false -->
+		<screenshotParams_screenshotType>Regular</screenshotParams_screenshotType> <!-- Acceptable Values: Regular | FullPage | Element -->
+		<screenshotParams_skippedElementsFromScreenshot></screenshotParams_skippedElementsFromScreenshot> <!-- The above element will be skipped in case of persistent elements/menus 
+			that show up multiple times in the full page screenshots -->
+		<recordVideo>false</recordVideo>
+
+		<automaticallyGenerateAllureReport>false</automaticallyGenerateAllureReport> <!-- Acceptable Values: true | false -->
+
+		<!-- SHAFT Configuration Parameters -->
 		<testDataFolderPath>src/test/resources/TestDataFiles/</testDataFolderPath>
 		<jsonFolderPath>src/test/resources/TestJsonFiles/</jsonFolderPath>
 		<testDataColumnNamePrefix>Data</testDataColumnNamePrefix>
-		<defaultElementIdentificationTimeout>10</defaultElementIdentificationTimeout>
-		<attemptsBeforeThrowingElementNotFoundException>6</attemptsBeforeThrowingElementNotFoundException>
 		<allureResultsFolderPath>allure-results/</allureResultsFolderPath>
-		<automaticallyGenerateAllureReport>false</automaticallyGenerateAllureReport>
 
-		<!-- Version Numbers Properties -->
-		<shaft_engine.version>2.0.20181018</shaft_engine.version> <!-- Make sure you point to the latest version: https://bintray.com/mohabmohie/SHAFT/SHAFT_Engine/_latestVersion -->
+		<!-- Dependencies/Plugins Version Numbers Parameters -->
+		<shaft_engine.version>2.0.20181031</shaft_engine.version> <!-- Make sure you point to the latest version: https://bintray.com/mohabmohie/SHAFT/SHAFT_Engine/_latestVersion -->
+		<encoding.type>UTF-8</encoding.type>
 		<jdk.version>1.8</jdk.version>
+		<maven-resources-plugin.version>3.1.0</maven-resources-plugin.version>
 		<maven-compiler-plugin.version>3.8.0</maven-compiler-plugin.version>
 		<maven-surefire-plugin.version>2.22.0</maven-surefire-plugin.version>
 		<aspectj.version>1.9.1</aspectj.version>
@@ -66,11 +80,24 @@
 			<plugins>
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-resources-plugin</artifactId>
+					<version>${maven-resources-plugin.version}</version>
+					<configuration>
+						<encoding>${encoding.type}</encoding>
+						<inputEncoding>${encoding.type}</inputEncoding>
+						<outputEncoding>${encoding.type}</outputEncoding>
+					</configuration>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-compiler-plugin</artifactId>
 					<version>${maven-compiler-plugin.version}</version>
 					<configuration>
 						<source>${jdk.version}</source>
 						<target>${jdk.version}</target>
+						<encoding>${encoding.type}</encoding>
+						<inputEncoding>${encoding.type}</inputEncoding>
+						<outputEncoding>${encoding.type}</outputEncoding>
 					</configuration>
 				</plugin>
 
@@ -80,13 +107,12 @@
 					<version>${maven-surefire-plugin.version}</version>
 					<configuration>
 						<systemPropertyVariables>
-							<incortaRoot>${incortaRoot}</incortaRoot>
-							<incortaVersion>${incortaVersion}</incortaVersion>
 							<shaftEngineVersion>${shaft_engine.version}</shaftEngineVersion>
 							<targetOperatingSystem>${operatingSystem.version}</targetOperatingSystem>
 							<targetBrowserName>${targetBrowser.name}</targetBrowserName>
 							<screenshotParams_whenToTakeAScreenshot>${screenshotParams_whenToTakeAScreenshot}</screenshotParams_whenToTakeAScreenshot>
-							<screenshotParams_isFullPageScreenshot>${screenshotParams_isFullPageScreenshot}</screenshotParams_isFullPageScreenshot>
+							<screenshotParams_highlightElements>${screenshotParams_highlightElements}</screenshotParams_highlightElements>
+							<screenshotParams_screenshotType>${screenshotParams_screenshotType}</screenshotParams_screenshotType>
 							<screenshotParams_skippedElementsFromScreenshot>${screenshotParams_skippedElementsFromScreenshot}</screenshotParams_skippedElementsFromScreenshot>
 							<executionAddress>${executionAddress}</executionAddress>
 							<autoMaximizeBrowserWindow>${autoMaximizeBrowserWindow}</autoMaximizeBrowserWindow>
@@ -97,14 +123,15 @@
 							<attemptsBeforeThrowingElementNotFoundException>${attemptsBeforeThrowingElementNotFoundException}</attemptsBeforeThrowingElementNotFoundException>
 							<allureResultsFolderPath>${allureResultsFolderPath}</allureResultsFolderPath>
 							<automaticallyGenerateAllureReport>${automaticallyGenerateAllureReport}</automaticallyGenerateAllureReport>
+							<recordVideo>${recordVideo}</recordVideo>
 						</systemPropertyVariables>
 						<configfailurepolicy>continue</configfailurepolicy>
 						<suiteXmlFiles>
 							<suiteXmlFile>src\test\resources\TestSuites\${testSuite.name}.xml</suiteXmlFile>
 						</suiteXmlFiles>
-						<encoding>UTF-8</encoding>
-						<inputEncoding>UTF-8</inputEncoding>
-						<outputEncoding>UTF-8</outputEncoding>
+						<encoding>${encoding.type}</encoding>
+						<inputEncoding>${encoding.type}</inputEncoding>
+						<outputEncoding>${encoding.type}</outputEncoding>
 						<argLine>
 							-javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"
 						</argLine>
