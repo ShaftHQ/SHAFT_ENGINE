@@ -7,18 +7,19 @@ import java.util.Date;
 import java.util.List;
 
 import org.testng.Reporter;
+
+import com.shaft.support.SSHActions;
+
 import io.qameta.allure.Allure;
 import io.qameta.allure.Attachment;
 import io.qameta.allure.Step;
-
-import com.shaft.support.SSHActions;
 
 public class ReportManager {
 
     private static String fullLog = "";
     private static int actionCounter = 1;
     private static boolean isHeaderTyped = false;
-    private static boolean log = true;
+    public static boolean log = true;
     private static String lastTestCase = "";
 
     private ReportManager() {
@@ -109,7 +110,16 @@ public class ReportManager {
     @Step("Attachement: {attachmentType} - {attachmentName}")
     public static void attach(String attachmentType, String attachmentName, InputStream attachmentContent) {
 	if (log) {
-	    Allure.addAttachment(attachmentName, attachmentContent);
+
+	    if (attachmentType.contains("Screenshot")) {
+		Allure.addAttachment(attachmentName, "image/png", attachmentContent, ".png");
+	    } else if (attachmentType.contains("Recording")) {
+		Allure.addAttachment(attachmentName, "video/quicktime", attachmentContent, ".mov");
+//		Allure.addAttachment(attachmentName, "video/mp4", attachmentContent, ".mp4");
+
+	    } else {
+		Allure.addAttachment(attachmentName, attachmentContent);
+	    }
 	    performLogEntry("Successfully created attachment [" + attachmentType + " - " + attachmentName + "]");
 	}
     }
@@ -167,6 +177,8 @@ public class ReportManager {
      * 
      */
     public static void getFullLog() {
+	RecordManager.stopRecording();
+	RecordManager.attachRecording();
 	attachFullLog();
 	if (Boolean.valueOf(System.getProperty("automaticallyGenerateAllureReport").trim())) {
 	    generateAllureReportArchive();
@@ -233,6 +245,7 @@ public class ReportManager {
 
 	    logEngineVersion();
 	    populateEnvironmentData();
+	    RecordManager.startRecording();
 	}
     }
 
