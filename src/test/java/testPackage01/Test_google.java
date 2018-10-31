@@ -61,12 +61,13 @@ public class Test_google {
 	System.setProperty("testDataFilePath", "src/test/resources/TestDataFiles/testSuite01/TestData.xlsx");
 	testDataReader = new ExcelFileManager(System.getProperty("testDataFilePath"));
 	driver = BrowserFactory.getBrowser(testDataReader);
-	BrowserActions.setWindowSize(driver, 3840, 2160);
+	// BrowserActions.setWindowSize(driver, 3840, 2160);
     }
 
     @AfterClass(alwaysRun = true) // Tear-down method, to be run once after the last test
     public void afterClass() {
 	BrowserFactory.closeAllDrivers();
+	ReportManager.getFullLog();
     }
 
     @AfterMethod
