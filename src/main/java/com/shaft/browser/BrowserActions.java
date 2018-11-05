@@ -18,7 +18,7 @@ import com.shaft.io.ScreenshotManager;
 
 public class BrowserActions {
 
-    private static final int NAVIGATION_TIMEOUT = 60;
+    private static final int NAVIGATION_TIMEOUT = 30;
 
     /*
      * Driver actions that should be implemented: driver.switchTo().activeElement();
@@ -206,26 +206,25 @@ public class BrowserActions {
     public static void navigateToURL(WebDriver driver, String targetUrl, String targetUrlAfterRedirection) {
 	triggerWaitForLazyLoading(driver);
 	String initialURL = "";
+	String initialSource = driver.getPageSource();
 	try {
 	    initialURL = driver.getCurrentUrl();
 	    if (!initialURL.equals(targetUrl)) {
 		// navigate to new url
 		navigateToNewURL(driver, targetUrl, targetUrlAfterRedirection);
+		triggerWaitForLazyLoading(driver);
 
-		// in case of google/ncr or any other navigation that causes redirection to a
-		// new url, given that the user is already navigated + redirected, when the user
-		// tries to navigate to the same original url again, the browser marks the page
-		// as loaded, nothing happens, and the fluent wait fails because the url is not
-		// updated, as a temporary workaround, I will disable the check for successful
-		// navigation and force pass here. This may prove problematic in the future.
-
-		// (new WebDriverWait(driver,
-		// NAVIGATION_TIMEOUT)).until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
+		if (!driver.getPageSource().equalsIgnoreCase(initialSource)) {
+		    passAction(driver, "navigateToURL", targetUrl);
+		}
 	    } else {
 		// already on the same page
 		driver.navigate().refresh();
+		triggerWaitForLazyLoading(driver);
+
+		passAction(driver, "navigateToURL", targetUrl);
 	    }
-	    passAction(driver, "navigateToURL", targetUrl);
+
 	} catch (Exception e) {
 	    ReportManager.log(e);
 	    failAction(driver, "navigateToURL", targetUrl);

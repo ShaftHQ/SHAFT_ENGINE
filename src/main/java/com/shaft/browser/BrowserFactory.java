@@ -6,9 +6,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 
+import org.openqa.selenium.NoSuchSessionException;
 import org.openqa.selenium.Platform;
-import org.openqa.selenium.SessionNotCreatedException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.chrome.ChromeDriver;
@@ -19,6 +20,10 @@ import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxOptions;
 import org.openqa.selenium.ie.InternetExplorerDriver;
 import org.openqa.selenium.ie.InternetExplorerOptions;
+import org.openqa.selenium.logging.LogEntry;
+import org.openqa.selenium.logging.LogType;
+import org.openqa.selenium.logging.LoggingPreferences;
+import org.openqa.selenium.remote.CapabilityType;
 import org.openqa.selenium.remote.LocalFileDetector;
 import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.safari.SafariDriver;
@@ -40,11 +45,16 @@ public class BrowserFactory {
     private static final String TARGET_BROWSER_NAME = System.getProperty("targetBrowserName");
     // Default | MozillaFirefox | MicrosoftInternetExplorer | GoogleChrome |
     // MicrosoftEdge | Safari
-    // private static final String driversPath = "src/main/resources/drivers/";
+    private static final int PAGE_LOAD_TIMEOUT = 60;
+    private static final int IMPLICIT_WAIT_TIMEOUT = 10;
+
     private static String driversPath;
     private static String fileExtension;
     private static Map<String, WebDriver> drivers = new HashMap<>();
     private static WebDriver driver = null;
+
+    // logging preferences object
+    private static LoggingPreferences logPrefs;
 
     // supported browser options
     private static ChromeOptions chOptions;
@@ -106,18 +116,24 @@ public class BrowserFactory {
      * @return a singleton browser instance
      */
     public static WebDriver getBrowser(String browserName) {
-	checkBrowserOSCrossCompatibility(browserName);
-	// check cross-compatibility between the selected operating system and browser
-	// and report in case they are not compatible
-	setDriversPath();
-	// set path based on operating system
 	try {
 	    if (driver != null) {
 		// retrieve current instance
 		driver = getActiveDriverInstance(browserName);
 
 	    } else {
-		// if driver is null create new instances
+		// if driver is null set logging preferences, then set driver options and create
+		// new instances
+		checkBrowserOSCrossCompatibility(browserName);
+		// check cross-compatibility between the selected operating system and browser
+		// and report in case they are not compatible
+		setDriversPath();
+		// set path based on operating system
+		setLoggingPrefrences();
+		// set logging global preferences
+		setDriverOptions(browserName);
+		// set driver options with respect to the target browser name
+
 		if (EXECUTION_ADDRESS.equals("local")) {
 		    // Manage local execution
 		    driver = createNewLocalDriverInstance(browserName);
@@ -125,7 +141,9 @@ public class BrowserFactory {
 		    // Manage remote execution
 		    driver = createNewRemoteDriverInstance(browserName);
 		}
-		driver.manage().timeouts().pageLoadTimeout(60, TimeUnit.SECONDS);
+		driver.manage().timeouts().pageLoadTimeout(PAGE_LOAD_TIMEOUT, TimeUnit.SECONDS);
+		driver.manage().timeouts().implicitlyWait(IMPLICIT_WAIT_TIMEOUT, TimeUnit.SECONDS);
+
 		JSWaiter.setDriver(driver);
 		if (AUTO_MAXIMIZE) {
 		    BrowserActions.maximizeWindow(driver); // Automatically maximize driver window after opening it
@@ -166,172 +184,40 @@ public class BrowserFactory {
 	return driver;
     }
 
-    private static WebDriver createNewLocalDriverInstance(String browserName) {
-	ReportManager.log("Attempting to run locally on: [" + TARGET_OPERATING_SYSTEM + "], [" + browserName + "].");
-	switch (browserName) {
-	case "MozillaFirefox":
-	    System.setProperty("webdriver.gecko.driver", driversPath + "geckodriver" + fileExtension);
-	    driver = new FirefoxDriver();
-	    drivers.put("MozillaFirefox", driver);
-	    ReportManager.log("Successfully Opened Mozilla Firefox.");
+    /**
+     * Check cross-compatibility between the selected operating system and browser
+     * and report in case they are not compatible
+     */
+    private static void checkBrowserOSCrossCompatibility(String browserName) {
+	Boolean isCompatibleBrowser = false;
 
+	switch (TARGET_OPERATING_SYSTEM) {
+	case "Windows-64":
+	    if (browserName.equals("MozillaFirefox") || browserName.equals("GoogleChrome") || browserName.equals("MicrosoftInternetExplorer") || browserName.equals("MicrosoftEdge")) {
+		isCompatibleBrowser = true;
+	    }
 	    break;
-	case "MicrosoftInternetExplorer":
-	    System.setProperty("webdriver.ie.driver", driversPath + "IEDriverServer" + fileExtension);
-	    driver = new InternetExplorerDriver();
-	    drivers.put("MicrosoftInternetExplorer", driver);
-	    ReportManager.log("Successfully Opened Microsoft Internet Explorer.");
-
+	case "Linux-64":
+	    if (browserName.equals("MozillaFirefox") || browserName.equals("GoogleChrome")) {
+		isCompatibleBrowser = true;
+	    }
 	    break;
-	case "GoogleChrome":
-	    System.setProperty("webdriver.chrome.driver", driversPath + "chromedriver" + fileExtension);
-	    /*
-	     * if (autoMaximizeBrowserWindow) { ChromeOptions options = new ChromeOptions();
-	     * options.addArguments("--start-maximized"); driver = new
-	     * ChromeDriver(options); } else { driver = new ChromeDriver(); }
-	     */
-	    driver = new ChromeDriver();
-	    drivers.put("GoogleChrome", driver);
-	    ReportManager.log("Successfully Opened Google Chrome.");
-
-	    break;
-	case "MicrosoftEdge":
-	    System.setProperty("webdriver.edge.driver", driversPath + "MicrosoftWebDriver" + fileExtension);
-	    driver = new EdgeDriver();
-	    drivers.put("MicrosoftEdge", driver);
-	    ReportManager.log("Successfully Opened Microsoft Edge.");
-
-	    break;
-	case "Safari":
-	    // System.setProperty("webdriver.edge.driver", driversPath +
-	    // "MicrosoftWebDriver" + fileExtension);
-	    driver = new SafariDriver();
-	    drivers.put("Safari", driver);
-	    ReportManager.log("Successfully Opened Safari.");
-
+	case "Mac-64":
+	    if (browserName.equals("MozillaFirefox") || browserName.equals("GoogleChrome") || browserName.equals("Safari")) {
+		isCompatibleBrowser = true;
+	    }
 	    break;
 	default:
-	    ReportManager.log("Unsupported Browser Type [" + browserName + "].");
-	    Assert.fail("Unsupported Browser Type [" + browserName + "].");
+	    ReportManager.log("Unsupported Operating System [" + TARGET_OPERATING_SYSTEM + "].");
+	    Assert.fail("Unsupported Operating System [" + TARGET_OPERATING_SYSTEM + "].");
 	    break;
 	}
-	return driver;
-    }
 
-    private static WebDriver createNewRemoteDriverInstance(String browserName) {
-	ReportManager.log("Attempting to run remotely on: [" + TARGET_OPERATING_SYSTEM + "], [" + browserName + "], [" + TARGET_HUB_URL + "].");
-	try {
-	    switch (browserName) {
-	    case "MozillaFirefox":
-		ffOptions = new FirefoxOptions();
-		ffOptions.setCapability("platform", getDesiredOperatingSystem());
-
-		// ffOptions.setCapability("marionette", true);
-		// ffOptions.setCapability("nativeEvents", true);
-		// ffOptions.setAcceptInsecureCerts(true);
-		// ffOptions.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.ACCEPT);
-
-		// set remote driver instance
-		driver = getRemoteWebDriverInstance(browserName);
-		drivers.put("MozillaFirefox", driver);
-		ReportManager.log("Successfully Opened Mozilla Firefox.");
-
-		break;
-	    case "MicrosoftInternetExplorer":
-		ieOptions = new InternetExplorerOptions();
-		ieOptions.setCapability("platform", getDesiredOperatingSystem());
-
-		// set remote driver instance
-		driver = getRemoteWebDriverInstance(browserName);
-		drivers.put("MicrosoftInternetExplorer", driver);
-		ReportManager.log("Successfully Opened Microsoft Internet Explorer.");
-
-		break;
-	    case "GoogleChrome":
-		chOptions = new ChromeOptions();
-		chOptions.setCapability("platform", getDesiredOperatingSystem());
-		chOptions.addArguments("--no-sandbox");
-		chOptions.addArguments("--disable-infobars"); // disable automation info bar
-
-		// chOptions.setAcceptInsecureCerts(true);
-		// chOptions.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.ACCEPT);
-		// chOptions.addArguments("--headless");
-		// chOptions.addArguments("--disable-gpu");
-
-		// set remote driver instance
-		driver = getRemoteWebDriverInstance(browserName);
-		drivers.put("GoogleChrome", driver);
-		ReportManager.log("Successfully Opened Google Chrome.");
-
-		break;
-	    case "MicrosoftEdge":
-		edOptions = new EdgeOptions();
-		edOptions.setCapability("platform", getDesiredOperatingSystem());
-
-		// set remote driver instance
-		driver = getRemoteWebDriverInstance(browserName);
-		drivers.put("MicrosoftEdge", driver);
-		ReportManager.log("Successfully Opened Microsoft Edge.");
-
-		break;
-	    case "Safari":
-		sfOptions = new SafariOptions();
-		sfOptions.setCapability("platform", getDesiredOperatingSystem());
-
-		// set remote driver instance
-		driver = getRemoteWebDriverInstance(browserName);
-		drivers.put("Safari", driver);
-		ReportManager.log("Successfully Opened Safari.");
-
-		break;
-	    default:
-		ReportManager.log("Unsupported Browser Type [" + browserName + "].");
-		Assert.fail("Unsupported Browser Type [" + browserName + "].");
-		break;
-	    }
-	    ((RemoteWebDriver) driver).setFileDetector(new LocalFileDetector());
-	} catch (WebDriverException e) {
-	    ReportManager.log(e);
-	    if (e.getMessage().contains("Error forwarding the new session cannot find")) {
-		ReportManager.log("Error forwarding the new session: Couldn't find a node that matches the desired capabilities.");
-		ReportManager.log("Failed to run remotely on: [" + TARGET_OPERATING_SYSTEM + "], [" + browserName + "], [" + TARGET_HUB_URL + "].");
-		Assert.fail("Error forwarding the new session: Couldn't find a node that matches the desired capabilities.");
-	    } else {
-		ReportManager.log("Unhandled Error.");
-		ReportManager.log("Failed to run remotely on: [" + TARGET_OPERATING_SYSTEM + "], [" + browserName + "], [" + TARGET_HUB_URL + "].");
-		Assert.fail("Unhandled Error.");
-	    }
+	if (!isCompatibleBrowser) {
+	    ReportManager.log("Unsupported Browser Type [" + browserName + "] for this Operating System [" + TARGET_OPERATING_SYSTEM + "].");
+	    Assert.fail("Unsupported Browser Type [" + browserName + "] for this Operating System [" + TARGET_OPERATING_SYSTEM + "].");
 	}
-	return driver;
-    }
 
-    private static WebDriver getRemoteWebDriverInstance(String browserName) {
-	try {
-	    switch (browserName) {
-	    case "MozillaFirefox":
-		driver = new RemoteWebDriver(new URL(TARGET_HUB_URL), ffOptions);
-		break;
-	    case "MicrosoftInternetExplorer":
-		driver = new RemoteWebDriver(new URL(TARGET_HUB_URL), ieOptions);
-		break;
-	    case "GoogleChrome":
-		driver = new RemoteWebDriver(new URL(TARGET_HUB_URL), chOptions);
-		break;
-	    case "MicrosoftEdge":
-		driver = new RemoteWebDriver(new URL(TARGET_HUB_URL), edOptions);
-		break;
-	    case "Safari":
-		driver = new RemoteWebDriver(new URL(TARGET_HUB_URL), sfOptions);
-		break;
-	    default:
-		ReportManager.log("Unsupported Browser Type [" + browserName + "].");
-		Assert.fail("Unsupported Browser Type [" + browserName + "].");
-		break;
-	    }
-	} catch (MalformedURLException | SessionNotCreatedException e) {
-	    ReportManager.log(e);
-	}
-	return driver;
     }
 
     /**
@@ -359,26 +245,154 @@ public class BrowserFactory {
 	}
     }
 
-    // private static void setDesiredOperatingSystemCapabilities(DesiredCapabilities
-    // capabilities) {
-    // switch (TARGET_OPERATING_SYSTEM) {
-    // case "Windows-64":
-    // capabilities.setPlatform(Platform.WINDOWS);
-    // break;
-    // case "Linux-64":
-    // capabilities.setPlatform(Platform.LINUX);
-    // break;
-    // case "Mac-64":
-    // capabilities.setPlatform(Platform.MAC);
-    // break;
-    // default:
-    // ReportManager.log("Unsupported Operating System [" + TARGET_OPERATING_SYSTEM
-    // + "].");
-    // Assert.fail("Unsupported Operating System [" + TARGET_OPERATING_SYSTEM +
-    // "].");
-    // break;
-    // }
-    // }
+    private static void setLoggingPrefrences() {
+	logPrefs = new LoggingPreferences();
+	logPrefs.enable(LogType.PERFORMANCE, Level.ALL);
+	logPrefs.enable(LogType.BROWSER, Level.ALL);
+	logPrefs.enable(LogType.DRIVER, Level.ALL);
+    }
+
+    private static void setDriverOptions(String browserName) {
+	switch (browserName) {
+	case "MozillaFirefox":
+	    ffOptions = new FirefoxOptions();
+	    ffOptions.setCapability("platform", getDesiredOperatingSystem());
+	    // ffOptions.setCapability("marionette", true);
+	    // ffOptions.setCapability("nativeEvents", true);
+	    // ffOptions.setAcceptInsecureCerts(true);
+	    // ffOptions.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.ACCEPT);
+	    ffOptions.setCapability(CapabilityType.LOGGING_PREFS, logPrefs);
+	    break;
+	case "MicrosoftInternetExplorer":
+	    ieOptions = new InternetExplorerOptions();
+	    ieOptions.setCapability("platform", getDesiredOperatingSystem());
+	    ieOptions.setCapability(CapabilityType.LOGGING_PREFS, logPrefs);
+	    break;
+	case "GoogleChrome":
+	    chOptions = new ChromeOptions();
+	    chOptions.setCapability("platform", getDesiredOperatingSystem());
+	    chOptions.addArguments("--no-sandbox");
+	    chOptions.addArguments("--disable-infobars"); // disable automation info bar
+	    // chOptions.setAcceptInsecureCerts(true);
+	    // chOptions.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.ACCEPT);
+	    // chOptions.addArguments("--headless");
+	    // chOptions.addArguments("--disable-gpu");
+
+	    // chOptions.addArguments("--enable-logging --v=1");
+	    chOptions.setCapability(CapabilityType.LOGGING_PREFS, logPrefs);
+	    break;
+	case "MicrosoftEdge":
+	    edOptions = new EdgeOptions();
+	    edOptions.setCapability("platform", getDesiredOperatingSystem());
+	    edOptions.setCapability(CapabilityType.LOGGING_PREFS, logPrefs);
+	    break;
+	case "Safari":
+	    sfOptions = new SafariOptions();
+	    sfOptions.setCapability("platform", getDesiredOperatingSystem());
+	    sfOptions.setCapability(CapabilityType.LOGGING_PREFS, logPrefs);
+	    break;
+	default:
+	    ReportManager.log("Unsupported Browser Type [" + browserName + "].");
+	    Assert.fail("Unsupported Browser Type [" + browserName + "].");
+	    break;
+	}
+    }
+
+    private static WebDriver createNewLocalDriverInstance(String browserName) {
+	ReportManager.log("Attempting to run locally on: [" + TARGET_OPERATING_SYSTEM + "], [" + browserName + "].");
+	switch (browserName) {
+	case "MozillaFirefox":
+	    System.setProperty("webdriver.gecko.driver", driversPath + "geckodriver" + fileExtension);
+	    driver = new FirefoxDriver(ffOptions);
+	    drivers.put("MozillaFirefox", driver);
+	    ReportManager.log("Successfully Opened Mozilla Firefox.");
+
+	    break;
+	case "MicrosoftInternetExplorer":
+	    System.setProperty("webdriver.ie.driver", driversPath + "IEDriverServer" + fileExtension);
+	    driver = new InternetExplorerDriver(ieOptions);
+	    drivers.put("MicrosoftInternetExplorer", driver);
+	    ReportManager.log("Successfully Opened Microsoft Internet Explorer.");
+
+	    break;
+	case "GoogleChrome":
+	    System.setProperty("webdriver.chrome.driver", driversPath + "chromedriver" + fileExtension);
+	    driver = new ChromeDriver(chOptions);
+	    drivers.put("GoogleChrome", driver);
+	    ReportManager.log("Successfully Opened Google Chrome.");
+	    break;
+	case "MicrosoftEdge":
+	    System.setProperty("webdriver.edge.driver", driversPath + "MicrosoftWebDriver" + fileExtension);
+	    driver = new EdgeDriver(edOptions);
+	    drivers.put("MicrosoftEdge", driver);
+	    ReportManager.log("Successfully Opened Microsoft Edge.");
+	    break;
+	case "Safari":
+	    driver = new SafariDriver(sfOptions);
+	    drivers.put("Safari", driver);
+	    ReportManager.log("Successfully Opened Safari.");
+	    break;
+	default:
+	    ReportManager.log("Unsupported Browser Type [" + browserName + "].");
+	    Assert.fail("Unsupported Browser Type [" + browserName + "].");
+	    break;
+	}
+	// Set<String> logTypes = driver.manage().logs().getAvailableLogTypes();
+	// logTypes.size();
+	return driver;
+    }
+
+    private static WebDriver createNewRemoteDriverInstance(String browserName) {
+	ReportManager.log("Attempting to run remotely on: [" + TARGET_OPERATING_SYSTEM + "], [" + browserName + "], [" + TARGET_HUB_URL + "].");
+	try {
+	    switch (browserName) {
+	    case "MozillaFirefox":
+		driver = new RemoteWebDriver(new URL(TARGET_HUB_URL), ffOptions);
+		drivers.put("MozillaFirefox", driver);
+		ReportManager.log("Successfully Opened Mozilla Firefox.");
+		break;
+	    case "MicrosoftInternetExplorer":
+		driver = new RemoteWebDriver(new URL(TARGET_HUB_URL), ieOptions);
+		drivers.put("MicrosoftInternetExplorer", driver);
+		ReportManager.log("Successfully Opened Microsoft Internet Explorer.");
+		break;
+	    case "GoogleChrome":
+		driver = new RemoteWebDriver(new URL(TARGET_HUB_URL), chOptions);
+		drivers.put("GoogleChrome", driver);
+		ReportManager.log("Successfully Opened Google Chrome.");
+		break;
+	    case "MicrosoftEdge":
+		driver = new RemoteWebDriver(new URL(TARGET_HUB_URL), edOptions);
+		drivers.put("MicrosoftEdge", driver);
+		ReportManager.log("Successfully Opened Microsoft Edge.");
+		break;
+	    case "Safari":
+		driver = new RemoteWebDriver(new URL(TARGET_HUB_URL), sfOptions);
+		drivers.put("Safari", driver);
+		ReportManager.log("Successfully Opened Safari.");
+		break;
+	    default:
+		ReportManager.log("Unsupported Browser Type [" + browserName + "].");
+		Assert.fail("Unsupported Browser Type [" + browserName + "].");
+		break;
+	    }
+	    ((RemoteWebDriver) driver).setFileDetector(new LocalFileDetector());
+	} catch (WebDriverException e) {
+	    ReportManager.log(e);
+	    if (e.getMessage().contains("Error forwarding the new session cannot find")) {
+		ReportManager.log("Error forwarding the new session: Couldn't find a node that matches the desired capabilities.");
+		ReportManager.log("Failed to run remotely on: [" + TARGET_OPERATING_SYSTEM + "], [" + browserName + "], [" + TARGET_HUB_URL + "].");
+		Assert.fail("Error forwarding the new session: Couldn't find a node that matches the desired capabilities.");
+	    } else {
+		ReportManager.log("Unhandled Error.");
+		ReportManager.log("Failed to run remotely on: [" + TARGET_OPERATING_SYSTEM + "], [" + browserName + "], [" + TARGET_HUB_URL + "].");
+		Assert.fail("Unhandled Error.");
+	    }
+	} catch (MalformedURLException e) {
+	    ReportManager.log(e);
+	}
+	return driver;
+    }
 
     private static Platform getDesiredOperatingSystem() {
 	switch (TARGET_OPERATING_SYSTEM) {
@@ -395,75 +409,72 @@ public class BrowserFactory {
     }
 
     /**
-     * Check cross-compatibility between the selected operating system and browser
-     * and report in case they are not compatible
-     */
-    private static void checkBrowserOSCrossCompatibility(String browserName) {
-	switch (TARGET_OPERATING_SYSTEM) {
-	case "Windows-64":
-	    switch (browserName) {
-	    case "MozillaFirefox":
-		break;
-	    case "MicrosoftInternetExplorer":
-		break;
-	    case "GoogleChrome":
-		break;
-	    case "MicrosoftEdge":
-		break;
-	    default:
-		ReportManager.log("Unsupported Browser Type [" + browserName + "] for this Operating System [" + TARGET_OPERATING_SYSTEM + "].");
-		Assert.fail("Unsupported Browser Type [" + browserName + "] for this Operating System [" + TARGET_OPERATING_SYSTEM + "].");
-		break;
-	    }
-	    break;
-	case "Linux-64":
-	    switch (browserName) {
-	    case "MozillaFirefox":
-		break;
-	    case "GoogleChrome":
-		break;
-	    default:
-		ReportManager.log("Unsupported Browser Type [" + browserName + "] for this Operating System [" + TARGET_OPERATING_SYSTEM + "].");
-		Assert.fail("Unsupported Browser Type [" + browserName + "] for this Operating System [" + TARGET_OPERATING_SYSTEM + "].");
-		break;
-	    }
-	    break;
-	case "Mac-64":
-	    switch (browserName) {
-	    case "MozillaFirefox":
-		break;
-	    case "GoogleChrome":
-		break;
-	    case "Safari":
-		break;
-	    default:
-		ReportManager.log("Unsupported Browser Type [" + browserName + "] for this Operating System [" + TARGET_OPERATING_SYSTEM + "].");
-		Assert.fail("Unsupported Browser Type [" + browserName + "] for this Operating System [" + TARGET_OPERATING_SYSTEM + "].");
-		break;
-	    }
-	    break;
-	default:
-	    ReportManager.log("Unsupported Operating System [" + TARGET_OPERATING_SYSTEM + "].");
-	    Assert.fail("Unsupported Operating System [" + TARGET_OPERATING_SYSTEM + "].");
-	    break;
-	}
-    }
-
-    /**
      * Close all open browser instances.
      * 
      */
     public static void closeAllDrivers() {
 	try {
 	    for (Entry<String, WebDriver> entry : drivers.entrySet()) {
+		attachBrowserLogs(entry.getKey(), entry.getValue());
 		entry.getValue().close();
 		entry.getValue().quit();
 	    }
+	} catch (NoSuchSessionException e) {
+	    // browser was already closed by the .close() method
 	} catch (Exception e) {
 	    ReportManager.log(e);
 	}
 	driver = null;
 	drivers.clear();
 	ReportManager.log("Successfully Closed All Browsers.");
+    }
+
+    private static void attachBrowserLogs(String borwserName, WebDriver driver) {
+
+	if (!borwserName.equals("MozillaFirefox")) {
+	    // The Selenium log API isn’t supported by geckodriver.
+	    // Confirmed to work with chromeDriver
+
+	    StringBuilder logBuilder;
+	    String performanceLogText = "";
+	    String browserLogText = "";
+	    String driverLogText = "";
+
+	    try {
+		logBuilder = new StringBuilder();
+		for (LogEntry entry : driver.manage().logs().get(LogType.BROWSER)) {
+		    logBuilder.append(entry.toString() + System.lineSeparator());
+		}
+		browserLogText = logBuilder.toString();
+		ReportManager.attach("Browser Logs for [" + borwserName + "]", browserLogText);
+	    } catch (WebDriverException e) {
+		// exception when the defined log type is not found
+		ReportManager.log(e);
+	    }
+
+	    try {
+		logBuilder = new StringBuilder();
+		for (LogEntry entry : driver.manage().logs().get(LogType.PERFORMANCE)) {
+		    logBuilder.append(entry.toString() + System.lineSeparator());
+		}
+		performanceLogText = logBuilder.toString();
+		ReportManager.attach("Performance Logs for [" + borwserName + "]", performanceLogText);
+	    } catch (WebDriverException e) {
+		// exception when the defined log type is not found
+		ReportManager.log(e);
+	    }
+
+	    try {
+		logBuilder = new StringBuilder();
+		for (LogEntry entry : driver.manage().logs().get(LogType.DRIVER)) {
+		    logBuilder.append(entry.toString() + System.lineSeparator());
+		}
+		driverLogText = logBuilder.toString();
+		ReportManager.attach("Driver Logs for [" + borwserName + "]", driverLogText);
+	    } catch (WebDriverException e) {
+		// exception when the defined log type is not found
+		ReportManager.log(e);
+	    }
+	}
     }
 }
