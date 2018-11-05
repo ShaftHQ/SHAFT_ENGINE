@@ -115,7 +115,7 @@ public class ReportManager {
 		Allure.addAttachment(attachmentName, "image/png", attachmentContent, ".png");
 	    } else if (attachmentType.contains("Recording")) {
 		Allure.addAttachment(attachmentName, "video/quicktime", attachmentContent, ".mov");
-//		Allure.addAttachment(attachmentName, "video/mp4", attachmentContent, ".mp4");
+		// Allure.addAttachment(attachmentName, "video/mp4", attachmentContent, ".mp4");
 
 	    } else {
 		Allure.addAttachment(attachmentName, attachmentContent);
@@ -147,7 +147,7 @@ public class ReportManager {
      * 
      * @return the log for the current test
      */
-    @Attachment("Test log")
+    @Attachment("SHAFT Engine Test log")
     public static String getTestLog() {
 
 	StringBuilder logBuilder = new StringBuilder();
@@ -160,15 +160,6 @@ public class ReportManager {
 	logText = logBuilder.toString();
 	Reporter.clear();
 	return logText;
-
-	// String log = "";
-	//
-	// for (String s : Reporter.getOutput()) {
-	// s = s.replace("<br>", System.lineSeparator());
-	// log = log + s;
-	// }
-	// Reporter.clear();
-	// return log;
     }
 
     /**
@@ -185,7 +176,7 @@ public class ReportManager {
 	}
     }
 
-    @Attachment("Full log")
+    @Attachment("SHAFT Engine Full Execution log")
     private static String attachFullLog() {
 	return fullLog;
     }

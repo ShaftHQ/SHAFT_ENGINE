@@ -106,10 +106,10 @@ public class JSWaiter {
 	JavascriptExecutor jsExec = (JavascriptExecutor) jsWaitDriver;
 
 	// Wait for Javascript to load
-	ExpectedCondition<Boolean> jsLoad = driver -> ((JavascriptExecutor) jsWaitDriver).executeScript("return document.readyState").toString().equals("complete");
+	ExpectedCondition<Boolean> jsLoad = driver -> ((JavascriptExecutor) jsWaitDriver).executeScript("return document.readyState").toString().trim().equalsIgnoreCase("complete");
 
 	// Get JS is Ready
-	boolean jsReady = (Boolean) jsExec.executeScript("return document.readyState").toString().equals("complete");
+	boolean jsReady = (Boolean) jsExec.executeScript("return document.readyState").toString().trim().equalsIgnoreCase("complete");
 
 	// Wait Javascript until it is Ready!
 	if (!jsReady) {
@@ -127,7 +127,7 @@ public class JSWaiter {
 		// More Wait for stability (Optional)
 		sleep(20);
 		tryCounter++;
-		jsReady = (Boolean) jsExec.executeScript("return document.readyState").toString().equals("complete");
+		jsReady = (Boolean) jsExec.executeScript("return document.readyState").toString().trim().equalsIgnoreCase("complete");
 	    }
 	    if (debug) {
 		ReportManager.log("JS is Ready!");
@@ -163,7 +163,7 @@ public class JSWaiter {
 	    }
 	}
 
-	Boolean jsReady = (Boolean) jsExec.executeScript("return document.readyState").toString().equals("complete");
+	Boolean jsReady = (Boolean) jsExec.executeScript("return document.readyState").toString().trim().equalsIgnoreCase("complete");
 	if (!jsReady) {
 	    waitForJSLoad();
 	} else {
