@@ -4,6 +4,7 @@ import java.awt.HeadlessException;
 import java.awt.Toolkit;
 
 import org.junit.Assert;
+import org.openqa.selenium.By;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Point;
@@ -12,6 +13,7 @@ import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
+import com.shaft.element.ElementActions;
 import com.shaft.element.JSWaiter;
 import com.shaft.io.ReportManager;
 import com.shaft.io.ScreenshotManager;
@@ -204,7 +206,10 @@ public class BrowserActions {
      *            navigation
      */
     public static void navigateToURL(WebDriver driver, String targetUrl, String targetUrlAfterRedirection) {
+	// force stop any current navigation
+	((JavascriptExecutor) driver).executeScript("return window.stop;");
 	triggerWaitForLazyLoading(driver);
+
 	String initialURL = "";
 	String initialSource = driver.getPageSource();
 	try {
@@ -214,7 +219,7 @@ public class BrowserActions {
 		navigateToNewURL(driver, targetUrl, targetUrlAfterRedirection);
 		triggerWaitForLazyLoading(driver);
 
-		if (!driver.getPageSource().equalsIgnoreCase(initialSource)) {
+		if ((ElementActions.getElementsCount(driver, By.tagName("html")) == 1) && (!driver.getPageSource().equalsIgnoreCase(initialSource))) {
 		    passAction(driver, "navigateToURL", targetUrl);
 		}
 	    } else {
@@ -222,7 +227,9 @@ public class BrowserActions {
 		driver.navigate().refresh();
 		triggerWaitForLazyLoading(driver);
 
-		passAction(driver, "navigateToURL", targetUrl);
+		if (ElementActions.getElementsCount(driver, By.tagName("html")) == 1) {
+		    passAction(driver, "navigateToURL", targetUrl);
+		}
 	    }
 
 	} catch (Exception e) {

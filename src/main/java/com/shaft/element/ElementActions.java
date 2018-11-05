@@ -253,7 +253,7 @@ public class ElementActions {
 	int foundElements = 0;
 	(new WebDriverWait(driver, timeout)).until(ExpectedConditions.presenceOfElementLocated(elementLocator));
 	foundElements = driver.findElements(elementLocator).size();
-	if (foundElements == 1) {
+	if ((foundElements == 1) && (!elementLocator.equals(By.tagName("html")))) {
 	    moveToElement(driver, elementLocator);
 	    if (!elementLocator.toString().contains("input[@type='file']")) {
 		(new WebDriverWait(driver, timeout)).until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
@@ -613,6 +613,11 @@ public class ElementActions {
 		    failAction(driver, "click", "Unhandled Exception: " + e.getMessage());
 		}
 	    }
+	    // issue: if performing a navigation after clicking on the login button,
+	    // navigation is triggered immediately and hence it fails.
+	    // solution: wait for any possible navigation that may be triggered by this
+	    // click action to conclude
+	    getElementsCount(driver, By.tagName("html"));
 	} else {
 	    failAction(driver, "click");
 	}
