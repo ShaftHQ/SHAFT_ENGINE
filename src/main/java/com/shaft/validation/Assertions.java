@@ -77,7 +77,8 @@ public class Assertions {
     public static void assertEquals(Object expectedValue, Object actualValue, Boolean assertionType) {
 	// enhance to handle different comparison types and leave regex as default
 
-	ReportManager.log("Assertion [" + "assertEquals" + "] is being performed, with expectedValue [" + expectedValue + "], actualValue [" + actualValue + "], and assertionType [" + assertionType + "].");
+	ReportManager.logDiscreet("Assertion [" + "assertEquals" + "] is being performed, with expectedValue ["
+		+ expectedValue + "], actualValue [" + actualValue + "], and assertionType [" + assertionType + "].");
 	// String escapedExpectedValue = String.valueOf(expectedValue);
 	// escapedExpectedValue =
 	// escapeSpecialCharacters(String.valueOf(expectedValue));
@@ -88,7 +89,8 @@ public class Assertions {
 		Assert.assertTrue((String.valueOf(actualValue)).matches(String.valueOf(expectedValue)));
 		pass("Assertion Passed; actual value does match expected value [" + expectedValue + "].");
 	    } catch (AssertionError e) {
-		fail("Assertion Failed; actual value [" + actualValue + "] does not match expected value [" + expectedValue + "].", e);
+		fail("Assertion Failed; actual value [" + actualValue + "] does not match expected value ["
+			+ expectedValue + "].", e);
 	    } catch (Exception e) {
 		ReportManager.log(e);
 		fail("Assertion Failed; an unhandled exception occured.", e);
@@ -97,7 +99,8 @@ public class Assertions {
 	    try {
 		// Assert.assertNotEquals(expectedValue, actualValue);
 		Assert.assertFalse((String.valueOf(actualValue)).matches(String.valueOf(expectedValue)));
-		pass("Assertion Passed; actual value [" + actualValue + "] does not match expected value [" + expectedValue + "].");
+		pass("Assertion Passed; actual value [" + actualValue + "] does not match expected value ["
+			+ expectedValue + "].");
 	    } catch (AssertionError e) {
 		fail("Assertion Failed; actual value does match expected value [" + expectedValue + "].", e);
 	    } catch (Exception e) {
@@ -119,7 +122,7 @@ public class Assertions {
      *            refer to null
      */
     public static void assertNull(Object object, Boolean assertionType) {
-	ReportManager.log("Assertion [" + "assertNull" + "] is being performed.");
+	ReportManager.logDiscreet("Assertion [" + "assertNull" + "] is being performed.");
 
 	if (assertionType) {
 	    try {
@@ -158,21 +161,26 @@ public class Assertions {
      *            'false' for a negative assertion that the element doesn't exist
      */
     public static void assertElementExists(WebDriver driver, By elementLocator, Boolean assertionType) {
-	ReportManager.log("Assertion [" + "assertElementExists" + "] is being performed.");
+	ReportManager.logDiscreet("Assertion [" + "assertElementExists" + "] is being performed.");
 	try {
-	    switch (ElementActions.getElementsCount(driver, elementLocator, elementDoesntExistTimeout, retriesBeforeThrowingElementNotFoundException)) {
+	    switch (ElementActions.getElementsCount(driver, elementLocator, elementDoesntExistTimeout,
+		    retriesBeforeThrowingElementNotFoundException)) {
 	    case 0:
 		if (assertionType) {
-		    fail(driver, "Assertion Failed; element does not exist. Locator [" + elementLocator.toString() + "].");
+		    fail(driver,
+			    "Assertion Failed; element does not exist. Locator [" + elementLocator.toString() + "].");
 		} else {
-		    pass(driver, "Assertion Passed; element does not exist. Locator [" + elementLocator.toString() + "].");
+		    pass(driver,
+			    "Assertion Passed; element does not exist. Locator [" + elementLocator.toString() + "].");
 		}
 		break;
 	    case 1:
 		if (assertionType) {
-		    pass(driver, elementLocator, "Assertion Passed; element exists and is unique. Locator [" + elementLocator.toString() + "].");
+		    pass(driver, elementLocator, "Assertion Passed; element exists and is unique. Locator ["
+			    + elementLocator.toString() + "].");
 		} else {
-		    fail(driver, elementLocator, "Assertion Failed; element exists and is unique. Locator [" + elementLocator.toString() + "].");
+		    fail(driver, elementLocator, "Assertion Failed; element exists and is unique. Locator ["
+			    + elementLocator.toString() + "].");
 		}
 		break;
 	    default:
@@ -185,7 +193,8 @@ public class Assertions {
 	}
     }
 
-    public static void assertElementAttribute(WebDriver driver, By elementLocator, String elementAttribute, String expectedValue, Boolean assertionType) {
+    public static void assertElementAttribute(WebDriver driver, By elementLocator, String elementAttribute,
+	    String expectedValue, Boolean assertionType) {
 	assertElementAttribute(driver, elementLocator, elementAttribute, expectedValue, 2, assertionType);
     }
 
@@ -212,13 +221,16 @@ public class Assertions {
      *            assertion that the element attribute actual value doesn't match
      *            the expected value
      */
-    public static void assertElementAttribute(WebDriver driver, By elementLocator, String elementAttribute, String expectedValue, int comparisonType, Boolean assertionType) {
-	ReportManager.log("Assertion [" + "assertElementAttribute" + "] is being performed for target attribute [" + elementAttribute + "].");
+    public static void assertElementAttribute(WebDriver driver, By elementLocator, String elementAttribute,
+	    String expectedValue, int comparisonType, Boolean assertionType) {
+	ReportManager.logDiscreet("Assertion [" + "assertElementAttribute"
+		+ "] is being performed for target attribute [" + elementAttribute + "].");
 	// String escapedExpectedValue = expectedValue;
 	// escapedExpectedValue = escapeSpecialCharacters(expectedValue);
 
 	String actualValue = null;
 
+	ReportManager.setDiscreetLogging(true);
 	switch (elementAttribute.toLowerCase()) {
 	case "text":
 	    actualValue = ElementActions.getText(driver, elementLocator);
@@ -233,6 +245,7 @@ public class Assertions {
 	    actualValue = ElementActions.getAttribute(driver, elementLocator, elementAttribute);
 	    break;
 	}
+	ReportManager.setDiscreetLogging(false);
 
 	if (assertionType) {
 	    // handle returned special characters that are seen as regex
@@ -259,9 +272,11 @@ public class Assertions {
 		    fail("Assertion Failed; an unhandled comparison case was selected.");
 		    break;
 		}
-		pass(driver, elementLocator, "Assertion Passed; actual value of [" + elementAttribute + "] does match expected value [" + expectedValue + "].");
+		pass(driver, elementLocator, "Assertion Passed; actual value of [" + elementAttribute
+			+ "] does match expected value [" + expectedValue + "].");
 	    } catch (AssertionError e) {
-		fail(driver, elementLocator, "Assertion Failed; actual value of [" + elementAttribute + "] equals [" + actualValue + "] which does not match expected value [" + expectedValue + "].", e);
+		fail(driver, elementLocator, "Assertion Failed; actual value of [" + elementAttribute + "] equals ["
+			+ actualValue + "] which does not match expected value [" + expectedValue + "].", e);
 	    } catch (Exception e) {
 		ReportManager.log(e);
 		fail("Assertion Failed; an unhandled exception occured.", e);
@@ -290,9 +305,11 @@ public class Assertions {
 		    fail("Assertion Failed; an unhandled comparison case was selected.");
 		    break;
 		}
-		pass(driver, elementLocator, "Assertion Passed; actual value of [" + elementAttribute + "] equals [" + actualValue + "] which does not match expected value [" + expectedValue + "].");
+		pass(driver, elementLocator, "Assertion Passed; actual value of [" + elementAttribute + "] equals ["
+			+ actualValue + "] which does not match expected value [" + expectedValue + "].");
 	    } catch (AssertionError e) {
-		fail(driver, elementLocator, "Assertion Failed; actual value of [" + elementAttribute + "] does match expected value [" + expectedValue + "].", e);
+		fail(driver, elementLocator, "Assertion Failed; actual value of [" + elementAttribute
+			+ "] does match expected value [" + expectedValue + "].", e);
 	    } catch (Exception e) {
 		ReportManager.log(e);
 		fail("Assertion Failed; an unhandled exception occured.", e);
@@ -300,7 +317,8 @@ public class Assertions {
 	}
     }
 
-    public static void assertBrowserAttribute(WebDriver driver, String browserAttribute, String expectedValue, Boolean assertionType) {
+    public static void assertBrowserAttribute(WebDriver driver, String browserAttribute, String expectedValue,
+	    Boolean assertionType) {
 	assertBrowserAttribute(driver, browserAttribute, expectedValue, 2, assertionType);
     }
 
@@ -324,14 +342,17 @@ public class Assertions {
      *            assertion that the browser attribute actual value doesn't match
      *            the expected value
      */
-    public static void assertBrowserAttribute(WebDriver driver, String browserAttribute, String expectedValue, int comparisonType, Boolean assertionType) {
+    public static void assertBrowserAttribute(WebDriver driver, String browserAttribute, String expectedValue,
+	    int comparisonType, Boolean assertionType) {
 
-	ReportManager.log("Assertion [" + "assertBrowserAttribute" + "] is being performed for target attribute [" + browserAttribute + "].");
+	ReportManager.logDiscreet("Assertion [" + "assertBrowserAttribute"
+		+ "] is being performed for target attribute [" + browserAttribute + "].");
 	// String escapedExpectedValue = expectedValue;
 	// escapedExpectedValue = escapeSpecialCharacters(expectedValue);
 
 	String actualValue = null;
 
+	ReportManager.setDiscreetLogging(true);
 	switch (browserAttribute.toLowerCase()) {
 	case "currenturl":
 	    actualValue = BrowserActions.getCurrentURL(driver);
@@ -355,6 +376,7 @@ public class Assertions {
 	    actualValue = "";
 	    break;
 	}
+	ReportManager.setDiscreetLogging(false);
 
 	if (assertionType) {
 	    try {
@@ -380,9 +402,11 @@ public class Assertions {
 		    fail("Assertion Failed; an unhandled comparison case was selected.");
 		    break;
 		}
-		pass(driver, "Assertion Passed; actual value of [" + browserAttribute + "] does match expected value [" + expectedValue + "].");
+		pass(driver, "Assertion Passed; actual value of [" + browserAttribute + "] does match expected value ["
+			+ expectedValue + "].");
 	    } catch (AssertionError e) {
-		fail(driver, "Assertion Failed; actual value of [" + browserAttribute + "] equals [" + actualValue + "] which does not match expected value [" + expectedValue + "].", e);
+		fail(driver, "Assertion Failed; actual value of [" + browserAttribute + "] equals [" + actualValue
+			+ "] which does not match expected value [" + expectedValue + "].", e);
 	    } catch (Exception e) {
 		ReportManager.log(e);
 		fail("Assertion Failed; an unhandled exception occured.", e);
@@ -411,9 +435,11 @@ public class Assertions {
 		    fail("Assertion Failed; an unhandled comparison case was selected.");
 		    break;
 		}
-		pass(driver, "Assertion Passed; actual value of [" + browserAttribute + "] equals [" + actualValue + "] which does not match expected value [" + expectedValue + "].");
+		pass(driver, "Assertion Passed; actual value of [" + browserAttribute + "] equals [" + actualValue
+			+ "] which does not match expected value [" + expectedValue + "].");
 	    } catch (AssertionError e) {
-		fail(driver, "Assertion Failed; actual value of [" + browserAttribute + "] does match expected value [" + expectedValue + "].", e);
+		fail(driver, "Assertion Failed; actual value of [" + browserAttribute + "] does match expected value ["
+			+ expectedValue + "].", e);
 	    } catch (Exception e) {
 		ReportManager.log(e);
 		fail("Assertion Failed; an unhandled exception occured.", e);
@@ -422,13 +448,17 @@ public class Assertions {
     }
 
     public static void assertGreaterThanOrEquals(Number expectedValue, Number actualValue, Boolean assertionType) {
-	ReportManager.log("Assertion [" + "assertGreaterThanOrEquals" + "] is being performed, with expectedValue [" + expectedValue + "], actualValue [" + actualValue + "], and assertionType [" + assertionType + "].");
+	ReportManager.logDiscreet("Assertion [" + "assertGreaterThanOrEquals"
+		+ "] is being performed, with expectedValue [" + expectedValue + "], actualValue [" + actualValue
+		+ "], and assertionType [" + assertionType + "].");
 	if (assertionType) {
 	    try {
 		Assert.assertTrue(actualValue.floatValue() >= expectedValue.floatValue());
-		pass("Assertion Passed; actual value [" + actualValue + "] is greater than or equals expected value [" + expectedValue + "].");
+		pass("Assertion Passed; actual value [" + actualValue + "] is greater than or equals expected value ["
+			+ expectedValue + "].");
 	    } catch (AssertionError e) {
-		fail("Assertion Failed; actual value [" + actualValue + "] is not greater than or equals expected value [" + expectedValue + "].", e);
+		fail("Assertion Failed; actual value [" + actualValue
+			+ "] is not greater than or equals expected value [" + expectedValue + "].", e);
 	    } catch (Exception e) {
 		ReportManager.log(e);
 		fail("Assertion Failed; an unhandled exception occured.", e);
@@ -436,9 +466,11 @@ public class Assertions {
 	} else {
 	    try {
 		Assert.assertFalse(actualValue.floatValue() >= expectedValue.floatValue());
-		pass("Assertion Passed; actual value [" + actualValue + "] is not greater than or equals expected value [" + expectedValue + "].");
+		pass("Assertion Passed; actual value [" + actualValue
+			+ "] is not greater than or equals expected value [" + expectedValue + "].");
 	    } catch (AssertionError e) {
-		fail("Assertion Failed; actual value [" + actualValue + "] is greater than or equals expected value [" + expectedValue + "].", e);
+		fail("Assertion Failed; actual value [" + actualValue + "] is greater than or equals expected value ["
+			+ expectedValue + "].", e);
 	    } catch (Exception e) {
 		ReportManager.log(e);
 		fail("Assertion Failed; an unhandled exception occured.", e);

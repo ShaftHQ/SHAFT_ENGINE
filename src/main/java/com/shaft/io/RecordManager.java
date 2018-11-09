@@ -27,53 +27,48 @@ public class RecordManager {
 	throw new IllegalStateException("Utility class");
     }
 
-    protected static void startRecording() {
+    public static void startRecording() {
+	// set the graphics configuration
+	if (RECORD_VIDEO && screenRecorder == null && !GraphicsEnvironment.isHeadless()) {
+	    GraphicsConfiguration gc = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration();
 
-	if (RECORD_VIDEO && screenRecorder == null) {
-	    // set the graphics configuration
-	    if (!GraphicsEnvironment.isHeadless()) {
-		GraphicsConfiguration gc = GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice().getDefaultConfiguration();
+	    try {
+		// screenRecorder = new ScreenRecorder(gc);
 
-		try {
-		    // screenRecorder = new ScreenRecorder(gc);
+		// new Format(MediaTypeKey, MediaType.VIDEO, EncodingKey, "black", FrameRateKey,
+		// Rational.valueOf(30)), null, new File(RECORDING_FOLDER));
 
-		    // new Format(MediaTypeKey, MediaType.VIDEO, EncodingKey, "black", FrameRateKey,
-		    // Rational.valueOf(30)), null, new File(RECORDING_FOLDER));
+		screenRecorder = new ScreenRecorder(gc, gc.getBounds(), new Format(MediaTypeKey, MediaType.FILE, MimeTypeKey, FormatKeys.MIME_QUICKTIME), new Format(MediaTypeKey, MediaType.VIDEO, EncodingKey, VideoFormatKeys.ENCODING_QUICKTIME_ANIMATION, CompressorNameKey, ENCODING_AVI_TECHSMITH_SCREEN_CAPTURE, DepthKey, 24, FrameRateKey, Rational.valueOf(15), QualityKey, 1.0f, KeyFrameIntervalKey, 15 * 60), null, null, new File(RECORDING_FOLDER));
 
-		    screenRecorder = new ScreenRecorder(gc, gc.getBounds(), new Format(MediaTypeKey, MediaType.FILE, MimeTypeKey, FormatKeys.MIME_QUICKTIME), new Format(MediaTypeKey, MediaType.VIDEO, EncodingKey, VideoFormatKeys.ENCODING_QUICKTIME_ANIMATION, CompressorNameKey, ENCODING_AVI_TECHSMITH_SCREEN_CAPTURE, DepthKey, 24, FrameRateKey, Rational.valueOf(15), QualityKey, 1.0f, KeyFrameIntervalKey, 15 * 60), null, null, new File(RECORDING_FOLDER));
+		screenRecorder.setMaxRecordingTime(3600000); // 3600000 milliseconds = 60 minutes = 1 hour
 
-		    screenRecorder.setMaxRecordingTime(3600000); // 3600000 milliseconds = 60 minutes = 1 hour
+		screenRecorder.start();
 
-		    screenRecorder.start();
-
-		} catch (IOException | AWTException | NullPointerException e) {
-		    ReportManager.log(e);
-		}
+	    } catch (IOException | AWTException | NullPointerException e) {
+		ReportManager.log(e);
 	    }
 	}
     }
 
-    protected static void stopRecording() {
+    public static void stopRecording() {
 	if (RECORD_VIDEO && screenRecorder != null) {
 	    try {
 		screenRecorder.stop();
 	    } catch (IOException e) {
-		// TODO Auto-generated catch block
-		e.printStackTrace();
+		ReportManager.log(e);
 	    }
 	}
     }
 
-    protected static void attachRecording() {
+    public static void attachRecording() {
 	if (RECORD_VIDEO && screenRecorder != null) {
 	    List<File> movies = screenRecorder.getCreatedMovieFiles();
 
 	    for (int i = 0; i < movies.size(); i++) {
 		try {
-		    ReportManager.attach("Video Recording", "Execution Video #" + i + 1, new FileInputStream(movies.get(i)));
+		    ReportManager.attachAsStep("Video Recording", "Execution Video #" + i + 1, new FileInputStream(movies.get(i)));
 		} catch (FileNotFoundException e) {
-		    // TODO Auto-generated catch block
-		    e.printStackTrace();
+		    ReportManager.log(e);
 		}
 	    }
 	}

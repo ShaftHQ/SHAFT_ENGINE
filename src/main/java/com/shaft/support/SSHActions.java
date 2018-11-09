@@ -54,7 +54,7 @@ public class SSHActions {
 	}
 	ReportManager.log(message);
 	if (log != null) {
-	    ReportManager.attach("Command Response data", log);
+	    ReportManager.attachAsStep("API Response", "Command Log", log);
 	}
     }
 
@@ -69,7 +69,7 @@ public class SSHActions {
 	}
 	ReportManager.log(message);
 	if (log != null) {
-	    ReportManager.attach("Command Response data", log);
+	    ReportManager.attachAsStep("API Response", "Command Log", log);
 	}
 	Assert.fail(message);
     }
