@@ -3,15 +3,12 @@ package unitTests;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.shaft.browser.BrowserActions;
 import com.shaft.browser.BrowserFactory;
 import com.shaft.element.ElementActions;
-import com.shaft.io.ReportManager;
 
 public class tests_element_elementActions {
     WebDriver driver;
@@ -61,16 +58,5 @@ public class tests_element_elementActions {
     @BeforeClass // Set-up method, to be run once before the first test
     public void beforeClass() {
 	driver = BrowserFactory.getBrowser("GoogleChrome");
-    }
-
-    @AfterMethod(alwaysRun = true)
-    public void afterMethod() {
-	ReportManager.getTestLog();
-    }
-
-    @AfterClass(alwaysRun = true)
-    public void afterClass() {
-	BrowserFactory.closeAllDrivers();
-	ReportManager.getFullLog();
     }
 }

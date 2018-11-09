@@ -1,13 +1,19 @@
 package com.shaft.io;
 
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+
+import javax.imageio.ImageIO;
+import javax.imageio.stream.FileImageOutputStream;
+import javax.imageio.stream.ImageOutputStream;
 
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
@@ -17,6 +23,7 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.testng.Reporter;
 
+import com.shaft.browser.BrowserFactory;
 import com.shaft.element.ElementActions;
 import com.shaft.element.JSWaiter;
 
@@ -24,18 +31,20 @@ public class ScreenshotManager {
     private static final String SCREENSHOT_FOLDERPATH = "allure-results/screenshots/";
     private static final String SCREENSHOT_FOLDERNAME = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
     private static String screenshotFileName = "Screenshot";
-    private static final String SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT = System.getProperty("screenshotParams_whenToTakeAScreenshot");
-    private static final Boolean SCREENSHOT_PARAMS_HIGHLIGHTELEMENTS = Boolean.valueOf(System.getProperty("screenshotParams_highlightElements"));
-    private static final String SCREENSHOT_PARAMS_SCREENSHOTTYPE = System.getProperty("screenshotParams_screenshotType");
-    private static final String SCREENSHOT_PARAMS_SKIPPEDELEMENTSFROMSCREENSHOT = System.getProperty("screenshotParams_skippedElementsFromScreenshot");
+    private static final String SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT = System
+	    .getProperty("screenshotParams_whenToTakeAScreenshot");
+    private static final Boolean SCREENSHOT_PARAMS_HIGHLIGHTELEMENTS = Boolean
+	    .valueOf(System.getProperty("screenshotParams_highlightElements"));
+    private static final String SCREENSHOT_PARAMS_SCREENSHOTTYPE = System
+	    .getProperty("screenshotParams_screenshotType");
+    private static final String SCREENSHOT_PARAMS_SKIPPEDELEMENTSFROMSCREENSHOT = System
+	    .getProperty("screenshotParams_skippedElementsFromScreenshot");
     private static By targetElementLocator;
 
     private static final int CUSTOMELEMENTIDENTIFICATIONTIMEOUT = 1;
     private static final int RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION = 1;
 
-    private ScreenshotManager() {
-	throw new IllegalStateException("Utility class");
-    }
+    private static final Boolean CREATE_GIF = Boolean.valueOf(System.getProperty("createAnimatedGif").trim());
 
     /*
      * A flag to determine when to take a screenshot. Always; after every browser
@@ -43,13 +52,23 @@ public class ScreenshotManager {
      * or verification point. FailuresOnly; after validation failures and element
      * action failures.
      */
-
     private static boolean globalPassFailStatus = false;
+
     /*
      * A flag to control the highlighting of the element green for passing yellow
      * for failing
      */
     private static String appendedText = "";
+
+    private static WebDriver gifDriver = null;
+    // private static ImageWriter gifWriter = null;
+    private static String gifFileName = "";
+    private static ImageOutputStream gifOutputStream = null;
+    private static GifSequenceWriter gifWriter = null;
+
+    private ScreenshotManager() {
+	throw new IllegalStateException("Utility class");
+    }
 
     /**
      * Used only on browser-based custom validation points. passFailStatus; true
@@ -68,11 +87,16 @@ public class ScreenshotManager {
 	    appendedText = "failed";
 	}
 
-	internalCaptureScreenShot(driver, null, appendedText, (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always")) || (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly")) || (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly") && (!passFailStatus)));
+	internalCaptureScreenShot(driver, null, appendedText,
+		(SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always"))
+			|| (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly"))
+			|| (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly") && (!passFailStatus)));
 
 	// Note: Excluded the "Always" case as there will already be another screenshot
 	// taken by the browser/element action // reversed this option to be able to
 	// take a failure screenshot
+
+	appendToAnimatedGif();
     }
 
     /**
@@ -97,10 +121,15 @@ public class ScreenshotManager {
 	    appendedText = "failed";
 	}
 
-	internalCaptureScreenShot(driver, elementLocator, appendedText, (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always")) || (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly")) || (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly") && (!passFailStatus)));
+	internalCaptureScreenShot(driver, elementLocator, appendedText,
+		(SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always"))
+			|| (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly"))
+			|| (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly") && (!passFailStatus)));
 	// Note: Excluded the "Always" case as there will already be another screenshot
 	// taken by the browser/element action // reversed this option to be able to
 	// take a failure screenshot
+
+	appendToAnimatedGif();
     }
 
     /**
@@ -120,7 +149,12 @@ public class ScreenshotManager {
     public static void captureScreenShot(WebDriver driver, String appendedText, boolean passFailStatus) {
 	globalPassFailStatus = passFailStatus;
 
-	internalCaptureScreenShot(driver, null, appendedText, (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always")) || (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly") && (!passFailStatus)) || ((SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly")) && (!passFailStatus)));
+	internalCaptureScreenShot(driver, null, appendedText,
+		(SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always"))
+			|| (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly") && (!passFailStatus))
+			|| ((SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly")) && (!passFailStatus)));
+
+	appendToAnimatedGif();
     }
 
     /**
@@ -136,11 +170,15 @@ public class ScreenshotManager {
      *            the text that needs to be appended to the name of the screenshot
      *            to make it more recognizable
      */
-    public static void captureScreenShot(WebDriver driver, By elementLocator, String appendedText, boolean passFailStatus) {
+    public static void captureScreenShot(WebDriver driver, By elementLocator, String appendedText,
+	    boolean passFailStatus) {
 	globalPassFailStatus = passFailStatus;
 	targetElementLocator = elementLocator;
 
-	internalCaptureScreenShot(driver, elementLocator, appendedText, SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always"));
+	internalCaptureScreenShot(driver, elementLocator, appendedText,
+		SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always"));
+
+	appendToAnimatedGif();
     }
 
     /**
@@ -160,7 +198,8 @@ public class ScreenshotManager {
      *            screenshotParams_whenToTakeAScreenshot parameter from the pom.xml
      *            file
      */
-    private static void internalCaptureScreenShot(WebDriver driver, By elementLocator, String appendedText, boolean takeScreenshot) {
+    private static void internalCaptureScreenShot(WebDriver driver, By elementLocator, String appendedText,
+	    boolean takeScreenshot) {
 	new File(SCREENSHOT_FOLDERPATH).mkdirs();
 	if (takeScreenshot) {
 	    /**
@@ -180,7 +219,9 @@ public class ScreenshotManager {
 	     * If an elementLocator was passed, store regularElementStyle and highlight that
 	     * element before taking the screenshot
 	     */
-	    if (SCREENSHOT_PARAMS_HIGHLIGHTELEMENTS && elementLocator != null && (ElementActions.getElementsCount(driver, elementLocator, CUSTOMELEMENTIDENTIFICATIONTIMEOUT, RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1)) {
+	    if (SCREENSHOT_PARAMS_HIGHLIGHTELEMENTS && elementLocator != null
+		    && (ElementActions.getElementsCount(driver, elementLocator, CUSTOMELEMENTIDENTIFICATIONTIMEOUT,
+			    RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1)) {
 		element = driver.findElement(elementLocator);
 		js = (JavascriptExecutor) driver;
 		regularElementStyle = highlightElementAndReturnDefaultStyle(element, js, setHighlightedElementStyle());
@@ -200,7 +241,9 @@ public class ScreenshotManager {
 	    /**
 	     * Declare screenshot file name
 	     */
-	    String testCaseName = Reporter.getCurrentTestResult().getTestClass().getRealClass().getName();
+	    // String testCaseName =
+	    // Reporter.getCurrentTestResult().getTestClass().getRealClass().getName();
+	    String testCaseName = Reporter.getCurrentTestResult().getMethod().getMethodName();
 	    screenshotFileName = System.currentTimeMillis() + "_" + testCaseName;
 	    if (!appendedText.equals("")) {
 		screenshotFileName = screenshotFileName + "_" + appendedText;
@@ -219,7 +262,8 @@ public class ScreenshotManager {
 	     * Copy the screenshot to desired path, and append the appropriate filename.
 	     * 
 	     */
-	    FileManager.copyFile(src.getAbsolutePath(), SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME + FileSystems.getDefault().getSeparator() + screenshotFileName + ".png");
+	    FileManager.copyFile(src.getAbsolutePath(), SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME
+		    + FileSystems.getDefault().getSeparator() + screenshotFileName + ".png");
 
 	    /*
 	     * File screenshotFile = new File(SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME
@@ -251,7 +295,8 @@ public class ScreenshotManager {
 		List<WebElement> skippedElementsList = new ArrayList<>();
 		String[] skippedElementLocators = SCREENSHOT_PARAMS_SKIPPEDELEMENTSFROMSCREENSHOT.split(";");
 		for (String locator : skippedElementLocators) {
-		    if (ElementActions.getElementsCount(driver, By.xpath(locator), CUSTOMELEMENTIDENTIFICATIONTIMEOUT, RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1) {
+		    if (ElementActions.getElementsCount(driver, By.xpath(locator), CUSTOMELEMENTIDENTIFICATIONTIMEOUT,
+			    RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1) {
 			skippedElementsList.add(driver.findElement(By.xpath(locator)));
 		    }
 		}
@@ -271,7 +316,8 @@ public class ScreenshotManager {
 
     private static File takeElementScreenshot(WebDriver driver) {
 	try {
-	    if (targetElementLocator != null && ElementActions.getElementsCount(driver, targetElementLocator, CUSTOMELEMENTIDENTIFICATIONTIMEOUT, RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1) {
+	    if (targetElementLocator != null && ElementActions.getElementsCount(driver, targetElementLocator,
+		    CUSTOMELEMENTIDENTIFICATIONTIMEOUT, RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1) {
 		return ScreenshotUtils.makeElementScreenshot(driver, targetElementLocator);
 	    } else {
 		return ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
@@ -288,17 +334,19 @@ public class ScreenshotManager {
 	 * 
 	 */
 	try {
-	    ReportManager.attach("Screenshot", screenshotFileName, new FileInputStream(screenshotFile));
+	    ReportManager.attachAsStep("Screenshot", screenshotFileName, new FileInputStream(screenshotFile));
 
 	} catch (FileNotFoundException e) {
 	    ReportManager.log(e);
 	}
     }
 
-    private static String highlightElementAndReturnDefaultStyle(WebElement element, JavascriptExecutor js, String highlightedElementStyle) {
+    private static String highlightElementAndReturnDefaultStyle(WebElement element, JavascriptExecutor js,
+	    String highlightedElementStyle) {
 	String regularElementStyle = element.getAttribute("style");
 	if (regularElementStyle != null && !regularElementStyle.equals("")) {
-	    js.executeScript("arguments[0].style.cssText = arguments[1];", element, regularElementStyle + highlightedElementStyle);
+	    js.executeScript("arguments[0].style.cssText = arguments[1];", element,
+		    regularElementStyle + highlightedElementStyle);
 	} else {
 	    js.executeScript("arguments[0].setAttribute('style', arguments[1]);", element, highlightedElementStyle);
 	}
@@ -321,5 +369,68 @@ public class ScreenshotManager {
 	    // background-color:#ffff66
 	}
 	return highlightedElementStyle;
+    }
+
+    public static void startAnimatedGif(WebDriver driver) {
+	if (CREATE_GIF && gifDriver == null) {
+	    gifDriver = driver;
+
+	    String testCaseName = Reporter.getCurrentTestResult().getMethod().getMethodName();
+	    gifFileName = SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME + FileSystems.getDefault().getSeparator()
+		    + System.currentTimeMillis() + "_" + testCaseName + ".gif";
+
+	    File src = ((TakesScreenshot) gifDriver).getScreenshotAs(OutputType.FILE); // takes first screenshot
+	    FileManager.copyFile(src.getAbsolutePath(), gifFileName);
+	    try {
+		// grab the output image type from the first image in the sequence
+		BufferedImage firstImage = ImageIO.read(new File(gifFileName));
+
+		// create a new BufferedOutputStream
+		gifOutputStream = new FileImageOutputStream(new File(gifFileName));
+
+		// create a gif sequence with the type of the first image, 500 milliseconds
+		// between frames, which loops infinitely
+		gifWriter = new GifSequenceWriter(gifOutputStream, firstImage.getType(), 500, true);
+
+		// write out the first image to the sequence...
+		gifWriter.writeToSequence(firstImage);
+	    } catch (IOException e) {
+		ReportManager.log(e);
+	    }
+	}
+    }
+
+    private static void appendToAnimatedGif() {
+	// ensure that animatedGif is started, else force start it
+	if (CREATE_GIF && (gifDriver == null)) {
+	    BrowserFactory.startAnimatedGif();
+	}
+
+	// screenshot to be appended to animated gif
+	if (CREATE_GIF && (gifDriver != null)) {
+	    try {
+		BufferedImage image = ImageIO.read(((TakesScreenshot) gifDriver).getScreenshotAs(OutputType.FILE));
+		gifWriter.writeToSequence(image);
+	    } catch (IOException | IllegalStateException | NullPointerException e) {
+		ReportManager.log(e);
+	    }
+	}
+    }
+
+    public static void attachAnimatedGif() {
+	// stop and attach
+	if (CREATE_GIF && (gifDriver != null) && (gifOutputStream != null) && (gifWriter != null)) {
+	    try {
+		gifWriter.close();
+		gifOutputStream.close();
+
+		gifOutputStream = null;
+		gifWriter = null;
+		gifDriver = null;
+		ReportManager.attach("Animated Gif", screenshotFileName, new FileInputStream(gifFileName));
+	    } catch (IOException | NullPointerException | IllegalStateException e) {
+		ReportManager.log(e);
+	    }
+	}
     }
 }

@@ -4,12 +4,12 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.mohies</groupId>
 	<artifactId>SHAFT_ENGINE</artifactId>
-	<version>2.0.20181105</version>
+	<version>2.1.20181109</version>
 	<name>SHAFT_ENGINE</name>
 	<description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
 
 	<properties>
-		<shaft_engine.version>SHAFT_ENGINE-2.0.20181105</shaft_engine.version>
+		<shaft_engine.version>SHAFT_ENGINE-2.1.20181109</shaft_engine.version>
 
 		<!-- SHAFT Test Run Parameters -->
 		<testSuite.name>unitTestSuite</testSuite.name>
@@ -31,6 +31,7 @@
 		<screenshotParams_skippedElementsFromScreenshot></screenshotParams_skippedElementsFromScreenshot> <!-- The above element will be skipped in case of persistent elements/menus 
 			that show up multiple times in the full page screenshots -->
 		<recordVideo>false</recordVideo>
+		<createAnimatedGif>true</createAnimatedGif>
 
 		<automaticallyGenerateAllureReport>false</automaticallyGenerateAllureReport> <!-- Acceptable Values: true | false -->
 
@@ -249,6 +250,7 @@
 							<allureResultsFolderPath>${allureResultsFolderPath}</allureResultsFolderPath>
 							<automaticallyGenerateAllureReport>${automaticallyGenerateAllureReport}</automaticallyGenerateAllureReport>
 							<recordVideo>${recordVideo}</recordVideo>
+							<createAnimatedGif>${createAnimatedGif}</createAnimatedGif>
 						</systemPropertyVariables>
 						<!-- To continue execution after validation errors are thrown in the 
 							before method -->
@@ -262,6 +264,16 @@
 						<argLine>
 							-javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"
 						</argLine>
+						<properties>
+							<property>
+								<name>usedefaultlisteners</name>
+								<value>true</value> <!-- disabling default listeners is optional -->
+							</property>
+							<property>
+								<name>listener</name>
+								<value>com.shaft.listeners.SuiteListener,com.shaft.listeners.InvokedMethodListener</value>
+							</property>
+						</properties>
 					</configuration>
 					<dependencies>
 						<dependency>

@@ -117,30 +117,6 @@ public class ElementActions {
     }
 
     /**
-     * @deprecated use {@link #getElementsCount(WebDriver, By)} instead.
-     * 
-     *             Returns True if only one element matches the locator specified,
-     *             and Fails the test (with a descriptive error) if no elements were
-     *             found, or if more than one element was found. Timeout = @param
-     *             timeout, and retriesBeforeThrowingElementNotFoundException = 10.
-     * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
-     * @param timeout
-     *            controls the wait timeout until the target element is present on
-     *            the current page
-     * @return boolean value, true if the element is found and unique, and false if
-     *         the element is not found or is not unique
-     */
-    @Deprecated
-    protected static boolean canFindUniqueElementForInternalUse(WebDriver driver, By elementLocator, int timeout) {
-	return attemptToFindUniqueElement(driver, elementLocator, timeout, true);
-    }
-
-    /**
      * Returns True if only one element matches the locator specified, and Fails the
      * test (with a descriptive error) if no elements were found, or if more than
      * one element was found. Timeout = @param timeout, and

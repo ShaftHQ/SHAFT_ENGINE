@@ -33,6 +33,7 @@ import org.testng.Assert;
 import com.shaft.element.JSWaiter;
 import com.shaft.io.ExcelFileManager;
 import com.shaft.io.ReportManager;
+import com.shaft.io.ScreenshotManager;
 
 public class BrowserFactory {
 
@@ -47,6 +48,7 @@ public class BrowserFactory {
     // MicrosoftEdge | Safari
     private static final int PAGE_LOAD_TIMEOUT = 60;
     private static final int IMPLICIT_WAIT_TIMEOUT = 10;
+    private static final Boolean CREATE_GIF = Boolean.valueOf(System.getProperty("createAnimatedGif").trim());
 
     private static String driversPath;
     private static String fileExtension;
@@ -413,20 +415,33 @@ public class BrowserFactory {
      * 
      */
     public static void closeAllDrivers() {
-	try {
-	    for (Entry<String, WebDriver> entry : drivers.entrySet()) {
-		attachBrowserLogs(entry.getKey(), entry.getValue());
-		entry.getValue().close();
-		entry.getValue().quit();
+	if (!drivers.entrySet().isEmpty()) {
+	    try {
+		for (Entry<String, WebDriver> entry : drivers.entrySet()) {
+		    entry.getValue().close();
+		    entry.getValue().quit();
+		}
+	    } catch (NoSuchSessionException e) {
+		// browser was already closed by the .close() method
+	    } catch (Exception e) {
+		ReportManager.log(e);
 	    }
-	} catch (NoSuchSessionException e) {
-	    // browser was already closed by the .close() method
-	} catch (Exception e) {
-	    ReportManager.log(e);
+	    driver = null;
+	    drivers.clear();
+	    ReportManager.log("Successfully Closed All Browsers.");
 	}
-	driver = null;
-	drivers.clear();
-	ReportManager.log("Successfully Closed All Browsers.");
+    }
+
+    public static void attachBrowserLogs() {
+	if (!drivers.entrySet().isEmpty()) {
+	    try {
+		for (Entry<String, WebDriver> entry : drivers.entrySet()) {
+		    attachBrowserLogs(entry.getKey(), entry.getValue());
+		}
+	    } catch (Exception e) {
+		ReportManager.log(e);
+	    }
+	}
     }
 
     private static void attachBrowserLogs(String borwserName, WebDriver driver) {
@@ -437,20 +452,21 @@ public class BrowserFactory {
 
 	    StringBuilder logBuilder;
 	    String performanceLogText = "";
-	    String browserLogText = "";
+	    // String browserLogText = "";
 	    String driverLogText = "";
 
-	    try {
-		logBuilder = new StringBuilder();
-		for (LogEntry entry : driver.manage().logs().get(LogType.BROWSER)) {
-		    logBuilder.append(entry.toString() + System.lineSeparator());
-		}
-		browserLogText = logBuilder.toString();
-		ReportManager.attach("Browser Logs for [" + borwserName + "]", browserLogText);
-	    } catch (WebDriverException e) {
-		// exception when the defined log type is not found
-		ReportManager.log(e);
-	    }
+	    // try {
+	    // logBuilder = new StringBuilder();
+	    // for (LogEntry entry : driver.manage().logs().get(LogType.BROWSER)) {
+	    // logBuilder.append(entry.toString() + System.lineSeparator());
+	    // }
+	    // browserLogText = logBuilder.toString();
+	    // ReportManager.attach("Logs", "Browser Logs for [" + borwserName + "]",
+	    // browserLogText);
+	    // } catch (WebDriverException e) {
+	    // // exception when the defined log type is not found
+	    // ReportManager.log(e);
+	    // }
 
 	    try {
 		logBuilder = new StringBuilder();
@@ -458,7 +474,7 @@ public class BrowserFactory {
 		    logBuilder.append(entry.toString() + System.lineSeparator());
 		}
 		performanceLogText = logBuilder.toString();
-		ReportManager.attach("Performance Logs for [" + borwserName + "]", performanceLogText);
+		ReportManager.attach("Logs", "Performance Logs for [" + borwserName + "]", performanceLogText);
 	    } catch (WebDriverException e) {
 		// exception when the defined log type is not found
 		ReportManager.log(e);
@@ -470,11 +486,23 @@ public class BrowserFactory {
 		    logBuilder.append(entry.toString() + System.lineSeparator());
 		}
 		driverLogText = logBuilder.toString();
-		ReportManager.attach("Driver Logs for [" + borwserName + "]", driverLogText);
+		ReportManager.attach("Logs", "Driver Logs for [" + borwserName + "]", driverLogText);
 	    } catch (WebDriverException e) {
 		// exception when the defined log type is not found
 		ReportManager.log(e);
 	    }
+	}
+    }
+
+    public static void startAnimatedGif() {
+	if (CREATE_GIF && (driver != null)) {
+	    ScreenshotManager.startAnimatedGif(driver);
+	}
+    }
+
+    public static void attachAnimatedGif() {
+	if (CREATE_GIF && (driver != null)) {
+	    ScreenshotManager.attachAnimatedGif();
 	}
     }
 }

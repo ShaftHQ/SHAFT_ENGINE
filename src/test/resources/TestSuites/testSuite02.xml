@@ -3,9 +3,11 @@
 <suite name="Suite02" verbose="10">
 	<test name="Test02">
 		<classes>
-			<class name="testPackage01.Test_dragAndDrop">
+			<class name="unitTests.tests_validations_assertions">
 				<methods>
-					<include name="dragAndDrop" />
+					<include name="assertEquals_true_expectedToPass" />
+					<include name="assertElementExists_true_expectedToPass"></include>
+					<include name="assertNull_true_expectedToPass"></include>
 				</methods>
 			</class>
 		</classes>
