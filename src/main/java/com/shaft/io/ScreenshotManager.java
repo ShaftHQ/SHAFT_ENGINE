@@ -65,6 +65,7 @@ public class ScreenshotManager {
     private static String gifFileName = "";
     private static ImageOutputStream gifOutputStream = null;
     private static GifSequenceWriter gifWriter = null;
+    private static String lastGifName = "FirstGif";
 
     private ScreenshotManager() {
 	throw new IllegalStateException("Utility class");
@@ -372,7 +373,7 @@ public class ScreenshotManager {
     }
 
     public static void startAnimatedGif(WebDriver driver) {
-	if (CREATE_GIF && gifDriver == null) {
+	if (CREATE_GIF && gifDriver == null && !lastGifName.equals(screenshotFileName)) {
 	    gifDriver = driver;
 
 	    String testCaseName = Reporter.getCurrentTestResult().getMethod().getMethodName();
@@ -402,12 +403,12 @@ public class ScreenshotManager {
 
     private static void appendToAnimatedGif() {
 	// ensure that animatedGif is started, else force start it
-	if (CREATE_GIF && (gifDriver == null)) {
+	if (CREATE_GIF && gifDriver == null && !lastGifName.equals(screenshotFileName)) {
 	    BrowserFactory.startAnimatedGif();
 	}
 
 	// screenshot to be appended to animated gif
-	if (CREATE_GIF && (gifDriver != null)) {
+	if (CREATE_GIF && gifDriver != null) {
 	    try {
 		BufferedImage image = ImageIO.read(((TakesScreenshot) gifDriver).getScreenshotAs(OutputType.FILE));
 		gifWriter.writeToSequence(image);
@@ -419,7 +420,7 @@ public class ScreenshotManager {
 
     public static void attachAnimatedGif() {
 	// stop and attach
-	if (CREATE_GIF && (gifDriver != null) && (gifOutputStream != null) && (gifWriter != null)) {
+	if (CREATE_GIF && gifDriver != null && gifOutputStream != null && gifWriter != null) {
 	    try {
 		gifWriter.close();
 		gifOutputStream.close();
@@ -428,6 +429,7 @@ public class ScreenshotManager {
 		gifWriter = null;
 		gifDriver = null;
 		ReportManager.attach("Animated Gif", screenshotFileName, new FileInputStream(gifFileName));
+		lastGifName = screenshotFileName;
 	    } catch (IOException | NullPointerException | IllegalStateException e) {
 		ReportManager.log(e);
 	    }
