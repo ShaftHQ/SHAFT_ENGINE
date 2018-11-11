@@ -37,7 +37,6 @@ public class GifSequenceWriter {
      * @throws IIOException
      *             if no gif ImageWriters are found
      *
-     * @author Elliot Kroo (elliot[at]kroo[dot]net)
      */
     public GifSequenceWriter(ImageOutputStream outputStream, int imageType, int timeBetweenFramesMS,
 	    boolean loopContinuously) throws IOException {

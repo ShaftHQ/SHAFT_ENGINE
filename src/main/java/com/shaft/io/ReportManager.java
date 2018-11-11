@@ -217,7 +217,6 @@ public class ReportManager {
      * Returns the log of the current test, and attaches it in the end of the test
      * execution report.
      * 
-     * @return the log for the current test
      */
     public static void attachTestLog() {
 	String[] fullLogArray = fullLog.split(System.lineSeparator());
@@ -240,19 +239,6 @@ public class ReportManager {
 	logText = logBuilder.toString();
 
 	createAttachment("SHAFT Engine Logs", "Current Test log", logText);
-
-	// StringBuilder logBuilder = new StringBuilder();
-	// String logText = "";
-	//
-	// for (String s : Reporter.getOutput()) {
-	// s = s.replace("<br>", System.lineSeparator());
-	// logBuilder.append(s);
-	// logBuilder.append(System.lineSeparator());
-	// }
-	// logText = logBuilder.toString();
-	// Reporter.clear();
-	//
-	// createAttachment("SHAFT Engine Logs", "Current Test log", logText);
     }
 
     /**
