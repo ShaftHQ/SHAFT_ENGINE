@@ -37,7 +37,8 @@ import com.shaft.io.ScreenshotManager;
 
 public class BrowserFactory {
 
-    private static final Boolean AUTO_MAXIMIZE = Boolean.valueOf(System.getProperty("autoMaximizeBrowserWindow").trim());
+    private static final Boolean AUTO_MAXIMIZE = Boolean
+	    .valueOf(System.getProperty("autoMaximizeBrowserWindow").trim());
     private static final String EXECUTION_ADDRESS = System.getProperty("executionAddress").trim();
     // local OR hub ip:port
     private static final String TARGET_HUB_URL = "http://" + EXECUTION_ADDRESS + "/wd/hub";
@@ -48,6 +49,7 @@ public class BrowserFactory {
     // MicrosoftEdge | Safari
     private static final int PAGE_LOAD_TIMEOUT = 60;
     private static final int IMPLICIT_WAIT_TIMEOUT = 10;
+    private static final Boolean WAIT_IMPLICITLY = Boolean.valueOf(System.getProperty("waitImplicitly").trim());
     private static final Boolean CREATE_GIF = Boolean.valueOf(System.getProperty("createAnimatedGif").trim());
 
     private static String driversPath;
@@ -144,8 +146,9 @@ public class BrowserFactory {
 		    driver = createNewRemoteDriverInstance(browserName);
 		}
 		driver.manage().timeouts().pageLoadTimeout(PAGE_LOAD_TIMEOUT, TimeUnit.SECONDS);
-		driver.manage().timeouts().implicitlyWait(IMPLICIT_WAIT_TIMEOUT, TimeUnit.SECONDS);
-
+		if (WAIT_IMPLICITLY) {
+		    driver.manage().timeouts().implicitlyWait(IMPLICIT_WAIT_TIMEOUT, TimeUnit.SECONDS);
+		}
 		JSWaiter.setDriver(driver);
 		if (AUTO_MAXIMIZE) {
 		    BrowserActions.maximizeWindow(driver); // Automatically maximize driver window after opening it
@@ -161,7 +164,8 @@ public class BrowserFactory {
     }
 
     private static WebDriver getActiveDriverInstance(String browserName) {
-	ReportManager.log("Switching to active browser instance on: [" + TARGET_OPERATING_SYSTEM + "], [" + browserName + "].");
+	ReportManager.log(
+		"Switching to active browser instance on: [" + TARGET_OPERATING_SYSTEM + "], [" + browserName + "].");
 	switch (browserName) {
 	case "MozillaFirefox":
 	    driver = drivers.get("MozillaFirefox");
@@ -195,7 +199,8 @@ public class BrowserFactory {
 
 	switch (TARGET_OPERATING_SYSTEM) {
 	case "Windows-64":
-	    if (browserName.equals("MozillaFirefox") || browserName.equals("GoogleChrome") || browserName.equals("MicrosoftInternetExplorer") || browserName.equals("MicrosoftEdge")) {
+	    if (browserName.equals("MozillaFirefox") || browserName.equals("GoogleChrome")
+		    || browserName.equals("MicrosoftInternetExplorer") || browserName.equals("MicrosoftEdge")) {
 		isCompatibleBrowser = true;
 	    }
 	    break;
@@ -205,7 +210,8 @@ public class BrowserFactory {
 	    }
 	    break;
 	case "Mac-64":
-	    if (browserName.equals("MozillaFirefox") || browserName.equals("GoogleChrome") || browserName.equals("Safari")) {
+	    if (browserName.equals("MozillaFirefox") || browserName.equals("GoogleChrome")
+		    || browserName.equals("Safari")) {
 		isCompatibleBrowser = true;
 	    }
 	    break;
@@ -216,8 +222,10 @@ public class BrowserFactory {
 	}
 
 	if (!isCompatibleBrowser) {
-	    ReportManager.log("Unsupported Browser Type [" + browserName + "] for this Operating System [" + TARGET_OPERATING_SYSTEM + "].");
-	    Assert.fail("Unsupported Browser Type [" + browserName + "] for this Operating System [" + TARGET_OPERATING_SYSTEM + "].");
+	    ReportManager.log("Unsupported Browser Type [" + browserName + "] for this Operating System ["
+		    + TARGET_OPERATING_SYSTEM + "].");
+	    Assert.fail("Unsupported Browser Type [" + browserName + "] for this Operating System ["
+		    + TARGET_OPERATING_SYSTEM + "].");
 	}
 
     }
@@ -345,7 +353,8 @@ public class BrowserFactory {
     }
 
     private static WebDriver createNewRemoteDriverInstance(String browserName) {
-	ReportManager.log("Attempting to run remotely on: [" + TARGET_OPERATING_SYSTEM + "], [" + browserName + "], [" + TARGET_HUB_URL + "].");
+	ReportManager.log("Attempting to run remotely on: [" + TARGET_OPERATING_SYSTEM + "], [" + browserName + "], ["
+		+ TARGET_HUB_URL + "].");
 	try {
 	    switch (browserName) {
 	    case "MozillaFirefox":
@@ -382,12 +391,16 @@ public class BrowserFactory {
 	} catch (WebDriverException e) {
 	    ReportManager.log(e);
 	    if (e.getMessage().contains("Error forwarding the new session cannot find")) {
-		ReportManager.log("Error forwarding the new session: Couldn't find a node that matches the desired capabilities.");
-		ReportManager.log("Failed to run remotely on: [" + TARGET_OPERATING_SYSTEM + "], [" + browserName + "], [" + TARGET_HUB_URL + "].");
-		Assert.fail("Error forwarding the new session: Couldn't find a node that matches the desired capabilities.");
+		ReportManager.log(
+			"Error forwarding the new session: Couldn't find a node that matches the desired capabilities.");
+		ReportManager.log("Failed to run remotely on: [" + TARGET_OPERATING_SYSTEM + "], [" + browserName
+			+ "], [" + TARGET_HUB_URL + "].");
+		Assert.fail(
+			"Error forwarding the new session: Couldn't find a node that matches the desired capabilities.");
 	    } else {
 		ReportManager.log("Unhandled Error.");
-		ReportManager.log("Failed to run remotely on: [" + TARGET_OPERATING_SYSTEM + "], [" + browserName + "], [" + TARGET_HUB_URL + "].");
+		ReportManager.log("Failed to run remotely on: [" + TARGET_OPERATING_SYSTEM + "], [" + browserName
+			+ "], [" + TARGET_HUB_URL + "].");
 		Assert.fail("Unhandled Error.");
 	    }
 	} catch (MalformedURLException e) {
@@ -405,7 +418,8 @@ public class BrowserFactory {
 	case "Mac-64":
 	    return Platform.MAC;
 	default:
-	    ReportManager.log("Unsupported Operating System [" + TARGET_OPERATING_SYSTEM + "], setting target platform to [ANY].");
+	    ReportManager.log("Unsupported Operating System [" + TARGET_OPERATING_SYSTEM
+		    + "], setting target platform to [ANY].");
 	    return Platform.ANY;
 	}
     }

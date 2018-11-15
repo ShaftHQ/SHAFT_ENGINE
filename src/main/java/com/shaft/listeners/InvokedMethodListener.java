@@ -25,7 +25,7 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 		} else {
 		    ReportManager.logTestInformation(testResult.getTestClass().getName(), testMethod.getMethodName());
 		}
-		BrowserFactory.startAnimatedGif();
+		//BrowserFactory.startAnimatedGif();
 		if (isFirstTest) {
 		    RecordManager.startRecording();
 		}
