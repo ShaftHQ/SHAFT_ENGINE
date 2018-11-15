@@ -1,5 +1,7 @@
 package com.shaft.io;
 
+import java.awt.Color;
+import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
@@ -45,6 +47,8 @@ public class ScreenshotManager {
     private static final int RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION = 1;
 
     private static final Boolean CREATE_GIF = Boolean.valueOf(System.getProperty("createAnimatedGif").trim());
+    private static final int GIF_FRAME_DELAY = Integer.valueOf(System.getProperty("animatedGif_frameDelay").trim());
+    // default is 500
 
     /*
      * A flag to determine when to take a screenshot. Always; after every browser
@@ -96,8 +100,6 @@ public class ScreenshotManager {
 	// Note: Excluded the "Always" case as there will already be another screenshot
 	// taken by the browser/element action // reversed this option to be able to
 	// take a failure screenshot
-
-	appendToAnimatedGif();
     }
 
     /**
@@ -129,8 +131,6 @@ public class ScreenshotManager {
 	// Note: Excluded the "Always" case as there will already be another screenshot
 	// taken by the browser/element action // reversed this option to be able to
 	// take a failure screenshot
-
-	appendToAnimatedGif();
     }
 
     /**
@@ -154,8 +154,6 @@ public class ScreenshotManager {
 		(SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always"))
 			|| (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly") && (!passFailStatus))
 			|| ((SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly")) && (!passFailStatus)));
-
-	appendToAnimatedGif();
     }
 
     /**
@@ -178,8 +176,6 @@ public class ScreenshotManager {
 
 	internalCaptureScreenShot(driver, elementLocator, appendedText,
 		SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always"));
-
-	appendToAnimatedGif();
     }
 
     /**
@@ -202,6 +198,7 @@ public class ScreenshotManager {
     private static void internalCaptureScreenShot(WebDriver driver, By elementLocator, String appendedText,
 	    boolean takeScreenshot) {
 	new File(SCREENSHOT_FOLDERPATH).mkdirs();
+
 	if (takeScreenshot) {
 	    /**
 	     * Force screenshot link to be shown in the results as a link not text
@@ -274,6 +271,9 @@ public class ScreenshotManager {
 	     */
 
 	    addScreenshotToReport(src);
+	    appendToAnimatedGif(src);
+	} else {
+	    appendToAnimatedGif();
 	}
     }
 
@@ -391,7 +391,15 @@ public class ScreenshotManager {
 
 		// create a gif sequence with the type of the first image, 500 milliseconds
 		// between frames, which loops infinitely
-		gifWriter = new GifSequenceWriter(gifOutputStream, firstImage.getType(), 500, true);
+		gifWriter = new GifSequenceWriter(gifOutputStream, firstImage.getType(), GIF_FRAME_DELAY, true);
+
+		// write out a blank image to the sequence...
+		BufferedImage blankImage = new BufferedImage(firstImage.getWidth(), firstImage.getHeight(),
+			firstImage.getType());
+		Graphics2D blankImageGraphics = blankImage.createGraphics();
+		blankImageGraphics.setBackground(Color.WHITE);
+		blankImageGraphics.clearRect(0, 0, firstImage.getWidth(), firstImage.getHeight());
+		gifWriter.writeToSequence(blankImage);
 
 		// write out the first image to the sequence...
 		gifWriter.writeToSequence(firstImage);
@@ -401,7 +409,7 @@ public class ScreenshotManager {
 	}
     }
 
-    private static void appendToAnimatedGif() {
+    private static void appendToAnimatedGif(File... screenshot) {
 	// ensure that animatedGif is started, else force start it
 	if (CREATE_GIF && gifDriver == null && !lastGifName.equals(screenshotFileName)) {
 	    BrowserFactory.startAnimatedGif();
@@ -410,7 +418,12 @@ public class ScreenshotManager {
 	// screenshot to be appended to animated gif
 	if (CREATE_GIF && gifDriver != null) {
 	    try {
-		BufferedImage image = ImageIO.read(((TakesScreenshot) gifDriver).getScreenshotAs(OutputType.FILE));
+		BufferedImage image;
+		if (screenshot.length == 1) {
+		    image = ImageIO.read(screenshot[0]);
+		} else {
+		    image = ImageIO.read(((TakesScreenshot) gifDriver).getScreenshotAs(OutputType.FILE));
+		}
 		gifWriter.writeToSequence(image);
 	    } catch (IOException | IllegalStateException | NullPointerException e) {
 		ReportManager.log(e);
