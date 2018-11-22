@@ -33,8 +33,10 @@ import com.shaft.io.ReportManager;
 import com.shaft.io.ScreenshotManager;
 
 public class ElementActions {
-    static int defaultElementIdentificationTimeout = Integer.parseInt(System.getProperty("defaultElementIdentificationTimeout").trim());
-    static int attemptsBeforeThrowingElementNotFoundException = Integer.parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
+    static int defaultElementIdentificationTimeout = Integer
+	    .parseInt(System.getProperty("defaultElementIdentificationTimeout").trim());
+    static int attemptsBeforeThrowingElementNotFoundException = Integer
+	    .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
 
     private ElementActions() {
 	throw new IllegalStateException("Utility class");
@@ -71,7 +73,8 @@ public class ElementActions {
 	    ReportManager.log(message);
 	} catch (Exception e) {
 	    ReportManager.log(e);
-	    ReportManager.log("Failed to take a screenshot of the element as it doesn't exist anymore. Taking a screenshot of the whole page.");
+	    ReportManager.log(
+		    "Failed to take a screenshot of the element as it doesn't exist anymore. Taking a screenshot of the whole page.");
 	    ScreenshotManager.captureScreenShot(driver, actionName + "_performed", true);
 	    ReportManager.log(message);
 	}
@@ -135,8 +138,10 @@ public class ElementActions {
      * @return boolean value, true if the element is found and unique, and false if
      *         the element is not found or is not unique
      */
-    private static boolean attemptToFindUniqueElement(WebDriver driver, By elementLocator, int timeout, Boolean isInternalCall) {
-	int foundElementsCount = countFoundElements(driver, elementLocator, timeout, attemptsBeforeThrowingElementNotFoundException);
+    private static boolean attemptToFindUniqueElement(WebDriver driver, By elementLocator, int timeout,
+	    Boolean isInternalCall) {
+	int foundElementsCount = countFoundElements(driver, elementLocator, timeout,
+		attemptsBeforeThrowingElementNotFoundException);
 	switch (foundElementsCount) {
 	case 0: // no elements found
 	    ReportManager.log("Element with locator (" + elementLocator.toString() + ") was not found on this page.");
@@ -148,7 +153,8 @@ public class ElementActions {
 	    }
 	    return true;
 	default: // multiple elements found
-	    ReportManager.log("Element with locator (" + elementLocator.toString() + "] was found [" + foundElementsCount + "] times on this page.");
+	    ReportManager.log("Element with locator (" + elementLocator.toString() + "] was found ["
+		    + foundElementsCount + "] times on this page.");
 	    failAction(driver, "canFindUniqueElement");
 	    return false;
 	}
@@ -178,7 +184,8 @@ public class ElementActions {
      * @return int value, 0 if no elements were found, 1 if a unique element was
      *         found, or more if multiple elements were found
      */
-    private static int countFoundElements(WebDriver driver, By elementLocator, int timeout, int attemptsBeforeThrowingElementNotFoundException) {
+    private static int countFoundElements(WebDriver driver, By elementLocator, int timeout,
+	    int attemptsBeforeThrowingElementNotFoundException) {
 	if (!isWaitForLazyLoadingSuccessful()) {
 	    return 0;
 	}
@@ -190,13 +197,15 @@ public class ElementActions {
 		// attempt to find elements
 		foundElementsCount = attemptToFindElements(driver, elementLocator, timeout);
 		return foundElementsCount;
-	    } catch (StaleElementReferenceException | ElementNotInteractableException | UnreachableBrowserException | NoSuchElementException | TimeoutException e) {
+	    } catch (StaleElementReferenceException | ElementNotInteractableException | UnreachableBrowserException
+		    | NoSuchElementException | TimeoutException e) {
 		if (i + 1 == attemptsBeforeThrowingElementNotFoundException) {
 		    ReportManager.log(e);
 		    return 0;
 		}
 	    } catch (Exception e) {
-		if (e.getMessage().contains("cannot focus element") && (i + 1 == attemptsBeforeThrowingElementNotFoundException)) {
+		if (e.getMessage().contains("cannot focus element")
+			&& (i + 1 == attemptsBeforeThrowingElementNotFoundException)) {
 		    ReportManager.log(e);
 		    return 0;
 		} else {
@@ -232,7 +241,8 @@ public class ElementActions {
 	if ((foundElements == 1) && (!elementLocator.equals(By.tagName("html")))) {
 	    moveToElement(driver, elementLocator);
 	    if (!elementLocator.toString().contains("input[@type='file']")) {
-		(new WebDriverWait(driver, timeout)).until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
+		(new WebDriverWait(driver, timeout))
+			.until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
 	    }
 	    return 1;
 	}
@@ -282,7 +292,8 @@ public class ElementActions {
 	}
     }
 
-    private static void clearBeforeTyping(WebDriver driver, By elementLocator, String elementText, String successfulTextLocationStrategy) {
+    private static void clearBeforeTyping(WebDriver driver, By elementLocator, String elementText,
+	    String successfulTextLocationStrategy) {
 	driver.findElement(elementLocator).clear();
 	switch (successfulTextLocationStrategy) {
 	case "text":
@@ -314,12 +325,14 @@ public class ElementActions {
 		// attempt to perform action
 		driver.findElement(elementLocator).sendKeys(text);
 		break;
-	    } catch (StaleElementReferenceException | ElementNotInteractableException | UnreachableBrowserException | NoSuchElementException | TimeoutException e) {
+	    } catch (StaleElementReferenceException | ElementNotInteractableException | UnreachableBrowserException
+		    | NoSuchElementException | TimeoutException e) {
 		if (i + 1 == attemptsBeforeThrowingElementNotFoundException) {
 		    ReportManager.log(e);
 		}
 	    } catch (Exception e) {
-		if (e.getMessage().contains("cannot focus element") && (i + 1 == attemptsBeforeThrowingElementNotFoundException)) {
+		if (e.getMessage().contains("cannot focus element")
+			&& (i + 1 == attemptsBeforeThrowingElementNotFoundException)) {
 		    ReportManager.log(e);
 		} else {
 		    ReportManager.log(e);
@@ -329,7 +342,8 @@ public class ElementActions {
 	}
     }
 
-    private static void confirmTypingWasSuccessful(WebDriver driver, By elementLocator, String text, String successfulTextLocationStrategy) {
+    private static void confirmTypingWasSuccessful(WebDriver driver, By elementLocator, String text,
+	    String successfulTextLocationStrategy) {
 	// to confirm that the text was written successfully
 	String actualText = "";
 	switch (successfulTextLocationStrategy) {
@@ -357,13 +371,15 @@ public class ElementActions {
 	try {
 	    switch (action.toLowerCase()) {
 	    case "copy":
-		(Toolkit.getDefaultToolkit().getSystemClipboard()).setContents((new StringSelection(getText(driver, elementLocator))), null);
+		(Toolkit.getDefaultToolkit().getSystemClipboard())
+			.setContents((new StringSelection(getText(driver, elementLocator))), null);
 		break;
 	    case "paste":
 		pasteFromClipboard(driver, elementLocator);
 		break;
 	    case "cut":
-		(Toolkit.getDefaultToolkit().getSystemClipboard()).setContents((new StringSelection(getText(driver, elementLocator))), null);
+		(Toolkit.getDefaultToolkit().getSystemClipboard())
+			.setContents((new StringSelection(getText(driver, elementLocator))), null);
 		type(driver, elementLocator, "");
 		break;
 	    case "select all":
@@ -385,7 +401,9 @@ public class ElementActions {
 
     private static void pasteFromClipboard(WebDriver driver, By elementLocator) {
 	try {
-	    typeAppend(driver, elementLocator, (String) ((Toolkit.getDefaultToolkit().getSystemClipboard()).getContents(ElementActions.class)).getTransferData(DataFlavor.stringFlavor));
+	    typeAppend(driver, elementLocator,
+		    (String) ((Toolkit.getDefaultToolkit().getSystemClipboard()).getContents(ElementActions.class))
+			    .getTransferData(DataFlavor.stringFlavor));
 	} catch (UnsupportedFlavorException e) {
 	    ReportManager.log(e);
 	    ReportManager.log("Unsupported Flavor Exception: " + e.getMessage());
@@ -474,7 +492,8 @@ public class ElementActions {
      *         desired elementLocator
      */
     public static int getElementsCount(WebDriver driver, By elementLocator) {
-	return countFoundElements(driver, elementLocator, defaultElementIdentificationTimeout, attemptsBeforeThrowingElementNotFoundException);
+	return countFoundElements(driver, elementLocator, defaultElementIdentificationTimeout,
+		attemptsBeforeThrowingElementNotFoundException);
     }
 
     /**
@@ -495,7 +514,8 @@ public class ElementActions {
      *         desired elementLocator
      */
     public static int getElementsCount(WebDriver driver, By elementLocator, int customElementIdentificationTimeout) {
-	return countFoundElements(driver, elementLocator, customElementIdentificationTimeout, attemptsBeforeThrowingElementNotFoundException);
+	return countFoundElements(driver, elementLocator, customElementIdentificationTimeout,
+		attemptsBeforeThrowingElementNotFoundException);
     }
 
     /**
@@ -519,8 +539,10 @@ public class ElementActions {
      * @return integer value that represents the number of elements that match the
      *         desired elementLocator
      */
-    public static int getElementsCount(WebDriver driver, By elementLocator, int customElementIdentificationTimeout, int retriesBeforeThrowingElementNotFoundException) {
-	return countFoundElements(driver, elementLocator, customElementIdentificationTimeout, retriesBeforeThrowingElementNotFoundException);
+    public static int getElementsCount(WebDriver driver, By elementLocator, int customElementIdentificationTimeout,
+	    int retriesBeforeThrowingElementNotFoundException) {
+	return countFoundElements(driver, elementLocator, customElementIdentificationTimeout,
+		retriesBeforeThrowingElementNotFoundException);
     }
 
     /**
@@ -576,12 +598,21 @@ public class ElementActions {
 	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
 	    passAction(driver, elementLocator, "click"); // takes screenshot before clicking the element out of view
 	    try {
-		(new WebDriverWait(driver, defaultElementIdentificationTimeout)).until(ExpectedConditions.elementToBeClickable(elementLocator));
+		(new WebDriverWait(driver, defaultElementIdentificationTimeout))
+			.until(ExpectedConditions.elementToBeClickable(elementLocator));
 		// wait for element to be clickable
-		driver.findElement(elementLocator).click();
+		// driver.findElement(elementLocator).click();
+		// temporarily disabling regular click and using javascript click instead...
+		// this is beta
+		((JavascriptExecutor) driver).executeScript("arguments[0].click();",
+			driver.findElement(elementLocator));
 	    } catch (Exception e) {
-		if (e.getMessage().contains("Other element would receive the click") || e.getMessage().contains("Expected condition failed: waiting for element to be clickable") || e.getMessage().matches("([\\s\\S]*Element.*is not clickable at point.*because another element.*obscures it\\s[\\s\\S]*)")) {
-		    ((JavascriptExecutor) driver).executeScript("arguments[0].click();", driver.findElement(elementLocator));
+		if (e.getMessage().contains("Other element would receive the click")
+			|| e.getMessage().contains("Expected condition failed: waiting for element to be clickable")
+			|| e.getMessage().matches(
+				"([\\s\\S]*Element.*is not clickable at point.*because another element.*obscures it\\s[\\s\\S]*)")) {
+		    ((JavascriptExecutor) driver).executeScript("arguments[0].click();",
+			    driver.findElement(elementLocator));
 		    // attempting to click using javascript if the regular click fails due to a
 		    // webdriver error
 		} else {
@@ -653,10 +684,12 @@ public class ElementActions {
 		// attempt to clear element then check text size
 		clearBeforeTyping(driver, elementLocator, elementText, successfulTextLocationStrategy);
 	    }
-	    if ((countFoundElements(driver, elementLocator, defaultElementIdentificationTimeout, attemptsBeforeThrowingElementNotFoundException) == 1) && (!text.equals(""))) {
+	    if ((countFoundElements(driver, elementLocator, defaultElementIdentificationTimeout,
+		    attemptsBeforeThrowingElementNotFoundException) == 1) && (!text.equals(""))) {
 		performType(driver, elementLocator, text);
 	    }
-	    if ((countFoundElements(driver, elementLocator, defaultElementIdentificationTimeout, attemptsBeforeThrowingElementNotFoundException) == 1) && (!text.equals(""))) {
+	    if ((countFoundElements(driver, elementLocator, defaultElementIdentificationTimeout,
+		    attemptsBeforeThrowingElementNotFoundException) == 1) && (!text.equals(""))) {
 		// to confirm that the text was written successfully
 		confirmTypingWasSuccessful(driver, elementLocator, text, successfulTextLocationStrategy);
 	    }
@@ -683,7 +716,9 @@ public class ElementActions {
 	    try {
 		driver.findElement(elementLocator).sendKeys(absoluteFilePath);
 	    } catch (ElementNotInteractableException e) {
-		((JavascriptExecutor) driver).executeScript("arguments[0].setAttribute('style', 'display:block !important;');", driver.findElement(elementLocator));
+		((JavascriptExecutor) driver).executeScript(
+			"arguments[0].setAttribute('style', 'display:block !important;');",
+			driver.findElement(elementLocator));
 		try {
 		    driver.findElement(elementLocator).sendKeys(absoluteFilePath);
 		} catch (WebDriverException e2) {
@@ -692,7 +727,8 @@ public class ElementActions {
 		    failAction(driver, "typeFileLocationForUpload", absoluteFilePath);
 		}
 		try {
-		    ((JavascriptExecutor) driver).executeScript("arguments[0].setAttribute('style', 'display:none');", driver.findElement(elementLocator));
+		    ((JavascriptExecutor) driver).executeScript("arguments[0].setAttribute('style', 'display:none');",
+			    driver.findElement(elementLocator));
 		} catch (NoSuchElementException | StaleElementReferenceException e2) {
 		    // this exception is sometimes thrown on firefox after the upload has been
 		    // successful, since we don't have to return the style to what it was, then it's
@@ -821,7 +857,8 @@ public class ElementActions {
      *            ...etc)
      */
     public static void dragAndDrop(WebDriver driver, By sourceElementLocator, By destinationElementLocator) {
-	if (canFindUniqueElementForInternalUse(driver, sourceElementLocator) && canFindUniqueElementForInternalUse(driver, destinationElementLocator)) {
+	if (canFindUniqueElementForInternalUse(driver, sourceElementLocator)
+		&& canFindUniqueElementForInternalUse(driver, destinationElementLocator)) {
 
 	    // define source and destination elements
 	    WebElement sourceElement = driver.findElement(sourceElementLocator);
@@ -835,10 +872,12 @@ public class ElementActions {
 		driver.manage().timeouts().setScriptTimeout(10, TimeUnit.SECONDS);
 		JavascriptExecutor js = (JavascriptExecutor) driver;
 
-		String jQueryLoader = new String(Files.readAllBytes(Paths.get("src/main/resources/scripts/jquery_load_helper.js")));
+		String jQueryLoader = new String(
+			Files.readAllBytes(Paths.get("src/main/resources/scripts/jquery_load_helper.js")));
 		js.executeAsyncScript(jQueryLoader /* , http://localhost:8080/jquery-1.7.2.js */);
 
-		String dragAndDropHelper = new String(Files.readAllBytes(Paths.get("src/main/resources/scripts/drag_and_drop_helper.js")));
+		String dragAndDropHelper = new String(
+			Files.readAllBytes(Paths.get("src/main/resources/scripts/drag_and_drop_helper.js")));
 
 		dragAndDropHelper = dragAndDropHelper + "$(arguments[0]).simulateDragDrop({dropTarget:arguments[1]});";
 
@@ -852,7 +891,8 @@ public class ElementActions {
 	    String endLocation = driver.findElement(sourceElementLocator).getLocation().toString();
 
 	    if (!endLocation.equals(startLocation)) {
-		passAction(driver, sourceElementLocator, "dragAndDrop", "Start point: " + startLocation + ", End point: " + endLocation);
+		passAction(driver, sourceElementLocator, "dragAndDrop",
+			"Start point: " + startLocation + ", End point: " + endLocation);
 	    } else {
 		failAction(driver, "dragAndDrop", "Start point = End point: " + endLocation);
 	    }
@@ -972,21 +1012,27 @@ public class ElementActions {
      *            the number of times to try and wait for the element text to change
      *            (default is 1)
      */
-    public static void waitForTextToChange(WebDriver driver, By elementLocator, String initialValue, int numberOfTries) {
+    public static void waitForTextToChange(WebDriver driver, By elementLocator, String initialValue,
+	    int numberOfTries) {
 	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
 	    try {
-		(new WebDriverWait(driver, defaultElementIdentificationTimeout * numberOfTries)).until(ExpectedConditions.not(ExpectedConditions.textToBe(elementLocator, initialValue)));
+		(new WebDriverWait(driver, defaultElementIdentificationTimeout * numberOfTries))
+			.until(ExpectedConditions.not(ExpectedConditions.textToBe(elementLocator, initialValue)));
 	    } catch (Exception e) {
 		ReportManager.log(e);
-		failAction(driver, "waitForTextToChange", "waited for (" + defaultElementIdentificationTimeout * numberOfTries + ") seconds");
+		failAction(driver, "waitForTextToChange",
+			"waited for (" + defaultElementIdentificationTimeout * numberOfTries + ") seconds");
 	    }
 	    try {
-		passAction(driver, elementLocator, "waitForTextToChange", "from: \"" + initialValue + "\", to: \"" + getText(driver, elementLocator) + "\"");
+		passAction(driver, elementLocator, "waitForTextToChange",
+			"from: \"" + initialValue + "\", to: \"" + getText(driver, elementLocator) + "\"");
 	    } catch (Exception e) {
-		passAction(driver, elementLocator, "waitForTextToChange", "from: \"" + initialValue + "\", to a new value.");
+		passAction(driver, elementLocator, "waitForTextToChange",
+			"from: \"" + initialValue + "\", to a new value.");
 	    }
 	} else {
-	    failAction(driver, "waitForTextToChange", "Element with locator (" + elementLocator.toString() + ") was not found on this page.");
+	    failAction(driver, "waitForTextToChange",
+		    "Element with locator (" + elementLocator.toString() + ") was not found on this page.");
 	}
     }
 
@@ -1008,21 +1054,33 @@ public class ElementActions {
      *            the expected state of presence of the element; false is not
      *            present, and true is present
      */
-    public static void waitForElementToBePresent(WebDriver driver, By elementLocator, int numberOfTries, boolean stateOfPresence) {
-	int foundElementsCount = countFoundElements(driver, elementLocator, defaultElementIdentificationTimeout, numberOfTries);
+    public static void waitForElementToBePresent(WebDriver driver, By elementLocator, int numberOfTries,
+	    boolean stateOfPresence) {
+	int foundElementsCount = countFoundElements(driver, elementLocator, defaultElementIdentificationTimeout,
+		numberOfTries);
 	if (foundElementsCount <= 1) {
 	    try {
 		if (stateOfPresence) {
-		    passAction(driver, elementLocator, "waitForElementToBePresent", "waited for (" + defaultElementIdentificationTimeout * numberOfTries + ") seconds, for the element's state of presence to be (" + stateOfPresence + "). Element locator (" + elementLocator.toString() + ")");
+		    passAction(driver, elementLocator, "waitForElementToBePresent",
+			    "waited for (" + defaultElementIdentificationTimeout * numberOfTries
+				    + ") seconds, for the element's state of presence to be (" + stateOfPresence
+				    + "). Element locator (" + elementLocator.toString() + ")");
 		} else {
-		    passAction(driver, "waitForElementToBePresent", "waited for (" + defaultElementIdentificationTimeout * numberOfTries + ") seconds, for the element's state of presence to be (" + stateOfPresence + "). Element locator (" + elementLocator.toString() + ")");
+		    passAction(driver, "waitForElementToBePresent",
+			    "waited for (" + defaultElementIdentificationTimeout * numberOfTries
+				    + ") seconds, for the element's state of presence to be (" + stateOfPresence
+				    + "). Element locator (" + elementLocator.toString() + ")");
 		}
 	    } catch (Exception e) {
 		ReportManager.log(e);
-		failAction(driver, "waitForElementToBePresent", "waited for (" + defaultElementIdentificationTimeout * numberOfTries + ") seconds, for the element's state of presence to be (" + stateOfPresence + "). Element locator (" + elementLocator.toString() + ")");
+		failAction(driver, "waitForElementToBePresent",
+			"waited for (" + defaultElementIdentificationTimeout * numberOfTries
+				+ ") seconds, for the element's state of presence to be (" + stateOfPresence
+				+ "). Element locator (" + elementLocator.toString() + ")");
 	    }
 	} else {
-	    failAction(driver, "waitForElementToBePresent", "Element with locator (" + elementLocator.toString() + "] was found [" + foundElementsCount + "] times on this page.");
+	    failAction(driver, "waitForElementToBePresent", "Element with locator (" + elementLocator.toString()
+		    + "] was found [" + foundElementsCount + "] times on this page.");
 	}
     }
 
@@ -1039,7 +1097,8 @@ public class ElementActions {
      */
     public static boolean isElementDisplayed(WebDriver driver, By elementLocator) {
 	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
-	    (new WebDriverWait(driver, defaultElementIdentificationTimeout)).until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
+	    (new WebDriverWait(driver, defaultElementIdentificationTimeout))
+		    .until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
 	    // wait for element to be visible
 	    passAction(driver, elementLocator, "isElementDisplayed");
 	    return true;
@@ -1062,7 +1121,8 @@ public class ElementActions {
      */
     public static boolean isElementClickable(WebDriver driver, By elementLocator) {
 	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
-	    (new WebDriverWait(driver, defaultElementIdentificationTimeout)).until(ExpectedConditions.elementToBeClickable(elementLocator));
+	    (new WebDriverWait(driver, defaultElementIdentificationTimeout))
+		    .until(ExpectedConditions.elementToBeClickable(elementLocator));
 	    // wait for element to be clickable
 	    passAction(driver, elementLocator, "isElementClickable");
 	    return true;

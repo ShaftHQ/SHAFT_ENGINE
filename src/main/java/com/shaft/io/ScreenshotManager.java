@@ -47,7 +47,7 @@ public class ScreenshotManager {
     private static final int RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION = 1;
 
     private static final Boolean CREATE_GIF = Boolean.valueOf(System.getProperty("createAnimatedGif").trim());
-    private static final int GIF_FRAME_DELAY = Integer.valueOf(System.getProperty("animatedGif_frameDelay").trim());
+    private static final int GIF_FRAME_DELAY = Integer.parseInt(System.getProperty("animatedGif_frameDelay").trim());
     // default is 500
 
     /*
