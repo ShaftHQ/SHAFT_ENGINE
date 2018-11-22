@@ -12,6 +12,11 @@ public class SuiteListener implements ISuiteListener {
     public void onStart(ISuite suite) {
 	ReportManager.populateEnvironmentData();
 	ReportManager.logEngineVersion(true);
+	// confirm that no browser sessions were leaked due to an unexpected failure in
+	// the previous test suite *discreetly*
+	ReportManager.setDiscreetLogging(true);
+	BrowserFactory.closeAllDrivers();
+	ReportManager.setDiscreetLogging(false);
     }
 
     @Override

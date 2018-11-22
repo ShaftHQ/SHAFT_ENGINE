@@ -106,8 +106,10 @@ public class ExcelFileManager {
 
 	} catch (Exception e) {
 	    ReportManager.log(e);
-	    ReportManager.log("Failed to read data from row [" + rowName + "] and column [" + columnName + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
-	    Assert.fail("Failed to read data from row [" + rowName + "] and column [" + columnName + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
+	    ReportManager.log("Failed to read data from row [" + rowName + "] and column [" + columnName
+		    + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
+	    Assert.fail("Failed to read data from row [" + rowName + "] and column [" + columnName
+		    + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
 	    return "";
 	}
     }
@@ -134,13 +136,17 @@ public class ExcelFileManager {
 
 	    // in case you provided valid data type, no exceptions were thrown, and yet the
 	    // rowName you mentioned was not present in this sheet
-	    ReportManager.log("Failed to get the row number that coresponds to rowName [" + rowName + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
-	    Assert.fail("Failed to get the row number that coresponds to rowName [" + rowName + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
+	    ReportManager.log("Failed to get the row number that coresponds to rowName [" + rowName
+		    + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
+	    Assert.fail("Failed to get the row number that coresponds to rowName [" + rowName
+		    + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
 	    return -1; // in case of failure this line is unreachable
 	} catch (Exception e) {
 	    ReportManager.log(e);
-	    ReportManager.log("Failed to get the row number that coresponds to rowName [" + rowName + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
-	    Assert.fail("Failed to get the row number that coresponds to rowName [" + rowName + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
+	    ReportManager.log("Failed to get the row number that coresponds to rowName [" + rowName
+		    + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
+	    Assert.fail("Failed to get the row number that coresponds to rowName [" + rowName
+		    + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
 	    return -1; // in case of failure this line is unreachable
 	}
     }
@@ -166,22 +172,26 @@ public class ExcelFileManager {
 
 	    // in case you provided valid data type, no exceptions were thrown, and yet the
 	    // columnName you mentioned was not present in this sheet
-	    ReportManager.log("Failed to get the column number that coresponds to columnName [" + columnName + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
-	    Assert.fail("Failed to get the column number that coresponds to columnName [" + columnName + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
+	    ReportManager.log("Failed to get the column number that coresponds to columnName [" + columnName
+		    + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
+	    Assert.fail("Failed to get the column number that coresponds to columnName [" + columnName
+		    + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
 	    return -1; // in case of failure this line is unreachable
 	} catch (Exception e) {
 	    ReportManager.log(e);
-	    ReportManager.log("Failed to get the column number that coresponds to columnName [" + columnName + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
-	    Assert.fail("Failed to get the column number that coresponds to columnName [" + columnName + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
+	    ReportManager.log("Failed to get the column number that coresponds to columnName [" + columnName
+		    + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
+	    Assert.fail("Failed to get the column number that coresponds to columnName [" + columnName
+		    + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
 	    return -1; // in case of failure this line is unreachable
 	}
     }
 
     private String getCellData() {
 	try {
-	    if (cell.getCellTypeEnum() == CellType.STRING) {
+	    if (cell.getCellType() == CellType.STRING) {
 		return cell.getStringCellValue();
-	    } else if (cell.getCellTypeEnum() == CellType.NUMERIC || cell.getCellTypeEnum() == CellType.FORMULA) {
+	    } else if (cell.getCellType() == CellType.NUMERIC || cell.getCellType() == CellType.FORMULA) {
 		String cellValue = String.valueOf(cell.getNumericCellValue());
 		if (cellValue.contains(".0")) {
 		    cellValue = cellValue.split("\\.")[0];
@@ -192,7 +202,7 @@ public class ExcelFileManager {
 		    cellValue = df.format(date);
 		}
 		return cellValue;
-	    } else if (cell.getCellTypeEnum() == CellType.BOOLEAN) {
+	    } else if (cell.getCellType() == CellType.BOOLEAN) {
 		return String.valueOf(cell.getBooleanCellValue());
 	    } else {
 		return "";
@@ -237,7 +247,7 @@ public class ExcelFileManager {
 	while (true) {
 	    try {
 		cell = row.getCell(lastColumnNumber);
-		if (cell.getCellTypeEnum() == CellType.STRING) {
+		if (cell.getCellType() == CellType.STRING) {
 		    // ReportManager.log("String Column Number is: [" + lastColumnNumber + "].");
 		    lastColumnNumber++;
 		} else {
@@ -292,8 +302,10 @@ public class ExcelFileManager {
 		return columnName;
 	    }
 	}
-	ReportManager.log("Failed to get column name using row [" + rowName + "] and cell data [" + cellData + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
-	Assert.fail("Failed to get column name using row [" + rowName + "] and cell data [" + cellData + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
+	ReportManager.log("Failed to get column name using row [" + rowName + "] and cell data [" + cellData
+		+ "] in the Test Data Sheet [" + sheetName + ".xlsx].");
+	Assert.fail("Failed to get column name using row [" + rowName + "] and cell data [" + cellData
+		+ "] in the Test Data Sheet [" + sheetName + ".xlsx].");
 	return "";
     }
 
