@@ -59,7 +59,7 @@ public class Test_google {
     public void beforeClass() {
 	System.setProperty("testDataFilePath", "src/test/resources/TestDataFiles/testSuite01/TestData.xlsx");
 	testDataReader = new ExcelFileManager(System.getProperty("testDataFilePath"));
-	driver = BrowserFactory.getBrowser(testDataReader);
+	driver = BrowserFactory.getBrowser();
 	// BrowserActions.setWindowSize(driver, 3840, 2160);
     }
 }

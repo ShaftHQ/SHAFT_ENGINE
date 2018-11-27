@@ -15,7 +15,7 @@ public class GoogleSearch {
 
 	// String url = testDataReader.getCellData("URL");
 	By googleLogo_image = By.id("hplogo");
-	By searchBox_textField = By.xpath("//input[@id='lst-ib' or @class='lst']");
+	By searchBox_textField = By.xpath("//input[@id='lst-ib' or @class='lst' or @name='q']");
 
 	public GoogleSearch(WebDriver driver) {
 		this.driver = driver;

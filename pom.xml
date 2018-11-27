@@ -4,25 +4,25 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.mohies</groupId>
 	<artifactId>SHAFT_ENGINE</artifactId>
-	<version>2.1.20181122</version>
+	<version>2.1.20181127</version>
 	<name>SHAFT_ENGINE</name>
 	<description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
 
 	<properties>
-		<shaft_engine.version>SHAFT_ENGINE-2.1.20181122</shaft_engine.version>
+		<shaft_engine.version>SHAFT_ENGINE-2.1.20181127</shaft_engine.version>
 
 		<!-- SHAFT Test Run Parameters -->
 		<testSuite.name>unitTestSuite</testSuite.name>
 
 		<executionAddress>local</executionAddress> <!-- Acceptable Values: local | seleniumGridHubIP:port -->
 		<operatingSystem.version>Linux-64</operatingSystem.version> <!-- Acceptable Values: Windows-64 | Linux-64 | Mac-64 -->
-		<targetBrowser.name>GoogleChrome</targetBrowser.name> 		<!-- Acceptable Values: Default | MozillaFirefox | MicrosoftInternetExplorer 
-			| GoogleChrome | MicrosoftEdge | Safari -->
+		<targetBrowser.name>GoogleChrome</targetBrowser.name> 		<!-- Acceptable Values: MozillaFirefox | MicrosoftInternetExplorer | GoogleChrome 
+			| MicrosoftEdge | Safari -->
 		<autoMaximizeBrowserWindow>true</autoMaximizeBrowserWindow> <!-- Acceptable Values: true | false -->
 
-		<defaultElementIdentificationTimeout>10</defaultElementIdentificationTimeout> <!-- Accepts integer values that represent the default timeout for finding 
+		<defaultElementIdentificationTimeout>2</defaultElementIdentificationTimeout> <!-- Accepts integer values that represent the default timeout for finding 
 			a webElement -->
-		<attemptsBeforeThrowingElementNotFoundException>6</attemptsBeforeThrowingElementNotFoundException> <!-- Accepts integer values that represent the number of attempts before 
+		<attemptsBeforeThrowingElementNotFoundException>4</attemptsBeforeThrowingElementNotFoundException> <!-- Accepts integer values that represent the number of attempts before 
 			failing to find a webElement -->
 		<waitImplicitly>false</waitImplicitly> <!-- Acceptable Values: true | false -->
 		<!-- Note: Implicit waiting may increase execution time by 20% but it also 
@@ -278,7 +278,7 @@
 							</property>
 							<property>
 								<name>listener</name>
-								<value>com.shaft.listeners.SuiteListener,com.shaft.listeners.InvokedMethodListener</value>
+								<value>com.shaft.listeners.SuiteListener,com.shaft.listeners.InvokedMethodListener,com.shaft.listeners.TestListener</value>
 							</property>
 						</properties>
 					</configuration>

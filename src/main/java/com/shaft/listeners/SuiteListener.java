@@ -14,14 +14,13 @@ public class SuiteListener implements ISuiteListener {
 	ReportManager.logEngineVersion(true);
 	// confirm that no browser sessions were leaked due to an unexpected failure in
 	// the previous test suite *discreetly*
-	ReportManager.setDiscreetLogging(true);
-	BrowserFactory.closeAllDrivers();
-	ReportManager.setDiscreetLogging(false);
     }
 
     @Override
     public void onFinish(ISuite suite) {
+	ReportManager.setDiscreetLogging(true);
 	BrowserFactory.closeAllDrivers();
 	ReportManager.generateAllureReportArchive();
+	ReportManager.setDiscreetLogging(false);
     }
 }

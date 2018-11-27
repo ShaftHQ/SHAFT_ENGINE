@@ -59,23 +59,23 @@ public class ElementActions {
     }
 
     private static void passAction(WebDriver driver, By elementLocator, String actionName, String testData) {
-	String message = "[" + actionName + "] successfully performed.";
+	String message = "Element Action [" + actionName + "] successfully performed.";
 	if (testData != null) {
 	    message = message + " With the following test data [" + testData + "].";
 	}
 	try {
 	    if (elementLocator != null) {
 		// moveToElement(driver, elementLocator);
-		ScreenshotManager.captureScreenShot(driver, elementLocator, actionName + "_performed", true);
+		ScreenshotManager.captureScreenShot(driver, elementLocator, actionName, true);
 	    } else {
-		ScreenshotManager.captureScreenShot(driver, actionName + "_performed", true);
+		ScreenshotManager.captureScreenShot(driver, actionName, true);
 	    }
 	    ReportManager.log(message);
 	} catch (Exception e) {
 	    ReportManager.log(e);
 	    ReportManager.log(
 		    "Failed to take a screenshot of the element as it doesn't exist anymore. Taking a screenshot of the whole page.");
-	    ScreenshotManager.captureScreenShot(driver, actionName + "_performed", true);
+	    ScreenshotManager.captureScreenShot(driver, actionName, true);
 	    ReportManager.log(message);
 	}
     }
@@ -89,7 +89,7 @@ public class ElementActions {
 	if (testData != null) {
 	    message = message + " With the following test data [" + testData + "].";
 	}
-	ScreenshotManager.captureScreenShot(driver, actionName + "_failed", false);
+	ScreenshotManager.captureScreenShot(driver, actionName, false);
 	ReportManager.log(message);
 	Assert.fail(message);
     }
@@ -292,6 +292,37 @@ public class ElementActions {
 	}
     }
 
+    private static void typeWrapper(WebDriver driver, By elementLocator, String text, Boolean isSecureTyping) {
+	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
+	    // attempt to type
+	    String successfulTextLocationStrategy;
+	    String elementText = driver.findElement(elementLocator).getText();
+	    successfulTextLocationStrategy = "text";
+	    if (elementText.trim().equals("")) {
+		elementText = driver.findElement(elementLocator).getAttribute("textContent");
+		successfulTextLocationStrategy = "textContent";
+	    }
+	    if (elementText.trim().equals("")) {
+		elementText = driver.findElement(elementLocator).getAttribute("value");
+		successfulTextLocationStrategy = "value";
+	    }
+	    if (!elementText.trim().equals("")) {
+		// attempt to clear element then check text size
+		clearBeforeTyping(driver, elementLocator, elementText, successfulTextLocationStrategy);
+	    }
+	    if ((countFoundElements(driver, elementLocator, defaultElementIdentificationTimeout,
+		    attemptsBeforeThrowingElementNotFoundException) == 1) && (!text.equals(""))) {
+		performType(driver, elementLocator, text);
+	    }
+	    if ((countFoundElements(driver, elementLocator, defaultElementIdentificationTimeout,
+		    attemptsBeforeThrowingElementNotFoundException) == 1) && (!text.equals(""))) {
+		// to confirm that the text was written successfully
+		confirmTypingWasSuccessful(driver, elementLocator, text, successfulTextLocationStrategy,
+			isSecureTyping);
+	    }
+	}
+    }
+
     private static void clearBeforeTyping(WebDriver driver, By elementLocator, String elementText,
 	    String successfulTextLocationStrategy) {
 	driver.findElement(elementLocator).clear();
@@ -343,7 +374,7 @@ public class ElementActions {
     }
 
     private static void confirmTypingWasSuccessful(WebDriver driver, By elementLocator, String text,
-	    String successfulTextLocationStrategy) {
+	    String successfulTextLocationStrategy, boolean isSecureTyping) {
 	// to confirm that the text was written successfully
 	String actualText = "";
 	switch (successfulTextLocationStrategy) {
@@ -360,7 +391,11 @@ public class ElementActions {
 	    break;
 	}
 	if (actualText.equals(text)) {
-	    passAction(driver, elementLocator, "type", text);
+	    if (isSecureTyping) {
+		passAction(driver, elementLocator, "type", text.replaceAll(".", "*"));
+	    } else {
+		passAction(driver, elementLocator, "type", text);
+	    }
 	} else {
 	    failAction(driver, "type", "Expected to type: \"" + text + "\", but ended up with: \"" + actualText + "\"");
 	}
@@ -559,8 +594,10 @@ public class ElementActions {
     public static void switchToIframe(WebDriver driver, By elementLocator) {
 	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
 	    driver.switchTo().frame((WebElement) driver.findElement(elementLocator));
-	    passAction(driver, elementLocator, "switchToIframe"); // remove elementLocator in case of bug in screenshot
-	    // manager
+	    // note to self: remove elementLocator in case of bug in screenshot manager
+	    ReportManager.setDiscreetLogging(true);
+	    passAction(driver, elementLocator, "switchToIframe");
+	    ReportManager.setDiscreetLogging(false);
 	} else {
 	    failAction(driver, "switchToIframe");
 	}
@@ -577,7 +614,9 @@ public class ElementActions {
     public static void switchToDefaultContent(WebDriver driver) {
 	try {
 	    driver.switchTo().defaultContent();
+	    ReportManager.setDiscreetLogging(true);
 	    passAction(driver, "switchToDefaultContent");
+	    ReportManager.setDiscreetLogging(false);
 	} catch (Exception e) {
 	    failAction(driver, "switchToDefaultContent");
 	}
@@ -601,11 +640,7 @@ public class ElementActions {
 		(new WebDriverWait(driver, defaultElementIdentificationTimeout))
 			.until(ExpectedConditions.elementToBeClickable(elementLocator));
 		// wait for element to be clickable
-		// driver.findElement(elementLocator).click();
-		// temporarily disabling regular click and using javascript click instead...
-		// this is beta
-		((JavascriptExecutor) driver).executeScript("arguments[0].click();",
-			driver.findElement(elementLocator));
+		driver.findElement(elementLocator).click();
 	    } catch (Exception e) {
 		if (e.getMessage().contains("Other element would receive the click")
 			|| e.getMessage().contains("Expected condition failed: waiting for element to be clickable")
@@ -667,34 +702,24 @@ public class ElementActions {
      *            the target text that needs to be typed into the target webElement
      */
     public static void type(WebDriver driver, By elementLocator, String text) {
-	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
-	    // attempt to type
-	    String successfulTextLocationStrategy;
-	    String elementText = driver.findElement(elementLocator).getText();
-	    successfulTextLocationStrategy = "text";
-	    if (elementText.trim().equals("")) {
-		elementText = driver.findElement(elementLocator).getAttribute("textContent");
-		successfulTextLocationStrategy = "textContent";
-	    }
-	    if (elementText.trim().equals("")) {
-		elementText = driver.findElement(elementLocator).getAttribute("value");
-		successfulTextLocationStrategy = "value";
-	    }
-	    if (!elementText.trim().equals("")) {
-		// attempt to clear element then check text size
-		clearBeforeTyping(driver, elementLocator, elementText, successfulTextLocationStrategy);
-	    }
-	    if ((countFoundElements(driver, elementLocator, defaultElementIdentificationTimeout,
-		    attemptsBeforeThrowingElementNotFoundException) == 1) && (!text.equals(""))) {
-		performType(driver, elementLocator, text);
-	    }
-	    if ((countFoundElements(driver, elementLocator, defaultElementIdentificationTimeout,
-		    attemptsBeforeThrowingElementNotFoundException) == 1) && (!text.equals(""))) {
-		// to confirm that the text was written successfully
-		confirmTypingWasSuccessful(driver, elementLocator, text, successfulTextLocationStrategy);
-	    }
+	typeWrapper(driver, elementLocator, text, false);
+    }
 
-	}
+    /**
+     * Checks if there is any text in an element, clears it, then types the required
+     * string into the target element. Obfuscates the written text in the ourput
+     * report. This action should be used for writing passwords and secure text.
+     * 
+     * @param driver
+     *            the current instance of Selenium webdriver
+     * @param elementLocator
+     *            the locator of the webElement under test (By xpath, id, selector,
+     *            name ...etc)
+     * @param text
+     *            the target text that needs to be typed into the target webElement
+     */
+    public static void typeSecure(WebDriver driver, By elementLocator, String text) {
+	typeWrapper(driver, elementLocator, text, true);
     }
 
     /**

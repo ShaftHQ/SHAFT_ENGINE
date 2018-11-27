@@ -22,16 +22,16 @@ public class Verifications {
 	throw new IllegalStateException("Utility class");
     }
 
-    private static void reportVerificationResults(WebDriver driver, By elementLocator) {
+    private static void reportVerificationResults(String actionName, WebDriver driver, By elementLocator) {
 	String verificationSuccessesString = verificationSuccesses.toString().trim();
 	if (!"".equals(verificationSuccessesString)) {
 	    if (driver != null) {
 		try {
-		    ScreenshotManager.captureScreenShot(driver, elementLocator, true);
+		    ScreenshotManager.captureScreenShot(driver, elementLocator, actionName, true);
 		} catch (NullPointerException e) {
 		    // elementLocator is null, meaning that there is no element attached to this
 		    // verification
-		    ScreenshotManager.captureScreenShot(driver, true);
+		    ScreenshotManager.captureScreenShot(driver, actionName, true);
 		}
 	    }
 	    ReportManager.log(verificationSuccessesString);
@@ -42,11 +42,11 @@ public class Verifications {
 	if (!"".equals(verificationFailuresString)) {
 	    if (driver != null) {
 		try {
-		    ScreenshotManager.captureScreenShot(driver, elementLocator, false);
+		    ScreenshotManager.captureScreenShot(driver, elementLocator, actionName, false);
 		} catch (NullPointerException e) {
 		    // elementLocator is null, meaning that there is no element attached to this
 		    // verification
-		    ScreenshotManager.captureScreenShot(driver, false);
+		    ScreenshotManager.captureScreenShot(driver, actionName, false);
 		}
 	    }
 	    ReportManager.log(verificationFailuresString);
@@ -109,7 +109,7 @@ public class Verifications {
 		verificationFailures.append("Verification Failed; an unhandled exception occured.");
 	    }
 	}
-	reportVerificationResults(null, null);
+	reportVerificationResults("verifyEquals", null, null);
     }
 
     /**
@@ -147,7 +147,7 @@ public class Verifications {
 		verificationFailures.append("Verification Failed; an unhandled exception occured.");
 	    }
 	}
-	reportVerificationResults(null, null);
+	reportVerificationResults("verifyNull", null, null);
     }
 
     /**
@@ -198,7 +198,7 @@ public class Verifications {
 	    ReportManager.log(e);
 	    verificationFailures.append("Verification Failed; an unhandled exception occured.");
 	}
-	reportVerificationResults(driver, elementLocator);
+	reportVerificationResults("verifyElementExists", driver, elementLocator);
     }
 
     public static void verifyElementAttribute(WebDriver driver, By elementLocator, String elementAttribute,
@@ -319,7 +319,7 @@ public class Verifications {
 		verificationFailures.append("Verification Failed; an unhandled exception occured.");
 	    }
 	}
-	reportVerificationResults(driver, elementLocator);
+	reportVerificationResults("verifyElementAttribute", driver, elementLocator);
     }
 
     public static void verifyBrowserAttribute(WebDriver driver, String browserAttribute, String expectedValue,
@@ -450,7 +450,7 @@ public class Verifications {
 		verificationFailures.append("Verification Failed; an unhandled exception occured.");
 	    }
 	}
-	reportVerificationResults(driver, null);
+	reportVerificationResults("verifyBrowserAttribute", driver, null);
     }
 
     public static void verifyGreaterThanOrEquals(Number expectedValue, Number actualValue, Boolean verificationType) {
@@ -480,6 +480,6 @@ public class Verifications {
 		verificationFailures.append("Verification Failed; an unhandled exception occured.");
 	    }
 	}
-	reportVerificationResults(null, null);
+	reportVerificationResults("verifyGreaterThanOrEquals", null, null);
     }
 }

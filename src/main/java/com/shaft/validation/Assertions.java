@@ -28,23 +28,24 @@ public class Assertions {
 	Assert.fail(message);
     }
 
-    private static void fail(WebDriver driver, String message, Throwable realCause) {
-	ScreenshotManager.captureScreenShot(driver, false);
+    private static void fail(String actionName, WebDriver driver, String message, Throwable realCause) {
+	ScreenshotManager.captureScreenShot(driver, actionName, false);
 	fail(message, realCause);
     }
 
-    private static void fail(WebDriver driver, String message) {
-	ScreenshotManager.captureScreenShot(driver, false);
+    private static void fail(String actionName, WebDriver driver, String message) {
+	ScreenshotManager.captureScreenShot(driver, actionName, false);
 	fail(message);
     }
 
-    private static void fail(WebDriver driver, By elementLocator, String message, Throwable realCause) {
-	ScreenshotManager.captureScreenShot(driver, elementLocator, false);
+    private static void fail(String actionName, WebDriver driver, By elementLocator, String message,
+	    Throwable realCause) {
+	ScreenshotManager.captureScreenShot(driver, elementLocator, actionName, false);
 	fail(message, realCause);
     }
 
-    private static void fail(WebDriver driver, By elementLocator, String message) {
-	ScreenshotManager.captureScreenShot(driver, elementLocator, false);
+    private static void fail(String actionName, WebDriver driver, By elementLocator, String message) {
+	ScreenshotManager.captureScreenShot(driver, elementLocator, actionName, false);
 	fail(message);
     }
 
@@ -52,13 +53,13 @@ public class Assertions {
 	ReportManager.log(message);
     }
 
-    private static void pass(WebDriver driver, String message) {
-	ScreenshotManager.captureScreenShot(driver, true);
+    private static void pass(String actionName, WebDriver driver, String message) {
+	ScreenshotManager.captureScreenShot(driver, actionName, true);
 	pass(message);
     }
 
-    private static void pass(WebDriver driver, By elementLocator, String message) {
-	ScreenshotManager.captureScreenShot(driver, elementLocator, true);
+    private static void pass(String actionName, WebDriver driver, By elementLocator, String message) {
+	ScreenshotManager.captureScreenShot(driver, elementLocator, actionName, true);
 	pass(message);
     }
 
@@ -167,24 +168,27 @@ public class Assertions {
 		    retriesBeforeThrowingElementNotFoundException)) {
 	    case 0:
 		if (assertionType) {
-		    fail(driver,
+		    fail("assertElementExists", driver,
 			    "Assertion Failed; element does not exist. Locator [" + elementLocator.toString() + "].");
 		} else {
-		    pass(driver,
+		    pass("assertElementExists", driver,
 			    "Assertion Passed; element does not exist. Locator [" + elementLocator.toString() + "].");
 		}
 		break;
 	    case 1:
 		if (assertionType) {
-		    pass(driver, elementLocator, "Assertion Passed; element exists and is unique. Locator ["
-			    + elementLocator.toString() + "].");
+		    pass("assertElementExists", driver, elementLocator,
+			    "Assertion Passed; element exists and is unique. Locator [" + elementLocator.toString()
+				    + "].");
 		} else {
-		    fail(driver, elementLocator, "Assertion Failed; element exists and is unique. Locator ["
-			    + elementLocator.toString() + "].");
+		    fail("assertElementExists", driver, elementLocator,
+			    "Assertion Failed; element exists and is unique. Locator [" + elementLocator.toString()
+				    + "].");
 		}
 		break;
 	    default:
-		fail(driver, "Assertion Failed; element is not unique. Locator [" + elementLocator.toString() + "].");
+		fail("assertElementExists", driver,
+			"Assertion Failed; element is not unique. Locator [" + elementLocator.toString() + "].");
 		break;
 	    }
 	} catch (Exception e) {
@@ -272,11 +276,13 @@ public class Assertions {
 		    fail("Assertion Failed; an unhandled comparison case was selected.");
 		    break;
 		}
-		pass(driver, elementLocator, "Assertion Passed; actual value of [" + elementAttribute
-			+ "] does match expected value [" + expectedValue + "].");
+		pass("assertElementAttribute", driver, elementLocator, "Assertion Passed; actual value of ["
+			+ elementAttribute + "] does match expected value [" + expectedValue + "].");
 	    } catch (AssertionError e) {
-		fail(driver, elementLocator, "Assertion Failed; actual value of [" + elementAttribute + "] equals ["
-			+ actualValue + "] which does not match expected value [" + expectedValue + "].", e);
+		fail("assertElementAttribute", driver, elementLocator,
+			"Assertion Failed; actual value of [" + elementAttribute + "] equals [" + actualValue
+				+ "] which does not match expected value [" + expectedValue + "].",
+			e);
 	    } catch (Exception e) {
 		ReportManager.log(e);
 		fail("Assertion Failed; an unhandled exception occured.", e);
@@ -305,11 +311,12 @@ public class Assertions {
 		    fail("Assertion Failed; an unhandled comparison case was selected.");
 		    break;
 		}
-		pass(driver, elementLocator, "Assertion Passed; actual value of [" + elementAttribute + "] equals ["
-			+ actualValue + "] which does not match expected value [" + expectedValue + "].");
+		pass("assertElementAttribute", driver, elementLocator,
+			"Assertion Passed; actual value of [" + elementAttribute + "] equals [" + actualValue
+				+ "] which does not match expected value [" + expectedValue + "].");
 	    } catch (AssertionError e) {
-		fail(driver, elementLocator, "Assertion Failed; actual value of [" + elementAttribute
-			+ "] does match expected value [" + expectedValue + "].", e);
+		fail("assertElementAttribute", driver, elementLocator, "Assertion Failed; actual value of ["
+			+ elementAttribute + "] does match expected value [" + expectedValue + "].", e);
 	    } catch (Exception e) {
 		ReportManager.log(e);
 		fail("Assertion Failed; an unhandled exception occured.", e);
@@ -402,11 +409,12 @@ public class Assertions {
 		    fail("Assertion Failed; an unhandled comparison case was selected.");
 		    break;
 		}
-		pass(driver, "Assertion Passed; actual value of [" + browserAttribute + "] does match expected value ["
-			+ expectedValue + "].");
+		pass("assertBrowserAttribute", driver, "Assertion Passed; actual value of [" + browserAttribute
+			+ "] does match expected value [" + expectedValue + "].");
 	    } catch (AssertionError e) {
-		fail(driver, "Assertion Failed; actual value of [" + browserAttribute + "] equals [" + actualValue
-			+ "] which does not match expected value [" + expectedValue + "].", e);
+		fail("assertBrowserAttribute", driver, "Assertion Failed; actual value of [" + browserAttribute
+			+ "] equals [" + actualValue + "] which does not match expected value [" + expectedValue + "].",
+			e);
 	    } catch (Exception e) {
 		ReportManager.log(e);
 		fail("Assertion Failed; an unhandled exception occured.", e);
@@ -435,11 +443,12 @@ public class Assertions {
 		    fail("Assertion Failed; an unhandled comparison case was selected.");
 		    break;
 		}
-		pass(driver, "Assertion Passed; actual value of [" + browserAttribute + "] equals [" + actualValue
-			+ "] which does not match expected value [" + expectedValue + "].");
+		pass("assertBrowserAttribute", driver,
+			"Assertion Passed; actual value of [" + browserAttribute + "] equals [" + actualValue
+				+ "] which does not match expected value [" + expectedValue + "].");
 	    } catch (AssertionError e) {
-		fail(driver, "Assertion Failed; actual value of [" + browserAttribute + "] does match expected value ["
-			+ expectedValue + "].", e);
+		fail("assertBrowserAttribute", driver, "Assertion Failed; actual value of [" + browserAttribute
+			+ "] does match expected value [" + expectedValue + "].", e);
 	    } catch (Exception e) {
 		ReportManager.log(e);
 		fail("Assertion Failed; an unhandled exception occured.", e);

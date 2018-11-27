@@ -82,24 +82,20 @@ public class BrowserFactory {
      * @return a singleton browser instance
      */
     public static WebDriver getBrowser() {
-	if (TARGET_BROWSER_NAME.equals("Default")) {
-	    Assert.fail("Unsupported Browser Type.");
-	    return getBrowser(TARGET_BROWSER_NAME);
-	} else {
-	    return getBrowser(TARGET_BROWSER_NAME);
-	}
+	return getBrowser(TARGET_BROWSER_NAME);
     }
 
     /**
-     * Read the target browser value from pom configuration (overridable from
-     * jenkins), if "Default" it reads the "Target Browser" cell value from the
-     * configured test data file.
+     * @deprecated Read the target browser value from pom configuration (overridable
+     *             from jenkins), if "Default" it reads the "Target Browser" cell
+     *             value from the configured test data file.
      * 
      * @param testDataReader
      *            the current instance of the Excel reader used for reading test
      *            data
      * @return a singleton browser instance
      */
+    @Deprecated
     public static WebDriver getBrowser(ExcelFileManager testDataReader) {
 	if (TARGET_BROWSER_NAME.equals("Default")) {
 	    return getBrowser(testDataReader.getCellData("Target Browser"));
@@ -122,6 +118,9 @@ public class BrowserFactory {
     public static WebDriver getBrowser(String browserName) {
 	try {
 	    if (driver != null) {
+		// TODO and target browser exists in hashmap, also enhance hashmap to include
+		// os/browser match
+
 		// retrieve current instance
 		driver = getActiveDriverInstance(browserName);
 
