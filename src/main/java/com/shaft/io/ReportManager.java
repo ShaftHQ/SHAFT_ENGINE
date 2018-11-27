@@ -203,7 +203,7 @@ public class ReportManager {
     }
 
     /**
-     * * @deprecated logging will be handled by the listeners package instead.
+     * @deprecated logging will be handled by the listeners package instead.
      * Returns the log of the current test, and attaches it in the end of the test
      * execution report.
      * 

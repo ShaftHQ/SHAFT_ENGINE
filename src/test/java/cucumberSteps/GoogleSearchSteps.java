@@ -25,7 +25,7 @@ public class GoogleSearchSteps {
     public void target_browser_is_launched() throws Throwable {
 	System.setProperty("testDataFilePath", "src/test/resources/TestDataFiles/testSuite01/TestData.xlsx");
 	testDataReader = new ExcelFileManager(System.getProperty("testDataFilePath"));
-	driver = BrowserFactory.getBrowser(testDataReader);
+	driver = BrowserFactory.getBrowser();
     }
 
     @When("^I navigate to Google search page URL$")

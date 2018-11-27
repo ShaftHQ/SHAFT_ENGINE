@@ -19,6 +19,7 @@ import javax.imageio.stream.ImageOutputStream;
 
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.NoSuchSessionException;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.WebDriver;
@@ -62,40 +63,42 @@ public class ScreenshotManager {
      * A flag to control the highlighting of the element green for passing yellow
      * for failing
      */
-    private static String appendedText = "";
+    private static String globalPassFailAppendedText = "";
 
     private static WebDriver gifDriver = null;
     // private static ImageWriter gifWriter = null;
-    private static String gifFileName = "";
+    private static String testCaseName = "";
+    private static String gifFilePath = "";
     private static ImageOutputStream gifOutputStream = null;
     private static GifSequenceWriter gifWriter = null;
-    private static String lastGifName = "FirstGif";
 
     private ScreenshotManager() {
 	throw new IllegalStateException("Utility class");
     }
 
     /**
-     * Used only on browser-based custom validation points. passFailStatus; true
-     * means pass and false means fail.
+     * Used if there is no element locator. passFailStatus; true means pass and
+     * false means fail.
      * 
      * @param driver
      *            the current instance of Selenium webdriver
      * @param passFailStatus
      *            A flag to determine whether the action has passed or failed
      */
-    public static void captureScreenShot(WebDriver driver, boolean passFailStatus) {
+    public static void captureScreenShot(WebDriver driver, String actionName, boolean passFailStatus) {
 	globalPassFailStatus = passFailStatus;
 	if (passFailStatus) {
-	    appendedText = "passed";
+	    globalPassFailAppendedText = "passed";
 	} else {
-	    appendedText = "failed";
+	    globalPassFailAppendedText = "failed";
 	}
 
-	internalCaptureScreenShot(driver, null, appendedText,
+	internalCaptureScreenShot(driver, null, actionName, globalPassFailAppendedText,
 		(SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always"))
-			|| (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly"))
-			|| (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly") && (!passFailStatus)));
+			|| (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly")
+				&& (actionName.contains("assert") || actionName.contains("verify")))
+			|| (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly") && (!passFailStatus))
+			|| !passFailStatus);
 
 	// Note: Excluded the "Always" case as there will already be another screenshot
 	// taken by the browser/element action // reversed this option to be able to
@@ -103,8 +106,8 @@ public class ScreenshotManager {
     }
 
     /**
-     * Used only on assertElementExists and verifyElementExists element-based custom
-     * validation points. passFailStatus; true means pass and false means fail.
+     * Used if there is an element locator. passFailStatus; true means pass and
+     * false means fail.
      * 
      * @param driver
      *            the current instance of Selenium webdriver
@@ -114,20 +117,23 @@ public class ScreenshotManager {
      * @param passFailStatus
      *            A flag to determine whether the action has passed or failed
      */
-    public static void captureScreenShot(WebDriver driver, By elementLocator, boolean passFailStatus) {
+    public static void captureScreenShot(WebDriver driver, By elementLocator, String actionName,
+	    boolean passFailStatus) {
 	globalPassFailStatus = passFailStatus;
 	targetElementLocator = elementLocator;
 
 	if (passFailStatus) {
-	    appendedText = "passed";
+	    globalPassFailAppendedText = "passed";
 	} else {
-	    appendedText = "failed";
+	    globalPassFailAppendedText = "failed";
 	}
 
-	internalCaptureScreenShot(driver, elementLocator, appendedText,
+	internalCaptureScreenShot(driver, elementLocator, actionName, globalPassFailAppendedText,
 		(SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always"))
-			|| (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly"))
-			|| (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly") && (!passFailStatus)));
+			|| (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly")
+				&& (actionName.contains("assert") || actionName.contains("verify")))
+			|| (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly") && (!passFailStatus))
+			|| !passFailStatus);
 	// Note: Excluded the "Always" case as there will already be another screenshot
 	// taken by the browser/element action // reversed this option to be able to
 	// take a failure screenshot
@@ -147,10 +153,12 @@ public class ScreenshotManager {
      * @param passFailStatus
      *            A flag to determine whether the action has passed or failed
      */
-    public static void captureScreenShot(WebDriver driver, String appendedText, boolean passFailStatus) {
+    @Deprecated
+    public static void captureScreenShot(WebDriver driver, String actionName, String appendedText,
+	    boolean passFailStatus) {
 	globalPassFailStatus = passFailStatus;
 
-	internalCaptureScreenShot(driver, null, appendedText,
+	internalCaptureScreenShot(driver, null, actionName, appendedText,
 		(SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always"))
 			|| (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly") && (!passFailStatus))
 			|| ((SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly")) && (!passFailStatus)));
@@ -169,12 +177,13 @@ public class ScreenshotManager {
      *            the text that needs to be appended to the name of the screenshot
      *            to make it more recognizable
      */
-    public static void captureScreenShot(WebDriver driver, By elementLocator, String appendedText,
+    @Deprecated
+    public static void captureScreenShot(WebDriver driver, By elementLocator, String actionName, String appendedText,
 	    boolean passFailStatus) {
 	globalPassFailStatus = passFailStatus;
 	targetElementLocator = elementLocator;
 
-	internalCaptureScreenShot(driver, elementLocator, appendedText,
+	internalCaptureScreenShot(driver, elementLocator, actionName, appendedText,
 		SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always"));
     }
 
@@ -195,8 +204,8 @@ public class ScreenshotManager {
      *            screenshotParams_whenToTakeAScreenshot parameter from the pom.xml
      *            file
      */
-    private static void internalCaptureScreenShot(WebDriver driver, By elementLocator, String appendedText,
-	    boolean takeScreenshot) {
+    private static void internalCaptureScreenShot(WebDriver driver, By elementLocator, String actionName,
+	    String appendedText, boolean takeScreenshot) {
 	new File(SCREENSHOT_FOLDERPATH).mkdirs();
 
 	if (takeScreenshot) {
@@ -241,8 +250,8 @@ public class ScreenshotManager {
 	     */
 	    // String testCaseName =
 	    // Reporter.getCurrentTestResult().getTestClass().getRealClass().getName();
-	    String testCaseName = Reporter.getCurrentTestResult().getMethod().getMethodName();
-	    screenshotFileName = System.currentTimeMillis() + "_" + testCaseName;
+	    testCaseName = Reporter.getCurrentTestResult().getMethod().getMethodName();
+	    screenshotFileName = System.currentTimeMillis() + "_" + testCaseName + "_" + actionName;
 	    if (!appendedText.equals("")) {
 		screenshotFileName = screenshotFileName + "_" + appendedText;
 	    }
@@ -373,21 +382,21 @@ public class ScreenshotManager {
     }
 
     public static void startAnimatedGif(WebDriver driver) {
-	if (CREATE_GIF && gifDriver == null && !lastGifName.equals(screenshotFileName)) {
+	if (CREATE_GIF) {
 	    gifDriver = driver;
 
-	    String testCaseName = Reporter.getCurrentTestResult().getMethod().getMethodName();
-	    gifFileName = SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME + FileSystems.getDefault().getSeparator()
+	    testCaseName = Reporter.getCurrentTestResult().getMethod().getMethodName();
+	    gifFilePath = SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME + FileSystems.getDefault().getSeparator()
 		    + System.currentTimeMillis() + "_" + testCaseName + ".gif";
 
 	    File src = ((TakesScreenshot) gifDriver).getScreenshotAs(OutputType.FILE); // takes first screenshot
-	    FileManager.copyFile(src.getAbsolutePath(), gifFileName);
+	    FileManager.copyFile(src.getAbsolutePath(), gifFilePath);
 	    try {
 		// grab the output image type from the first image in the sequence
-		BufferedImage firstImage = ImageIO.read(new File(gifFileName));
+		BufferedImage firstImage = ImageIO.read(new File(gifFilePath));
 
 		// create a new BufferedOutputStream
-		gifOutputStream = new FileImageOutputStream(new File(gifFileName));
+		gifOutputStream = new FileImageOutputStream(new File(gifFilePath));
 
 		// create a gif sequence with the type of the first image, 500 milliseconds
 		// between frames, which loops infinitely
@@ -411,29 +420,33 @@ public class ScreenshotManager {
 
     private static void appendToAnimatedGif(File... screenshot) {
 	// ensure that animatedGif is started, else force start it
-	if (CREATE_GIF && gifDriver == null && !lastGifName.equals(screenshotFileName)) {
-	    BrowserFactory.startAnimatedGif();
-	}
+	if (CREATE_GIF) {
+	    if (gifDriver == null) {
+		BrowserFactory.startAnimatedGif();
+	    } else {
+		try {
+		    BufferedImage image;
+		    if (screenshot.length == 1) {
+			image = ImageIO.read(screenshot[0]);
+		    } else {
+			image = ImageIO.read(((TakesScreenshot) gifDriver).getScreenshotAs(OutputType.FILE));
+		    }
+		    gifWriter.writeToSequence(image);
 
-	// screenshot to be appended to animated gif
-	if (CREATE_GIF && gifDriver != null) {
-	    try {
-		BufferedImage image;
-		if (screenshot.length == 1) {
-		    image = ImageIO.read(screenshot[0]);
-		} else {
-		    image = ImageIO.read(((TakesScreenshot) gifDriver).getScreenshotAs(OutputType.FILE));
+		} catch (NoSuchSessionException e) {
+		    // this happens when attempting to append to a non existing gif, expected
+		    // solution is to recreate the gif
+		    BrowserFactory.startAnimatedGif();
+		} catch (IOException | IllegalStateException | NullPointerException e) {
+		    ReportManager.log(e);
 		}
-		gifWriter.writeToSequence(image);
-	    } catch (IOException | IllegalStateException | NullPointerException e) {
-		ReportManager.log(e);
 	    }
 	}
     }
 
     public static void attachAnimatedGif() {
 	// stop and attach
-	if (CREATE_GIF && gifDriver != null && gifOutputStream != null && gifWriter != null) {
+	if (CREATE_GIF && gifDriver != null) {
 	    try {
 		gifWriter.close();
 		gifOutputStream.close();
@@ -441,8 +454,7 @@ public class ScreenshotManager {
 		gifOutputStream = null;
 		gifWriter = null;
 		gifDriver = null;
-		ReportManager.attach("Animated Gif", screenshotFileName, new FileInputStream(gifFileName));
-		lastGifName = screenshotFileName;
+		ReportManager.attach("Animated Gif", testCaseName, new FileInputStream(gifFilePath));
 	    } catch (IOException | NullPointerException | IllegalStateException e) {
 		ReportManager.log(e);
 	    }
