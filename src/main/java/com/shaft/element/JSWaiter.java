@@ -1,5 +1,6 @@
 package com.shaft.element;
 
+import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.support.ui.ExpectedCondition;
@@ -29,7 +30,8 @@ public class JSWaiter {
     // Wait for JQuery Load
     public static void waitForJQueryLoad() {
 	// Wait for jQuery to load
-	ExpectedCondition<Boolean> jQueryLoad = driver -> ((Long) ((JavascriptExecutor) jsWaitDriver).executeScript("return jQuery.active") == 0);
+	ExpectedCondition<Boolean> jQueryLoad = driver -> ((Long) ((JavascriptExecutor) jsWaitDriver)
+		.executeScript("return jQuery.active") == 0);
 
 	// Get JQuery is Ready
 	boolean jqueryReady = (Boolean) jsExec.executeScript("return jQuery.active==0");
@@ -68,7 +70,8 @@ public class JSWaiter {
 	String angularReadyScript = "return angular.element(document).injector().get('$http').pendingRequests.length === 0";
 
 	// Wait for ANGULAR to load
-	ExpectedCondition<Boolean> angularLoad = driver -> Boolean.valueOf(((JavascriptExecutor) driver).executeScript(angularReadyScript).toString());
+	ExpectedCondition<Boolean> angularLoad = driver -> Boolean
+		.valueOf(((JavascriptExecutor) driver).executeScript(angularReadyScript).toString());
 
 	// Get Angular is Ready
 	boolean angularReady = Boolean.parseBoolean(jsExec.executeScript(angularReadyScript).toString());
@@ -106,10 +109,12 @@ public class JSWaiter {
 	JavascriptExecutor jsExec = (JavascriptExecutor) jsWaitDriver;
 
 	// Wait for Javascript to load
-	ExpectedCondition<Boolean> jsLoad = driver -> ((JavascriptExecutor) jsWaitDriver).executeScript("return document.readyState").toString().trim().equalsIgnoreCase("complete");
+	ExpectedCondition<Boolean> jsLoad = driver -> ((JavascriptExecutor) jsWaitDriver)
+		.executeScript("return document.readyState").toString().trim().equalsIgnoreCase("complete");
 
 	// Get JS is Ready
-	boolean jsReady = (Boolean) jsExec.executeScript("return document.readyState").toString().trim().equalsIgnoreCase("complete");
+	boolean jsReady = (Boolean) jsExec.executeScript("return document.readyState").toString().trim()
+		.equalsIgnoreCase("complete");
 
 	// Wait Javascript until it is Ready!
 	if (!jsReady) {
@@ -127,7 +132,8 @@ public class JSWaiter {
 		// More Wait for stability (Optional)
 		sleep(20);
 		tryCounter++;
-		jsReady = (Boolean) jsExec.executeScript("return document.readyState").toString().trim().equalsIgnoreCase("complete");
+		jsReady = (Boolean) jsExec.executeScript("return document.readyState").toString().trim()
+			.equalsIgnoreCase("complete");
 	    }
 	    if (debug) {
 		ReportManager.log("JS is Ready!");
@@ -162,8 +168,25 @@ public class JSWaiter {
 		ReportManager.log("Angular is not defined on this site!");
 	    }
 	}
+	// wait for all nested iframes to load, then wait for the main page to load
+	int iframes = ElementActions.getElementsCount(jsWaitDriver, By.tagName("iframe"), 1, 0, false);
+	if (iframes > 0) {
+	    for (int i = 0; i < iframes; i++) {
+		Boolean jsReady = (Boolean) jsExec.executeScript(
+			"return document.getElementsByTagName('iframe')['" + i + "'].contentDocument.readyState")
+			.toString().trim().equalsIgnoreCase("complete");
+		if (!jsReady) {
+		    waitForJSLoad();
+		} else {
+		    if (debug) {
+			ReportManager.log("JS is Ready!");
+		    }
+		}
+	    }
+	}
 
-	Boolean jsReady = (Boolean) jsExec.executeScript("return document.readyState").toString().trim().equalsIgnoreCase("complete");
+	Boolean jsReady = (Boolean) jsExec.executeScript("return document.readyState").toString().trim()
+		.equalsIgnoreCase("complete");
 	if (!jsReady) {
 	    waitForJSLoad();
 	} else {
@@ -177,7 +200,8 @@ public class JSWaiter {
     private static void waitForAngularIfDefined() {
 	Boolean angularDefined = !((Boolean) jsExec.executeScript("return window.angular === undefined"));
 	if (angularDefined) {
-	    Boolean angularInjectorDefined = !((Boolean) jsExec.executeScript("return angular.element(document).injector() === undefined"));
+	    Boolean angularInjectorDefined = !((Boolean) jsExec
+		    .executeScript("return angular.element(document).injector() === undefined"));
 
 	    if (angularInjectorDefined) {
 		waitForAngularLoad();

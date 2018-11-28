@@ -6,6 +6,7 @@ import org.testng.ITestNGMethod;
 import org.testng.ITestResult;
 
 import com.shaft.browser.BrowserFactory;
+import com.shaft.element.ElementActions;
 import com.shaft.io.RecordManager;
 import com.shaft.io.ReportManager;
 
@@ -14,6 +15,7 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 
     @Override
     public void beforeInvocation(IInvokedMethod method, ITestResult testResult) {
+	ElementActions.switchToDefaultContent();
 	if (!method.isConfigurationMethod()) {
 	    ITestNGMethod testMethod = method.getTestMethod();
 	    if (testMethod.isTest()) {
@@ -23,7 +25,7 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 		} else {
 		    ReportManager.logTestInformation(testMethod.getTestClass().getName(), testMethod.getMethodName());
 		}
-		// BrowserFactory.startAnimatedGif();
+		BrowserFactory.startAnimatedGif();
 		if (invokedTestsCounter == 0) {
 		    RecordManager.startRecording();
 		}
@@ -40,7 +42,7 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 		BrowserFactory.attachAnimatedGif();
 		ReportManager.attachTestLog();
 		try {
-		    //testSize where the structure is testSuite > test > testClasses > testMethods
+		    // testSize where the structure is testSuite > test > testClasses > testMethods
 		    int testSize = testResult.getTestContext().getAllTestMethods().length;
 
 		    if (invokedTestsCounter == testSize - 1) {

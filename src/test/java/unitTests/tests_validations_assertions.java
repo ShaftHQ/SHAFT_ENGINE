@@ -300,7 +300,8 @@ public class tests_validations_assertions {
 
 	ElementActions.type(driver, By.name("q"), "Automation!@#$%^&*()_+{}[]\\';/.,");
 	try {
-	    Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation!@#$%^&*()_+{}[]\\\\';/.,", 1, false);
+	    Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation!@#$%^&*()_+{}[]\\\\';/.,", 1,
+		    false);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}

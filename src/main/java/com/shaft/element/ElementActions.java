@@ -29,6 +29,7 @@ import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.testng.Assert;
 
+import com.shaft.browser.BrowserFactory;
 import com.shaft.io.ReportManager;
 import com.shaft.io.ScreenshotManager;
 
@@ -37,6 +38,9 @@ public class ElementActions {
 	    .parseInt(System.getProperty("defaultElementIdentificationTimeout").trim());
     static int attemptsBeforeThrowingElementNotFoundException = Integer
 	    .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
+
+    // this will only be used for switching back to default content
+    static WebDriver lastUsedDriver = null;
 
     private ElementActions() {
 	throw new IllegalStateException("Utility class");
@@ -78,6 +82,7 @@ public class ElementActions {
 	    ScreenshotManager.captureScreenShot(driver, actionName, true);
 	    ReportManager.log(message);
 	}
+	lastUsedDriver = driver;
     }
 
     private static void failAction(WebDriver driver, String actionName) {
@@ -92,6 +97,7 @@ public class ElementActions {
 	ScreenshotManager.captureScreenShot(driver, actionName, false);
 	ReportManager.log(message);
 	Assert.fail(message);
+	lastUsedDriver = driver;
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -141,7 +147,7 @@ public class ElementActions {
     private static boolean attemptToFindUniqueElement(WebDriver driver, By elementLocator, int timeout,
 	    Boolean isInternalCall) {
 	int foundElementsCount = countFoundElements(driver, elementLocator, timeout,
-		attemptsBeforeThrowingElementNotFoundException);
+		attemptsBeforeThrowingElementNotFoundException, true);
 	switch (foundElementsCount) {
 	case 0: // no elements found
 	    ReportManager.log("Element with locator (" + elementLocator.toString() + ") was not found on this page.");
@@ -185,9 +191,11 @@ public class ElementActions {
      *         found, or more if multiple elements were found
      */
     private static int countFoundElements(WebDriver driver, By elementLocator, int timeout,
-	    int attemptsBeforeThrowingElementNotFoundException) {
-	if (!isWaitForLazyLoadingSuccessful()) {
-	    return 0;
+	    int attemptsBeforeThrowingElementNotFoundException, boolean waitForLazyLoading) {
+	if (waitForLazyLoading) {
+	    if (!isWaitForLazyLoadingSuccessful()) {
+		return 0;
+	    }
 	}
 
 	int foundElementsCount = 0;
@@ -311,11 +319,11 @@ public class ElementActions {
 		clearBeforeTyping(driver, elementLocator, elementText, successfulTextLocationStrategy);
 	    }
 	    if ((countFoundElements(driver, elementLocator, defaultElementIdentificationTimeout,
-		    attemptsBeforeThrowingElementNotFoundException) == 1) && (!text.equals(""))) {
+		    attemptsBeforeThrowingElementNotFoundException, true) == 1) && (!text.equals(""))) {
 		performType(driver, elementLocator, text);
 	    }
 	    if ((countFoundElements(driver, elementLocator, defaultElementIdentificationTimeout,
-		    attemptsBeforeThrowingElementNotFoundException) == 1) && (!text.equals(""))) {
+		    attemptsBeforeThrowingElementNotFoundException, true) == 1) && (!text.equals(""))) {
 		// to confirm that the text was written successfully
 		confirmTypingWasSuccessful(driver, elementLocator, text, successfulTextLocationStrategy,
 			isSecureTyping);
@@ -528,7 +536,7 @@ public class ElementActions {
      */
     public static int getElementsCount(WebDriver driver, By elementLocator) {
 	return countFoundElements(driver, elementLocator, defaultElementIdentificationTimeout,
-		attemptsBeforeThrowingElementNotFoundException);
+		attemptsBeforeThrowingElementNotFoundException, true);
     }
 
     /**
@@ -550,7 +558,7 @@ public class ElementActions {
      */
     public static int getElementsCount(WebDriver driver, By elementLocator, int customElementIdentificationTimeout) {
 	return countFoundElements(driver, elementLocator, customElementIdentificationTimeout,
-		attemptsBeforeThrowingElementNotFoundException);
+		attemptsBeforeThrowingElementNotFoundException, true);
     }
 
     /**
@@ -577,7 +585,13 @@ public class ElementActions {
     public static int getElementsCount(WebDriver driver, By elementLocator, int customElementIdentificationTimeout,
 	    int retriesBeforeThrowingElementNotFoundException) {
 	return countFoundElements(driver, elementLocator, customElementIdentificationTimeout,
-		retriesBeforeThrowingElementNotFoundException);
+		retriesBeforeThrowingElementNotFoundException, true);
+    }
+
+    public static int getElementsCount(WebDriver driver, By elementLocator, int customElementIdentificationTimeout,
+	    int retriesBeforeThrowingElementNotFoundException, boolean waitForLazyLoading) {
+	return countFoundElements(driver, elementLocator, customElementIdentificationTimeout,
+		retriesBeforeThrowingElementNotFoundException, waitForLazyLoading);
     }
 
     /**
@@ -620,6 +634,21 @@ public class ElementActions {
 	} catch (Exception e) {
 	    failAction(driver, "switchToDefaultContent");
 	}
+    }
+
+    public static void switchToDefaultContent() {
+	if (BrowserFactory.getActiveDriverSessions() > 0 && (lastUsedDriver != null)) {
+	    try {
+		lastUsedDriver.switchTo().defaultContent();
+		ReportManager.setDiscreetLogging(true);
+		passAction(lastUsedDriver, "switchToDefaultContent");
+		ReportManager.setDiscreetLogging(false);
+	    } catch (Exception e) {
+		ReportManager.log(e);
+		//failAction(lastUsedDriver, "switchToDefaultContent");
+	    }
+	}
+	// if there is no last used driver or no drivers in the drivers list, do nothing...
     }
 
     /**
@@ -1082,7 +1111,7 @@ public class ElementActions {
     public static void waitForElementToBePresent(WebDriver driver, By elementLocator, int numberOfTries,
 	    boolean stateOfPresence) {
 	int foundElementsCount = countFoundElements(driver, elementLocator, defaultElementIdentificationTimeout,
-		numberOfTries);
+		numberOfTries, true);
 	if (foundElementsCount <= 1) {
 	    try {
 		if (stateOfPresence) {
