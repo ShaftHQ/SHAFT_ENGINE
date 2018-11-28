@@ -446,7 +446,7 @@ public class ScreenshotManager {
 
     public static void attachAnimatedGif() {
 	// stop and attach
-	if (CREATE_GIF && gifDriver != null) {
+	if (CREATE_GIF && gifDriver != null && !gifFilePath.equals("")) {
 	    try {
 		gifWriter.close();
 		gifOutputStream.close();
@@ -455,6 +455,7 @@ public class ScreenshotManager {
 		gifWriter = null;
 		gifDriver = null;
 		ReportManager.attach("Animated Gif", testCaseName, new FileInputStream(gifFilePath));
+		gifFilePath = "";
 	    } catch (IOException | NullPointerException | IllegalStateException e) {
 		ReportManager.log(e);
 	    }

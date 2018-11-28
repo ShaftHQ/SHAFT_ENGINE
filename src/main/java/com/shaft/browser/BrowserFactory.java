@@ -447,6 +447,8 @@ public class BrowserFactory {
 
     public static void attachBrowserLogs() {
 	if (!drivers.entrySet().isEmpty()) {
+	    // TODO if the drivers were closed inside the test, nothing will be attached
+	    // because the set will be empty
 	    try {
 		for (Entry<String, WebDriver> entry : drivers.entrySet()) {
 		    attachBrowserLogs(entry.getKey(), entry.getValue());
@@ -517,5 +519,9 @@ public class BrowserFactory {
 	if (CREATE_GIF && (driver != null)) {
 	    ScreenshotManager.attachAnimatedGif();
 	}
+    }
+
+    public static int getActiveDriverSessions() {
+	return drivers.entrySet().size();
     }
 }

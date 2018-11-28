@@ -1,13 +1,24 @@
 <!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
 
 <suite name="Suite02" verbose="10">
-	<test name="Test02">
+	<test name="Test01">
 		<classes>
 			<class name="unitTests.tests_validations_assertions">
 				<methods>
 					<include name="assertEquals_true_expectedToPass" />
 					<include name="assertElementExists_true_expectedToPass"></include>
 					<include name="assertNull_true_expectedToPass"></include>
+				</methods>
+			</class>
+		</classes>
+	</test>
+	<test name="Test02">
+		<classes>
+			<class name="unitTests.tests_validations_assertions">
+				<methods>
+					<include name="assertEquals_true_expectedToFail" />
+					<include name="assertElementExists_true_expectedToFail"></include>
+					<include name="assertNull_true_expectedToFail"></include>
 				</methods>
 			</class>
 		</classes>
