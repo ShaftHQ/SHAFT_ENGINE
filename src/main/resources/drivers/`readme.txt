@@ -26,5 +26,5 @@ Supports Chrome v67-69
 =============================
 
 selenium-server-standalone
-v-3.13.0
+v-3.141.59
 selenium.jar is added from Jenkins plugin as a workaround to the issue that otherwise disables firefox

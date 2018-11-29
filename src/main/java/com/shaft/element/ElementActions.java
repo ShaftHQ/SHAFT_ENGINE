@@ -247,7 +247,7 @@ public class ElementActions {
 	(new WebDriverWait(driver, timeout)).until(ExpectedConditions.presenceOfElementLocated(elementLocator));
 	foundElements = driver.findElements(elementLocator).size();
 	if ((foundElements == 1) && (!elementLocator.equals(By.tagName("html")))) {
-	    moveToElement(driver, elementLocator);
+	    scrollToElement(driver, elementLocator);
 	    if (!elementLocator.toString().contains("input[@type='file']")) {
 		(new WebDriverWait(driver, timeout))
 			.until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
@@ -283,7 +283,7 @@ public class ElementActions {
     }
 
     /**
-     * Attempts to move a unique element into view to be able to interact with it.
+     * Attempts to scroll a unique element into view to be able to interact with it.
      * 
      * @param driver
      *            the current instance of Selenium webdriver
@@ -291,7 +291,7 @@ public class ElementActions {
      *            the locator of the webElement under test (By xpath, id, selector,
      *            name ...etc)
      */
-    private static void moveToElement(WebDriver driver, By elementLocator) {
+    private static void scrollToElement(WebDriver driver, By elementLocator) {
 	try {
 	    ((Locatable) driver.findElement(elementLocator)).getCoordinates().inViewPort();
 	} catch (Exception e) {
@@ -645,10 +645,11 @@ public class ElementActions {
 		ReportManager.setDiscreetLogging(false);
 	    } catch (Exception e) {
 		ReportManager.log(e);
-		//failAction(lastUsedDriver, "switchToDefaultContent");
+		// failAction(lastUsedDriver, "switchToDefaultContent");
 	    }
 	}
-	// if there is no last used driver or no drivers in the drivers list, do nothing...
+	// if there is no last used driver or no drivers in the drivers list, do
+	// nothing...
     }
 
     /**
@@ -669,20 +670,27 @@ public class ElementActions {
 		(new WebDriverWait(driver, defaultElementIdentificationTimeout))
 			.until(ExpectedConditions.elementToBeClickable(elementLocator));
 		// wait for element to be clickable
-		driver.findElement(elementLocator).click();
+		((JavascriptExecutor) driver).executeScript("arguments[arguments.length - 1].click();",
+			driver.findElement(elementLocator));
 	    } catch (Exception e) {
-		if (e.getMessage().contains("Other element would receive the click")
-			|| e.getMessage().contains("Expected condition failed: waiting for element to be clickable")
-			|| e.getMessage().matches(
-				"([\\s\\S]*Element.*is not clickable at point.*because another element.*obscures it\\s[\\s\\S]*)")) {
-		    ((JavascriptExecutor) driver).executeScript("arguments[0].click();",
-			    driver.findElement(elementLocator));
-		    // attempting to click using javascript if the regular click fails due to a
-		    // webdriver error
-		} else {
+		try {
+		    driver.findElement(elementLocator).click();
+		} catch (Exception e2) {
 		    ReportManager.log(e);
+		    ReportManager.log(e2);
 		    failAction(driver, "click", "Unhandled Exception: " + e.getMessage());
 		}
+
+		// if (e.getMessage().contains("Other element would receive the click")
+		// || e.getMessage().contains("Expected condition failed: waiting for element to
+		// be clickable")
+		// || e.getMessage().matches(
+		// "([\\s\\S]*Element.*is not clickable at point.*because another
+		// element.*obscures it\\s[\\s\\S]*)")) {
+		// ((JavascriptExecutor) driver).executeScript("arguments[arguments.length -
+		// 1].click();",
+		// driver.findElement(elementLocator));
+		// }
 	    }
 	    // issue: if performing a navigation after clicking on the login button,
 	    // navigation is triggered immediately and hence it fails.
@@ -889,7 +897,22 @@ public class ElementActions {
      */
     public static void hover(WebDriver driver, By elementLocator) {
 	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
-	    (new Actions(driver)).moveToElement(driver.findElement(elementLocator)).build().perform();
+	    try {
+		((JavascriptExecutor) driver).executeScript(
+			"arguments[arguments.length -1].dispatchEvent('onmouseenter');",
+			driver.findElement(elementLocator));
+		((JavascriptExecutor) driver).executeScript(
+			"arguments[arguments.length -1].dispatchEvent('onmouseover');",
+			driver.findElement(elementLocator));
+	    } catch (Exception e) {
+		try {
+		    (new Actions(driver)).moveToElement(driver.findElement(elementLocator)).build().perform();
+		} catch (Exception e2) {
+		    ReportManager.log(e);
+		    ReportManager.log(e2);
+		    failAction(driver, "hover", "Unhandled Exception: " + e.getMessage());
+		}
+	    }
 	    passAction(driver, elementLocator, "hover");
 	} else {
 	    failAction(driver, "hover");
