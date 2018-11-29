@@ -267,7 +267,7 @@ public class BrowserFactory {
 	    ffOptions = new FirefoxOptions();
 	    ffOptions.setCapability("platform", getDesiredOperatingSystem());
 	    // ffOptions.setCapability("marionette", true);
-	    // ffOptions.setCapability("nativeEvents", true);
+	    ffOptions.setCapability("nativeEvents", true);
 	    // ffOptions.setAcceptInsecureCerts(true);
 	    // ffOptions.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.ACCEPT);
 	    ffOptions.setCapability(CapabilityType.LOGGING_PREFS, logPrefs);
@@ -282,6 +282,7 @@ public class BrowserFactory {
 	    chOptions.setCapability("platform", getDesiredOperatingSystem());
 	    chOptions.addArguments("--no-sandbox");
 	    chOptions.addArguments("--disable-infobars"); // disable automation info bar
+	    //chOptions.setExperimentalOption("w3c", true); // enable w3c compliance to make use of the latest w3c options
 	    // chOptions.setAcceptInsecureCerts(true);
 	    // chOptions.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.ACCEPT);
 	    // chOptions.addArguments("--headless");
