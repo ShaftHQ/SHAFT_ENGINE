@@ -23,6 +23,7 @@ import org.openqa.selenium.NoSuchSessionException;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
 import org.testng.Reporter;
 
@@ -388,10 +389,10 @@ public class ScreenshotManager {
 	    testCaseName = Reporter.getCurrentTestResult().getMethod().getMethodName();
 	    gifFilePath = SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME + FileSystems.getDefault().getSeparator()
 		    + System.currentTimeMillis() + "_" + testCaseName + ".gif";
-
-	    File src = ((TakesScreenshot) gifDriver).getScreenshotAs(OutputType.FILE); // takes first screenshot
-	    FileManager.copyFile(src.getAbsolutePath(), gifFilePath);
 	    try {
+		File src = ((TakesScreenshot) gifDriver).getScreenshotAs(OutputType.FILE); // takes first screenshot
+		FileManager.copyFile(src.getAbsolutePath(), gifFilePath);
+
 		// grab the output image type from the first image in the sequence
 		BufferedImage firstImage = ImageIO.read(new File(gifFilePath));
 
@@ -412,7 +413,7 @@ public class ScreenshotManager {
 
 		// write out the first image to the sequence...
 		gifWriter.writeToSequence(firstImage);
-	    } catch (IOException e) {
+	    } catch (IOException | WebDriverException e) {
 		ReportManager.log(e);
 	    }
 	}
