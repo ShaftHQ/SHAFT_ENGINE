@@ -3,6 +3,7 @@ package com.shaft.element;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.support.ui.ExpectedCondition;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
@@ -150,51 +151,55 @@ public class JSWaiter {
      */
 
     public static void waitForLazyLoading() {
-	Boolean jQueryDefined = (Boolean) jsExec.executeScript("return typeof jQuery != 'undefined'");
-	if (jQueryDefined) {
-	    waitForJQueryLoad();
-	} else {
-	    if (debug) {
-		ReportManager.log("jQuery is not defined on this site!");
-	    }
-	}
-
 	try {
-	    // check if angular is defined
-	    waitForAngularIfDefined();
-	} catch (org.openqa.selenium.WebDriverException e) {
-	    if (debug) {
-		ReportManager.log(e);
-		ReportManager.log("Angular is not defined on this site!");
+	    Boolean jQueryDefined = (Boolean) jsExec.executeScript("return typeof jQuery != 'undefined'");
+	    if (jQueryDefined) {
+		waitForJQueryLoad();
+	    } else {
+		if (debug) {
+		    ReportManager.log("jQuery is not defined on this site!");
+		}
 	    }
-	}
-	// wait for all nested iframes to load, then wait for the main page to load
-	int iframes = ElementActions.getElementsCount(jsWaitDriver, By.tagName("iframe"), 1, 0, false);
-	if (iframes > 0) {
-	    for (int i = 0; i < iframes; i++) {
-		Boolean jsReady = (Boolean) jsExec.executeScript(
-			"return document.getElementsByTagName('iframe')['" + i + "'].contentDocument.readyState")
-			.toString().trim().equalsIgnoreCase("complete");
-		if (!jsReady) {
-		    waitForJSLoad();
-		} else {
-		    if (debug) {
-			ReportManager.log("JS is Ready!");
+
+	    try {
+		// check if angular is defined
+		waitForAngularIfDefined();
+	    } catch (org.openqa.selenium.WebDriverException e) {
+		if (debug) {
+		    ReportManager.log(e);
+		    ReportManager.log("Angular is not defined on this site!");
+		}
+	    }
+	    // wait for all nested iframes to load, then wait for the main page to load
+	    int iframes = ElementActions.getElementsCount(jsWaitDriver, By.tagName("iframe"), 1, 0, false);
+	    if (iframes > 0) {
+		for (int i = 0; i < iframes; i++) {
+		    Boolean jsReady = (Boolean) jsExec.executeScript(
+			    "return document.getElementsByTagName('iframe')['" + i + "'].contentDocument.readyState")
+			    .toString().trim().equalsIgnoreCase("complete");
+		    if (!jsReady) {
+			waitForJSLoad();
+		    } else {
+			if (debug) {
+			    ReportManager.log("JS is Ready!");
+			}
 		    }
 		}
 	    }
-	}
 
-	Boolean jsReady = (Boolean) jsExec.executeScript("return document.readyState").toString().trim()
-		.equalsIgnoreCase("complete");
-	if (!jsReady) {
-	    waitForJSLoad();
-	} else {
-	    if (debug) {
-		ReportManager.log("JS is Ready!");
+	    Boolean jsReady = (Boolean) jsExec.executeScript("return document.readyState").toString().trim()
+		    .equalsIgnoreCase("complete");
+	    if (!jsReady) {
+		waitForJSLoad();
+	    } else {
+		if (debug) {
+		    ReportManager.log("JS is Ready!");
+		}
 	    }
-	}
+	} catch (WebDriverException e) {
+	    ReportManager.log(e);
 
+	}
     }
 
     private static void waitForAngularIfDefined() {

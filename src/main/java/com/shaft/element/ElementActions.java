@@ -670,27 +670,22 @@ public class ElementActions {
 		(new WebDriverWait(driver, defaultElementIdentificationTimeout))
 			.until(ExpectedConditions.elementToBeClickable(elementLocator));
 		// wait for element to be clickable
-		((JavascriptExecutor) driver).executeScript("arguments[arguments.length - 1].click();",
-			driver.findElement(elementLocator));
+		driver.findElement(elementLocator).click();
 	    } catch (Exception e) {
-		try {
-		    driver.findElement(elementLocator).click();
-		} catch (Exception e2) {
-		    ReportManager.log(e);
-		    ReportManager.log(e2);
-		    failAction(driver, "click", "Unhandled Exception: " + e.getMessage());
-		}
+		if (e.getMessage().contains("Other element would receive the click")
+			|| e.getMessage().contains("Expected condition failed: waiting for element to be clickable")
+			|| e.getMessage().matches(
+				"([\\s\\S]*Element.*is not clickable at point.*because another element.*obscures it\\s[\\s\\S]*)")) {
 
-		// if (e.getMessage().contains("Other element would receive the click")
-		// || e.getMessage().contains("Expected condition failed: waiting for element to
-		// be clickable")
-		// || e.getMessage().matches(
-		// "([\\s\\S]*Element.*is not clickable at point.*because another
-		// element.*obscures it\\s[\\s\\S]*)")) {
-		// ((JavascriptExecutor) driver).executeScript("arguments[arguments.length -
-		// 1].click();",
-		// driver.findElement(elementLocator));
-		// }
+		    try {
+			((JavascriptExecutor) driver).executeScript("arguments[arguments.length - 1].click();",
+				driver.findElement(elementLocator));
+		    } catch (Exception e2) {
+			ReportManager.log(e);
+			ReportManager.log(e2);
+		    }
+		}
+		failAction(driver, "click", "Unhandled Exception: " + e.getMessage());
 	    }
 	    // issue: if performing a navigation after clicking on the login button,
 	    // navigation is triggered immediately and hence it fails.
