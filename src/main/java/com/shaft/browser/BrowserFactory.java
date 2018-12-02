@@ -282,7 +282,7 @@ public class BrowserFactory {
 	    chOptions.setCapability("platform", getDesiredOperatingSystem());
 	    chOptions.addArguments("--no-sandbox");
 	    chOptions.addArguments("--disable-infobars"); // disable automation info bar
-	    //chOptions.setExperimentalOption("w3c", true); // enable w3c compliance to make use of the latest w3c options
+	    // chOptions.setExperimentalOption("w3c", true); // enable w3c compliance to make use of the latest w3c options
 	    // chOptions.setAcceptInsecureCerts(true);
 	    // chOptions.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.ACCEPT);
 	    // chOptions.addArguments("--headless");
