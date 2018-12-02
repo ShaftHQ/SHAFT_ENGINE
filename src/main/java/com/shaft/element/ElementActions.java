@@ -676,7 +676,6 @@ public class ElementActions {
 			|| e.getMessage().contains("Expected condition failed: waiting for element to be clickable")
 			|| e.getMessage().matches(
 				"([\\s\\S]*Element.*is not clickable at point.*because another element.*obscures it\\s[\\s\\S]*)")) {
-
 		    try {
 			((JavascriptExecutor) driver).executeScript("arguments[arguments.length - 1].click();",
 				driver.findElement(elementLocator));
@@ -684,8 +683,9 @@ public class ElementActions {
 			ReportManager.log(e);
 			ReportManager.log(e2);
 		    }
+		} else {
+		    failAction(driver, "click", "Unhandled Exception: " + e.getMessage());
 		}
-		failAction(driver, "click", "Unhandled Exception: " + e.getMessage());
 	    }
 	    // issue: if performing a navigation after clicking on the login button,
 	    // navigation is triggered immediately and hence it fails.

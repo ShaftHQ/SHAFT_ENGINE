@@ -207,12 +207,12 @@ public class BrowserActions {
      */
     public static void navigateToURL(WebDriver driver, String targetUrl, String targetUrlAfterRedirection) {
 	// force stop any current navigation
-	((JavascriptExecutor) driver).executeScript("return window.stop;");
-	triggerWaitForLazyLoading(driver);
-
-	String initialURL = "";
-	String initialSource = driver.getPageSource();
 	try {
+	    ((JavascriptExecutor) driver).executeScript("return window.stop;");
+	    triggerWaitForLazyLoading(driver);
+
+	    String initialURL = "";
+	    String initialSource = driver.getPageSource();
 	    initialURL = driver.getCurrentUrl();
 	    if (!initialURL.equals(targetUrl)) {
 		// navigate to new url

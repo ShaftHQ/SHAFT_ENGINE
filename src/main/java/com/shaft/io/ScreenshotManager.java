@@ -239,49 +239,54 @@ public class ScreenshotManager {
 	     * Take the screenshot and store it as a file
 	     */
 	    File src;
+	    try {
+		/**
+		 * Attempt to take a full page screenshot, take a regular screenshot upon
+		 * failure
+		 */
 
-	    /**
-	     * Attempt to take a full page screenshot, take a regular screenshot upon
-	     * failure
-	     */
-	    src = takeScreenshot(driver);
+		src = takeScreenshot(driver);
 
-	    /**
-	     * Declare screenshot file name
-	     */
-	    // String testCaseName =
-	    // Reporter.getCurrentTestResult().getTestClass().getRealClass().getName();
-	    testCaseName = Reporter.getCurrentTestResult().getMethod().getMethodName();
-	    screenshotFileName = System.currentTimeMillis() + "_" + testCaseName + "_" + actionName;
-	    if (!appendedText.equals("")) {
-		screenshotFileName = screenshotFileName + "_" + appendedText;
+		/**
+		 * Declare screenshot file name
+		 */
+		// String testCaseName =
+		// Reporter.getCurrentTestResult().getTestClass().getRealClass().getName();
+		testCaseName = Reporter.getCurrentTestResult().getMethod().getMethodName();
+		screenshotFileName = System.currentTimeMillis() + "_" + testCaseName + "_" + actionName;
+		if (!appendedText.equals("")) {
+		    screenshotFileName = screenshotFileName + "_" + appendedText;
+		}
+
+		/**
+		 * If an elementLocator was passed, unhighlight that element after taking the
+		 * screenshot
+		 * 
+		 */
+		if (js != null) {
+		    js.executeScript("arguments[0].setAttribute('style', arguments[1]);", element, regularElementStyle);
+		}
+
+		/**
+		 * Copy the screenshot to desired path, and append the appropriate filename.
+		 * 
+		 */
+		FileManager.copyFile(src.getAbsolutePath(), SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME
+			+ FileSystems.getDefault().getSeparator() + screenshotFileName + ".png");
+
+		/*
+		 * File screenshotFile = new File(SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME
+		 * + FileSystems.getDefault().getSeparator() + screenshotFileName + ".png"); try
+		 * { FileUtils.copyFile(src, screenshotFile); } catch (IOException e) {
+		 * ReportManager.log(e); }
+		 */
+
+		addScreenshotToReport(src);
+		appendToAnimatedGif(src);
+	    } catch (NoSuchSessionException e) {
+		// this happens when a browser session crashes mid-execution
+		ReportManager.log(e);
 	    }
-
-	    /**
-	     * If an elementLocator was passed, unhighlight that element after taking the
-	     * screenshot
-	     * 
-	     */
-	    if (js != null) {
-		js.executeScript("arguments[0].setAttribute('style', arguments[1]);", element, regularElementStyle);
-	    }
-
-	    /**
-	     * Copy the screenshot to desired path, and append the appropriate filename.
-	     * 
-	     */
-	    FileManager.copyFile(src.getAbsolutePath(), SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME
-		    + FileSystems.getDefault().getSeparator() + screenshotFileName + ".png");
-
-	    /*
-	     * File screenshotFile = new File(SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME
-	     * + FileSystems.getDefault().getSeparator() + screenshotFileName + ".png"); try
-	     * { FileUtils.copyFile(src, screenshotFile); } catch (IOException e) {
-	     * ReportManager.log(e); }
-	     */
-
-	    addScreenshotToReport(src);
-	    appendToAnimatedGif(src);
 	} else {
 	    appendToAnimatedGif();
 	}
@@ -438,6 +443,14 @@ public class ScreenshotManager {
 		    // this happens when attempting to append to a non existing gif, expected
 		    // solution is to recreate the gif
 		    BrowserFactory.startAnimatedGif();
+		} catch (WebDriverException e) {
+		    if (e.getMessage().contains("was terminated due to BROWSER_TIMEOUT")) {
+			// this happens when attempting to append to a gif from an already terminated
+			// browser session
+			BrowserFactory.startAnimatedGif();
+		    } else {
+			ReportManager.log(e);
+		    }
 		} catch (IOException | IllegalStateException | NullPointerException e) {
 		    ReportManager.log(e);
 		}

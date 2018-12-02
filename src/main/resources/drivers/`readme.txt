@@ -14,15 +14,15 @@ IE - driver v3.4.0.1 - 32-bit
 =============================
 geckodriver:
 =============================
-Mozilla Gecko Driver v0.21.0
+Mozilla Gecko Driver v0.23.0
 Supports Firefox 57 (and greater)
 =============================
 
 =============================
 chromedriver:
 =============================
-ChromeDriver 2.41
-Supports Chrome v67-69
+ChromeDriver 2.44
+Supports Chrome v69-71
 =============================
 
 selenium-server-standalone
