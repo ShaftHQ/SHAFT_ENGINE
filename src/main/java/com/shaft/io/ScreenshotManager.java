@@ -283,8 +283,9 @@ public class ScreenshotManager {
 
 		addScreenshotToReport(src);
 		appendToAnimatedGif(src);
-	    } catch (NoSuchSessionException e) {
-		// this happens when a browser session crashes mid-execution
+	    } catch (WebDriverException e) {
+		// this happens when a browser session crashes mid-execution, or the docker is
+		// unregistered
 		ReportManager.log(e);
 	    }
 	} else {

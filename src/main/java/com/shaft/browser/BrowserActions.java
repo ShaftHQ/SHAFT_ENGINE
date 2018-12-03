@@ -345,9 +345,9 @@ public class BrowserActions {
 	initialWindowSize = driver.manage().window().getSize();
 	ReportManager.logDiscreet("Initial window size: " + initialWindowSize.toString());
 
-	if (!(System.getProperty("targetBrowserName").equals("GoogleChrome")
-		&& System.getProperty("targetOperatingSystem").equals("Mac-64")
-		&& System.getProperty("executionAddress").trim().equals("local"))) {
+	if (!(System.getProperty("targetBrowserName").equals("GoogleChrome"))) {
+//		&& System.getProperty("targetOperatingSystem").equals("Mac-64")
+//		&& System.getProperty("executionAddress").trim().equals("local"))) {
 
 	    try {
 		driver.manage().window().maximize();
