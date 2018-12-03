@@ -113,11 +113,9 @@ public class ElementActions {
      * one element was found. Timeout = defaultElementIdentificationTimeout, and
      * retriesBeforeThrowingElementNotFoundException = 10.
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
      * @return boolean value, true if the element is found and unique, and false if
      *         the element is not found or is not unique
      */
@@ -133,14 +131,11 @@ public class ElementActions {
      * it is treated as a regular element action and a pass status is reported. Else
      * only the fail status will be reported.
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
-     * @param timeout
-     *            controls the wait timeout until the target element is present on
-     *            the current page
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param timeout        controls the wait timeout until the target element is
+     *                       present on the current page
      * @return boolean value, true if the element is found and unique, and false if
      *         the element is not found or is not unique
      */
@@ -176,17 +171,22 @@ public class ElementActions {
      * exception and then returns 0 in case an exception broke through the targeted
      * number of attempts.
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
-     * @param timeout
-     *            controls the wait timeout until the target element is present on
-     *            the current page
-     * @param attemptsBeforeThrowingElementNotFoundException
-     *            number of attempts before throwing an element not found exception
-     *            and reporting a failure
+     * @param driver                                         the current instance of
+     *                                                       Selenium webdriver
+     * @param elementLocator                                 the locator of the
+     *                                                       webElement under test
+     *                                                       (By xpath, id,
+     *                                                       selector, name ...etc)
+     * @param timeout                                        controls the wait
+     *                                                       timeout until the
+     *                                                       target element is
+     *                                                       present on the current
+     *                                                       page
+     * @param attemptsBeforeThrowingElementNotFoundException number of attempts
+     *                                                       before throwing an
+     *                                                       element not found
+     *                                                       exception and reporting
+     *                                                       a failure
      * @return int value, 0 if no elements were found, 1 if a unique element was
      *         found, or more if multiple elements were found
      */
@@ -231,14 +231,11 @@ public class ElementActions {
      * a single element is found attempts to move to it. else returns the number of
      * found elements.
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
-     * @param timeout
-     *            controls the wait timeout until the target element is present on
-     *            the current page
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param timeout        controls the wait timeout until the target element is
+     *                       present on the current page
      * @return int value, 0 if no elements were found, 1 if a unique element was
      *         found, or more if multiple elements were found
      */
@@ -285,11 +282,9 @@ public class ElementActions {
     /**
      * Attempts to scroll a unique element into view to be able to interact with it.
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
      */
     private static void scrollToElement(WebDriver driver, By elementLocator) {
 	try {
@@ -490,11 +485,9 @@ public class ElementActions {
      * one element was found. Timeout = defaultElementIdentificationTimeout, and
      * retriesBeforeThrowingElementNotFoundException = 10.
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
      * @return boolean value, true if the element is found and unique, and false if
      *         the element is not found or is not unique
      */
@@ -508,14 +501,11 @@ public class ElementActions {
      * one element was found. Timeout = @param timeout, and
      * retriesBeforeThrowingElementNotFoundException = 10.
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
-     * @param timeout
-     *            controls the wait timeout until the target element is present on
-     *            the current page
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param timeout        controls the wait timeout until the target element is
+     *                       present on the current page
      * @return boolean value, true if the element is found and unique, and false if
      *         the element is not found or is not unique
      */
@@ -526,11 +516,9 @@ public class ElementActions {
     /**
      * Returns the number of elements that match a certain elementLocator
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
      * @return integer value that represents the number of elements that match the
      *         desired elementLocator
      */
@@ -545,14 +533,15 @@ public class ElementActions {
      * locate those elements. This is multiplied by the default
      * attemptsBeforeThrowingElementNotFoundException (10).
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
-     * @param customElementIdentificationTimeout
-     *            the desired timeout in seconds that should be respected while
-     *            attempting to locate an element using the provided elementLocator
+     * @param driver                             the current instance of Selenium
+     *                                           webdriver
+     * @param elementLocator                     the locator of the webElement under
+     *                                           test (By xpath, id, selector, name
+     *                                           ...etc)
+     * @param customElementIdentificationTimeout the desired timeout in seconds that
+     *                                           should be respected while
+     *                                           attempting to locate an element
+     *                                           using the provided elementLocator
      * @return integer value that represents the number of elements that match the
      *         desired elementLocator
      */
@@ -567,18 +556,26 @@ public class ElementActions {
      * locate those elements. This is multiplied by the provided
      * retriesBeforeThrowingElementNotFoundException (default value is 10).
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
-     * @param customElementIdentificationTimeout
-     *            the desired timeout in seconds that should be respected while
-     *            attempting to locate an element using the provided elementLocator
-     * @param retriesBeforeThrowingElementNotFoundException
-     *            the number of retries/attempts for each of which the
-     *            customElementIdentificationTimeout is honored, and after all of
-     *            which an ElementNotFoundException is thrown
+     * @param driver                                        the current instance of
+     *                                                      Selenium webdriver
+     * @param elementLocator                                the locator of the
+     *                                                      webElement under test
+     *                                                      (By xpath, id, selector,
+     *                                                      name ...etc)
+     * @param customElementIdentificationTimeout            the desired timeout in
+     *                                                      seconds that should be
+     *                                                      respected while
+     *                                                      attempting to locate an
+     *                                                      element using the
+     *                                                      provided elementLocator
+     * @param retriesBeforeThrowingElementNotFoundException the number of
+     *                                                      retries/attempts for
+     *                                                      each of which the
+     *                                                      customElementIdentificationTimeout
+     *                                                      is honored, and after
+     *                                                      all of which an
+     *                                                      ElementNotFoundException
+     *                                                      is thrown
      * @return integer value that represents the number of elements that match the
      *         desired elementLocator
      */
@@ -599,11 +596,9 @@ public class ElementActions {
      * {@link #switchToDefaultContent(WebDriver)} to navigate inside any iFrame
      * layer and go back to the main page
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the iFrame webElement under test (By xpath, id,
-     *            selector, name ...etc)
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the iFrame webElement under test (By
+     *                       xpath, id, selector, name ...etc)
      */
     public static void switchToIframe(WebDriver driver, By elementLocator) {
 	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
@@ -622,8 +617,7 @@ public class ElementActions {
      * {@link #switchToIframe(WebDriver, By)} to exit any iFrame layer and go back
      * to the main page
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium webdriver
      */
     public static void switchToDefaultContent(WebDriver driver) {
 	try {
@@ -656,11 +650,9 @@ public class ElementActions {
      * Attempts to Click on a certain web element using selenium webdriver, or using
      * javascript
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
      */
     public static void click(WebDriver driver, By elementLocator) {
 	// Waits for the element to be clickable, and then clicks it.
@@ -700,11 +692,9 @@ public class ElementActions {
     /**
      * Waits for the element to be clickable, and then clicks and holds it.
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
      */
     public static void clickAndHold(WebDriver driver, By elementLocator) {
 	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
@@ -725,13 +715,11 @@ public class ElementActions {
      * Checks if there is any text in an element, clears it, then types the required
      * string into the target element.
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
-     * @param text
-     *            the target text that needs to be typed into the target webElement
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param text           the target text that needs to be typed into the target
+     *                       webElement
      */
     public static void type(WebDriver driver, By elementLocator, String text) {
 	typeWrapper(driver, elementLocator, text, false);
@@ -742,13 +730,11 @@ public class ElementActions {
      * string into the target element. Obfuscates the written text in the ourput
      * report. This action should be used for writing passwords and secure text.
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
-     * @param text
-     *            the target text that needs to be typed into the target webElement
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param text           the target text that needs to be typed into the target
+     *                       webElement
      */
     public static void typeSecure(WebDriver driver, By elementLocator, String text) {
 	typeWrapper(driver, elementLocator, text, true);
@@ -758,13 +744,10 @@ public class ElementActions {
      * Types the required file path into an input[type='file'] button, to
      * successfully upload the target file.
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
-     * @param absoluteFilePath
-     *            the full path to the file that needs to be uploaded
+     * @param driver           the current instance of Selenium webdriver
+     * @param elementLocator   the locator of the webElement under test (By xpath,
+     *                         id, selector, name ...etc)
+     * @param absoluteFilePath the full path to the file that needs to be uploaded
      */
     public static void typeFileLocationForUpload(WebDriver driver, By elementLocator, String absoluteFilePath) {
 	absoluteFilePath = absoluteFilePath.replace("/", FileSystems.getDefault().getSeparator());
@@ -801,14 +784,11 @@ public class ElementActions {
      * Appends the required string into the target element, regardless of the
      * current text value.
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
-     * @param text
-     *            the target text that needs to be appended into the target
-     *            webElement
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param text           the target text that needs to be appended into the
+     *                       target webElement
      */
     public static void typeAppend(WebDriver driver, By elementLocator, String text) {
 	if (canFindUniqueElementForInternalUse(driver, elementLocator) && (text != null)) {
@@ -822,14 +802,11 @@ public class ElementActions {
     /**
      * Selects an element from a dropdown list using its displayed text
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
-     * @param text
-     *            the text of the choice that you need to select from the target
-     *            dropDown menu
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param text           the text of the choice that you need to select from the
+     *                       target dropDown menu
      */
     public static void select(WebDriver driver, By elementLocator, String text) {
 	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
@@ -850,13 +827,10 @@ public class ElementActions {
      * Sends a keypress to the target element. Supported keys are: ENTER, RETURN,
      * TAB
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
-     * @param key
-     *            the key that should be pressed
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param key            the key that should be pressed
      */
     public static void keyPress(WebDriver driver, By elementLocator, String key) {
 	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
@@ -884,11 +858,9 @@ public class ElementActions {
     /**
      * Hovers over target element.
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
      */
     public static void hover(WebDriver driver, By elementLocator) {
 	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
@@ -918,15 +890,14 @@ public class ElementActions {
      * Drags the source element and drops it onto the destination element using
      * javascript
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param sourceElementLocator
-     *            the locator of the source webElement that should be dragged under
-     *            test (By xpath, id, selector, name ...etc)
-     * @param destinationElementLocator
-     *            the locator of the target webElement that should receive the
-     *            dropped source element under test (By xpath, id, selector, name
-     *            ...etc)
+     * @param driver                    the current instance of Selenium webdriver
+     * @param sourceElementLocator      the locator of the source webElement that
+     *                                  should be dragged under test (By xpath, id,
+     *                                  selector, name ...etc)
+     * @param destinationElementLocator the locator of the target webElement that
+     *                                  should receive the dropped source element
+     *                                  under test (By xpath, id, selector, name
+     *                                  ...etc)
      */
     public static void dragAndDrop(WebDriver driver, By sourceElementLocator, By destinationElementLocator) {
 	if (canFindUniqueElementForInternalUse(driver, sourceElementLocator)
@@ -974,13 +945,51 @@ public class ElementActions {
     }
 
     /**
+     * Drags the source element and drops it onto the determined offset
+     * 
+     * @param driver               the current instance of Selenium webdriver
+     * @param sourceElementLocator the locator of the source webElement that should
+     *                             be dragged under test (By xpath, id, selector,
+     *                             name ...etc)
+     * @param xOffset              the horizontal offset by which the element should
+     *                             be moved
+     * @param yOffset              the vertical offset by which the element should
+     *                             be moved
+     */
+    public static void dragAndDropByOffset(WebDriver driver, By sourceElementLocator, int xOffset, int yOffset) {
+	if (canFindUniqueElementForInternalUse(driver, sourceElementLocator)) {
+
+	    WebElement sourceElement = driver.findElement(sourceElementLocator);
+	    String startLocation = sourceElement.getLocation().toString();
+
+	    // attempt to perform drag and drop
+	    try {
+		(new Actions(driver)).dragAndDropBy(driver.findElement(sourceElementLocator), xOffset, yOffset).build()
+			.perform();
+	    } catch (Exception e) {
+		ReportManager.log(e);
+		failAction(driver, "dragAndDropByOffset");
+	    }
+
+	    String endLocation = driver.findElement(sourceElementLocator).getLocation().toString();
+
+	    if (!endLocation.equals(startLocation)) {
+		passAction(driver, sourceElementLocator, "dragAndDropByOffset",
+			"Start point: " + startLocation + ", End point: " + endLocation);
+	    } else {
+		failAction(driver, "dragAndDropByOffset", "Start point = End point: " + endLocation);
+	    }
+	} else {
+	    failAction(driver, "dragAndDropByOffset");
+	}
+    }
+
+    /**
      * Retrieves text from the target element and returns it as a string value.
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
      * @return the text value of the target webElement
      */
     public static String getText(WebDriver driver, By elementLocator) {
@@ -1003,11 +1012,9 @@ public class ElementActions {
     /**
      * Retrieves tag name from the target element and returns it as a string value.
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
      * @return the tag name of the webElement under test
      */
     public static String getTagName(WebDriver driver, By elementLocator) {
@@ -1025,11 +1032,9 @@ public class ElementActions {
      * Retrieves element size from the target element and returns it as a string
      * value.
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
      * @return the size of the webElement under test
      */
     public static String getSize(WebDriver driver, By elementLocator) {
@@ -1047,13 +1052,10 @@ public class ElementActions {
      * Retrieves a certain attribute's value from the target element and returns it
      * as a string value.
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
-     * @param attributeName
-     *            the target attribute of the webElement under test
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param attributeName  the target attribute of the webElement under test
      * @return the value of the target attribute of the webElement under test
      */
     public static String getAttribute(WebDriver driver, By elementLocator, String attributeName) {
@@ -1073,16 +1075,12 @@ public class ElementActions {
      * multiplied by the default element identification timeout (in the POM.xml
      * file)
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
-     * @param initialValue
-     *            the initial text value of the target webElement
-     * @param numberOfTries
-     *            the number of times to try and wait for the element text to change
-     *            (default is 1)
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param initialValue   the initial text value of the target webElement
+     * @param numberOfTries  the number of times to try and wait for the element
+     *                       text to change (default is 1)
      */
     public static void waitForTextToChange(WebDriver driver, By elementLocator, String initialValue,
 	    int numberOfTries) {
@@ -1114,17 +1112,13 @@ public class ElementActions {
      * multiplied by the default element identification timeout (in the POM.xml
      * file)
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
-     * @param numberOfTries
-     *            the number of times to try and wait for the element to achieve the
-     *            desired stateOfPresence (default is 1)
-     * @param stateOfPresence
-     *            the expected state of presence of the element; false is not
-     *            present, and true is present
+     * @param driver          the current instance of Selenium webdriver
+     * @param elementLocator  the locator of the webElement under test (By xpath,
+     *                        id, selector, name ...etc)
+     * @param numberOfTries   the number of times to try and wait for the element to
+     *                        achieve the desired stateOfPresence (default is 1)
+     * @param stateOfPresence the expected state of presence of the element; false
+     *                        is not present, and true is present
      */
     public static void waitForElementToBePresent(WebDriver driver, By elementLocator, int numberOfTries,
 	    boolean stateOfPresence) {
@@ -1159,11 +1153,9 @@ public class ElementActions {
     /**
      * Checks to see if an element is displayed
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
      * @return boolean value, true if the element is displayed, and false if the
      *         element is not displayed
      */
@@ -1183,11 +1175,9 @@ public class ElementActions {
     /**
      * Checks to see if an element is clickable
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
      * @return boolean value, true if the element is clickable, and false if the
      *         element is not clickable
      */
@@ -1208,14 +1198,11 @@ public class ElementActions {
      * Attempts to perform a native clipboard action on the text from a certain web
      * element, like copy/cut/paste
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
-     * @param action
-     *            supports the following actions "copy", "paste", "cut", "select
-     *            all", "unselect"
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param action         supports the following actions "copy", "paste", "cut",
+     *                       "select all", "unselect"
      */
     public static void clipboardActions(WebDriver driver, By elementLocator, String action) {
 	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
