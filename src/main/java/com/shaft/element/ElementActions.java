@@ -901,7 +901,10 @@ public class ElementActions {
      */
     public static void dragAndDrop(WebDriver driver, By sourceElementLocator, By destinationElementLocator) {
 	if (canFindUniqueElementForInternalUse(driver, sourceElementLocator)
-		&& canFindUniqueElementForInternalUse(driver, destinationElementLocator)) {
+		&& getElementsCount(driver, destinationElementLocator) == 1) {
+
+	    // replaced canFindUniqueElementForInternalUse, with countFoundElements for
+	    // destinationElement to bypass the check for element visibility
 
 	    // define source and destination elements
 	    WebElement sourceElement = driver.findElement(sourceElementLocator);
