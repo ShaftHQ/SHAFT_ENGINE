@@ -4,6 +4,7 @@ import java.awt.HeadlessException;
 import java.awt.Toolkit;
 
 import org.junit.Assert;
+import org.openqa.selenium.By;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Point;
@@ -12,13 +13,14 @@ import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
+import com.shaft.element.ElementActions;
 import com.shaft.element.JSWaiter;
 import com.shaft.io.ReportManager;
 import com.shaft.io.ScreenshotManager;
 
 public class BrowserActions {
 
-    private static final int NAVIGATION_TIMEOUT = 60;
+    private static final int NAVIGATION_TIMEOUT = 30;
 
     /*
      * Driver actions that should be implemented: driver.switchTo().activeElement();
@@ -34,11 +36,11 @@ public class BrowserActions {
     }
 
     private static void passAction(WebDriver driver, String actionName, String testData) {
-	String message = "[" + actionName + "] successfully performed.";
+	String message = "Browser Action [" + actionName + "] successfully performed.";
 	if (testData != null) {
 	    message = message + " With the following test data [" + testData + "].";
 	}
-	ScreenshotManager.captureScreenShot(driver, actionName + "_performed", true);
+	ScreenshotManager.captureScreenShot(driver, actionName, true);
 	ReportManager.log(message);
     }
 
@@ -51,7 +53,7 @@ public class BrowserActions {
 	if (testData != null) {
 	    message = message + " With the following test data [" + testData + "].";
 	}
-	ScreenshotManager.captureScreenShot(driver, actionName + "_failed", false);
+	ScreenshotManager.captureScreenShot(driver, actionName, false);
 	ReportManager.log(message);
 	Assert.fail(message);
     }
@@ -59,8 +61,7 @@ public class BrowserActions {
     /**
      * Gets the current page URL and returns it as a string
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium webdriver
      * @return the URL that's currently open in the current page
      */
     public static String getCurrentURL(WebDriver driver) {
@@ -79,8 +80,7 @@ public class BrowserActions {
     /**
      * Gets the current window title and returns it as a string
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium webdriver
      * @return the title of the current window
      */
     public static String getCurrentWindowTitle(WebDriver driver) {
@@ -99,8 +99,7 @@ public class BrowserActions {
     /**
      * Gets the current page source and returns it as a string
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium webdriver
      * @return the source of the current page
      */
     public static String getPageSource(WebDriver driver) {
@@ -119,8 +118,7 @@ public class BrowserActions {
     /**
      * Gets the current window handle and returns it as a string
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium webdriver
      * @return the window handle for the current window
      */
     public static String getWindowHandle(WebDriver driver) {
@@ -139,8 +137,7 @@ public class BrowserActions {
     /**
      * Gets the current window position and returns it as a string
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium webdriver
      * @return the position of the current window
      */
     public static String getWindowPosition(WebDriver driver) {
@@ -159,8 +156,7 @@ public class BrowserActions {
     /**
      * Gets the current window size and returns it as a string
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium webdriver
      * @return the size of the current window
      */
     public static String getWindowSize(WebDriver driver) {
@@ -180,10 +176,9 @@ public class BrowserActions {
      * Navigates to targetUrl in case the current URL is different, else refreshes
      * the current page
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param targetUrl
-     *            a string that represents the URL that you wish to navigate to
+     * @param driver    the current instance of Selenium webdriver
+     * @param targetUrl a string that represents the URL that you wish to navigate
+     *                  to
      */
     public static void navigateToURL(WebDriver driver, String targetUrl) {
 	navigateToURL(driver, targetUrl, targetUrl);
@@ -194,38 +189,42 @@ public class BrowserActions {
      * the current page. Waits for successfully navigating to the final url after
      * redirection.
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param targetUrl
-     *            a string that represents the URL that you wish to navigate to
-     * @param targetUrlAfterRedirection
-     *            a string that represents a part of the url that should be present
-     *            after redirection, this string is used to confirm successful
-     *            navigation
+     * @param driver                    the current instance of Selenium webdriver
+     * @param targetUrl                 a string that represents the URL that you
+     *                                  wish to navigate to
+     * @param targetUrlAfterRedirection a string that represents a part of the url
+     *                                  that should be present after redirection,
+     *                                  this string is used to confirm successful
+     *                                  navigation
      */
     public static void navigateToURL(WebDriver driver, String targetUrl, String targetUrlAfterRedirection) {
-	triggerWaitForLazyLoading(driver);
-	String initialURL = "";
+	// force stop any current navigation
 	try {
+	    ((JavascriptExecutor) driver).executeScript("return window.stop;");
+	    triggerWaitForLazyLoading(driver);
+
+	    String initialURL = "";
+	    String initialSource = driver.getPageSource();
 	    initialURL = driver.getCurrentUrl();
 	    if (!initialURL.equals(targetUrl)) {
 		// navigate to new url
 		navigateToNewURL(driver, targetUrl, targetUrlAfterRedirection);
+		triggerWaitForLazyLoading(driver);
 
-		// in case of google/ncr or any other navigation that causes redirection to a
-		// new url, given that the user is already navigated + redirected, when the user
-		// tries to navigate to the same original url again, the browser marks the page
-		// as loaded, nothing happens, and the fluent wait fails because the url is not
-		// updated, as a temporary workaround, I will disable the check for successful
-		// navigation and force pass here. This may prove problematic in the future.
-
-		// (new WebDriverWait(driver,
-		// NAVIGATION_TIMEOUT)).until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
+		if ((ElementActions.getElementsCount(driver, By.tagName("html")) == 1)
+			&& (!driver.getPageSource().equalsIgnoreCase(initialSource))) {
+		    passAction(driver, "navigateToURL", targetUrl);
+		}
 	    } else {
 		// already on the same page
 		driver.navigate().refresh();
+		triggerWaitForLazyLoading(driver);
+
+		if (ElementActions.getElementsCount(driver, By.tagName("html")) == 1) {
+		    passAction(driver, "navigateToURL", targetUrl);
+		}
 	    }
-	    passAction(driver, "navigateToURL", targetUrl);
+
 	} catch (Exception e) {
 	    ReportManager.log(e);
 	    failAction(driver, "navigateToURL", targetUrl);
@@ -235,8 +234,7 @@ public class BrowserActions {
     /**
      * Navigates one step back from the browsers history
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium webdriver
      */
     public static void navigateBack(WebDriver driver) {
 	triggerWaitForLazyLoading(driver);
@@ -279,8 +277,7 @@ public class BrowserActions {
     /**
      * Attempts to refresh the current page
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium webdriver
      */
     public static void refreshCurrentPage(WebDriver driver) {
 	triggerWaitForLazyLoading(driver);
@@ -298,7 +295,8 @@ public class BrowserActions {
 	    // precaution against the failure in case the user tries to navigate back to the
 	    // source url which already redirected him
 
-	    (new WebDriverWait(driver, NAVIGATION_TIMEOUT)).until(ExpectedConditions.urlContains(targetUrlAfterRedirection));
+	    (new WebDriverWait(driver, NAVIGATION_TIMEOUT))
+		    .until(ExpectedConditions.urlContains(targetUrlAfterRedirection));
 	} catch (WebDriverException e) {
 	    ReportManager.log(e);
 	    failAction(driver, "navigateToURL", targetUrl);
@@ -308,8 +306,7 @@ public class BrowserActions {
     /**
      * Closes the current browser window
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium webdriver
      */
     public static void closeCurrentWindow(WebDriver driver) {
 	triggerWaitForLazyLoading(driver);
@@ -325,8 +322,7 @@ public class BrowserActions {
     /**
      * Maximizes current window size based on screen size minus 5%
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium webdriver
      */
     public static void maximizeWindow(WebDriver driver) {
 	Dimension initialWindowSize;
@@ -335,15 +331,20 @@ public class BrowserActions {
 	int height = 1080;
 
 	initialWindowSize = driver.manage().window().getSize();
-	ReportManager.log("Initial window size: " + initialWindowSize.toString());
+	ReportManager.logDiscreet("Initial window size: " + initialWindowSize.toString());
 
-	if (!(System.getProperty("targetBrowserName").equals("GoogleChrome") && System.getProperty("targetOperatingSystem").equals("Mac-64") && System.getProperty("executionAddress").trim().equals("local"))) {
+	String targetBrowserName = System.getProperty("targetBrowserName").trim();
+	String targetOperatingSystem = System.getProperty("targetOperatingSystem").trim();
+	String executionAddress = System.getProperty("executionAddress").trim();
 
+	if ((!executionAddress.equals("local") && !targetBrowserName.equals("GoogleChrome"))
+		|| (executionAddress.equals("local")
+			&& !(targetBrowserName.equals("GoogleChrome") && targetOperatingSystem.equals("Mac-64")))) {
 	    try {
 		driver.manage().window().maximize();
 
 		currentWindowSize = driver.manage().window().getSize();
-		ReportManager.log("Window size after SWD Maximize: " + currentWindowSize.toString());
+		ReportManager.logDiscreet("Window size after SWD Maximize: " + currentWindowSize.toString());
 	    } catch (WebDriverException e) {
 		// org.openqa.selenium.WebDriverException: unknown error: failed to change
 		// window state to maximized, current state is normal
@@ -352,7 +353,8 @@ public class BrowserActions {
 	}
 	currentWindowSize = driver.manage().window().getSize();
 
-	if ((initialWindowSize.height == currentWindowSize.height) && (initialWindowSize.width == currentWindowSize.width)) {
+	if ((initialWindowSize.height == currentWindowSize.height)
+		&& (initialWindowSize.width == currentWindowSize.width)) {
 	    try {
 		Toolkit toolkit = Toolkit.getDefaultToolkit();
 		width = (int) toolkit.getScreenSize().getWidth();
@@ -361,37 +363,41 @@ public class BrowserActions {
 		driver.manage().window().setSize(new Dimension(width, height));
 
 		currentWindowSize = driver.manage().window().getSize();
-		ReportManager.log("Window size after Toolkit: " + currentWindowSize.toString());
+		ReportManager.logDiscreet("Window size after Toolkit: " + currentWindowSize.toString());
 	    } catch (HeadlessException e) {
-		// happens with headless firefox browsers // remote // linux and windows
-		driver.manage().window().setPosition(new Point(0, 0));
-		driver.manage().window().setSize(new Dimension(width, height));
+		((JavascriptExecutor) driver).executeScript("window.focus();");
+		((JavascriptExecutor) driver).executeScript("window.moveTo(0,0);");
+		((JavascriptExecutor) driver).executeScript("window.resizeTo(" + width + ", " + height + ");");
 
 		currentWindowSize = driver.manage().window().getSize();
-		ReportManager.log("Window size after HeadlessException on using Toolkit: " + currentWindowSize.toString());
+		ReportManager.logDiscreet("Window size after JavascriptExecutor: " + currentWindowSize.toString());
 	    }
 	}
 
-	if ((initialWindowSize.height == currentWindowSize.height) && (initialWindowSize.width == currentWindowSize.width)) {
-	    ((JavascriptExecutor) driver).executeScript("window.focus();");
-	    ((JavascriptExecutor) driver).executeScript("window.moveTo(0,0);");
-	    ((JavascriptExecutor) driver).executeScript("window.resizeTo(" + width + ", " + height + ");");
+	if ((initialWindowSize.height == currentWindowSize.height)
+		&& (initialWindowSize.width == currentWindowSize.width)) {
+	    // happens with headless firefox browsers // remote // linux and windows
+	    // also happens with chrome/windows
+	    driver.manage().window().setPosition(new Point(0, 0));
+	    driver.manage().window().setSize(new Dimension(width, height));
 
 	    currentWindowSize = driver.manage().window().getSize();
-	    ReportManager.log("Window size after JavascriptExecutor: " + currentWindowSize.toString());
+	    ReportManager.logDiscreet("Window size after WebDriver.Options: " + currentWindowSize.toString());
 	}
 
-	if ((initialWindowSize.height == currentWindowSize.height) && (initialWindowSize.width == currentWindowSize.width)) {
+	if ((initialWindowSize.height == currentWindowSize.height)
+		&& (initialWindowSize.width == currentWindowSize.width)) {
 
 	    fullScreenWindow(driver);
 
 	    currentWindowSize = driver.manage().window().getSize();
-	    ReportManager.log("Window size after fullScreenWindow: " + currentWindowSize.toString());
+	    ReportManager.logDiscreet("Window size after fullScreenWindow: " + currentWindowSize.toString());
 	}
 
-	if ((initialWindowSize.height == currentWindowSize.height) && (initialWindowSize.width == currentWindowSize.width)) {
+	if ((initialWindowSize.height == currentWindowSize.height)
+		&& (initialWindowSize.width == currentWindowSize.width)) {
 	    // failAction(driver, "maximizeWindow");
-	    ReportManager.log("skipping window maximization due to unknown error, marking step as passed.");
+	    ReportManager.logDiscreet("skipping window maximization due to unknown error, marking step as passed.");
 	}
 
 	passAction(driver, "maximizeWindow", "New screen size is now: " + currentWindowSize.toString());
@@ -400,19 +406,16 @@ public class BrowserActions {
     /**
      * Resizes the current window size based on the provided width and height
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param width
-     *            the desired new width of the target window
-     * @param height
-     *            the desired new height of the target window
+     * @param driver the current instance of Selenium webdriver
+     * @param width  the desired new width of the target window
+     * @param height the desired new height of the target window
      */
     public static void setWindowSize(WebDriver driver, int width, int height) {
 	Dimension initialWindowSize;
 	Dimension currentWindowSize;
 
 	initialWindowSize = driver.manage().window().getSize();
-	ReportManager.log("Initial window size: " + initialWindowSize.toString());
+	ReportManager.logDiscreet("Initial window size: " + initialWindowSize.toString());
 
 	driver.manage().window().setPosition(new Point(0, 0));
 	driver.manage().window().setSize(new Dimension(width + 1, height + 1));
@@ -420,19 +423,21 @@ public class BrowserActions {
 	// the expected window size
 
 	currentWindowSize = driver.manage().window().getSize();
-	ReportManager.log("Window size after SWD: " + currentWindowSize.toString());
+	ReportManager.logDiscreet("Window size after SWD: " + currentWindowSize.toString());
 
-	if ((initialWindowSize.height == currentWindowSize.height) && (initialWindowSize.width == currentWindowSize.width)) {
+	if ((initialWindowSize.height == currentWindowSize.height)
+		&& (initialWindowSize.width == currentWindowSize.width)) {
 	    ((JavascriptExecutor) driver).executeScript("window.focus();");
 	    ((JavascriptExecutor) driver).executeScript("window.moveTo(0,0);");
 	    ((JavascriptExecutor) driver).executeScript("window.resizeTo(" + width + 1 + ", " + height + 1 + ");");
 
 	    currentWindowSize = driver.manage().window().getSize();
-	    ReportManager.log("Window size after JavascriptExecutor: " + currentWindowSize.toString());
+	    ReportManager.logDiscreet("Window size after JavascriptExecutor: " + currentWindowSize.toString());
 	}
 
-	if ((initialWindowSize.height == currentWindowSize.height) && (initialWindowSize.width == currentWindowSize.width)) {
-	    ReportManager.log("skipping window resizing due to unknown error, marking step as passed.");
+	if ((initialWindowSize.height == currentWindowSize.height)
+		&& (initialWindowSize.width == currentWindowSize.width)) {
+	    ReportManager.logDiscreet("skipping window resizing due to unknown error, marking step as passed.");
 	}
 
 	passAction(driver, "setWindowSize", "New screen size is now: " + currentWindowSize.toString());
@@ -448,8 +453,10 @@ public class BrowserActions {
 	initialWindowSize = driver.manage().window().getSize();
 	driver.manage().window().fullscreen();
 
-	heightNotChanged = String.valueOf(initialWindowSize.height).equals(String.valueOf(driver.manage().window().getSize().height));
-	widthNotChanged = String.valueOf(initialWindowSize.width).equals(String.valueOf(driver.manage().window().getSize().width));
+	heightNotChanged = String.valueOf(initialWindowSize.height)
+		.equals(String.valueOf(driver.manage().window().getSize().height));
+	widthNotChanged = String.valueOf(initialWindowSize.width)
+		.equals(String.valueOf(driver.manage().window().getSize().width));
 
 	if (heightNotChanged && widthNotChanged) {
 	    ((JavascriptExecutor) driver).executeScript("window.focus();");
@@ -459,7 +466,8 @@ public class BrowserActions {
 
 	if (heightNotChanged && widthNotChanged) {
 	    // failAction(driver, "fullScreenWindow");
-	    ReportManager.log("skipping switching window to full screen due to unknown error, marking step as passed.");
+	    ReportManager.logDiscreet(
+		    "skipping switching window to full screen due to unknown error, marking step as passed.");
 	}
 	passAction(driver, "fullScreenWindow");
     }

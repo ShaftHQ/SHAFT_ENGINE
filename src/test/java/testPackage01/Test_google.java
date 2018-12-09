@@ -1,15 +1,14 @@
 package testPackage01;
 
-import com.shaft.browser.*;
-import com.shaft.io.ExcelFileManager;
-import com.shaft.io.ReportManager;
-
-import poms.*;
-import org.testng.annotations.Test;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.AfterMethod;
 import org.openqa.selenium.WebDriver;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+
+import com.shaft.browser.BrowserFactory;
+import com.shaft.io.ExcelFileManager;
+
+import poms.GoogleSearch;
+import poms.GoogleSearchResults;
 
 public class Test_google {
     // Declaring webdriver and excelreader instances
@@ -40,9 +39,7 @@ public class Test_google {
 	// resultsObject.verifyResultsStatsDoesNotExist(); // expected to fail
     }
 
-    // @Test(priority = 2, description = "TC003 - Clicks the next button thrice to
-    // make sure that the framework can scroll element into view before clicking
-    // it", enabled = true)
+    @Test(priority = 2, description = "TC003 - Clicks the next button thrice to make sure that the framework can scroll element into view before clicking it", enabled = true)
     public void clickNextThrice() {
 	resultsObject = new GoogleSearchResults(driver); // initialize a new instance of the page
 	resultsObject.clickNext(); // Clicks the next button to make sure that the framework can scroll element
@@ -60,18 +57,7 @@ public class Test_google {
     public void beforeClass() {
 	System.setProperty("testDataFilePath", "src/test/resources/TestDataFiles/testSuite01/TestData.xlsx");
 	testDataReader = new ExcelFileManager(System.getProperty("testDataFilePath"));
-	driver = BrowserFactory.getBrowser(testDataReader);
+	driver = BrowserFactory.getBrowser();
 	// BrowserActions.setWindowSize(driver, 3840, 2160);
-    }
-
-    @AfterClass(alwaysRun = true) // Tear-down method, to be run once after the last test
-    public void afterClass() {
-	BrowserFactory.closeAllDrivers();
-	ReportManager.getFullLog();
-    }
-
-    @AfterMethod
-    public void afterMethod() {
-	ReportManager.getTestLog();
     }
 }

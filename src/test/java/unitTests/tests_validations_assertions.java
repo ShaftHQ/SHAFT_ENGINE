@@ -3,14 +3,11 @@ package unitTests;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
 import com.shaft.browser.BrowserActions;
 import com.shaft.browser.BrowserFactory;
 import com.shaft.element.ElementActions;
-import com.shaft.io.ReportManager;
 import com.shaft.validation.Assertions;
 
 public class tests_validations_assertions {
@@ -303,7 +300,8 @@ public class tests_validations_assertions {
 
 	ElementActions.type(driver, By.name("q"), "Automation!@#$%^&*()_+{}[]\\';/.,");
 	try {
-	    Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation!@#$%^&*()_+{}[]\\\\';/.,", 1, false);
+	    Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation!@#$%^&*()_+{}[]\\\\';/.,", 1,
+		    false);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
@@ -386,16 +384,5 @@ public class tests_validations_assertions {
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
-    }
-
-    @AfterMethod(alwaysRun = true)
-    public void afterMethod() {
-	ReportManager.getTestLog();
-    }
-
-    @AfterClass(alwaysRun = true)
-    public void afterClass() {
-	BrowserFactory.closeAllDrivers();
-	ReportManager.getFullLog();
     }
 }
