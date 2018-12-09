@@ -135,22 +135,22 @@ public class ImageProcessingActions {
 	    // fetch the related reference screenshot file name using the current file
 	    // name/number as index
 	    String relatedReferenceFileName = refrenceFiles[Integer.parseInt(screenshot.getName()) - 1].getName();
-	    ReportManager.attach("Reference Screenshot", relatedReferenceFileName, new FileInputStream(new File(refrenceProcessingFolder + FileSystems.getDefault().getSeparator() + screenshot.getName())));
+	    ReportManager.attachAsStep("Reference Screenshot", relatedReferenceFileName, new FileInputStream(new File(refrenceProcessingFolder + FileSystems.getDefault().getSeparator() + screenshot.getName())));
 
 	    String relatedTestFileName = testFiles[Integer.parseInt(screenshot.getName()) - 1].getName();
 
-	    ReportManager.attach("Test Screenshot", relatedTestFileName, new FileInputStream(screenshot));
+	    ReportManager.attachAsStep("Test Screenshot", relatedTestFileName, new FileInputStream(screenshot));
 
 	    ReportManager.log("Test Screenshot [" + relatedTestFileName + "] and related Refrence Image [" + relatedReferenceFileName + "] match by [" + percentage + "] percent.");
 
 	    try {
 		// add to pass/fail counter depending on assertion result, without logging
-		ReportManager.log = false;
+		ReportManager.setDiscreetLogging(true);
 		Assertions.assertGreaterThanOrEquals(threshhold, percentage, true);
-		ReportManager.log = true;
+		ReportManager.setDiscreetLogging(false);
 		passedImagesCount++;
 	    } catch (AssertionError e) {
-		ReportManager.log = true;
+		ReportManager.setDiscreetLogging(false);
 		// copying image to failed images directory
 		FileManager.copyFile(screenshot.getAbsolutePath(), testProcessingFolder.getParent() + "/failedImagesDirectory/" + relatedTestFileName + "_testImage");
 		FileManager.copyFile(refrenceProcessingFolder + FileSystems.getDefault().getSeparator() + screenshot.getName(), testProcessingFolder.getParent() + "/failedImagesDirectory/" + relatedTestFileName + "_refrenceImage");

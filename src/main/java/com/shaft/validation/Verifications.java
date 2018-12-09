@@ -22,16 +22,16 @@ public class Verifications {
 	throw new IllegalStateException("Utility class");
     }
 
-    private static void reportVerificationResults(WebDriver driver, By elementLocator) {
+    private static void reportVerificationResults(String actionName, WebDriver driver, By elementLocator) {
 	String verificationSuccessesString = verificationSuccesses.toString().trim();
 	if (!"".equals(verificationSuccessesString)) {
 	    if (driver != null) {
 		try {
-		    ScreenshotManager.captureScreenShot(driver, elementLocator, true);
+		    ScreenshotManager.captureScreenShot(driver, elementLocator, actionName, true);
 		} catch (NullPointerException e) {
 		    // elementLocator is null, meaning that there is no element attached to this
 		    // verification
-		    ScreenshotManager.captureScreenShot(driver, true);
+		    ScreenshotManager.captureScreenShot(driver, actionName, true);
 		}
 	    }
 	    ReportManager.log(verificationSuccessesString);
@@ -42,11 +42,11 @@ public class Verifications {
 	if (!"".equals(verificationFailuresString)) {
 	    if (driver != null) {
 		try {
-		    ScreenshotManager.captureScreenShot(driver, elementLocator, false);
+		    ScreenshotManager.captureScreenShot(driver, elementLocator, actionName, false);
 		} catch (NullPointerException e) {
 		    // elementLocator is null, meaning that there is no element attached to this
 		    // verification
-		    ScreenshotManager.captureScreenShot(driver, false);
+		    ScreenshotManager.captureScreenShot(driver, actionName, false);
 		}
 	    }
 	    ReportManager.log(verificationFailuresString);
@@ -54,7 +54,8 @@ public class Verifications {
 	    // message
 	    try {
 		String oldMessage = Reporter.getCurrentTestResult().getThrowable().getMessage();
-		Reporter.getCurrentTestResult().setThrowable(new Throwable(oldMessage + "\nAND " + verificationFailuresString));
+		Reporter.getCurrentTestResult()
+			.setThrowable(new Throwable(oldMessage + "\nAND " + verificationFailuresString));
 	    } catch (NullPointerException e) {
 		Reporter.getCurrentTestResult().setThrowable(new Throwable(verificationFailuresString));
 	    }
@@ -77,16 +78,20 @@ public class Verifications {
      *            not equal
      */
     public static void verifyEquals(Object expectedValue, Object actualValue, Boolean verificationType) {
-	ReportManager.log("Verification [" + "verifyEquals" + "] is being performed, with expectedValue [" + expectedValue + "], actualValue [" + actualValue + "], and verificationType [" + verificationType + "].");
+	ReportManager.logDiscreet(
+		"Verification [" + "verifyEquals" + "] is being performed, with expectedValue [" + expectedValue
+			+ "], actualValue [" + actualValue + "], and verificationType [" + verificationType + "].");
 	// String escapedExpectedValue = String.valueOf(expectedValue);
 	// escapedExpectedValue =
 	// escapeSpecialCharacters(String.valueOf(expectedValue));
 	if (verificationType) {
 	    try {
 		Assert.assertTrue((String.valueOf(actualValue)).matches(String.valueOf(expectedValue)));
-		verificationSuccesses.append("Verification Passed; actual value does match expected value [" + expectedValue + "].");
+		verificationSuccesses
+			.append("Verification Passed; actual value does match expected value [" + expectedValue + "].");
 	    } catch (AssertionError e) {
-		verificationFailures.append("Verification Failed; actual value [" + actualValue + "] does not match expected value [" + expectedValue + "].");
+		verificationFailures.append("Verification Failed; actual value [" + actualValue
+			+ "] does not match expected value [" + expectedValue + "].");
 	    } catch (Exception e) {
 		ReportManager.log(e);
 		verificationFailures.append("Verification Failed; an unhandled exception occured.");
@@ -94,15 +99,17 @@ public class Verifications {
 	} else {
 	    try {
 		Assert.assertFalse((String.valueOf(actualValue)).matches(String.valueOf(expectedValue)));
-		verificationSuccesses.append("Verification Passed; actual value [" + actualValue + "] does not match expected value [" + expectedValue + "].");
+		verificationSuccesses.append("Verification Passed; actual value [" + actualValue
+			+ "] does not match expected value [" + expectedValue + "].");
 	    } catch (AssertionError e) {
-		verificationFailures.append("Verification Failed; actual value does match expected value [" + actualValue + "].");
+		verificationFailures
+			.append("Verification Failed; actual value does match expected value [" + actualValue + "].");
 	    } catch (Exception e) {
 		ReportManager.log(e);
 		verificationFailures.append("Verification Failed; an unhandled exception occured.");
 	    }
 	}
-	reportVerificationResults(null, null);
+	reportVerificationResults("verifyEquals", null, null);
     }
 
     /**
@@ -117,7 +124,7 @@ public class Verifications {
      *            doesn't refer to null
      */
     public static void verifyNull(Object object, Boolean verificationType) {
-	ReportManager.log("Verification [" + "verifyNull" + "] is being performed.");
+	ReportManager.logDiscreet("Verification [" + "verifyNull" + "] is being performed.");
 
 	if (verificationType) {
 	    try {
@@ -140,7 +147,7 @@ public class Verifications {
 		verificationFailures.append("Verification Failed; an unhandled exception occured.");
 	    }
 	}
-	reportVerificationResults(null, null);
+	reportVerificationResults("verifyNull", null, null);
     }
 
     /**
@@ -158,26 +165,32 @@ public class Verifications {
      *            exist
      */
     public static void verifyElementExists(WebDriver driver, By elementLocator, Boolean verificationType) {
-	ReportManager.log("Verification [" + "verifyElementExists" + "] is being performed.");
+	ReportManager.logDiscreet("Verification [" + "verifyElementExists" + "] is being performed.");
 	try {
-	    switch (ElementActions.getElementsCount(driver, elementLocator, elementDoesntExistTimeout, retriesBeforeThrowingElementNotFoundException)) {
+	    switch (ElementActions.getElementsCount(driver, elementLocator, elementDoesntExistTimeout,
+		    retriesBeforeThrowingElementNotFoundException)) {
 	    case 0:
 		if (verificationType) {
-		    verificationFailures.append("Verification Failed; element does not exist. Locator [" + elementLocator.toString() + "].");
+		    verificationFailures.append("Verification Failed; element does not exist. Locator ["
+			    + elementLocator.toString() + "].");
 		} else {
-		    verificationSuccesses.append("Verification Passed; element does not exist. Locator [" + elementLocator.toString() + "].");
+		    verificationSuccesses.append("Verification Passed; element does not exist. Locator ["
+			    + elementLocator.toString() + "].");
 		}
 		elementLocator = null; // workaround to force take a screenshot of the whole page
 		break;
 	    case 1:
 		if (verificationType) {
-		    verificationSuccesses.append("Verification Passed; element exists and is unique. Locator [" + elementLocator.toString() + "].");
+		    verificationSuccesses.append("Verification Passed; element exists and is unique. Locator ["
+			    + elementLocator.toString() + "].");
 		} else {
-		    verificationFailures.append("Verification Failed; element exists and is unique. Locator [" + elementLocator.toString() + "].");
+		    verificationFailures.append("Verification Failed; element exists and is unique. Locator ["
+			    + elementLocator.toString() + "].");
 		}
 		break;
 	    default:
-		verificationFailures.append("Verification Failed; element is not unique. Locator [" + elementLocator.toString() + "].");
+		verificationFailures.append(
+			"Verification Failed; element is not unique. Locator [" + elementLocator.toString() + "].");
 		elementLocator = null; // workaround to force take a screenshot of the whole page
 		break;
 	    }
@@ -185,10 +198,11 @@ public class Verifications {
 	    ReportManager.log(e);
 	    verificationFailures.append("Verification Failed; an unhandled exception occured.");
 	}
-	reportVerificationResults(driver, elementLocator);
+	reportVerificationResults("verifyElementExists", driver, elementLocator);
     }
 
-    public static void verifyElementAttribute(WebDriver driver, By elementLocator, String elementAttribute, String expectedValue, Boolean verificationType) {
+    public static void verifyElementAttribute(WebDriver driver, By elementLocator, String elementAttribute,
+	    String expectedValue, Boolean verificationType) {
 	verifyElementAttribute(driver, elementLocator, elementAttribute, expectedValue, 2, verificationType);
     }
 
@@ -214,11 +228,14 @@ public class Verifications {
      *            a negative verification that the element attribute actual value
      *            doesn't match the expected value
      */
-    public static void verifyElementAttribute(WebDriver driver, By elementLocator, String elementAttribute, String expectedValue, int comparisonType, Boolean verificationType) {
-	ReportManager.log("Verification [" + "verifyElementAttribute" + "] is being performed for target attribute [" + elementAttribute + "].");
+    public static void verifyElementAttribute(WebDriver driver, By elementLocator, String elementAttribute,
+	    String expectedValue, int comparisonType, Boolean verificationType) {
+	ReportManager.logDiscreet("Verification [" + "verifyElementAttribute"
+		+ "] is being performed for target attribute [" + elementAttribute + "].");
 
 	String actualValue = null;
 
+	ReportManager.setDiscreetLogging(true);
 	switch (elementAttribute.toLowerCase()) {
 	case "text":
 	    actualValue = ElementActions.getText(driver, elementLocator);
@@ -233,6 +250,8 @@ public class Verifications {
 	    actualValue = ElementActions.getAttribute(driver, elementLocator, elementAttribute);
 	    break;
 	}
+	ReportManager.setDiscreetLogging(false);
+
 	if (verificationType) {
 	    try {
 		switch (comparisonType) {
@@ -257,9 +276,11 @@ public class Verifications {
 		    verificationFailures.append("Verification Failed; an unhandled comparison case was selected.");
 		    break;
 		}
-		verificationSuccesses.append("Verification Passed; actual value of [" + elementAttribute + "] does match expected value [" + expectedValue + "].");
+		verificationSuccesses.append("Verification Passed; actual value of [" + elementAttribute
+			+ "] does match expected value [" + expectedValue + "].");
 	    } catch (AssertionError e) {
-		verificationFailures.append("Verification Failed; actual value of [" + elementAttribute + "] equals [" + actualValue + "] which does not match expected value [" + expectedValue + "].");
+		verificationFailures.append("Verification Failed; actual value of [" + elementAttribute + "] equals ["
+			+ actualValue + "] which does not match expected value [" + expectedValue + "].");
 	    } catch (Exception e) {
 		ReportManager.log(e);
 		verificationFailures.append("Verification Failed; an unhandled exception occured.");
@@ -288,18 +309,21 @@ public class Verifications {
 		    verificationFailures.append("Verification Failed; an unhandled comparison case was selected.");
 		    break;
 		}
-		verificationSuccesses.append("Verification Passed; actual value of [" + elementAttribute + "] equals [" + actualValue + "] which does not match expected value [" + expectedValue + "].");
+		verificationSuccesses.append("Verification Passed; actual value of [" + elementAttribute + "] equals ["
+			+ actualValue + "] which does not match expected value [" + expectedValue + "].");
 	    } catch (AssertionError e) {
-		verificationFailures.append("Verification Failed; actual value of [" + elementAttribute + "] does match expected value [" + actualValue + "].");
+		verificationFailures.append("Verification Failed; actual value of [" + elementAttribute
+			+ "] does match expected value [" + actualValue + "].");
 	    } catch (Exception e) {
 		ReportManager.log(e);
 		verificationFailures.append("Verification Failed; an unhandled exception occured.");
 	    }
 	}
-	reportVerificationResults(driver, elementLocator);
+	reportVerificationResults("verifyElementAttribute", driver, elementLocator);
     }
 
-    public static void verifyBrowserAttribute(WebDriver driver, String browserAttribute, String expectedValue, Boolean assertionType) {
+    public static void verifyBrowserAttribute(WebDriver driver, String browserAttribute, String expectedValue,
+	    Boolean assertionType) {
 	verifyBrowserAttribute(driver, browserAttribute, expectedValue, 2, assertionType);
     }
 
@@ -322,8 +346,10 @@ public class Verifications {
      *            a negative verification that the browser attribute actual value
      *            doesn't match the expected value
      */
-    public static void verifyBrowserAttribute(WebDriver driver, String browserAttribute, String expectedValue, int comparisonType, Boolean verificationType) {
-	ReportManager.log("Verification [" + "verifyBrowserAttribute" + "] is being performed for target attribute [" + browserAttribute + "].");
+    public static void verifyBrowserAttribute(WebDriver driver, String browserAttribute, String expectedValue,
+	    int comparisonType, Boolean verificationType) {
+	ReportManager.logDiscreet("Verification [" + "verifyBrowserAttribute"
+		+ "] is being performed for target attribute [" + browserAttribute + "].");
 
 	// String escapedExpectedValue = String.valueOf(expectedValue);
 	// escapedExpectedValue =
@@ -331,6 +357,7 @@ public class Verifications {
 
 	String actualValue = null;
 
+	ReportManager.setDiscreetLogging(true);
 	switch (browserAttribute.toLowerCase()) {
 	case "currenturl":
 	    actualValue = BrowserActions.getCurrentURL(driver);
@@ -354,6 +381,8 @@ public class Verifications {
 	    actualValue = "";
 	    break;
 	}
+	ReportManager.setDiscreetLogging(false);
+
 	if (verificationType) {
 	    try {
 		switch (comparisonType) {
@@ -378,9 +407,11 @@ public class Verifications {
 		    verificationFailures.append("Verification Failed; an unhandled comparison case was selected.");
 		    break;
 		}
-		verificationSuccesses.append("Verification Passed; actual value of [" + browserAttribute + "] does match expected value [" + expectedValue + "].");
+		verificationSuccesses.append("Verification Passed; actual value of [" + browserAttribute
+			+ "] does match expected value [" + expectedValue + "].");
 	    } catch (AssertionError e) {
-		verificationFailures.append("Verification Failed; actual value [" + actualValue + "] does not match expected value [" + expectedValue + "].");
+		verificationFailures.append("Verification Failed; actual value [" + actualValue
+			+ "] does not match expected value [" + expectedValue + "].");
 	    } catch (Exception e) {
 		ReportManager.log(e);
 		verificationFailures.append("Verification Failed; an unhandled exception occured.");
@@ -409,38 +440,46 @@ public class Verifications {
 		    verificationFailures.append("Verification Failed; an unhandled comparison case was selected.");
 		    break;
 		}
-		verificationSuccesses.append("Verification Passed; actual value of [" + browserAttribute + "] equals [" + actualValue + "] which does not match expected value [" + expectedValue + "].");
+		verificationSuccesses.append("Verification Passed; actual value of [" + browserAttribute + "] equals ["
+			+ actualValue + "] which does not match expected value [" + expectedValue + "].");
 	    } catch (AssertionError e) {
-		verificationFailures.append("Verification Failed; actual value of [" + browserAttribute + "] does match expected value [" + actualValue + "].");
+		verificationFailures.append("Verification Failed; actual value of [" + browserAttribute
+			+ "] does match expected value [" + actualValue + "].");
 	    } catch (Exception e) {
 		ReportManager.log(e);
 		verificationFailures.append("Verification Failed; an unhandled exception occured.");
 	    }
 	}
-	reportVerificationResults(driver, null);
+	reportVerificationResults("verifyBrowserAttribute", driver, null);
     }
 
     public static void verifyGreaterThanOrEquals(Number expectedValue, Number actualValue, Boolean verificationType) {
-	ReportManager.log("Verification [" + "verifyGreaterThanOrEquals" + "] is being performed, with expectedValue [" + expectedValue + "], actualValue [" + actualValue + "], and verificationType [" + verificationType + "].");
+	ReportManager.logDiscreet("Verification [" + "verifyGreaterThanOrEquals"
+		+ "] is being performed, with expectedValue [" + expectedValue + "], actualValue [" + actualValue
+		+ "], and verificationType [" + verificationType + "].");
 
 	if (verificationType) {
 	    try {
 		Assert.assertTrue(actualValue.floatValue() >= expectedValue.floatValue());
-		verificationSuccesses.append("Verification Passed; actual value [" + actualValue + "] is greater than or equals expected value [" + expectedValue + "].");
+		verificationSuccesses.append("Verification Passed; actual value [" + actualValue
+			+ "] is greater than or equals expected value [" + expectedValue + "].");
 	    } catch (AssertionError e) {
-		verificationFailures.append("Verification Failed; actual value [" + actualValue + "] is not greater than or equals expected value [" + expectedValue + "].");
+		verificationFailures.append("Verification Failed; actual value [" + actualValue
+			+ "] is not greater than or equals expected value [" + expectedValue + "].");
 	    }
 	} else {
 	    try {
 		Assert.assertFalse(actualValue.floatValue() >= expectedValue.floatValue());
-		verificationSuccesses.append("Verification Passed; actual value [" + actualValue + "] is not greater than or equals expected value [" + expectedValue + "].");
+		verificationSuccesses.append("Verification Passed; actual value [" + actualValue
+			+ "] is not greater than or equals expected value [" + expectedValue + "].");
 	    } catch (AssertionError e) {
-		verificationFailures.append("Verification Failed; actual value [" + actualValue + "] is greater than or equals expected value [" + expectedValue + "].");
+		verificationFailures.append("Verification Failed; actual value [" + actualValue
+			+ "] is greater than or equals expected value [" + expectedValue + "].");
 	    } catch (Exception e) {
 		ReportManager.log(e);
 		verificationFailures.append("Verification Failed; an unhandled exception occured.");
 	    }
 	}
-	reportVerificationResults(null, null);
+	reportVerificationResults("verifyGreaterThanOrEquals", null, null);
     }
 }
