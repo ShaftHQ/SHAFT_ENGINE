@@ -35,6 +35,8 @@ import com.shaft.io.ExcelFileManager;
 import com.shaft.io.ReportManager;
 import com.shaft.io.ScreenshotManager;
 
+import org.apache.commons.lang3.SystemUtils;
+
 public class BrowserFactory {
 
     private static final Boolean AUTO_MAXIMIZE = Boolean
@@ -42,7 +44,7 @@ public class BrowserFactory {
     private static final String EXECUTION_ADDRESS = System.getProperty("executionAddress").trim();
     // local OR hub ip:port
     private static final String TARGET_HUB_URL = "http://" + EXECUTION_ADDRESS + "/wd/hub";
-    private static final String TARGET_OPERATING_SYSTEM = System.getProperty("targetOperatingSystem");
+    private static String targetOperatingSystem = System.getProperty("targetOperatingSystem");
     // Windows-64 | Linux-64 | Mac-64
     private static final String TARGET_BROWSER_NAME = System.getProperty("targetBrowserName");
     // Default | MozillaFirefox | MicrosoftInternetExplorer | GoogleChrome |
@@ -90,9 +92,8 @@ public class BrowserFactory {
      *             from jenkins), if "Default" it reads the "Target Browser" cell
      *             value from the configured test data file.
      * 
-     * @param testDataReader
-     *            the current instance of the Excel reader used for reading test
-     *            data
+     * @param testDataReader the current instance of the Excel reader used for
+     *                       reading test data
      * @return a singleton browser instance
      */
     @Deprecated
@@ -109,10 +110,9 @@ public class BrowserFactory {
      * instance per browser type) and checks for cross-compatibility between the
      * selected browser and operating system
      * 
-     * @param browserName
-     *            the name of the browser that you want to run, currently supports
-     *            'MozillaFirefox', 'MicrosoftInternetExplorer', 'GoogleChrome', and
-     *            'MicrosoftEdge'
+     * @param browserName the name of the browser that you want to run, currently
+     *                    supports 'MozillaFirefox', 'MicrosoftInternetExplorer',
+     *                    'GoogleChrome', and 'MicrosoftEdge'
      * @return a singleton browser instance
      */
     public static WebDriver getBrowser(String browserName) {
@@ -130,7 +130,7 @@ public class BrowserFactory {
 		checkBrowserOSCrossCompatibility(browserName);
 		// check cross-compatibility between the selected operating system and browser
 		// and report in case they are not compatible
-		setDriversPath();
+		setDriversPath(EXECUTION_ADDRESS.equals("local"));
 		// set path based on operating system
 		setLoggingPrefrences();
 		// set logging global preferences
@@ -164,7 +164,7 @@ public class BrowserFactory {
 
     private static WebDriver getActiveDriverInstance(String browserName) {
 	ReportManager.log(
-		"Switching to active browser instance on: [" + TARGET_OPERATING_SYSTEM + "], [" + browserName + "].");
+		"Switching to active browser instance on: [" + targetOperatingSystem + "], [" + browserName + "].");
 	switch (browserName) {
 	case "MozillaFirefox":
 	    driver = drivers.get("MozillaFirefox");
@@ -196,7 +196,7 @@ public class BrowserFactory {
     private static void checkBrowserOSCrossCompatibility(String browserName) {
 	Boolean isCompatibleBrowser = false;
 
-	switch (TARGET_OPERATING_SYSTEM) {
+	switch (targetOperatingSystem) {
 	case "Windows-64":
 	    if (browserName.equals("MozillaFirefox") || browserName.equals("GoogleChrome")
 		    || browserName.equals("MicrosoftInternetExplorer") || browserName.equals("MicrosoftEdge")) {
@@ -215,16 +215,16 @@ public class BrowserFactory {
 	    }
 	    break;
 	default:
-	    ReportManager.log("Unsupported Operating System [" + TARGET_OPERATING_SYSTEM + "].");
-	    Assert.fail("Unsupported Operating System [" + TARGET_OPERATING_SYSTEM + "].");
+	    ReportManager.log("Unsupported Operating System [" + targetOperatingSystem + "].");
+	    Assert.fail("Unsupported Operating System [" + targetOperatingSystem + "].");
 	    break;
 	}
 
 	if (!isCompatibleBrowser) {
 	    ReportManager.log("Unsupported Browser Type [" + browserName + "] for this Operating System ["
-		    + TARGET_OPERATING_SYSTEM + "].");
+		    + targetOperatingSystem + "].");
 	    Assert.fail("Unsupported Browser Type [" + browserName + "] for this Operating System ["
-		    + TARGET_OPERATING_SYSTEM + "].");
+		    + targetOperatingSystem + "].");
 	}
 
     }
@@ -233,24 +233,44 @@ public class BrowserFactory {
      * Set the driver folder path and file extension based on the target Operating
      * System
      */
-    private static void setDriversPath() {
-	switch (TARGET_OPERATING_SYSTEM) {
-	case "Windows-64":
-	    driversPath = "src/main/resources/drivers/";
-	    fileExtension = ".exe";
-	    break;
-	case "Linux-64":
-	    driversPath = "src/main/resources/drivers/linux-64/";
-	    fileExtension = "";
-	    break;
-	case "Mac-64":
-	    driversPath = "src/main/resources/drivers/mac-64/";
-	    fileExtension = "";
-	    break;
-	default:
-	    ReportManager.log("Unsupported Operating System [" + TARGET_OPERATING_SYSTEM + "].");
-	    Assert.fail("Unsupported Operating System [" + TARGET_OPERATING_SYSTEM + "].");
-	    break;
+    private static void setDriversPath(Boolean isLocal) {
+	if (isLocal) {
+	    if (SystemUtils.IS_OS_WINDOWS) {
+		System.setProperty("targetOperatingSystem", "Windows-64");
+		driversPath = "src/main/resources/drivers/";
+		fileExtension = ".exe";
+	    } else if (SystemUtils.IS_OS_LINUX) {
+		System.setProperty("targetOperatingSystem", "Linux-64");
+		driversPath = "src/main/resources/drivers/linux-64/";
+		fileExtension = "";
+	    } else if (SystemUtils.IS_OS_MAC) {
+		System.setProperty("targetOperatingSystem", "Mac-64");
+		driversPath = "src/main/resources/drivers/mac-64/";
+		fileExtension = "";
+	    } else {
+		ReportManager.log("Unsupported Operating System [" + SystemUtils.OS_NAME + "].");
+		Assert.fail("Unsupported Operating System [" + SystemUtils.OS_NAME + "].");
+	    }
+	    targetOperatingSystem = System.getProperty("targetOperatingSystem");
+	} else {
+	    switch (targetOperatingSystem) {
+	    case "Windows-64":
+		driversPath = "src/main/resources/drivers/";
+		fileExtension = ".exe";
+		break;
+	    case "Linux-64":
+		driversPath = "src/main/resources/drivers/linux-64/";
+		fileExtension = "";
+		break;
+	    case "Mac-64":
+		driversPath = "src/main/resources/drivers/mac-64/";
+		fileExtension = "";
+		break;
+	    default:
+		ReportManager.log("Unsupported Operating System [" + targetOperatingSystem + "].");
+		Assert.fail("Unsupported Operating System [" + targetOperatingSystem + "].");
+		break;
+	    }
 	}
     }
 
@@ -282,7 +302,8 @@ public class BrowserFactory {
 	    chOptions.setCapability("platform", getDesiredOperatingSystem());
 	    chOptions.addArguments("--no-sandbox");
 	    chOptions.addArguments("--disable-infobars"); // disable automation info bar
-	    // chOptions.setExperimentalOption("w3c", true); // enable w3c compliance to make use of the latest w3c options
+	    // chOptions.setExperimentalOption("w3c", true); // enable w3c compliance to
+	    // make use of the latest w3c options
 	    // chOptions.setAcceptInsecureCerts(true);
 	    // chOptions.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.ACCEPT);
 	    // chOptions.addArguments("--headless");
@@ -309,7 +330,7 @@ public class BrowserFactory {
     }
 
     private static WebDriver createNewLocalDriverInstance(String browserName) {
-	ReportManager.log("Attempting to run locally on: [" + TARGET_OPERATING_SYSTEM + "], [" + browserName + "].");
+	ReportManager.log("Attempting to run locally on: [" + targetOperatingSystem + "], [" + browserName + "].");
 	switch (browserName) {
 	case "MozillaFirefox":
 	    System.setProperty("webdriver.gecko.driver", driversPath + "geckodriver" + fileExtension);
@@ -353,7 +374,7 @@ public class BrowserFactory {
     }
 
     private static WebDriver createNewRemoteDriverInstance(String browserName) {
-	ReportManager.log("Attempting to run remotely on: [" + TARGET_OPERATING_SYSTEM + "], [" + browserName + "], ["
+	ReportManager.log("Attempting to run remotely on: [" + targetOperatingSystem + "], [" + browserName + "], ["
 		+ TARGET_HUB_URL + "].");
 	try {
 	    switch (browserName) {
@@ -393,14 +414,14 @@ public class BrowserFactory {
 	    if (e.getMessage().contains("Error forwarding the new session cannot find")) {
 		ReportManager.log(
 			"Error forwarding the new session: Couldn't find a node that matches the desired capabilities.");
-		ReportManager.log("Failed to run remotely on: [" + TARGET_OPERATING_SYSTEM + "], [" + browserName
-			+ "], [" + TARGET_HUB_URL + "].");
+		ReportManager.log("Failed to run remotely on: [" + targetOperatingSystem + "], [" + browserName + "], ["
+			+ TARGET_HUB_URL + "].");
 		Assert.fail(
 			"Error forwarding the new session: Couldn't find a node that matches the desired capabilities.");
 	    } else {
 		ReportManager.log("Unhandled Error.");
-		ReportManager.log("Failed to run remotely on: [" + TARGET_OPERATING_SYSTEM + "], [" + browserName
-			+ "], [" + TARGET_HUB_URL + "].");
+		ReportManager.log("Failed to run remotely on: [" + targetOperatingSystem + "], [" + browserName + "], ["
+			+ TARGET_HUB_URL + "].");
 		Assert.fail("Unhandled Error.");
 	    }
 	} catch (MalformedURLException e) {
@@ -410,7 +431,7 @@ public class BrowserFactory {
     }
 
     private static Platform getDesiredOperatingSystem() {
-	switch (TARGET_OPERATING_SYSTEM) {
+	switch (targetOperatingSystem) {
 	case "Windows-64":
 	    return Platform.WINDOWS;
 	case "Linux-64":
@@ -418,8 +439,8 @@ public class BrowserFactory {
 	case "Mac-64":
 	    return Platform.MAC;
 	default:
-	    ReportManager.log("Unsupported Operating System [" + TARGET_OPERATING_SYSTEM
-		    + "], setting target platform to [ANY].");
+	    ReportManager.log(
+		    "Unsupported Operating System [" + targetOperatingSystem + "], setting target platform to [ANY].");
 	    return Platform.ANY;
 	}
     }

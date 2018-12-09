@@ -81,10 +81,9 @@ public class ScreenshotManager {
      * Used if there is no element locator. passFailStatus; true means pass and
      * false means fail.
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param passFailStatus
-     *            A flag to determine whether the action has passed or failed
+     * @param driver         the current instance of Selenium webdriver
+     * @param passFailStatus A flag to determine whether the action has passed or
+     *                       failed
      */
     public static void captureScreenShot(WebDriver driver, String actionName, boolean passFailStatus) {
 	globalPassFailStatus = passFailStatus;
@@ -110,13 +109,11 @@ public class ScreenshotManager {
      * Used if there is an element locator. passFailStatus; true means pass and
      * false means fail.
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
-     * @param passFailStatus
-     *            A flag to determine whether the action has passed or failed
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param passFailStatus A flag to determine whether the action has passed or
+     *                       failed
      */
     public static void captureScreenShot(WebDriver driver, By elementLocator, String actionName,
 	    boolean passFailStatus) {
@@ -146,13 +143,11 @@ public class ScreenshotManager {
      * switchToDefaultContent element action which requires no locator.
      * passFailStatus; true means pass and false means fail.
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param appendedText
-     *            the text that needs to be appended to the name of the screenshot
-     *            to make it more recognizable
-     * @param passFailStatus
-     *            A flag to determine whether the action has passed or failed
+     * @param driver         the current instance of Selenium webdriver
+     * @param appendedText   the text that needs to be appended to the name of the
+     *                       screenshot to make it more recognizable
+     * @param passFailStatus A flag to determine whether the action has passed or
+     *                       failed
      */
     @Deprecated
     public static void captureScreenShot(WebDriver driver, String actionName, String appendedText,
@@ -169,14 +164,11 @@ public class ScreenshotManager {
      * Used only in passed element actions. Appended Text is added to the screenshot
      * name to signal why it was taken.
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
-     * @param appendedText
-     *            the text that needs to be appended to the name of the screenshot
-     *            to make it more recognizable
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param appendedText   the text that needs to be appended to the name of the
+     *                       screenshot to make it more recognizable
      */
     @Deprecated
     public static void captureScreenShot(WebDriver driver, By elementLocator, String actionName, String appendedText,
@@ -192,18 +184,14 @@ public class ScreenshotManager {
      * Internal use only. Considers the screenshotParams_whenToTakeAScreenshot
      * parameter.
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param elementLocator
-     *            the locator of the webElement under test (By xpath, id, selector,
-     *            name ...etc)
-     * @param appendedText
-     *            the text that needs to be appended to the name of the screenshot
-     *            to make it more recognizable
-     * @param takeScreenshot
-     *            determines whether or not to take a screenshot given the
-     *            screenshotParams_whenToTakeAScreenshot parameter from the pom.xml
-     *            file
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param appendedText   the text that needs to be appended to the name of the
+     *                       screenshot to make it more recognizable
+     * @param takeScreenshot determines whether or not to take a screenshot given
+     *                       the screenshotParams_whenToTakeAScreenshot parameter
+     *                       from the pom.xml file
      */
     private static void internalCaptureScreenShot(WebDriver driver, By elementLocator, String actionName,
 	    String appendedText, boolean takeScreenshot) {
@@ -391,11 +379,10 @@ public class ScreenshotManager {
     public static void startAnimatedGif(WebDriver driver) {
 	if (CREATE_GIF) {
 	    gifDriver = driver;
-
-	    testCaseName = Reporter.getCurrentTestResult().getMethod().getMethodName();
-	    gifFilePath = SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME + FileSystems.getDefault().getSeparator()
-		    + System.currentTimeMillis() + "_" + testCaseName + ".gif";
 	    try {
+		testCaseName = Reporter.getCurrentTestResult().getMethod().getMethodName();
+		gifFilePath = SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME + FileSystems.getDefault().getSeparator()
+			+ System.currentTimeMillis() + "_" + testCaseName + ".gif";
 		File src = ((TakesScreenshot) gifDriver).getScreenshotAs(OutputType.FILE); // takes first screenshot
 		FileManager.copyFile(src.getAbsolutePath(), gifFilePath);
 
@@ -421,6 +408,9 @@ public class ScreenshotManager {
 		gifWriter.writeToSequence(firstImage);
 	    } catch (IOException | WebDriverException e) {
 		ReportManager.log(e);
+	    } catch (NullPointerException e2) {
+		// this happens in case the start animated Gif is triggered in a none-test
+		// method
 	    }
 	}
     }
@@ -428,7 +418,7 @@ public class ScreenshotManager {
     private static void appendToAnimatedGif(File... screenshot) {
 	// ensure that animatedGif is started, else force start it
 	if (CREATE_GIF) {
-	    if (gifDriver == null) {
+	    if (gifDriver == null || gifWriter ==null) {
 		BrowserFactory.startAnimatedGif();
 	    } else {
 		try {
@@ -462,6 +452,11 @@ public class ScreenshotManager {
     public static void attachAnimatedGif() {
 	// stop and attach
 	if (CREATE_GIF && gifDriver != null && !gifFilePath.equals("")) {
+	    try {
+		appendToAnimatedGif();
+	    } catch (Exception e) {
+		ReportManager.log(e);
+	    }
 	    try {
 		gifWriter.close();
 		gifOutputStream.close();
