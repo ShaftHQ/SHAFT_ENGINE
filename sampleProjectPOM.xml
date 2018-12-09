@@ -7,19 +7,26 @@
 	<version></version>
 
 	<properties>
+		<!-- Make sure you point to the latest version: https://bintray.com/mohabmohie/SHAFT/SHAFT_Engine/_latestVersion -->
+		<shaft_engine.version>2.1.20181209</shaft_engine.version>
+
 		<!-- SHAFT Test Run Parameters -->
 		<testSuite.name>unitTestSuite</testSuite.name>
-
 		<executionAddress>local</executionAddress> <!-- Acceptable Values: local | seleniumGridHubIP:port -->
 		<operatingSystem.version>Linux-64</operatingSystem.version> <!-- Acceptable Values: Windows-64 | Linux-64 | Mac-64 -->
-		<targetBrowser.name>GoogleChrome</targetBrowser.name> 		<!-- Acceptable Values: Default | MozillaFirefox | MicrosoftInternetExplorer 
-			| GoogleChrome | MicrosoftEdge | Safari -->
+		<!-- Will be ignored in case of local execution and SHAFT will identify 
+			the correct OS version automatically -->
+		<targetBrowser.name>GoogleChrome</targetBrowser.name> 		<!-- Acceptable Values: MozillaFirefox | MicrosoftInternetExplorer | GoogleChrome 
+			| MicrosoftEdge | Safari -->
 		<autoMaximizeBrowserWindow>true</autoMaximizeBrowserWindow> <!-- Acceptable Values: true | false -->
 
-		<defaultElementIdentificationTimeout>10</defaultElementIdentificationTimeout> <!-- Accepts integer values that represent the default timeout for finding 
+		<defaultElementIdentificationTimeout>2</defaultElementIdentificationTimeout> <!-- Accepts integer values that represent the default timeout for finding 
 			a webElement -->
-		<attemptsBeforeThrowingElementNotFoundException>6</attemptsBeforeThrowingElementNotFoundException> <!-- Accepts integer values that represent the number of attempts before 
+		<attemptsBeforeThrowingElementNotFoundException>4</attemptsBeforeThrowingElementNotFoundException> <!-- Accepts integer values that represent the number of attempts before 
 			failing to find a webElement -->
+		<waitImplicitly>false</waitImplicitly> <!-- Acceptable Values: true | false -->
+		<!-- Note: Implicit waiting may increase execution time by 20% but it also 
+			increases test stability in flaky environments -->
 
 		<screenshotParams_whenToTakeAScreenshot>ValidationPointsOnly</screenshotParams_whenToTakeAScreenshot> <!-- Acceptable Values: Always | Never | ValidationPointsOnly | FailuresOnly -->
 		<screenshotParams_highlightElements>true</screenshotParams_highlightElements> <!-- Acceptable Values: true | false -->
@@ -27,6 +34,9 @@
 		<screenshotParams_skippedElementsFromScreenshot></screenshotParams_skippedElementsFromScreenshot> <!-- The above element will be skipped in case of persistent elements/menus 
 			that show up multiple times in the full page screenshots -->
 		<recordVideo>false</recordVideo>
+		<createAnimatedGif>true</createAnimatedGif>
+		<animatedGif_frameDelay>750</animatedGif_frameDelay> <!-- Time in milliseconds to delay the frames of the animated GIF, default 
+			is 500 millisecond -->
 
 		<automaticallyGenerateAllureReport>false</automaticallyGenerateAllureReport> <!-- Acceptable Values: true | false -->
 
@@ -37,13 +47,12 @@
 		<allureResultsFolderPath>allure-results/</allureResultsFolderPath>
 
 		<!-- Dependencies/Plugins Version Numbers Parameters -->
-		<shaft_engine.version>2.0.20181031</shaft_engine.version> <!-- Make sure you point to the latest version: https://bintray.com/mohabmohie/SHAFT/SHAFT_Engine/_latestVersion -->
 		<encoding.type>UTF-8</encoding.type>
 		<jdk.version>1.8</jdk.version>
 		<maven-resources-plugin.version>3.1.0</maven-resources-plugin.version>
 		<maven-compiler-plugin.version>3.8.0</maven-compiler-plugin.version>
-		<maven-surefire-plugin.version>2.22.0</maven-surefire-plugin.version>
-		<aspectj.version>1.9.1</aspectj.version>
+		<maven-surefire-plugin.version>2.22.1</maven-surefire-plugin.version>
+		<aspectj.version>1.9.2</aspectj.version>
 	</properties>
 
 	<dependencies>
@@ -100,13 +109,14 @@
 						<outputEncoding>${encoding.type}</outputEncoding>
 					</configuration>
 				</plugin>
-
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-surefire-plugin</artifactId>
 					<version>${maven-surefire-plugin.version}</version>
 					<configuration>
 						<systemPropertyVariables>
+							<incortaRoot>${incortaRoot}</incortaRoot>
+							<incortaVersion>${incortaVersion}</incortaVersion>
 							<shaftEngineVersion>${shaft_engine.version}</shaftEngineVersion>
 							<targetOperatingSystem>${operatingSystem.version}</targetOperatingSystem>
 							<targetBrowserName>${targetBrowser.name}</targetBrowserName>
@@ -121,9 +131,12 @@
 							<testDataColumnNamePrefix>${testDataColumnNamePrefix}</testDataColumnNamePrefix>
 							<defaultElementIdentificationTimeout>${defaultElementIdentificationTimeout}</defaultElementIdentificationTimeout>
 							<attemptsBeforeThrowingElementNotFoundException>${attemptsBeforeThrowingElementNotFoundException}</attemptsBeforeThrowingElementNotFoundException>
+							<waitImplicitly>${waitImplicitly}</waitImplicitly>
 							<allureResultsFolderPath>${allureResultsFolderPath}</allureResultsFolderPath>
 							<automaticallyGenerateAllureReport>${automaticallyGenerateAllureReport}</automaticallyGenerateAllureReport>
 							<recordVideo>${recordVideo}</recordVideo>
+							<createAnimatedGif>${createAnimatedGif}</createAnimatedGif>
+							<animatedGif_frameDelay>${animatedGif_frameDelay}</animatedGif_frameDelay>
 						</systemPropertyVariables>
 						<configfailurepolicy>continue</configfailurepolicy>
 						<suiteXmlFiles>
@@ -135,6 +148,16 @@
 						<argLine>
 							-javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"
 						</argLine>
+						<properties>
+							<property>
+								<name>usedefaultlisteners</name>
+								<value>true</value> <!-- disabling default listeners is optional -->
+							</property>
+							<property>
+								<name>listener</name>
+								<value>com.shaft.listeners.SuiteListener,com.shaft.listeners.InvokedMethodListener,com.shaft.listeners.TestListener</value>
+							</property>
+						</properties>
 					</configuration>
 					<dependencies>
 						<dependency>
@@ -147,7 +170,6 @@
 			</plugins>
 		</pluginManagement>
 	</build>
-
 	<repositories>
 		<repository>
 			<snapshots>
@@ -168,5 +190,4 @@
 			<url>https://dl.bintray.com/mohabmohie/SHAFT</url>
 		</pluginRepository>
 	</pluginRepositories>
-
 </project>

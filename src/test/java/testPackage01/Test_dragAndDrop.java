@@ -42,6 +42,6 @@ public class Test_dragAndDrop {
 
     @BeforeClass // Set-up method, to be run once before the first test
     public void beforeClass() {
-	driver = BrowserFactory.getBrowser("GoogleChrome");
+	driver = BrowserFactory.getBrowser();
     }
 }

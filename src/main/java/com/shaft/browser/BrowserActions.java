@@ -61,8 +61,7 @@ public class BrowserActions {
     /**
      * Gets the current page URL and returns it as a string
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium webdriver
      * @return the URL that's currently open in the current page
      */
     public static String getCurrentURL(WebDriver driver) {
@@ -81,8 +80,7 @@ public class BrowserActions {
     /**
      * Gets the current window title and returns it as a string
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium webdriver
      * @return the title of the current window
      */
     public static String getCurrentWindowTitle(WebDriver driver) {
@@ -101,8 +99,7 @@ public class BrowserActions {
     /**
      * Gets the current page source and returns it as a string
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium webdriver
      * @return the source of the current page
      */
     public static String getPageSource(WebDriver driver) {
@@ -121,8 +118,7 @@ public class BrowserActions {
     /**
      * Gets the current window handle and returns it as a string
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium webdriver
      * @return the window handle for the current window
      */
     public static String getWindowHandle(WebDriver driver) {
@@ -141,8 +137,7 @@ public class BrowserActions {
     /**
      * Gets the current window position and returns it as a string
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium webdriver
      * @return the position of the current window
      */
     public static String getWindowPosition(WebDriver driver) {
@@ -161,8 +156,7 @@ public class BrowserActions {
     /**
      * Gets the current window size and returns it as a string
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium webdriver
      * @return the size of the current window
      */
     public static String getWindowSize(WebDriver driver) {
@@ -182,10 +176,9 @@ public class BrowserActions {
      * Navigates to targetUrl in case the current URL is different, else refreshes
      * the current page
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param targetUrl
-     *            a string that represents the URL that you wish to navigate to
+     * @param driver    the current instance of Selenium webdriver
+     * @param targetUrl a string that represents the URL that you wish to navigate
+     *                  to
      */
     public static void navigateToURL(WebDriver driver, String targetUrl) {
 	navigateToURL(driver, targetUrl, targetUrl);
@@ -196,14 +189,13 @@ public class BrowserActions {
      * the current page. Waits for successfully navigating to the final url after
      * redirection.
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param targetUrl
-     *            a string that represents the URL that you wish to navigate to
-     * @param targetUrlAfterRedirection
-     *            a string that represents a part of the url that should be present
-     *            after redirection, this string is used to confirm successful
-     *            navigation
+     * @param driver                    the current instance of Selenium webdriver
+     * @param targetUrl                 a string that represents the URL that you
+     *                                  wish to navigate to
+     * @param targetUrlAfterRedirection a string that represents a part of the url
+     *                                  that should be present after redirection,
+     *                                  this string is used to confirm successful
+     *                                  navigation
      */
     public static void navigateToURL(WebDriver driver, String targetUrl, String targetUrlAfterRedirection) {
 	// force stop any current navigation
@@ -242,8 +234,7 @@ public class BrowserActions {
     /**
      * Navigates one step back from the browsers history
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium webdriver
      */
     public static void navigateBack(WebDriver driver) {
 	triggerWaitForLazyLoading(driver);
@@ -286,8 +277,7 @@ public class BrowserActions {
     /**
      * Attempts to refresh the current page
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium webdriver
      */
     public static void refreshCurrentPage(WebDriver driver) {
 	triggerWaitForLazyLoading(driver);
@@ -316,8 +306,7 @@ public class BrowserActions {
     /**
      * Closes the current browser window
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium webdriver
      */
     public static void closeCurrentWindow(WebDriver driver) {
 	triggerWaitForLazyLoading(driver);
@@ -333,8 +322,7 @@ public class BrowserActions {
     /**
      * Maximizes current window size based on screen size minus 5%
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium webdriver
      */
     public static void maximizeWindow(WebDriver driver) {
 	Dimension initialWindowSize;
@@ -345,10 +333,13 @@ public class BrowserActions {
 	initialWindowSize = driver.manage().window().getSize();
 	ReportManager.logDiscreet("Initial window size: " + initialWindowSize.toString());
 
-	if (!(System.getProperty("targetBrowserName").equals("GoogleChrome"))) {
-//		&& System.getProperty("targetOperatingSystem").equals("Mac-64")
-//		&& System.getProperty("executionAddress").trim().equals("local"))) {
+	String targetBrowserName = System.getProperty("targetBrowserName").trim();
+	String targetOperatingSystem = System.getProperty("targetOperatingSystem").trim();
+	String executionAddress = System.getProperty("executionAddress").trim();
 
+	if ((!executionAddress.equals("local") && !targetBrowserName.equals("GoogleChrome"))
+		|| (executionAddress.equals("local")
+			&& !(targetBrowserName.equals("GoogleChrome") && targetOperatingSystem.equals("Mac-64")))) {
 	    try {
 		driver.manage().window().maximize();
 
@@ -374,24 +365,24 @@ public class BrowserActions {
 		currentWindowSize = driver.manage().window().getSize();
 		ReportManager.logDiscreet("Window size after Toolkit: " + currentWindowSize.toString());
 	    } catch (HeadlessException e) {
-		// happens with headless firefox browsers // remote // linux and windows
-		driver.manage().window().setPosition(new Point(0, 0));
-		driver.manage().window().setSize(new Dimension(width, height));
+		((JavascriptExecutor) driver).executeScript("window.focus();");
+		((JavascriptExecutor) driver).executeScript("window.moveTo(0,0);");
+		((JavascriptExecutor) driver).executeScript("window.resizeTo(" + width + ", " + height + ");");
 
 		currentWindowSize = driver.manage().window().getSize();
-		ReportManager.logDiscreet(
-			"Window size after HeadlessException on using Toolkit: " + currentWindowSize.toString());
+		ReportManager.logDiscreet("Window size after JavascriptExecutor: " + currentWindowSize.toString());
 	    }
 	}
 
 	if ((initialWindowSize.height == currentWindowSize.height)
 		&& (initialWindowSize.width == currentWindowSize.width)) {
-	    ((JavascriptExecutor) driver).executeScript("window.focus();");
-	    ((JavascriptExecutor) driver).executeScript("window.moveTo(0,0);");
-	    ((JavascriptExecutor) driver).executeScript("window.resizeTo(" + width + ", " + height + ");");
+	    // happens with headless firefox browsers // remote // linux and windows
+	    // also happens with chrome/windows
+	    driver.manage().window().setPosition(new Point(0, 0));
+	    driver.manage().window().setSize(new Dimension(width, height));
 
 	    currentWindowSize = driver.manage().window().getSize();
-	    ReportManager.logDiscreet("Window size after JavascriptExecutor: " + currentWindowSize.toString());
+	    ReportManager.logDiscreet("Window size after WebDriver.Options: " + currentWindowSize.toString());
 	}
 
 	if ((initialWindowSize.height == currentWindowSize.height)
@@ -415,12 +406,9 @@ public class BrowserActions {
     /**
      * Resizes the current window size based on the provided width and height
      * 
-     * @param driver
-     *            the current instance of Selenium webdriver
-     * @param width
-     *            the desired new width of the target window
-     * @param height
-     *            the desired new height of the target window
+     * @param driver the current instance of Selenium webdriver
+     * @param width  the desired new width of the target window
+     * @param height the desired new height of the target window
      */
     public static void setWindowSize(WebDriver driver, int width, int height) {
 	Dimension initialWindowSize;
