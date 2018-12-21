@@ -4,12 +4,12 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.mohies</groupId>
 	<artifactId>SHAFT_ENGINE</artifactId>
-	<version>2.1.20181209</version>
+	<version>2.1.20181220</version>
 	<name>SHAFT_ENGINE</name>
 	<description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
 
 	<properties>
-		<shaft_engine.version>SHAFT_ENGINE-2.1.20181209</shaft_engine.version>
+		<shaft_engine.version>SHAFT_ENGINE-2.1.20181220</shaft_engine.version>
 
 		<!-- SHAFT Test Run Parameters -->
 		<testSuite.name>unitTestSuite</testSuite.name>
@@ -45,6 +45,7 @@
 		<!-- SHAFT Configuration Parameters -->
 		<testDataFolderPath>src/test/resources/TestDataFiles/</testDataFolderPath>
 		<jsonFolderPath>src/test/resources/TestJsonFiles/</jsonFolderPath>
+		<downloadsFolderPath>target/downloadedFiles/</downloadsFolderPath>
 		<testDataColumnNamePrefix>Data</testDataColumnNamePrefix>
 		<allureResultsFolderPath>allure-results/</allureResultsFolderPath>
 
@@ -251,6 +252,7 @@
 							<autoMaximizeBrowserWindow>${autoMaximizeBrowserWindow}</autoMaximizeBrowserWindow>
 							<testDataFolderPath>${testDataFolderPath}</testDataFolderPath>
 							<jsonFolderPath>${jsonFolderPath}</jsonFolderPath>
+							<downloadsFolderPath>${downloadsFolderPath}</downloadsFolderPath>
 							<testDataColumnNamePrefix>${testDataColumnNamePrefix}</testDataColumnNamePrefix>
 							<defaultElementIdentificationTimeout>${defaultElementIdentificationTimeout}</defaultElementIdentificationTimeout>
 							<attemptsBeforeThrowingElementNotFoundException>${attemptsBeforeThrowingElementNotFoundException}</attemptsBeforeThrowingElementNotFoundException>
