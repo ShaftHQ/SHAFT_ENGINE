@@ -31,11 +31,10 @@ public class FileManager {
     /**
      * Copies a file from sourceFilePath to destinationFilePath on the local storage
      * 
-     * @param sourceFilePath
-     *            the full (absolute) path of the source file that will be copied
-     * @param destinationFilePath
-     *            the full (absolute) path of the desired location and file name for
-     *            the newly created copied file
+     * @param sourceFilePath      the full (absolute) path of the source file that
+     *                            will be copied
+     * @param destinationFilePath the full (absolute) path of the desired location
+     *                            and file name for the newly created copied file
      */
     public static void copyFile(String sourceFilePath, String destinationFilePath) {
 	File sourceFile = new File(sourceFilePath);
@@ -46,13 +45,12 @@ public class FileManager {
     /**
      * Deletes a file from the local storage
      * 
-     * @param filePath
-     *            the full (absolute) path of the source file that will be deleted
+     * @param filePath the full (absolute) path of the source file that will be
+     *                 deleted
      */
     public static void deleteFile(String filePath) {
 	FileUtils.deleteQuietly(new File(filePath));
     }
-    // List<String> supplierNames = Arrays.asList("sup1", "sup2", "sup3");
 
     public static void writeToFile(String fileFolderName, String fileName, List<String> text) {
 	String absoluteFilePath = getAbsolutePath(fileFolderName, fileName);
@@ -85,20 +83,65 @@ public class FileManager {
     }
 
     /**
+     * Tests whether the file or directory denoted by this abstract pathname exists.
+     * 
+     * @param fileFolderName  The location of the folder that contains the target
+     *                        file, relative to the project's root folder, ending
+     *                        with a /
+     * @param fileName        The name of the target file (including its extension
+     *                        if any)
+     * @param numberOfRetries number of times to try to find the file, given that
+     *                        each retry is separated by a 500 millisecond wait time
+     * @return true if the file exists, false if it doesn't
+     */
+    public static boolean doesFileExist(String fileFolderName, String fileName, int numberOfRetries) {
+	Boolean doesFileExit = false;
+	int i = 0;
+	while (i < numberOfRetries) {
+	    try {
+		doesFileExit = (new File(fileFolderName + fileName)).getAbsoluteFile().exists();
+	    } catch (Exception e) {
+		ReportManager.log(e);
+	    }
+
+	    if (!doesFileExit) {
+		try {
+		    Thread.sleep(500);
+		} catch (Exception e1) {
+		    ReportManager.log(e1);
+		}
+	    }
+
+	    i++;
+	}
+	return doesFileExit;
+    }
+
+    /**
      * Returns the full (absolute) file/folder path using the project-relative
      * fileFolderName and the fileName
      * 
-     * @param fileFolderName
-     *            The location of the folder that contains the target file, relative
-     *            to the project's root folder, ending with a /
-     * @param fileName
-     *            The name of the target file (including its extension if any)
+     * @param fileFolderName The location of the folder that contains the target
+     *                       file, relative to the project's root folder, ending
+     *                       with a /
+     * @param fileName       The name of the target file (including its extension if
+     *                       any)
      * @return a string value that represents the full/absolute file/folder path
      */
     public static String getAbsolutePath(String fileFolderName, String fileName) {
 	String filePath = "";
 	try {
 	    filePath = (new File(fileFolderName + fileName)).getAbsolutePath();
+	} catch (Exception e) {
+	    ReportManager.log(e);
+	}
+	return filePath;
+    }
+
+    public static String getAbsolutePath(String fileFolderName) {
+	String filePath = "";
+	try {
+	    filePath = (new File(fileFolderName)).getAbsolutePath();
 	} catch (Exception e) {
 	    ReportManager.log(e);
 	}
@@ -160,7 +203,8 @@ public class FileManager {
 	/*
 	 * create the output stream to zip file result
 	 */
-	try (FileOutputStream fileWriter = new FileOutputStream(destZipFile); ZipOutputStream zip = new ZipOutputStream(fileWriter);) {
+	try (FileOutputStream fileWriter = new FileOutputStream(destZipFile);
+		ZipOutputStream zip = new ZipOutputStream(fileWriter);) {
 
 	    /*
 	     * add the folder to the zip
@@ -178,7 +222,8 @@ public class FileManager {
     /*
      * recursively add files to the zip files
      */
-    private static void addFileToZip(String path, String srcFile, ZipOutputStream zip, boolean flag) throws IOException {
+    private static void addFileToZip(String path, String srcFile, ZipOutputStream zip, boolean flag)
+	    throws IOException {
 	/*
 	 * create the file object for inputs
 	 */
@@ -188,7 +233,8 @@ public class FileManager {
 	 * if the folder is empty add empty folder to the Zip file
 	 */
 	if (flag) {
-	    zip.putNextEntry(new ZipEntry(path + FileSystems.getDefault().getSeparator() + folder.getName() + FileSystems.getDefault().getSeparator()));
+	    zip.putNextEntry(new ZipEntry(path + FileSystems.getDefault().getSeparator() + folder.getName()
+		    + FileSystems.getDefault().getSeparator()));
 	} else { /*
 		  * if the current name is directory, recursively traverse it to get the files
 		  */
@@ -236,9 +282,11 @@ public class FileManager {
 	     */
 	    for (String fileName : folder.list()) {
 		if (path.equals("")) {
-		    addFileToZip(folder.getName(), srcFolder + FileSystems.getDefault().getSeparator() + fileName, zip, false);
+		    addFileToZip(folder.getName(), srcFolder + FileSystems.getDefault().getSeparator() + fileName, zip,
+			    false);
 		} else {
-		    addFileToZip(path + FileSystems.getDefault().getSeparator() + folder.getName(), srcFolder + FileSystems.getDefault().getSeparator() + fileName, zip, false);
+		    addFileToZip(path + FileSystems.getDefault().getSeparator() + folder.getName(),
+			    srcFolder + FileSystems.getDefault().getSeparator() + fileName, zip, false);
 		}
 	    }
 	}

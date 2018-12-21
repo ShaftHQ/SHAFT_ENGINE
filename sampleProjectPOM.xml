@@ -43,6 +43,7 @@
 		<!-- SHAFT Configuration Parameters -->
 		<testDataFolderPath>src/test/resources/TestDataFiles/</testDataFolderPath>
 		<jsonFolderPath>src/test/resources/TestJsonFiles/</jsonFolderPath>
+		<downloadsFolderPath>target/downloadedFiles/</downloadsFolderPath>
 		<testDataColumnNamePrefix>Data</testDataColumnNamePrefix>
 		<allureResultsFolderPath>allure-results/</allureResultsFolderPath>
 
@@ -128,6 +129,7 @@
 							<autoMaximizeBrowserWindow>${autoMaximizeBrowserWindow}</autoMaximizeBrowserWindow>
 							<testDataFolderPath>${testDataFolderPath}</testDataFolderPath>
 							<jsonFolderPath>${jsonFolderPath}</jsonFolderPath>
+							<downloadsFolderPath>${downloadsFolderPath}</downloadsFolderPath>
 							<testDataColumnNamePrefix>${testDataColumnNamePrefix}</testDataColumnNamePrefix>
 							<defaultElementIdentificationTimeout>${defaultElementIdentificationTimeout}</defaultElementIdentificationTimeout>
 							<attemptsBeforeThrowingElementNotFoundException>${attemptsBeforeThrowingElementNotFoundException}</attemptsBeforeThrowingElementNotFoundException>

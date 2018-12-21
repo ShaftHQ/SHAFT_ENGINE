@@ -11,15 +11,15 @@ import com.shaft.element.ElementActions;
 import com.shaft.validation.Assertions;
 
 public class tests_validations_assertions {
-    @Test
+    @Test(description = "Assert that assertEquals works as expected when the two values are equal.")
     public void assertEquals_true_expectedToPass() {
-	Assertions.assertEquals(1, 1, true);
+	Assertions.assertEquals(1, 1, 1, true);
     }
 
     @Test
     public void assertEquals_true_expectedToFail() {
 	try {
-	    Assertions.assertEquals(1, 2, true);
+	    Assertions.assertEquals(1, 2, 1, true);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
@@ -27,13 +27,13 @@ public class tests_validations_assertions {
 
     @Test
     public void assertEquals_false_expectedToPass() {
-	Assertions.assertEquals(1, 2, false);
+	Assertions.assertEquals(1, 2, 1, false);
     }
 
     @Test
     public void assertEquals_false_expectedToFail() {
 	try {
-	    Assertions.assertEquals(1, 1, false);
+	    Assertions.assertEquals(1, 1, 1, false);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
@@ -68,56 +68,56 @@ public class tests_validations_assertions {
     }
 
     @Test
-    public void assertGreaterThanOrEquals_true_greaterThan_expectedToPass() {
-	Assertions.assertGreaterThanOrEquals(1, 2, true);
+    public void assertComparativeRelation_greaterThanOrEquals_true_greaterThan_expectedToPass() {
+	Assertions.assertComparativeRelation(1, 2, ">=", true);
     }
 
     @Test
-    public void assertGreaterThanOrEquals_true_equals_expectedToPass() {
-	Assertions.assertGreaterThanOrEquals(1, 1, true);
+    public void assertComparativeRelation_greaterThanOrEquals_true_equals_expectedToPass() {
+	Assertions.assertComparativeRelation(1, 1, ">=", true);
     }
 
     @Test
-    public void assertGreaterThanOrEquals_true_greaterThan_expectedToFail() {
+    public void assertComparativeRelation_greaterThanOrEquals_true_greaterThan_expectedToFail() {
 	try {
-	    Assertions.assertGreaterThanOrEquals(2, 1, true);
+	    Assertions.assertComparativeRelation(2, 1, ">=", true);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
     }
 
     @Test
-    public void assertGreaterThanOrEquals_true_equals_expectedToFail() {
+    public void assertComparativeRelation_greaterThanOrEquals_true_equals_expectedToFail() {
 	try {
-	    Assertions.assertGreaterThanOrEquals(1, 0, true);
+	    Assertions.assertComparativeRelation(1, 0, ">=", true);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
     }
 
     @Test
-    public void assertGreaterThanOrEquals_false_greaterThan_expectedToPass() {
-	Assertions.assertGreaterThanOrEquals(2, 1, false);
+    public void assertComparativeRelation_greaterThanOrEquals_false_greaterThan_expectedToPass() {
+	Assertions.assertComparativeRelation(2, 1, ">=", false);
     }
 
     @Test
-    public void assertGreaterThanOrEquals_false_equals_expectedToPass() {
-	Assertions.assertGreaterThanOrEquals(2, 1, false);
+    public void assertComparativeRelation_greaterThanOrEquals_false_equals_expectedToPass() {
+	Assertions.assertComparativeRelation(2, 1, ">=", false);
     }
 
     @Test
-    public void assertGreaterThanOrEquals_false_greaterThan_expectedToFail() {
+    public void assertComparativeRelation_greaterThanOrEquals_false_greaterThan_expectedToFail() {
 	try {
-	    Assertions.assertGreaterThanOrEquals(1, 2, false);
+	    Assertions.assertComparativeRelation(1, 2, ">=", false);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
     }
 
     @Test
-    public void assertGreaterThanOrEquals_false_equals_expectedToFail() {
+    public void assertComparativeRelation_greaterThanOrEquals_false_equals_expectedToFail() {
 	try {
-	    Assertions.assertGreaterThanOrEquals(1, 1, false);
+	    Assertions.assertComparativeRelation(1, 1, ">=", false);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
@@ -381,6 +381,34 @@ public class tests_validations_assertions {
 	ElementActions.type(driver, By.name("q"), "AUTOMATION");
 	try {
 	    Assertions.assertElementAttribute(driver, By.name("q"), "text", "AutomaTion123", 5, true);
+	} catch (AssertionError e) {
+	    Assert.assertTrue(true);
+	}
+    }
+
+    @Test
+    public void assertFileExists_true_expectedToPass() {
+	Assertions.assertFileExists("/src/main/java/com/shaft/element/", "ElementActions.java", 1, true);
+    }
+
+    @Test
+    public void assertFileExists_true_expectedToFail() {
+	try {
+	    Assertions.assertFileExists("/src/main/java/com/shaft/element/", "ElementActions.java_fail", 1, true);
+	} catch (AssertionError e) {
+	    Assert.assertTrue(true);
+	}
+    }
+
+    @Test
+    public void assertFileExists_false_expectedToPass() {
+	Assertions.assertFileExists("/src/main/java/com/shaft/element/", "ElementActions.java_fail", 1, false);
+    }
+
+    @Test
+    public void assertFileExists_false_expectedToFail() {
+	try {
+	    Assertions.assertFileExists("/src/main/java/com/shaft/element/", "ElementActions.java", 1, false);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}

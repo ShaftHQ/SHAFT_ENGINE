@@ -310,7 +310,7 @@ public class RestActions {
 
     private void assertResponseStatusCode(String request, Response response, String targetStatusCode) {
 	try {
-	    Assertions.assertEquals(targetStatusCode, String.valueOf(response.getStatusCode()), true);
+	    Assertions.assertEquals(targetStatusCode, String.valueOf(response.getStatusCode()), 1, true);
 	    passAction("performRequest", request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", response);
 	} catch (AssertionError e) {
 	    failAction("performRequest", request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", response);

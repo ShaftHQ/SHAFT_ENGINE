@@ -17,9 +17,18 @@ import io.qameta.allure.Step;
 public class ReportManager {
 
     private static String fullLog = "";
+    private static String currentTestLog = "";
     private static int actionCounter = 1;
     private static boolean discreetLogging = false;
-    private static int lastLogLineRead = 0;
+    private static int totalNumberOfTests = 0;
+
+    public static int getTotalNumberOfTests() {
+	return totalNumberOfTests;
+    }
+
+    public static void setTotalNumberOfTests(int totalNumberOfTests) {
+	ReportManager.totalNumberOfTests = totalNumberOfTests;
+    }
 
     private ReportManager() {
 	throw new IllegalStateException("Utility class");
@@ -28,8 +37,7 @@ public class ReportManager {
     /**
      * Manages action counter and calls writeLog to format and print the log entry.
      * 
-     * @param logText
-     *            the text that needs to be logged in this action
+     * @param logText the text that needs to be logged in this action
      */
     public static void log(String logText) {
 	if (isDiscreetLogging()) {
@@ -49,8 +57,7 @@ public class ReportManager {
      * Format an exception message and stack trace, and calls attach to add it as a
      * log entry.
      * 
-     * @param e
-     *            the exception that will be logged in this action
+     * @param e the exception that will be logged in this action
      */
     public static void log(Exception e) {
 	StringBuilder logBuilder = new StringBuilder();
@@ -75,11 +82,9 @@ public class ReportManager {
      * Formats logText and adds timestamp, then logs it as a step in the execution
      * report.
      * 
-     * @param logText
-     *            the text that needs to be logged in this action
-     * @param actionCounter
-     *            a number that represents the serial number of this action within
-     *            this test run
+     * @param logText       the text that needs to be logged in this action
+     * @param actionCounter a number that represents the serial number of this
+     *                      action within this test run
      */
     @Step("Action [{actionCounter}]: {logText}")
     private static void writeStepToReport(String logText, int actionCounter) {
@@ -92,8 +97,8 @@ public class ReportManager {
 
 	String log = "[ReportManager] " + logText.trim() + " @" + timestamp;
 	Reporter.log(log, true);
-	appendToFullLog(log);
-	appendToFullLog(System.lineSeparator());
+	appendToLog(log);
+	appendToLog(System.lineSeparator());
     }
 
     private static void createLogEntry(String logText) {
@@ -101,8 +106,8 @@ public class ReportManager {
 		.format(new Date(System.currentTimeMillis()));
 
 	String log = "[ReportManager] " + logText.trim() + " @" + timestamp;
-	appendToFullLog(log);
-	appendToFullLog(System.lineSeparator());
+	appendToLog(log);
+	appendToLog(System.lineSeparator());
     }
 
     private static void createImportantReportEntry(String logText) {
@@ -112,20 +117,17 @@ public class ReportManager {
 		+ "################################################################################################################################################";
 
 	Reporter.log(log, true);
-	appendToFullLog(log);
-	appendToFullLog(System.lineSeparator());
+	appendToLog(log);
+	appendToLog(System.lineSeparator());
     }
 
     /**
      * Adds a new attachment using the input parameters provided. The attachment is
      * displayed as a step in the execution report. Used for Screenshots.
      * 
-     * @param attachmentType
-     *            the type of this attachment
-     * @param attachmentName
-     *            the name of this attachment
-     * @param attachmentContent
-     *            the content of this attachment
+     * @param attachmentType    the type of this attachment
+     * @param attachmentName    the name of this attachment
+     * @param attachmentContent the content of this attachment
      */
     @Step("Attachment: {attachmentType} - {attachmentName}")
     public static void attachAsStep(String attachmentType, String attachmentName, InputStream attachmentContent) {
@@ -136,12 +138,9 @@ public class ReportManager {
      * Adds a new attachment using the input parameters provided. The attachment is
      * displayed as a step in the execution report. Used for Screenshots.
      * 
-     * @param attachmentType
-     *            the type of this attachment
-     * @param attachmentName
-     *            the name of this attachment
-     * @param attachmentContent
-     *            the content of this attachment
+     * @param attachmentType    the type of this attachment
+     * @param attachmentName    the name of this attachment
+     * @param attachmentContent the content of this attachment
      */
     @Step("Attachment: {attachmentType} - {attachmentName}")
     public static void attachAsStep(String attachmentType, String attachmentName, String attachmentContent) {
@@ -152,12 +151,9 @@ public class ReportManager {
      * Adds a new attachment using the input parameters provided. The attachment is
      * displayed as a step in the execution report. Used for Screenshots.
      * 
-     * @param attachmentType
-     *            the type of this attachment
-     * @param attachmentName
-     *            the name of this attachment
-     * @param attachmentContent
-     *            the content of this attachment
+     * @param attachmentType    the type of this attachment
+     * @param attachmentName    the name of this attachment
+     * @param attachmentContent the content of this attachment
      */
     public static void attach(String attachmentType, String attachmentName, InputStream attachmentContent) {
 	createAttachment(attachmentType, attachmentName, attachmentContent);
@@ -167,12 +163,9 @@ public class ReportManager {
      * Adds a new attachment using the input parameters provided. The attachment is
      * displayed as a step in the execution report. Used for Screenshots.
      * 
-     * @param attachmentType
-     *            the type of this attachment
-     * @param attachmentName
-     *            the name of this attachment
-     * @param attachmentContent
-     *            the content of this attachment
+     * @param attachmentType    the type of this attachment
+     * @param attachmentName    the name of this attachment
+     * @param attachmentContent the content of this attachment
      */
     public static void attach(String attachmentType, String attachmentName, String attachmentContent) {
 	createAttachment(attachmentType, attachmentName, attachmentContent);
@@ -203,9 +196,9 @@ public class ReportManager {
     }
 
     /**
-     * @deprecated logging will be handled by the listeners package instead.
-     * Returns the log of the current test, and attaches it in the end of the test
-     * execution report.
+     * @deprecated attaching the log will be handled by the listeners package
+     *             instead. Returns the log of the current test, and attaches it in
+     *             the end of the test execution report.
      * 
      */
     @Deprecated
@@ -219,26 +212,8 @@ public class ReportManager {
      * 
      */
     public static void attachTestLog() {
-	String[] fullLogArray = fullLog.split(System.lineSeparator());
-	StringBuilder logBuilder = new StringBuilder();
-	String logText = "";
-
-	int currentLogLine = 0;
-	for (String s : fullLogArray) {
-	    if (currentLogLine > lastLogLineRead) {
-		if (!s.contains("Successfully created attachment [SHAFT Engine Logs - Current Test log]")
-			&& !s.trim().equals("")) {
-		    s = s.replace("<br>", System.lineSeparator());
-		    logBuilder.append(s);
-		    logBuilder.append(System.lineSeparator());
-		}
-		lastLogLineRead++;
-	    }
-	    currentLogLine++;
-	}
-	logText = logBuilder.toString();
-
-	createAttachment("SHAFT Engine Logs", "Current Test log", logText);
+	createAttachment("SHAFT Engine Logs", "Current Test log", currentTestLog);
+	currentTestLog = "";
     }
 
     /**
@@ -262,11 +237,11 @@ public class ReportManager {
     /**
      * Appends a log entry to the complete log of the current execution session.
      * 
-     * @param log
-     *            the log entry that needs to be appended to the full log
+     * @param log the log entry that needs to be appended to the full log
      */
-    private static void appendToFullLog(String log) {
+    private static void appendToLog(String log) {
 	fullLog += log;
+	currentTestLog += log;
     }
 
     public static void generateAllureReportArchive() {
@@ -322,9 +297,16 @@ public class ReportManager {
 	}
     }
 
-    public static void logTestInformation(String className, String testName) {
-	createImportantReportEntry(
-		"Starting Execution; class name [" + className + "], and test name [" + testName + "].");
+    public static void logTestInformation(String className, String testMethodName, String testDescription,
+	    int testCaseNumber, int totalTestCasesCount) {
+	if (!testDescription.equals("")) {
+	    createImportantReportEntry("Starting Execution:\t[" + testCaseNumber + " out of " + totalTestCasesCount
+		    + "] tests in the current class;\nTest Method:\t\t[" + className + "." + testMethodName
+		    + "].\nTest Description:\t[" + testDescription + "].");
+	} else {
+	    createImportantReportEntry("Starting Execution:\t[" + testCaseNumber + " out of " + totalTestCasesCount
+		    + "] tests in the current class;\nTest Method:\t\t[" + className + "." + testMethodName + "].");
+	}
     }
 
     /**
@@ -335,8 +317,7 @@ public class ReportManager {
     }
 
     /**
-     * @param discreetLogging
-     *            the discreetLogging to set
+     * @param discreetLogging the discreetLogging to set
      */
     public static void setDiscreetLogging(boolean discreetLogging) {
 	ReportManager.discreetLogging = discreetLogging;
