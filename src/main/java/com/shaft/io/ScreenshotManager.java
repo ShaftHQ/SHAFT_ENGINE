@@ -21,6 +21,7 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.NoSuchSessionException;
 import org.openqa.selenium.OutputType;
+import org.openqa.selenium.StaleElementReferenceException;
 import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
@@ -67,7 +68,6 @@ public class ScreenshotManager {
     private static String globalPassFailAppendedText = "";
 
     private static WebDriver gifDriver = null;
-    // private static ImageWriter gifWriter = null;
     private static String testCaseName = "";
     private static String gifFilePath = "";
     private static ImageOutputStream gifOutputStream = null;
@@ -138,10 +138,10 @@ public class ScreenshotManager {
     }
 
     /**
-     * Used in all browser actions, in failed element actions, in passed element
-     * actions where the element can no longer be found, and in passed
-     * switchToDefaultContent element action which requires no locator.
-     * passFailStatus; true means pass and false means fail.
+     * @deprecated Used in all browser actions, in failed element actions, in passed
+     *             element actions where the element can no longer be found, and in
+     *             passed switchToDefaultContent element action which requires no
+     *             locator. passFailStatus; true means pass and false means fail.
      * 
      * @param driver         the current instance of Selenium webdriver
      * @param appendedText   the text that needs to be appended to the name of the
@@ -161,8 +161,8 @@ public class ScreenshotManager {
     }
 
     /**
-     * Used only in passed element actions. Appended Text is added to the screenshot
-     * name to signal why it was taken.
+     * @deprecated Used only in passed element actions. Appended Text is added to
+     *             the screenshot name to signal why it was taken.
      * 
      * @param driver         the current instance of Selenium webdriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
@@ -211,35 +211,40 @@ public class ScreenshotManager {
 	    JavascriptExecutor js = null;
 	    WebElement element = null;
 
-	    /**
-	     * If an elementLocator was passed, store regularElementStyle and highlight that
-	     * element before taking the screenshot
-	     */
-	    if (SCREENSHOT_PARAMS_HIGHLIGHTELEMENTS && elementLocator != null
-		    && (ElementActions.getElementsCount(driver, elementLocator, CUSTOMELEMENTIDENTIFICATIONTIMEOUT,
-			    RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1)) {
-		element = driver.findElement(elementLocator);
-		js = (JavascriptExecutor) driver;
-		regularElementStyle = highlightElementAndReturnDefaultStyle(element, js, setHighlightedElementStyle());
+	    try {
+		/**
+		 * If an elementLocator was passed, store regularElementStyle and highlight that
+		 * element before taking the screenshot
+		 */
+		if (SCREENSHOT_PARAMS_HIGHLIGHTELEMENTS && elementLocator != null
+			&& (ElementActions.getElementsCount(driver, elementLocator, CUSTOMELEMENTIDENTIFICATIONTIMEOUT,
+				RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1)) {
+		    element = driver.findElement(elementLocator);
+		    js = (JavascriptExecutor) driver;
+		    regularElementStyle = highlightElementAndReturnDefaultStyle(element, js,
+			    setHighlightedElementStyle());
+		}
+	    } catch (StaleElementReferenceException e) {
+		// this happens when webdriver failes to capture the elements initial style or
+		// fails to highlight the element for some reason
+		ReportManager.log(e);
 	    }
 
 	    /**
 	     * Take the screenshot and store it as a file
 	     */
 	    File src;
-	    try {
-		/**
-		 * Attempt to take a full page screenshot, take a regular screenshot upon
-		 * failure
-		 */
 
+	    /**
+	     * Attempt to take a full page screenshot, take a regular screenshot upon
+	     * failure
+	     */
+	    try {
 		src = takeScreenshot(driver);
 
 		/**
 		 * Declare screenshot file name
 		 */
-		// String testCaseName =
-		// Reporter.getCurrentTestResult().getTestClass().getRealClass().getName();
 		testCaseName = Reporter.getCurrentTestResult().getMethod().getMethodName();
 		screenshotFileName = System.currentTimeMillis() + "_" + testCaseName + "_" + actionName;
 		if (!appendedText.equals("")) {
@@ -261,13 +266,6 @@ public class ScreenshotManager {
 		 */
 		FileManager.copyFile(src.getAbsolutePath(), SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME
 			+ FileSystems.getDefault().getSeparator() + screenshotFileName + ".png");
-
-		/*
-		 * File screenshotFile = new File(SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME
-		 * + FileSystems.getDefault().getSeparator() + screenshotFileName + ".png"); try
-		 * { FileUtils.copyFile(src, screenshotFile); } catch (IOException e) {
-		 * ReportManager.log(e); }
-		 */
 
 		addScreenshotToReport(src);
 		appendToAnimatedGif(src);
@@ -418,7 +416,7 @@ public class ScreenshotManager {
     private static void appendToAnimatedGif(File... screenshot) {
 	// ensure that animatedGif is started, else force start it
 	if (CREATE_GIF) {
-	    if (gifDriver == null || gifWriter ==null) {
+	    if (gifDriver == null || gifWriter == null) {
 		BrowserFactory.startAnimatedGif();
 	    } else {
 		try {
@@ -442,7 +440,7 @@ public class ScreenshotManager {
 		    } else {
 			ReportManager.log(e);
 		    }
-		} catch (IOException | IllegalStateException | NullPointerException e) {
+		} catch (IOException | IllegalStateException | IllegalArgumentException | NullPointerException e) {
 		    ReportManager.log(e);
 		}
 	    }

@@ -12,18 +12,28 @@ import com.shaft.io.ReportManager;
 
 public class InvokedMethodListener implements IInvokedMethodListener {
     private int invokedTestsCounter = 0;
+    private int testSize = 0;
 
     @Override
     public void beforeInvocation(IInvokedMethod method, ITestResult testResult) {
-	ElementActions.switchToDefaultContent();
+//	ElementActions.switchToDefaultContent();
 	if (!method.isConfigurationMethod()) {
+	    try {
+		// testSize where the structure is testSuite > test > testClasses > testMethods
+		testSize = testResult.getTestContext().getAllTestMethods().length;
+	    } catch (NullPointerException e) {
+		// this is thrown if there is no test context for some reason...
+		ReportManager.log(e);
+	    }
 	    ITestNGMethod testMethod = method.getTestMethod();
 	    if (testMethod.isTest()) {
 		// ReportManager.log("BeforeInvocation: Test Method.");
 		if (testMethod.getDescription() != null) {
-		    ReportManager.logTestInformation(testMethod.getTestClass().getName(), testMethod.getDescription());
+		    ReportManager.logTestInformation(testMethod.getTestClass().getName(), testMethod.getMethodName(),
+			    testMethod.getDescription(), invokedTestsCounter + 1, testSize);
 		} else {
-		    ReportManager.logTestInformation(testMethod.getTestClass().getName(), testMethod.getMethodName());
+		    ReportManager.logTestInformation(testMethod.getTestClass().getName(), testMethod.getMethodName(),
+			    "", invokedTestsCounter + 1, testSize);
 		}
 		BrowserFactory.startAnimatedGif();
 		if (invokedTestsCounter == 0) {
@@ -39,27 +49,28 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 	    ITestNGMethod testMethod = method.getTestMethod();
 	    if (testMethod.isTest()) {
 		// ReportManager.log("AfterInvocation: Test Method.");
+		ElementActions.switchToDefaultContent();
 		BrowserFactory.attachAnimatedGif();
 		ReportManager.attachTestLog();
-		try {
-		    // testSize where the structure is testSuite > test > testClasses > testMethods
-		    int testSize = testResult.getTestContext().getAllTestMethods().length;
+//		try {
+//		    // testSize where the structure is testSuite > test > testClasses > testMethods
+//		    int testSize = testResult.getTestContext().getAllTestMethods().length;
 
-		    if (invokedTestsCounter == testSize - 1) {
-			// is last test in the class
-			RecordManager.stopRecording();
-			RecordManager.attachRecording();
-			BrowserFactory.attachBrowserLogs();
-			ReportManager.logEngineVersion(false);
-			ReportManager.attachFullLog();
-			invokedTestsCounter = 0;
-		    } else {
-			invokedTestsCounter++;
-		    }
-		} catch (NullPointerException e) {
-		    // this is thrown if there is no test context for some reason...
-		    ReportManager.log(e);
+		if (invokedTestsCounter == testSize - 1) {
+		    // is last test in the class
+		    RecordManager.stopRecording();
+		    RecordManager.attachRecording();
+		    BrowserFactory.attachBrowserLogs();
+		    ReportManager.logEngineVersion(false);
+		    ReportManager.attachFullLog();
+		    invokedTestsCounter = 0;
+		} else {
+		    invokedTestsCounter++;
 		}
+//		} catch (NullPointerException e) {
+//		    // this is thrown if there is no test context for some reason...
+//		    ReportManager.log(e);
+//		}
 	    }
 	}
     }

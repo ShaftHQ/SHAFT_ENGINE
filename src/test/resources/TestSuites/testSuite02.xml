@@ -6,8 +6,7 @@
 			<class name="unitTests.tests_validations_assertions">
 				<methods>
 					<include name="assertEquals_true_expectedToPass" />
-					<include name="assertElementExists_true_expectedToPass"></include>
-					<include name="assertNull_true_expectedToPass"></include>
+					<include name="assertEquals_true_expectedToFail" />
 				</methods>
 			</class>
 		</classes>
@@ -16,9 +15,8 @@
 		<classes>
 			<class name="unitTests.tests_validations_assertions">
 				<methods>
-					<include name="assertEquals_true_expectedToFail" />
-					<include name="assertElementExists_true_expectedToFail"></include>
-					<include name="assertNull_true_expectedToFail"></include>
+					<include name="assertEquals_false_expectedToPass" />
+					<include name="assertEquals_false_expectedToFail" />
 				</methods>
 			</class>
 		</classes>

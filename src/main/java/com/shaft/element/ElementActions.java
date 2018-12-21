@@ -202,10 +202,8 @@ public class ElementActions {
     private static int countFoundElements(WebDriver driver, By elementLocator, int timeout,
 	    int attemptsBeforeThrowingElementNotFoundException, boolean waitForLazyLoading,
 	    boolean checkForVisibility) {
-	if (waitForLazyLoading) {
-	    if (!isWaitForLazyLoadingSuccessful()) {
-		return 0;
-	    }
+	if (waitForLazyLoading && !isWaitForLazyLoadingSuccessful()) {
+	    return 0;
 	}
 
 	int foundElementsCount = 0;
@@ -218,9 +216,11 @@ public class ElementActions {
 	    } catch (StaleElementReferenceException | ElementNotInteractableException | UnreachableBrowserException
 		    | NoSuchElementException | TimeoutException e) {
 		if (i + 1 == attemptsBeforeThrowingElementNotFoundException) {
-		    ReportManager.log(e);
 		    return 0;
 		}
+	    } catch (NullPointerException e) {
+		ReportManager.log(e);
+		return 0;
 	    } catch (Exception e) {
 		if (e.getMessage().contains("cannot focus element")
 			&& (i + 1 == attemptsBeforeThrowingElementNotFoundException)) {
@@ -363,7 +363,6 @@ public class ElementActions {
     }
 
     private static void performType(WebDriver driver, By elementLocator, String text) {
-	// driver.findElement(elementLocator).sendKeys(text);
 	// implementing loop to try and break out of the stale element exception issue
 	for (int i = 0; i < attemptsBeforeThrowingElementNotFoundException; i++) {
 	    try {
@@ -667,7 +666,6 @@ public class ElementActions {
 		ReportManager.setDiscreetLogging(false);
 	    } catch (Exception e) {
 		ReportManager.log(e);
-		// failAction(lastUsedDriver, "switchToDefaultContent");
 	    }
 	}
 	// if there is no last used driver or no drivers in the drivers list, do
@@ -724,7 +722,6 @@ public class ElementActions {
 	    // navigation is triggered immediately and hence it fails.
 	    // solution: wait for any possible navigation that may be triggered by this
 	    // click action to conclude
-	    // getElementsCount(driver, By.tagName("html"));
 
 	    // removed to enhance performance, and replaced with a process to assert after
 	    // every navigation
@@ -966,8 +963,6 @@ public class ElementActions {
 
 	    // attempt to perform drag and drop
 	    try {
-//		(new Actions(driver)).moveToElement(sourceElement).clickAndHold().moveByOffset(10, 10)
-//			.moveToElement(destinationElement).pause(100).release().build().perform();
 		driver.manage().timeouts().setScriptTimeout(10, TimeUnit.SECONDS);
 		JavascriptExecutor js = (JavascriptExecutor) driver;
 
@@ -1120,8 +1115,35 @@ public class ElementActions {
     }
 
     /**
-     * Retrieves a certain attribute's value from the target element and returns it
-     * as a string value.
+     * Get the value of the given attribute of the element. Will return the current
+     * value, even if this has been modified after the page has been loaded.
+     * 
+     * More exactly, this method will return the value of the property with the
+     * given name, if it exists. If it does not, then the value of the attribute
+     * with the given name is returned. If neither exists, null is returned.
+     * 
+     * The "style" attribute is converted as best can be to a text representation
+     * with a trailing semi-colon.
+     * 
+     * The following are deemed to be "boolean" attributes, and will return either
+     * "true" or null:
+     * 
+     * async, autofocus, autoplay, checked, compact, complete, controls, declare,
+     * defaultchecked, defaultselected, defer, disabled, draggable, ended,
+     * formnovalidate, hidden, indeterminate, iscontenteditable, ismap, itemscope,
+     * loop, multiple, muted, nohref, noresize, noshade, novalidate, nowrap, open,
+     * paused, pubdate, readonly, required, reversed, scoped, seamless, seeking,
+     * selected, truespeed, willvalidate
+     * 
+     * Finally, the following commonly mis-capitalized attribute/property names are
+     * evaluated as expected:
+     * 
+     * If the given name is "class", the "className" property is returned. If the
+     * given name is "readonly", the "readOnly" property is returned. Note: The
+     * reason for this behavior is that users frequently confuse attributes and
+     * properties. If you need to do something more precise, e.g., refer to an
+     * attribute even when a property of the same name exists, then you should
+     * evaluate Javascript to obtain the result you desire.
      * 
      * @param driver         the current instance of Selenium webdriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
@@ -1136,6 +1158,33 @@ public class ElementActions {
 	    return elementAttribute;
 	} else {
 	    failAction(driver, "getAttribute");
+	    return null;
+	}
+    }
+
+    /**
+     * Get the value of a given CSS property. Color values should be returned as
+     * rgba strings, so, for example if the "background-color" property is set as
+     * "green" in the HTML source, the returned value will be "rgba(0, 255, 0, 1)".
+     * Note that shorthand CSS properties (e.g. background, font, border,
+     * border-top, margin, margin-top, padding, padding-top, list-style, outline,
+     * pause, cue) are not returned, in accordance with the DOM CSS2 specification -
+     * you should directly access the longhand properties (e.g. background-color) to
+     * access the desired values.
+     * 
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param propertyName   the target CSS property of the webElement under test
+     * @return the value of the target CSS property of the webElement under test
+     */
+    public static String getCSSProperty(WebDriver driver, By elementLocator, String propertyName) {
+	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
+	    String elementCssProperty = driver.findElement(elementLocator).getCssValue(propertyName);
+	    passAction(driver, elementLocator, "getCSSProperty", elementCssProperty);
+	    return elementCssProperty;
+	} else {
+	    failAction(driver, "getCSSProperty");
 	    return null;
 	}
     }

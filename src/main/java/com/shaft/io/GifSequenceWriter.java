@@ -26,16 +26,11 @@ public class GifSequenceWriter {
     /**
      * Creates a new GifSequenceWriter
      * 
-     * @param outputStream
-     *            the ImageOutputStream to be written to
-     * @param imageType
-     *            one of the imageTypes specified in BufferedImage
-     * @param timeBetweenFramesMS
-     *            the time between frames in miliseconds
-     * @param loopContinuously
-     *            wether the gif should loop repeatedly
-     * @throws IIOException
-     *             if no gif ImageWriters are found
+     * @param outputStream        the ImageOutputStream to be written to
+     * @param imageType           one of the imageTypes specified in BufferedImage
+     * @param timeBetweenFramesMS the time between frames in miliseconds
+     * @param loopContinuously    wether the gif should loop repeatedly
+     * @throws IIOException if no gif ImageWriters are found
      *
      */
     public GifSequenceWriter(ImageOutputStream outputStream, int imageType, int timeBetweenFramesMS,
@@ -98,8 +93,7 @@ public class GifSequenceWriter {
      * ImageIO.getImageWritersBySuffix("gif").
      * 
      * @return a GIF ImageWriter object
-     * @throws IIOException
-     *             if no GIF image writers are returned
+     * @throws IIOException if no GIF image writers are returned
      */
     private static ImageWriter getWriter() throws IIOException {
 	Iterator<ImageWriter> iter = ImageIO.getImageWritersBySuffix("gif");
@@ -114,10 +108,8 @@ public class GifSequenceWriter {
      * Returns an existing child node, or creates and returns a new child node (if
      * the requested node does not exist).
      * 
-     * @param rootNode
-     *            the <tt>IIOMetadataNode</tt> to search for the child node.
-     * @param nodeName
-     *            the name of the child node.
+     * @param rootNode the <tt>IIOMetadataNode</tt> to search for the child node.
+     * @param nodeName the name of the child node.
      * 
      * @return the child node, if found or a new node created with the given name.
      */
