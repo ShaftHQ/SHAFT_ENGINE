@@ -116,8 +116,6 @@
 					<version>${maven-surefire-plugin.version}</version>
 					<configuration>
 						<systemPropertyVariables>
-							<incortaRoot>${incortaRoot}</incortaRoot>
-							<incortaVersion>${incortaVersion}</incortaVersion>
 							<shaftEngineVersion>${shaft_engine.version}</shaftEngineVersion>
 							<targetOperatingSystem>${operatingSystem.version}</targetOperatingSystem>
 							<targetBrowserName>${targetBrowser.name}</targetBrowserName>
