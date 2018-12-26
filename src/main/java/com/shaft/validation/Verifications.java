@@ -17,8 +17,10 @@ public class Verifications {
 
     private static StringBuilder verificationFailures = new StringBuilder();
     private static StringBuilder verificationSuccesses = new StringBuilder();
-    private static int elementDoesntExistTimeout = 4;
-    private static int retriesBeforeThrowingElementNotFoundException = 1;
+
+    private static int attemptsBeforeThrowingElementNotFoundException = Integer
+	    .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
+    private static int attemptsBeforeThrowingElementNotFoundExceptionInCaseElementShouldntExist = 1;
 
     private Verifications() {
 	throw new IllegalStateException("Utility class");
@@ -167,8 +169,12 @@ public class Verifications {
     public static void verifyElementExists(WebDriver driver, By elementLocator, Boolean verificationType) {
 	ReportManager.logDiscreet("Verification [" + "verifyElementExists" + "] is being performed.");
 	try {
-	    switch (ElementActions.getElementsCount(driver, elementLocator, elementDoesntExistTimeout,
-		    retriesBeforeThrowingElementNotFoundException)) {
+	    int customAttempts = attemptsBeforeThrowingElementNotFoundException;
+	    if (!verificationType) {
+		customAttempts = attemptsBeforeThrowingElementNotFoundExceptionInCaseElementShouldntExist;
+	    }
+
+	    switch (ElementActions.getElementsCount(driver, elementLocator, customAttempts)) {
 	    case 0:
 		if (verificationType) {
 		    verificationFailures.append("Verification Failed; element does not exist. Locator ["

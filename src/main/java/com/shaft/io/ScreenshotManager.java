@@ -46,7 +46,6 @@ public class ScreenshotManager {
 	    .getProperty("screenshotParams_skippedElementsFromScreenshot");
     private static By targetElementLocator;
 
-    private static final int CUSTOMELEMENTIDENTIFICATIONTIMEOUT = 1;
     private static final int RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION = 1;
 
     private static final Boolean CREATE_GIF = Boolean.valueOf(System.getProperty("createAnimatedGif").trim());
@@ -217,7 +216,7 @@ public class ScreenshotManager {
 		 * element before taking the screenshot
 		 */
 		if (SCREENSHOT_PARAMS_HIGHLIGHTELEMENTS && elementLocator != null
-			&& (ElementActions.getElementsCount(driver, elementLocator, CUSTOMELEMENTIDENTIFICATIONTIMEOUT,
+			&& (ElementActions.getElementsCount(driver, elementLocator,
 				RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1)) {
 		    element = driver.findElement(elementLocator);
 		    js = (JavascriptExecutor) driver;
@@ -225,7 +224,7 @@ public class ScreenshotManager {
 			    setHighlightedElementStyle());
 		}
 	    } catch (StaleElementReferenceException e) {
-		// this happens when webdriver failes to capture the elements initial style or
+		// this happens when WebDriver fails to capture the elements initial style or
 		// fails to highlight the element for some reason
 		ReportManager.log(e);
 	    }
@@ -298,7 +297,7 @@ public class ScreenshotManager {
 		List<WebElement> skippedElementsList = new ArrayList<>();
 		String[] skippedElementLocators = SCREENSHOT_PARAMS_SKIPPEDELEMENTSFROMSCREENSHOT.split(";");
 		for (String locator : skippedElementLocators) {
-		    if (ElementActions.getElementsCount(driver, By.xpath(locator), CUSTOMELEMENTIDENTIFICATIONTIMEOUT,
+		    if (ElementActions.getElementsCount(driver, By.xpath(locator),
 			    RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1) {
 			skippedElementsList.add(driver.findElement(By.xpath(locator)));
 		    }
@@ -320,7 +319,7 @@ public class ScreenshotManager {
     private static File takeElementScreenshot(WebDriver driver) {
 	try {
 	    if (targetElementLocator != null && ElementActions.getElementsCount(driver, targetElementLocator,
-		    CUSTOMELEMENTIDENTIFICATIONTIMEOUT, RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1) {
+		    RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1) {
 		return ScreenshotUtils.makeElementScreenshot(driver, targetElementLocator);
 	    } else {
 		return ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);

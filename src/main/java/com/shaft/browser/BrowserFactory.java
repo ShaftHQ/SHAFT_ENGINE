@@ -51,8 +51,8 @@ public class BrowserFactory {
     private static final String TARGET_BROWSER_NAME = System.getProperty("targetBrowserName");
     // Default | MozillaFirefox | MicrosoftInternetExplorer | GoogleChrome |
     // MicrosoftEdge | Safari
-    private static final int PAGE_LOAD_TIMEOUT = 60;
-    private static final int IMPLICIT_WAIT_TIMEOUT = 10;
+    private static final int PAGE_LOAD_TIMEOUT = 30;
+    private static final int IMPLICIT_WAIT_TIMEOUT = 30;
     private static final Boolean WAIT_IMPLICITLY = Boolean.valueOf(System.getProperty("waitImplicitly").trim());
     private static final Boolean CREATE_GIF = Boolean.valueOf(System.getProperty("createAnimatedGif").trim());
 
@@ -150,6 +150,7 @@ public class BrowserFactory {
 		if (WAIT_IMPLICITLY) {
 		    driver.manage().timeouts().implicitlyWait(IMPLICIT_WAIT_TIMEOUT, TimeUnit.SECONDS);
 		}
+
 		JSWaiter.setDriver(driver);
 		if (AUTO_MAXIMIZE) {
 		    BrowserActions.maximizeWindow(driver); // Automatically maximize driver window after opening it
@@ -337,9 +338,7 @@ public class BrowserFactory {
 	    sfOptions = new SafariOptions();
 	    sfOptions.setCapability("platform", getDesiredOperatingSystem());
 	    sfOptions.setCapability(CapabilityType.LOGGING_PREFS, logPrefs);
-	    
 
-	    
 	    sfOptions.setCapability("safari.options.dataDir", downloadsFolderPath);
 	    break;
 	default:
