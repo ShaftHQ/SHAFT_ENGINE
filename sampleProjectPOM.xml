@@ -8,7 +8,7 @@
 
 	<properties>
 		<!-- Make sure you point to the latest version: https://bintray.com/mohabmohie/SHAFT/SHAFT_Engine/_latestVersion -->
-		<shaft_engine.version>2.1.20181209</shaft_engine.version>
+		<shaft_engine.version>2.3.20180108</shaft_engine.version>
 
 		<!-- SHAFT Test Run Parameters -->
 		<testSuite.name>unitTestSuite</testSuite.name>
@@ -20,9 +20,9 @@
 			| MicrosoftEdge | Safari -->
 		<autoMaximizeBrowserWindow>true</autoMaximizeBrowserWindow> <!-- Acceptable Values: true | false -->
 
-		<defaultElementIdentificationTimeout>2</defaultElementIdentificationTimeout> <!-- Accepts integer values that represent the default timeout for finding 
+		<defaultElementIdentificationTimeout>5</defaultElementIdentificationTimeout> <!-- Accepts integer values that represent the default timeout for finding 
 			a webElement -->
-		<attemptsBeforeThrowingElementNotFoundException>4</attemptsBeforeThrowingElementNotFoundException> <!-- Accepts integer values that represent the number of attempts before 
+		<attemptsBeforeThrowingElementNotFoundException>3</attemptsBeforeThrowingElementNotFoundException> <!-- Accepts integer values that represent the number of attempts before 
 			failing to find a webElement -->
 		<waitImplicitly>false</waitImplicitly> <!-- Acceptable Values: true | false -->
 		<!-- Note: Implicit waiting may increase execution time by 20% but it also 
@@ -33,9 +33,11 @@
 		<screenshotParams_screenshotType>Regular</screenshotParams_screenshotType> <!-- Acceptable Values: Regular | FullPage | Element -->
 		<screenshotParams_skippedElementsFromScreenshot></screenshotParams_skippedElementsFromScreenshot> <!-- The above element will be skipped in case of persistent elements/menus 
 			that show up multiple times in the full page screenshots -->
+
 		<recordVideo>false</recordVideo>
+
 		<createAnimatedGif>true</createAnimatedGif>
-		<animatedGif_frameDelay>750</animatedGif_frameDelay> <!-- Time in milliseconds to delay the frames of the animated GIF, default 
+		<animatedGif_frameDelay>500</animatedGif_frameDelay> <!-- Time in milliseconds to delay the frames of the animated GIF, default 
 			is 500 millisecond -->
 
 		<automaticallyGenerateAllureReport>false</automaticallyGenerateAllureReport> <!-- Acceptable Values: true | false -->

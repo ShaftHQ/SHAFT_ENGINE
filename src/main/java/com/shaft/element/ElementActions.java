@@ -34,9 +34,9 @@ import com.shaft.io.ReportManager;
 import com.shaft.io.ScreenshotManager;
 
 public class ElementActions {
-    static int defaultElementIdentificationTimeout = Integer
+    private static int defaultElementIdentificationTimeout = Integer
 	    .parseInt(System.getProperty("defaultElementIdentificationTimeout").trim());
-    static int attemptsBeforeThrowingElementNotFoundException = Integer
+    private static int attemptsBeforeThrowingElementNotFoundException = Integer
 	    .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
 
     // this will only be used for switching back to default content
@@ -113,201 +113,89 @@ public class ElementActions {
     //////////////////////////////////// [private] Preparation and Support Actions
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /**
-     * For internal use ONLY inside element.ElementActions class (Directly),
-     * validation.Assertions (Indirectly by calling element.ElementActions), and
-     * validation.Verifications (Indirectly by calling element.ElementActions).
-     * Returns True if only one element matches the locator specified, and Fails the
-     * test (with a descriptive error) if no elements were found, or if more than
-     * one element was found. Timeout = defaultElementIdentificationTimeout, and
-     * retriesBeforeThrowingElementNotFoundException = 10.
-     * 
-     * @param driver         the current instance of Selenium webdriver
-     * @param elementLocator the locator of the webElement under test (By xpath, id,
-     *                       selector, name ...etc)
-     * @return boolean value, true if the element is found and unique, and false if
-     *         the element is not found or is not unique
-     */
-    private static boolean canFindUniqueElementForInternalUse(WebDriver driver, By elementLocator) {
-	return attemptToFindUniqueElement(driver, elementLocator, defaultElementIdentificationTimeout, true);
+    private static boolean identifyUniqueElement(WebDriver driver, By elementLocator) {
+	return identifyUniqueElement(driver, elementLocator, attemptsBeforeThrowingElementNotFoundException, true);
     }
 
-    /**
-     * Returns True if only one element matches the locator specified, and Fails the
-     * test (with a descriptive error) if no elements were found, or if more than
-     * one element was found. Timeout = @param timeout, and
-     * retriesBeforeThrowingElementNotFoundException = 10. If not an internal call,
-     * it is treated as a regular element action and a pass status is reported. Else
-     * only the fail status will be reported.
-     * 
-     * @param driver         the current instance of Selenium webdriver
-     * @param elementLocator the locator of the webElement under test (By xpath, id,
-     *                       selector, name ...etc)
-     * @param timeout        controls the wait timeout until the target element is
-     *                       present on the current page
-     * @return boolean value, true if the element is found and unique, and false if
-     *         the element is not found or is not unique
-     */
-    private static boolean attemptToFindUniqueElement(WebDriver driver, By elementLocator, int timeout,
-	    Boolean isInternalCall) {
-	int foundElementsCount = countFoundElements(driver, elementLocator, timeout,
-		attemptsBeforeThrowingElementNotFoundException, true, true);
-	switch (foundElementsCount) {
-	case 0: // no elements found
-	    ReportManager.log("Element with locator (" + elementLocator.toString() + ") was not found on this page.");
-	    failAction(driver, "canFindUniqueElement");
-	    return false;
-	case 1: // one element found
-	    if (!isInternalCall) {
-		passAction(driver, elementLocator, "canFindUniqueElement");
+    private static boolean identifyUniqueElement(WebDriver driver, By elementLocator, int numberOfAttempts,
+	    boolean checkForVisibility) {
+	int matchingElementsCount = getMatchingElementsCount(driver, elementLocator, numberOfAttempts);
+
+	switch (matchingElementsCount) {
+	case 0:
+	    failAction(driver, "identifyUniqueElement",
+		    "zero elements found matching this locator [" + elementLocator + "].");
+	    break;
+	case 1:
+	    // unique element found
+	    if (checkForVisibility && !elementLocator.toString().contains("input[@type='file']")
+		    && !elementLocator.equals(By.tagName("html"))) {
+		// scroll element into viewPort
+		((Locatable) driver.findElement(elementLocator)).getCoordinates().inViewPort();
+
+		// check for visibility
+		try {
+		    (new WebDriverWait(driver, defaultElementIdentificationTimeout))
+			    .until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
+		} catch (TimeoutException e) {
+		    ReportManager.log(e);
+		    failAction(driver, "identifyUniqueElement",
+			    "unique element matching this locator [" + elementLocator + "] is not visible.");
+		}
 	    }
+
+	    if (elementLocator != null) {
+		// ScreenshotManager.storeElementScreenshotForAISupportedElementIdentification(driver,
+		// elementLocator);
+	    }
+
 	    return true;
-	default: // multiple elements found
-	    ReportManager.log("Element with locator (" + elementLocator.toString() + "] was found ["
-		    + foundElementsCount + "] times on this page.");
-	    failAction(driver, "canFindUniqueElement");
-	    return false;
+	default:
+	    failAction(driver, "identifyUniqueElement",
+		    "multiple elements found matching this locator [" + elementLocator + "].");
+	    break;
 	}
+	return false;
     }
 
-    /**
-     * Attempts to bypass [StaleElementReferenceException |
-     * ElementNotInteractableException | UnreachableBrowserException |
-     * NoSuchElementException] or WebDriverException: unknown error: cannot focus
-     * element, for the predefined attemptsBeforeThrowingElementNotFoundException,
-     * while waiting for the predefined timeout with each attempt. Then returns
-     * either the number of found elements (in case of success), or logs the final
-     * exception and then returns 0 in case an exception broke through the targeted
-     * number of attempts.
-     * 
-     * @param driver                                         the current instance of
-     *                                                       Selenium webdriver
-     * @param elementLocator                                 the locator of the
-     *                                                       webElement under test
-     *                                                       (By xpath, id,
-     *                                                       selector, name ...etc)
-     * @param timeout                                        controls the wait
-     *                                                       timeout until the
-     *                                                       target element is
-     *                                                       present on the current
-     *                                                       page
-     * @param attemptsBeforeThrowingElementNotFoundException number of attempts
-     *                                                       before throwing an
-     *                                                       element not found
-     *                                                       exception and reporting
-     *                                                       a failure
-     * @return int value, 0 if no elements were found, 1 if a unique element was
-     *         found, or more if multiple elements were found
-     */
-    private static int countFoundElements(WebDriver driver, By elementLocator, int timeout,
-	    int attemptsBeforeThrowingElementNotFoundException, boolean waitForLazyLoading,
-	    boolean checkForVisibility) {
-	if (waitForLazyLoading && !isWaitForLazyLoadingSuccessful()) {
-	    return 0;
-	}
-
-	int foundElementsCount = 0;
-	// implementing loop to try and break out of the stale element exception issue
-	for (int i = 0; i < attemptsBeforeThrowingElementNotFoundException; i++) {
-	    try {
-		// attempt to find elements
-		foundElementsCount = attemptToFindElements(driver, elementLocator, timeout, checkForVisibility);
-		return foundElementsCount;
-	    } catch (StaleElementReferenceException | ElementNotInteractableException | UnreachableBrowserException
-		    | NoSuchElementException | TimeoutException e) {
-		if (i + 1 == attemptsBeforeThrowingElementNotFoundException) {
-		    return 0;
-		}
-	    } catch (NullPointerException e) {
-		ReportManager.log(e);
-		return 0;
-	    } catch (Exception e) {
-		if (e.getMessage().contains("cannot focus element")
-			&& (i + 1 == attemptsBeforeThrowingElementNotFoundException)) {
-		    ReportManager.log(e);
-		    return 0;
-		} else {
-		    ReportManager.log(e);
-		    ReportManager.log("Unhandled Exception: " + e.getMessage());
-		    return 0;
-		}
-	    }
-	}
-	return foundElementsCount;
+    private static int getMatchingElementsCount(WebDriver driver, By elementLocator, int numberOfAttempts) {
+	return getMatchingElementsCount(driver, elementLocator, numberOfAttempts, true);
     }
 
-    /**
-     * Supplementary function to decrease the complexity of countFoundElements(), if
-     * a single element is found attempts to move to it. else returns the number of
-     * found elements.
-     * 
-     * @param driver         the current instance of Selenium webdriver
-     * @param elementLocator the locator of the webElement under test (By xpath, id,
-     *                       selector, name ...etc)
-     * @param timeout        controls the wait timeout until the target element is
-     *                       present on the current page
-     * @return int value, 0 if no elements were found, 1 if a unique element was
-     *         found, or more if multiple elements were found
-     */
-    private static int attemptToFindElements(WebDriver driver, By elementLocator, int timeout,
-	    boolean checkForVisibility) {
-	int foundElements = 0;
-	(new WebDriverWait(driver, timeout)).until(ExpectedConditions.presenceOfElementLocated(elementLocator));
-	foundElements = driver.findElements(elementLocator).size();
-	if ((foundElements == 1) && (!elementLocator.equals(By.tagName("html")))) {
-	    scrollToElement(driver, elementLocator);
-	    if (checkForVisibility && !elementLocator.toString().contains("input[@type='file']")) {
-		(new WebDriverWait(driver, timeout))
-			.until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
-	    }
-	    return 1;
-	}
-	return foundElements;
-    }
-
-    /**
-     * Attempts to wait for any lazy loading activity to be completed, reports any
-     * exceptions, and ignores jQuery is not defined.
-     * 
-     * @return boolean value, true if waiting for lazy loading was successful, and
-     *         false if it wasn't
-     */
-    private static boolean isWaitForLazyLoadingSuccessful() {
-	try {
+    private static int getMatchingElementsCount(WebDriver driver, By elementLocator, int numberOfAttempts,
+	    boolean waitForLazyLoading) {
+	if (waitForLazyLoading) {
 	    JSWaiter.waitForLazyLoading();
-	} catch (Exception e) {
-	    if (e.getMessage().contains("jQuery is not defined")) {
-		// do nothing
-	    } else if (e.getMessage().contains("Error communicating with the remote browser. It may have died.")) {
-		ReportManager.log(e);
-		return false;
-	    } else {
-		ReportManager.log(e);
-		ReportManager.log("Unhandled Exception: " + e.getMessage());
-		return false;
-	    }
 	}
-	return true;
-    }
 
-    /**
-     * Attempts to scroll a unique element into view to be able to interact with it.
-     * 
-     * @param driver         the current instance of Selenium webdriver
-     * @param elementLocator the locator of the webElement under test (By xpath, id,
-     *                       selector, name ...etc)
-     */
-    private static void scrollToElement(WebDriver driver, By elementLocator) {
-	try {
-	    ((Locatable) driver.findElement(elementLocator)).getCoordinates().inViewPort();
-	} catch (Exception e) {
-	    ReportManager.log(e);
-	    driver.findElement(elementLocator).sendKeys("");
+	if (elementLocator != null) {
+	    int matchingElementsCount = 0;
+	    int i = 0;
+	    do {
+		try {
+		    (new WebDriverWait(driver, defaultElementIdentificationTimeout))
+			    .until(ExpectedConditions.presenceOfElementLocated(elementLocator));
+
+		    matchingElementsCount = driver.findElements(elementLocator).size();
+		} catch (TimeoutException e) {
+		    // in case of assert element doesn't exist, or if an element really doesn't
+		    // exist this exception will be thrown from the fluent wait command
+
+		    // this is expected and in this case the loop should just continue to iterate
+
+		    // I've included the finElements line inside this try clause because it makes no
+		    // added value to try again to find the element within the same attempt
+		}
+		i++;
+	    } while ((matchingElementsCount == 0) && (i < numberOfAttempts));
+	    return matchingElementsCount;
+	} else {
+	    return 0;
 	}
     }
 
     private static void typeWrapper(WebDriver driver, By elementLocator, String text, Boolean isSecureTyping) {
-	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
+	if (identifyUniqueElement(driver, elementLocator)) {
 	    // attempt to type
 	    String successfulTextLocationStrategy;
 	    String elementText = driver.findElement(elementLocator).getText();
@@ -324,15 +212,43 @@ public class ElementActions {
 		// attempt to clear element then check text size
 		clearBeforeTyping(driver, elementLocator, elementText, successfulTextLocationStrategy);
 	    }
-	    if ((countFoundElements(driver, elementLocator, defaultElementIdentificationTimeout,
-		    attemptsBeforeThrowingElementNotFoundException, true, true) == 1) && (!text.equals(""))) {
+	    if ((getMatchingElementsCount(driver, elementLocator, attemptsBeforeThrowingElementNotFoundException) == 1)
+		    && (!text.equals(""))) {
 		performType(driver, elementLocator, text);
 	    }
-	    if ((countFoundElements(driver, elementLocator, defaultElementIdentificationTimeout,
-		    attemptsBeforeThrowingElementNotFoundException, true, true) == 1) && (!text.equals(""))) {
+	    if ((getMatchingElementsCount(driver, elementLocator, attemptsBeforeThrowingElementNotFoundException) == 1)
+		    && (!text.equals(""))) {
 		// to confirm that the text was written successfully
-		confirmTypingWasSuccessful(driver, elementLocator, text, successfulTextLocationStrategy,
-			isSecureTyping);
+		if (confirmTypingWasSuccessful(driver, elementLocator, text, successfulTextLocationStrategy)) {
+		    if (isSecureTyping) {
+			passAction(driver, elementLocator, "type", text.replaceAll(".", "*"));
+		    } else {
+			passAction(driver, elementLocator, "type", text);
+		    }
+		} else {
+		    // attempt once to type using javascript then confirm typing was successful
+		    // again
+		    clearBeforeTyping(driver, elementLocator, elementText, successfulTextLocationStrategy);
+		    performTypeUsingJavaScript(driver, elementLocator, text);
+		    if (confirmTypingWasSuccessful(driver, elementLocator, text, successfulTextLocationStrategy)) {
+			if (isSecureTyping) {
+			    passAction(driver, elementLocator, "type", text.replaceAll(".", "*"));
+			} else {
+			    passAction(driver, elementLocator, "type", text);
+			}
+		    } else {
+			try {
+			    ReportManager.setDiscreetLogging(true);
+			    String actualText = getText(driver, elementLocator);
+			    ReportManager.setDiscreetLogging(false);
+			    failAction(driver, "type",
+				    "Expected to type: \"" + text + "\", but ended up with: \"" + actualText + "\"");
+			} catch (Exception e) {
+			    failAction(driver, "type",
+				    "Expected to type: \"" + text + "\", but ended up with something else");
+			}
+		    }
+		}
 	    }
 	}
     }
@@ -386,8 +302,25 @@ public class ElementActions {
 	}
     }
 
-    private static void confirmTypingWasSuccessful(WebDriver driver, By elementLocator, String text,
-	    String successfulTextLocationStrategy, boolean isSecureTyping) {
+    /**
+     * Used in case the regular type text output didn't match with the expected type
+     * text output
+     * 
+     * @param driver
+     * @param elementLocator
+     * @param text
+     */
+    private static void performTypeUsingJavaScript(WebDriver driver, By elementLocator, String text) {
+	try {
+	    ((JavascriptExecutor) driver).executeScript("arguments[0].value='" + text + "';",
+		    driver.findElement(elementLocator));
+	} catch (Exception e) {
+	    ReportManager.log(e);
+	}
+    }
+
+    private static boolean confirmTypingWasSuccessful(WebDriver driver, By elementLocator, String text,
+	    String successfulTextLocationStrategy) {
 	// to confirm that the text was written successfully
 	String actualText = "";
 	switch (successfulTextLocationStrategy) {
@@ -404,13 +337,10 @@ public class ElementActions {
 	    break;
 	}
 	if (actualText.equals(text)) {
-	    if (isSecureTyping) {
-		passAction(driver, elementLocator, "type", text.replaceAll(".", "*"));
-	    } else {
-		passAction(driver, elementLocator, "type", text);
-	    }
+	    return true;
+
 	} else {
-	    failAction(driver, "type", "Expected to type: \"" + text + "\", but ended up with: \"" + actualText + "\"");
+	    return false;
 	}
     }
 
@@ -431,10 +361,10 @@ public class ElementActions {
 		type(driver, elementLocator, "");
 		break;
 	    case "select all":
-		// (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "a")).perform();
+		(new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "a")).perform();
 		break;
 	    case "unselect":
-		// (new Actions(driver)).sendKeys(Keys.ESCAPE).perform();
+		(new Actions(driver)).sendKeys(Keys.ESCAPE).perform();
 		break;
 	    default:
 		failAction(driver, "clipboardActions", "Unsupported Action");
@@ -490,40 +420,6 @@ public class ElementActions {
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     /**
-     * Returns True if only one element matches the locator specified, and Fails the
-     * test (with a descriptive error) if no elements were found, or if more than
-     * one element was found. Timeout = defaultElementIdentificationTimeout, and
-     * retriesBeforeThrowingElementNotFoundException = 10.
-     * 
-     * @param driver         the current instance of Selenium webdriver
-     * @param elementLocator the locator of the webElement under test (By xpath, id,
-     *                       selector, name ...etc)
-     * @return boolean value, true if the element is found and unique, and false if
-     *         the element is not found or is not unique
-     */
-    public static boolean canFindUniqueElement(WebDriver driver, By elementLocator) {
-	return attemptToFindUniqueElement(driver, elementLocator, defaultElementIdentificationTimeout, false);
-    }
-
-    /**
-     * Returns True if only one element matches the locator specified, and Fails the
-     * test (with a descriptive error) if no elements were found, or if more than
-     * one element was found. Timeout = @param timeout, and
-     * retriesBeforeThrowingElementNotFoundException = 10.
-     * 
-     * @param driver         the current instance of Selenium webdriver
-     * @param elementLocator the locator of the webElement under test (By xpath, id,
-     *                       selector, name ...etc)
-     * @param timeout        controls the wait timeout until the target element is
-     *                       present on the current page
-     * @return boolean value, true if the element is found and unique, and false if
-     *         the element is not found or is not unique
-     */
-    public static boolean canFindUniqueElement(WebDriver driver, By elementLocator, int timeout) {
-	return attemptToFindUniqueElement(driver, elementLocator, timeout, false);
-    }
-
-    /**
      * Returns the number of elements that match a certain elementLocator
      * 
      * @param driver         the current instance of Selenium webdriver
@@ -533,8 +429,23 @@ public class ElementActions {
      *         desired elementLocator
      */
     public static int getElementsCount(WebDriver driver, By elementLocator) {
-	return countFoundElements(driver, elementLocator, defaultElementIdentificationTimeout,
-		attemptsBeforeThrowingElementNotFoundException, true, true);
+	return getMatchingElementsCount(driver, elementLocator, attemptsBeforeThrowingElementNotFoundException);
+    }
+
+    /**
+     * Returns the number of elements that match a certain elementLocator
+     * 
+     * @param driver           the current instance of Selenium webdriver
+     * @param elementLocator   the locator of the webElement under test (By xpath,
+     *                         id, selector, name ...etc)
+     * @param numberOfAttempts the number of retries before returning a count
+     *                         [returns zero if no elements were found after all the
+     *                         retries]
+     * @return integer value that represents the number of elements that match the
+     *         desired elementLocator
+     */
+    public static int getElementsCount(WebDriver driver, By elementLocator, int numberOfAttempts) {
+	return getMatchingElementsCount(driver, elementLocator, numberOfAttempts);
     }
 
     /**
@@ -543,45 +454,27 @@ public class ElementActions {
      * @param driver             the current instance of Selenium webdriver
      * @param elementLocator     the locator of the webElement under test (By xpath,
      *                           id, selector, name ...etc)
-     * @param checkForVisibility if true, checks for element visibility before
-     *                           performing any action, else if false skips this
-     *                           check
+     * @param numberOfAttempts   the number of retries before returning a count
+     *                           [returns zero if no elements were found after all
+     *                           the retries]
+     * @param waitForLazyLoading if true, will wait before lazy loading, else if
+     *                           false skips this wait
      * @return integer value that represents the number of elements that match the
      *         desired elementLocator
      */
-    public static int getElementsCount(WebDriver driver, By elementLocator, boolean checkForVisibility) {
-	return countFoundElements(driver, elementLocator, defaultElementIdentificationTimeout,
-		attemptsBeforeThrowingElementNotFoundException, true, checkForVisibility);
+    public static int getElementsCount(WebDriver driver, By elementLocator, int numberOfAttempts,
+	    boolean waitForLazyLoading) {
+	return getMatchingElementsCount(driver, elementLocator, numberOfAttempts, waitForLazyLoading);
     }
 
     /**
-     * Returns the number of elements that match a certain elementLocator, and
-     * respects the provided customElementIdentificationTimeout while attempting to
-     * locate those elements. This is multiplied by the default
-     * attemptsBeforeThrowingElementNotFoundException (10).
-     * 
-     * @param driver                             the current instance of Selenium
-     *                                           webdriver
-     * @param elementLocator                     the locator of the webElement under
-     *                                           test (By xpath, id, selector, name
-     *                                           ...etc)
-     * @param customElementIdentificationTimeout the desired timeout in seconds that
-     *                                           should be respected while
-     *                                           attempting to locate an element
-     *                                           using the provided elementLocator
-     * @return integer value that represents the number of elements that match the
-     *         desired elementLocator
-     */
-    public static int getElementsCount(WebDriver driver, By elementLocator, int customElementIdentificationTimeout) {
-	return countFoundElements(driver, elementLocator, customElementIdentificationTimeout,
-		attemptsBeforeThrowingElementNotFoundException, true, true);
-    }
-
-    /**
-     * Returns the number of elements that match a certain elementLocator, and
-     * respects the provided customElementIdentificationTimeout while attempting to
-     * locate those elements. This is multiplied by the provided
-     * retriesBeforeThrowingElementNotFoundException (default value is 10).
+     * @deprecated Returns the number of elements that match a certain
+     *             elementLocator, and respects the provided
+     *             customElementIdentificationTimeout while attempting to locate
+     *             those elements. This is multiplied by the provided
+     *             retriesBeforeThrowingElementNotFoundException (default value is
+     *             10). *Doesn't respect the customElementIdentificationTimeout
+     *             parameter*
      * 
      * @param driver                                        the current instance of
      *                                                      Selenium webdriver
@@ -606,16 +499,43 @@ public class ElementActions {
      * @return integer value that represents the number of elements that match the
      *         desired elementLocator
      */
+    @Deprecated
     public static int getElementsCount(WebDriver driver, By elementLocator, int customElementIdentificationTimeout,
 	    int retriesBeforeThrowingElementNotFoundException) {
-	return countFoundElements(driver, elementLocator, customElementIdentificationTimeout,
-		retriesBeforeThrowingElementNotFoundException, true, true);
+	return getMatchingElementsCount(driver, elementLocator, retriesBeforeThrowingElementNotFoundException);
     }
 
+    /**
+     * @deprecated *Doesn't respect the customElementIdentificationTimeout or
+     *             waitForLazyLoading parameters*
+     * @param driver                                        the current instance of
+     *                                                      Selenium webdriver
+     * @param elementLocator                                the locator of the
+     *                                                      webElement under test
+     *                                                      (By xpath, id, selector,
+     *                                                      name ...etc)
+     * @param customElementIdentificationTimeout            the desired timeout in
+     *                                                      seconds that should be
+     *                                                      respected while
+     *                                                      attempting to locate an
+     *                                                      element using the
+     *                                                      provided elementLocator
+     * @param retriesBeforeThrowingElementNotFoundException the number of
+     *                                                      retries/attempts for
+     *                                                      each of which the
+     *                                                      customElementIdentificationTimeout
+     *                                                      is honored, and after
+     *                                                      all of which an
+     *                                                      ElementNotFoundException
+     *                                                      is thrown
+     * @param waitForLazyLoading                            whether or not to wait
+     *                                                      for lazy loading
+     * @return an integer value that represents the number of found elements
+     */
+    @Deprecated
     public static int getElementsCount(WebDriver driver, By elementLocator, int customElementIdentificationTimeout,
 	    int retriesBeforeThrowingElementNotFoundException, boolean waitForLazyLoading) {
-	return countFoundElements(driver, elementLocator, customElementIdentificationTimeout,
-		retriesBeforeThrowingElementNotFoundException, waitForLazyLoading, true);
+	return getMatchingElementsCount(driver, elementLocator, retriesBeforeThrowingElementNotFoundException);
     }
 
     /**
@@ -628,7 +548,7 @@ public class ElementActions {
      *                       xpath, id, selector, name ...etc)
      */
     public static void switchToIframe(WebDriver driver, By elementLocator) {
-	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
+	if (getMatchingElementsCount(driver, elementLocator, attemptsBeforeThrowingElementNotFoundException) == 1) {
 	    driver.switchTo().frame((WebElement) driver.findElement(elementLocator));
 	    // note to self: remove elementLocator in case of bug in screenshot manager
 	    ReportManager.setDiscreetLogging(true);
@@ -682,7 +602,7 @@ public class ElementActions {
      */
     public static void click(WebDriver driver, By elementLocator) {
 	// Waits for the element to be clickable, and then clicks it.
-	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
+	if (identifyUniqueElement(driver, elementLocator)) {
 	    // adding hover before clicking an element to enable styles to show in the
 	    // execution screenshots and to solve issues clicking on certain elements.
 	    try {
@@ -739,7 +659,7 @@ public class ElementActions {
      *                       selector, name ...etc)
      */
     public static void clickAndHold(WebDriver driver, By elementLocator) {
-	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
+	if (identifyUniqueElement(driver, elementLocator)) {
 	    (new WebDriverWait(driver, 30)).until(ExpectedConditions.elementToBeClickable(elementLocator));
 	    // wait for element to be clickable
 	    passAction(driver, elementLocator, "clickAndHold");
@@ -793,7 +713,7 @@ public class ElementActions {
      */
     public static void typeFileLocationForUpload(WebDriver driver, By elementLocator, String absoluteFilePath) {
 	absoluteFilePath = absoluteFilePath.replace("/", FileSystems.getDefault().getSeparator());
-	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
+	if (identifyUniqueElement(driver, elementLocator)) {
 	    passAction(driver, elementLocator, "typeFileLocationForUpload", absoluteFilePath);
 	    try {
 		driver.findElement(elementLocator).sendKeys(absoluteFilePath);
@@ -833,7 +753,7 @@ public class ElementActions {
      *                       target webElement
      */
     public static void typeAppend(WebDriver driver, By elementLocator, String text) {
-	if (canFindUniqueElementForInternalUse(driver, elementLocator) && (text != null)) {
+	if (identifyUniqueElement(driver, elementLocator) && (text != null)) {
 	    driver.findElement(elementLocator).sendKeys(text);
 	    passAction(driver, elementLocator, "type", text);
 	} else {
@@ -851,7 +771,7 @@ public class ElementActions {
      *                       target dropDown menu
      */
     public static void select(WebDriver driver, By elementLocator, String text) {
-	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
+	if (identifyUniqueElement(driver, elementLocator)) {
 	    try {
 		(new Select(driver.findElement(elementLocator))).selectByVisibleText(text);
 	    } catch (NoSuchElementException e) {
@@ -875,7 +795,7 @@ public class ElementActions {
      * @param key            the key that should be pressed
      */
     public static void keyPress(WebDriver driver, By elementLocator, String key) {
-	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
+	if (identifyUniqueElement(driver, elementLocator)) {
 	    switch (key.toLowerCase().trim()) {
 	    case "enter":
 		driver.findElement(elementLocator).sendKeys(Keys.ENTER);
@@ -905,7 +825,7 @@ public class ElementActions {
      *                       selector, name ...etc)
      */
     public static void hover(WebDriver driver, By elementLocator) {
-	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
+	if (identifyUniqueElement(driver, elementLocator)) {
 	    try {
 		performHover(driver, elementLocator);
 	    } catch (Exception e) {
@@ -948,8 +868,8 @@ public class ElementActions {
      *                                  ...etc)
      */
     public static void dragAndDrop(WebDriver driver, By sourceElementLocator, By destinationElementLocator) {
-	if (canFindUniqueElementForInternalUse(driver, sourceElementLocator)
-		&& getElementsCount(driver, destinationElementLocator, false) == 1) {
+	if (identifyUniqueElement(driver, sourceElementLocator) && getMatchingElementsCount(driver,
+		destinationElementLocator, attemptsBeforeThrowingElementNotFoundException) == 1) {
 
 	    // replaced canFindUniqueElementForInternalUse, with countFoundElements for
 	    // destinationElement to bypass the check for element visibility
@@ -1023,8 +943,7 @@ public class ElementActions {
      *                             be moved
      */
     public static void dragAndDropByOffset(WebDriver driver, By sourceElementLocator, int xOffset, int yOffset) {
-	if (canFindUniqueElementForInternalUse(driver, sourceElementLocator)) {
-
+	if (identifyUniqueElement(driver, sourceElementLocator)) {
 	    WebElement sourceElement = driver.findElement(sourceElementLocator);
 	    String startLocation = sourceElement.getLocation().toString();
 
@@ -1059,7 +978,7 @@ public class ElementActions {
      * @return the text value of the target webElement
      */
     public static String getText(WebDriver driver, By elementLocator) {
-	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
+	if (identifyUniqueElement(driver, elementLocator)) {
 	    String elementText = driver.findElement(elementLocator).getText();
 	    if (elementText.trim().equals("")) {
 		elementText = driver.findElement(elementLocator).getAttribute("textContent");
@@ -1084,7 +1003,7 @@ public class ElementActions {
      * @return the tag name of the webElement under test
      */
     public static String getTagName(WebDriver driver, By elementLocator) {
-	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
+	if (identifyUniqueElement(driver, elementLocator)) {
 	    String elementTagName = driver.findElement(elementLocator).getTagName();
 	    passAction(driver, elementLocator, "getTagName", elementTagName);
 	    return elementTagName;
@@ -1104,7 +1023,7 @@ public class ElementActions {
      * @return the size of the webElement under test
      */
     public static String getSize(WebDriver driver, By elementLocator) {
-	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
+	if (identifyUniqueElement(driver, elementLocator)) {
 	    String elementSize = driver.findElement(elementLocator).getSize().toString();
 	    passAction(driver, elementLocator, "getSize", elementSize);
 	    return elementSize;
@@ -1152,7 +1071,7 @@ public class ElementActions {
      * @return the value of the target attribute of the webElement under test
      */
     public static String getAttribute(WebDriver driver, By elementLocator, String attributeName) {
-	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
+	if (identifyUniqueElement(driver, elementLocator)) {
 	    String elementAttribute = driver.findElement(elementLocator).getAttribute(attributeName);
 	    passAction(driver, elementLocator, "getAttribute", elementAttribute);
 	    return elementAttribute;
@@ -1179,7 +1098,7 @@ public class ElementActions {
      * @return the value of the target CSS property of the webElement under test
      */
     public static String getCSSProperty(WebDriver driver, By elementLocator, String propertyName) {
-	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
+	if (identifyUniqueElement(driver, elementLocator)) {
 	    String elementCssProperty = driver.findElement(elementLocator).getCssValue(propertyName);
 	    passAction(driver, elementLocator, "getCSSProperty", elementCssProperty);
 	    return elementCssProperty;
@@ -1204,7 +1123,7 @@ public class ElementActions {
      */
     public static void waitForTextToChange(WebDriver driver, By elementLocator, String initialValue,
 	    int numberOfTries) {
-	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
+	if (identifyUniqueElement(driver, elementLocator)) {
 	    try {
 		(new WebDriverWait(driver, defaultElementIdentificationTimeout * numberOfTries))
 			.until(ExpectedConditions.not(ExpectedConditions.textToBe(elementLocator, initialValue)));
@@ -1242,8 +1161,8 @@ public class ElementActions {
      */
     public static void waitForElementToBePresent(WebDriver driver, By elementLocator, int numberOfTries,
 	    boolean stateOfPresence) {
-	int foundElementsCount = countFoundElements(driver, elementLocator, defaultElementIdentificationTimeout,
-		numberOfTries, true, true);
+	int foundElementsCount = getMatchingElementsCount(driver, elementLocator, numberOfTries);
+
 	if (foundElementsCount <= 1) {
 	    try {
 		if (stateOfPresence) {
@@ -1280,7 +1199,7 @@ public class ElementActions {
      *         element is not displayed
      */
     public static boolean isElementDisplayed(WebDriver driver, By elementLocator) {
-	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
+	if (identifyUniqueElement(driver, elementLocator, attemptsBeforeThrowingElementNotFoundException, false)) {
 	    (new WebDriverWait(driver, defaultElementIdentificationTimeout))
 		    .until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
 	    // wait for element to be visible
@@ -1302,7 +1221,7 @@ public class ElementActions {
      *         element is not clickable
      */
     public static boolean isElementClickable(WebDriver driver, By elementLocator) {
-	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
+	if (identifyUniqueElement(driver, elementLocator)) {
 	    (new WebDriverWait(driver, defaultElementIdentificationTimeout))
 		    .until(ExpectedConditions.elementToBeClickable(elementLocator));
 	    // wait for element to be clickable
@@ -1325,7 +1244,7 @@ public class ElementActions {
      *                       "select all", "unselect"
      */
     public static void clipboardActions(WebDriver driver, By elementLocator, String action) {
-	if (canFindUniqueElementForInternalUse(driver, elementLocator)) {
+	if (identifyUniqueElement(driver, elementLocator)) {
 	    if (!System.getProperty("targetOperatingSystem").equals("Mac-64")) {
 		performClipboardActionsForMac(driver, elementLocator, action);
 	    } else {
