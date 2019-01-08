@@ -123,12 +123,14 @@ public class ScreenshotUtils {
 
     /**
      * 
-     * @param driver
-     * @param elementLocator
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
      * @param isBaseFullPage true means crop from fullPageScreenshot, and false
      *                       means crop from regularScreenshot
-     * @return
-     * @throws IOException
+     * @return a file object that holds the screenshot
+     * @throws IOException if there was a problem writing the screenshot to a file
+     *                     object
      */
     protected static File makeElementScreenshot(WebDriver driver, By elementLocator, boolean isBaseFullPage)
 	    throws IOException {

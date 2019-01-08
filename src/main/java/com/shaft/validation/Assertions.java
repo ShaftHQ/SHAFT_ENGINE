@@ -454,7 +454,10 @@ public class Assertions {
      *                                assertion
      * @param actualValue             the actual value (calculated data) of this
      *                                assertion
-     * @param comparativeRelationType accepts >, >=, <, <=, ==
+     * @param comparativeRelationType accepts standard java Equality, Relational,
+     *                                and Conditional Operators, except [not equal
+     *                                to]:
+     *                                https://docs.oracle.com/javase/tutorial/java/nutsandbolts/op2.html
      * @param assertionType           either 'true' for a positive assertion that
      *                                the expectedValue is related to the
      *                                actualValue using the desired

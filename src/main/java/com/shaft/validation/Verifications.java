@@ -75,6 +75,8 @@ public class Verifications {
      * @param expectedValue    the expected value (test data) of this verification
      * @param actualValue      the actual value (calculated data) of this
      *                         verification
+     * @param comparisonType   1 is literalComparison, 2 is regexComparison, 3 is
+     *                         containsComparison, 4 is caseInsensitiveComparison
      * @param verificationType either 'true' for a positive verification that the
      *                         objects are equal, or 'false' for a negative
      *                         verification that the objects are not equal
@@ -464,7 +466,10 @@ public class Verifications {
      *                                assertion
      * @param actualValue             the actual value (calculated data) of this
      *                                assertion
-     * @param comparativeRelationType accepts >, >=, <, <=, ==
+     * @param comparativeRelationType accepts standard java Equality, Relational,
+     *                                and Conditional Operators, except [not equal
+     *                                to]:
+     *                                https://docs.oracle.com/javase/tutorial/java/nutsandbolts/op2.html
      * @param verificationType        either 'true' for a positive assertion that
      *                                the expectedValue is related to the
      *                                actualValue using the desired
