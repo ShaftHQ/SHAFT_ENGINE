@@ -72,6 +72,8 @@ public class ScreenshotManager {
     private static ImageOutputStream gifOutputStream = null;
     private static GifSequenceWriter gifWriter = null;
 
+    private static final String AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH = "src/test/resources/elementScreenshots/";
+
     private ScreenshotManager() {
 	throw new IllegalStateException("Utility class");
     }
@@ -194,7 +196,7 @@ public class ScreenshotManager {
      */
     private static void internalCaptureScreenShot(WebDriver driver, By elementLocator, String actionName,
 	    String appendedText, boolean takeScreenshot) {
-	new File(SCREENSHOT_FOLDERPATH).mkdirs();
+	FileManager.createFolder(SCREENSHOT_FOLDERPATH);
 
 	if (takeScreenshot) {
 	    /**
@@ -285,7 +287,7 @@ public class ScreenshotManager {
 	case "fullpage":
 	    return takeFullPageScreenshot(driver);
 	case "element":
-	    return takeElementScreenshot(driver);
+	    return takeElementScreenshot(driver, true);
 	default:
 	    return ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
 	}
@@ -316,11 +318,11 @@ public class ScreenshotManager {
 	}
     }
 
-    private static File takeElementScreenshot(WebDriver driver) {
+    private static File takeElementScreenshot(WebDriver driver, boolean isBaseFullPage) {
 	try {
 	    if (targetElementLocator != null && ElementActions.getElementsCount(driver, targetElementLocator,
 		    RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1) {
-		return ScreenshotUtils.makeElementScreenshot(driver, targetElementLocator);
+		return ScreenshotUtils.makeElementScreenshot(driver, targetElementLocator, isBaseFullPage);
 	    } else {
 		return ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
 	    }
@@ -468,4 +470,15 @@ public class ScreenshotManager {
 	    }
 	}
     }
+
+    public static void storeElementScreenshotForAISupportedElementIdentification(WebDriver driver, By elementLocator) {
+	FileManager.createFolder(AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH);
+	File element = takeElementScreenshot(driver, false);
+
+	String elementFileName = elementLocator.toString().replaceAll("[\\W\\s]", "_");
+
+	FileManager.copyFile(element.getAbsolutePath(),
+		AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH + elementFileName + ".png");
+    }
+
 }
