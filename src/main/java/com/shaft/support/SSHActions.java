@@ -26,7 +26,8 @@ public class SSHActions {
     String dockerName;
     String dockerUsername;
 
-    public SSHActions(String hostname, int sshPortNumber, String username, String keyFileFolderName, String keyFileName, String dockerName, String dockerUsername) {
+    public SSHActions(String hostname, int sshPortNumber, String username, String keyFileFolderName, String keyFileName,
+	    String dockerName, String dockerUsername) {
 	this.hostname = hostname;
 	this.sshPortNumber = sshPortNumber;
 	this.username = username;
@@ -36,7 +37,8 @@ public class SSHActions {
 	this.dockerUsername = dockerUsername;
     }
 
-    public SSHActions(String hostname, int sshPortNumber, String username, String keyFileFolderName, String keyFileName) {
+    public SSHActions(String hostname, int sshPortNumber, String username, String keyFileFolderName,
+	    String keyFileName) {
 	this.hostname = hostname;
 	this.sshPortNumber = sshPortNumber;
 	this.username = username;
@@ -80,7 +82,8 @@ public class SSHActions {
 
     private Session createSSHsession() {
 	Session session = null;
-	String testData = hostname + ", " + sshPortNumber + ", " + username + ", " + keyFileFolderName + ", " + keyFileName;
+	String testData = hostname + ", " + sshPortNumber + ", " + username + ", " + keyFileFolderName + ", "
+		+ keyFileName;
 	try {
 	    Properties config = new Properties();
 	    config.put("StrictHostKeyChecking", "no");
@@ -91,7 +94,7 @@ public class SSHActions {
 	    session.setConfig(config);
 
 	    session.connect();
-	    // System.out.println("Connected");
+
 	    passAction("createSSHsession", testData);
 	} catch (JSchException e) {
 	    ReportManager.log(e);
@@ -127,22 +130,12 @@ public class SSHActions {
 
 		log = logBuilder.toString();
 
-		// String line = "";
-		// while ((line = reader.readLine()) != null) {
-		// log = log + System.lineSeparator() + line;
-		// // System.out.println(line);
-		// }
-		// while ((line = errorReader.readLine()) != null) {
-		// log = log + System.lineSeparator() + line;
-		// // System.out.println(line);
-		// }
-
 		// Command execution completed here.
 
 		// Retrieve the exit status of the executed command
 		int exitStatus = channelExec.getExitStatus();
 		if (exitStatus > 0) {
-		    // System.out.println("Remote script exec error! " + exitStatus);
+		    // Remote script exec error!
 		}
 
 		reader.close();
@@ -151,7 +144,6 @@ public class SSHActions {
 	    }
 	    // Disconnect the Session
 	    session.disconnect();
-	    // System.out.println("DONE");
 	} catch (IOException | NullPointerException | JSchException e) {
 	    ReportManager.log(e);
 	    failAction("performSSHcommand", String.join(" && ", commands), log);
@@ -165,8 +157,7 @@ public class SSHActions {
      * Establish a connection to a remote SSH server using a key file, then perform
      * a certain command and return its logs.
      * 
-     * @param commands
-     *            The target command that should be executed on the SSH server
+     * @param commands The target command that should be executed on the SSH server
      * @return a string value that contains the execution log of the performed
      *         command(s)
      */
@@ -181,17 +172,7 @@ public class SSHActions {
     }
 
     public String performDockerizedSSHcommand(List<String> commands) {
-	// List<String> dockerCommands = Arrays.asList();
-
 	commands.replaceAll(command -> "docker exec -u " + dockerUsername + " -i " + dockerName + " sh -c " + command);
-
-	// commands.forEach(new Consumer<String>() {
-	// public void accept(String command) {
-	// dockerCommands.add("docker exec -u " + dockerUsername + " -i " + dockerName +
-	// " sh -c " + command);
-	// }
-	// });
-
 	Session session = createSSHsession();
 	return performSSHcommand(session, (List<String>) commands);
     }
@@ -229,13 +210,6 @@ public class SSHActions {
 
 		log = logBuilder.toString();
 
-		// String line = "";
-		// while ((line = reader.readLine()) != null) {
-		// log = log + System.lineSeparator() + line;
-		// }
-		// while ((line = errorReader.readLine()) != null) {
-		// log = log + System.lineSeparator() + line;
-		// }
 		reader.close();
 		errorReader.close();
 	    }

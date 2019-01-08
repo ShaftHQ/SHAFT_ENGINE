@@ -28,9 +28,9 @@ public class GifSequenceWriter {
      * 
      * @param outputStream        the ImageOutputStream to be written to
      * @param imageType           one of the imageTypes specified in BufferedImage
-     * @param timeBetweenFramesMS the time between frames in miliseconds
-     * @param loopContinuously    wether the gif should loop repeatedly
-     * @throws IIOException if no gif ImageWriters are found
+     * @param timeBetweenFramesMS the time between frames in milliseconds
+     * @param loopContinuously    whether the gif should loop repeatedly
+     * @throws IOException if no gif ImageWriters are found
      *
      */
     public GifSequenceWriter(ImageOutputStream outputStream, int imageType, int timeBetweenFramesMS,
@@ -83,6 +83,8 @@ public class GifSequenceWriter {
     /**
      * Close this GifSequenceWriter object. This does not close the underlying
      * stream, just finishes off the GIF.
+     * 
+     * @throws IOException if an error occurs during writing.
      */
     public void close() throws IOException {
 	gifWriter.endWriteSequence();

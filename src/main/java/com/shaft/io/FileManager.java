@@ -171,9 +171,8 @@ public class FileManager {
     }
 
     public static void createFolder(String folderPath) {
-	File directory = new File(folderPath);
 	try {
-	    FileUtils.forceMkdir(directory);
+	    FileUtils.forceMkdir(new File(folderPath));
 	} catch (IOException e) {
 	    ReportManager.log(e);
 	}
