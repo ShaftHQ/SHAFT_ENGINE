@@ -83,6 +83,7 @@ public class ScreenshotManager {
      * false means fail.
      * 
      * @param driver         the current instance of Selenium webdriver
+     * @param actionName     the name of the triggering action
      * @param passFailStatus A flag to determine whether the action has passed or
      *                       failed
      */
@@ -113,6 +114,7 @@ public class ScreenshotManager {
      * @param driver         the current instance of Selenium webdriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
+     * @param actionName     the name of the triggering action
      * @param passFailStatus A flag to determine whether the action has passed or
      *                       failed
      */
@@ -145,6 +147,7 @@ public class ScreenshotManager {
      *             locator. passFailStatus; true means pass and false means fail.
      * 
      * @param driver         the current instance of Selenium webdriver
+     * @param actionName     the name of the triggering action
      * @param appendedText   the text that needs to be appended to the name of the
      *                       screenshot to make it more recognizable
      * @param passFailStatus A flag to determine whether the action has passed or
@@ -168,8 +171,11 @@ public class ScreenshotManager {
      * @param driver         the current instance of Selenium webdriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
+     * @param actionName     the name of the triggering action
      * @param appendedText   the text that needs to be appended to the name of the
      *                       screenshot to make it more recognizable
+     * @param passFailStatus A flag to determine whether the action has passed or
+     *                       failed
      */
     @Deprecated
     public static void captureScreenShot(WebDriver driver, By elementLocator, String actionName, String appendedText,

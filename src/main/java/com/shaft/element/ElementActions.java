@@ -438,7 +438,9 @@ public class ElementActions {
      * @param driver           the current instance of Selenium webdriver
      * @param elementLocator   the locator of the webElement under test (By xpath,
      *                         id, selector, name ...etc)
-     * @param numberOfAttempts
+     * @param numberOfAttempts the number of retries before returning a count
+     *                         [returns zero if no elements were found after all the
+     *                         retries]
      * @return integer value that represents the number of elements that match the
      *         desired elementLocator
      */
@@ -452,7 +454,9 @@ public class ElementActions {
      * @param driver             the current instance of Selenium webdriver
      * @param elementLocator     the locator of the webElement under test (By xpath,
      *                           id, selector, name ...etc)
-     * @param numberOfAttempts
+     * @param numberOfAttempts   the number of retries before returning a count
+     *                           [returns zero if no elements were found after all
+     *                           the retries]
      * @param waitForLazyLoading if true, will wait before lazy loading, else if
      *                           false skips this wait
      * @return integer value that represents the number of elements that match the
@@ -504,12 +508,29 @@ public class ElementActions {
     /**
      * @deprecated *Doesn't respect the customElementIdentificationTimeout or
      *             waitForLazyLoading parameters*
-     * @param driver
-     * @param elementLocator
-     * @param customElementIdentificationTimeout
-     * @param retriesBeforeThrowingElementNotFoundException
-     * @param waitForLazyLoading
-     * @return
+     * @param driver                                        the current instance of
+     *                                                      Selenium webdriver
+     * @param elementLocator                                the locator of the
+     *                                                      webElement under test
+     *                                                      (By xpath, id, selector,
+     *                                                      name ...etc)
+     * @param customElementIdentificationTimeout            the desired timeout in
+     *                                                      seconds that should be
+     *                                                      respected while
+     *                                                      attempting to locate an
+     *                                                      element using the
+     *                                                      provided elementLocator
+     * @param retriesBeforeThrowingElementNotFoundException the number of
+     *                                                      retries/attempts for
+     *                                                      each of which the
+     *                                                      customElementIdentificationTimeout
+     *                                                      is honored, and after
+     *                                                      all of which an
+     *                                                      ElementNotFoundException
+     *                                                      is thrown
+     * @param waitForLazyLoading                            whether or not to wait
+     *                                                      for lazy loading
+     * @return an integer value that represents the number of found elements
      */
     @Deprecated
     public static int getElementsCount(WebDriver driver, By elementLocator, int customElementIdentificationTimeout,
