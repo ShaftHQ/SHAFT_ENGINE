@@ -16,7 +16,6 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 
     @Override
     public void beforeInvocation(IInvokedMethod method, ITestResult testResult) {
-//	ElementActions.switchToDefaultContent();
 	if (!method.isConfigurationMethod()) {
 	    try {
 		// testSize where the structure is testSuite > test > testClasses > testMethods
@@ -27,7 +26,6 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 	    }
 	    ITestNGMethod testMethod = method.getTestMethod();
 	    if (testMethod.isTest()) {
-		// ReportManager.log("BeforeInvocation: Test Method.");
 		if (testMethod.getDescription() != null) {
 		    ReportManager.logTestInformation(testMethod.getTestClass().getName(), testMethod.getMethodName(),
 			    testMethod.getDescription(), invokedTestsCounter + 1, testSize);

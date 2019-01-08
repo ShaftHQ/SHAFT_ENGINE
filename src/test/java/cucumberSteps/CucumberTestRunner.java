@@ -1,12 +1,8 @@
-package testPackage01;
-
-import org.testng.annotations.Test;
+package cucumberSteps;
 
 import cucumber.api.CucumberOptions;
 import cucumber.api.testng.AbstractTestNGCucumberTests;
 
-@CucumberOptions(features = "cucumberFeatures", glue = "classpath:", tags = "@SmokeTest")
-@Test
+@CucumberOptions(features="src//test//resources//CucumberFeatures")
 public class CucumberTestRunner extends AbstractTestNGCucumberTests {
-
 }

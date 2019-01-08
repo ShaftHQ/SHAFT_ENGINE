@@ -51,6 +51,8 @@ public class Test_google {
 	resultsObject.clickNext(); // Clicks the next button to make sure that the framework can scroll element
 				   // into
 				   // view before clicking it
+
+	resultsObject.assert10ResultsPerPage();
     }
 
     @BeforeClass // Set-up method, to be run once before the first test

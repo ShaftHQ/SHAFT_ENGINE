@@ -143,6 +143,12 @@ public class ElementActions {
 			    "unique element matching this locator [" + elementLocator + "] is not visible.");
 		}
 	    }
+
+	    if (elementLocator != null) {
+		// ScreenshotManager.storeElementScreenshotForAISupportedElementIdentification(driver,
+		// elementLocator);
+	    }
+
 	    return true;
 	default:
 	    failAction(driver, "identifyUniqueElement",
@@ -213,8 +219,36 @@ public class ElementActions {
 	    if ((getMatchingElementsCount(driver, elementLocator, attemptsBeforeThrowingElementNotFoundException) == 1)
 		    && (!text.equals(""))) {
 		// to confirm that the text was written successfully
-		confirmTypingWasSuccessful(driver, elementLocator, text, successfulTextLocationStrategy,
-			isSecureTyping);
+		if (confirmTypingWasSuccessful(driver, elementLocator, text, successfulTextLocationStrategy)) {
+		    if (isSecureTyping) {
+			passAction(driver, elementLocator, "type", text.replaceAll(".", "*"));
+		    } else {
+			passAction(driver, elementLocator, "type", text);
+		    }
+		} else {
+		    // attempt once to type using javascript then confirm typing was successful
+		    // again
+		    clearBeforeTyping(driver, elementLocator, elementText, successfulTextLocationStrategy);
+		    performTypeUsingJavaScript(driver, elementLocator, text);
+		    if (confirmTypingWasSuccessful(driver, elementLocator, text, successfulTextLocationStrategy)) {
+			if (isSecureTyping) {
+			    passAction(driver, elementLocator, "type", text.replaceAll(".", "*"));
+			} else {
+			    passAction(driver, elementLocator, "type", text);
+			}
+		    } else {
+			try {
+			    ReportManager.setDiscreetLogging(true);
+			    String actualText = getText(driver, elementLocator);
+			    ReportManager.setDiscreetLogging(false);
+			    failAction(driver, "type",
+				    "Expected to type: \"" + text + "\", but ended up with: \"" + actualText + "\"");
+			} catch (Exception e) {
+			    failAction(driver, "type",
+				    "Expected to type: \"" + text + "\", but ended up with something else");
+			}
+		    }
+		}
 	    }
 	}
     }
@@ -268,8 +302,25 @@ public class ElementActions {
 	}
     }
 
-    private static void confirmTypingWasSuccessful(WebDriver driver, By elementLocator, String text,
-	    String successfulTextLocationStrategy, boolean isSecureTyping) {
+    /**
+     * Used in case the regular type text output didn't match with the expected type
+     * text output
+     * 
+     * @param driver
+     * @param elementLocator
+     * @param text
+     */
+    private static void performTypeUsingJavaScript(WebDriver driver, By elementLocator, String text) {
+	try {
+	    ((JavascriptExecutor) driver).executeScript("arguments[0].value='" + text + "';",
+		    driver.findElement(elementLocator));
+	} catch (Exception e) {
+	    ReportManager.log(e);
+	}
+    }
+
+    private static boolean confirmTypingWasSuccessful(WebDriver driver, By elementLocator, String text,
+	    String successfulTextLocationStrategy) {
 	// to confirm that the text was written successfully
 	String actualText = "";
 	switch (successfulTextLocationStrategy) {
@@ -286,13 +337,10 @@ public class ElementActions {
 	    break;
 	}
 	if (actualText.equals(text)) {
-	    if (isSecureTyping) {
-		passAction(driver, elementLocator, "type", text.replaceAll(".", "*"));
-	    } else {
-		passAction(driver, elementLocator, "type", text);
-	    }
+	    return true;
+
 	} else {
-	    failAction(driver, "type", "Expected to type: \"" + text + "\", but ended up with: \"" + actualText + "\"");
+	    return false;
 	}
     }
 
@@ -313,10 +361,10 @@ public class ElementActions {
 		type(driver, elementLocator, "");
 		break;
 	    case "select all":
-		// (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "a")).perform();
+		(new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "a")).perform();
 		break;
 	    case "unselect":
-		// (new Actions(driver)).sendKeys(Keys.ESCAPE).perform();
+		(new Actions(driver)).sendKeys(Keys.ESCAPE).perform();
 		break;
 	    default:
 		failAction(driver, "clipboardActions", "Unsupported Action");

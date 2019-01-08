@@ -41,7 +41,8 @@ public class ScreenshotUtils {
 	}
 	if (skipElements != null) {
 	    for (WebElement skipElement : skipElements) {
-		((JavascriptExecutor) driver).executeScript("arguments[0].style.display = '" + display + "';", skipElement);
+		((JavascriptExecutor) driver).executeScript("arguments[0].style.display = '" + display + "';",
+			skipElement);
 	    }
 	}
     }
@@ -51,9 +52,7 @@ public class ScreenshotUtils {
     }
 
     // The code that does the job
-    public static File makeFullScreenshot(WebDriver driver, WebElement... skipElements) throws IOException {
-	// Scroll to bottom to make sure all elements loaded correctly
-	// scrollVerticallyTo(driver, (int) longScrollHeight);
+    protected static File makeFullScreenshot(WebDriver driver, WebElement... skipElements) throws IOException {
 
 	// scroll up first to start taking screenshots
 	scrollVerticallyTo(driver, 0);
@@ -62,13 +61,17 @@ public class ScreenshotUtils {
 	byte[] bytes = getScreenShot(driver);
 
 	showHideElements(driver, true, skipElements);
-	long longScrollHeight = (Long) ((JavascriptExecutor) driver).executeScript("return Math.max(" + "document.body.scrollHeight, document.documentElement.scrollHeight," + "document.body.offsetHeight, document.documentElement.offsetHeight," + "document.body.clientHeight, document.documentElement.clientHeight);");
+	long longScrollHeight = (Long) ((JavascriptExecutor) driver)
+		.executeScript("return Math.max(" + "document.body.scrollHeight, document.documentElement.scrollHeight,"
+			+ "document.body.offsetHeight, document.documentElement.offsetHeight,"
+			+ "document.body.clientHeight, document.documentElement.clientHeight);");
 
 	BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));
 	int capturedWidth = image.getWidth();
 	int capturedHeight = image.getHeight();
 
-	Double devicePixelRatio = ((Number) ((JavascriptExecutor) driver).executeScript(JS_RETRIEVE_DEVICE_PIXEL_RATIO)).doubleValue();
+	Double devicePixelRatio = ((Number) ((JavascriptExecutor) driver).executeScript(JS_RETRIEVE_DEVICE_PIXEL_RATIO))
+		.doubleValue();
 
 	int scrollHeight = (int) longScrollHeight;
 
@@ -84,7 +87,8 @@ public class ScreenshotUtils {
 	    int times = scrollHeight / adaptedCapturedHeight;
 	    int leftover = scrollHeight % adaptedCapturedHeight;
 
-	    final BufferedImage tiledImage = new BufferedImage(capturedWidth, (int) (((double) scrollHeight) * devicePixelRatio), BufferedImage.TYPE_INT_RGB);
+	    final BufferedImage tiledImage = new BufferedImage(capturedWidth,
+		    (int) (((double) scrollHeight) * devicePixelRatio), BufferedImage.TYPE_INT_RGB);
 	    Graphics2D g2dTile = tiledImage.createGraphics();
 	    g2dTile.drawImage(image, 0, 0, null);
 
@@ -99,7 +103,9 @@ public class ScreenshotUtils {
 		scroll += scrollOffset;
 		scrollVerticallyTo(driver, scroll);
 		BufferedImage nextImage = ImageIO.read(new ByteArrayInputStream(getScreenShot(driver)));
-		BufferedImage lastPart = nextImage.getSubimage(0, nextImage.getHeight() - (int) (((double) leftover) * devicePixelRatio), nextImage.getWidth(), leftover);
+		BufferedImage lastPart = nextImage.getSubimage(0,
+			nextImage.getHeight() - (int) (((double) leftover) * devicePixelRatio), nextImage.getWidth(),
+			leftover);
 		g2dTile.drawImage(lastPart, 0, times * capturedHeight, null);
 	    }
 
@@ -115,11 +121,28 @@ public class ScreenshotUtils {
 	return file;
     }
 
-    public static File makeElementScreenshot(WebDriver driver, By elementLocator) throws IOException {
+    /**
+     * 
+     * @param driver
+     * @param elementLocator
+     * @param isBaseFullPage true means crop from fullPageScreenshot, and false
+     *                       means crop from regularScreenshot
+     * @return
+     * @throws IOException
+     */
+    protected static File makeElementScreenshot(WebDriver driver, By elementLocator, boolean isBaseFullPage)
+	    throws IOException {
 	WebElement targetElement = driver.findElement(elementLocator);
-	File fullPageScreenshot = ScreenshotUtils.makeFullScreenshot(driver);
 
-	BufferedImage fullImg = ImageIO.read(fullPageScreenshot);
+	File baseScreenshot = null;
+
+	if (isBaseFullPage) {
+	    baseScreenshot = ScreenshotUtils.makeFullScreenshot(driver);
+	} else {
+	    baseScreenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
+	}
+
+	BufferedImage baseImg = ImageIO.read(baseScreenshot);
 
 	// Get the location of element on the page
 	Point point = targetElement.getLocation();
@@ -129,7 +152,7 @@ public class ScreenshotUtils {
 	int eleHeight = targetElement.getSize().getHeight();
 
 	// Crop the entire page screenshot to get only element screenshot
-	BufferedImage eleScreenshot = fullImg.getSubimage(point.getX(), point.getY(), eleWidth, eleHeight);
+	BufferedImage eleScreenshot = baseImg.getSubimage(point.getX(), point.getY(), eleWidth, eleHeight);
 
 	File file = File.createTempFile("screenshot", ".png");
 	ImageIO.write(eleScreenshot, "png", file);
@@ -149,7 +172,8 @@ public class ScreenshotUtils {
 	}
     }
 
-    private static void waitUntilItIsScrolledToPosition(WebDriver driver, int scrollPosition) throws InterruptedException {
+    private static void waitUntilItIsScrolledToPosition(WebDriver driver, int scrollPosition)
+	    throws InterruptedException {
 	// int hardTime = 0;// SCREENSHOT_FULLPAGE_SCROLLWAIT
 	// if (hardTime > 0) {
 	// Thread.sleep(hardTime);
@@ -164,7 +188,8 @@ public class ScreenshotUtils {
     }
 
     private static int obtainVerticalScrollPosition(WebDriver driver) {
-	Long scrollLong = (Long) ((JavascriptExecutor) driver).executeScript("return (window.pageYOffset !== undefined) ? window.pageYOffset : (document.documentElement || document.body.parentNode || document.body).scrollTop;");
+	Long scrollLong = (Long) ((JavascriptExecutor) driver).executeScript(
+		"return (window.pageYOffset !== undefined) ? window.pageYOffset : (document.documentElement || document.body.parentNode || document.body).scrollTop;");
 	return scrollLong.intValue();
     }
 }
