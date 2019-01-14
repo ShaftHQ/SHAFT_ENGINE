@@ -1,4 +1,4 @@
-package com.shaft.io;
+package com.shaft.image;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
@@ -31,6 +31,8 @@ import org.testng.Reporter;
 import com.shaft.browser.BrowserFactory;
 import com.shaft.element.ElementActions;
 import com.shaft.element.JSWaiter;
+import com.shaft.io.FileActions;
+import com.shaft.io.ReportManager;
 
 public class ScreenshotManager {
     private static final String SCREENSHOT_FOLDERPATH = "allure-results/screenshots/";
@@ -202,7 +204,7 @@ public class ScreenshotManager {
      */
     private static void internalCaptureScreenShot(WebDriver driver, By elementLocator, String actionName,
 	    String appendedText, boolean takeScreenshot) {
-	FileManager.createFolder(SCREENSHOT_FOLDERPATH);
+	FileActions.createFolder(SCREENSHOT_FOLDERPATH);
 
 	if (takeScreenshot) {
 	    /**
@@ -271,7 +273,7 @@ public class ScreenshotManager {
 		 * Copy the screenshot to desired path, and append the appropriate filename.
 		 * 
 		 */
-		FileManager.copyFile(src.getAbsolutePath(), SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME
+		FileActions.copyFile(src.getAbsolutePath(), SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME
 			+ FileSystems.getDefault().getSeparator() + screenshotFileName + ".png");
 
 		addScreenshotToReport(src);
@@ -389,7 +391,7 @@ public class ScreenshotManager {
 		gifFilePath = SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME + FileSystems.getDefault().getSeparator()
 			+ System.currentTimeMillis() + "_" + testCaseName + ".gif";
 		File src = ((TakesScreenshot) gifDriver).getScreenshotAs(OutputType.FILE); // takes first screenshot
-		FileManager.copyFile(src.getAbsolutePath(), gifFilePath);
+		FileActions.copyFile(src.getAbsolutePath(), gifFilePath);
 
 		// grab the output image type from the first image in the sequence
 		BufferedImage firstImage = ImageIO.read(new File(gifFilePath));
@@ -478,12 +480,12 @@ public class ScreenshotManager {
     }
 
     public static void storeElementScreenshotForAISupportedElementIdentification(WebDriver driver, By elementLocator) {
-	FileManager.createFolder(AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH);
+	FileActions.createFolder(AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH);
 	File element = takeElementScreenshot(driver, false);
 
 	String elementFileName = elementLocator.toString().replaceAll("[\\W\\s]", "_");
 
-	FileManager.copyFile(element.getAbsolutePath(),
+	FileActions.copyFile(element.getAbsolutePath(),
 		AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH + elementFileName + ".png");
     }
 

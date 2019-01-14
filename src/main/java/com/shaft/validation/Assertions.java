@@ -6,9 +6,9 @@ import org.testng.Assert;
 
 import com.shaft.browser.BrowserActions;
 import com.shaft.element.ElementActions;
-import com.shaft.io.FileManager;
+import com.shaft.image.ScreenshotManager;
+import com.shaft.io.FileActions;
 import com.shaft.io.ReportManager;
-import com.shaft.io.ScreenshotManager;
 import com.shaft.support.JavaActions;
 
 public class Assertions {
@@ -558,23 +558,23 @@ public class Assertions {
 	    Boolean assertionType) {
 	ReportManager.logDiscreet("Assertion [" + "assertFileExists" + "] is being performed for target directory ["
 		+ fileFolderName + "], and target file [" + fileName + "].");
-	if (FileManager.doesFileExist(fileFolderName, fileName, numberOfRetries)) {
+	if (FileActions.doesFileExist(fileFolderName, fileName, numberOfRetries)) {
 	    if (assertionType) {
 		pass("Assertion Passed; target file [" + fileName + "] exists under the target path ["
-			+ FileManager.getAbsolutePath(fileFolderName, fileName) + "].");
+			+ FileActions.getAbsolutePath(fileFolderName, fileName) + "].");
 	    } else {
 		fail("Assertion Failed; target file [" + fileName + "] exists under the target path ["
-			+ FileManager.getAbsolutePath(fileFolderName, fileName) + "].");
+			+ FileActions.getAbsolutePath(fileFolderName, fileName) + "].");
 	    }
 
 	} else {
 	    if (assertionType) {
 		fail("Assertion Failed; target file [" + fileName + "] doesn't exist under the target path ["
-			+ FileManager.getAbsolutePath(fileFolderName, fileName) + "], tried for ["
+			+ FileActions.getAbsolutePath(fileFolderName, fileName) + "], tried for ["
 			+ numberOfRetries * 500 + "] milliseconds.");
 	    } else {
 		pass("Assertion Passed; target file [" + fileName + "] doesn't exist under the target path ["
-			+ FileManager.getAbsolutePath(fileFolderName, fileName) + "], tried for ["
+			+ FileActions.getAbsolutePath(fileFolderName, fileName) + "], tried for ["
 			+ numberOfRetries * 500 + "] milliseconds.");
 	    }
 	}

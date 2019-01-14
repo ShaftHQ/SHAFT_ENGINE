@@ -1,4 +1,4 @@
-package com.shaft.io;
+package com.shaft.image;
 
 //
 

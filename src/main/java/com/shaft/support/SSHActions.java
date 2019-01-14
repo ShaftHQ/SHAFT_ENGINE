@@ -14,9 +14,15 @@ import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
-import com.shaft.io.FileManager;
+import com.shaft.io.FileActions;
 import com.shaft.io.ReportManager;
 
+/**
+ * @deprecated please use com.shaft.cli.TerminalActions instead
+ * @author incorta-mohab
+ *
+ */
+@Deprecated
 public class SSHActions {
     String hostname;
     int sshPortNumber;
@@ -89,7 +95,7 @@ public class SSHActions {
 	    config.put("StrictHostKeyChecking", "no");
 	    JSch jsch = new JSch();
 
-	    jsch.addIdentity(FileManager.getAbsolutePath(keyFileFolderName, keyFileName));
+	    jsch.addIdentity(FileActions.getAbsolutePath(keyFileFolderName, keyFileName));
 	    session = jsch.getSession(username, hostname, sshPortNumber);
 	    session.setConfig(config);
 
@@ -178,8 +184,7 @@ public class SSHActions {
     }
 
     public String performDockerizedSSHcommand(String command) {
-	String dockerizedCommand = "docker exec -u " + dockerUsername + " -i " + dockerName + " sh -c " + command;
-	return performDockerizedSSHcommand(Arrays.asList(dockerizedCommand));
+	return performDockerizedSSHcommand(Arrays.asList(command));
     }
 
     public String executeShellCommand(List<String> commands) {
