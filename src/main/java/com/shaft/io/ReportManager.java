@@ -8,7 +8,7 @@ import java.util.List;
 
 import org.testng.Reporter;
 
-import com.shaft.support.SSHActions;
+import com.shaft.cli.TerminalActions;
 
 import io.qameta.allure.Allure;
 import io.qameta.allure.Attachment;
@@ -254,43 +254,41 @@ public class ReportManager {
 
 	    // add correct file extension based on target OS
 	    String targetOperatingSystem = System.getProperty("targetOperatingSystem");
-	    List<String> commandToCreateAllureReport = null;
-	    List<String> commandToOpenAllureReport = null;
+	    String commandToCreateAllureReport = "";
+	    List<String> commandsToOpenAllureReport = null;
 	    String allureReportFileExtension;
 
 	    if (targetOperatingSystem.equals("Windows-64")) {
-		commandToCreateAllureReport = Arrays.asList(
-			"src/main/resources/allure/bin/allure.bat generate \"allure-results\" -o \"generatedReport/allure-report\"");
-		commandToOpenAllureReport = Arrays.asList("@echo off", "set path=allure\\bin;%path%",
+		commandToCreateAllureReport = "src/main/resources/allure/bin/allure.bat generate \"allure-results\" -o \"generatedReport/allure-report\"";
+		commandsToOpenAllureReport = Arrays.asList("@echo off", "set path=allure\\bin;%path%",
 			"allure open allure-report", "pause", "exit");
 		allureReportFileExtension = ".bat";
 	    } else {
-		commandToCreateAllureReport = Arrays.asList(
-			"src/main/resources/allure/bin/allure generate \"allure-results\" -o \"generatedReport/allure-report\"");
-		commandToOpenAllureReport = Arrays.asList("#!/bin/bash",
+		commandToCreateAllureReport = "src/main/resources/allure/bin/allure generate \"allure-results\" -o \"generatedReport/allure-report\"";
+		commandsToOpenAllureReport = Arrays.asList("#!/bin/bash",
 			"parent_path=$( cd \"$(dirname \"${BASH_SOURCE[0]}\")\" ; pwd -P )",
 			"cd \"$parent_path/allure/bin/\"", "bash allure open \"$parent_path/allure-report\"", "exit");
 		allureReportFileExtension = ".sh";
 	    }
 
-	    (new SSHActions()).executeShellCommand(commandToCreateAllureReport);
+	    (new TerminalActions()).performTerminalCommand(commandToCreateAllureReport);
 
-	    FileManager.copyFolder(FileManager.getAbsolutePath("src/main/resources/", "allure"),
+	    FileActions.copyFolder(FileActions.getAbsolutePath("src/main/resources/", "allure"),
 		    "generatedReport/allure");
 
-	    FileManager.writeToFile("generatedReport/", "open_allure_report" + allureReportFileExtension,
-		    commandToOpenAllureReport);
+	    FileActions.writeToFile("generatedReport/", "open_allure_report" + allureReportFileExtension,
+		    commandsToOpenAllureReport);
 
-	    FileManager.zipFiles("generatedReport/", "generatedReport.zip");
+	    FileActions.zipFiles("generatedReport/", "generatedReport.zip");
 
-	    FileManager.deleteFile("generatedReport/");
+	    FileActions.deleteFile("generatedReport/");
 	    setDiscreetLogging(false);
 	}
     }
 
     public static void populateEnvironmentData() {
 	// sets up some parameters to the allure report
-	FileManager.writeToFile(System.getProperty("allureResultsFolderPath"), "environment.properties",
+	FileActions.writeToFile(System.getProperty("allureResultsFolderPath"), "environment.properties",
 		Arrays.asList("Engine=" + System.getProperty("shaftEngineVersion"),
 			"OS=" + System.getProperty("targetOperatingSystem"),
 			"Browser=" + System.getProperty("targetBrowserName"),

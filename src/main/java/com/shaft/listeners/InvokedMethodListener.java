@@ -7,8 +7,8 @@ import org.testng.ITestResult;
 
 import com.shaft.browser.BrowserFactory;
 import com.shaft.element.ElementActions;
-import com.shaft.io.RecordManager;
 import com.shaft.io.ReportManager;
+import com.shaft.video.RecordManager;
 
 public class InvokedMethodListener implements IInvokedMethodListener {
     private int invokedTestsCounter = 0;
