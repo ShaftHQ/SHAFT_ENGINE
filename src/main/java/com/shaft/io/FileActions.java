@@ -190,7 +190,7 @@ public class FileActions {
     }
 
     /**
-     * https://www.computerhope.com/unix/ucp.htm
+     * * https://www.computerhope.com/unix/ucp.htm
      * https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/robocopy
      * 
      * @param terminalSession      an object that determines the time of
@@ -198,7 +198,8 @@ public class FileActions {
      *                             this File Action
      * @param sourceDirectory      full path to the sourceDirectory
      * @param destinationDirectory full path to the destinationDirectory
-     * @param fileName
+     * @param fileName             target fileName
+     * @return a string value that holds the result of this terminal command
      */
     public static String copyFile(TerminalActions terminalSession, String sourceDirectory, String destinationDirectory,
 	    String fileName) {
