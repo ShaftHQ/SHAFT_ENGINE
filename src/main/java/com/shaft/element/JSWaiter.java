@@ -1,6 +1,5 @@
 package com.shaft.element;
 
-import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
@@ -148,9 +147,11 @@ public class JSWaiter {
 
     /**
      * Waits for jQuery, Angular, and/or Javascript if present on the current page.
+     * 
+     * @return true in case waiting didn't face any isssues, and false in case of a
+     *         severe exception
      */
-
-    public static void waitForLazyLoading() {
+    public static boolean waitForLazyLoading() {
 	try {
 	    Boolean jQueryDefined = (Boolean) jsExec.executeScript("return typeof jQuery != 'undefined'");
 	    if (jQueryDefined) {
@@ -164,26 +165,10 @@ public class JSWaiter {
 	    try {
 		// check if angular is defined
 		waitForAngularIfDefined();
-	    } catch (org.openqa.selenium.WebDriverException e) {
+	    } catch (WebDriverException e) {
 		if (debug) {
 		    ReportManager.log(e);
 		    ReportManager.log("Angular is not defined on this site!");
-		}
-	    }
-	    // wait for all nested iframes to load, then wait for the main page to load
-	    int iframes = ElementActions.getElementsCount(jsWaitDriver, By.tagName("iframe"), 1, 0, false);
-	    if (iframes > 0) {
-		for (int i = 0; i < iframes; i++) {
-		    Boolean jsReady = (Boolean) jsExec.executeScript(
-			    "return document.getElementsByTagName('iframe')['" + i + "'].contentDocument.readyState")
-			    .toString().trim().equalsIgnoreCase("complete");
-		    if (!jsReady) {
-			waitForJSLoad();
-		    } else {
-			if (debug) {
-			    ReportManager.log("JS is Ready!");
-			}
-		    }
 		}
 	    }
 
@@ -196,9 +181,22 @@ public class JSWaiter {
 		    ReportManager.log("JS is Ready!");
 		}
 	    }
+	    return true;
 	} catch (WebDriverException e) {
 	    ReportManager.log(e);
-
+	    return true;
+	} catch (Exception e) {
+	    if (e.getMessage().contains("jQuery is not defined")) {
+		// do nothing
+		return true;
+	    } else if (e.getMessage().contains("Error communicating with the remote browser. It may have died.")) {
+		ReportManager.log(e);
+		return false;
+	    } else {
+		ReportManager.log(e);
+		ReportManager.log("Unhandled Exception: " + e.getMessage());
+		return false;
+	    }
 	}
     }
 

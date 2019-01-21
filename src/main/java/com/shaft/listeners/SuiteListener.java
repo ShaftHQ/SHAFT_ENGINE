@@ -8,6 +8,7 @@ import java.util.List;
 import org.testng.IInvokedMethod;
 
 import com.shaft.browser.BrowserFactory;
+import com.shaft.io.PropertiesFileManager;
 import com.shaft.io.ReportManager;
 
 public class SuiteListener implements ISuiteListener {
@@ -15,6 +16,7 @@ public class SuiteListener implements ISuiteListener {
 
     @Override
     public void onStart(ISuite suite) {
+	PropertiesFileManager.readPropertyFiles();
 	ReportManager.populateEnvironmentData();
 	ReportManager.logEngineVersion(true);
 	// confirm that no browser sessions were leaked due to an unexpected failure in

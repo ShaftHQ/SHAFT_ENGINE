@@ -8,17 +8,19 @@ import org.testng.Reporter;
 
 import com.shaft.browser.BrowserActions;
 import com.shaft.element.ElementActions;
-import com.shaft.io.FileManager;
+import com.shaft.image.ScreenshotManager;
+import com.shaft.io.FileActions;
 import com.shaft.io.ReportManager;
-import com.shaft.io.ScreenshotManager;
 import com.shaft.support.JavaActions;
 
 public class Verifications {
 
     private static StringBuilder verificationFailures = new StringBuilder();
     private static StringBuilder verificationSuccesses = new StringBuilder();
-    private static int elementDoesntExistTimeout = 4;
-    private static int retriesBeforeThrowingElementNotFoundException = 1;
+
+    private static int attemptsBeforeThrowingElementNotFoundException = Integer
+	    .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
+    private static int attemptsBeforeThrowingElementNotFoundExceptionInCaseElementShouldntExist = 1;
 
     private Verifications() {
 	throw new IllegalStateException("Utility class");
@@ -73,6 +75,8 @@ public class Verifications {
      * @param expectedValue    the expected value (test data) of this verification
      * @param actualValue      the actual value (calculated data) of this
      *                         verification
+     * @param comparisonType   1 is literalComparison, 2 is regexComparison, 3 is
+     *                         containsComparison, 4 is caseInsensitiveComparison
      * @param verificationType either 'true' for a positive verification that the
      *                         objects are equal, or 'false' for a negative
      *                         verification that the objects are not equal
@@ -167,8 +171,12 @@ public class Verifications {
     public static void verifyElementExists(WebDriver driver, By elementLocator, Boolean verificationType) {
 	ReportManager.logDiscreet("Verification [" + "verifyElementExists" + "] is being performed.");
 	try {
-	    switch (ElementActions.getElementsCount(driver, elementLocator, elementDoesntExistTimeout,
-		    retriesBeforeThrowingElementNotFoundException)) {
+	    int customAttempts = attemptsBeforeThrowingElementNotFoundException;
+	    if (!verificationType) {
+		customAttempts = attemptsBeforeThrowingElementNotFoundExceptionInCaseElementShouldntExist;
+	    }
+
+	    switch (ElementActions.getElementsCount(driver, elementLocator, customAttempts)) {
 	    case 0:
 		if (verificationType) {
 		    verificationFailures.append("Verification Failed; element does not exist. Locator ["
@@ -458,7 +466,10 @@ public class Verifications {
      *                                assertion
      * @param actualValue             the actual value (calculated data) of this
      *                                assertion
-     * @param comparativeRelationType accepts >, >=, <, <=, ==
+     * @param comparativeRelationType accepts standard java Equality, Relational,
+     *                                and Conditional Operators, except [not equal
+     *                                to]:
+     *                                https://docs.oracle.com/javase/tutorial/java/nutsandbolts/op2.html
      * @param verificationType        either 'true' for a positive assertion that
      *                                the expectedValue is related to the
      *                                actualValue using the desired
@@ -560,27 +571,27 @@ public class Verifications {
 	    Boolean verificationType) {
 	ReportManager.logDiscreet("Verification [" + "verifyFileExists" + "] is being performed for target directory ["
 		+ fileFolderName + "], and target file [" + fileName + "].");
-	if (FileManager.doesFileExist(fileFolderName, fileName, numberOfRetries)) {
+	if (FileActions.doesFileExist(fileFolderName, fileName, numberOfRetries)) {
 	    if (verificationType) {
 		verificationSuccesses
 			.append("Verification Passed; target file [" + fileName + "] exists under the target path ["
-				+ FileManager.getAbsolutePath(fileFolderName, fileName) + "].");
+				+ FileActions.getAbsolutePath(fileFolderName, fileName) + "].");
 	    } else {
 		verificationFailures
 			.append("Verification Failed; target file [" + fileName + "] exists under the target path ["
-				+ FileManager.getAbsolutePath(fileFolderName, fileName) + "].");
+				+ FileActions.getAbsolutePath(fileFolderName, fileName) + "].");
 	    }
 
 	} else {
 	    if (verificationType) {
 		verificationFailures.append(
 			"Verification Failed; target file [" + fileName + "] doesn't exist under the target path ["
-				+ FileManager.getAbsolutePath(fileFolderName, fileName) + "], tried for ["
+				+ FileActions.getAbsolutePath(fileFolderName, fileName) + "], tried for ["
 				+ numberOfRetries * 500 + "] milliseconds.");
 	    } else {
 		verificationSuccesses.append(
 			"Verification Passed; target file [" + fileName + "] doesn't exist under the target path ["
-				+ FileManager.getAbsolutePath(fileFolderName, fileName) + "], tried for ["
+				+ FileActions.getAbsolutePath(fileFolderName, fileName) + "], tried for ["
 				+ numberOfRetries * 500 + "] milliseconds.");
 	    }
 	}

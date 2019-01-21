@@ -6,15 +6,15 @@ import org.testng.Assert;
 
 import com.shaft.browser.BrowserActions;
 import com.shaft.element.ElementActions;
-import com.shaft.io.FileManager;
+import com.shaft.image.ScreenshotManager;
+import com.shaft.io.FileActions;
 import com.shaft.io.ReportManager;
-import com.shaft.io.ScreenshotManager;
 import com.shaft.support.JavaActions;
 
 public class Assertions {
-
-    private static int elementDoesntExistTimeout = 4;
-    private static int retriesBeforeThrowingElementNotFoundException = 1;
+    private static int attemptsBeforeThrowingElementNotFoundException = Integer
+	    .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
+    private static int attemptsBeforeThrowingElementNotFoundExceptionInCaseElementShouldntExist = 1;
 
     private Assertions() {
 	throw new IllegalStateException("Utility class");
@@ -152,8 +152,12 @@ public class Assertions {
     public static void assertElementExists(WebDriver driver, By elementLocator, Boolean assertionType) {
 	ReportManager.logDiscreet("Assertion [" + "assertElementExists" + "] is being performed.");
 	try {
-	    switch (ElementActions.getElementsCount(driver, elementLocator, elementDoesntExistTimeout,
-		    retriesBeforeThrowingElementNotFoundException)) {
+	    int customAttempts = attemptsBeforeThrowingElementNotFoundException;
+	    if (!assertionType) {
+		customAttempts = attemptsBeforeThrowingElementNotFoundExceptionInCaseElementShouldntExist;
+	    }
+
+	    switch (ElementActions.getElementsCount(driver, elementLocator, customAttempts)) {
 	    case 0:
 		if (assertionType) {
 		    fail("assertElementExists", driver,
@@ -450,7 +454,10 @@ public class Assertions {
      *                                assertion
      * @param actualValue             the actual value (calculated data) of this
      *                                assertion
-     * @param comparativeRelationType accepts >, >=, <, <=, ==
+     * @param comparativeRelationType accepts standard java Equality, Relational,
+     *                                and Conditional Operators, except [not equal
+     *                                to]:
+     *                                https://docs.oracle.com/javase/tutorial/java/nutsandbolts/op2.html
      * @param assertionType           either 'true' for a positive assertion that
      *                                the expectedValue is related to the
      *                                actualValue using the desired
@@ -551,23 +558,23 @@ public class Assertions {
 	    Boolean assertionType) {
 	ReportManager.logDiscreet("Assertion [" + "assertFileExists" + "] is being performed for target directory ["
 		+ fileFolderName + "], and target file [" + fileName + "].");
-	if (FileManager.doesFileExist(fileFolderName, fileName, numberOfRetries)) {
+	if (FileActions.doesFileExist(fileFolderName, fileName, numberOfRetries)) {
 	    if (assertionType) {
 		pass("Assertion Passed; target file [" + fileName + "] exists under the target path ["
-			+ FileManager.getAbsolutePath(fileFolderName, fileName) + "].");
+			+ FileActions.getAbsolutePath(fileFolderName, fileName) + "].");
 	    } else {
 		fail("Assertion Failed; target file [" + fileName + "] exists under the target path ["
-			+ FileManager.getAbsolutePath(fileFolderName, fileName) + "].");
+			+ FileActions.getAbsolutePath(fileFolderName, fileName) + "].");
 	    }
 
 	} else {
 	    if (assertionType) {
 		fail("Assertion Failed; target file [" + fileName + "] doesn't exist under the target path ["
-			+ FileManager.getAbsolutePath(fileFolderName, fileName) + "], tried for ["
+			+ FileActions.getAbsolutePath(fileFolderName, fileName) + "], tried for ["
 			+ numberOfRetries * 500 + "] milliseconds.");
 	    } else {
 		pass("Assertion Passed; target file [" + fileName + "] doesn't exist under the target path ["
-			+ FileManager.getAbsolutePath(fileFolderName, fileName) + "], tried for ["
+			+ FileActions.getAbsolutePath(fileFolderName, fileName) + "], tried for ["
 			+ numberOfRetries * 500 + "] milliseconds.");
 	    }
 	}

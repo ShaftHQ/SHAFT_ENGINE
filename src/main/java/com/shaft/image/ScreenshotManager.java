@@ -1,4 +1,4 @@
-package com.shaft.io;
+package com.shaft.image;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
@@ -31,6 +31,8 @@ import org.testng.Reporter;
 import com.shaft.browser.BrowserFactory;
 import com.shaft.element.ElementActions;
 import com.shaft.element.JSWaiter;
+import com.shaft.io.FileActions;
+import com.shaft.io.ReportManager;
 
 public class ScreenshotManager {
     private static final String SCREENSHOT_FOLDERPATH = "allure-results/screenshots/";
@@ -46,7 +48,6 @@ public class ScreenshotManager {
 	    .getProperty("screenshotParams_skippedElementsFromScreenshot");
     private static By targetElementLocator;
 
-    private static final int CUSTOMELEMENTIDENTIFICATIONTIMEOUT = 1;
     private static final int RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION = 1;
 
     private static final Boolean CREATE_GIF = Boolean.valueOf(System.getProperty("createAnimatedGif").trim());
@@ -73,6 +74,8 @@ public class ScreenshotManager {
     private static ImageOutputStream gifOutputStream = null;
     private static GifSequenceWriter gifWriter = null;
 
+    private static final String AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH = "src/test/resources/elementScreenshots/";
+
     private ScreenshotManager() {
 	throw new IllegalStateException("Utility class");
     }
@@ -82,6 +85,7 @@ public class ScreenshotManager {
      * false means fail.
      * 
      * @param driver         the current instance of Selenium webdriver
+     * @param actionName     the name of the triggering action
      * @param passFailStatus A flag to determine whether the action has passed or
      *                       failed
      */
@@ -112,6 +116,7 @@ public class ScreenshotManager {
      * @param driver         the current instance of Selenium webdriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
+     * @param actionName     the name of the triggering action
      * @param passFailStatus A flag to determine whether the action has passed or
      *                       failed
      */
@@ -144,6 +149,7 @@ public class ScreenshotManager {
      *             locator. passFailStatus; true means pass and false means fail.
      * 
      * @param driver         the current instance of Selenium webdriver
+     * @param actionName     the name of the triggering action
      * @param appendedText   the text that needs to be appended to the name of the
      *                       screenshot to make it more recognizable
      * @param passFailStatus A flag to determine whether the action has passed or
@@ -167,8 +173,11 @@ public class ScreenshotManager {
      * @param driver         the current instance of Selenium webdriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
+     * @param actionName     the name of the triggering action
      * @param appendedText   the text that needs to be appended to the name of the
      *                       screenshot to make it more recognizable
+     * @param passFailStatus A flag to determine whether the action has passed or
+     *                       failed
      */
     @Deprecated
     public static void captureScreenShot(WebDriver driver, By elementLocator, String actionName, String appendedText,
@@ -195,7 +204,7 @@ public class ScreenshotManager {
      */
     private static void internalCaptureScreenShot(WebDriver driver, By elementLocator, String actionName,
 	    String appendedText, boolean takeScreenshot) {
-	new File(SCREENSHOT_FOLDERPATH).mkdirs();
+	FileActions.createFolder(SCREENSHOT_FOLDERPATH);
 
 	if (takeScreenshot) {
 	    /**
@@ -217,7 +226,7 @@ public class ScreenshotManager {
 		 * element before taking the screenshot
 		 */
 		if (SCREENSHOT_PARAMS_HIGHLIGHTELEMENTS && elementLocator != null
-			&& (ElementActions.getElementsCount(driver, elementLocator, CUSTOMELEMENTIDENTIFICATIONTIMEOUT,
+			&& (ElementActions.getElementsCount(driver, elementLocator,
 				RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1)) {
 		    element = driver.findElement(elementLocator);
 		    js = (JavascriptExecutor) driver;
@@ -225,7 +234,7 @@ public class ScreenshotManager {
 			    setHighlightedElementStyle());
 		}
 	    } catch (StaleElementReferenceException e) {
-		// this happens when webdriver failes to capture the elements initial style or
+		// this happens when WebDriver fails to capture the elements initial style or
 		// fails to highlight the element for some reason
 		ReportManager.log(e);
 	    }
@@ -264,7 +273,7 @@ public class ScreenshotManager {
 		 * Copy the screenshot to desired path, and append the appropriate filename.
 		 * 
 		 */
-		FileManager.copyFile(src.getAbsolutePath(), SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME
+		FileActions.copyFile(src.getAbsolutePath(), SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME
 			+ FileSystems.getDefault().getSeparator() + screenshotFileName + ".png");
 
 		addScreenshotToReport(src);
@@ -286,7 +295,7 @@ public class ScreenshotManager {
 	case "fullpage":
 	    return takeFullPageScreenshot(driver);
 	case "element":
-	    return takeElementScreenshot(driver);
+	    return takeElementScreenshot(driver, true);
 	default:
 	    return ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
 	}
@@ -298,7 +307,7 @@ public class ScreenshotManager {
 		List<WebElement> skippedElementsList = new ArrayList<>();
 		String[] skippedElementLocators = SCREENSHOT_PARAMS_SKIPPEDELEMENTSFROMSCREENSHOT.split(";");
 		for (String locator : skippedElementLocators) {
-		    if (ElementActions.getElementsCount(driver, By.xpath(locator), CUSTOMELEMENTIDENTIFICATIONTIMEOUT,
+		    if (ElementActions.getElementsCount(driver, By.xpath(locator),
 			    RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1) {
 			skippedElementsList.add(driver.findElement(By.xpath(locator)));
 		    }
@@ -317,11 +326,11 @@ public class ScreenshotManager {
 	}
     }
 
-    private static File takeElementScreenshot(WebDriver driver) {
+    private static File takeElementScreenshot(WebDriver driver, boolean isBaseFullPage) {
 	try {
 	    if (targetElementLocator != null && ElementActions.getElementsCount(driver, targetElementLocator,
-		    CUSTOMELEMENTIDENTIFICATIONTIMEOUT, RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1) {
-		return ScreenshotUtils.makeElementScreenshot(driver, targetElementLocator);
+		    RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1) {
+		return ScreenshotUtils.makeElementScreenshot(driver, targetElementLocator, isBaseFullPage);
 	    } else {
 		return ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
 	    }
@@ -382,7 +391,7 @@ public class ScreenshotManager {
 		gifFilePath = SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME + FileSystems.getDefault().getSeparator()
 			+ System.currentTimeMillis() + "_" + testCaseName + ".gif";
 		File src = ((TakesScreenshot) gifDriver).getScreenshotAs(OutputType.FILE); // takes first screenshot
-		FileManager.copyFile(src.getAbsolutePath(), gifFilePath);
+		FileActions.copyFile(src.getAbsolutePath(), gifFilePath);
 
 		// grab the output image type from the first image in the sequence
 		BufferedImage firstImage = ImageIO.read(new File(gifFilePath));
@@ -469,4 +478,15 @@ public class ScreenshotManager {
 	    }
 	}
     }
+
+    public static void storeElementScreenshotForAISupportedElementIdentification(WebDriver driver, By elementLocator) {
+	FileActions.createFolder(AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH);
+	File element = takeElementScreenshot(driver, false);
+
+	String elementFileName = elementLocator.toString().replaceAll("[\\W\\s]", "_");
+
+	FileActions.copyFile(element.getAbsolutePath(),
+		AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH + elementFileName + ".png");
+    }
+
 }

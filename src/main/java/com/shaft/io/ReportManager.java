@@ -8,7 +8,7 @@ import java.util.List;
 
 import org.testng.Reporter;
 
-import com.shaft.support.SSHActions;
+import com.shaft.cli.TerminalActions;
 
 import io.qameta.allure.Allure;
 import io.qameta.allure.Attachment;
@@ -171,7 +171,6 @@ public class ReportManager {
 	createAttachment(attachmentType, attachmentName, attachmentContent);
     }
 
-    // @Attachment("Attachment: {attachmentType} - {attachmentName}")
     private static void createAttachment(String attachmentType, String attachmentName, InputStream attachmentContent) {
 
 	String attachmentDescription = "Attachment: " + attachmentType + " - " + attachmentName;
@@ -180,7 +179,7 @@ public class ReportManager {
 	    Allure.addAttachment(attachmentDescription, "image/png", attachmentContent, ".png");
 	} else if (attachmentType.toLowerCase().contains("recording")) {
 	    Allure.addAttachment(attachmentDescription, "video/quicktime", attachmentContent, ".mov");
-	    // Allure.addAttachment(attachmentName, "video/mp4", attachmentContent, ".mp4");
+	    // attachmentName, "video/mp4", attachmentContent, ".mp4"
 	} else if (attachmentType.toLowerCase().contains("gif")) {
 	    Allure.addAttachment(attachmentDescription, "image/gif", attachmentContent, ".gif");
 	} else {
@@ -213,6 +212,13 @@ public class ReportManager {
      */
     public static void attachTestLog() {
 	createAttachment("SHAFT Engine Logs", "Current Test log", currentTestLog);
+	clearTestLog();
+    }
+
+    /**
+     * Clears the current test log to prepare for a new test
+     */
+    private static void clearTestLog() {
 	currentTestLog = "";
     }
 
@@ -224,10 +230,7 @@ public class ReportManager {
      */
     @Deprecated
     public static void getFullLog() {
-	// RecordManager.stopRecording();
-	// RecordManager.attachRecording();
 	attachFullLog();
-	// generateAllureReportArchive();
     }
 
     public static void attachFullLog() {
@@ -248,42 +251,48 @@ public class ReportManager {
 	if (Boolean.valueOf(System.getProperty("automaticallyGenerateAllureReport").trim())) {
 	    logDiscreet("Generating Allure Report Archive...");
 	    setDiscreetLogging(true);
-	    List<String> commandToCreateAllureReport = Arrays.asList(
-		    "src/main/resources/allure/bin/allure generate \"allure-results\" -o \"generatedReport/allure-report\"");
 
-	    (new SSHActions()).executeShellCommand(commandToCreateAllureReport);
+	    // add correct file extension based on target OS
+	    String targetOperatingSystem = System.getProperty("targetOperatingSystem");
+	    String commandToCreateAllureReport = "";
+	    List<String> commandsToOpenAllureReport = null;
+	    String allureReportFileExtension;
 
-	    FileManager.copyFolder(FileManager.getAbsolutePath("src/main/resources/", "allure"),
+	    if (targetOperatingSystem.equals("Windows-64")) {
+		commandToCreateAllureReport = "src/main/resources/allure/bin/allure.bat generate \"allure-results\" -o \"generatedReport/allure-report\"";
+		commandsToOpenAllureReport = Arrays.asList("@echo off", "set path=allure\\bin;%path%",
+			"allure open allure-report", "pause", "exit");
+		allureReportFileExtension = ".bat";
+	    } else {
+		commandToCreateAllureReport = "src/main/resources/allure/bin/allure generate \"allure-results\" -o \"generatedReport/allure-report\"";
+		commandsToOpenAllureReport = Arrays.asList("#!/bin/bash",
+			"parent_path=$( cd \"$(dirname \"${BASH_SOURCE[0]}\")\" ; pwd -P )",
+			"cd \"$parent_path/allure/bin/\"", "bash allure open \"$parent_path/allure-report\"", "exit");
+		allureReportFileExtension = ".sh";
+	    }
+
+	    (new TerminalActions()).performTerminalCommand(commandToCreateAllureReport);
+
+	    FileActions.copyFolder(FileActions.getAbsolutePath("src/main/resources/", "allure"),
 		    "generatedReport/allure");
 
-	    // "src/main/resources/allure/bin/allure open \"allure-report\""
+	    FileActions.writeToFile("generatedReport/", "open_allure_report" + allureReportFileExtension,
+		    commandsToOpenAllureReport);
 
-	    List<String> commandToOpenAllureReport = Arrays.asList("#!/bin/bash",
-		    "parent_path=$( cd \"$(dirname \"${BASH_SOURCE[0]}\")\" ; pwd -P )",
-		    "cd \"$parent_path/allure/bin/\"", "bash allure open \"$parent_path/allure-report\"", "exit");
-	    FileManager.writeToFile("generatedReport/", "open_allure_report.sh", commandToOpenAllureReport);
+	    FileActions.zipFiles("generatedReport/", "generatedReport.zip");
 
-	    FileManager.zipFiles("generatedReport/", "generatedReport.zip");
-
-	    FileManager.deleteFile("generatedReport/");
+	    FileActions.deleteFile("generatedReport/");
 	    setDiscreetLogging(false);
 	}
     }
 
     public static void populateEnvironmentData() {
 	// sets up some parameters to the allure report
-	FileManager.writeToFile(System.getProperty("allureResultsFolderPath"), "environment.properties",
+	FileActions.writeToFile(System.getProperty("allureResultsFolderPath"), "environment.properties",
 		Arrays.asList("Engine=" + System.getProperty("shaftEngineVersion"),
 			"OS=" + System.getProperty("targetOperatingSystem"),
 			"Browser=" + System.getProperty("targetBrowserName"),
 			"Location=" + System.getProperty("executionAddress")));
-	/*
-	 * "Flags_AutoMaximizeBrowserWindow=" +
-	 * System.getProperty("autoMaximizeBrowserWindow"), "Flags_ScreenshotManager=" +
-	 * System.getProperty("screenshotParams_whenToTakeAScreenshot"),
-	 * "Config_DefaultElementIdentificationTimeout=" +
-	 * System.getProperty("defaultElementIdentificationTimeout")));
-	 */
     }
 
     public static void logEngineVersion(Boolean isStartingExecution) {
@@ -299,6 +308,7 @@ public class ReportManager {
 
     public static void logTestInformation(String className, String testMethodName, String testDescription,
 	    int testCaseNumber, int totalTestCasesCount) {
+	clearTestLog();
 	if (!testDescription.equals("")) {
 	    createImportantReportEntry("Starting Execution:\t[" + testCaseNumber + " out of " + totalTestCasesCount
 		    + "] tests in the current class;\nTest Method:\t\t[" + className + "." + testMethodName

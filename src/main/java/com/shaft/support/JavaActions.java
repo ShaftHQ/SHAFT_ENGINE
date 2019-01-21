@@ -18,9 +18,11 @@ public class JavaActions {
      * %40%23%24%25%26 ..etc (special characters) to return it with
      * %5C%5C%40%5C%5C%23%5C%5C%24%5C%5C%25%5C%5C%26
      * 
-     * @param specialCharactersArray
-     * @param text
-     * @return updated texts
+     * @param specialCharactersArray an array of the special characters that will be
+     *                               escaped
+     * @param text                   the string that will have its special
+     *                               characters escaped
+     * @return updated texts with escaped special characters
      */
     public static String replaceRegex(String[] specialCharactersArray, String text) {
 	// @#$%&
@@ -39,7 +41,7 @@ public class JavaActions {
      * Returns text after replaces its regular expressions which included in this
      * set []^$.|?*+(){}
      * 
-     * @param text
+     * @param text the string that will have its special characters escaped
      * @return updated text after escaping its regular expressions
      */
 

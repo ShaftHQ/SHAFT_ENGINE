@@ -4,57 +4,25 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.mohies</groupId>
 	<artifactId>SHAFT_ENGINE</artifactId>
-	<version>2.1.20181220</version>
+	<version>2.3.20180117</version>
 	<name>SHAFT_ENGINE</name>
 	<description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
 
 	<properties>
-		<shaft_engine.version>SHAFT_ENGINE-2.1.20181220</shaft_engine.version>
+		<shaft_engine.version>SHAFT_ENGINE-2.3.20180117</shaft_engine.version>
+		<!-- SHAFT_Engine Properties and other property files are read from the 
+			below location -->
+		<propertiesFolderPath>src/test/resources/Properties/</propertiesFolderPath>
 
 		<!-- SHAFT Test Run Parameters -->
 		<testSuite.name>unitTestSuite</testSuite.name>
-
-		<executionAddress>local</executionAddress> <!-- Acceptable Values: local | seleniumGridHubIP:port -->
-		<operatingSystem.version>Linux-64</operatingSystem.version> <!-- Acceptable Values: Windows-64 | Linux-64 | Mac-64 -->
-		<!-- Will be ignored in case of local execution and SHAFT will identify 
-			the correct OS version automatically -->
-		<targetBrowser.name>GoogleChrome</targetBrowser.name> 		<!-- Acceptable Values: MozillaFirefox | MicrosoftInternetExplorer | GoogleChrome 
-			| MicrosoftEdge | Safari -->
-		<autoMaximizeBrowserWindow>true</autoMaximizeBrowserWindow> <!-- Acceptable Values: true | false -->
-
-		<defaultElementIdentificationTimeout>2</defaultElementIdentificationTimeout> <!-- Accepts integer values that represent the default timeout for finding 
-			a webElement -->
-		<attemptsBeforeThrowingElementNotFoundException>4</attemptsBeforeThrowingElementNotFoundException> <!-- Accepts integer values that represent the number of attempts before 
-			failing to find a webElement -->
-		<waitImplicitly>false</waitImplicitly> <!-- Acceptable Values: true | false -->
-		<!-- Note: Implicit waiting may increase execution time by 20% but it also 
-			increases test stability in flaky environments -->
-
-		<screenshotParams_whenToTakeAScreenshot>ValidationPointsOnly</screenshotParams_whenToTakeAScreenshot> <!-- Acceptable Values: Always | Never | ValidationPointsOnly | FailuresOnly -->
-		<screenshotParams_highlightElements>true</screenshotParams_highlightElements> <!-- Acceptable Values: true | false -->
-		<screenshotParams_screenshotType>Regular</screenshotParams_screenshotType> <!-- Acceptable Values: Regular | FullPage | Element -->
-		<screenshotParams_skippedElementsFromScreenshot></screenshotParams_skippedElementsFromScreenshot> <!-- The above element will be skipped in case of persistent elements/menus 
-			that show up multiple times in the full page screenshots -->
-		<recordVideo>false</recordVideo>
-		<createAnimatedGif>true</createAnimatedGif>
-		<animatedGif_frameDelay>750</animatedGif_frameDelay> <!-- Time in milliseconds to delay the frames of the animated GIF, default 
-			is 500 millisecond -->
-
-		<automaticallyGenerateAllureReport>false</automaticallyGenerateAllureReport> <!-- Acceptable Values: true | false -->
-
-		<!-- SHAFT Configuration Parameters -->
-		<testDataFolderPath>src/test/resources/TestDataFiles/</testDataFolderPath>
-		<jsonFolderPath>src/test/resources/TestJsonFiles/</jsonFolderPath>
-		<downloadsFolderPath>target/downloadedFiles/</downloadsFolderPath>
-		<testDataColumnNamePrefix>Data</testDataColumnNamePrefix>
-		<allureResultsFolderPath>allure-results/</allureResultsFolderPath>
 
 		<!-- Dependencies/Plugins Version Numbers Parameters -->
 		<encoding.type>UTF-8</encoding.type>
 		<jdk.version>1.8</jdk.version>
 
 		<selenium.version>3.141.59</selenium.version>
-		<allure.version>2.8.1</allure.version>
+		<allure.version>2.9.0</allure.version>
 		<aspectj.version>1.9.2</aspectj.version>
 
 		<rest-assured.version>3.2.0</rest-assured.version>
@@ -67,7 +35,7 @@
 		<org.slf4j.version>1.7.25</org.slf4j.version>
 		<maven-resources-plugin.version>3.1.0</maven-resources-plugin.version>
 		<maven-compiler-plugin.version>3.8.0</maven-compiler-plugin.version>
-		<maven-surefire-plugin.version>2.22.1</maven-surefire-plugin.version>
+		<maven-surefire-plugin.version>3.0.0-M3</maven-surefire-plugin.version>
 		<maven-shade-plugin.version>3.2.0</maven-shade-plugin.version>
 		<maven-jar-plugin.version>3.1.0</maven-jar-plugin.version>
 		<maven-javadoc-plugin.version>3.0.1</maven-javadoc-plugin.version>
@@ -75,7 +43,7 @@
 
 		<jcraft-jsch.version>0.1.54</jcraft-jsch.version>
 
-		<cucumber.version>4.2.0</cucumber.version>
+		<cucumber.version>4.2.1</cucumber.version>
 		<appium-java-client.version>6.1.0</appium-java-client.version>
 		<cverges-expect4j.version>1.9</cverges-expect4j.version>
 
@@ -110,11 +78,11 @@
 			<version>${allure.version}</version>
 			<!-- <scope>test</scope> -->
 		</dependency>
-		<dependency>
-			<groupId>io.qameta.allure</groupId>
-			<artifactId>allure-cucumber-jvm</artifactId>
-			<version>${allure.version}</version>
-		</dependency>
+		<!-- <dependency> -->
+		<!-- <groupId>io.qameta.allure</groupId> -->
+		<!-- <artifactId>allure-cucumber4-jvm</artifactId> -->
+		<!-- <version>${allure.version}</version> -->
+		<!-- </dependency> -->
 		<dependency>
 			<groupId>io.qameta.allure</groupId>
 			<artifactId>allure-rest-assured</artifactId> <!-- for testing reasons -->
@@ -140,11 +108,13 @@
 			<groupId>io.cucumber</groupId>
 			<artifactId>cucumber-java</artifactId>
 			<version>${cucumber.version}</version>
+			<!-- <scope>test</scope> -->
 		</dependency>
 		<dependency>
 			<groupId>io.cucumber</groupId>
 			<artifactId>cucumber-testng</artifactId>
 			<version>${cucumber.version}</version>
+			<!-- <scope>test</scope> -->
 		</dependency>
 
 		<!-- https://mvnrepository.com/artifact/com.googlecode.json-simple/json-simple -->
@@ -242,26 +212,7 @@
 					<configuration>
 						<systemPropertyVariables>
 							<shaftEngineVersion>${shaft_engine.version}</shaftEngineVersion>
-							<targetOperatingSystem>${operatingSystem.version}</targetOperatingSystem>
-							<targetBrowserName>${targetBrowser.name}</targetBrowserName>
-							<screenshotParams_whenToTakeAScreenshot>${screenshotParams_whenToTakeAScreenshot}</screenshotParams_whenToTakeAScreenshot>
-							<screenshotParams_highlightElements>${screenshotParams_highlightElements}</screenshotParams_highlightElements>
-							<screenshotParams_screenshotType>${screenshotParams_screenshotType}</screenshotParams_screenshotType>
-							<screenshotParams_skippedElementsFromScreenshot>${screenshotParams_skippedElementsFromScreenshot}</screenshotParams_skippedElementsFromScreenshot>
-							<executionAddress>${executionAddress}</executionAddress>
-							<autoMaximizeBrowserWindow>${autoMaximizeBrowserWindow}</autoMaximizeBrowserWindow>
-							<testDataFolderPath>${testDataFolderPath}</testDataFolderPath>
-							<jsonFolderPath>${jsonFolderPath}</jsonFolderPath>
-							<downloadsFolderPath>${downloadsFolderPath}</downloadsFolderPath>
-							<testDataColumnNamePrefix>${testDataColumnNamePrefix}</testDataColumnNamePrefix>
-							<defaultElementIdentificationTimeout>${defaultElementIdentificationTimeout}</defaultElementIdentificationTimeout>
-							<attemptsBeforeThrowingElementNotFoundException>${attemptsBeforeThrowingElementNotFoundException}</attemptsBeforeThrowingElementNotFoundException>
-							<waitImplicitly>${waitImplicitly}</waitImplicitly>
-							<allureResultsFolderPath>${allureResultsFolderPath}</allureResultsFolderPath>
-							<automaticallyGenerateAllureReport>${automaticallyGenerateAllureReport}</automaticallyGenerateAllureReport>
-							<recordVideo>${recordVideo}</recordVideo>
-							<createAnimatedGif>${createAnimatedGif}</createAnimatedGif>
-							<animatedGif_frameDelay>${animatedGif_frameDelay}</animatedGif_frameDelay>
+							<propertiesFolderPath>${propertiesFolderPath}</propertiesFolderPath>
 						</systemPropertyVariables>
 						<!-- To continue execution after validation errors are thrown in the 
 							before method -->
@@ -275,6 +226,11 @@
 						<argLine>
 							-javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"
 						</argLine>
+						<!-- <argLine> -->
+						<!-- -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar" -->
+						<!-- -Dcucumber.options="-plugin -->
+						<!-- io.qameta.allure.cucumber4jvm.AllureCucumber4Jvm" -->
+						<!-- </argLine> -->
 						<properties>
 							<property>
 								<name>usedefaultlisteners</name>
@@ -294,6 +250,7 @@
 						</dependency>
 					</dependencies>
 				</plugin>
+
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-jar-plugin</artifactId>

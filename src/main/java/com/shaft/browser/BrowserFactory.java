@@ -3,7 +3,6 @@ package com.shaft.browser;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
@@ -34,10 +33,10 @@ import org.openqa.selenium.safari.SafariOptions;
 import org.testng.Assert;
 
 import com.shaft.element.JSWaiter;
+import com.shaft.image.ScreenshotManager;
 import com.shaft.io.ExcelFileManager;
-import com.shaft.io.FileManager;
+import com.shaft.io.FileActions;
 import com.shaft.io.ReportManager;
-import com.shaft.io.ScreenshotManager;
 
 public class BrowserFactory {
 
@@ -51,14 +50,15 @@ public class BrowserFactory {
     private static final String TARGET_BROWSER_NAME = System.getProperty("targetBrowserName");
     // Default | MozillaFirefox | MicrosoftInternetExplorer | GoogleChrome |
     // MicrosoftEdge | Safari
-    private static final int PAGE_LOAD_TIMEOUT = 60;
-    private static final int IMPLICIT_WAIT_TIMEOUT = 10;
+    private static final int PAGE_LOAD_TIMEOUT = 30;
+    private static final int IMPLICIT_WAIT_TIMEOUT = 30;
     private static final Boolean WAIT_IMPLICITLY = Boolean.valueOf(System.getProperty("waitImplicitly").trim());
     private static final Boolean CREATE_GIF = Boolean.valueOf(System.getProperty("createAnimatedGif").trim());
 
     private static String driversPath;
     private static String fileExtension;
-    private static Map<String, WebDriver> drivers = new HashMap<>();
+    private static Map<String, Map<String, WebDriver>> drivers = new HashMap<>();
+    // browser, <os,driver>
     private static WebDriver driver = null;
 
     // logging preferences object
@@ -119,12 +119,11 @@ public class BrowserFactory {
      */
     public static WebDriver getBrowser(String browserName) {
 	try {
-	    if (driver != null) {
-		// TODO and target browser exists in hashmap, also enhance hashmap to include
-		// os/browser match
-
-		// retrieve current instance
-		driver = getActiveDriverInstance(browserName);
+	    if (driver != null && drivers.get(browserName) != null) {
+		if (drivers.get(browserName).get(targetOperatingSystem) != null) {
+		    // retrieve current instance
+		    driver = getActiveDriverInstance(browserName);
+		}
 
 	    } else {
 		// if driver is null set logging preferences, then set driver options and create
@@ -150,6 +149,7 @@ public class BrowserFactory {
 		if (WAIT_IMPLICITLY) {
 		    driver.manage().timeouts().implicitlyWait(IMPLICIT_WAIT_TIMEOUT, TimeUnit.SECONDS);
 		}
+
 		JSWaiter.setDriver(driver);
 		if (AUTO_MAXIMIZE) {
 		    BrowserActions.maximizeWindow(driver); // Automatically maximize driver window after opening it
@@ -169,19 +169,19 @@ public class BrowserFactory {
 		"Switching to active browser instance on: [" + targetOperatingSystem + "], [" + browserName + "].");
 	switch (browserName) {
 	case "MozillaFirefox":
-	    driver = drivers.get("MozillaFirefox");
+	    driver = drivers.get("MozillaFirefox").get(targetOperatingSystem);
 	    break;
 	case "MicrosoftInternetExplorer":
-	    driver = drivers.get("MicrosoftInternetExplorer");
+	    driver = drivers.get("MicrosoftInternetExplorer").get(targetOperatingSystem);
 	    break;
 	case "GoogleChrome":
-	    driver = drivers.get("GoogleChrome");
+	    driver = drivers.get("GoogleChrome").get(targetOperatingSystem);
 	    break;
 	case "MicrosoftEdge":
-	    driver = drivers.get("MicrosoftEdge");
+	    driver = drivers.get("MicrosoftEdge").get(targetOperatingSystem);
 	    break;
 	case "Safari":
-	    driver = drivers.get("Safari");
+	    driver = drivers.get("Safari").get(targetOperatingSystem);
 	    break;
 	default:
 	    ReportManager.log("Unsupported Browser Type [" + browserName + "].");
@@ -284,16 +284,13 @@ public class BrowserFactory {
     }
 
     private static void setDriverOptions(String browserName) {
-	String downloadsFolderPath = FileManager.getAbsolutePath(System.getProperty("downloadsFolderPath"));
+	String downloadsFolderPath = FileActions.getAbsolutePath(System.getProperty("downloadsFolderPath"));
 
 	switch (browserName) {
 	case "MozillaFirefox":
 	    ffOptions = new FirefoxOptions();
 	    ffOptions.setCapability("platform", getDesiredOperatingSystem());
-	    // ffOptions.setCapability("marionette", true);
 	    ffOptions.setCapability("nativeEvents", true);
-	    // ffOptions.setAcceptInsecureCerts(true);
-	    // ffOptions.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.ACCEPT);
 	    ffOptions.setCapability(CapabilityType.LOGGING_PREFS, logPrefs);
 	    FirefoxProfile ffProfile = new FirefoxProfile();
 	    ffProfile.setPreference("browser.download.dir", downloadsFolderPath);
@@ -312,16 +309,8 @@ public class BrowserFactory {
 	    chOptions.setCapability("platform", getDesiredOperatingSystem());
 	    chOptions.addArguments("--no-sandbox");
 	    chOptions.addArguments("--disable-infobars"); // disable automation info bar
-	    // chOptions.setExperimentalOption("w3c", true); // enable w3c compliance to
-	    // make use of the latest w3c options
-	    // chOptions.setAcceptInsecureCerts(true);
-	    // chOptions.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.ACCEPT);
-	    // chOptions.addArguments("--headless");
-	    // chOptions.addArguments("--disable-gpu");
-
-	    // chOptions.addArguments("--enable-logging --v=1");
 	    chOptions.setCapability(CapabilityType.LOGGING_PREFS, logPrefs);
-	    Map<String, Object> chromePreferences = new Hashtable<String, Object>();
+	    Map<String, Object> chromePreferences = new HashMap<>();
 	    chromePreferences.put("profile.default_content_settings.popups", 0);
 	    chromePreferences.put("download.prompt_for_download", "false");
 	    chromePreferences.put("download.default_directory", downloadsFolderPath);
@@ -337,9 +326,7 @@ public class BrowserFactory {
 	    sfOptions = new SafariOptions();
 	    sfOptions.setCapability("platform", getDesiredOperatingSystem());
 	    sfOptions.setCapability(CapabilityType.LOGGING_PREFS, logPrefs);
-	    
 
-	    
 	    sfOptions.setCapability("safari.options.dataDir", downloadsFolderPath);
 	    break;
 	default:
@@ -355,32 +342,37 @@ public class BrowserFactory {
 	case "MozillaFirefox":
 	    System.setProperty("webdriver.gecko.driver", driversPath + "geckodriver" + fileExtension);
 	    driver = new FirefoxDriver(ffOptions);
-	    drivers.put("MozillaFirefox", driver);
+	    drivers.put(browserName, new HashMap<String, WebDriver>());
+	    drivers.get(browserName).put(targetOperatingSystem, driver);
 	    ReportManager.log("Successfully Opened Mozilla Firefox.");
 
 	    break;
 	case "MicrosoftInternetExplorer":
 	    System.setProperty("webdriver.ie.driver", driversPath + "IEDriverServer" + fileExtension);
 	    driver = new InternetExplorerDriver(ieOptions);
-	    drivers.put("MicrosoftInternetExplorer", driver);
+	    drivers.put(browserName, new HashMap<String, WebDriver>());
+	    drivers.get(browserName).put(targetOperatingSystem, driver);
 	    ReportManager.log("Successfully Opened Microsoft Internet Explorer.");
 
 	    break;
 	case "GoogleChrome":
 	    System.setProperty("webdriver.chrome.driver", driversPath + "chromedriver" + fileExtension);
 	    driver = new ChromeDriver(chOptions);
-	    drivers.put("GoogleChrome", driver);
+	    drivers.put(browserName, new HashMap<String, WebDriver>());
+	    drivers.get(browserName).put(targetOperatingSystem, driver);
 	    ReportManager.log("Successfully Opened Google Chrome.");
 	    break;
 	case "MicrosoftEdge":
 	    System.setProperty("webdriver.edge.driver", driversPath + "MicrosoftWebDriver" + fileExtension);
 	    driver = new EdgeDriver(edOptions);
-	    drivers.put("MicrosoftEdge", driver);
+	    drivers.put(browserName, new HashMap<String, WebDriver>());
+	    drivers.get(browserName).put(targetOperatingSystem, driver);
 	    ReportManager.log("Successfully Opened Microsoft Edge.");
 	    break;
 	case "Safari":
 	    driver = new SafariDriver(sfOptions);
-	    drivers.put("Safari", driver);
+	    drivers.put(browserName, new HashMap<String, WebDriver>());
+	    drivers.get(browserName).put(targetOperatingSystem, driver);
 	    ReportManager.log("Successfully Opened Safari.");
 	    break;
 	default:
@@ -388,8 +380,6 @@ public class BrowserFactory {
 	    Assert.fail("Unsupported Browser Type [" + browserName + "].");
 	    break;
 	}
-	// Set<String> logTypes = driver.manage().logs().getAvailableLogTypes();
-	// logTypes.size();
 	return driver;
     }
 
@@ -400,27 +390,32 @@ public class BrowserFactory {
 	    switch (browserName) {
 	    case "MozillaFirefox":
 		driver = new RemoteWebDriver(new URL(TARGET_HUB_URL), ffOptions);
-		drivers.put("MozillaFirefox", driver);
+		drivers.put(browserName, new HashMap<String, WebDriver>());
+		drivers.get(browserName).put(targetOperatingSystem, driver);
 		ReportManager.log("Successfully Opened Mozilla Firefox.");
 		break;
 	    case "MicrosoftInternetExplorer":
 		driver = new RemoteWebDriver(new URL(TARGET_HUB_URL), ieOptions);
-		drivers.put("MicrosoftInternetExplorer", driver);
+		drivers.put(browserName, new HashMap<String, WebDriver>());
+		drivers.get(browserName).put(targetOperatingSystem, driver);
 		ReportManager.log("Successfully Opened Microsoft Internet Explorer.");
 		break;
 	    case "GoogleChrome":
 		driver = new RemoteWebDriver(new URL(TARGET_HUB_URL), chOptions);
-		drivers.put("GoogleChrome", driver);
+		drivers.put(browserName, new HashMap<String, WebDriver>());
+		drivers.get(browserName).put(targetOperatingSystem, driver);
 		ReportManager.log("Successfully Opened Google Chrome.");
 		break;
 	    case "MicrosoftEdge":
 		driver = new RemoteWebDriver(new URL(TARGET_HUB_URL), edOptions);
-		drivers.put("MicrosoftEdge", driver);
+		drivers.put(browserName, new HashMap<String, WebDriver>());
+		drivers.get(browserName).put(targetOperatingSystem, driver);
 		ReportManager.log("Successfully Opened Microsoft Edge.");
 		break;
 	    case "Safari":
 		driver = new RemoteWebDriver(new URL(TARGET_HUB_URL), sfOptions);
-		drivers.put("Safari", driver);
+		drivers.put(browserName, new HashMap<String, WebDriver>());
+		drivers.get(browserName).put(targetOperatingSystem, driver);
 		ReportManager.log("Successfully Opened Safari.");
 		break;
 	    default:
@@ -472,10 +467,13 @@ public class BrowserFactory {
     public static void closeAllDrivers() {
 	if (!drivers.entrySet().isEmpty()) {
 	    try {
-		for (Entry<String, WebDriver> entry : drivers.entrySet()) {
-		    entry.getValue().close();
-		    entry.getValue().quit();
+		for (Entry<String, Map<String, WebDriver>> entry : drivers.entrySet()) {
+		    for (Entry<String, WebDriver> driverEntry : entry.getValue().entrySet()) {
+			driverEntry.getValue().close();
+			driverEntry.getValue().quit();
+		    }
 		}
+
 	    } catch (NoSuchSessionException e) {
 		// browser was already closed by the .close() method
 	    } catch (Exception e) {
@@ -489,11 +487,11 @@ public class BrowserFactory {
 
     public static void attachBrowserLogs() {
 	if (!drivers.entrySet().isEmpty()) {
-	    // TODO if the drivers were closed inside the test, nothing will be attached
-	    // because the set will be empty
 	    try {
-		for (Entry<String, WebDriver> entry : drivers.entrySet()) {
-		    attachBrowserLogs(entry.getKey(), entry.getValue());
+		for (Entry<String, Map<String, WebDriver>> entry : drivers.entrySet()) {
+		    for (Entry<String, WebDriver> driverEntry : entry.getValue().entrySet()) {
+			attachBrowserLogs(driverEntry.getKey(), driverEntry.getValue());
+		    }
 		}
 	    } catch (Exception e) {
 		ReportManager.log(e);
@@ -509,21 +507,7 @@ public class BrowserFactory {
 
 	    StringBuilder logBuilder;
 	    String performanceLogText = "";
-	    // String browserLogText = "";
 	    String driverLogText = "";
-
-	    // try {
-	    // logBuilder = new StringBuilder();
-	    // for (LogEntry entry : driver.manage().logs().get(LogType.BROWSER)) {
-	    // logBuilder.append(entry.toString() + System.lineSeparator());
-	    // }
-	    // browserLogText = logBuilder.toString();
-	    // ReportManager.attach("Logs", "Browser Logs for [" + borwserName + "]",
-	    // browserLogText);
-	    // } catch (WebDriverException e) {
-	    // // exception when the defined log type is not found
-	    // ReportManager.log(e);
-	    // }
 
 	    try {
 		logBuilder = new StringBuilder();
