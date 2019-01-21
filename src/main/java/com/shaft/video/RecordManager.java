@@ -1,4 +1,4 @@
-package com.shaft.io;
+package com.shaft.video;
 
 import java.awt.AWTException;
 import java.awt.GraphicsConfiguration;
@@ -15,6 +15,9 @@ import org.monte.media.FormatKeys.MediaType;
 import org.monte.media.VideoFormatKeys;
 import org.monte.media.math.Rational;
 import org.monte.screenrecorder.ScreenRecorder;
+
+import com.shaft.io.ReportManager;
+
 import static org.monte.media.VideoFormatKeys.*;
 
 public class RecordManager {

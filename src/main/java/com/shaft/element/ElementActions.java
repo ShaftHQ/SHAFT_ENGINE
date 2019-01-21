@@ -30,8 +30,8 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import org.testng.Assert;
 
 import com.shaft.browser.BrowserFactory;
+import com.shaft.image.ScreenshotManager;
 import com.shaft.io.ReportManager;
-import com.shaft.io.ScreenshotManager;
 
 public class ElementActions {
     private static int defaultElementIdentificationTimeout = Integer
