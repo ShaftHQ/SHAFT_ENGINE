@@ -12,7 +12,7 @@ import javax.imageio.ImageIO;
 
 import org.testng.Assert;
 
-import com.shaft.io.FileManager;
+import com.shaft.io.FileActions;
 import com.shaft.io.ReportManager;
 import com.shaft.validation.Assertions;
 import com.shaft.validation.Verifications;
@@ -31,9 +31,9 @@ public class ImageProcessingActions {
 	    File testFolder = new File(testFolderPath);
 
 	    // cleaning processing folders
-	    FileManager.deleteFolder(refrenceFolder.getAbsolutePath() + "/processingDirectory/");
-	    FileManager.deleteFolder(testFolder.getAbsolutePath() + "/processingDirectory/");
-	    FileManager.deleteFolder(testFolder.getAbsolutePath() + "/failedImagesDirectory/");
+	    FileActions.deleteFolder(refrenceFolder.getAbsolutePath() + "/processingDirectory/");
+	    FileActions.deleteFolder(testFolder.getAbsolutePath() + "/processingDirectory/");
+	    FileActions.deleteFolder(testFolder.getAbsolutePath() + "/failedImagesDirectory/");
 
 	    // preparing objects for files
 	    File[] refrenceFiles = refrenceFolder.listFiles();
@@ -51,7 +51,7 @@ public class ImageProcessingActions {
 	    if (refrenceFiles.length == testFiles.length) {
 		// copy and rename reference screenshots to a processing directory
 		for (File refrenceScreenshot : refrenceFiles) {
-		    FileManager.copyFile(refrenceScreenshot.getAbsolutePath(),
+		    FileActions.copyFile(refrenceScreenshot.getAbsolutePath(),
 			    refrenceScreenshot.getParent() + "/processingDirectory/" + fileCounter);
 		    fileCounter++;
 		}
@@ -61,7 +61,7 @@ public class ImageProcessingActions {
 
 		fileCounter = 1;
 		for (File testScreenshot : testFiles) {
-		    FileManager.copyFile(testScreenshot.getAbsolutePath(),
+		    FileActions.copyFile(testScreenshot.getAbsolutePath(),
 			    testScreenshot.getParent() + "/processingDirectory/" + fileCounter);
 		    fileCounter++;
 		}
@@ -81,8 +81,8 @@ public class ImageProcessingActions {
 			testProcessingFolder, threshhold);
 
 		// cleaning processing folders
-		FileManager.deleteFolder(refrenceFolder.getAbsolutePath() + "/processingDirectory/");
-		FileManager.deleteFolder(testFolder.getAbsolutePath() + "/processingDirectory/");
+		FileActions.deleteFolder(refrenceFolder.getAbsolutePath() + "/processingDirectory/");
+		FileActions.deleteFolder(testFolder.getAbsolutePath() + "/processingDirectory/");
 
 	    } else {
 		// fail because the number of screenshots don't match
@@ -158,9 +158,9 @@ public class ImageProcessingActions {
 	    } catch (AssertionError e) {
 		ReportManager.setDiscreetLogging(false);
 		// copying image to failed images directory
-		FileManager.copyFile(screenshot.getAbsolutePath(), testProcessingFolder.getParent()
+		FileActions.copyFile(screenshot.getAbsolutePath(), testProcessingFolder.getParent()
 			+ "/failedImagesDirectory/" + relatedTestFileName + "_testImage");
-		FileManager.copyFile(
+		FileActions.copyFile(
 			refrenceProcessingFolder + FileSystems.getDefault().getSeparator() + screenshot.getName(),
 			testProcessingFolder.getParent() + "/failedImagesDirectory/" + relatedTestFileName
 				+ "_refrenceImage");

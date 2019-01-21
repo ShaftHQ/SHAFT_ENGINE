@@ -15,8 +15,8 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 
 import com.shaft.element.ElementActions;
 import com.shaft.element.JSWaiter;
+import com.shaft.image.ScreenshotManager;
 import com.shaft.io.ReportManager;
-import com.shaft.io.ScreenshotManager;
 
 public class BrowserActions {
 

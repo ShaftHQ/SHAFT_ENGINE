@@ -33,10 +33,10 @@ import org.openqa.selenium.safari.SafariOptions;
 import org.testng.Assert;
 
 import com.shaft.element.JSWaiter;
+import com.shaft.image.ScreenshotManager;
 import com.shaft.io.ExcelFileManager;
-import com.shaft.io.FileManager;
+import com.shaft.io.FileActions;
 import com.shaft.io.ReportManager;
-import com.shaft.io.ScreenshotManager;
 
 public class BrowserFactory {
 
@@ -284,7 +284,7 @@ public class BrowserFactory {
     }
 
     private static void setDriverOptions(String browserName) {
-	String downloadsFolderPath = FileManager.getAbsolutePath(System.getProperty("downloadsFolderPath"));
+	String downloadsFolderPath = FileActions.getAbsolutePath(System.getProperty("downloadsFolderPath"));
 
 	switch (browserName) {
 	case "MozillaFirefox":
