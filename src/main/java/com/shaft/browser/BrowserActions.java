@@ -15,8 +15,8 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 
 import com.shaft.element.ElementActions;
 import com.shaft.element.JSWaiter;
+import com.shaft.image.ScreenshotManager;
 import com.shaft.io.ReportManager;
-import com.shaft.io.ScreenshotManager;
 
 public class BrowserActions {
 
@@ -65,7 +65,7 @@ public class BrowserActions {
      * @return the URL that's currently open in the current page
      */
     public static String getCurrentURL(WebDriver driver) {
-	triggerWaitForLazyLoading(driver);
+	JSWaiter.waitForLazyLoading();
 	String currentURL = "";
 	try {
 	    currentURL = driver.getCurrentUrl();
@@ -84,7 +84,7 @@ public class BrowserActions {
      * @return the title of the current window
      */
     public static String getCurrentWindowTitle(WebDriver driver) {
-	triggerWaitForLazyLoading(driver);
+	JSWaiter.waitForLazyLoading();
 	String currentWindowTitle = "";
 	try {
 	    currentWindowTitle = driver.getTitle();
@@ -103,7 +103,7 @@ public class BrowserActions {
      * @return the source of the current page
      */
     public static String getPageSource(WebDriver driver) {
-	triggerWaitForLazyLoading(driver);
+	JSWaiter.waitForLazyLoading();
 	String pageSource = "";
 	try {
 	    pageSource = driver.getPageSource();
@@ -122,7 +122,7 @@ public class BrowserActions {
      * @return the window handle for the current window
      */
     public static String getWindowHandle(WebDriver driver) {
-	triggerWaitForLazyLoading(driver);
+	JSWaiter.waitForLazyLoading();
 	String windowHandle = "";
 	try {
 	    windowHandle = driver.getWindowHandle();
@@ -141,7 +141,7 @@ public class BrowserActions {
      * @return the position of the current window
      */
     public static String getWindowPosition(WebDriver driver) {
-	triggerWaitForLazyLoading(driver);
+	JSWaiter.waitForLazyLoading();
 	String windowPosition = "";
 	try {
 	    windowPosition = driver.manage().window().getPosition().toString();
@@ -160,7 +160,7 @@ public class BrowserActions {
      * @return the size of the current window
      */
     public static String getWindowSize(WebDriver driver) {
-	triggerWaitForLazyLoading(driver);
+	JSWaiter.waitForLazyLoading();
 	String windowSize = "";
 	try {
 	    windowSize = driver.manage().window().getSize().toString();
@@ -201,7 +201,7 @@ public class BrowserActions {
 	// force stop any current navigation
 	try {
 	    ((JavascriptExecutor) driver).executeScript("return window.stop;");
-	    triggerWaitForLazyLoading(driver);
+	    JSWaiter.waitForLazyLoading();
 
 	    String initialURL = "";
 	    String initialSource = driver.getPageSource();
@@ -209,7 +209,7 @@ public class BrowserActions {
 	    if (!initialURL.equals(targetUrl)) {
 		// navigate to new url
 		navigateToNewURL(driver, targetUrl, targetUrlAfterRedirection);
-		triggerWaitForLazyLoading(driver);
+		JSWaiter.waitForLazyLoading();
 
 		if ((ElementActions.getElementsCount(driver, By.tagName("html")) == 1)
 			&& (!driver.getPageSource().equalsIgnoreCase(initialSource))) {
@@ -218,7 +218,7 @@ public class BrowserActions {
 	    } else {
 		// already on the same page
 		driver.navigate().refresh();
-		triggerWaitForLazyLoading(driver);
+		JSWaiter.waitForLazyLoading();
 
 		if (ElementActions.getElementsCount(driver, By.tagName("html")) == 1) {
 		    passAction(driver, "navigateToURL", targetUrl);
@@ -237,12 +237,12 @@ public class BrowserActions {
      * @param driver the current instance of Selenium webdriver
      */
     public static void navigateBack(WebDriver driver) {
-	triggerWaitForLazyLoading(driver);
+	JSWaiter.waitForLazyLoading();
 	String initialURL = "";
 	try {
 	    initialURL = driver.getCurrentUrl();
 	    driver.navigate().back();
-	    triggerWaitForLazyLoading(driver);
+	    JSWaiter.waitForLazyLoading();
 	    (new WebDriverWait(driver, 30)).until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
 	    if (!initialURL.equals(driver.getCurrentUrl())) {
 		passAction(driver, "navigateBack");
@@ -256,12 +256,12 @@ public class BrowserActions {
     }
 
     public static void navigateForward(WebDriver driver) {
-	triggerWaitForLazyLoading(driver);
+	JSWaiter.waitForLazyLoading();
 	String initialURL = "";
 	try {
 	    initialURL = driver.getCurrentUrl();
 	    driver.navigate().forward();
-	    triggerWaitForLazyLoading(driver);
+	    JSWaiter.waitForLazyLoading();
 	    (new WebDriverWait(driver, 30)).until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
 	    if (!initialURL.equals(driver.getCurrentUrl())) {
 		passAction(driver, "navigateForward");
@@ -280,7 +280,7 @@ public class BrowserActions {
      * @param driver the current instance of Selenium webdriver
      */
     public static void refreshCurrentPage(WebDriver driver) {
-	triggerWaitForLazyLoading(driver);
+	JSWaiter.waitForLazyLoading();
 	driver.navigate().refresh();
 	passAction(driver, "refreshCurrentPage");
 	// removed all exception handling as there was no comments on when and why this
@@ -309,7 +309,7 @@ public class BrowserActions {
      * @param driver the current instance of Selenium webdriver
      */
     public static void closeCurrentWindow(WebDriver driver) {
-	triggerWaitForLazyLoading(driver);
+	JSWaiter.waitForLazyLoading();
 	try {
 	    driver.close();
 	    passAction(driver, "closeCurrentWindow");
@@ -470,18 +470,5 @@ public class BrowserActions {
 		    "skipping switching window to full screen due to unknown error, marking step as passed.");
 	}
 	passAction(driver, "fullScreenWindow");
-    }
-
-    private static void triggerWaitForLazyLoading(WebDriver driver) {
-	try {
-	    JSWaiter.waitForLazyLoading();
-	} catch (Exception e) {
-	    if (e.getMessage().contains("jQuery is not defined")) {
-		// do nothing
-	    } else {
-		ReportManager.log(e);
-		failAction(driver, "triggerWaitForLazyLoading");
-	    }
-	}
     }
 }
