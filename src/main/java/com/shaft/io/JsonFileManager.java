@@ -25,7 +25,7 @@ public class JsonFileManager {
 	 * @return boolean value
 	 */
 
-	static boolean compareTypically(Response response, String jsFilePath) {
+	public static boolean compareTypically(Response response, String jsFilePath) {
 
 		JSONParser parser = new JSONParser();
 		JSONObject expectedJsonObject;
@@ -56,7 +56,7 @@ public class JsonFileManager {
 	 * @return boolean value
 	 */
 
-	static boolean compareStrictly(Response response, String jsFilePath) {
+	public static boolean compareStrictly(Response response, String jsFilePath) {
 		JSONParser parser = new JSONParser();
 		JSONObject expectedJsonObject;
 		JSONObject actualJsonObject;
@@ -95,7 +95,7 @@ public class JsonFileManager {
 	 * @return boolean value
 	 */
 
-	static boolean compareNonStrictly(Response response, String jsFilePath) {
+	public static boolean compareNonStrictly(Response response, String jsFilePath) {
 		JSONParser parser = new JSONParser();
 		JSONObject expectedJsonObject;
 		JSONObject actualJsonObject;
@@ -134,7 +134,7 @@ public class JsonFileManager {
 	 * @return boolean value
 	 */
 
-	static boolean containElements(Response response, String jsFilePath) {
+	public static boolean containElements(Response response, String jsFilePath) {
 		JSONParser parser = new JSONParser();
 		JSONObject expectedJsonObject;
 		JSONObject actualJsonObject;
