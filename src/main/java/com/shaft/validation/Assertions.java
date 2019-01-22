@@ -352,9 +352,6 @@ public class Assertions {
 
 	ReportManager.logDiscreet("Assertion [" + "assertBrowserAttribute"
 		+ "] is being performed for target attribute [" + browserAttribute + "].");
-	// String escapedExpectedValue = expectedValue;
-	// escapedExpectedValue = escapeSpecialCharacters(expectedValue);
-
 	String actualValue = null;
 
 	ReportManager.setDiscreetLogging(true);

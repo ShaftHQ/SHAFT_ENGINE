@@ -10,26 +10,6 @@ import com.shaft.io.ReportManager;
 public class TestListener implements ITestListener {
 
     @Override
-    public void onTestStart(ITestResult result) {
-    }
-
-    @Override
-    public void onTestSuccess(ITestResult result) {
-    }
-
-    @Override
-    public void onTestFailure(ITestResult result) {
-    }
-
-    @Override
-    public void onTestSkipped(ITestResult result) {
-    }
-
-    @Override
-    public void onTestFailedButWithinSuccessPercentage(ITestResult result) {
-    }
-
-    @Override
     public void onStart(ITestContext context) {
 	// This is to confirm that no browser sessions were leaked from the previous
 	// test class
@@ -39,7 +19,39 @@ public class TestListener implements ITestListener {
     }
 
     @Override
+    public void onTestStart(ITestResult result) {
+	// Auto-generated method stub
+
+    }
+
+    @Override
+    public void onTestSuccess(ITestResult result) {
+	// Auto-generated method stub
+
+    }
+
+    @Override
+    public void onTestFailure(ITestResult result) {
+	// Auto-generated method stub
+
+    }
+
+    @Override
+    public void onTestSkipped(ITestResult result) {
+	// Auto-generated method stub
+
+    }
+
+    @Override
+    public void onTestFailedButWithinSuccessPercentage(ITestResult result) {
+	// Auto-generated method stub
+
+    }
+
+    @Override
     public void onFinish(ITestContext context) {
+	// Auto-generated method stub
+
     }
 
 }
