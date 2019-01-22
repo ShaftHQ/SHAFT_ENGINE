@@ -46,13 +46,9 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 	if (!method.isConfigurationMethod()) {
 	    ITestNGMethod testMethod = method.getTestMethod();
 	    if (testMethod.isTest()) {
-		// ReportManager.log("AfterInvocation: Test Method.");
 		ElementActions.switchToDefaultContent();
 		BrowserFactory.attachAnimatedGif();
 		ReportManager.attachTestLog();
-//		try {
-//		    // testSize where the structure is testSuite > test > testClasses > testMethods
-//		    int testSize = testResult.getTestContext().getAllTestMethods().length;
 
 		if (invokedTestsCounter == testSize - 1) {
 		    // is last test in the class
@@ -65,10 +61,6 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 		} else {
 		    invokedTestsCounter++;
 		}
-//		} catch (NullPointerException e) {
-//		    // this is thrown if there is no test context for some reason...
-//		    ReportManager.log(e);
-//		}
 	    }
 	}
     }

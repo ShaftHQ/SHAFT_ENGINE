@@ -153,7 +153,6 @@ public class FileActions {
 	 * check the empty folder
 	 */
 	if (folder.list().length == 0) {
-	    // System.out.println(folder.getName());
 	    addFileToZip(path, srcFolder, zip, true);
 	} else {
 	    /*

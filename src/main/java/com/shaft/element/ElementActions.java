@@ -194,58 +194,85 @@ public class ElementActions {
 	}
     }
 
-    private static void typeWrapper(WebDriver driver, By elementLocator, String text, Boolean isSecureTyping) {
+    private static String determineSuccessfulTextLocationStrategy(WebDriver driver, By elementLocator) {
+	String elementText = driver.findElement(elementLocator).getText();
+	String successfulTextLocationStrategy = "text";
+	if (elementText.trim().equals("")) {
+	    elementText = driver.findElement(elementLocator).getAttribute("textContent");
+	    successfulTextLocationStrategy = "textContent";
+	}
+	if (elementText.trim().equals("")) {
+	    successfulTextLocationStrategy = "value";
+	}
+	return successfulTextLocationStrategy;
+    }
+
+    private static String readTextBasedOnSuccessfulLocationStrategy(WebDriver driver, By elementLocator,
+	    String successfulTextLocationStrategy) {
+	String actualText = "";
+	switch (successfulTextLocationStrategy) {
+	case "text":
+	    actualText = driver.findElement(elementLocator).getText();
+	    break;
+	case "textContent":
+	    actualText = driver.findElement(elementLocator).getAttribute("textContent");
+	    break;
+	case "value":
+	    actualText = driver.findElement(elementLocator).getAttribute("value");
+	    break;
+	default:
+	    break;
+	}
+	return actualText;
+    }
+
+    private static void typeWrapper(WebDriver driver, By elementLocator, String targetText, Boolean isSecureTyping) {
 	if (identifyUniqueElement(driver, elementLocator)) {
 	    // attempt to type
-	    String successfulTextLocationStrategy;
-	    String elementText = driver.findElement(elementLocator).getText();
-	    successfulTextLocationStrategy = "text";
-	    if (elementText.trim().equals("")) {
-		elementText = driver.findElement(elementLocator).getAttribute("textContent");
-		successfulTextLocationStrategy = "textContent";
-	    }
-	    if (elementText.trim().equals("")) {
-		elementText = driver.findElement(elementLocator).getAttribute("value");
-		successfulTextLocationStrategy = "value";
-	    }
+	    String successfulTextLocationStrategy = determineSuccessfulTextLocationStrategy(driver, elementLocator);
+	    String elementText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator,
+		    successfulTextLocationStrategy);
+
 	    if (!elementText.trim().equals("")) {
 		// attempt to clear element then check text size
-		clearBeforeTyping(driver, elementLocator, elementText, successfulTextLocationStrategy);
+		clearBeforeTyping(driver, elementLocator, successfulTextLocationStrategy);
 	    }
 	    if ((getMatchingElementsCount(driver, elementLocator, attemptsBeforeThrowingElementNotFoundException) == 1)
-		    && (!text.equals(""))) {
-		performType(driver, elementLocator, text);
+		    && (!targetText.equals(""))) {
+		performType(driver, elementLocator, targetText);
 	    }
 	    if ((getMatchingElementsCount(driver, elementLocator, attemptsBeforeThrowingElementNotFoundException) == 1)
-		    && (!text.equals(""))) {
+		    && (!targetText.equals(""))) {
 		// to confirm that the text was written successfully
-		if (confirmTypingWasSuccessful(driver, elementLocator, text, successfulTextLocationStrategy)) {
+		if (targetText.equals(readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator,
+			successfulTextLocationStrategy))) {
 		    if (isSecureTyping) {
-			passAction(driver, elementLocator, "type", text.replaceAll(".", "*"));
+			passAction(driver, elementLocator, "type", targetText.replaceAll(".", "*"));
 		    } else {
-			passAction(driver, elementLocator, "type", text);
+			passAction(driver, elementLocator, "type", targetText);
 		    }
 		} else {
 		    // attempt once to type using javascript then confirm typing was successful
 		    // again
-		    clearBeforeTyping(driver, elementLocator, elementText, successfulTextLocationStrategy);
-		    performTypeUsingJavaScript(driver, elementLocator, text);
-		    if (confirmTypingWasSuccessful(driver, elementLocator, text, successfulTextLocationStrategy)) {
+		    clearBeforeTyping(driver, elementLocator, successfulTextLocationStrategy);
+		    performTypeUsingJavaScript(driver, elementLocator, targetText);
+		    if (targetText.equals(readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator,
+			    successfulTextLocationStrategy))) {
 			if (isSecureTyping) {
-			    passAction(driver, elementLocator, "type", text.replaceAll(".", "*"));
+			    passAction(driver, elementLocator, "type", targetText.replaceAll(".", "*"));
 			} else {
-			    passAction(driver, elementLocator, "type", text);
+			    passAction(driver, elementLocator, "type", targetText);
 			}
 		    } else {
 			try {
 			    ReportManager.setDiscreetLogging(true);
 			    String actualText = getText(driver, elementLocator);
 			    ReportManager.setDiscreetLogging(false);
-			    failAction(driver, "type",
-				    "Expected to type: \"" + text + "\", but ended up with: \"" + actualText + "\"");
+			    failAction(driver, "type", "Expected to type: \"" + targetText + "\", but ended up with: \""
+				    + actualText + "\"");
 			} catch (Exception e) {
 			    failAction(driver, "type",
-				    "Expected to type: \"" + text + "\", but ended up with something else");
+				    "Expected to type: \"" + targetText + "\", but ended up with something else");
 			}
 		    }
 		}
@@ -253,22 +280,10 @@ public class ElementActions {
 	}
     }
 
-    private static void clearBeforeTyping(WebDriver driver, By elementLocator, String elementText,
-	    String successfulTextLocationStrategy) {
+    private static void clearBeforeTyping(WebDriver driver, By elementLocator, String successfulTextLocationStrategy) {
 	driver.findElement(elementLocator).clear();
-	switch (successfulTextLocationStrategy) {
-	case "text":
-	    elementText = driver.findElement(elementLocator).getText();
-	    break;
-	case "textContent":
-	    elementText = driver.findElement(elementLocator).getAttribute("textContent");
-	    break;
-	case "value":
-	    elementText = driver.findElement(elementLocator).getAttribute("value");
-	    break;
-	default:
-	    break;
-	}
+	String elementText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator,
+		successfulTextLocationStrategy);
 	if (!elementText.trim().equals("")) {
 	    int counter = elementText.length(); // delete text manually if clear didn't work
 	    while (counter > 0) {
@@ -316,31 +331,6 @@ public class ElementActions {
 		    driver.findElement(elementLocator));
 	} catch (Exception e) {
 	    ReportManager.log(e);
-	}
-    }
-
-    private static boolean confirmTypingWasSuccessful(WebDriver driver, By elementLocator, String text,
-	    String successfulTextLocationStrategy) {
-	// to confirm that the text was written successfully
-	String actualText = "";
-	switch (successfulTextLocationStrategy) {
-	case "text":
-	    actualText = driver.findElement(elementLocator).getText();
-	    break;
-	case "textContent":
-	    actualText = driver.findElement(elementLocator).getAttribute("textContent");
-	    break;
-	case "value":
-	    actualText = driver.findElement(elementLocator).getAttribute("value");
-	    break;
-	default:
-	    break;
-	}
-	if (actualText.equals(text)) {
-	    return true;
-
-	} else {
-	    return false;
 	}
     }
 
