@@ -71,22 +71,36 @@ public class Assertions {
 	ReportManager.logDiscreet("Assertion [" + "assertEquals" + "] is being performed, with expectedValue ["
 		+ expectedValue + "], actualValue [" + actualValue + "], and assertionType [" + assertionType + "].");
 
+	String reportedExpectedValue;
+	if (expectedValue.toString().length() > 200) {
+	    reportedExpectedValue = expectedValue.toString().substring(0, 200) + "...";
+	} else {
+	    reportedExpectedValue = expectedValue.toString();
+	}
+
+	String reportedActualValue;
+	if (actualValue.toString().length() > 200) {
+	    reportedActualValue = actualValue.toString().substring(0, 200) + "...";
+	} else {
+	    reportedActualValue = actualValue.toString();
+	}
+
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, assertionType)) {
 	case 1:
 	    if (assertionType) {
-		pass("Assertion Passed; actual value does match expected value [" + expectedValue + "].");
+		pass("Assertion Passed; actual value does match expected value [" + reportedExpectedValue + "].");
 
 	    } else {
-		pass("Assertion Passed; actual value [" + actualValue + "] does not match expected value ["
-			+ expectedValue + "].");
+		pass("Assertion Passed; actual value [" + reportedActualValue + "] does not match expected value ["
+			+ reportedExpectedValue + "].");
 	    }
 	    break;
 	case 0:
 	    if (assertionType) {
-		fail("Assertion Failed; actual value [" + actualValue + "] does not match expected value ["
-			+ expectedValue + "].");
+		fail("Assertion Failed; actual value [" + reportedActualValue + "] does not match expected value ["
+			+ reportedExpectedValue + "].");
 	    } else {
-		fail("Assertion Failed; actual value does match expected value [" + expectedValue + "].");
+		fail("Assertion Failed; actual value does match expected value [" + reportedExpectedValue + "].");
 	    }
 	    break;
 	case -1:

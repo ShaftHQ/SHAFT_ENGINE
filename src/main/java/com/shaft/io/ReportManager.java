@@ -40,7 +40,7 @@ public class ReportManager {
      * @param logText the text that needs to be logged in this action
      */
     public static void log(String logText) {
-	if (isDiscreetLogging()) {
+	if (isDiscreetLogging() && !logText.toLowerCase().contains("failed")) {
 	    createLogEntry(logText);
 	} else {
 	    writeStepToReport(logText, actionCounter);

@@ -14,22 +14,25 @@ public class PropertiesFileManager {
     }
 
     public static void readPropertyFiles() {
+	readPropertyFiles(System.getProperty("propertiesFolderPath"));
+    }
+
+    public static void readPropertyFiles(String customFolderPath) {
 	try {
 	    Properties properties = new Properties();
 	    Collection<File> propertiesFilesList;
-	    propertiesFilesList = FileUtils.listFiles(new File(System.getProperty("propertiesFolderPath")),
-		    new String[] { "properties" }, true);
+	    propertiesFilesList = FileUtils.listFiles(new File(customFolderPath), new String[] { "properties" }, true);
 	    propertiesFilesList.forEach(propertyFile -> {
 		try {
 		    properties.load(new FileInputStream(propertyFile));
 		    properties.putAll(System.getProperties());
 		    System.getProperties().putAll(properties);
 		} catch (IOException e) {
-		    ReportManager.log(e);
+		    //ReportManager.log(e);
 		}
 	    });
 	} catch (Exception e) {
-	    ReportManager.log(e);
+	    //ReportManager.log(e);
 	}
     }
 }
