@@ -69,38 +69,27 @@ public class Assertions {
     public static void assertEquals(Object expectedValue, Object actualValue, int comparisonType,
 	    Boolean assertionType) {
 	ReportManager.logDiscreet("Assertion [" + "assertEquals" + "] is being performed, with expectedValue ["
-		+ expectedValue + "], actualValue [" + actualValue + "], and assertionType [" + assertionType + "].");
-
-	String reportedExpectedValue;
-	if (expectedValue.toString().length() > 200) {
-	    reportedExpectedValue = expectedValue.toString().substring(0, 200) + "...";
-	} else {
-	    reportedExpectedValue = expectedValue.toString();
-	}
-
-	String reportedActualValue;
-	if (actualValue.toString().length() > 200) {
-	    reportedActualValue = actualValue.toString().substring(0, 200) + "...";
-	} else {
-	    reportedActualValue = actualValue.toString();
-	}
+		+ expectedValue + "], actualValue [" + actualValue + "], comparisonType [" + comparisonType
+		+ "], and assertionType [" + assertionType + "].");
 
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, assertionType)) {
 	case 1:
 	    if (assertionType) {
-		pass("Assertion Passed; actual value does match expected value [" + reportedExpectedValue + "].");
+		pass("Assertion Passed; actual value [" + actualValue + "] does match expected value [" + expectedValue
+			+ "].");
 
 	    } else {
-		pass("Assertion Passed; actual value [" + reportedActualValue + "] does not match expected value ["
-			+ reportedExpectedValue + "].");
+		pass("Assertion Passed; actual value [" + actualValue + "] does not match expected value ["
+			+ expectedValue + "].");
 	    }
 	    break;
 	case 0:
 	    if (assertionType) {
-		fail("Assertion Failed; actual value [" + reportedActualValue + "] does not match expected value ["
-			+ reportedExpectedValue + "].");
+		fail("Assertion Failed; actual value [" + actualValue + "] does not match expected value ["
+			+ expectedValue + "].");
 	    } else {
-		fail("Assertion Failed; actual value does match expected value [" + reportedExpectedValue + "].");
+		fail("Assertion Failed; actual value [" + actualValue + "] does match expected value [" + expectedValue
+			+ "].");
 	    }
 	    break;
 	case -1:
