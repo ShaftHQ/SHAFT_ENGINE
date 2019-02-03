@@ -311,11 +311,11 @@ public class ReportManager {
 	clearTestLog();
 	if (!testDescription.equals("")) {
 	    createImportantReportEntry("Starting Execution:\t[" + testCaseNumber + " out of " + totalTestCasesCount
-		    + "] tests in the current class;\nTest Method:\t\t[" + className + "." + testMethodName
+		    + "] test cases in the current test;\nTest Method:\t\t[" + className + "." + testMethodName
 		    + "].\nTest Description:\t[" + testDescription + "].");
 	} else {
 	    createImportantReportEntry("Starting Execution:\t[" + testCaseNumber + " out of " + totalTestCasesCount
-		    + "] tests in the current class;\nTest Method:\t\t[" + className + "." + testMethodName + "].");
+		    + "] test cases in the current test;\nTest Method:\t\t[" + className + "." + testMethodName + "].");
 	}
     }
 

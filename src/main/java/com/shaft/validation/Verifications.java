@@ -83,41 +83,27 @@ public class Verifications {
      */
     public static void verifyEquals(Object expectedValue, Object actualValue, int comparisonType,
 	    Boolean verificationType) {
-	ReportManager.logDiscreet(
-		"Verification [" + "verifyEquals" + "] is being performed, with expectedValue [" + expectedValue
-			+ "], actualValue [" + actualValue + "], and verificationType [" + verificationType + "].");
-
-	String reportedExpectedValue;
-	if (expectedValue.toString().length() > 200) {
-	    reportedExpectedValue = expectedValue.toString().substring(0, 200) + "...";
-	} else {
-	    reportedExpectedValue = expectedValue.toString();
-	}
-
-	String reportedActualValue;
-	if (actualValue.toString().length() > 200) {
-	    reportedActualValue = actualValue.toString().substring(0, 200) + "...";
-	} else {
-	    reportedActualValue = actualValue.toString();
-	}
+	ReportManager.logDiscreet("Verification [" + "verifyEquals" + "] is being performed, with expectedValue ["
+		+ expectedValue + "], actualValue [" + actualValue + "], comparisonType [" + comparisonType
+		+ "], and verificationType [" + verificationType + "].");
 
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, verificationType)) {
 	case 1:
 	    if (verificationType) {
-		verificationSuccesses.append(
-			"Verification Passed; actual value does match expected value [" + reportedExpectedValue + "].");
+		verificationSuccesses.append("Verification Passed; actual value [" + actualValue
+			+ "] does match expected value [" + expectedValue + "].");
 	    } else {
-		verificationSuccesses.append("Verification Passed; actual value [" + reportedActualValue
-			+ "] does not match expected value [" + reportedExpectedValue + "].");
+		verificationSuccesses.append("Verification Passed; actual value [" + actualValue
+			+ "] does not match expected value [" + expectedValue + "].");
 	    }
 	    break;
 	case 0:
 	    if (verificationType) {
-		verificationFailures.append("Verification Failed; actual value [" + reportedActualValue
-			+ "] does not match expected value [" + reportedExpectedValue + "].");
+		verificationFailures.append("Verification Failed; actual value [" + actualValue
+			+ "] does not match expected value [" + expectedValue + "].");
 	    } else {
-		verificationFailures.append(
-			"Verification Failed; actual value does match expected value [" + reportedActualValue + "].");
+		verificationFailures.append("Verification Failed; actual value [" + actualValue
+			+ "] does match expected value [" + expectedValue + "].");
 	    }
 	    break;
 	case -1:

@@ -2,7 +2,9 @@ package com.shaft.api;
 
 import static io.restassured.RestAssured.given;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -13,10 +15,14 @@ import com.shaft.io.ReportManager;
 import com.shaft.support.JavaActions;
 import com.shaft.validation.Assertions;
 
+import io.restassured.builder.RequestSpecBuilder;
+import io.restassured.http.ContentType;
 import io.restassured.http.Cookie;
 import io.restassured.http.Header;
+import io.restassured.mapper.ObjectMapperType;
 import io.restassured.path.json.exception.JsonPathException;
 import io.restassured.response.Response;
+import io.restassured.specification.RequestSpecification;
 
 public class RestActions {
     private static final String ARGUMENTSEPARATOR = "?";
@@ -32,6 +38,10 @@ public class RestActions {
 	sessionHeaders = new HashMap<>();
 	this.serviceURI = serviceURI;
     }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////// [private] Reporting Actions
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     private void passAction(String actionName, String testData, Response response) {
 	String message = "Successfully performed action [" + actionName + "].";
@@ -64,110 +74,19 @@ public class RestActions {
 	failAction(actionName, testData, null);
     }
 
-    /**
-     * Attempts to perform POST/GET/DELETE request to a REST API, then checks the
-     * response status code, if it matches the target code the step is passed and
-     * the response is returned. Otherwise the action fails and NULL is returned.
-     * 
-     * @param requestType      POST/GET/DELETE
-     * @param targetStatusCode 200
-     * @param serviceName      /servicePATH/serviceNAME
-     * @param argument         arguments without a preceding ?
-     * @param credentials      an optional array of strings that holds the username,
-     *                         password that will be used for the
-     *                         headerAuthorization of this request
-     * @return Response; returns the full response object for further manipulation
-     */
-    public Response performRequest(String requestType, String targetStatusCode, String serviceName, String argument,
-	    String... credentials) {
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////// [private] Preparation and Support Actions
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	String request = prepareRequest(argument, serviceName);
-	prepareHeaders(credentials);
-
-	Response response = null;
-	try {
-	    if (requestType.equalsIgnoreCase("post") || requestType.equalsIgnoreCase("get")
-		    || requestType.equalsIgnoreCase("delete")) {
-		response = sendRequest(requestType, request);
-	    } else {
-		failAction("performRequest", request);
-	    }
-
-	    if (response != null) {
-		extractCookiesFromResponse(response);
-		extractHeadersFromResponse(response);
-
-		assertResponseStatusCode(request, response, targetStatusCode);
-	    }
-	} catch (Exception e) {
-	    ReportManager.log(e);
-	    if (response != null) {
-		failAction("performRequest",
-			request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", response);
-	    } else {
-		failAction("performRequest", request);
-	    }
-	}
-	return response;
-    }
-
-    /**
-     * Attempts to perform POST/PATCH request with Json body to a REST API, then
-     * checks the response status code, if it matches the target code the step is
-     * passed and the response is returned. Otherwise the action fails and NULL is
-     * returned.
-     * 
-     * @param requestType      POST/Patch
-     * @param targetStatusCode 200
-     * @param serviceName      /servicePATH/serviceNAME
-     * @param argument         arguments without a preceding ?
-     * @param body             Json Object for body data
-     * @param credentials      an optional array of strings that holds the username,
-     *                         password that will be used for the
-     *                         headerAuthorization of this request
-     * @return Response; returns the full response object for further manipulation
-     */
-    public Response performRequest(String requestType, String targetStatusCode, String serviceName, String argument,
-	    JsonObject body, String... credentials) {
-
-	String request = prepareRequest(argument, serviceName);
-	prepareHeaders(credentials);
-
-	Response response = null;
-	try {
-	    if (requestType.equalsIgnoreCase("post") || requestType.equalsIgnoreCase("patch")) {
-		response = sendRequest(requestType, request, body);
-	    } else {
-		failAction("performRequest", request);
-	    }
-
-	    if (response != null) {
-		extractCookiesFromResponse(response);
-		extractHeadersFromResponse(response);
-
-		assertResponseStatusCode(request, response, targetStatusCode);
-	    }
-	} catch (Exception e) {
-	    ReportManager.log(e);
-	    if (response != null) {
-		failAction("performRequest",
-			request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", response);
-	    } else {
-		failAction("performRequest", request);
-	    }
-	}
-	return response;
-    }
-
-    private String prepareRequest(String argument, String serviceName) {
-	if (!argument.equals("")) {
-	    return serviceURI + serviceName + ARGUMENTSEPARATOR + argument;
+    private String prepareRequestURL(String urlArguments, String serviceName) {
+	if (urlArguments != null && !urlArguments.equals("")) {
+	    return serviceURI + serviceName + ARGUMENTSEPARATOR + urlArguments;
 	} else {
 	    return serviceURI + serviceName;
 	}
     }
 
-    private void prepareHeaders(String[] credentials) {
+    private void prepareRequestHeaderAuthorization(String[] credentials) {
 	if (headerAuthorization.equals("") && credentials.length == 2) {
 	    headerAuthorization = "Basic " + JavaActions.convertBase64(credentials[0] + ":" + credentials[1]);
 
@@ -175,6 +94,7 @@ public class RestActions {
 	}
     }
 
+    @Deprecated
     private Response sendRequest(String requestType, String request) {
 	if (sessionCookies.size() == 0 && sessionHeaders.size() > 0) {
 	    switch (requestType.toLowerCase()) {
@@ -213,6 +133,7 @@ public class RestActions {
 	return null;
     }
 
+    @Deprecated
     private Response sendRequest(String requestType, String request, JsonObject body) {
 	if (sessionCookies.size() == 0 && sessionHeaders.size() > 0) {
 	    switch (requestType.toLowerCase()) {
@@ -240,6 +161,59 @@ public class RestActions {
 	    case "patch":
 		return given().headers(sessionHeaders).cookies(sessionCookies).when().body(body.toString())
 			.patch(request).andReturn();
+	    default:
+		break;
+	    }
+	}
+	return null;
+    }
+
+    private Response sendRequest(String requestType, String request, RequestSpecification specs,
+	    ContentType contentType) {
+	if (sessionCookies.size() == 0 && sessionHeaders.size() > 0) {
+	    switch (requestType.toLowerCase()) {
+	    case "post":
+		return given().headers(sessionHeaders).contentType(contentType).spec(specs).when().post(request)
+			.andReturn();
+	    case "patch":
+		return given().headers(sessionHeaders).contentType(contentType).spec(specs).when().patch(request)
+			.andReturn();
+	    case "get":
+		return given().headers(sessionHeaders).contentType(contentType).spec(specs).when().get(request)
+			.andReturn();
+	    case "delete":
+		return given().headers(sessionHeaders).contentType(contentType).spec(specs).when().delete(request)
+			.andReturn();
+	    default:
+		break;
+	    }
+	} else if (sessionCookies.size() == 0 && sessionHeaders.size() == 0) {
+	    switch (requestType.toLowerCase()) {
+	    case "post":
+		return given().contentType(contentType).spec(specs).when().post(request).andReturn();
+	    case "patch":
+		return given().contentType(contentType).spec(specs).when().patch(request).andReturn();
+	    case "get":
+		return given().contentType(contentType).spec(specs).when().get(request).andReturn();
+	    case "delete":
+		return given().contentType(contentType).spec(specs).when().delete(request).andReturn();
+	    default:
+		break;
+	    }
+	} else {
+	    switch (requestType.toLowerCase()) {
+	    case "post":
+		return given().headers(sessionHeaders).cookies(sessionCookies).contentType(contentType).spec(specs)
+			.when().post(request).andReturn();
+	    case "patch":
+		return given().headers(sessionHeaders).cookies(sessionCookies).contentType(contentType).spec(specs)
+			.when().patch(request).andReturn();
+	    case "get":
+		return given().headers(sessionHeaders).cookies(sessionCookies).contentType(contentType).spec(specs)
+			.when().get(request).andReturn();
+	    case "delete":
+		return given().headers(sessionHeaders).cookies(sessionCookies).contentType(contentType).spec(specs)
+			.when().delete(request).andReturn();
 	    default:
 		break;
 	    }
@@ -286,6 +260,229 @@ public class RestActions {
 	}
     }
 
+    private void assertResponseStatusCode(String request, Response response, String targetStatusCode) {
+	try {
+	    ReportManager.setDiscreetLogging(true);
+	    Assertions.assertEquals(targetStatusCode, String.valueOf(response.getStatusCode()), 1, true);
+	    ReportManager.setDiscreetLogging(false);
+	    passAction("performRequest", request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms",
+		    response);
+	} catch (AssertionError e) {
+	    failAction("performRequest", request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms",
+		    response);
+	}
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////// [Public] Core REST Actions
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /**
+     * @deprecated Attempts to perform POST/GET/DELETE request to a REST API, then
+     *             checks the response status code, if it matches the target code
+     *             the step is passed and the response is returned. Otherwise the
+     *             action fails and NULL is returned.
+     * 
+     * @param requestType      POST/GET/DELETE
+     * @param targetStatusCode 200
+     * @param serviceName      /servicePATH/serviceNAME
+     * @param urlArguments     arguments without a preceding ?
+     * @param credentials      an optional array of strings that holds the username,
+     *                         password that will be used for the
+     *                         headerAuthorization of this request
+     * @return Response; returns the full response object for further manipulation
+     */
+    @Deprecated
+    public Response performRequest(String requestType, String targetStatusCode, String serviceName, String urlArguments,
+	    String... credentials) {
+
+	String request = prepareRequestURL(urlArguments, serviceName);
+	prepareRequestHeaderAuthorization(credentials);
+
+	Response response = null;
+	try {
+	    if (requestType.equalsIgnoreCase("post") || requestType.equalsIgnoreCase("get")
+		    || requestType.equalsIgnoreCase("delete")) {
+		response = sendRequest(requestType, request);
+	    } else {
+		failAction("performRequest", request);
+	    }
+
+	    if (response != null) {
+		extractCookiesFromResponse(response);
+		extractHeadersFromResponse(response);
+
+		assertResponseStatusCode(request, response, targetStatusCode);
+	    }
+	} catch (Exception e) {
+	    ReportManager.log(e);
+	    if (response != null) {
+		failAction("performRequest",
+			request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", response);
+	    } else {
+		failAction("performRequest", request);
+	    }
+	}
+	return response;
+    }
+
+    /**
+     * @deprecated Attempts to perform POST/PATCH request with Json body to a REST
+     *             API, then checks the response status code, if it matches the
+     *             target code the step is passed and the response is returned.
+     *             Otherwise the action fails and NULL is returned.
+     * 
+     * @param requestType      POST/Patch
+     * @param targetStatusCode 200
+     * @param serviceName      /servicePATH/serviceNAME
+     * @param urlArguments     arguments without a preceding ?
+     * @param body             Json Object for body data
+     * @param credentials      an optional array of strings that holds the username,
+     *                         password that will be used for the
+     *                         headerAuthorization of this request
+     * @return Response; returns the full response object for further manipulation
+     */
+    @Deprecated
+    public Response performRequest(String requestType, String targetStatusCode, String serviceName, String urlArguments,
+	    JsonObject body, String... credentials) {
+
+	String request = prepareRequestURL(urlArguments, serviceName);
+	prepareRequestHeaderAuthorization(credentials);
+
+	Response response = null;
+	try {
+	    if (requestType.equalsIgnoreCase("post") || requestType.equalsIgnoreCase("patch")) {
+		response = sendRequest(requestType, request, body);
+	    } else {
+		failAction("performRequest", request);
+	    }
+
+	    if (response != null) {
+		extractCookiesFromResponse(response);
+		extractHeadersFromResponse(response);
+
+		assertResponseStatusCode(request, response, targetStatusCode);
+	    }
+	} catch (Exception e) {
+	    ReportManager.log(e);
+	    if (response != null) {
+		failAction("performRequest",
+			request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", response);
+	    } else {
+		failAction("performRequest", request);
+	    }
+	}
+	return response;
+    }
+
+    /**
+     * Attempts to perform POST/PATCH/GET/DELETE request to a REST API, then checks
+     * the response status code, if it matches the target code the step is passed
+     * and the response is returned. Otherwise the action fails and NULL is
+     * returned.
+     * 
+     * @param requestType      POST/PATCH/GET/DELETE
+     * @param targetStatusCode default success code is 200
+     * @param serviceName      /servicePATH/serviceNAME
+     * @param urlArguments     '&' separated arguments without a preceding '?', is
+     *                         nullable, Example: "username=test&password=test"
+     * @param formParameters   a list of key/value pairs that will be sent as
+     *                         parameters with this API call, is nullable, Example:
+     *                         Arrays.asList(Arrays.asList("itemId", "123"),
+     *                         Arrays.asList("contents", XMLcontents));
+     * @param body             Specify an Object request content that will
+     *                         automatically be serialized to JSON or XML and sent
+     *                         with the request. If the object is a primitive or
+     *                         Number the object will be converted to a String and
+     *                         put in the request body. This works for the POST, PUT
+     *                         and PATCH methods only. Trying to do this for the
+     *                         other http methods will cause an exception to be
+     *                         thrown, is nullable in case there is no body for that
+     *                         request
+     * @param bodyType         can be either JSON or XML, is nullable in case there
+     *                         is no body for that request
+     * @param contentType      Enumeration of common IANA content-types. This may be
+     *                         used to specify a request or response content-type
+     *                         more easily than specifying the full string each
+     *                         time. Example: ContentType.ANY
+     * @param credentials      an optional array of strings that holds the username,
+     *                         password that will be used for the
+     *                         headerAuthorization of this request
+     * @return Response; returns the full response object for further manipulation
+     */
+    public Response performRequest(String requestType, String targetStatusCode, String serviceName, String urlArguments,
+	    List<List<String>> formParameters, Object body, ContentType contentType, String... credentials) {
+
+	RequestSpecBuilder builder = new RequestSpecBuilder();
+
+	if (body != null && contentType != null && !body.toString().equals("")) {
+	    try {
+		switch (contentType) {
+		case JSON:
+		    builder.setBody(body, ObjectMapperType.GSON);
+		    break;
+		case XML:
+		    builder.setBody(body, ObjectMapperType.JAXB);
+		    break;
+		default:
+		    builder.setBody(body);
+		    break;
+		}
+	    } catch (Exception e) {
+		ReportManager.log(e);
+		failAction("performRequest", "Issue with parsing body content");
+
+	    }
+	} else if (formParameters != null && !formParameters.isEmpty() && !formParameters.get(0).get(0).equals("")) {
+	    formParameters.forEach(param -> {
+		builder.addParam(param.get(0), param.get(1));
+	    });
+	}
+
+	RequestSpecification specs = builder.build();
+
+	String request = prepareRequestURL(urlArguments, serviceName);
+	prepareRequestHeaderAuthorization(credentials);
+
+	Response response = null;
+	try {
+	    if (requestType.equalsIgnoreCase("post") || requestType.equalsIgnoreCase("patch")
+		    || requestType.equalsIgnoreCase("get") || requestType.equalsIgnoreCase("delete")) {
+		response = sendRequest(requestType, request, specs, contentType);
+	    } else {
+		failAction("performRequest", request);
+	    }
+
+	    if (response != null) {
+		extractCookiesFromResponse(response);
+		extractHeadersFromResponse(response);
+
+		assertResponseStatusCode(request, response, targetStatusCode);
+	    }
+	} catch (Exception e) {
+	    ReportManager.log(e);
+	    if (response != null) {
+		failAction("performRequest",
+			request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", response);
+	    } else {
+		failAction("performRequest", request);
+	    }
+	}
+	return response;
+    }
+
+    /**
+     * Extracts a string value from the response body by parsing the target jsonpath
+     * 
+     * @param response the full response object returned by 'performRequest()'
+     *                 method
+     * @param jsonPath the JSONPath expression that will be evaluated in order to
+     *                 extract the desired value [without the trailing $.], please
+     *                 refer to these urls for examples:
+     *                 https://support.smartbear.com/alertsite/docs/monitors/api/endpoint/jsonpath.html
+     *                 http://jsonpath.com/
+     * @return a string value that contains the extracted object
+     */
     public String getResponseJSONValue(Response response, String jsonPath) {
 	String searchPool = response.jsonPath().getString(jsonPath);
 	if (searchPool != null) {
@@ -295,6 +492,18 @@ public class RestActions {
 	    ReportManager.log("Couldn't find anything that matches with the desired jsonPath [" + jsonPath + "]");
 	    failAction("getResponseJSONValue", jsonPath);
 	    return "";
+	}
+    }
+
+    public List<Object> getResponseJSONValueAsList(Response response, String jsonPath) {
+	List<Object> searchPool = response.jsonPath().getList(jsonPath);
+	if (searchPool != null) {
+	    passAction("getResponseJSONValueAsList", jsonPath);
+	    return searchPool;
+	} else {
+	    ReportManager.log("Couldn't find anything that matches with the desired jsonPath [" + jsonPath + "]");
+	    failAction("getResponseJSONValueAsList", jsonPath);
+	    return Arrays.asList("");
 	}
     }
 
@@ -310,14 +519,15 @@ public class RestActions {
 	}
     }
 
-    private void assertResponseStatusCode(String request, Response response, String targetStatusCode) {
-	try {
-	    Assertions.assertEquals(targetStatusCode, String.valueOf(response.getStatusCode()), 1, true);
-	    passAction("performRequest", request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms",
-		    response);
-	} catch (AssertionError e) {
-	    failAction("performRequest", request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms",
-		    response);
+    public List<Object> getResponseXMLValueAsList(Response response, String xmlPath) {
+	List<Object> searchPool = response.xmlPath().getList(xmlPath);
+	if (searchPool != null) {
+	    passAction("getResponseXMLValueAsList", xmlPath);
+	    return searchPool;
+	} else {
+	    ReportManager.log("Couldn't find anything that matches with the desired xmlPath [" + xmlPath + "]");
+	    failAction("getResponseXMLValueAsList", xmlPath);
+	    return Arrays.asList("");
 	}
     }
 
