@@ -28,10 +28,10 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 	    if (testMethod.isTest()) {
 		if (testMethod.getDescription() != null) {
 		    ReportManager.logTestInformation(testMethod.getTestClass().getName(), testMethod.getMethodName(),
-			    testMethod.getDescription(), invokedTestsCounter + 1, testSize);
+			    testMethod.getDescription());
 		} else {
 		    ReportManager.logTestInformation(testMethod.getTestClass().getName(), testMethod.getMethodName(),
-			    "", invokedTestsCounter + 1, testSize);
+			    "");
 		}
 		BrowserFactory.startAnimatedGif();
 		if (invokedTestsCounter == 0) {
@@ -60,6 +60,11 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 		    invokedTestsCounter = 0;
 		} else {
 		    invokedTestsCounter++;
+		}
+
+		if (ReportManager.getTestCasesCounter() == ReportManager.getTotalNumberOfTests()) {
+		    // is the last test in the suite
+		    ReportManager.generateAllureReportArchive();
 		}
 	    }
 	}

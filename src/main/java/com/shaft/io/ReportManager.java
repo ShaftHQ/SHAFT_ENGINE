@@ -21,6 +21,11 @@ public class ReportManager {
     private static int actionCounter = 1;
     private static boolean discreetLogging = false;
     private static int totalNumberOfTests = 0;
+    private static int testCasesCounter = 0;
+
+    public static int getTestCasesCounter() {
+	return testCasesCounter;
+    }
 
     public static int getTotalNumberOfTests() {
 	return totalNumberOfTests;
@@ -111,6 +116,8 @@ public class ReportManager {
     }
 
     private static void createImportantReportEntry(String logText) {
+	Boolean initialLoggingStatus = discreetLogging;
+	setDiscreetLogging(false); // force log even if discreet logging was turned on
 	String log = System.lineSeparator()
 		+ "################################################################################################################################################"
 		+ System.lineSeparator() + logText.trim() + System.lineSeparator()
@@ -119,6 +126,7 @@ public class ReportManager {
 	Reporter.log(log, true);
 	appendToLog(log);
 	appendToLog(System.lineSeparator());
+	setDiscreetLogging(initialLoggingStatus);
     }
 
     /**
@@ -250,6 +258,7 @@ public class ReportManager {
     public static void generateAllureReportArchive() {
 	if (Boolean.valueOf(System.getProperty("automaticallyGenerateAllureReport").trim())) {
 	    logDiscreet("Generating Allure Report Archive...");
+	    Boolean discreetLoggingState = isDiscreetLogging();
 	    setDiscreetLogging(true);
 
 	    // add correct file extension based on target OS
@@ -282,17 +291,17 @@ public class ReportManager {
 	    FileActions.zipFiles("generatedReport/", "generatedReport.zip");
 
 	    FileActions.deleteFile("generatedReport/");
-	    setDiscreetLogging(false);
+	    setDiscreetLogging(discreetLoggingState);
 	}
     }
 
     public static void populateEnvironmentData() {
 	// sets up some parameters to the allure report
 	FileActions.writeToFile(System.getProperty("allureResultsFolderPath"), "environment.properties",
-		Arrays.asList("Engine=" + System.getProperty("shaftEngineVersion"),
-			"OS=" + System.getProperty("targetOperatingSystem"),
-			"Browser=" + System.getProperty("targetBrowserName"),
-			"Location=" + System.getProperty("executionAddress")));
+		Arrays.asList("Engine " + System.getProperty("shaftEngineVersion"),
+			"OS " + System.getProperty("targetOperatingSystem"),
+			"Browser " + System.getProperty("targetBrowserName"),
+			"Location " + System.getProperty("executionAddress")));
     }
 
     public static void logEngineVersion(Boolean isStartingExecution) {
@@ -306,16 +315,16 @@ public class ReportManager {
 	}
     }
 
-    public static void logTestInformation(String className, String testMethodName, String testDescription,
-	    int testCaseNumber, int totalTestCasesCount) {
+    public static void logTestInformation(String className, String testMethodName, String testDescription) {
 	clearTestLog();
+	testCasesCounter++;
 	if (!testDescription.equals("")) {
-	    createImportantReportEntry("Starting Execution:\t[" + testCaseNumber + " out of " + totalTestCasesCount
-		    + "] test cases in the current test;\nTest Method:\t\t[" + className + "." + testMethodName
-		    + "].\nTest Description:\t[" + testDescription + "].");
+	    createImportantReportEntry("Starting Execution:\t[" + testCasesCounter + " out of " + totalNumberOfTests
+		    + "] test cases in the current suite\nTest Method:\t\t[" + className + "." + testMethodName
+		    + "]\nTest Description:\t[" + testDescription + "]");
 	} else {
-	    createImportantReportEntry("Starting Execution:\t[" + testCaseNumber + " out of " + totalTestCasesCount
-		    + "] test cases in the current test;\nTest Method:\t\t[" + className + "." + testMethodName + "].");
+	    createImportantReportEntry("Starting Execution:\t[" + testCasesCounter + " out of " + totalNumberOfTests
+		    + "] test cases in the current suite\nTest Method:\t\t[" + className + "." + testMethodName + "]");
 	}
     }
 

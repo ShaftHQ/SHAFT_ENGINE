@@ -12,10 +12,11 @@ public class TestListener implements ITestListener {
     @Override
     public void onStart(ITestContext context) {
 	// This is to confirm that no browser sessions were leaked from the previous
-	// test class
+	// test
+	Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
 	ReportManager.setDiscreetLogging(true);
 	BrowserFactory.closeAllDrivers();
-	ReportManager.setDiscreetLogging(false);
+	ReportManager.setDiscreetLogging(discreetLoggingState);
     }
 
     @Override

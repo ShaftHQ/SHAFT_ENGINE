@@ -265,9 +265,10 @@ public class ElementActions {
 			}
 		    } else {
 			try {
+			    Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
 			    ReportManager.setDiscreetLogging(true);
 			    String actualText = getText(driver, elementLocator);
-			    ReportManager.setDiscreetLogging(false);
+			    ReportManager.setDiscreetLogging(discreetLoggingState);
 			    failAction(driver, "type", "Expected to type: \"" + targetText + "\", but ended up with: \""
 				    + actualText + "\"");
 			} catch (Exception e) {
@@ -281,14 +282,26 @@ public class ElementActions {
     }
 
     private static void clearBeforeTyping(WebDriver driver, By elementLocator, String successfulTextLocationStrategy) {
+	// attempt clear using clear
 	driver.findElement(elementLocator).clear();
 	String elementText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator,
 		successfulTextLocationStrategy);
+
+	// attempt clear using sendKeys
 	if (!elementText.trim().equals("")) {
-	    int counter = elementText.length(); // delete text manually if clear didn't work
-	    while (counter > 0) {
+	    driver.findElement(elementLocator).sendKeys("");
+	}
+
+	elementText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator, successfulTextLocationStrategy);
+	// attempt clear using javascript
+	performTypeUsingJavaScript(driver, elementLocator, "");
+
+	elementText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator, successfulTextLocationStrategy);
+	// attempt clear using letter by letter backspace
+	if (!elementText.trim().equals("")) {
+	    driver.findElement(elementLocator).sendKeys("");
+	    for (int i = 0; i < elementText.length(); i++) {
 		driver.findElement(elementLocator).sendKeys(Keys.BACK_SPACE);
-		counter--;
 	    }
 	}
     }
@@ -541,9 +554,10 @@ public class ElementActions {
 	if (getMatchingElementsCount(driver, elementLocator, attemptsBeforeThrowingElementNotFoundException) == 1) {
 	    driver.switchTo().frame((WebElement) driver.findElement(elementLocator));
 	    // note to self: remove elementLocator in case of bug in screenshot manager
+	    Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
 	    ReportManager.setDiscreetLogging(true);
 	    passAction(driver, "switchToIframe");
-	    ReportManager.setDiscreetLogging(false);
+	    ReportManager.setDiscreetLogging(discreetLoggingState);
 	} else {
 	    failAction(driver, "switchToIframe");
 	}
@@ -559,9 +573,10 @@ public class ElementActions {
     public static void switchToDefaultContent(WebDriver driver) {
 	try {
 	    driver.switchTo().defaultContent();
+	    Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
 	    ReportManager.setDiscreetLogging(true);
 	    passAction(driver, "switchToDefaultContent");
-	    ReportManager.setDiscreetLogging(false);
+	    ReportManager.setDiscreetLogging(discreetLoggingState);
 	} catch (Exception e) {
 	    failAction(driver, "switchToDefaultContent");
 	}
@@ -571,9 +586,10 @@ public class ElementActions {
 	if (BrowserFactory.getActiveDriverSessions() > 0 && (lastUsedDriver != null)) {
 	    try {
 		lastUsedDriver.switchTo().defaultContent();
+		Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
 		ReportManager.setDiscreetLogging(true);
 		passAction(lastUsedDriver, "switchToDefaultContent");
-		ReportManager.setDiscreetLogging(false);
+		ReportManager.setDiscreetLogging(discreetLoggingState);
 	    } catch (Exception e) {
 		ReportManager.log(e);
 	    }

@@ -168,18 +168,11 @@ public class ScreenshotUtils {
 	} catch (Exception e) {
 	    // this used to throw InterruptedException e, but was changed to the generic
 	    // exception to resolve the sonar lint comment
-
-	    // LOG.trace("Interrupt error during scrolling occurred.", e);
-	    // ReportManager.log(e);
 	}
     }
 
     private static void waitUntilItIsScrolledToPosition(WebDriver driver, int scrollPosition)
 	    throws InterruptedException {
-	// int hardTime = 0;// SCREENSHOT_FULLPAGE_SCROLLWAIT
-	// if (hardTime > 0) {
-	// Thread.sleep(hardTime);
-	// }
 	int time = 250;// SCREENSHOT_FULLPAGE_SCROLLTIMEOUT
 	boolean isScrolledToPosition = false;
 	while (time >= 0 && !isScrolledToPosition) {

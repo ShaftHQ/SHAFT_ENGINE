@@ -222,6 +222,7 @@ public class Assertions {
 		+ "] is being performed for target attribute [" + elementAttribute + "].");
 	String actualValue = null;
 
+	Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
 	ReportManager.setDiscreetLogging(true);
 	switch (elementAttribute.toLowerCase()) {
 	case "text":
@@ -237,7 +238,7 @@ public class Assertions {
 	    actualValue = ElementActions.getAttribute(driver, elementLocator, elementAttribute);
 	    break;
 	}
-	ReportManager.setDiscreetLogging(false);
+	ReportManager.setDiscreetLogging(discreetLoggingState);
 
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, assertionType)) {
 	case 1:
@@ -291,9 +292,10 @@ public class Assertions {
 	ReportManager.logDiscreet("Assertion [" + "assertElementCSSProperty"
 		+ "] is being performed for target CSS Property [" + propertyName + "].");
 
+	Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
 	ReportManager.setDiscreetLogging(true);
 	String actualValue = ElementActions.getCSSProperty(driver, elementLocator, propertyName);
-	ReportManager.setDiscreetLogging(false);
+	ReportManager.setDiscreetLogging(discreetLoggingState);
 
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, assertionType)) {
 	case 1:
@@ -357,6 +359,7 @@ public class Assertions {
 		+ "] is being performed for target attribute [" + browserAttribute + "].");
 	String actualValue = null;
 
+	Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
 	ReportManager.setDiscreetLogging(true);
 	switch (browserAttribute.toLowerCase()) {
 	case "currenturl":
@@ -381,7 +384,7 @@ public class Assertions {
 	    actualValue = "";
 	    break;
 	}
-	ReportManager.setDiscreetLogging(false);
+	ReportManager.setDiscreetLogging(discreetLoggingState);
 
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, assertionType)) {
 	case 1:

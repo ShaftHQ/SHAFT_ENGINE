@@ -157,9 +157,10 @@ public class TerminalActions {
 	    session.setConfig(config);
 
 	    session.connect();
+	    Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
 	    ReportManager.setDiscreetLogging(true);
 	    passAction("createSSHsession", testData);
-	    ReportManager.setDiscreetLogging(false);
+	    ReportManager.setDiscreetLogging(discreetLoggingState);
 	} catch (JSchException e) {
 	    ReportManager.log(e);
 	    failAction("createSSHsession", testData);

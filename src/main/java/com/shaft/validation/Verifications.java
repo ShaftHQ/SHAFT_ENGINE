@@ -239,6 +239,7 @@ public class Verifications {
 
 	String actualValue = null;
 
+	Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
 	ReportManager.setDiscreetLogging(true);
 	switch (elementAttribute.toLowerCase()) {
 	case "text":
@@ -254,7 +255,7 @@ public class Verifications {
 	    actualValue = ElementActions.getAttribute(driver, elementLocator, elementAttribute);
 	    break;
 	}
-	ReportManager.setDiscreetLogging(false);
+	ReportManager.setDiscreetLogging(discreetLoggingState);
 
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, verificationType)) {
 	case 1:
@@ -307,9 +308,10 @@ public class Verifications {
 	ReportManager.logDiscreet("Verification [" + "verifyElementCSSProperty"
 		+ "] is being performed for target CSS Property [" + propertyName + "].");
 
+	Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
 	ReportManager.setDiscreetLogging(true);
 	String actualValue = ElementActions.getCSSProperty(driver, elementLocator, propertyName);
-	ReportManager.setDiscreetLogging(false);
+	ReportManager.setDiscreetLogging(discreetLoggingState);
 
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, verificationType)) {
 	case 1:
@@ -371,6 +373,7 @@ public class Verifications {
 
 	String actualValue = null;
 
+	Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
 	ReportManager.setDiscreetLogging(true);
 	switch (browserAttribute.toLowerCase()) {
 	case "currenturl":
@@ -395,7 +398,7 @@ public class Verifications {
 	    actualValue = "";
 	    break;
 	}
-	ReportManager.setDiscreetLogging(false);
+	ReportManager.setDiscreetLogging(discreetLoggingState);
 
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, verificationType)) {
 	case 1:
