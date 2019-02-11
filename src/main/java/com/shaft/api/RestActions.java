@@ -262,9 +262,10 @@ public class RestActions {
 
     private void assertResponseStatusCode(String request, Response response, String targetStatusCode) {
 	try {
+	    Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
 	    ReportManager.setDiscreetLogging(true);
 	    Assertions.assertEquals(targetStatusCode, String.valueOf(response.getStatusCode()), 1, true);
-	    ReportManager.setDiscreetLogging(false);
+	    ReportManager.setDiscreetLogging(discreetLoggingState);
 	    passAction("performRequest", request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms",
 		    response);
 	} catch (AssertionError e) {
@@ -277,21 +278,6 @@ public class RestActions {
     //////////////////////////////////// [Public] Core REST Actions
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    /**
-     * @deprecated Attempts to perform POST/GET/DELETE request to a REST API, then
-     *             checks the response status code, if it matches the target code
-     *             the step is passed and the response is returned. Otherwise the
-     *             action fails and NULL is returned.
-     * 
-     * @param requestType      POST/GET/DELETE
-     * @param targetStatusCode 200
-     * @param serviceName      /servicePATH/serviceNAME
-     * @param urlArguments     arguments without a preceding ?
-     * @param credentials      an optional array of strings that holds the username,
-     *                         password that will be used for the
-     *                         headerAuthorization of this request
-     * @return Response; returns the full response object for further manipulation
-     */
     @Deprecated
     public Response performRequest(String requestType, String targetStatusCode, String serviceName, String urlArguments,
 	    String... credentials) {
@@ -326,22 +312,6 @@ public class RestActions {
 	return response;
     }
 
-    /**
-     * @deprecated Attempts to perform POST/PATCH request with Json body to a REST
-     *             API, then checks the response status code, if it matches the
-     *             target code the step is passed and the response is returned.
-     *             Otherwise the action fails and NULL is returned.
-     * 
-     * @param requestType      POST/Patch
-     * @param targetStatusCode 200
-     * @param serviceName      /servicePATH/serviceNAME
-     * @param urlArguments     arguments without a preceding ?
-     * @param body             Json Object for body data
-     * @param credentials      an optional array of strings that holds the username,
-     *                         password that will be used for the
-     *                         headerAuthorization of this request
-     * @return Response; returns the full response object for further manipulation
-     */
     @Deprecated
     public Response performRequest(String requestType, String targetStatusCode, String serviceName, String urlArguments,
 	    JsonObject body, String... credentials) {
@@ -384,8 +354,9 @@ public class RestActions {
      * @param requestType      POST/PATCH/GET/DELETE
      * @param targetStatusCode default success code is 200
      * @param serviceName      /servicePATH/serviceNAME
-     * @param urlArguments     '&' separated arguments without a preceding '?', is
-     *                         nullable, Example: "username=test&password=test"
+     * @param urlArguments     '&amp;' separated arguments without a preceding '?',
+     *                         is nullable, Example:
+     *                         "username=test&amp;password=test"
      * @param formParameters   a list of key/value pairs that will be sent as
      *                         parameters with this API call, is nullable, Example:
      *                         Arrays.asList(Arrays.asList("itemId", "123"),
@@ -399,8 +370,6 @@ public class RestActions {
      *                         other http methods will cause an exception to be
      *                         thrown, is nullable in case there is no body for that
      *                         request
-     * @param bodyType         can be either JSON or XML, is nullable in case there
-     *                         is no body for that request
      * @param contentType      Enumeration of common IANA content-types. This may be
      *                         used to specify a request or response content-type
      *                         more easily than specifying the full string each

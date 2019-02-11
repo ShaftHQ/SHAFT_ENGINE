@@ -8,7 +8,6 @@ import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
-import org.apache.commons.lang3.SystemUtils;
 import org.openqa.selenium.NoSuchSessionException;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.WebDriver;
@@ -141,7 +140,7 @@ public class BrowserFactory {
 		checkBrowserOSCrossCompatibility(browserName);
 		// check cross-compatibility between the selected operating system and browser
 		// and report in case they are not compatible
-		setDriversPath(EXECUTION_ADDRESS.equals("local"));
+		setDriversPath();
 		// set path based on operating system
 		setLoggingPrefrences();
 		// set logging global preferences
@@ -245,44 +244,24 @@ public class BrowserFactory {
      * Set the driver folder path and file extension based on the target Operating
      * System
      */
-    private static void setDriversPath(Boolean isLocal) {
-	if (isLocal) {
-	    if (SystemUtils.IS_OS_WINDOWS) {
-		System.setProperty("targetOperatingSystem", OS_WINDOWS);
-		driversPath = "src/main/resources/drivers/";
-		fileExtension = ".exe";
-	    } else if (SystemUtils.IS_OS_LINUX) {
-		System.setProperty("targetOperatingSystem", OS_LINUX);
-		driversPath = "src/main/resources/drivers/linux-64/";
-		fileExtension = "";
-	    } else if (SystemUtils.IS_OS_MAC) {
-		System.setProperty("targetOperatingSystem", OS_MAC);
-		driversPath = "src/main/resources/drivers/mac-64/";
-		fileExtension = "";
-	    } else {
-		ReportManager.log("Unsupported Operating System [" + SystemUtils.OS_NAME + "].");
-		Assert.fail("Unsupported Operating System [" + SystemUtils.OS_NAME + "].");
-	    }
-	    targetOperatingSystem = System.getProperty("targetOperatingSystem");
-	} else {
-	    switch (targetOperatingSystem) {
-	    case OS_WINDOWS:
-		driversPath = "src/main/resources/drivers/";
-		fileExtension = ".exe";
-		break;
-	    case OS_LINUX:
-		driversPath = "src/main/resources/drivers/linux-64/";
-		fileExtension = "";
-		break;
-	    case OS_MAC:
-		driversPath = "src/main/resources/drivers/mac-64/";
-		fileExtension = "";
-		break;
-	    default:
-		ReportManager.log("Unsupported Operating System [" + targetOperatingSystem + "].");
-		Assert.fail("Unsupported Operating System [" + targetOperatingSystem + "].");
-		break;
-	    }
+    private static void setDriversPath() {
+	switch (targetOperatingSystem) {
+	case OS_WINDOWS:
+	    driversPath = "src/main/resources/drivers/";
+	    fileExtension = ".exe";
+	    break;
+	case OS_LINUX:
+	    driversPath = "src/main/resources/drivers/linux-64/";
+	    fileExtension = "";
+	    break;
+	case OS_MAC:
+	    driversPath = "src/main/resources/drivers/mac-64/";
+	    fileExtension = "";
+	    break;
+	default:
+	    ReportManager.log("Unsupported Operating System [" + targetOperatingSystem + "].");
+	    Assert.fail("Unsupported Operating System [" + targetOperatingSystem + "].");
+	    break;
 	}
     }
 

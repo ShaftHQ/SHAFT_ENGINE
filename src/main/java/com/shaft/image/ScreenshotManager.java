@@ -143,53 +143,6 @@ public class ScreenshotManager {
     }
 
     /**
-     * @deprecated Used in all browser actions, in failed element actions, in passed
-     *             element actions where the element can no longer be found, and in
-     *             passed switchToDefaultContent element action which requires no
-     *             locator. passFailStatus; true means pass and false means fail.
-     * 
-     * @param driver         the current instance of Selenium webdriver
-     * @param actionName     the name of the triggering action
-     * @param appendedText   the text that needs to be appended to the name of the
-     *                       screenshot to make it more recognizable
-     * @param passFailStatus A flag to determine whether the action has passed or
-     *                       failed
-     */
-    @Deprecated
-    public static void captureScreenShot(WebDriver driver, String actionName, String appendedText,
-	    boolean passFailStatus) {
-	globalPassFailStatus = passFailStatus;
-
-	internalCaptureScreenShot(driver, null, actionName, appendedText,
-		(SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always"))
-			|| (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly") && (!passFailStatus))
-			|| ((SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly")) && (!passFailStatus)));
-    }
-
-    /**
-     * @deprecated Used only in passed element actions. Appended Text is added to
-     *             the screenshot name to signal why it was taken.
-     * 
-     * @param driver         the current instance of Selenium webdriver
-     * @param elementLocator the locator of the webElement under test (By xpath, id,
-     *                       selector, name ...etc)
-     * @param actionName     the name of the triggering action
-     * @param appendedText   the text that needs to be appended to the name of the
-     *                       screenshot to make it more recognizable
-     * @param passFailStatus A flag to determine whether the action has passed or
-     *                       failed
-     */
-    @Deprecated
-    public static void captureScreenShot(WebDriver driver, By elementLocator, String actionName, String appendedText,
-	    boolean passFailStatus) {
-	globalPassFailStatus = passFailStatus;
-	targetElementLocator = elementLocator;
-
-	internalCaptureScreenShot(driver, elementLocator, actionName, appendedText,
-		SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always"));
-    }
-
-    /**
      * Internal use only. Considers the screenshotParams_whenToTakeAScreenshot
      * parameter.
      * 
