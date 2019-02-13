@@ -189,7 +189,8 @@ public class TerminalActions {
 
 	// refactor long command for dockerized execution
 	if (isDockerizedTerminal()) {
-	    command.insert(0, "docker exec -u " + dockerUsername + " -i " + dockerName + " sh -c '");
+	    command.insert(0, "docker exec -u " + dockerUsername + " -i " + dockerName + " timeout "
+		    + Integer.parseInt(System.getProperty("dockerCommandTimeout")) + " sh -c '");
 	    command.append("'");
 	}
 	return command.toString();
@@ -202,6 +203,7 @@ public class TerminalActions {
     public String performTerminalCommands(List<String> commands) {
 	StringBuilder logBuilder = new StringBuilder();
 	String log = "";
+	int sessionTimeout = Integer.parseInt(System.getProperty("shellSessionTimeout")) * 1000;
 
 	// Build long command and refactor for dockerized execution if needed
 	String command = buildLongCommand(commands);
@@ -223,6 +225,7 @@ public class TerminalActions {
 		ReportManager.logDiscreet(
 			"Attempting to perform the following command remotely. Command: [" + command + "]");
 		session = createSSHsession();
+		session.setTimeout(sessionTimeout);
 		channelExec = (ChannelExec) session.openChannel("exec");
 		channelExec.setCommand(command);
 		channelExec.connect();
@@ -274,6 +277,9 @@ public class TerminalActions {
 			+ sshPortNumber + "] using this key ["
 			+ FileActions.getAbsolutePath(sshKeyFileFolderName, sshKeyFileName)
 			+ "]. Please confirm that this data is correct.");
+	    } else if (e.getMessage().contains("session is down")) {
+		ReportManager.log("Failed to perform command [" + command + "] session timed out after "
+			+ sessionTimeout + " milliseconds.");
 	    } else {
 		ReportManager.log(e);
 	    }
