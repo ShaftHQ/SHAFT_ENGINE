@@ -19,9 +19,9 @@ import java.io.*;
 import java.util.Iterator;
 
 public class GifSequenceWriter {
-    protected ImageWriter gifWriter;
-    protected ImageWriteParam imageWriteParam;
-    protected IIOMetadata imageMetaData;
+    private ImageWriter gifWriter;
+    private ImageWriteParam imageWriteParam;
+    private IIOMetadata imageMetaData;
 
     /**
      * Creates a new GifSequenceWriter
@@ -33,7 +33,7 @@ public class GifSequenceWriter {
      * @throws IOException if no gif ImageWriters are found
      *
      */
-    public GifSequenceWriter(ImageOutputStream outputStream, int imageType, int timeBetweenFramesMS,
+    protected GifSequenceWriter(ImageOutputStream outputStream, int imageType, int timeBetweenFramesMS,
 	    boolean loopContinuously) throws IOException {
 	// my method to create a writer
 	gifWriter = getWriter();
@@ -76,7 +76,7 @@ public class GifSequenceWriter {
 	gifWriter.prepareWriteSequence(null);
     }
 
-    public void writeToSequence(RenderedImage img) throws IOException {
+    protected void writeToSequence(RenderedImage img) throws IOException {
 	gifWriter.writeToSequence(new IIOImage(img, null, imageMetaData), imageWriteParam);
     }
 
@@ -86,7 +86,7 @@ public class GifSequenceWriter {
      * 
      * @throws IOException if an error occurs during writing.
      */
-    public void close() throws IOException {
+    protected void close() throws IOException {
 	gifWriter.endWriteSequence();
     }
 

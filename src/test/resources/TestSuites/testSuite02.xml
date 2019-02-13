@@ -13,11 +13,7 @@
 	</test>
 	<test name="Test02">
 		<classes>
-			<class name="unitTests.tests_validations_assertions">
-				<methods>
-					<include name="assertEquals_false_expectedToPass" />
-					<include name="assertEquals_false_expectedToFail" />
-				</methods>
+			<class name="testPackage01.Test_JsonActions">
 			</class>
 		</classes>
 	</test>
