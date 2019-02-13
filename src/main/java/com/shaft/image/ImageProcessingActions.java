@@ -149,14 +149,15 @@ public class ImageProcessingActions {
 	    ReportManager.log("Test Screenshot [" + relatedTestFileName + "] and related Refrence Image ["
 		    + relatedReferenceFileName + "] match by [" + percentage + "] percent.");
 
+	    Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
 	    try {
 		// add to pass/fail counter depending on assertion result, without logging
 		ReportManager.setDiscreetLogging(true);
 		Assertions.assertComparativeRelation(threshhold, percentage, ">=", true);
-		ReportManager.setDiscreetLogging(false);
+		ReportManager.setDiscreetLogging(discreetLoggingState);
 		passedImagesCount++;
 	    } catch (AssertionError e) {
-		ReportManager.setDiscreetLogging(false);
+		ReportManager.setDiscreetLogging(discreetLoggingState);
 		// copying image to failed images directory
 		FileActions.copyFile(screenshot.getAbsolutePath(), testProcessingFolder.getParent()
 			+ "/failedImagesDirectory/" + relatedTestFileName + "_testImage");

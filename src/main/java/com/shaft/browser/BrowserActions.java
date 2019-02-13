@@ -22,11 +22,6 @@ public class BrowserActions {
 
     private static final int NAVIGATION_TIMEOUT = 30;
 
-    /*
-     * Driver actions that should be implemented: driver.switchTo().activeElement();
-     * driver.switchTo().alert(); driver.switchTo().window(arg0);
-     */
-
     private BrowserActions() {
 	throw new IllegalStateException("Utility class");
     }
@@ -337,57 +332,32 @@ public class BrowserActions {
 	String targetOperatingSystem = System.getProperty("targetOperatingSystem").trim();
 	String executionAddress = System.getProperty("executionAddress").trim();
 
-	if ((!executionAddress.equals("local") && !targetBrowserName.equals("GoogleChrome"))
-		|| (executionAddress.equals("local")
-			&& !(targetBrowserName.equals("GoogleChrome") && targetOperatingSystem.equals("Mac-64")))) {
-	    try {
-		driver.manage().window().maximize();
-
-		currentWindowSize = driver.manage().window().getSize();
-		ReportManager.logDiscreet("Window size after SWD Maximize: " + currentWindowSize.toString());
-	    } catch (WebDriverException e) {
-		// org.openqa.selenium.WebDriverException: unknown error: failed to change
-		// window state to maximized, current state is normal
-		ReportManager.log(e);
-	    }
+	// try selenium webdriver maximize
+	currentWindowSize = attemptMaximizeUsingSeleniumWebDriver(driver, executionAddress, targetBrowserName,
+		targetOperatingSystem);
+	if (currentWindowSize == null) {
+	    currentWindowSize = driver.manage().window().getSize();
 	}
-	currentWindowSize = driver.manage().window().getSize();
 
 	if ((initialWindowSize.height == currentWindowSize.height)
 		&& (initialWindowSize.width == currentWindowSize.width)) {
-	    try {
-		Toolkit toolkit = Toolkit.getDefaultToolkit();
-		width = (int) toolkit.getScreenSize().getWidth();
-		height = (int) toolkit.getScreenSize().getHeight();
-		driver.manage().window().setPosition(new Point(0, 0));
-		driver.manage().window().setSize(new Dimension(width, height));
-
-		currentWindowSize = driver.manage().window().getSize();
-		ReportManager.logDiscreet("Window size after Toolkit: " + currentWindowSize.toString());
-	    } catch (HeadlessException e) {
-		((JavascriptExecutor) driver).executeScript("window.focus();");
-		((JavascriptExecutor) driver).executeScript("window.moveTo(0,0);");
-		((JavascriptExecutor) driver).executeScript("window.resizeTo(" + width + ", " + height + ");");
-
-		currentWindowSize = driver.manage().window().getSize();
-		ReportManager.logDiscreet("Window size after JavascriptExecutor: " + currentWindowSize.toString());
-	    }
+	    // attempt resize using toolkit
+	    currentWindowSize = attemptMazimizeUsingToolkitAndJavascript(driver, width, height);
 	}
 
 	if ((initialWindowSize.height == currentWindowSize.height)
 		&& (initialWindowSize.width == currentWindowSize.width)) {
 	    // happens with headless firefox browsers // remote // linux and windows
 	    // also happens with chrome/windows
-	    driver.manage().window().setPosition(new Point(0, 0));
-	    driver.manage().window().setSize(new Dimension(width, height));
 
-	    currentWindowSize = driver.manage().window().getSize();
-	    ReportManager.logDiscreet("Window size after WebDriver.Options: " + currentWindowSize.toString());
+	    // attempt resize using WebDriver mange window
+	    currentWindowSize = attemptMaximizeUsingSeleniumWebDriverManageWindow(driver, width, height);
 	}
 
 	if ((initialWindowSize.height == currentWindowSize.height)
 		&& (initialWindowSize.width == currentWindowSize.width)) {
 
+	    // attempt setting window to fullscreen
 	    fullScreenWindow(driver);
 
 	    currentWindowSize = driver.manage().window().getSize();
@@ -396,11 +366,60 @@ public class BrowserActions {
 
 	if ((initialWindowSize.height == currentWindowSize.height)
 		&& (initialWindowSize.width == currentWindowSize.width)) {
-	    // failAction(driver, "maximizeWindow");
 	    ReportManager.logDiscreet("skipping window maximization due to unknown error, marking step as passed.");
 	}
 
 	passAction(driver, "maximizeWindow", "New screen size is now: " + currentWindowSize.toString());
+    }
+
+    private static Dimension attemptMaximizeUsingSeleniumWebDriver(WebDriver driver, String executionAddress,
+	    String targetBrowserName, String targetOperatingSystem) {
+	if ((!executionAddress.equals("local") && !targetBrowserName.equals("GoogleChrome"))
+		|| (executionAddress.equals("local")
+			&& !(targetBrowserName.equals("GoogleChrome") && targetOperatingSystem.equals("Mac-64")))) {
+	    try {
+		driver.manage().window().maximize();
+		ReportManager.logDiscreet(
+			"Window size after SWD Maximize: " + driver.manage().window().getSize().toString());
+		return driver.manage().window().getSize();
+	    } catch (WebDriverException e) {
+		// org.openqa.selenium.WebDriverException: unknown error: failed to change
+		// window state to maximized, current state is normal
+		ReportManager.log(e);
+	    }
+	}
+	return null;
+    }
+
+    private static Dimension attemptMazimizeUsingToolkitAndJavascript(WebDriver driver, int width, int height) {
+	try {
+	    Toolkit toolkit = Toolkit.getDefaultToolkit();
+	    width = (int) toolkit.getScreenSize().getWidth();
+	    height = (int) toolkit.getScreenSize().getHeight();
+	    driver.manage().window().setPosition(new Point(0, 0));
+	    driver.manage().window().setSize(new Dimension(width, height));
+
+	    ReportManager.logDiscreet("Window size after Toolkit: " + driver.manage().window().getSize().toString());
+	    return driver.manage().window().getSize();
+	} catch (HeadlessException e) {
+	    ((JavascriptExecutor) driver).executeScript("window.focus();");
+	    ((JavascriptExecutor) driver).executeScript("window.moveTo(0,0);");
+	    ((JavascriptExecutor) driver).executeScript("window.resizeTo(" + width + ", " + height + ");");
+
+	    ReportManager.logDiscreet(
+		    "Window size after JavascriptExecutor: " + driver.manage().window().getSize().toString());
+	    return driver.manage().window().getSize();
+	}
+    }
+
+    private static Dimension attemptMaximizeUsingSeleniumWebDriverManageWindow(WebDriver driver, int width,
+	    int height) {
+	driver.manage().window().setPosition(new Point(0, 0));
+	driver.manage().window().setSize(new Dimension(width, height));
+
+	ReportManager.logDiscreet(
+		"Window size after WebDriver.Manage.Window: " + driver.manage().window().getSize().toString());
+	return driver.manage().window().getSize();
     }
 
     /**
@@ -465,7 +484,6 @@ public class BrowserActions {
 	}
 
 	if (heightNotChanged && widthNotChanged) {
-	    // failAction(driver, "fullScreenWindow");
 	    ReportManager.logDiscreet(
 		    "skipping switching window to full screen due to unknown error, marking step as passed.");
 	}

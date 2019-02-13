@@ -69,12 +69,14 @@ public class Assertions {
     public static void assertEquals(Object expectedValue, Object actualValue, int comparisonType,
 	    Boolean assertionType) {
 	ReportManager.logDiscreet("Assertion [" + "assertEquals" + "] is being performed, with expectedValue ["
-		+ expectedValue + "], actualValue [" + actualValue + "], and assertionType [" + assertionType + "].");
+		+ expectedValue + "], actualValue [" + actualValue + "], comparisonType [" + comparisonType
+		+ "], and assertionType [" + assertionType + "].");
 
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, assertionType)) {
 	case 1:
 	    if (assertionType) {
-		pass("Assertion Passed; actual value does match expected value [" + expectedValue + "].");
+		pass("Assertion Passed; actual value [" + actualValue + "] does match expected value [" + expectedValue
+			+ "].");
 
 	    } else {
 		pass("Assertion Passed; actual value [" + actualValue + "] does not match expected value ["
@@ -86,7 +88,8 @@ public class Assertions {
 		fail("Assertion Failed; actual value [" + actualValue + "] does not match expected value ["
 			+ expectedValue + "].");
 	    } else {
-		fail("Assertion Failed; actual value does match expected value [" + expectedValue + "].");
+		fail("Assertion Failed; actual value [" + actualValue + "] does match expected value [" + expectedValue
+			+ "].");
 	    }
 	    break;
 	case -1:
@@ -219,6 +222,7 @@ public class Assertions {
 		+ "] is being performed for target attribute [" + elementAttribute + "].");
 	String actualValue = null;
 
+	Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
 	ReportManager.setDiscreetLogging(true);
 	switch (elementAttribute.toLowerCase()) {
 	case "text":
@@ -234,7 +238,7 @@ public class Assertions {
 	    actualValue = ElementActions.getAttribute(driver, elementLocator, elementAttribute);
 	    break;
 	}
-	ReportManager.setDiscreetLogging(false);
+	ReportManager.setDiscreetLogging(discreetLoggingState);
 
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, assertionType)) {
 	case 1:
@@ -288,9 +292,10 @@ public class Assertions {
 	ReportManager.logDiscreet("Assertion [" + "assertElementCSSProperty"
 		+ "] is being performed for target CSS Property [" + propertyName + "].");
 
+	Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
 	ReportManager.setDiscreetLogging(true);
 	String actualValue = ElementActions.getCSSProperty(driver, elementLocator, propertyName);
-	ReportManager.setDiscreetLogging(false);
+	ReportManager.setDiscreetLogging(discreetLoggingState);
 
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, assertionType)) {
 	case 1:
@@ -352,11 +357,9 @@ public class Assertions {
 
 	ReportManager.logDiscreet("Assertion [" + "assertBrowserAttribute"
 		+ "] is being performed for target attribute [" + browserAttribute + "].");
-	// String escapedExpectedValue = expectedValue;
-	// escapedExpectedValue = escapeSpecialCharacters(expectedValue);
-
 	String actualValue = null;
 
+	Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
 	ReportManager.setDiscreetLogging(true);
 	switch (browserAttribute.toLowerCase()) {
 	case "currenturl":
@@ -381,7 +384,7 @@ public class Assertions {
 	    actualValue = "";
 	    break;
 	}
-	ReportManager.setDiscreetLogging(false);
+	ReportManager.setDiscreetLogging(discreetLoggingState);
 
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, assertionType)) {
 	case 1:

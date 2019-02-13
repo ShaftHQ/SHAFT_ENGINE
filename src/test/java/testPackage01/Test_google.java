@@ -52,7 +52,7 @@ public class Test_google {
 				   // into
 				   // view before clicking it
 
-	resultsObject.assert10ResultsPerPage();
+	//resultsObject.assert10ResultsPerPage();
     }
 
     @BeforeClass // Set-up method, to be run once before the first test
