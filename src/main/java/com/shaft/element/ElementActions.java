@@ -857,7 +857,8 @@ public class ElementActions {
 		+ "arguments[arguments.length -1].dispatchEvent(evObj);";
 	((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
 
-	(new Actions(driver)).moveToElement(driver.findElement(elementLocator)).perform();
+	//(new Actions(driver)).moveToElement(driver.findElement(elementLocator)).perform();
+	//disabling actions library for drag and drop as it has compatibility issues with remote webdriver
     }
 
     /**
