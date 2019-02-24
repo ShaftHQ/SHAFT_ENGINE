@@ -83,7 +83,7 @@ public class Verifications {
      */
     public static void verifyEquals(Object expectedValue, Object actualValue, int comparisonType,
 	    Boolean verificationType) {
-	ReportManager.logDiscreet("Verification [" + "verifyEquals" + "] is being performed, with expectedValue ["
+	ReportManager.logDiscrete("Verification [" + "verifyEquals" + "] is being performed, with expectedValue ["
 		+ expectedValue + "], actualValue [" + actualValue + "], comparisonType [" + comparisonType
 		+ "], and verificationType [" + verificationType + "].");
 
@@ -131,7 +131,7 @@ public class Verifications {
      *                         verification that the object doesn't refer to null
      */
     public static void verifyNull(Object object, Boolean verificationType) {
-	ReportManager.logDiscreet("Verification [" + "verifyNull" + "] is being performed.");
+	ReportManager.logDiscrete("Verification [" + "verifyNull" + "] is being performed.");
 
 	if (verificationType) {
 	    try {
@@ -169,7 +169,7 @@ public class Verifications {
      *                         verification that the element doesn't exist
      */
     public static void verifyElementExists(WebDriver driver, By elementLocator, Boolean verificationType) {
-	ReportManager.logDiscreet("Verification [" + "verifyElementExists" + "] is being performed.");
+	ReportManager.logDiscrete("Verification [" + "verifyElementExists" + "] is being performed.");
 	try {
 	    int customAttempts = attemptsBeforeThrowingElementNotFoundException;
 	    if (!verificationType) {
@@ -234,13 +234,13 @@ public class Verifications {
      */
     public static void verifyElementAttribute(WebDriver driver, By elementLocator, String elementAttribute,
 	    String expectedValue, int comparisonType, Boolean verificationType) {
-	ReportManager.logDiscreet("Verification [" + "verifyElementAttribute"
+	ReportManager.logDiscrete("Verification [" + "verifyElementAttribute"
 		+ "] is being performed for target attribute [" + elementAttribute + "].");
 
 	String actualValue = null;
 
-	Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
-	ReportManager.setDiscreetLogging(true);
+	Boolean discreetLoggingState = ReportManager.isDiscreteLogging();
+	ReportManager.setDiscreteLogging(true);
 	switch (elementAttribute.toLowerCase()) {
 	case "text":
 	    actualValue = ElementActions.getText(driver, elementLocator);
@@ -255,7 +255,7 @@ public class Verifications {
 	    actualValue = ElementActions.getAttribute(driver, elementLocator, elementAttribute);
 	    break;
 	}
-	ReportManager.setDiscreetLogging(discreetLoggingState);
+	ReportManager.setDiscreteLogging(discreetLoggingState);
 
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, verificationType)) {
 	case 1:
@@ -305,13 +305,13 @@ public class Verifications {
      */
     public static void assertElementCSSProperty(WebDriver driver, By elementLocator, String propertyName,
 	    String expectedValue, int comparisonType, Boolean verificationType) {
-	ReportManager.logDiscreet("Verification [" + "verifyElementCSSProperty"
+	ReportManager.logDiscrete("Verification [" + "verifyElementCSSProperty"
 		+ "] is being performed for target CSS Property [" + propertyName + "].");
 
-	Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
-	ReportManager.setDiscreetLogging(true);
+	Boolean discreetLoggingState = ReportManager.isDiscreteLogging();
+	ReportManager.setDiscreteLogging(true);
 	String actualValue = ElementActions.getCSSProperty(driver, elementLocator, propertyName);
-	ReportManager.setDiscreetLogging(discreetLoggingState);
+	ReportManager.setDiscreteLogging(discreetLoggingState);
 
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, verificationType)) {
 	case 1:
@@ -368,13 +368,13 @@ public class Verifications {
      */
     public static void verifyBrowserAttribute(WebDriver driver, String browserAttribute, String expectedValue,
 	    int comparisonType, Boolean verificationType) {
-	ReportManager.logDiscreet("Verification [" + "verifyBrowserAttribute"
+	ReportManager.logDiscrete("Verification [" + "verifyBrowserAttribute"
 		+ "] is being performed for target attribute [" + browserAttribute + "].");
 
 	String actualValue = null;
 
-	Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
-	ReportManager.setDiscreetLogging(true);
+	Boolean discreetLoggingState = ReportManager.isDiscreteLogging();
+	ReportManager.setDiscreteLogging(true);
 	switch (browserAttribute.toLowerCase()) {
 	case "currenturl":
 	    actualValue = BrowserActions.getCurrentURL(driver);
@@ -398,7 +398,7 @@ public class Verifications {
 	    actualValue = "";
 	    break;
 	}
-	ReportManager.setDiscreetLogging(discreetLoggingState);
+	ReportManager.setDiscreteLogging(discreetLoggingState);
 
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, verificationType)) {
 	case 1:
@@ -431,7 +431,7 @@ public class Verifications {
 
     @Deprecated
     public static void verifyGreaterThanOrEquals(Number expectedValue, Number actualValue, Boolean verificationType) {
-	ReportManager.logDiscreet("Verification [" + "verifyGreaterThanOrEquals"
+	ReportManager.logDiscrete("Verification [" + "verifyGreaterThanOrEquals"
 		+ "] is being performed, with expectedValue [" + expectedValue + "], actualValue [" + actualValue
 		+ "], and verificationType [" + verificationType + "].");
 
@@ -483,7 +483,7 @@ public class Verifications {
      */
     public static void verifyComparativeRelation(Number expectedValue, Number actualValue,
 	    String comparativeRelationType, Boolean verificationType) {
-	ReportManager.logDiscreet(
+	ReportManager.logDiscrete(
 		"Verification [" + "verifyComparativeRelation" + "] is being performed, with expectedValue ["
 			+ expectedValue + "], comparativeRelationType [" + comparativeRelationType + "], actualValue ["
 			+ actualValue + "], and verificationType [" + verificationType + "].");
@@ -572,7 +572,7 @@ public class Verifications {
      */
     public static void verifyFileExists(String fileFolderName, String fileName, int numberOfRetries,
 	    Boolean verificationType) {
-	ReportManager.logDiscreet("Verification [" + "verifyFileExists" + "] is being performed for target directory ["
+	ReportManager.logDiscrete("Verification [" + "verifyFileExists" + "] is being performed for target directory ["
 		+ fileFolderName + "], and target file [" + fileName + "].");
 	if (FileActions.doesFileExist(fileFolderName, fileName, numberOfRetries)) {
 	    if (verificationType) {

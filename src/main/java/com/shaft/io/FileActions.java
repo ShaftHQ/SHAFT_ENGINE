@@ -36,7 +36,7 @@ public class FileActions {
 	    } else if (SystemUtils.IS_OS_LINUX || SystemUtils.IS_OS_MAC) {
 		return true;
 	    } else {
-		ReportManager.logDiscreet("Unsupported OS type, will assume it's unix based.");
+		ReportManager.logDiscrete("Unsupported OS type, will assume it's unix based.");
 		return true;
 	    }
 	} else {
@@ -47,7 +47,7 @@ public class FileActions {
 	    } else if (targetOS.equals("Linux-64") || targetOS.equals("Mac-64")) {
 		return true;
 	    } else {
-		ReportManager.logDiscreet("Unsupported OS type, will assume it's unix based.");
+		ReportManager.logDiscrete("Unsupported OS type, will assume it's unix based.");
 		return true;
 	    }
 	}
