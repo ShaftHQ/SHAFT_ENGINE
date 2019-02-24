@@ -265,10 +265,10 @@ public class ElementActions {
 			}
 		    } else {
 			try {
-			    Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
-			    ReportManager.setDiscreetLogging(true);
+			    Boolean discreetLoggingState = ReportManager.isDiscreteLogging();
+			    ReportManager.setDiscreteLogging(true);
 			    String actualText = getText(driver, elementLocator);
-			    ReportManager.setDiscreetLogging(discreetLoggingState);
+			    ReportManager.setDiscreteLogging(discreetLoggingState);
 			    failAction(driver, "type", "Expected to type: \"" + targetText + "\", but ended up with: \""
 				    + actualText + "\"");
 			} catch (Exception e) {
@@ -554,10 +554,10 @@ public class ElementActions {
 	if (getMatchingElementsCount(driver, elementLocator, attemptsBeforeThrowingElementNotFoundException) == 1) {
 	    driver.switchTo().frame((WebElement) driver.findElement(elementLocator));
 	    // note to self: remove elementLocator in case of bug in screenshot manager
-	    Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
-	    ReportManager.setDiscreetLogging(true);
+	    Boolean discreetLoggingState = ReportManager.isDiscreteLogging();
+	    ReportManager.setDiscreteLogging(true);
 	    passAction(driver, "switchToIframe");
-	    ReportManager.setDiscreetLogging(discreetLoggingState);
+	    ReportManager.setDiscreteLogging(discreetLoggingState);
 	} else {
 	    failAction(driver, "switchToIframe");
 	}
@@ -573,10 +573,10 @@ public class ElementActions {
     public static void switchToDefaultContent(WebDriver driver) {
 	try {
 	    driver.switchTo().defaultContent();
-	    Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
-	    ReportManager.setDiscreetLogging(true);
+	    Boolean discreetLoggingState = ReportManager.isDiscreteLogging();
+	    ReportManager.setDiscreteLogging(true);
 	    passAction(driver, "switchToDefaultContent");
-	    ReportManager.setDiscreetLogging(discreetLoggingState);
+	    ReportManager.setDiscreteLogging(discreetLoggingState);
 	} catch (Exception e) {
 	    failAction(driver, "switchToDefaultContent");
 	}
@@ -586,10 +586,10 @@ public class ElementActions {
 	if (BrowserFactory.getActiveDriverSessions() > 0 && (lastUsedDriver != null)) {
 	    try {
 		lastUsedDriver.switchTo().defaultContent();
-		Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
-		ReportManager.setDiscreetLogging(true);
+		Boolean discreetLoggingState = ReportManager.isDiscreteLogging();
+		ReportManager.setDiscreteLogging(true);
 		passAction(lastUsedDriver, "switchToDefaultContent");
-		ReportManager.setDiscreetLogging(discreetLoggingState);
+		ReportManager.setDiscreteLogging(discreetLoggingState);
 	    } catch (Exception e) {
 		ReportManager.log(e);
 	    }

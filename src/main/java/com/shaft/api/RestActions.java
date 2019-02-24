@@ -51,10 +51,10 @@ public class RestActions {
 	    message = message + " With the following test data [" + testData + "].";
 	}
 
-	Boolean discreetLogging = ReportManager.isDiscreetLogging();
+	Boolean discreetLogging = ReportManager.isDiscreteLogging();
 	if (actionName.toLowerCase().contains("getresponse") && actionName.toLowerCase().contains("value")) {
 	    if (discreetLogging) {
-		ReportManager.logDiscreet(message);
+		ReportManager.logDiscrete(message);
 	    } else {
 		ReportManager.log(message);
 		if (response != null) {
@@ -198,10 +198,10 @@ public class RestActions {
 
     private void assertResponseStatusCode(String request, Response response, String targetStatusCode) {
 	try {
-	    Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
-	    ReportManager.setDiscreetLogging(true);
+	    Boolean discreetLoggingState = ReportManager.isDiscreteLogging();
+	    ReportManager.setDiscreteLogging(true);
 	    Assertions.assertEquals(targetStatusCode, String.valueOf(response.getStatusCode()), 1, true);
-	    ReportManager.setDiscreetLogging(discreetLoggingState);
+	    ReportManager.setDiscreteLogging(discreetLoggingState);
 	    passAction("performRequest", request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms",
 		    response);
 	} catch (AssertionError e) {

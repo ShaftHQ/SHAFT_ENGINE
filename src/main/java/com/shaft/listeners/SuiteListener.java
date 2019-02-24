@@ -15,14 +15,14 @@ public class SuiteListener implements ISuiteListener {
 	ReportManager.populateEnvironmentData();
 	ReportManager.logEngineVersion(true);
 	ReportManager.setTotalNumberOfTests(suite.getAllMethods().size());
-	ReportManager.setDiscreetLogging(Boolean.valueOf(System.getProperty("alwaysLogDiscreetly")));
+	ReportManager.setDiscreteLogging(Boolean.valueOf(System.getProperty("alwaysLogDiscreetly")));
     }
 
     @Override
     public void onFinish(ISuite suite) {
-	Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
-	ReportManager.setDiscreetLogging(true);
+	Boolean discreetLoggingState = ReportManager.isDiscreteLogging();
+	ReportManager.setDiscreteLogging(true);
 	BrowserFactory.closeAllDrivers();
-	ReportManager.setDiscreetLogging(discreetLoggingState);
+	ReportManager.setDiscreteLogging(discreetLoggingState);
     }
 }
