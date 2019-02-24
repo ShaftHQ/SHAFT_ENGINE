@@ -247,7 +247,7 @@ public class BrowserFactory {
     private static void setDriversPath() {
 	switch (targetOperatingSystem) {
 	case OS_WINDOWS:
-	    driversPath = "src/main/resources/drivers/";
+	    driversPath = "src/main/resources/drivers/windows-64/";
 	    fileExtension = ".exe";
 	    break;
 	case OS_LINUX:
