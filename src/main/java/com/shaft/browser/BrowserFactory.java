@@ -41,6 +41,7 @@ public class BrowserFactory {
 
     private static final Boolean AUTO_MAXIMIZE = Boolean
 	    .valueOf(System.getProperty("autoMaximizeBrowserWindow").trim());
+    private static final Boolean HEADLESS_EXECUTION = Boolean.valueOf(System.getProperty("headlessExecution").trim());
     private static final String EXECUTION_ADDRESS = System.getProperty("executionAddress").trim();
     // local OR hub ip:port
     private static final String TARGET_HUB_URL = "http://" + EXECUTION_ADDRESS + "/wd/hub";
@@ -281,6 +282,10 @@ public class BrowserFactory {
 	    ffOptions.setCapability("platform", getDesiredOperatingSystem());
 	    ffOptions.setCapability("nativeEvents", true);
 	    ffOptions.setCapability(CapabilityType.LOGGING_PREFS, logPrefs);
+	    if (HEADLESS_EXECUTION) {
+		// https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Headless_mode
+		ffOptions.addArguments("-headless");
+	    }
 	    FirefoxProfile ffProfile = new FirefoxProfile();
 	    ffProfile.setPreference("browser.download.dir", downloadsFolderPath);
 	    ffProfile.setPreference("browser.download.folderList", 2);
@@ -298,6 +303,11 @@ public class BrowserFactory {
 	    chOptions.setCapability("platform", getDesiredOperatingSystem());
 	    chOptions.addArguments("--no-sandbox");
 	    chOptions.addArguments("--disable-infobars"); // disable automation info bar
+	    if (HEADLESS_EXECUTION) {
+		// https://developers.google.com/web/updates/2017/04/headless-chrome
+		chOptions.addArguments("--headless");
+		chOptions.addArguments("--disable-gpu"); // Temporarily needed if running on Windows
+	    }
 	    chOptions.setCapability(CapabilityType.LOGGING_PREFS, logPrefs);
 	    Map<String, Object> chromePreferences = new HashMap<>();
 	    chromePreferences.put("profile.default_content_settings.popups", 0);
