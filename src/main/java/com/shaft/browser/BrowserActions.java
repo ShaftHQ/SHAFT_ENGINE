@@ -19,7 +19,7 @@ import com.shaft.image.ScreenshotManager;
 import com.shaft.io.ReportManager;
 
 public class BrowserActions {
-
+    private static final Boolean HEADLESS_EXECUTION = Boolean.valueOf(System.getProperty("headlessExecution").trim());
     private static final int NAVIGATION_TIMEOUT = 30;
 
     private BrowserActions() {
@@ -394,8 +394,10 @@ public class BrowserActions {
     private static Dimension attemptMazimizeUsingToolkitAndJavascript(WebDriver driver, int width, int height) {
 	try {
 	    Toolkit toolkit = Toolkit.getDefaultToolkit();
-	    width = (int) toolkit.getScreenSize().getWidth();
-	    height = (int) toolkit.getScreenSize().getHeight();
+	    if (!HEADLESS_EXECUTION) {
+		width = (int) toolkit.getScreenSize().getWidth();
+		height = (int) toolkit.getScreenSize().getHeight();
+	    }
 	    driver.manage().window().setPosition(new Point(0, 0));
 	    driver.manage().window().setSize(new Dimension(width, height));
 

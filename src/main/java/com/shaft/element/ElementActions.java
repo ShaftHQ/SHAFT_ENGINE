@@ -9,6 +9,8 @@ import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.openqa.selenium.By;
@@ -824,7 +826,9 @@ public class ElementActions {
     }
 
     /**
-     * Hovers over target element.
+     * Hovers over target element. If you want to hover on a webElement to expose
+     * another webElement and click on it, use hoverAndClick instead for a more
+     * reliable result.
      * 
      * @param driver         the current instance of Selenium webdriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
@@ -839,26 +843,69 @@ public class ElementActions {
 		failAction(driver, "hover", "Unhandled Exception: " + e.getMessage());
 	    }
 	    passAction(driver, elementLocator, "hover");
-	} else
-
-	{
+	} else {
 	    failAction(driver, "hover");
 	}
     }
 
+    /**
+     * Hovers over the hoverElements in sequence then clicks the clickableElement
+     * 
+     * @param driver                  the current instance of Selenium webdriver
+     * @param hoverElementLocators    the list of locators of the webElements under
+     *                                test upon which the hover action will be
+     *                                performed in sequence (By xpath, id, selector,
+     *                                name ...etc)
+     * @param clickableElementLocator the locator of the webElement under test upon
+     *                                which the click action will be performed (By
+     *                                xpath, id, selector, name ...etc)
+     */
+    public static void hoverAndClick(WebDriver driver, List<By> hoverElementLocators, By clickableElementLocator) {
+	Actions chainedHoverAndClickAction = new Actions(driver);
+	if (identifyUniqueElement(driver, hoverElementLocators.get(0))) {
+	    hoverElementLocators.forEach(hoverElementLocator -> {
+		chainedHoverAndClickAction.moveToElement(driver.findElement(hoverElementLocator));
+	    });
+	    chainedHoverAndClickAction.moveToElement(driver.findElement(clickableElementLocator))
+		    .click(driver.findElement(clickableElementLocator)).perform();
+	} else {
+	    failAction(driver, "hoverAndClick");
+	}
+    }
+
+    /**
+     * Hovers over the hoverElement then clicks the clickableElement
+     * 
+     * @param driver                  the current instance of Selenium webdriver
+     * @param hoverElementLocator     he locator of the webElement under test upon
+     *                                which the hover action will be performed (By
+     *                                xpath, id, selector, name ...etc)
+     * @param clickableElementLocator the locator of the webElement under test upon
+     *                                which the click action will be performed (By
+     *                                xpath, id, selector, name ...etc)
+     */
+    public static void hoverAndClick(WebDriver driver, By hoverElementLocator, By clickableElementLocator) {
+	hoverAndClick(driver, Arrays.asList(hoverElementLocator), clickableElementLocator);
+    }
+
     private static void performHover(WebDriver driver, By elementLocator) {
-	String javaScript = "var evObj = document.createEvent('MouseEvents');"
-		+ "evObj.initMouseEvent(\"mouseenter\",true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);"
-		+ "arguments[arguments.length -1].dispatchEvent(evObj);";
-	((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
 
-	javaScript = "var evObj = document.createEvent('MouseEvents');"
-		+ "evObj.initMouseEvent(\"mouseover\",true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);"
-		+ "arguments[arguments.length -1].dispatchEvent(evObj);";
-	((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
+//	String javaScript = "var evObj = document.createEvent('MouseEvent');"
+//		+ "evObj.initMouseEvent('mousemove', true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);"
+//		+ "arguments[arguments.length -1].dispatchEvent(evObj);";
+//	((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
+//
+//	javaScript = "var evObj = document.createEvent('MouseEvents');"
+//		+ "evObj.initMouseEvent('mouseenter',true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);"
+//		+ "arguments[arguments.length -1].dispatchEvent(evObj);";
+//	((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
+//
+//	javaScript = "var evObj = document.createEvent('MouseEvents');"
+//		+ "evObj.initMouseEvent('mouseover',true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);"
+//		+ "arguments[arguments.length -1].dispatchEvent(evObj);";
+//	((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
 
-	//(new Actions(driver)).moveToElement(driver.findElement(elementLocator)).perform();
-	//disabling actions library for drag and drop as it has compatibility issues with remote webdriver
+	(new Actions(driver)).moveToElement(driver.findElement(elementLocator)).perform();
     }
 
     /**
