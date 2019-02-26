@@ -266,6 +266,11 @@ public class RestActions {
 		    builder.setBody(body);
 		    break;
 		}
+		// attach body
+		if (!ReportManager.isDiscreteLogging()) {
+		    ReportManager.attachAsStep("API Request", "REST Body", body.toString());
+		}
+
 	    } catch (Exception e) {
 		ReportManager.log(e);
 		failAction("performRequest", "Issue with parsing body content");

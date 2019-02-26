@@ -7,6 +7,7 @@ import org.junit.Assert;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.NoSuchSessionException;
 import org.openqa.selenium.Point;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
@@ -26,6 +27,10 @@ public class BrowserActions {
 	throw new IllegalStateException("Utility class");
     }
 
+    private static void passAction(String actionName) {
+	passAction(null, actionName, null);
+    }
+
     private static void passAction(WebDriver driver, String actionName) {
 	passAction(driver, actionName, null);
     }
@@ -35,8 +40,14 @@ public class BrowserActions {
 	if (testData != null) {
 	    message = message + " With the following test data [" + testData + "].";
 	}
-	ScreenshotManager.captureScreenShot(driver, actionName, true);
+	if (driver != null) {
+	    ScreenshotManager.captureScreenShot(driver, actionName, true);
+	}
 	ReportManager.log(message);
+    }
+
+    private static void failAction(String actionName) {
+	failAction(null, actionName, null);
     }
 
     private static void failAction(WebDriver driver, String actionName) {
@@ -48,7 +59,9 @@ public class BrowserActions {
 	if (testData != null) {
 	    message = message + " With the following test data [" + testData + "].";
 	}
-	ScreenshotManager.captureScreenShot(driver, actionName, false);
+	if (driver != null) {
+	    ScreenshotManager.captureScreenShot(driver, actionName, false);
+	}
 	ReportManager.log(message);
 	Assert.fail(message);
     }
@@ -307,11 +320,15 @@ public class BrowserActions {
 	JSWaiter.waitForLazyLoading();
 	try {
 	    driver.close();
-	    passAction(driver, "closeCurrentWindow");
-	} catch (WebDriverException e) {
+	    driver.quit();
+	    passAction("closeCurrentWindow");
+	} catch (NoSuchSessionException e) {
+	    // browser was already closed by the .close() method
+	} catch (Exception e) {
 	    ReportManager.log(e);
-	    failAction(driver, "closeCurrentWindow");
+	    failAction("closeCurrentWindow");
 	}
+	driver = null;
     }
 
     /**
