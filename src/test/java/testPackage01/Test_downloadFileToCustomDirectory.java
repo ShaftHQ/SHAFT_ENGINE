@@ -33,6 +33,6 @@ public class Test_downloadFileToCustomDirectory {
 
     @AfterClass
     public void afterClass() {
-	BrowserFactory.closeAllDrivers();
+	BrowserActions.closeCurrentWindow(driver);
     }
 }

@@ -4,7 +4,6 @@ import org.testng.ITestContext;
 import org.testng.ITestListener;
 import org.testng.ITestResult;
 
-import com.shaft.browser.BrowserFactory;
 import com.shaft.io.ReportManager;
 
 public class TestListener implements ITestListener {
@@ -15,7 +14,7 @@ public class TestListener implements ITestListener {
 	// test
 	Boolean discreetLoggingState = ReportManager.isDiscreteLogging();
 	ReportManager.setDiscreteLogging(true);
-	BrowserFactory.closeAllDrivers();
+	// BrowserFactory.closeAllDrivers();
 	ReportManager.setDiscreteLogging(discreetLoggingState);
     }
 
