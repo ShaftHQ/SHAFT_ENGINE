@@ -16,16 +16,20 @@ public class Assertions {
 	    .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
     private static int attemptsBeforeThrowingElementNotFoundExceptionInCaseElementShouldntExist = 1;
 
+    private static Boolean discreetLoggingState;
+    
     private Assertions() {
 	throw new IllegalStateException("Utility class");
     }
 
     private static void fail(String message, Throwable realCause) {
+	ReportManager.setDiscreteLogging(discreetLoggingState); // reset state in case of failure
 	ReportManager.log(message);
 	Assert.fail(message, realCause);
     }
 
     private static void fail(String message) {
+	ReportManager.setDiscreteLogging(discreetLoggingState); // reset state in case of failure
 	ReportManager.log(message);
 	Assert.fail(message);
     }
@@ -68,7 +72,7 @@ public class Assertions {
      */
     public static void assertEquals(Object expectedValue, Object actualValue, int comparisonType,
 	    Boolean assertionType) {
-	ReportManager.logDiscreet("Assertion [" + "assertEquals" + "] is being performed, with expectedValue ["
+	ReportManager.logDiscrete("Assertion [" + "assertEquals" + "] is being performed, with expectedValue ["
 		+ expectedValue + "], actualValue [" + actualValue + "], comparisonType [" + comparisonType
 		+ "], and assertionType [" + assertionType + "].");
 
@@ -116,7 +120,7 @@ public class Assertions {
      *                      the object doesn't refer to null
      */
     public static void assertNull(Object object, Boolean assertionType) {
-	ReportManager.logDiscreet("Assertion [" + "assertNull" + "] is being performed.");
+	ReportManager.logDiscrete("Assertion [" + "assertNull" + "] is being performed.");
 
 	if (assertionType) {
 	    try {
@@ -153,7 +157,7 @@ public class Assertions {
      *                       element doesn't exist
      */
     public static void assertElementExists(WebDriver driver, By elementLocator, Boolean assertionType) {
-	ReportManager.logDiscreet("Assertion [" + "assertElementExists" + "] is being performed.");
+	ReportManager.logDiscrete("Assertion [" + "assertElementExists" + "] is being performed.");
 	try {
 	    int customAttempts = attemptsBeforeThrowingElementNotFoundException;
 	    if (!assertionType) {
@@ -218,12 +222,12 @@ public class Assertions {
      */
     public static void assertElementAttribute(WebDriver driver, By elementLocator, String elementAttribute,
 	    String expectedValue, int comparisonType, Boolean assertionType) {
-	ReportManager.logDiscreet("Assertion [" + "assertElementAttribute"
+	ReportManager.logDiscrete("Assertion [" + "assertElementAttribute"
 		+ "] is being performed for target attribute [" + elementAttribute + "].");
 	String actualValue = null;
 
-	Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
-	ReportManager.setDiscreetLogging(true);
+	discreetLoggingState = ReportManager.isDiscreteLogging();
+	ReportManager.setDiscreteLogging(true);
 	switch (elementAttribute.toLowerCase()) {
 	case "text":
 	    actualValue = ElementActions.getText(driver, elementLocator);
@@ -238,7 +242,7 @@ public class Assertions {
 	    actualValue = ElementActions.getAttribute(driver, elementLocator, elementAttribute);
 	    break;
 	}
-	ReportManager.setDiscreetLogging(discreetLoggingState);
+	ReportManager.setDiscreteLogging(discreetLoggingState);
 
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, assertionType)) {
 	case 1:
@@ -289,13 +293,13 @@ public class Assertions {
      */
     public static void assertElementCSSProperty(WebDriver driver, By elementLocator, String propertyName,
 	    String expectedValue, int comparisonType, Boolean assertionType) {
-	ReportManager.logDiscreet("Assertion [" + "assertElementCSSProperty"
+	ReportManager.logDiscrete("Assertion [" + "assertElementCSSProperty"
 		+ "] is being performed for target CSS Property [" + propertyName + "].");
 
-	Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
-	ReportManager.setDiscreetLogging(true);
+	discreetLoggingState = ReportManager.isDiscreteLogging();
+	ReportManager.setDiscreteLogging(true);
 	String actualValue = ElementActions.getCSSProperty(driver, elementLocator, propertyName);
-	ReportManager.setDiscreetLogging(discreetLoggingState);
+	ReportManager.setDiscreteLogging(discreetLoggingState);
 
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, assertionType)) {
 	case 1:
@@ -355,12 +359,12 @@ public class Assertions {
     public static void assertBrowserAttribute(WebDriver driver, String browserAttribute, String expectedValue,
 	    int comparisonType, Boolean assertionType) {
 
-	ReportManager.logDiscreet("Assertion [" + "assertBrowserAttribute"
+	ReportManager.logDiscrete("Assertion [" + "assertBrowserAttribute"
 		+ "] is being performed for target attribute [" + browserAttribute + "].");
 	String actualValue = null;
 
-	Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
-	ReportManager.setDiscreetLogging(true);
+	discreetLoggingState = ReportManager.isDiscreteLogging();
+	ReportManager.setDiscreteLogging(true);
 	switch (browserAttribute.toLowerCase()) {
 	case "currenturl":
 	    actualValue = BrowserActions.getCurrentURL(driver);
@@ -384,7 +388,7 @@ public class Assertions {
 	    actualValue = "";
 	    break;
 	}
-	ReportManager.setDiscreetLogging(discreetLoggingState);
+	ReportManager.setDiscreteLogging(discreetLoggingState);
 
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, assertionType)) {
 	case 1:
@@ -418,7 +422,7 @@ public class Assertions {
 
     @Deprecated
     public static void assertGreaterThanOrEquals(Number expectedValue, Number actualValue, Boolean assertionType) {
-	ReportManager.logDiscreet("Assertion [" + "assertGreaterThanOrEquals"
+	ReportManager.logDiscrete("Assertion [" + "assertGreaterThanOrEquals"
 		+ "] is being performed, with expectedValue [" + expectedValue + "], actualValue [" + actualValue
 		+ "], and assertionType [" + assertionType + "].");
 	if (assertionType) {
@@ -472,7 +476,7 @@ public class Assertions {
     public static void assertComparativeRelation(Number expectedValue, Number actualValue,
 	    String comparativeRelationType, Boolean assertionType) {
 	ReportManager
-		.logDiscreet("Assertion [" + "assertComparativeRelation" + "] is being performed, with expectedValue ["
+		.logDiscrete("Assertion [" + "assertComparativeRelation" + "] is being performed, with expectedValue ["
 			+ expectedValue + "], comparativeRelationType [" + comparativeRelationType + "], actualValue ["
 			+ actualValue + "], and assertionType [" + assertionType + "].");
 
@@ -559,7 +563,7 @@ public class Assertions {
      */
     public static void assertFileExists(String fileFolderName, String fileName, int numberOfRetries,
 	    Boolean assertionType) {
-	ReportManager.logDiscreet("Assertion [" + "assertFileExists" + "] is being performed for target directory ["
+	ReportManager.logDiscrete("Assertion [" + "assertFileExists" + "] is being performed for target directory ["
 		+ fileFolderName + "], and target file [" + fileName + "].");
 	if (FileActions.doesFileExist(fileFolderName, fileName, numberOfRetries)) {
 	    if (assertionType) {

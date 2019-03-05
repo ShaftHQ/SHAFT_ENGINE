@@ -8,9 +8,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import org.json.JSONObject;
 import org.testng.Assert;
 
-import com.google.gson.JsonObject;
 import com.shaft.io.ReportManager;
 import com.shaft.support.JavaActions;
 import com.shaft.validation.Assertions;
@@ -20,7 +20,9 @@ import io.restassured.http.ContentType;
 import io.restassured.http.Cookie;
 import io.restassured.http.Header;
 import io.restassured.mapper.ObjectMapperType;
+import io.restassured.path.json.JsonPath;
 import io.restassured.path.json.exception.JsonPathException;
+import io.restassured.path.xml.XmlPath;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
 
@@ -48,9 +50,18 @@ public class RestActions {
 	if (testData != null) {
 	    message = message + " With the following test data [" + testData + "].";
 	}
-	ReportManager.log(message);
-	if (response != null) {
-	    ReportManager.attachAsStep("API Response", "REST Body", response.getBody().asString());
+
+	Boolean discreetLogging = ReportManager.isDiscreteLogging();
+	if (actionName.toLowerCase().contains("getresponse") && actionName.toLowerCase().contains("value")) {
+	    if (discreetLogging) {
+		ReportManager.logDiscrete(message);
+		ReportManager.logDiscrete("API Response - REST Body:\n" + response.getBody().asString());
+	    } else {
+		ReportManager.log(message);
+		if (response != null) {
+		    ReportManager.attachAsStep("API Response", "REST Body", response.getBody().asString());
+		}
+	    }
 	}
     }
 
@@ -94,78 +105,14 @@ public class RestActions {
 	}
     }
 
-    @Deprecated
-    private Response sendRequest(String requestType, String request) {
-	if (sessionCookies.size() == 0 && sessionHeaders.size() > 0) {
-	    switch (requestType.toLowerCase()) {
-	    case "post":
-		return given().headers(sessionHeaders).when().post(request).andReturn();
-	    case "get":
-		return given().headers(sessionHeaders).when().get(request).andReturn();
-	    case "delete":
-		return given().headers(sessionHeaders).when().delete(request).andReturn();
-	    default:
-		break;
-	    }
-	} else if (sessionCookies.size() == 0 && sessionHeaders.size() == 0) {
-	    switch (requestType.toLowerCase()) {
-	    case "post":
-		return given().when().post(request).andReturn();
-	    case "get":
-		return given().when().get(request).andReturn();
-	    case "delete":
-		return given().when().delete(request).andReturn();
-	    default:
-		break;
-	    }
+    private void reportRequestBody(Object body) {
+	if (ReportManager.isDiscreteLogging()) {
+	    ReportManager.logDiscrete("API Request - REST Body:\n" + body.toString());
 	} else {
-	    switch (requestType.toLowerCase()) {
-	    case "post":
-		return given().headers(sessionHeaders).cookies(sessionCookies).when().post(request).andReturn();
-	    case "get":
-		return given().headers(sessionHeaders).cookies(sessionCookies).when().get(request).andReturn();
-	    case "delete":
-		return given().headers(sessionHeaders).cookies(sessionCookies).when().delete(request).andReturn();
-	    default:
-		break;
+	    if (body.toString() != null && !body.toString().equals("")) {
+		ReportManager.attachAsStep("API Request", "REST Body", body.toString());
 	    }
 	}
-	return null;
-    }
-
-    @Deprecated
-    private Response sendRequest(String requestType, String request, JsonObject body) {
-	if (sessionCookies.size() == 0 && sessionHeaders.size() > 0) {
-	    switch (requestType.toLowerCase()) {
-	    case "post":
-		return given().headers(sessionHeaders).body(body.toString()).when().post(request).andReturn();
-	    case "patch":
-		return given().headers(sessionHeaders).body(body.toString()).when().patch(request).andReturn();
-	    default:
-		break;
-	    }
-	} else if (sessionCookies.size() == 0 && sessionHeaders.size() == 0) {
-	    switch (requestType.toLowerCase()) {
-	    case "post":
-		return given().when().body(body.toString()).post(request).andReturn();
-	    case "patch":
-		return given().when().body(body.toString()).patch(request).andReturn();
-	    default:
-		break;
-	    }
-	} else {
-	    switch (requestType.toLowerCase()) {
-	    case "post":
-		return given().headers(sessionHeaders).cookies(sessionCookies).when().body(body.toString())
-			.post(request).andReturn();
-	    case "patch":
-		return given().headers(sessionHeaders).cookies(sessionCookies).when().body(body.toString())
-			.patch(request).andReturn();
-	    default:
-		break;
-	    }
-	}
-	return null;
     }
 
     private Response sendRequest(String requestType, String request, RequestSpecification specs,
@@ -262,10 +209,10 @@ public class RestActions {
 
     private void assertResponseStatusCode(String request, Response response, String targetStatusCode) {
 	try {
-	    Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
-	    ReportManager.setDiscreetLogging(true);
+	    Boolean discreetLoggingState = ReportManager.isDiscreteLogging();
+	    ReportManager.setDiscreteLogging(true);
 	    Assertions.assertEquals(targetStatusCode, String.valueOf(response.getStatusCode()), 1, true);
-	    ReportManager.setDiscreetLogging(discreetLoggingState);
+	    ReportManager.setDiscreteLogging(discreetLoggingState);
 	    passAction("performRequest", request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms",
 		    response);
 	} catch (AssertionError e) {
@@ -277,73 +224,6 @@ public class RestActions {
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////// [Public] Core REST Actions
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    @Deprecated
-    public Response performRequest(String requestType, String targetStatusCode, String serviceName, String urlArguments,
-	    String... credentials) {
-
-	String request = prepareRequestURL(urlArguments, serviceName);
-	prepareRequestHeaderAuthorization(credentials);
-
-	Response response = null;
-	try {
-	    if (requestType.equalsIgnoreCase("post") || requestType.equalsIgnoreCase("get")
-		    || requestType.equalsIgnoreCase("delete")) {
-		response = sendRequest(requestType, request);
-	    } else {
-		failAction("performRequest", request);
-	    }
-
-	    if (response != null) {
-		extractCookiesFromResponse(response);
-		extractHeadersFromResponse(response);
-
-		assertResponseStatusCode(request, response, targetStatusCode);
-	    }
-	} catch (Exception e) {
-	    ReportManager.log(e);
-	    if (response != null) {
-		failAction("performRequest",
-			request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", response);
-	    } else {
-		failAction("performRequest", request);
-	    }
-	}
-	return response;
-    }
-
-    @Deprecated
-    public Response performRequest(String requestType, String targetStatusCode, String serviceName, String urlArguments,
-	    JsonObject body, String... credentials) {
-
-	String request = prepareRequestURL(urlArguments, serviceName);
-	prepareRequestHeaderAuthorization(credentials);
-
-	Response response = null;
-	try {
-	    if (requestType.equalsIgnoreCase("post") || requestType.equalsIgnoreCase("patch")) {
-		response = sendRequest(requestType, request, body);
-	    } else {
-		failAction("performRequest", request);
-	    }
-
-	    if (response != null) {
-		extractCookiesFromResponse(response);
-		extractHeadersFromResponse(response);
-
-		assertResponseStatusCode(request, response, targetStatusCode);
-	    }
-	} catch (Exception e) {
-	    ReportManager.log(e);
-	    if (response != null) {
-		failAction("performRequest",
-			request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", response);
-	    } else {
-		failAction("performRequest", request);
-	    }
-	}
-	return response;
-    }
 
     /**
      * Attempts to perform POST/PATCH/GET/DELETE request to a REST API, then checks
@@ -397,6 +277,9 @@ public class RestActions {
 		    builder.setBody(body);
 		    break;
 		}
+		// attach body
+		reportRequestBody(body);
+
 	    } catch (Exception e) {
 		ReportManager.log(e);
 		failAction("performRequest", "Issue with parsing body content");
@@ -464,6 +347,21 @@ public class RestActions {
 	}
     }
 
+    public String getResponseJSONValue(Object response, String jsonPath) {
+	@SuppressWarnings("unchecked")
+	JSONObject obj = new JSONObject((java.util.HashMap<String, String>) response);
+
+	String searchPool = JsonPath.from(obj.toString()).getString(jsonPath);
+	if (searchPool != null) {
+	    passAction("getResponseJSONValue", jsonPath);
+	    return searchPool;
+	} else {
+	    ReportManager.log("Couldn't find anything that matches with the desired jsonPath [" + jsonPath + "]");
+	    failAction("getResponseJSONValue", jsonPath);
+	    return "";
+	}
+    }
+
     public List<Object> getResponseJSONValueAsList(Response response, String jsonPath) {
 	List<Object> searchPool = response.jsonPath().getList(jsonPath);
 	if (searchPool != null) {
@@ -478,6 +376,21 @@ public class RestActions {
 
     public String getResponseXMLValue(Response response, String xmlPath) {
 	String searchPool = response.xmlPath().getString(xmlPath);
+	if (searchPool != null) {
+	    passAction("getResponseXMLValue", xmlPath);
+	    return searchPool;
+	} else {
+	    ReportManager.log("Couldn't find anything that matches with the desired xmlPath [" + xmlPath + "]");
+	    failAction("getResponseXMLValue", xmlPath);
+	    return "";
+	}
+    }
+
+    public String getResponseXMLValue(Object response, String xmlPath) {
+	@SuppressWarnings("unchecked")
+	JSONObject obj = new JSONObject((java.util.HashMap<String, String>) response);
+
+	String searchPool = XmlPath.from(obj.toString()).getString(xmlPath);
 	if (searchPool != null) {
 	    passAction("getResponseXMLValue", xmlPath);
 	    return searchPool;

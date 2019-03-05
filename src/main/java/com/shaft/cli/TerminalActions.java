@@ -113,9 +113,18 @@ public class TerminalActions {
 	if (testData != null) {
 	    message = message + " With the following test data [" + testData + "].";
 	}
-	ReportManager.log(message);
-	if (log != null) {
-	    ReportManager.attachAsStep("CLI Response", "Terminal Log", log);
+
+	Boolean discreetLogging = ReportManager.isDiscreteLogging();
+	if (actionName.toLowerCase().contains("getresponse") && actionName.toLowerCase().contains("value")) {
+	    if (discreetLogging) {
+		ReportManager.logDiscrete(message);
+		ReportManager.logDiscrete("CLI Response - Terminal Log:\n" + log);
+	    } else {
+		ReportManager.log(message);
+		if (log != null) {
+		    ReportManager.attachAsStep("CLI Response", "Terminal Log", log);
+		}
+	    }
 	}
     }
 
@@ -157,10 +166,10 @@ public class TerminalActions {
 	    session.setConfig(config);
 
 	    session.connect();
-	    Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
-	    ReportManager.setDiscreetLogging(true);
+	    Boolean discreetLoggingState = ReportManager.isDiscreteLogging();
+	    ReportManager.setDiscreteLogging(true);
 	    passAction("createSSHsession", testData);
-	    ReportManager.setDiscreetLogging(discreetLoggingState);
+	    ReportManager.setDiscreteLogging(discreetLoggingState);
 	} catch (JSchException e) {
 	    ReportManager.log(e);
 	    failAction("createSSHsession", testData);
@@ -222,7 +231,7 @@ public class TerminalActions {
 	    // Perform command
 	    if (isRemoteTerminal()) {
 		// remote execution
-		ReportManager.logDiscreet(
+		ReportManager.logDiscrete(
 			"Attempting to perform the following command remotely. Command: [" + command + "]");
 		session = createSSHsession();
 		session.setTimeout(sessionTimeout);
@@ -234,7 +243,7 @@ public class TerminalActions {
 	    } else {
 		// local execution
 		ReportManager
-			.logDiscreet("Attempting to perform the following command locally. Command: [" + command + "]");
+			.logDiscrete("Attempting to perform the following command locally. Command: [" + command + "]");
 		p = Runtime.getRuntime().exec(command);
 		p.waitFor();
 		reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
@@ -264,7 +273,7 @@ public class TerminalActions {
 	    }
 
 	    // Report Command exit status
-	    ReportManager.logDiscreet("Command Executed with exit status: [" + exitStatus + "]");
+	    ReportManager.logDiscrete("Command Executed with exit status: [" + exitStatus + "]");
 	    if (exitStatus > 0) {
 		// Remote script exec error!
 	    }

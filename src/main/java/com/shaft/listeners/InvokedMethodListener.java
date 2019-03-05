@@ -4,11 +4,14 @@ import org.testng.IInvokedMethod;
 import org.testng.IInvokedMethodListener;
 import org.testng.ITestNGMethod;
 import org.testng.ITestResult;
+import org.testng.Reporter;
 
 import com.shaft.browser.BrowserFactory;
 import com.shaft.element.ElementActions;
 import com.shaft.io.ReportManager;
 import com.shaft.video.RecordManager;
+
+import junit.framework.Assert;
 
 public class InvokedMethodListener implements IInvokedMethodListener {
     private int invokedTestsCounter = 0;
@@ -45,6 +48,7 @@ public class InvokedMethodListener implements IInvokedMethodListener {
     public void afterInvocation(IInvokedMethod method, ITestResult testResult) {
 	if (!method.isConfigurationMethod()) {
 	    ITestNGMethod testMethod = method.getTestMethod();
+//	    updateTestStatusInCaseOfVerificationFailure(testResult);
 	    if (testMethod.isTest()) {
 		ElementActions.switchToDefaultContent();
 		BrowserFactory.attachAnimatedGif();
@@ -67,6 +71,12 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 		    ReportManager.generateAllureReportArchive();
 		}
 	    }
+	}
+    }
+
+    private void updateTestStatusInCaseOfVerificationFailure(ITestResult testResult) {
+	if (testResult.getStatus() == ITestResult.FAILURE) {
+	    Assert.fail(Reporter.getCurrentTestResult().getThrowable().toString());
 	}
     }
 }

@@ -27,13 +27,13 @@ public class tests_validations_assertions {
 
     @Test
     public void assertEquals_longCharacters_Discreet() {
-	Boolean discreetLoggingState = ReportManager.isDiscreetLogging();
-	ReportManager.setDiscreetLogging(true);
+	Boolean discreetLoggingState = ReportManager.isDiscreteLogging();
+	ReportManager.setDiscreteLogging(true);
 	Assertions.assertEquals(
 		"1LH5pROcDBjjQk0t0mCr0lXuzQu9lcGj28kY8R1H81X67eVAQJgWQhILiRWVPUgZ6uCtK5cnBkF55Jr9vYngjGO1Iyf0Mktv6lruDlL9T8MAUPcUZJGHZtji6nIeadujDSNmWMj5d6C8zlFqw0CRqBU0hO5adIasHgBSNoLotAjce3NGXoDwAlp3rYreeV16VIyZXROQY",
 		"LH5pROcDBjjQk0t0mCr0lXuzQu9lcGj28kY8R1H81X67eVAQJgWQhILiRWVPUgZ6uCtK5cnBkF55Jr9vYngjGO1Iyf0Mktv6lruDlL9T8MAUPcUZJGHZtji6nIeadujDSNmWMj5d6C8zlFqw0CRqBU0hO5adIasHgBSNoLotAjce3NGXoDwAlp3rYreeV16VIyZXROQY",
 		1, true);
-	ReportManager.setDiscreetLogging(discreetLoggingState);
+	ReportManager.setDiscreteLogging(discreetLoggingState);
     }
 
     @Test

@@ -8,87 +8,180 @@
 
 	<properties>
 		<!-- Make sure you point to the latest version: https://bintray.com/mohabmohie/SHAFT/SHAFT_Engine/_latestVersion -->
-		<shaft_engine.version>2.3.20180108</shaft_engine.version>
+		<shaft_engine.version>2.3.20180305</shaft_engine.version>
+
+		<!-- SHAFT_Engine Properties and other property files are read from the 
+			below location -->
+		<propertiesFolderPath>src/test/resources/Properties/</propertiesFolderPath>
 
 		<!-- SHAFT Test Run Parameters -->
 		<testSuite.name>unitTestSuite</testSuite.name>
-		<executionAddress>local</executionAddress> <!-- Acceptable Values: local | seleniumGridHubIP:port -->
-		<operatingSystem.version>Linux-64</operatingSystem.version> <!-- Acceptable Values: Windows-64 | Linux-64 | Mac-64 -->
-		<!-- Will be ignored in case of local execution and SHAFT will identify 
-			the correct OS version automatically -->
-		<targetBrowser.name>GoogleChrome</targetBrowser.name> 		<!-- Acceptable Values: MozillaFirefox | MicrosoftInternetExplorer | GoogleChrome 
-			| MicrosoftEdge | Safari -->
-		<autoMaximizeBrowserWindow>true</autoMaximizeBrowserWindow> <!-- Acceptable Values: true | false -->
-
-		<defaultElementIdentificationTimeout>5</defaultElementIdentificationTimeout> <!-- Accepts integer values that represent the default timeout for finding 
-			a webElement -->
-		<attemptsBeforeThrowingElementNotFoundException>3</attemptsBeforeThrowingElementNotFoundException> <!-- Accepts integer values that represent the number of attempts before 
-			failing to find a webElement -->
-		<waitImplicitly>false</waitImplicitly> <!-- Acceptable Values: true | false -->
-		<!-- Note: Implicit waiting may increase execution time by 20% but it also 
-			increases test stability in flaky environments -->
-
-		<screenshotParams_whenToTakeAScreenshot>ValidationPointsOnly</screenshotParams_whenToTakeAScreenshot> <!-- Acceptable Values: Always | Never | ValidationPointsOnly | FailuresOnly -->
-		<screenshotParams_highlightElements>true</screenshotParams_highlightElements> <!-- Acceptable Values: true | false -->
-		<screenshotParams_screenshotType>Regular</screenshotParams_screenshotType> <!-- Acceptable Values: Regular | FullPage | Element -->
-		<screenshotParams_skippedElementsFromScreenshot></screenshotParams_skippedElementsFromScreenshot> <!-- The above element will be skipped in case of persistent elements/menus 
-			that show up multiple times in the full page screenshots -->
-
-		<recordVideo>false</recordVideo>
-
-		<createAnimatedGif>true</createAnimatedGif>
-		<animatedGif_frameDelay>500</animatedGif_frameDelay> <!-- Time in milliseconds to delay the frames of the animated GIF, default 
-			is 500 millisecond -->
-
-		<automaticallyGenerateAllureReport>false</automaticallyGenerateAllureReport> <!-- Acceptable Values: true | false -->
-
-		<!-- SHAFT Configuration Parameters -->
-		<testDataFolderPath>src/test/resources/TestDataFiles/</testDataFolderPath>
-		<jsonFolderPath>src/test/resources/TestJsonFiles/</jsonFolderPath>
-		<downloadsFolderPath>target/downloadedFiles/</downloadsFolderPath>
-		<testDataColumnNamePrefix>Data</testDataColumnNamePrefix>
-		<allureResultsFolderPath>allure-results/</allureResultsFolderPath>
 
 		<!-- Dependencies/Plugins Version Numbers Parameters -->
 		<encoding.type>UTF-8</encoding.type>
 		<jdk.version>1.8</jdk.version>
+
+		<selenium.version>3.141.59</selenium.version>
+		<allure.version>2.9.0</allure.version>
+		<aspectj.version>1.9.2</aspectj.version>
+
+		<rest-assured.version>3.2.0</rest-assured.version>
+		<json-simple.version>1.1.1</json-simple.version>
+		<skyscreamer-jsonassert.version>1.5.0</skyscreamer-jsonassert.version>
+
+		<testng.version>6.14.3</testng.version>
+
+		<apachepoi.version>4.0.0</apachepoi.version>
+		<org.slf4j.version>1.7.25</org.slf4j.version>
 		<maven-resources-plugin.version>3.1.0</maven-resources-plugin.version>
 		<maven-compiler-plugin.version>3.8.0</maven-compiler-plugin.version>
-		<maven-surefire-plugin.version>2.22.1</maven-surefire-plugin.version>
-		<aspectj.version>1.9.2</aspectj.version>
+		<maven-surefire-plugin.version>3.0.0-M3</maven-surefire-plugin.version>
+		<maven-shade-plugin.version>3.2.0</maven-shade-plugin.version>
+		<maven-jar-plugin.version>3.1.0</maven-jar-plugin.version>
+		<maven-javadoc-plugin.version>3.0.1</maven-javadoc-plugin.version>
+		<maven-source-plugin.version>3.0.1</maven-source-plugin.version>
+
+		<jcraft-jsch.version>0.1.54</jcraft-jsch.version>
+
+		<cucumber.version>4.2.1</cucumber.version>
+		<appium-java-client.version>6.1.0</appium-java-client.version>
+		<cverges-expect4j.version>1.9</cverges-expect4j.version>
+
 	</properties>
 
 	<dependencies>
+		<!-- Video Recording -->
 		<dependency>
-			<groupId>com.mohies</groupId>
-			<artifactId>SHAFT_ENGINE</artifactId>
-			<version>${shaft_engine.version}</version>
-			<type>pom</type>
+			<groupId>com.pojosontheweb</groupId>
+			<artifactId>monte-repack</artifactId>
+			<version>1.0.1</version>
+		</dependency>
+		<!-- Selenium and Allure Dependencies -->
+		<dependency>
+			<groupId>org.seleniumhq.selenium</groupId>
+			<artifactId>selenium-java</artifactId>
+			<version>${selenium.version}</version>
 		</dependency>
 		<dependency>
-			<groupId>com.mohies</groupId>
-			<artifactId>SHAFT_ENGINE</artifactId>
-			<version>${shaft_engine.version}</version>
-			<type>jar</type>
+			<groupId>org.seleniumhq.selenium</groupId>
+			<artifactId>selenium-api</artifactId>
+			<version>${selenium.version}</version>
 		</dependency>
 		<dependency>
-			<groupId>com.mohies</groupId>
-			<artifactId>SHAFT_ENGINE</artifactId>
-			<version>${shaft_engine.version}</version>
-			<type>jar</type>
-			<classifier>javadoc</classifier>
+			<groupId>org.seleniumhq.selenium</groupId>
+			<artifactId>selenium-support</artifactId>
+			<version>${selenium.version}</version>
 		</dependency>
 		<dependency>
-			<groupId>com.mohies</groupId>
-			<artifactId>SHAFT_ENGINE</artifactId>
-			<version>${shaft_engine.version}</version>
-			<type>jar</type>
-			<classifier>sources</classifier>
+			<groupId>io.qameta.allure</groupId>
+			<artifactId>allure-testng</artifactId>
+			<version>${allure.version}</version>
+			<!-- <scope>test</scope> -->
 		</dependency>
+		<!-- <dependency> -->
+		<!-- <groupId>io.qameta.allure</groupId> -->
+		<!-- <artifactId>allure-cucumber4-jvm</artifactId> -->
+		<!-- <version>${allure.version}</version> -->
+		<!-- </dependency> -->
+		<dependency>
+			<groupId>io.qameta.allure</groupId>
+			<artifactId>allure-rest-assured</artifactId> <!-- for testing reasons -->
+			<version>${allure.version}</version>
+		</dependency>
+
+		<!-- REST Assured (includes JsonPath and XmlPath) Dependencies -->
+		<dependency>
+			<groupId>io.rest-assured</groupId>
+			<artifactId>rest-assured</artifactId>
+			<version>${rest-assured.version}</version>
+		</dependency>
+
+		<!-- TestNG Dependencies -->
+		<dependency>
+			<groupId>org.testng</groupId>
+			<artifactId>testng</artifactId>
+			<version>${testng.version}</version>
+		</dependency>
+
+		<!-- Cucumber Dependencies -->
+		<dependency>
+			<groupId>io.cucumber</groupId>
+			<artifactId>cucumber-java</artifactId>
+			<version>${cucumber.version}</version>
+			<!-- <scope>test</scope> -->
+		</dependency>
+		<dependency>
+			<groupId>io.cucumber</groupId>
+			<artifactId>cucumber-testng</artifactId>
+			<version>${cucumber.version}</version>
+			<!-- <scope>test</scope> -->
+		</dependency>
+
+		<!-- https://mvnrepository.com/artifact/com.googlecode.json-simple/json-simple -->
+		<dependency>
+			<groupId>com.googlecode.json-simple</groupId>
+			<artifactId>json-simple</artifactId>
+			<version>${json-simple.version}</version>
+		</dependency>
+
+		<!-- Other Dependencies -->
+		<dependency>
+			<groupId>org.skyscreamer</groupId>
+			<artifactId>jsonassert</artifactId>
+			<version>${skyscreamer-jsonassert.version}</version>
+			<!-- <scope>test</scope> -->
+		</dependency>
+		<dependency>
+			<groupId>org.apache.poi</groupId>
+			<artifactId>poi</artifactId>
+			<version>${apachepoi.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.poi</groupId>
+			<artifactId>poi-ooxml</artifactId>
+			<version>${apachepoi.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-simple</artifactId>
+			<version>${org.slf4j.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.aspectj</groupId>
+			<artifactId>aspectjweaver</artifactId>
+			<version>${aspectj.version}</version>
+		</dependency>
+
+		<!-- remote ssh commands -->
+		<dependency>
+			<groupId>com.jcraft</groupId>
+			<artifactId>jsch</artifactId>
+			<version>${jcraft-jsch.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.github.cverges</groupId>
+			<artifactId>expect4j</artifactId>
+			<version>${cverges-expect4j.version}</version>
+		</dependency>
+
+		<!-- appium -->
+		<dependency>
+			<groupId>io.appium</groupId>
+			<artifactId>java-client</artifactId>
+			<version>${appium-java-client.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.seleniumhq.selenium</groupId>
+					<artifactId>selenium-java</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
 	</dependencies>
 
 	<build>
 		<pluginManagement>
+			<!--Plugins -->
 			<plugins>
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
@@ -110,6 +203,8 @@
 						<encoding>${encoding.type}</encoding>
 						<inputEncoding>${encoding.type}</inputEncoding>
 						<outputEncoding>${encoding.type}</outputEncoding>
+						<maxmem>10240m</maxmem>
+						<meminitial>10240m</meminitial>
 					</configuration>
 				</plugin>
 				<plugin>
@@ -119,27 +214,10 @@
 					<configuration>
 						<systemPropertyVariables>
 							<shaftEngineVersion>${shaft_engine.version}</shaftEngineVersion>
-							<targetOperatingSystem>${operatingSystem.version}</targetOperatingSystem>
-							<targetBrowserName>${targetBrowser.name}</targetBrowserName>
-							<screenshotParams_whenToTakeAScreenshot>${screenshotParams_whenToTakeAScreenshot}</screenshotParams_whenToTakeAScreenshot>
-							<screenshotParams_highlightElements>${screenshotParams_highlightElements}</screenshotParams_highlightElements>
-							<screenshotParams_screenshotType>${screenshotParams_screenshotType}</screenshotParams_screenshotType>
-							<screenshotParams_skippedElementsFromScreenshot>${screenshotParams_skippedElementsFromScreenshot}</screenshotParams_skippedElementsFromScreenshot>
-							<executionAddress>${executionAddress}</executionAddress>
-							<autoMaximizeBrowserWindow>${autoMaximizeBrowserWindow}</autoMaximizeBrowserWindow>
-							<testDataFolderPath>${testDataFolderPath}</testDataFolderPath>
-							<jsonFolderPath>${jsonFolderPath}</jsonFolderPath>
-							<downloadsFolderPath>${downloadsFolderPath}</downloadsFolderPath>
-							<testDataColumnNamePrefix>${testDataColumnNamePrefix}</testDataColumnNamePrefix>
-							<defaultElementIdentificationTimeout>${defaultElementIdentificationTimeout}</defaultElementIdentificationTimeout>
-							<attemptsBeforeThrowingElementNotFoundException>${attemptsBeforeThrowingElementNotFoundException}</attemptsBeforeThrowingElementNotFoundException>
-							<waitImplicitly>${waitImplicitly}</waitImplicitly>
-							<allureResultsFolderPath>${allureResultsFolderPath}</allureResultsFolderPath>
-							<automaticallyGenerateAllureReport>${automaticallyGenerateAllureReport}</automaticallyGenerateAllureReport>
-							<recordVideo>${recordVideo}</recordVideo>
-							<createAnimatedGif>${createAnimatedGif}</createAnimatedGif>
-							<animatedGif_frameDelay>${animatedGif_frameDelay}</animatedGif_frameDelay>
+							<propertiesFolderPath>${propertiesFolderPath}</propertiesFolderPath>
 						</systemPropertyVariables>
+						<!-- To continue execution after validation errors are thrown in the 
+							before method -->
 						<configfailurepolicy>continue</configfailurepolicy>
 						<suiteXmlFiles>
 							<suiteXmlFile>src\test\resources\TestSuites\${testSuite.name}.xml</suiteXmlFile>
@@ -150,10 +228,15 @@
 						<argLine>
 							-javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"
 						</argLine>
+						<!-- <argLine> -->
+						<!-- -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar" -->
+						<!-- -Dcucumber.options="-plugin -->
+						<!-- io.qameta.allure.cucumber4jvm.AllureCucumber4Jvm" -->
+						<!-- </argLine> -->
 						<properties>
 							<property>
 								<name>usedefaultlisteners</name>
-								<value>true</value> <!-- disabling default listeners is optional -->
+								<value>true</value>
 							</property>
 							<property>
 								<name>listener</name>
@@ -169,27 +252,104 @@
 						</dependency>
 					</dependencies>
 				</plugin>
+
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-jar-plugin</artifactId>
+					<version>${maven-jar-plugin.version}</version>
+					<configuration>
+						<archive>
+							<manifest>
+								<!-- <addDefaultImplementationEntries>true</addDefaultImplementationEntries> -->
+								<!-- <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries> -->
+								<addClasspath>true</addClasspath>
+								<!-- <classpathLayoutType>repository</classpathLayoutType> -->
+							</manifest>
+						</archive>
+						<excludes>
+							<exclude>allure/**</exclude>
+							<exclude>drivers/**</exclude>
+							<exclude>scripts/**</exclude>
+							<exclude>test/**</exclude>
+							<exclude>SHADE/**</exclude>
+							<exclude>test-output/**</exclude>
+							<exclude>allure-results/**</exclude>
+						</excludes>
+					</configuration>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-shade-plugin</artifactId>
+					<version>${maven-shade-plugin.version}</version>
+					<configuration>
+						<!-- put your configurations here -->
+						<!-- <createSourcesJar>true</createSourcesJar> -->
+						<!-- <finalName>SHAFT_Engine</finalName> -->
+						<minimizeJar>false</minimizeJar>
+						<outputDirectory>${project.build.directory}/SHADE</outputDirectory>
+						<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
+						<artifactSet>
+							<excludes>
+								<exclude>org.slf4j:slf4j-api:*</exclude>
+							</excludes>
+						</artifactSet>
+					</configuration>
+					<executions>
+						<execution>
+							<phase>package</phase>
+							<goals>
+								<goal>shade</goal>
+							</goals>
+						</execution>
+					</executions>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-javadoc-plugin</artifactId>
+					<version>${maven-javadoc-plugin.version}</version>
+					<configuration>
+						<sourcepath>${project.basedir}/src/main/java;${project.basedir}/target/generated-sources/annotations</sourcepath>
+						<encoding>${encoding.type}</encoding>
+						<inputEncoding>${encoding.type}</inputEncoding>
+						<outputEncoding>${encoding.type}</outputEncoding>
+					</configuration>
+					<executions>
+						<execution>
+							<id>attach-javadocs</id>
+							<goals>
+								<goal>jar</goal>
+							</goals>
+						</execution>
+					</executions>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-source-plugin</artifactId>
+					<version>${maven-source-plugin.version}</version>
+					<executions>
+						<execution>
+							<id>attach-sources</id>
+							<phase>verify</phase>
+							<goals>
+								<goal>jar-no-fork</goal>
+							</goals>
+						</execution>
+					</executions>
+					<configuration>
+						<archive>
+							<manifest>
+								<!-- <addDefaultImplementationEntries>true</addDefaultImplementationEntries> -->
+								<!-- <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries> -->
+								<addClasspath>true</addClasspath>
+								<!-- <classpathLayoutType>repository</classpathLayoutType> -->
+							</manifest>
+						</archive>
+						<includes>
+							<include>com/**</include>
+						</includes>
+					</configuration>
+				</plugin>
 			</plugins>
 		</pluginManagement>
 	</build>
-	<repositories>
-		<repository>
-			<snapshots>
-				<enabled>false</enabled>
-			</snapshots>
-			<id>bintray-mohabmohie-SHAFT</id>
-			<name>bintray</name>
-			<url>https://dl.bintray.com/mohabmohie/SHAFT</url>
-		</repository>
-	</repositories>
-	<pluginRepositories>
-		<pluginRepository>
-			<snapshots>
-				<enabled>false</enabled>
-			</snapshots>
-			<id>bintray-mohabmohie-SHAFT</id>
-			<name>bintray-plugins</name>
-			<url>https://dl.bintray.com/mohabmohie/SHAFT</url>
-		</pluginRepository>
-	</pluginRepositories>
 </project>

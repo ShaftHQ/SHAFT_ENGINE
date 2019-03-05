@@ -19,7 +19,7 @@ public class ReportManager {
     private static String fullLog = "";
     private static String currentTestLog = "";
     private static int actionCounter = 1;
-    private static boolean discreetLogging = false;
+    private static boolean discreteLogging = false;
     private static int totalNumberOfTests = 0;
     private static int testCasesCounter = 0;
 
@@ -45,7 +45,7 @@ public class ReportManager {
      * @param logText the text that needs to be logged in this action
      */
     public static void log(String logText) {
-	if (isDiscreetLogging() && !logText.toLowerCase().contains("failed")) {
+	if (isDiscreteLogging() && !logText.toLowerCase().contains("failed")) {
 	    createLogEntry(logText);
 	} else {
 	    writeStepToReport(logText, actionCounter);
@@ -53,7 +53,7 @@ public class ReportManager {
 	}
     }
 
-    public static void logDiscreet(String logText) {
+    public static void logDiscrete(String logText) {
 	createLogEntry(logText);
     }
 
@@ -116,8 +116,8 @@ public class ReportManager {
     }
 
     private static void createImportantReportEntry(String logText) {
-	Boolean initialLoggingStatus = discreetLogging;
-	setDiscreetLogging(false); // force log even if discreet logging was turned on
+	Boolean initialLoggingStatus = discreteLogging;
+	setDiscreteLogging(false); // force log even if discrete logging was turned on
 	String log = System.lineSeparator()
 		+ "################################################################################################################################################"
 		+ System.lineSeparator() + logText.trim() + System.lineSeparator()
@@ -126,7 +126,7 @@ public class ReportManager {
 	Reporter.log(log, true);
 	appendToLog(log);
 	appendToLog(System.lineSeparator());
-	setDiscreetLogging(initialLoggingStatus);
+	setDiscreteLogging(initialLoggingStatus);
     }
 
     /**
@@ -257,9 +257,9 @@ public class ReportManager {
 
     public static void generateAllureReportArchive() {
 	if (Boolean.valueOf(System.getProperty("automaticallyGenerateAllureReport").trim())) {
-	    logDiscreet("Generating Allure Report Archive...");
-	    Boolean discreetLoggingState = isDiscreetLogging();
-	    setDiscreetLogging(true);
+	    logDiscrete("Generating Allure Report Archive...");
+	    Boolean discreteLoggingState = isDiscreteLogging();
+	    setDiscreteLogging(true);
 
 	    // add correct file extension based on target OS
 	    String targetOperatingSystem = System.getProperty("targetOperatingSystem");
@@ -291,7 +291,7 @@ public class ReportManager {
 	    FileActions.zipFiles("generatedReport/", "generatedReport.zip");
 
 	    FileActions.deleteFile("generatedReport/");
-	    setDiscreetLogging(discreetLoggingState);
+	    setDiscreteLogging(discreteLoggingState);
 	}
     }
 
@@ -329,17 +329,17 @@ public class ReportManager {
     }
 
     /**
-     * @return the discreetLogging
+     * @return the discreteLogging
      */
-    public static boolean isDiscreetLogging() {
-	return discreetLogging;
+    public static boolean isDiscreteLogging() {
+	return discreteLogging;
     }
 
     /**
-     * @param discreetLogging the discreetLogging to set
+     * @param discreteLogging the discreteLogging to set
      */
-    public static void setDiscreetLogging(boolean discreetLogging) {
-	ReportManager.discreetLogging = discreetLogging;
+    public static void setDiscreteLogging(boolean discreteLogging) {
+	ReportManager.discreteLogging = discreteLogging;
     }
 
 }

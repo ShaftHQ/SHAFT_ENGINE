@@ -41,6 +41,7 @@ public class BrowserFactory {
 
     private static final Boolean AUTO_MAXIMIZE = Boolean
 	    .valueOf(System.getProperty("autoMaximizeBrowserWindow").trim());
+    private static final Boolean HEADLESS_EXECUTION = Boolean.valueOf(System.getProperty("headlessExecution").trim());
     private static final String EXECUTION_ADDRESS = System.getProperty("executionAddress").trim();
     // local OR hub ip:port
     private static final String TARGET_HUB_URL = "http://" + EXECUTION_ADDRESS + "/wd/hub";
@@ -128,42 +129,42 @@ public class BrowserFactory {
      */
     public static WebDriver getBrowser(String browserName) {
 	try {
-	    if (driver != null && drivers.get(browserName) != null) {
-		if (drivers.get(browserName).get(targetOperatingSystem) != null) {
-		    // retrieve current instance
-		    driver = getActiveDriverInstance(browserName);
-		}
+//	    if (driver != null && drivers.get(browserName) != null) {
+//		if (drivers.get(browserName).get(targetOperatingSystem) != null) {
+//		    // retrieve current instance (only works in case of sequential execution)
+//		    driver = getActiveDriverInstance(browserName);
+//		}
+//
+//	    } else {
+	    // if driver is null set logging preferences, then set driver options and create
+	    // new instances
+	    checkBrowserOSCrossCompatibility(browserName);
+	    // check cross-compatibility between the selected operating system and browser
+	    // and report in case they are not compatible
+	    setDriversPath();
+	    // set path based on operating system
+	    setLoggingPrefrences();
+	    // set logging global preferences
+	    setDriverOptions(browserName);
+	    // set driver options with respect to the target browser name
 
+	    if (EXECUTION_ADDRESS.equals("local")) {
+		// Manage local execution
+		driver = createNewLocalDriverInstance(browserName);
 	    } else {
-		// if driver is null set logging preferences, then set driver options and create
-		// new instances
-		checkBrowserOSCrossCompatibility(browserName);
-		// check cross-compatibility between the selected operating system and browser
-		// and report in case they are not compatible
-		setDriversPath();
-		// set path based on operating system
-		setLoggingPrefrences();
-		// set logging global preferences
-		setDriverOptions(browserName);
-		// set driver options with respect to the target browser name
-
-		if (EXECUTION_ADDRESS.equals("local")) {
-		    // Manage local execution
-		    driver = createNewLocalDriverInstance(browserName);
-		} else {
-		    // Manage remote execution
-		    driver = createNewRemoteDriverInstance(browserName);
-		}
-		driver.manage().timeouts().pageLoadTimeout(PAGE_LOAD_TIMEOUT, TimeUnit.SECONDS);
-		if (WAIT_IMPLICITLY) {
-		    driver.manage().timeouts().implicitlyWait(IMPLICIT_WAIT_TIMEOUT, TimeUnit.SECONDS);
-		}
-
-		JSWaiter.setDriver(driver);
-		if (AUTO_MAXIMIZE) {
-		    BrowserActions.maximizeWindow(driver); // Automatically maximize driver window after opening it
-		}
+		// Manage remote execution
+		driver = createNewRemoteDriverInstance(browserName);
 	    }
+	    driver.manage().timeouts().pageLoadTimeout(PAGE_LOAD_TIMEOUT, TimeUnit.SECONDS);
+	    if (WAIT_IMPLICITLY) {
+		driver.manage().timeouts().implicitlyWait(IMPLICIT_WAIT_TIMEOUT, TimeUnit.SECONDS);
+	    }
+
+	    JSWaiter.setDriver(driver);
+	    if (AUTO_MAXIMIZE) {
+		BrowserActions.maximizeWindow(driver); // Automatically maximize driver window after opening it
+	    }
+//	    }
 
 	} catch (NullPointerException e) {
 	    ReportManager.log(e);
@@ -172,7 +173,7 @@ public class BrowserFactory {
 	}
 	return driver;
     }
-
+/*
     private static WebDriver getActiveDriverInstance(String browserName) {
 	ReportManager.log(
 		"Switching to active browser instance on: [" + targetOperatingSystem + "], [" + browserName + "].");
@@ -199,7 +200,7 @@ public class BrowserFactory {
 	}
 	return driver;
     }
-
+*/
     /**
      * Check cross-compatibility between the selected operating system and browser
      * and report in case they are not compatible
@@ -247,7 +248,7 @@ public class BrowserFactory {
     private static void setDriversPath() {
 	switch (targetOperatingSystem) {
 	case OS_WINDOWS:
-	    driversPath = "src/main/resources/drivers/";
+	    driversPath = "src/main/resources/drivers/windows-64/";
 	    fileExtension = ".exe";
 	    break;
 	case OS_LINUX:
@@ -281,6 +282,10 @@ public class BrowserFactory {
 	    ffOptions.setCapability("platform", getDesiredOperatingSystem());
 	    ffOptions.setCapability("nativeEvents", true);
 	    ffOptions.setCapability(CapabilityType.LOGGING_PREFS, logPrefs);
+	    if (HEADLESS_EXECUTION) {
+		// https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Headless_mode
+		ffOptions.addArguments("-headless");
+	    }
 	    FirefoxProfile ffProfile = new FirefoxProfile();
 	    ffProfile.setPreference("browser.download.dir", downloadsFolderPath);
 	    ffProfile.setPreference("browser.download.folderList", 2);
@@ -298,6 +303,11 @@ public class BrowserFactory {
 	    chOptions.setCapability("platform", getDesiredOperatingSystem());
 	    chOptions.addArguments("--no-sandbox");
 	    chOptions.addArguments("--disable-infobars"); // disable automation info bar
+	    if (HEADLESS_EXECUTION) {
+		// https://developers.google.com/web/updates/2017/04/headless-chrome
+		chOptions.addArguments("--headless");
+		chOptions.addArguments("--disable-gpu"); // Temporarily needed if running on Windows
+	    }
 	    chOptions.setCapability(CapabilityType.LOGGING_PREFS, logPrefs);
 	    Map<String, Object> chromePreferences = new HashMap<>();
 	    chromePreferences.put("profile.default_content_settings.popups", 0);
@@ -326,42 +336,48 @@ public class BrowserFactory {
     }
 
     private static WebDriver createNewLocalDriverInstance(String browserName) {
-	ReportManager.log("Attempting to run locally on: [" + targetOperatingSystem + "], [" + browserName + "].");
+	String initialLog = "Attempting to run locally on: [" + targetOperatingSystem + "], [" + browserName + "]";
+	if (HEADLESS_EXECUTION) {
+	    initialLog = initialLog + ", Headless Execution";
+	}
+	ReportManager.log(initialLog + ".");
+	String browserInstanceID = browserName + "_" + System.currentTimeMillis();
+
 	switch (browserName) {
 	case BROWSER_FIREFOX:
 	    System.setProperty("webdriver.gecko.driver", driversPath + "geckodriver" + fileExtension);
 	    driver = new FirefoxDriver(ffOptions);
-	    drivers.put(browserName, new HashMap<String, WebDriver>());
-	    drivers.get(browserName).put(targetOperatingSystem, driver);
+	    drivers.put(browserInstanceID, new HashMap<String, WebDriver>());
+	    drivers.get(browserInstanceID).put(targetOperatingSystem, driver);
 	    ReportManager.log("Successfully Opened Mozilla Firefox.");
 
 	    break;
 	case BROWSER_IE:
 	    System.setProperty("webdriver.ie.driver", driversPath + "IEDriverServer" + fileExtension);
 	    driver = new InternetExplorerDriver(ieOptions);
-	    drivers.put(browserName, new HashMap<String, WebDriver>());
-	    drivers.get(browserName).put(targetOperatingSystem, driver);
+	    drivers.put(browserInstanceID, new HashMap<String, WebDriver>());
+	    drivers.get(browserInstanceID).put(targetOperatingSystem, driver);
 	    ReportManager.log("Successfully Opened Microsoft Internet Explorer.");
 
 	    break;
 	case BROWSER_CHROME:
 	    System.setProperty("webdriver.chrome.driver", driversPath + "chromedriver" + fileExtension);
 	    driver = new ChromeDriver(chOptions);
-	    drivers.put(browserName, new HashMap<String, WebDriver>());
-	    drivers.get(browserName).put(targetOperatingSystem, driver);
+	    drivers.put(browserInstanceID, new HashMap<String, WebDriver>());
+	    drivers.get(browserInstanceID).put(targetOperatingSystem, driver);
 	    ReportManager.log("Successfully Opened Google Chrome.");
 	    break;
 	case BROWSER_EDGE:
 	    System.setProperty("webdriver.edge.driver", driversPath + "MicrosoftWebDriver" + fileExtension);
 	    driver = new EdgeDriver(edOptions);
-	    drivers.put(browserName, new HashMap<String, WebDriver>());
-	    drivers.get(browserName).put(targetOperatingSystem, driver);
+	    drivers.put(browserInstanceID, new HashMap<String, WebDriver>());
+	    drivers.get(browserInstanceID).put(targetOperatingSystem, driver);
 	    ReportManager.log("Successfully Opened Microsoft Edge.");
 	    break;
 	case BROWSER_SAFARI:
 	    driver = new SafariDriver(sfOptions);
-	    drivers.put(browserName, new HashMap<String, WebDriver>());
-	    drivers.get(browserName).put(targetOperatingSystem, driver);
+	    drivers.put(browserInstanceID, new HashMap<String, WebDriver>());
+	    drivers.get(browserInstanceID).put(targetOperatingSystem, driver);
 	    ReportManager.log("Successfully Opened Safari.");
 	    break;
 	default:
@@ -373,8 +389,13 @@ public class BrowserFactory {
     }
 
     private static WebDriver createNewRemoteDriverInstance(String browserName) {
-	ReportManager.log("Attempting to run remotely on: [" + targetOperatingSystem + "], [" + browserName + "], ["
-		+ TARGET_HUB_URL + "].");
+	String initialLog = "Attempting to run remotely on: [" + targetOperatingSystem + "], [" + browserName + "], ["
+		+ TARGET_HUB_URL + "]";
+	if (HEADLESS_EXECUTION) {
+	    initialLog = initialLog + ", Headless Execution";
+	}
+	ReportManager.log(initialLog + ".");
+
 	try {
 	    switch (browserName) {
 	    case BROWSER_FIREFOX:
