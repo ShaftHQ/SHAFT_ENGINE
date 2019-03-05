@@ -204,8 +204,13 @@ public class FileActions {
 	    String fileName) {
 	String command;
 	if (isTargetOSUnixBased()) {
-	    command = "rsync --verbose --recursive " + sourceDirectory + File.separator + fileName + " "
-		    + destinationDirectory + File.separator;
+	    if (fileName.trim().equals("")) {
+		command = "rsync --verbose --recursive " + sourceDirectory + File.separator + " "
+			+ destinationDirectory;
+	    } else {
+		command = "rsync --verbose --recursive " + sourceDirectory + File.separator + fileName + " "
+			+ destinationDirectory + File.separator;
+	    }	    
 	} else {
 	    command = "robocopy  /e /v /fp " + sourceDirectory + " " + destinationDirectory + " " + fileName;
 	}

@@ -113,9 +113,18 @@ public class TerminalActions {
 	if (testData != null) {
 	    message = message + " With the following test data [" + testData + "].";
 	}
-	ReportManager.log(message);
-	if (log != null) {
-	    ReportManager.attachAsStep("CLI Response", "Terminal Log", log);
+
+	Boolean discreetLogging = ReportManager.isDiscreteLogging();
+	if (actionName.toLowerCase().contains("getresponse") && actionName.toLowerCase().contains("value")) {
+	    if (discreetLogging) {
+		ReportManager.logDiscrete(message);
+		ReportManager.logDiscrete("CLI Response - Terminal Log:\n" + log);
+	    } else {
+		ReportManager.log(message);
+		if (log != null) {
+		    ReportManager.attachAsStep("CLI Response", "Terminal Log", log);
+		}
+	    }
 	}
     }
 

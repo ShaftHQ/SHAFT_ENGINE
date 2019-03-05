@@ -55,6 +55,7 @@ public class RestActions {
 	if (actionName.toLowerCase().contains("getresponse") && actionName.toLowerCase().contains("value")) {
 	    if (discreetLogging) {
 		ReportManager.logDiscrete(message);
+		ReportManager.logDiscrete("API Response - REST Body:\n" + response.getBody().asString());
 	    } else {
 		ReportManager.log(message);
 		if (response != null) {
@@ -101,6 +102,16 @@ public class RestActions {
 	    headerAuthorization = "Basic " + JavaActions.convertBase64(credentials[0] + ":" + credentials[1]);
 
 	    sessionHeaders.put("Authorization", headerAuthorization);
+	}
+    }
+
+    private void reportRequestBody(Object body) {
+	if (ReportManager.isDiscreteLogging()) {
+	    ReportManager.logDiscrete("API Request - REST Body:\n" + body.toString());
+	} else {
+	    if (body.toString() != null && !body.toString().equals("")) {
+		ReportManager.attachAsStep("API Request", "REST Body", body.toString());
+	    }
 	}
     }
 
@@ -267,9 +278,7 @@ public class RestActions {
 		    break;
 		}
 		// attach body
-		if (!ReportManager.isDiscreteLogging()) {
-		    ReportManager.attachAsStep("API Request", "REST Body", body.toString());
-		}
+		reportRequestBody(body);
 
 	    } catch (Exception e) {
 		ReportManager.log(e);

@@ -22,6 +22,8 @@ public class Verifications {
 	    .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
     private static int attemptsBeforeThrowingElementNotFoundExceptionInCaseElementShouldntExist = 1;
 
+    private static Boolean discreetLoggingState;
+
     private Verifications() {
 	throw new IllegalStateException("Utility class");
     }
@@ -44,6 +46,7 @@ public class Verifications {
 
 	String verificationFailuresString = verificationFailures.toString().trim();
 	if (!"".equals(verificationFailuresString)) {
+	    ReportManager.setDiscreteLogging(discreetLoggingState); // reset state in case of failure
 	    if (driver != null) {
 		try {
 		    ScreenshotManager.captureScreenShot(driver, elementLocator, actionName, false);
@@ -239,7 +242,7 @@ public class Verifications {
 
 	String actualValue = null;
 
-	Boolean discreetLoggingState = ReportManager.isDiscreteLogging();
+	discreetLoggingState = ReportManager.isDiscreteLogging();
 	ReportManager.setDiscreteLogging(true);
 	switch (elementAttribute.toLowerCase()) {
 	case "text":
@@ -308,7 +311,7 @@ public class Verifications {
 	ReportManager.logDiscrete("Verification [" + "verifyElementCSSProperty"
 		+ "] is being performed for target CSS Property [" + propertyName + "].");
 
-	Boolean discreetLoggingState = ReportManager.isDiscreteLogging();
+	discreetLoggingState = ReportManager.isDiscreteLogging();
 	ReportManager.setDiscreteLogging(true);
 	String actualValue = ElementActions.getCSSProperty(driver, elementLocator, propertyName);
 	ReportManager.setDiscreteLogging(discreetLoggingState);
@@ -373,7 +376,7 @@ public class Verifications {
 
 	String actualValue = null;
 
-	Boolean discreetLoggingState = ReportManager.isDiscreteLogging();
+	discreetLoggingState = ReportManager.isDiscreteLogging();
 	ReportManager.setDiscreteLogging(true);
 	switch (browserAttribute.toLowerCase()) {
 	case "currenturl":

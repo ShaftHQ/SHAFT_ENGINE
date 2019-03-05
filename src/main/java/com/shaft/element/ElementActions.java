@@ -826,6 +826,23 @@ public class ElementActions {
     }
 
     /**
+     * Sends a keypress to the target element.
+     * 
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param key            the key that should be pressed
+     */
+    public static void keyPress(WebDriver driver, By elementLocator, Keys key) {
+	if (identifyUniqueElement(driver, elementLocator)) {
+	    driver.findElement(elementLocator).sendKeys(key);
+	} else {
+	    failAction(driver, "keyPress", key.name());
+	}
+	passAction(driver, elementLocator, "keyPress", key.name());
+    }
+
+    /**
      * Hovers over target element. If you want to hover on a webElement to expose
      * another webElement and click on it, use hoverAndClick instead for a more
      * reliable result.
