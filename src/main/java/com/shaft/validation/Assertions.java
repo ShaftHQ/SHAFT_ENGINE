@@ -16,16 +16,20 @@ public class Assertions {
 	    .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
     private static int attemptsBeforeThrowingElementNotFoundExceptionInCaseElementShouldntExist = 1;
 
+    private static Boolean discreetLoggingState;
+    
     private Assertions() {
 	throw new IllegalStateException("Utility class");
     }
 
     private static void fail(String message, Throwable realCause) {
+	ReportManager.setDiscreteLogging(discreetLoggingState); // reset state in case of failure
 	ReportManager.log(message);
 	Assert.fail(message, realCause);
     }
 
     private static void fail(String message) {
+	ReportManager.setDiscreteLogging(discreetLoggingState); // reset state in case of failure
 	ReportManager.log(message);
 	Assert.fail(message);
     }
@@ -222,7 +226,7 @@ public class Assertions {
 		+ "] is being performed for target attribute [" + elementAttribute + "].");
 	String actualValue = null;
 
-	Boolean discreetLoggingState = ReportManager.isDiscreteLogging();
+	discreetLoggingState = ReportManager.isDiscreteLogging();
 	ReportManager.setDiscreteLogging(true);
 	switch (elementAttribute.toLowerCase()) {
 	case "text":
@@ -292,7 +296,7 @@ public class Assertions {
 	ReportManager.logDiscrete("Assertion [" + "assertElementCSSProperty"
 		+ "] is being performed for target CSS Property [" + propertyName + "].");
 
-	Boolean discreetLoggingState = ReportManager.isDiscreteLogging();
+	discreetLoggingState = ReportManager.isDiscreteLogging();
 	ReportManager.setDiscreteLogging(true);
 	String actualValue = ElementActions.getCSSProperty(driver, elementLocator, propertyName);
 	ReportManager.setDiscreteLogging(discreetLoggingState);
@@ -359,7 +363,7 @@ public class Assertions {
 		+ "] is being performed for target attribute [" + browserAttribute + "].");
 	String actualValue = null;
 
-	Boolean discreetLoggingState = ReportManager.isDiscreteLogging();
+	discreetLoggingState = ReportManager.isDiscreteLogging();
 	ReportManager.setDiscreteLogging(true);
 	switch (browserAttribute.toLowerCase()) {
 	case "currenturl":
