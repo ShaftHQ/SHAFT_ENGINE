@@ -16,6 +16,7 @@ public class SuiteListener implements ISuiteListener {
 	ReportManager.logEngineVersion(true);
 	ReportManager.setTotalNumberOfTests(suite.getAllMethods().size());
 	ReportManager.setDiscreteLogging(Boolean.valueOf(System.getProperty("alwaysLogDiscreetly")));
+	ReportManager.setDebugMode(Boolean.valueOf(System.getProperty("debugMode")));
     }
 
     @Override

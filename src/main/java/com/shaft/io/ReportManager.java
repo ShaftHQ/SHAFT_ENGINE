@@ -22,6 +22,7 @@ public class ReportManager {
     private static boolean discreteLogging = false;
     private static int totalNumberOfTests = 0;
     private static int testCasesCounter = 0;
+    private static boolean debugMode = false;
 
     public static int getTestCasesCounter() {
 	return testCasesCounter;
@@ -152,7 +153,9 @@ public class ReportManager {
      */
     @Step("Attachment: {attachmentType} - {attachmentName}")
     public static void attachAsStep(String attachmentType, String attachmentName, String attachmentContent) {
-	createAttachment(attachmentType, attachmentName, attachmentContent);
+	if (!attachmentContent.trim().equals("")) {
+	    createAttachment(attachmentType, attachmentName, attachmentContent);
+	}
     }
 
     /**
@@ -176,7 +179,9 @@ public class ReportManager {
      * @param attachmentContent the content of this attachment
      */
     public static void attach(String attachmentType, String attachmentName, String attachmentContent) {
-	createAttachment(attachmentType, attachmentName, attachmentContent);
+	if (!attachmentContent.trim().equals("")) {
+	    createAttachment(attachmentType, attachmentName, attachmentContent);
+	}
     }
 
     private static void createAttachment(String attachmentType, String attachmentName, InputStream attachmentContent) {
@@ -193,24 +198,20 @@ public class ReportManager {
 	} else {
 	    Allure.addAttachment(attachmentDescription, attachmentContent);
 	}
+
 	createReportEntry("Successfully created attachment [" + attachmentType + " - " + attachmentName + "]");
     }
 
     @Attachment("Attachment: {attachmentType} - {attachmentName}")
     private static String createAttachment(String attachmentType, String attachmentName, String attachmentContent) {
 	createReportEntry("Successfully created attachment [" + attachmentType + " - " + attachmentName + "]");
+	if (debugMode && !attachmentType.contains("SHAFT Engine Logs")) {
+	    String timestamp = (new SimpleDateFormat("dd-MM-yyyy HH:mm:ss.SSSS aaa"))
+		    .format(new Date(System.currentTimeMillis()));
+	    System.out.print("[ReportManager] " + "Debugging Attachment Entry" + " @" + timestamp
+		    + System.lineSeparator() + attachmentContent.trim() + System.lineSeparator());
+	}
 	return attachmentContent;
-    }
-
-    /**
-     * @deprecated attaching the log will be handled by the listeners package
-     *             instead. Returns the log of the current test, and attaches it in
-     *             the end of the test execution report.
-     * 
-     */
-    @Deprecated
-    public static void getTestLog() {
-	attachTestLog();
     }
 
     /**
@@ -219,7 +220,9 @@ public class ReportManager {
      * 
      */
     public static void attachTestLog() {
-	createAttachment("SHAFT Engine Logs", "Current Test log", currentTestLog);
+	if (!currentTestLog.trim().equals("")) {
+	    createAttachment("SHAFT Engine Logs", "Current Test log", currentTestLog);
+	}
 	clearTestLog();
     }
 
@@ -230,19 +233,10 @@ public class ReportManager {
 	currentTestLog = "";
     }
 
-    /**
-     * * @deprecated logging will be handled by the listeners package instead.
-     * Returns the complete log of the current execution session, and attaches it in
-     * the end of the test execution report.
-     * 
-     */
-    @Deprecated
-    public static void getFullLog() {
-	attachFullLog();
-    }
-
     public static void attachFullLog() {
-	createAttachment("SHAFT Engine Logs", "Full Execution log", fullLog);
+	if (!fullLog.trim().equals("")) {
+	    createAttachment("SHAFT Engine Logs", "Full Execution log", fullLog);
+	}
     }
 
     /**
@@ -293,6 +287,10 @@ public class ReportManager {
 	    FileActions.deleteFile("generatedReport/");
 	    setDiscreteLogging(discreteLoggingState);
 	}
+    }
+
+    public static void setDebugMode(Boolean debugMode) {
+	ReportManager.debugMode = debugMode;
     }
 
     public static void populateEnvironmentData() {
