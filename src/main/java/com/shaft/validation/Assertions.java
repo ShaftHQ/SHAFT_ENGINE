@@ -16,8 +16,8 @@ public class Assertions {
 	    .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
     private static int attemptsBeforeThrowingElementNotFoundExceptionInCaseElementShouldntExist = 1;
 
-    private static Boolean discreetLoggingState;
-    
+    private static Boolean discreetLoggingState = Boolean.valueOf(System.getProperty("alwaysLogDiscreetly"));
+
     private Assertions() {
 	throw new IllegalStateException("Utility class");
     }
