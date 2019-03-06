@@ -5,7 +5,6 @@ import org.testng.IInvokedMethod;
 import org.testng.IInvokedMethodListener;
 import org.testng.ITestNGMethod;
 import org.testng.ITestResult;
-import org.testng.Reporter;
 
 import com.shaft.browser.BrowserFactory;
 import com.shaft.element.ElementActions;
@@ -74,8 +73,8 @@ public class InvokedMethodListener implements IInvokedMethodListener {
     }
 
     private void updateTestStatusInCaseOfVerificationFailure(ITestResult testResult) {
-	if (testResult.getStatus() == ITestResult.FAILURE) {
-	    Assert.fail(Reporter.getCurrentTestResult().getThrowable().getMessage());
+	if (testResult.getStatus() == ITestResult.FAILURE && (testResult.getThrowable() != null)) {
+	    Assert.fail(testResult.getThrowable().getMessage());
 	}
     }
 }

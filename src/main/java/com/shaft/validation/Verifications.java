@@ -22,7 +22,7 @@ public class Verifications {
 	    .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
     private static int attemptsBeforeThrowingElementNotFoundExceptionInCaseElementShouldntExist = 1;
 
-    private static Boolean discreetLoggingState;
+    private static Boolean discreetLoggingState = Boolean.valueOf(System.getProperty("alwaysLogDiscreetly"));
 
     private Verifications() {
 	throw new IllegalStateException("Utility class");
