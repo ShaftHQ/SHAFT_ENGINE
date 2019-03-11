@@ -67,13 +67,14 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 		    // is the last test in the suite
 		    ReportManager.generateAllureReportArchive();
 		}
+
+		updateTestStatusInCaseOfVerificationFailure(testResult);
 	    }
-	    updateTestStatusInCaseOfVerificationFailure(testResult);
 	}
     }
 
     private void updateTestStatusInCaseOfVerificationFailure(ITestResult testResult) {
-	if (testResult.getStatus() == ITestResult.FAILURE && (testResult.getThrowable() != null)) {
+	if (testResult != null && testResult.getStatus() == ITestResult.FAILURE && testResult.getThrowable() != null) {
 	    Assert.fail(testResult.getThrowable().getMessage());
 	}
     }

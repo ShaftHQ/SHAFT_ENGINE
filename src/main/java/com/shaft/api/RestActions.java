@@ -268,7 +268,11 @@ public class RestActions {
 	    try {
 		switch (contentType) {
 		case JSON:
-		    builder.setBody(body, ObjectMapperType.GSON);
+		    // body = body.toString().replaceAll("\n", "").replaceAll("\t",
+		    // "").replaceAll("", "");
+		    JSONObject bodyObject = new JSONObject(body.toString());
+		    body = bodyObject.toString();
+		    builder.setBody(bodyObject, ObjectMapperType.GSON);
 		    break;
 		case XML:
 		    builder.setBody(body, ObjectMapperType.JAXB);
