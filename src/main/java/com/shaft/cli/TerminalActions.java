@@ -114,14 +114,19 @@ public class TerminalActions {
 	    message = message + " With the following test data [" + testData + "].";
 	}
 
+	if (actionName.toLowerCase().contains("createsshsession")) {
+	    ReportManager.logDiscrete(message);
+	    ReportManager.logDiscrete("CLI Response - Terminal Log:\n" + log);
+	}
+
 	Boolean discreetLogging = ReportManager.isDiscreteLogging();
-	if (actionName.toLowerCase().contains("getresponse") && actionName.toLowerCase().contains("value")) {
+	if (actionName.toLowerCase().contains("performterminalcommand")) {
 	    if (discreetLogging) {
 		ReportManager.logDiscrete(message);
 		ReportManager.logDiscrete("CLI Response - Terminal Log:\n" + log);
 	    } else {
 		ReportManager.log(message);
-		if (log != null) {
+		if ((log != null) && (!log.trim().equals(""))) {
 		    ReportManager.attachAsStep("CLI Response", "Terminal Log", log);
 		}
 	    }
@@ -138,7 +143,7 @@ public class TerminalActions {
 	    message = message + " With the following test data [" + testData + "].";
 	}
 	ReportManager.log(message);
-	if (log != null) {
+	if ((log != null) && (!log.trim().equals(""))) {
 	    ReportManager.attachAsStep("API Response", "Command Log", log);
 	}
 	Assert.fail(message);
@@ -253,10 +258,18 @@ public class TerminalActions {
 	    // Capture logs and close readers
 	    String logLine = "";
 	    while ((logLine = reader.readLine()) != null) {
-		logBuilder.append(System.lineSeparator() + logLine);
+		if (logBuilder.length() == 0) {
+		    logBuilder.append(logLine);
+		} else {
+		    logBuilder.append(System.lineSeparator() + logLine);
+		}
 	    }
 	    while ((logLine = errorReader.readLine()) != null) {
-		logBuilder.append(System.lineSeparator() + logLine);
+		if (logBuilder.length() == 0) {
+		    logBuilder.append(logLine);
+		} else {
+		    logBuilder.append(System.lineSeparator() + logLine);
+		}
 	    }
 	    log = logBuilder.toString();
 	    reader.close();
