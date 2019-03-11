@@ -58,7 +58,7 @@ public class RestActions {
 		ReportManager.logDiscrete("API Response - REST Body:\n" + response.getBody().asString());
 	    } else {
 		ReportManager.log(message);
-		if (response != null) {
+		if ((response != null) && (!response.getBody().asString().equals(""))) {
 		    ReportManager.attachAsStep("API Response", "REST Body", response.getBody().asString());
 		}
 	    }
@@ -75,7 +75,7 @@ public class RestActions {
 	    message = message + " With the following test data [" + testData + "].";
 	}
 	ReportManager.log(message);
-	if (response != null) {
+	if ((response != null) && (!response.getBody().asString().equals(""))) {
 	    ReportManager.attachAsStep("API Response", "REST Body", response.getBody().asString());
 	}
 	Assert.fail(message);

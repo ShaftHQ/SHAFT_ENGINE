@@ -46,7 +46,6 @@ public class InvokedMethodListener implements IInvokedMethodListener {
     public void afterInvocation(IInvokedMethod method, ITestResult testResult) {
 	if (!method.isConfigurationMethod()) {
 	    ITestNGMethod testMethod = method.getTestMethod();
-	    updateTestStatusInCaseOfVerificationFailure(testResult);
 	    if (testMethod.isTest()) {
 		ElementActions.switchToDefaultContent();
 		BrowserFactory.attachAnimatedGif();
@@ -69,6 +68,7 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 		    ReportManager.generateAllureReportArchive();
 		}
 	    }
+	    updateTestStatusInCaseOfVerificationFailure(testResult);
 	}
     }
 
