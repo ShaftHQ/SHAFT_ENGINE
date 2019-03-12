@@ -105,11 +105,6 @@ public class Assertions {
 	}
     }
 
-    @Deprecated
-    public static void assertEquals(Object expectedValue, Object actualValue, Boolean assertionType) {
-	assertEquals(expectedValue, actualValue, 2, assertionType);
-    }
-
     /**
      * Asserts that object is null if AssertionType is true, or is not null if
      * AssertionType is false.
@@ -194,12 +189,6 @@ public class Assertions {
 	    ReportManager.log(e);
 	    fail("Assertion Failed; an unhandled exception occured.", e);
 	}
-    }
-
-    @Deprecated
-    public static void assertElementAttribute(WebDriver driver, By elementLocator, String elementAttribute,
-	    String expectedValue, Boolean assertionType) {
-	assertElementAttribute(driver, elementLocator, elementAttribute, expectedValue, 2, assertionType);
     }
 
     /**
@@ -333,12 +322,6 @@ public class Assertions {
 	}
     }
 
-    @Deprecated
-    public static void assertBrowserAttribute(WebDriver driver, String browserAttribute, String expectedValue,
-	    Boolean assertionType) {
-	assertBrowserAttribute(driver, browserAttribute, expectedValue, 2, assertionType);
-    }
-
     /**
      * Asserts browser attribute equals expectedValue if AssertionType is true, or
      * does not equal expectedValue if AssertionType is false. Supports CurrentUrl,
@@ -417,38 +400,6 @@ public class Assertions {
 	default:
 	    fail("Assertion Failed; an unhandled exception occured.");
 	    break;
-	}
-    }
-
-    @Deprecated
-    public static void assertGreaterThanOrEquals(Number expectedValue, Number actualValue, Boolean assertionType) {
-	ReportManager.logDiscrete("Assertion [" + "assertGreaterThanOrEquals"
-		+ "] is being performed, with expectedValue [" + expectedValue + "], actualValue [" + actualValue
-		+ "], and assertionType [" + assertionType + "].");
-	if (assertionType) {
-	    try {
-		Assert.assertTrue(actualValue.floatValue() >= expectedValue.floatValue());
-		pass("Assertion Passed; actual value [" + actualValue + "] is greater than or equals expected value ["
-			+ expectedValue + "].");
-	    } catch (AssertionError e) {
-		fail("Assertion Failed; actual value [" + actualValue
-			+ "] is not greater than or equals expected value [" + expectedValue + "].", e);
-	    } catch (Exception e) {
-		ReportManager.log(e);
-		fail("Assertion Failed; an unhandled exception occured.", e);
-	    }
-	} else {
-	    try {
-		Assert.assertFalse(actualValue.floatValue() >= expectedValue.floatValue());
-		pass("Assertion Passed; actual value [" + actualValue
-			+ "] is not greater than or equals expected value [" + expectedValue + "].");
-	    } catch (AssertionError e) {
-		fail("Assertion Failed; actual value [" + actualValue + "] is greater than or equals expected value ["
-			+ expectedValue + "].", e);
-	    } catch (Exception e) {
-		ReportManager.log(e);
-		fail("Assertion Failed; an unhandled exception occured.", e);
-	    }
 	}
     }
 

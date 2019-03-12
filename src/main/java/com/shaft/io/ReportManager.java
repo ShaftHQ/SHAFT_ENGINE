@@ -205,7 +205,8 @@ public class ReportManager {
     @Attachment("Attachment: {attachmentType} - {attachmentName}")
     private static String createAttachment(String attachmentType, String attachmentName, String attachmentContent) {
 	createReportEntry("Successfully created attachment [" + attachmentType + " - " + attachmentName + "]");
-	if (debugMode && !attachmentType.contains("SHAFT Engine Logs")) {
+	if (debugMode && !attachmentType.contains("SHAFT Engine Logs")
+		&& !attachmentType.equalsIgnoreCase("Extra Logs")) {
 	    String timestamp = (new SimpleDateFormat("dd-MM-yyyy HH:mm:ss.SSSS aaa"))
 		    .format(new Date(System.currentTimeMillis()));
 	    System.out.print("[ReportManager] " + "Debugging Attachment Entry" + " @" + timestamp

@@ -52,17 +52,18 @@ public class RestActions {
 	}
 
 	Boolean discreetLogging = ReportManager.isDiscreteLogging();
-	if (actionName.toLowerCase().contains("getresponse") && actionName.toLowerCase().contains("value")) {
-	    if (discreetLogging) {
-		ReportManager.logDiscrete(message);
+	if (discreetLogging) {
+	    ReportManager.logDiscrete(message);
+	    if ((response != null) && response.getBody() != null && (!response.getBody().asString().equals(""))) {
 		ReportManager.logDiscrete("API Response - REST Body:\n" + response.getBody().asString());
-	    } else {
-		ReportManager.log(message);
-		if ((response != null) && (!response.getBody().asString().equals(""))) {
-		    ReportManager.attachAsStep("API Response", "REST Body", response.getBody().asString());
-		}
+	    }
+	} else {
+	    ReportManager.log(message);
+	    if ((response != null) && (!response.getBody().asString().equals(""))) {
+		ReportManager.attachAsStep("API Response", "REST Body", response.getBody().asString());
 	    }
 	}
+
     }
 
     private void passAction(String actionName, String testData) {
@@ -103,6 +104,38 @@ public class RestActions {
 
 	    sessionHeaders.put("Authorization", headerAuthorization);
 	}
+    }
+
+    private RequestSpecification prepareRequestBody(List<List<Object>> formParameters, Object body,
+	    ContentType contentType) {
+	RequestSpecBuilder builder = new RequestSpecBuilder();
+
+	if (body != null && contentType != null && !body.toString().equals("")) {
+	    try {
+		switch (contentType) {
+		case JSON:
+		    builder.setBody(body, ObjectMapperType.GSON);
+		    break;
+		case XML:
+		    builder.setBody(body, ObjectMapperType.JAXB);
+		    break;
+		default:
+		    builder.setBody(body);
+		    break;
+		}
+		// attach body
+		reportRequestBody(body);
+
+	    } catch (Exception e) {
+		ReportManager.log(e);
+		failAction("performRequest", "Issue with parsing body content");
+
+	    }
+	} else if (formParameters != null && !formParameters.isEmpty() && !formParameters.get(0).get(0).equals("")) {
+	    formParameters.forEach(param -> builder.addParam(param.get(0).toString(), param.get(1)));
+	}
+
+	return builder.build();
     }
 
     private void reportRequestBody(Object body) {
@@ -194,7 +227,7 @@ public class RestActions {
 	}
 
 	try {
-	    if (response.jsonPath().getString("type").equals("Bearer")) {
+	    if (response.jsonPath().getString("type").equalsIgnoreCase("bearer")) {
 		headerAuthorization = "Bearer " + getResponseJSONValue(response, "token");
 		sessionHeaders.put("Authorization", headerAuthorization);
 		sessionHeaders.put("Content-Type", "application/json");
@@ -260,46 +293,11 @@ public class RestActions {
      * @return Response; returns the full response object for further manipulation
      */
     public Response performRequest(String requestType, String targetStatusCode, String serviceName, String urlArguments,
-	    List<List<String>> formParameters, Object body, ContentType contentType, String... credentials) {
-
-	RequestSpecBuilder builder = new RequestSpecBuilder();
-
-	if (body != null && contentType != null && !body.toString().equals("")) {
-	    try {
-		switch (contentType) {
-		case JSON:
-		    // body = body.toString().replaceAll("\n", "").replaceAll("\t",
-		    // "").replaceAll("", "");
-		    JSONObject bodyObject = new JSONObject(body.toString());
-		    body = bodyObject.toString();
-		    builder.setBody(bodyObject, ObjectMapperType.GSON);
-		    break;
-		case XML:
-		    builder.setBody(body, ObjectMapperType.JAXB);
-		    break;
-		default:
-		    builder.setBody(body);
-		    break;
-		}
-		// attach body
-		reportRequestBody(body);
-
-	    } catch (Exception e) {
-		ReportManager.log(e);
-		failAction("performRequest", "Issue with parsing body content");
-
-	    }
-	} else if (formParameters != null && !formParameters.isEmpty() && !formParameters.get(0).get(0).equals("")) {
-	    formParameters.forEach(param -> {
-		builder.addParam(param.get(0), param.get(1));
-	    });
-	}
-
-	RequestSpecification specs = builder.build();
+	    List<List<Object>> formParameters, Object body, ContentType contentType, String... credentials) {
 
 	String request = prepareRequestURL(urlArguments, serviceName);
 	prepareRequestHeaderAuthorization(credentials);
-
+	RequestSpecification specs = prepareRequestBody(formParameters, body, contentType);
 	Response response = null;
 	try {
 	    if (requestType.equalsIgnoreCase("post") || requestType.equalsIgnoreCase("patch")
@@ -312,7 +310,6 @@ public class RestActions {
 	    if (response != null) {
 		extractCookiesFromResponse(response);
 		extractHeadersFromResponse(response);
-
 		assertResponseStatusCode(request, response, targetStatusCode);
 	    }
 	} catch (Exception e) {
