@@ -328,7 +328,6 @@ public class BrowserActions {
 	    ReportManager.log(e);
 	    failAction("closeCurrentWindow");
 	}
-	driver = null;
     }
 
     /**
