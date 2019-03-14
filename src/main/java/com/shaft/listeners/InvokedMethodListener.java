@@ -34,7 +34,7 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 		    ReportManager.logTestInformation(testMethod.getTestClass().getName(), testMethod.getMethodName(),
 			    "");
 		}
-		BrowserFactory.startAnimatedGif();
+
 		if (invokedTestsCounter == 0) {
 		    RecordManager.startRecording();
 		}
@@ -47,10 +47,6 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 	if (!method.isConfigurationMethod()) {
 	    ITestNGMethod testMethod = method.getTestMethod();
 	    if (testMethod.isTest()) {
-		ElementActions.switchToDefaultContent();
-		BrowserFactory.attachAnimatedGif();
-		ReportManager.attachTestLog();
-
 		if (invokedTestsCounter == testSize - 1) {
 		    // is last test in the class
 		    RecordManager.stopRecording();
@@ -67,10 +63,17 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 		    // is the last test in the suite
 		    ReportManager.generateAllureReportArchive();
 		}
-
 		updateTestStatusInCaseOfVerificationFailure(testResult);
 	    }
 	}
+
+	// resetting scope and config
+	ElementActions.switchToDefaultContent();
+	ReportManager.setDiscreteLogging(Boolean.valueOf(System.getProperty("alwaysLogDiscreetly")));
+
+	// attaching log and gif
+	BrowserFactory.attachAnimatedGif();
+	ReportManager.attachTestLog();
     }
 
     private void updateTestStatusInCaseOfVerificationFailure(ITestResult testResult) {

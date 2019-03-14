@@ -4,14 +4,12 @@ import org.testng.ITestContext;
 import org.testng.ITestListener;
 import org.testng.ITestResult;
 
-import com.shaft.io.ReportManager;
-
 public class TestListener implements ITestListener {
 
     @Override
     public void onStart(ITestContext context) {
-	// resetting discrete logging in case of mid-test failure
-	ReportManager.setDiscreteLogging(Boolean.valueOf(System.getProperty("alwaysLogDiscreetly")));
+	// Auto-generated method stub
+
     }
 
     @Override

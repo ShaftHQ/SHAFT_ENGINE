@@ -136,7 +136,7 @@ public class BrowserFactory {
 	    if (AUTO_MAXIMIZE) {
 		BrowserActions.maximizeWindow(driver); // Automatically maximize driver window after opening it
 	    }
-
+	    startAnimatedGif();
 	} catch (NullPointerException e) {
 	    ReportManager.log(e);
 	    ReportManager.log("Unhandled Exception with Browser Type [" + browserName + "].");
