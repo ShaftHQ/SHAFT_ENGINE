@@ -382,6 +382,8 @@ public class ScreenshotManager {
 		// write out initialImage to the sequence...
 		gifWriter.writeToSequence(overlayShaftEngineLogo(initialImage));
 		initialImageGraphics.dispose();
+		// write out first image to the sequence...
+		gifWriter.writeToSequence(overlayShaftEngineLogo(firstImage));
 	    } catch (IOException | WebDriverException e) {
 		ReportManager.log(e);
 	    } catch (NullPointerException e2) {

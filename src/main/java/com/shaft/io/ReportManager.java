@@ -222,7 +222,7 @@ public class ReportManager {
      */
     public static void attachTestLog() {
 	if (!currentTestLog.trim().equals("")) {
-	    createAttachment("SHAFT Engine Logs", "Current Test log", currentTestLog);
+	    createAttachment("SHAFT Engine Logs", "Current Method log", currentTestLog);
 	}
 	clearTestLog();
     }
