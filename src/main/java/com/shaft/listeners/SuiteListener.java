@@ -25,5 +25,6 @@ public class SuiteListener implements ISuiteListener {
 	ReportManager.setDiscreteLogging(true);
 	BrowserFactory.closeAllDrivers();
 	ReportManager.setDiscreteLogging(discreetLoggingState);
+	ReportManager.generateAllureReportArchive();
     }
 }

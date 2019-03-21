@@ -44,9 +44,14 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 
     @Override
     public void afterInvocation(IInvokedMethod method, ITestResult testResult) {
+	// attaching log and gif
+	BrowserFactory.attachAnimatedGif();
+	ReportManager.attachTestLog();
+
 	if (!method.isConfigurationMethod()) {
 	    ITestNGMethod testMethod = method.getTestMethod();
 	    if (testMethod.isTest()) {
+		updateTestStatusInCaseOfVerificationFailure(testResult);
 		if (invokedTestsCounter == testSize - 1) {
 		    // is last test in the class
 		    RecordManager.stopRecording();
@@ -58,27 +63,19 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 		} else {
 		    invokedTestsCounter++;
 		}
-
-		if (ReportManager.getTestCasesCounter() == ReportManager.getTotalNumberOfTests()) {
-		    // is the last test in the suite
-		    ReportManager.generateAllureReportArchive();
-		}
-		updateTestStatusInCaseOfVerificationFailure(testResult);
 	    }
 	}
 
 	// resetting scope and config
 	ElementActions.switchToDefaultContent();
 	ReportManager.setDiscreteLogging(Boolean.valueOf(System.getProperty("alwaysLogDiscreetly")));
-
-	// attaching log and gif
-	BrowserFactory.attachAnimatedGif();
-	ReportManager.attachTestLog();
     }
 
     private void updateTestStatusInCaseOfVerificationFailure(ITestResult testResult) {
 	if (testResult != null && testResult.getStatus() == ITestResult.FAILURE && testResult.getThrowable() != null) {
-	    Assert.fail(testResult.getThrowable().getMessage());
+	    if (testResult.getThrowable().getMessage().contains("Verification")) {
+		Assert.fail(testResult.getThrowable().getMessage());
+	    }
 	}
     }
 }

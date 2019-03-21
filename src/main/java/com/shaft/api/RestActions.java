@@ -22,7 +22,8 @@ import io.restassured.http.Header;
 import io.restassured.mapper.ObjectMapperType;
 import io.restassured.path.json.JsonPath;
 import io.restassured.path.json.exception.JsonPathException;
-import io.restassured.path.xml.XmlPath;
+import io.restassured.path.xml.element.Node;
+import io.restassured.path.xml.element.NodeChildren;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
 
@@ -134,7 +135,6 @@ public class RestActions {
 	} else if (formParameters != null && !formParameters.isEmpty() && !formParameters.get(0).get(0).equals("")) {
 	    formParameters.forEach(param -> builder.addParam(param.get(0).toString(), param.get(1)));
 	}
-
 	return builder.build();
     }
 
@@ -388,22 +388,29 @@ public class RestActions {
     }
 
     public String getResponseXMLValue(Object response, String xmlPath) {
-	@SuppressWarnings("unchecked")
-	JSONObject obj = new JSONObject((java.util.HashMap<String, String>) response);
-
-	String searchPool = XmlPath.from(obj.toString()).getString(xmlPath);
-	if (searchPool != null) {
-	    passAction("getResponseXMLValue", xmlPath);
-	    return searchPool;
+	String output = ((Node) response).getAttribute(xmlPath);
+	if (output != null) {
+	    passAction("getResponseXMLValueAsList", xmlPath);
+	    return output;
 	} else {
 	    ReportManager.log("Couldn't find anything that matches with the desired xmlPath [" + xmlPath + "]");
-	    failAction("getResponseXMLValue", xmlPath);
+	    failAction("getResponseXMLValueAsList", xmlPath);
 	    return "";
 	}
     }
 
+    /**
+     * 
+     * @param response
+     * @param xmlPath  leading down to the final list of objects (nodes.children())
+     * @return
+     */
     public List<Object> getResponseXMLValueAsList(Response response, String xmlPath) {
-	List<Object> searchPool = response.xmlPath().getList(xmlPath);
+	NodeChildren output = response.xmlPath().get(xmlPath);
+
+	List<Node> nodes = output.list();
+	List<Object> searchPool = Arrays.asList(nodes.toArray());
+
 	if (searchPool != null) {
 	    passAction("getResponseXMLValueAsList", xmlPath);
 	    return searchPool;

@@ -212,7 +212,7 @@ public class ReportManager {
 	    System.out.print("[ReportManager] " + "Debugging Attachment Entry" + " @" + timestamp
 		    + System.lineSeparator() + attachmentContent.trim() + System.lineSeparator());
 	}
-	return attachmentContent;
+	return currentTestLog;
     }
 
     /**
@@ -264,24 +264,33 @@ public class ReportManager {
 
 	    if (targetOperatingSystem.equals("Windows-64")) {
 		commandToCreateAllureReport = "src/main/resources/allure/bin/allure.bat generate \"allure-results\" -o \"generatedReport/allure-report\"";
-		commandsToOpenAllureReport = Arrays.asList("@echo off", "set path=allure\\bin;%path%",
-			"allure open allure-report", "pause", "exit");
-		allureReportFileExtension = ".bat";
 	    } else {
 		commandToCreateAllureReport = "src/main/resources/allure/bin/allure generate \"allure-results\" -o \"generatedReport/allure-report\"";
-		commandsToOpenAllureReport = Arrays.asList("#!/bin/bash",
-			"parent_path=$( cd \"$(dirname \"${BASH_SOURCE[0]}\")\" ; pwd -P )",
-			"cd \"$parent_path/allure/bin/\"", "bash allure open \"$parent_path/allure-report\"", "exit");
-		allureReportFileExtension = ".sh";
 	    }
+
+	    // create unix-based sh file
+	    commandsToOpenAllureReport = Arrays.asList("#!/bin/bash",
+		    "parent_path=$( cd \"$(dirname \"${BASH_SOURCE[0]}\")\" ; pwd -P )",
+		    "cd \"$parent_path/allure/bin/\"", "bash allure open \"$parent_path/allure-report\"", "exit");
+	    allureReportFileExtension = ".sh";
+	    FileActions.writeToFile("generatedReport/", "open_allure_report" + allureReportFileExtension,
+		    commandsToOpenAllureReport);
+	    // make file executable on unix-based shells, doesn't work for security
+	    // restrictions
+	    // (new TerminalActions()).performTerminalCommand("chmod +x
+	    // generatedReport/open_allure_report" + allureReportFileExtension);
+
+	    // create windows batch file
+	    commandsToOpenAllureReport = Arrays.asList("@echo off", "set path=allure\\bin;%path%",
+		    "allure open allure-report", "pause", "exit");
+	    allureReportFileExtension = ".bat";
+	    FileActions.writeToFile("generatedReport/", "open_allure_report" + allureReportFileExtension,
+		    commandsToOpenAllureReport);
 
 	    (new TerminalActions()).performTerminalCommand(commandToCreateAllureReport);
 
 	    FileActions.copyFolder(FileActions.getAbsolutePath("src/main/resources/", "allure"),
 		    "generatedReport/allure");
-
-	    FileActions.writeToFile("generatedReport/", "open_allure_report" + allureReportFileExtension,
-		    commandsToOpenAllureReport);
 
 	    FileActions.zipFiles("generatedReport/", "generatedReport.zip");
 
