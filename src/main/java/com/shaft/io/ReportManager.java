@@ -212,7 +212,11 @@ public class ReportManager {
 	    System.out.print("[ReportManager] " + "Debugging Attachment Entry" + " @" + timestamp
 		    + System.lineSeparator() + attachmentContent.trim() + System.lineSeparator());
 	}
-	return currentTestLog;
+	if (attachmentType.equals("SHAFT Engine Logs") && attachmentName.equals("Current Method log")) {
+	    return currentTestLog.trim();
+	} else {
+	    return attachmentContent.trim();
+	}
     }
 
     /**

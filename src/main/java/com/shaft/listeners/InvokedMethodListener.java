@@ -73,7 +73,9 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 
     private void updateTestStatusInCaseOfVerificationFailure(ITestResult testResult) {
 	if (testResult != null && testResult.getStatus() == ITestResult.FAILURE && testResult.getThrowable() != null) {
-	    if (testResult.getThrowable().getMessage().contains("Verification")) {
+	    String failureMessage = testResult.getThrowable().getMessage();
+
+	    if ((failureMessage != null) && failureMessage.contains("Verification")) {
 		Assert.fail(testResult.getThrowable().getMessage());
 	    }
 	}

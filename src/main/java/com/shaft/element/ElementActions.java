@@ -40,7 +40,8 @@ public class ElementActions {
 	    .parseInt(System.getProperty("defaultElementIdentificationTimeout").trim());
     private static int attemptsBeforeThrowingElementNotFoundException = Integer
 	    .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
-
+    private static boolean forceCheckForElementVisibility = Boolean
+	    .parseBoolean(System.getProperty("forceCheckForElementVisibility").trim());
     // this will only be used for switching back to default content
     static WebDriver lastUsedDriver = null;
 
@@ -136,13 +137,15 @@ public class ElementActions {
 		((Locatable) driver.findElement(elementLocator)).getCoordinates().inViewPort();
 
 		// check for visibility
-		try {
-		    (new WebDriverWait(driver, defaultElementIdentificationTimeout))
-			    .until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
-		} catch (TimeoutException e) {
-		    ReportManager.log(e);
-		    failAction(driver, "identifyUniqueElement",
-			    "unique element matching this locator [" + elementLocator + "] is not visible.");
+		if (forceCheckForElementVisibility) {
+		    try {
+			(new WebDriverWait(driver, defaultElementIdentificationTimeout))
+				.until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
+		    } catch (TimeoutException e) {
+			ReportManager.log(e);
+			failAction(driver, "identifyUniqueElement",
+				"unique element matching this locator [" + elementLocator + "] is not visible.");
+		    }
 		}
 	    }
 
@@ -273,7 +276,7 @@ public class ElementActions {
     private static void attemptTypeUsingJavascript(WebDriver driver, By elementLocator, String targetText,
 	    Boolean isSecureTyping, String successfulTextLocationStrategy) {
 	clearBeforeTyping(driver, elementLocator, successfulTextLocationStrategy);
-	performTypeUsingJavaScript(driver, elementLocator, targetText);
+	setValueUsingJavaScript(driver, elementLocator, targetText, true);
 	if (targetText.equals(
 		readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator, successfulTextLocationStrategy))) {
 	    if (isSecureTyping) {
@@ -310,7 +313,7 @@ public class ElementActions {
 
 	// attempt clear using javascript
 	if (!elementText.trim().equals("")) {
-	    performTypeUsingJavaScript(driver, elementLocator, "");
+	    setValueUsingJavaScript(driver, elementLocator, "", true);
 	}
 
 	elementText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator, successfulTextLocationStrategy);
@@ -348,21 +351,48 @@ public class ElementActions {
     }
 
     /**
-     * Used in case the regular type text output didn't match with the expected type
-     * text output
+     * Used to force set the value of a certain element using javascript, bypassing
+     * regular visibility and element uniqueness checks
      * 
      * @param driver
      * @param elementLocator
-     * @param text
+     * @param value
      */
-    private static void performTypeUsingJavaScript(WebDriver driver, By elementLocator, String text) {
+    public static void setValueUsingJavaScript(WebDriver driver, By elementLocator, String value) {
+	setValueUsingJavaScript(driver, elementLocator, value, false);
+    }
+
+    private static void setValueUsingJavaScript(WebDriver driver, By elementLocator, String value,
+	    boolean isInternalCall) {
 	try {
-	    ((JavascriptExecutor) driver).executeScript("arguments[0].value='" + text + "';",
+	    ((JavascriptExecutor) driver).executeScript("arguments[0].value='" + value + "';",
 		    driver.findElement(elementLocator));
+	    if (isInternalCall) {
+		ReportManager.logDiscrete("Set Element Value to [" + value + "] using JavaScript");
+	    } else {
+		passAction(driver, elementLocator, "setValueUsingJavaScript", value);
+	    }
 	} catch (Exception e) {
 	    ReportManager.log(e);
 	}
     }
+
+    /**
+     * Used to submit a form using javascript
+     * 
+     * @param driver
+     * @param elementLocator
+     */
+    public static void submitFormUsingJavaScript(WebDriver driver, By elementLocator) {
+	try {
+	    ((JavascriptExecutor) driver).executeScript("arguments[0].submit();", driver.findElement(elementLocator));
+	    passAction(driver, elementLocator, "submitFormUsingJavaScript");
+	} catch (Exception e) {
+	    ReportManager.log(e);
+	}
+    }
+
+    // TODO: create performJavaScriptActions with a list of supported actions
 
     private static void performClipboardActions(WebDriver driver, By elementLocator, String action) {
 
