@@ -12,46 +12,45 @@ import org.json.simple.parser.ParseException;
 import org.skyscreamer.jsonassert.JSONCompare;
 import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.skyscreamer.jsonassert.JSONCompareResult;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import junit.framework.Assert;
-
 public class Test_JsonActions {
-    @Test
-    public void f() throws FileNotFoundException, IOException, ParseException, JSONException {
-	String expectedResponse = new String(
-		Files.readAllBytes(Paths.get(System.getProperty("jsonFolderPath") + "subFolder/JsonFileTest2.json")));
-	String actualResponse = new String(
-		Files.readAllBytes(Paths.get(System.getProperty("jsonFolderPath") + "subFolder/JsonFileTest.json")));
+	@Test
+	public void f() throws FileNotFoundException, IOException, ParseException, JSONException {
+		String expectedResponse = new String(
+				Files.readAllBytes(Paths.get(System.getProperty("jsonFolderPath") + "subFolder/JsonFileTest2.json")));
+		String actualResponse = new String(
+				Files.readAllBytes(Paths.get(System.getProperty("jsonFolderPath") + "subFolder/JsonFileTest.json")));
 
-	JSONObject expectedJsonObject = (JSONObject) (new JSONParser()).parse(expectedResponse);
-	JSONObject actualJsonObject = (JSONObject) (new JSONParser()).parse(actualResponse);
+		JSONObject expectedJsonObject = (JSONObject) (new JSONParser()).parse(expectedResponse);
+		JSONObject actualJsonObject = (JSONObject) (new JSONParser()).parse(actualResponse);
 
-	String expectedJSONString = expectedJsonObject.toJSONString();
-	String actualJSONString = actualJsonObject.toJSONString();
+		String expectedJSONString = expectedJsonObject.toJSONString();
+		String actualJSONString = actualJsonObject.toJSONString();
 
-	JSONCompareResult result = JSONCompare.compareJSON(expectedJSONString, actualJSONString,
-		JSONCompareMode.LENIENT);
-	boolean finalResult = result.passed();
-	Assert.assertTrue(finalResult);
-    }
-    
-    @Test
-    public void f2() throws FileNotFoundException, IOException, ParseException, JSONException {
-	String expectedResponse = new String(
-		Files.readAllBytes(Paths.get(System.getProperty("jsonFolderPath") + "subFolder/JsonFileTest2.json")));
-	String actualResponse = new String(
-		Files.readAllBytes(Paths.get(System.getProperty("jsonFolderPath") + "subFolder/JsonFileTest.json")));
+		JSONCompareResult result = JSONCompare.compareJSON(expectedJSONString, actualJSONString,
+				JSONCompareMode.LENIENT);
+		boolean finalResult = result.passed();
+		Assert.assertTrue(finalResult);
+	}
 
-	JSONObject expectedJsonObject = (JSONObject) (new JSONParser()).parse(expectedResponse);
-	JSONObject actualJsonObject = (JSONObject) (new JSONParser()).parse(actualResponse);
+	@Test
+	public void f2() throws FileNotFoundException, IOException, ParseException, JSONException {
+		String expectedResponse = new String(
+				Files.readAllBytes(Paths.get(System.getProperty("jsonFolderPath") + "subFolder/JsonFileTest2.json")));
+		String actualResponse = new String(
+				Files.readAllBytes(Paths.get(System.getProperty("jsonFolderPath") + "subFolder/JsonFileTest.json")));
 
-	String expectedJSONString = expectedJsonObject.toJSONString();
-	String actualJSONString = actualJsonObject.toJSONString();
+		JSONObject expectedJsonObject = (JSONObject) (new JSONParser()).parse(expectedResponse);
+		JSONObject actualJsonObject = (JSONObject) (new JSONParser()).parse(actualResponse);
 
-	JSONCompareResult result = JSONCompare.compareJSON(expectedJSONString, actualJSONString,
-		JSONCompareMode.LENIENT);
-	boolean finalResult = result.passed();
-	Assert.assertTrue(finalResult);
-    }
+		String expectedJSONString = expectedJsonObject.toJSONString();
+		String actualJSONString = actualJsonObject.toJSONString();
+
+		JSONCompareResult result = JSONCompare.compareJSON(expectedJSONString, actualJSONString,
+				JSONCompareMode.LENIENT);
+		boolean finalResult = result.passed();
+		Assert.assertTrue(finalResult);
+	}
 }
