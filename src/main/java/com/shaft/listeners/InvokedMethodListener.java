@@ -1,17 +1,15 @@
 package com.shaft.listeners;
 
+import org.testng.Assert;
 import org.testng.IInvokedMethod;
 import org.testng.IInvokedMethodListener;
 import org.testng.ITestNGMethod;
 import org.testng.ITestResult;
-import org.testng.Reporter;
 
 import com.shaft.browser.BrowserFactory;
 import com.shaft.element.ElementActions;
 import com.shaft.io.ReportManager;
 import com.shaft.video.RecordManager;
-
-import junit.framework.Assert;
 
 public class InvokedMethodListener implements IInvokedMethodListener {
     private int invokedTestsCounter = 0;
@@ -36,7 +34,7 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 		    ReportManager.logTestInformation(testMethod.getTestClass().getName(), testMethod.getMethodName(),
 			    "");
 		}
-		BrowserFactory.startAnimatedGif();
+
 		if (invokedTestsCounter == 0) {
 		    RecordManager.startRecording();
 		}
@@ -46,14 +44,14 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 
     @Override
     public void afterInvocation(IInvokedMethod method, ITestResult testResult) {
+	// attaching log and gif
+	BrowserFactory.attachAnimatedGif();
+	ReportManager.attachTestLog();
+
 	if (!method.isConfigurationMethod()) {
 	    ITestNGMethod testMethod = method.getTestMethod();
-//	    updateTestStatusInCaseOfVerificationFailure(testResult);
 	    if (testMethod.isTest()) {
-		ElementActions.switchToDefaultContent();
-		BrowserFactory.attachAnimatedGif();
-		ReportManager.attachTestLog();
-
+		updateTestStatusInCaseOfVerificationFailure(testResult);
 		if (invokedTestsCounter == testSize - 1) {
 		    // is last test in the class
 		    RecordManager.stopRecording();
@@ -65,18 +63,21 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 		} else {
 		    invokedTestsCounter++;
 		}
-
-		if (ReportManager.getTestCasesCounter() == ReportManager.getTotalNumberOfTests()) {
-		    // is the last test in the suite
-		    ReportManager.generateAllureReportArchive();
-		}
 	    }
 	}
+
+	// resetting scope and config
+	ElementActions.switchToDefaultContent();
+	ReportManager.setDiscreteLogging(Boolean.valueOf(System.getProperty("alwaysLogDiscreetly")));
     }
 
     private void updateTestStatusInCaseOfVerificationFailure(ITestResult testResult) {
-	if (testResult.getStatus() == ITestResult.FAILURE) {
-	    Assert.fail(Reporter.getCurrentTestResult().getThrowable().toString());
+	if (testResult != null && testResult.getStatus() == ITestResult.FAILURE && testResult.getThrowable() != null) {
+	    String failureMessage = testResult.getThrowable().getMessage();
+
+	    if ((failureMessage != null) && failureMessage.contains("Verification")) {
+		Assert.fail(testResult.getThrowable().getMessage());
+	    }
 	}
     }
 }

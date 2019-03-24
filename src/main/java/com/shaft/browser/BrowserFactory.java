@@ -33,7 +33,6 @@ import org.testng.Assert;
 
 import com.shaft.element.JSWaiter;
 import com.shaft.image.ScreenshotManager;
-import com.shaft.io.ExcelFileManager;
 import com.shaft.io.FileActions;
 import com.shaft.io.ReportManager;
 
@@ -100,24 +99,6 @@ public class BrowserFactory {
     }
 
     /**
-     * @deprecated Read the target browser value from pom configuration (overridable
-     *             from jenkins), if "Default" it reads the "Target Browser" cell
-     *             value from the configured test data file.
-     * 
-     * @param testDataReader the current instance of the Excel reader used for
-     *                       reading test data
-     * @return a singleton browser instance
-     */
-    @Deprecated
-    public static WebDriver getBrowser(ExcelFileManager testDataReader) {
-	if (TARGET_BROWSER_NAME.equals("Default")) {
-	    return getBrowser(testDataReader.getCellData("Target Browser"));
-	} else {
-	    return getBrowser(TARGET_BROWSER_NAME);
-	}
-    }
-
-    /**
      * Create and/or return an instance of the target browser (maintains a single
      * instance per browser type) and checks for cross-compatibility between the
      * selected browser and operating system
@@ -129,15 +110,6 @@ public class BrowserFactory {
      */
     public static WebDriver getBrowser(String browserName) {
 	try {
-//	    if (driver != null && drivers.get(browserName) != null) {
-//		if (drivers.get(browserName).get(targetOperatingSystem) != null) {
-//		    // retrieve current instance (only works in case of sequential execution)
-//		    driver = getActiveDriverInstance(browserName);
-//		}
-//
-//	    } else {
-	    // if driver is null set logging preferences, then set driver options and create
-	    // new instances
 	    checkBrowserOSCrossCompatibility(browserName);
 	    // check cross-compatibility between the selected operating system and browser
 	    // and report in case they are not compatible
@@ -164,8 +136,7 @@ public class BrowserFactory {
 	    if (AUTO_MAXIMIZE) {
 		BrowserActions.maximizeWindow(driver); // Automatically maximize driver window after opening it
 	    }
-//	    }
-
+	    startAnimatedGif();
 	} catch (NullPointerException e) {
 	    ReportManager.log(e);
 	    ReportManager.log("Unhandled Exception with Browser Type [" + browserName + "].");
@@ -173,34 +144,7 @@ public class BrowserFactory {
 	}
 	return driver;
     }
-/*
-    private static WebDriver getActiveDriverInstance(String browserName) {
-	ReportManager.log(
-		"Switching to active browser instance on: [" + targetOperatingSystem + "], [" + browserName + "].");
-	switch (browserName) {
-	case BROWSER_FIREFOX:
-	    driver = drivers.get(BROWSER_FIREFOX).get(targetOperatingSystem);
-	    break;
-	case BROWSER_IE:
-	    driver = drivers.get(BROWSER_IE).get(targetOperatingSystem);
-	    break;
-	case BROWSER_CHROME:
-	    driver = drivers.get(BROWSER_CHROME).get(targetOperatingSystem);
-	    break;
-	case BROWSER_EDGE:
-	    driver = drivers.get(BROWSER_EDGE).get(targetOperatingSystem);
-	    break;
-	case BROWSER_SAFARI:
-	    driver = drivers.get(BROWSER_SAFARI).get(targetOperatingSystem);
-	    break;
-	default:
-	    ReportManager.log("Unsupported Browser Type [" + browserName + "].");
-	    Assert.fail("Unsupported Browser Type [" + browserName + "].");
-	    break;
-	}
-	return driver;
-    }
-*/
+
     /**
      * Check cross-compatibility between the selected operating system and browser
      * and report in case they are not compatible
@@ -525,7 +469,7 @@ public class BrowserFactory {
 		    logBuilder.append(entry.toString() + System.lineSeparator());
 		}
 		performanceLogText = logBuilder.toString();
-		ReportManager.attach("Logs", "Performance Logs for [" + borwserName + "]", performanceLogText);
+		ReportManager.attach("Extra Logs", "Performance Logs for [" + borwserName + "]", performanceLogText);
 	    } catch (WebDriverException e) {
 		// exception when the defined log type is not found
 		ReportManager.log(e);
@@ -537,7 +481,7 @@ public class BrowserFactory {
 		    logBuilder.append(entry.toString() + System.lineSeparator());
 		}
 		driverLogText = logBuilder.toString();
-		ReportManager.attach("Logs", "Driver Logs for [" + borwserName + "]", driverLogText);
+		ReportManager.attach("Extra Logs", "Driver Logs for [" + borwserName + "]", driverLogText);
 	    } catch (WebDriverException e) {
 		// exception when the defined log type is not found
 		ReportManager.log(e);

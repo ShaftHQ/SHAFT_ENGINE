@@ -22,7 +22,7 @@ public class Verifications {
 	    .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
     private static int attemptsBeforeThrowingElementNotFoundExceptionInCaseElementShouldntExist = 1;
 
-    private static Boolean discreetLoggingState;
+    private static Boolean discreetLoggingState = Boolean.valueOf(System.getProperty("alwaysLogDiscreetly"));
 
     private Verifications() {
 	throw new IllegalStateException("Utility class");
@@ -119,11 +119,6 @@ public class Verifications {
 	reportVerificationResults("verifyEquals", null, null);
     }
 
-    @Deprecated
-    public static void verifyEquals(Object expectedValue, Object actualValue, Boolean verificationType) {
-	verifyEquals(expectedValue, actualValue, 2, verificationType);
-    }
-
     /**
      * Verifies that object is null if VerificationType is true, or not equal if
      * VerificationType is false.
@@ -210,12 +205,6 @@ public class Verifications {
 	    verificationFailures.append("Verification Failed; an unhandled exception occured.");
 	}
 	reportVerificationResults("verifyElementExists", driver, elementLocator);
-    }
-
-    @Deprecated
-    public static void verifyElementAttribute(WebDriver driver, By elementLocator, String elementAttribute,
-	    String expectedValue, Boolean verificationType) {
-	verifyElementAttribute(driver, elementLocator, elementAttribute, expectedValue, 2, verificationType);
     }
 
     /**
@@ -347,12 +336,6 @@ public class Verifications {
 	reportVerificationResults("verifyElementCSSProperty", driver, elementLocator);
     }
 
-    @Deprecated
-    public static void verifyBrowserAttribute(WebDriver driver, String browserAttribute, String expectedValue,
-	    Boolean verificationType) {
-	verifyBrowserAttribute(driver, browserAttribute, expectedValue, 2, verificationType);
-    }
-
     /**
      * Verifies that browser attribute equals expectedValue if verificationType is
      * true, or does not equal expectedValue if verificationType is false.
@@ -430,37 +413,6 @@ public class Verifications {
 	    break;
 	}
 	reportVerificationResults("verifyBrowserAttribute", driver, null);
-    }
-
-    @Deprecated
-    public static void verifyGreaterThanOrEquals(Number expectedValue, Number actualValue, Boolean verificationType) {
-	ReportManager.logDiscrete("Verification [" + "verifyGreaterThanOrEquals"
-		+ "] is being performed, with expectedValue [" + expectedValue + "], actualValue [" + actualValue
-		+ "], and verificationType [" + verificationType + "].");
-
-	if (verificationType) {
-	    try {
-		Assert.assertTrue(actualValue.floatValue() >= expectedValue.floatValue());
-		verificationSuccesses.append("Verification Passed; actual value [" + actualValue
-			+ "] is greater than or equals expected value [" + expectedValue + "].");
-	    } catch (AssertionError e) {
-		verificationFailures.append("Verification Failed; actual value [" + actualValue
-			+ "] is not greater than or equals expected value [" + expectedValue + "].");
-	    }
-	} else {
-	    try {
-		Assert.assertFalse(actualValue.floatValue() >= expectedValue.floatValue());
-		verificationSuccesses.append("Verification Passed; actual value [" + actualValue
-			+ "] is not greater than or equals expected value [" + expectedValue + "].");
-	    } catch (AssertionError e) {
-		verificationFailures.append("Verification Failed; actual value [" + actualValue
-			+ "] is greater than or equals expected value [" + expectedValue + "].");
-	    } catch (Exception e) {
-		ReportManager.log(e);
-		verificationFailures.append("Verification Failed; an unhandled exception occured.");
-	    }
-	}
-	reportVerificationResults("verifyGreaterThanOrEquals", null, null);
     }
 
     /**
