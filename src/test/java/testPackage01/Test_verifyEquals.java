@@ -16,19 +16,27 @@ public class Test_verifyEquals {
 
     @Test
     public void test_assertElementAttribute() {
-	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr");
-	ElementActions.type(driver, By.id("lst-ib"),
+	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "https://www.google.com");
+	ElementActions.type(driver, By.name("q"),
 		"INC_004010050:Another SCHEDULER with the same name [Duplicate Job Name] already exists.");
-	Verifications.verifyElementAttribute(driver, By.id("lst-ib"), "text",
+	Verifications.verifyElementAttribute(driver, By.name("q"), "text",
 		"INC_004010050:Another SCHEDULER with the same name \\[Duplicate Job Name\\] already exists.", 2, true);
+	Verifications.verifyElementAttribute(driver, By.name("q"), "text",
+		"INC_004010050:Another SCHEDULER with the same name \\[Duplicate Job Name\\] already exists.aaaaaa", 2,
+		true);
+	Verifications.verifyElementAttribute(driver, By.name("q"), "text",
+		"INC_004010050:Another SCHEDULER with the same name \\[Duplicate Job Name\\] already exists.", 2, true);
+	Verifications.verifyElementAttribute(driver, By.name("q"), "text",
+		"INC_004010050:Another SCHEDULER with the same name \\[Duplicate Job Name\\] already exists.aaaaaa", 2,
+		true);
     }
 
     // @Test
     public void test_assertEquals() {
-	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr");
-	ElementActions.type(driver, By.id("lst-ib"),
+	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "https://www.google.com");
+	ElementActions.type(driver, By.name("q"),
 		"INC_004010050:Another SCHEDULER with the same name [Duplicate Job Name] already exists.");
-	String actualValue = ElementActions.getText(driver, By.id("lst-ib"));
+	String actualValue = ElementActions.getText(driver, By.name("q"));
 	Verifications.verifyEquals(
 		"INC_004010050:Another SCHEDULER with the same name \\[Duplicate Job Name\\] already exists.",
 		actualValue, 2, true);
@@ -37,10 +45,10 @@ public class Test_verifyEquals {
 
     // @Test
     public void test_verifyElementAttribute() {
-	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr");
+	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "https://www.google.com");
 	ElementActions.type(driver, By.name("q"),
 		"© Copyright 2014-2017 Incorta, Inc Version: Rel3.3-dev Build May 29, 2018 15:30");
-	Verifications.verifyElementAttribute(driver, By.id("lst-ib"), "text", "([\\s\\S]*Rel3.3[\\s\\S]*)", 2, true);
+	Verifications.verifyElementAttribute(driver, By.name("q"), "text", "([\\s\\S]*Rel3.3[\\s\\S]*)", 2, true);
     }
 
     @BeforeClass // Set-up method, to be run once before the first test

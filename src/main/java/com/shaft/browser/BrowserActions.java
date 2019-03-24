@@ -3,7 +3,6 @@ package com.shaft.browser;
 import java.awt.HeadlessException;
 import java.awt.Toolkit;
 
-import org.junit.Assert;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.JavascriptExecutor;
@@ -13,6 +12,7 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
+import org.testng.Assert;
 
 import com.shaft.element.ElementActions;
 import com.shaft.element.JSWaiter;
@@ -63,7 +63,7 @@ public class BrowserActions {
 	    ScreenshotManager.captureScreenShot(driver, actionName, false);
 	}
 	ReportManager.log(message);
-	Assert.fail(message);
+		Assert.fail(message);
     }
 
     /**
@@ -328,7 +328,6 @@ public class BrowserActions {
 	    ReportManager.log(e);
 	    failAction("closeCurrentWindow");
 	}
-	driver = null;
     }
 
     /**

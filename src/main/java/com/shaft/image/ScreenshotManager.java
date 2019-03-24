@@ -1,11 +1,15 @@
 package com.shaft.image;
 
+import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Graphics2D;
+import java.awt.Image;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.text.SimpleDateFormat;
@@ -46,6 +50,11 @@ public class ScreenshotManager {
 	    .getProperty("screenshotParams_screenshotType");
     private static final String SCREENSHOT_PARAMS_SKIPPEDELEMENTSFROMSCREENSHOT = System
 	    .getProperty("screenshotParams_skippedElementsFromScreenshot");
+    private static final Boolean SCREENSHOT_PARAMS_WATERMARK = Boolean
+	    .valueOf(System.getProperty("screenshotParams_watermark").trim());
+    private static final Float SCREENSHOT_PARAMS_WATERMARKOPACITY = Float
+	    .valueOf(System.getProperty("screenshotParams_watermarkOpacity").trim());
+
     private static By targetElementLocator;
 
     private static final int RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION = 1;
@@ -299,9 +308,16 @@ public class ScreenshotManager {
 	 * 
 	 */
 	try {
-	    ReportManager.attachAsStep("Screenshot", screenshotFileName, new FileInputStream(screenshotFile));
+	    // add SHAFT_Engine logo overlay
+	    BufferedImage screenshotImage = ImageIO.read(screenshotFile);
+	    screenshotImage = overlayShaftEngineLogo(screenshotImage);
+	    ByteArrayOutputStream screenshotOutputStream = new ByteArrayOutputStream();
+	    ImageIO.write(screenshotImage, "png", screenshotOutputStream);
 
-	} catch (FileNotFoundException e) {
+	    ReportManager.attachAsStep("Screenshot", screenshotFileName,
+		    new ByteArrayInputStream(screenshotOutputStream.toByteArray()));
+
+	} catch (IOException e) {
 	    ReportManager.log(e);
 	}
     }
@@ -356,16 +372,18 @@ public class ScreenshotManager {
 		// between frames, which loops infinitely
 		gifWriter = new GifSequenceWriter(gifOutputStream, firstImage.getType(), GIF_FRAME_DELAY, true);
 
-		// write out a blank image to the sequence...
-		BufferedImage blankImage = new BufferedImage(firstImage.getWidth(), firstImage.getHeight(),
+		// draw initial blank image to set the size of the GIF...
+		BufferedImage initialImage = new BufferedImage(firstImage.getWidth(), firstImage.getHeight(),
 			firstImage.getType());
-		Graphics2D blankImageGraphics = blankImage.createGraphics();
-		blankImageGraphics.setBackground(Color.WHITE);
-		blankImageGraphics.clearRect(0, 0, firstImage.getWidth(), firstImage.getHeight());
-		gifWriter.writeToSequence(blankImage);
+		Graphics2D initialImageGraphics = initialImage.createGraphics();
+		initialImageGraphics.setBackground(Color.WHITE);
+		initialImageGraphics.clearRect(0, 0, firstImage.getWidth(), firstImage.getHeight());
 
-		// write out the first image to the sequence...
-		gifWriter.writeToSequence(firstImage);
+		// write out initialImage to the sequence...
+		gifWriter.writeToSequence(overlayShaftEngineLogo(initialImage));
+		initialImageGraphics.dispose();
+		// write out first image to the sequence...
+		gifWriter.writeToSequence(overlayShaftEngineLogo(firstImage));
 	    } catch (IOException | WebDriverException e) {
 		ReportManager.log(e);
 	    } catch (NullPointerException e2) {
@@ -373,6 +391,48 @@ public class ScreenshotManager {
 		// method
 	    }
 	}
+    }
+
+    private static BufferedImage overlayShaftEngineLogo(BufferedImage screenshot) {
+	if (SCREENSHOT_PARAMS_WATERMARK) {
+	    try {
+		// create graphics object
+		Graphics2D screenshotGraphics = screenshot.createGraphics();
+		screenshotGraphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+		screenshotGraphics.drawImage(screenshot, 0, 0, null);
+		screenshotGraphics.setComposite(
+			AlphaComposite.getInstance(AlphaComposite.SRC_OVER, SCREENSHOT_PARAMS_WATERMARKOPACITY));
+
+		// overlay SHAFT_Engine logo to the initial image...
+		BufferedImage shaftLogo = ImageIO.read(new File(System.getProperty("watermarkImagePath").trim()));
+		shaftLogo = toBufferedImage(
+			shaftLogo.getScaledInstance(screenshot.getWidth() / 8, -1, Image.SCALE_SMOOTH));
+		screenshotGraphics.drawImage(shaftLogo, screenshot.getWidth() - shaftLogo.getWidth(),
+			screenshot.getHeight() - shaftLogo.getHeight(), null);
+		screenshotGraphics.dispose();
+	    } catch (IOException e) {
+		// do nothing and proceed to return the original screenshot
+	    }
+	}
+	return screenshot;
+    }
+
+    private static BufferedImage toBufferedImage(Image img) {
+	if (img instanceof BufferedImage) {
+	    return (BufferedImage) img;
+	}
+
+	// Create a buffered image with transparency
+	BufferedImage bimage = new BufferedImage(img.getWidth(null), img.getHeight(null), BufferedImage.TYPE_INT_ARGB);
+
+	// Draw the image on to the buffered image
+	Graphics2D bGr = bimage.createGraphics();
+	bGr.drawImage(img, 0, 0, null);
+	bGr.dispose();
+
+	// Return the buffered image
+	return bimage;
     }
 
     private static void appendToAnimatedGif(File... screenshot) {
@@ -388,7 +448,7 @@ public class ScreenshotManager {
 		    } else {
 			image = ImageIO.read(((TakesScreenshot) gifDriver).getScreenshotAs(OutputType.FILE));
 		    }
-		    gifWriter.writeToSequence(image);
+		    gifWriter.writeToSequence(overlayShaftEngineLogo(image));
 
 		} catch (NoSuchSessionException e) {
 		    // this happens when attempting to append to a non existing gif, expected

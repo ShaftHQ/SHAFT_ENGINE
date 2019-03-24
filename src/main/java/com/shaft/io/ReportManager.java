@@ -22,6 +22,7 @@ public class ReportManager {
     private static boolean discreteLogging = false;
     private static int totalNumberOfTests = 0;
     private static int testCasesCounter = 0;
+    private static boolean debugMode = false;
 
     public static int getTestCasesCounter() {
 	return testCasesCounter;
@@ -152,7 +153,9 @@ public class ReportManager {
      */
     @Step("Attachment: {attachmentType} - {attachmentName}")
     public static void attachAsStep(String attachmentType, String attachmentName, String attachmentContent) {
-	createAttachment(attachmentType, attachmentName, attachmentContent);
+	if (!attachmentContent.trim().equals("")) {
+	    createAttachment(attachmentType, attachmentName, attachmentContent);
+	}
     }
 
     /**
@@ -176,7 +179,9 @@ public class ReportManager {
      * @param attachmentContent the content of this attachment
      */
     public static void attach(String attachmentType, String attachmentName, String attachmentContent) {
-	createAttachment(attachmentType, attachmentName, attachmentContent);
+	if (!attachmentContent.trim().equals("")) {
+	    createAttachment(attachmentType, attachmentName, attachmentContent);
+	}
     }
 
     private static void createAttachment(String attachmentType, String attachmentName, InputStream attachmentContent) {
@@ -193,24 +198,25 @@ public class ReportManager {
 	} else {
 	    Allure.addAttachment(attachmentDescription, attachmentContent);
 	}
+
 	createReportEntry("Successfully created attachment [" + attachmentType + " - " + attachmentName + "]");
     }
 
     @Attachment("Attachment: {attachmentType} - {attachmentName}")
     private static String createAttachment(String attachmentType, String attachmentName, String attachmentContent) {
 	createReportEntry("Successfully created attachment [" + attachmentType + " - " + attachmentName + "]");
-	return attachmentContent;
-    }
-
-    /**
-     * @deprecated attaching the log will be handled by the listeners package
-     *             instead. Returns the log of the current test, and attaches it in
-     *             the end of the test execution report.
-     * 
-     */
-    @Deprecated
-    public static void getTestLog() {
-	attachTestLog();
+	if (debugMode && !attachmentType.contains("SHAFT Engine Logs")
+		&& !attachmentType.equalsIgnoreCase("Extra Logs")) {
+	    String timestamp = (new SimpleDateFormat("dd-MM-yyyy HH:mm:ss.SSSS aaa"))
+		    .format(new Date(System.currentTimeMillis()));
+	    System.out.print("[ReportManager] " + "Debugging Attachment Entry" + " @" + timestamp
+		    + System.lineSeparator() + attachmentContent.trim() + System.lineSeparator());
+	}
+	if (attachmentType.equals("SHAFT Engine Logs") && attachmentName.equals("Current Method log")) {
+	    return currentTestLog.trim();
+	} else {
+	    return attachmentContent.trim();
+	}
     }
 
     /**
@@ -219,7 +225,9 @@ public class ReportManager {
      * 
      */
     public static void attachTestLog() {
-	createAttachment("SHAFT Engine Logs", "Current Test log", currentTestLog);
+	if (!currentTestLog.trim().equals("")) {
+	    createAttachment("SHAFT Engine Logs", "Current Method log", currentTestLog);
+	}
 	clearTestLog();
     }
 
@@ -230,19 +238,10 @@ public class ReportManager {
 	currentTestLog = "";
     }
 
-    /**
-     * * @deprecated logging will be handled by the listeners package instead.
-     * Returns the complete log of the current execution session, and attaches it in
-     * the end of the test execution report.
-     * 
-     */
-    @Deprecated
-    public static void getFullLog() {
-	attachFullLog();
-    }
-
     public static void attachFullLog() {
-	createAttachment("SHAFT Engine Logs", "Full Execution log", fullLog);
+	if (!fullLog.trim().equals("")) {
+	    createAttachment("SHAFT Engine Logs", "Full Execution log", fullLog);
+	}
     }
 
     /**
@@ -269,30 +268,43 @@ public class ReportManager {
 
 	    if (targetOperatingSystem.equals("Windows-64")) {
 		commandToCreateAllureReport = "src/main/resources/allure/bin/allure.bat generate \"allure-results\" -o \"generatedReport/allure-report\"";
-		commandsToOpenAllureReport = Arrays.asList("@echo off", "set path=allure\\bin;%path%",
-			"allure open allure-report", "pause", "exit");
-		allureReportFileExtension = ".bat";
 	    } else {
 		commandToCreateAllureReport = "src/main/resources/allure/bin/allure generate \"allure-results\" -o \"generatedReport/allure-report\"";
-		commandsToOpenAllureReport = Arrays.asList("#!/bin/bash",
-			"parent_path=$( cd \"$(dirname \"${BASH_SOURCE[0]}\")\" ; pwd -P )",
-			"cd \"$parent_path/allure/bin/\"", "bash allure open \"$parent_path/allure-report\"", "exit");
-		allureReportFileExtension = ".sh";
 	    }
+
+	    // create unix-based sh file
+	    commandsToOpenAllureReport = Arrays.asList("#!/bin/bash",
+		    "parent_path=$( cd \"$(dirname \"${BASH_SOURCE[0]}\")\" ; pwd -P )",
+		    "cd \"$parent_path/allure/bin/\"", "bash allure open \"$parent_path/allure-report\"", "exit");
+	    allureReportFileExtension = ".sh";
+	    FileActions.writeToFile("generatedReport/", "open_allure_report" + allureReportFileExtension,
+		    commandsToOpenAllureReport);
+	    // make file executable on unix-based shells, doesn't work for security
+	    // restrictions
+	    // (new TerminalActions()).performTerminalCommand("chmod +x
+	    // generatedReport/open_allure_report" + allureReportFileExtension);
+
+	    // create windows batch file
+	    commandsToOpenAllureReport = Arrays.asList("@echo off", "set path=allure\\bin;%path%",
+		    "allure open allure-report", "pause", "exit");
+	    allureReportFileExtension = ".bat";
+	    FileActions.writeToFile("generatedReport/", "open_allure_report" + allureReportFileExtension,
+		    commandsToOpenAllureReport);
 
 	    (new TerminalActions()).performTerminalCommand(commandToCreateAllureReport);
 
 	    FileActions.copyFolder(FileActions.getAbsolutePath("src/main/resources/", "allure"),
 		    "generatedReport/allure");
 
-	    FileActions.writeToFile("generatedReport/", "open_allure_report" + allureReportFileExtension,
-		    commandsToOpenAllureReport);
-
 	    FileActions.zipFiles("generatedReport/", "generatedReport.zip");
 
 	    FileActions.deleteFile("generatedReport/");
 	    setDiscreteLogging(discreteLoggingState);
 	}
+    }
+
+    public static void setDebugMode(Boolean debugMode) {
+	ReportManager.debugMode = debugMode;
     }
 
     public static void populateEnvironmentData() {
