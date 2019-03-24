@@ -8,14 +8,13 @@
 
 	<properties>
 		<!-- Make sure you point to the latest version: https://bintray.com/mohabmohie/SHAFT/SHAFT_Engine/_latestVersion -->
-		<shaft_engine.version>2.3.20180305</shaft_engine.version>
+		<shaft_engine.version>2.4.20180324</shaft_engine.version>
 
 		<!-- SHAFT_Engine Properties and other property files are read from the 
 			below location -->
 		<propertiesFolderPath>src/test/resources/Properties/</propertiesFolderPath>
 
 		<!-- Dependencies/Plugins Version Numbers Parameters -->
-		<shaft_engine.version>2.3.20180226</shaft_engine.version>
 		<encoding.type>UTF-8</encoding.type>
 		<jdk.version>1.8</jdk.version>
 		<maven-resources-plugin.version>3.1.0</maven-resources-plugin.version>

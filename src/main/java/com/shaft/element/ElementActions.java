@@ -358,10 +358,6 @@ public class ElementActions {
      * @param elementLocator
      * @param value
      */
-    public static void setValueUsingJavaScript(WebDriver driver, By elementLocator, String value) {
-	setValueUsingJavaScript(driver, elementLocator, value, false);
-    }
-
     private static void setValueUsingJavaScript(WebDriver driver, By elementLocator, String value,
 	    boolean isInternalCall) {
 	try {
@@ -374,25 +370,9 @@ public class ElementActions {
 	    }
 	} catch (Exception e) {
 	    ReportManager.log(e);
+	    failAction(driver, "setValueUsingJavaScript");
 	}
     }
-
-    /**
-     * Used to submit a form using javascript
-     * 
-     * @param driver
-     * @param elementLocator
-     */
-    public static void submitFormUsingJavaScript(WebDriver driver, By elementLocator) {
-	try {
-	    ((JavascriptExecutor) driver).executeScript("arguments[0].submit();", driver.findElement(elementLocator));
-	    passAction(driver, elementLocator, "submitFormUsingJavaScript");
-	} catch (Exception e) {
-	    ReportManager.log(e);
-	}
-    }
-
-    // TODO: create performJavaScriptActions with a list of supported actions
 
     private static void performClipboardActions(WebDriver driver, By elementLocator, String action) {
 
@@ -1296,6 +1276,45 @@ public class ElementActions {
 
 	} else {
 	    failAction(driver, "clipboardActions");
+	}
+    }
+
+    /**
+     * Used to set value for an element (hidden or visible) using javascript
+     * 
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param value          the desired value that should be set for the target
+     *                       element
+     */
+    public static void setValueUsingJavaScript(WebDriver driver, By elementLocator, String value) {
+	if (identifyUniqueElement(driver, elementLocator, attemptsBeforeThrowingElementNotFoundException, false)) {
+	    setValueUsingJavaScript(driver, elementLocator, value, false);
+	} else {
+	    failAction(driver, "setValueUsingJavaScript");
+	}
+    }
+
+    /**
+     * Used to submit a form using javascript
+     * 
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     */
+    public static void submitFormUsingJavaScript(WebDriver driver, By elementLocator) {
+	if (identifyUniqueElement(driver, elementLocator, attemptsBeforeThrowingElementNotFoundException, false)) {
+	    try {
+		((JavascriptExecutor) driver).executeScript("arguments[0].submit();",
+			driver.findElement(elementLocator));
+		passAction(driver, elementLocator, "submitFormUsingJavaScript");
+	    } catch (Exception e) {
+		ReportManager.log(e);
+		failAction(driver, "submitFormUsingJavaScript");
+	    }
+	} else {
+	    failAction(driver, "submitFormUsingJavaScript");
 	}
     }
 }
