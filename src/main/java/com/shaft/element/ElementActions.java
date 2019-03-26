@@ -445,6 +445,25 @@ public class ElementActions {
 	passAction(driver, elementLocator, "clipboardActions", action);
     }
 
+    private static void performHover(WebDriver driver, By elementLocator) {
+	String javaScript = "var evObj = document.createEvent('MouseEvent');"
+		+ "evObj.initMouseEvent(\"mousemove\", true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);"
+		+ "arguments[arguments.length -1].dispatchEvent(evObj);";
+	((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
+
+	javaScript = "var evObj = document.createEvent('MouseEvents');"
+		+ "evObj.initMouseEvent(\"mouseenter\",true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);"
+		+ "arguments[arguments.length -1].dispatchEvent(evObj);";
+	((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
+
+	javaScript = "var evObj = document.createEvent('MouseEvents');"
+		+ "evObj.initMouseEvent(\"mouseover\",true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);"
+		+ "arguments[arguments.length -1].dispatchEvent(evObj);";
+	((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
+
+	(new Actions(driver)).moveToElement(driver.findElement(elementLocator)).perform();
+    }
+
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////// [Public] Core Element Actions
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -856,25 +875,6 @@ public class ElementActions {
      */
     public static void hoverAndClick(WebDriver driver, By hoverElementLocator, By clickableElementLocator) {
 	hoverAndClick(driver, Arrays.asList(hoverElementLocator), clickableElementLocator);
-    }
-
-    private static void performHover(WebDriver driver, By elementLocator) {
-	String javaScript = "var evObj = document.createEvent('MouseEvent');"
-		+ "evObj.initMouseEvent(\"mousemove\", true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);"
-		+ "arguments[arguments.length -1].dispatchEvent(evObj);";
-	((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
-
-	javaScript = "var evObj = document.createEvent('MouseEvents');"
-		+ "evObj.initMouseEvent(\"mouseenter\",true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);"
-		+ "arguments[arguments.length -1].dispatchEvent(evObj);";
-	((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
-
-	javaScript = "var evObj = document.createEvent('MouseEvents');"
-		+ "evObj.initMouseEvent(\"mouseover\",true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);"
-		+ "arguments[arguments.length -1].dispatchEvent(evObj);";
-	((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
-
-	(new Actions(driver)).moveToElement(driver.findElement(elementLocator)).perform();
     }
 
     /**

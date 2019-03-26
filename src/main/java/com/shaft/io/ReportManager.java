@@ -5,12 +5,14 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 import org.testng.Reporter;
 
 import com.shaft.cli.TerminalActions;
 
 import io.qameta.allure.Allure;
+import io.qameta.allure.AllureLifecycle;
 import io.qameta.allure.Attachment;
 import io.qameta.allure.Step;
 
@@ -24,6 +26,141 @@ public class ReportManager {
     private static int testCasesCounter = 0;
     private static boolean debugMode = false;
 
+    private ReportManager() {
+	throw new IllegalStateException("Utility class");
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////// [private] Preparation and Support Actions
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    private static void createLogEntry(String logText) {
+	String timestamp = (new SimpleDateFormat("dd-MM-yyyy HH:mm:ss.SSSS aaa"))
+		.format(new Date(System.currentTimeMillis()));
+
+	String log = "[ReportManager] " + logText.trim() + " @" + timestamp;
+	appendToLog(log);
+	appendToLog(System.lineSeparator());
+    }
+
+    /**
+     * Appends a log entry to the complete log of the current execution session.
+     * 
+     * @param log the log entry that needs to be appended to the full log
+     */
+    private static void appendToLog(String log) {
+	fullLog += log;
+	currentTestLog += log;
+    }
+
+    /**
+     * Clears the current test log to prepare for a new test
+     */
+    private static void clearTestLog() {
+	currentTestLog = "";
+    }
+
+    private static void createReportEntry(String logText) {
+	String timestamp = (new SimpleDateFormat("dd-MM-yyyy HH:mm:ss.SSSS aaa"))
+		.format(new Date(System.currentTimeMillis()));
+
+	String log = "[ReportManager] " + logText.trim() + " @" + timestamp;
+	Reporter.log(log, true);
+	appendToLog(log);
+	appendToLog(System.lineSeparator());
+    }
+
+    private static void createImportantReportEntry(String logText) {
+	Boolean initialLoggingStatus = discreteLogging;
+	setDiscreteLogging(false); // force log even if discrete logging was turned on
+	String log = System.lineSeparator()
+		+ "################################################################################################################################################"
+		+ System.lineSeparator() + logText.trim() + System.lineSeparator()
+		+ "################################################################################################################################################";
+
+	Reporter.log(log, true);
+	appendToLog(log);
+	appendToLog(System.lineSeparator());
+	setDiscreteLogging(initialLoggingStatus);
+    }
+
+    /**
+     * Formats logText and adds timestamp, then logs it as a step in the execution
+     * report.
+     * 
+     * @param logText       the text that needs to be logged in this action
+     * @param actionCounter a number that represents the serial number of this
+     *                      action within this test run
+     */
+    @Step("Action [{actionCounter}]: {logText}")
+    private static void writeStepToReport(String logText, int actionCounter) {
+	createReportEntry(logText);
+    }
+
+    @Attachment("Attachment: {attachmentType} - {attachmentName}")
+    private static String createAttachment(String attachmentType, String attachmentName, String attachmentContent) {
+	createReportEntry("Successfully created attachment [" + attachmentType + " - " + attachmentName + "]");
+	if (debugMode && !attachmentType.contains("SHAFT Engine Logs")
+		&& !attachmentType.equalsIgnoreCase("Extra Logs")) {
+	    String timestamp = (new SimpleDateFormat("dd-MM-yyyy HH:mm:ss.SSSS aaa"))
+		    .format(new Date(System.currentTimeMillis()));
+	    System.out.print("[ReportManager] " + "Debugging Attachment Entry" + " @" + timestamp
+		    + System.lineSeparator() + attachmentContent.trim() + System.lineSeparator());
+	}
+	// force create a useless lifecycle as it fixes issue with attachments not being
+	// added to before/after configuration methods
+	AllureLifecycle lc = new AllureLifecycle();
+	final Optional<String> current = lc.getCurrentTestCaseOrStep();
+	if (!current.isPresent()) {
+	    // WARNING: do not remove this useless block of code as the above import
+	    // (io.qameta.allure.AllureLifecycle) solves the issue with [main] ERROR
+	    // io.qameta.allure.AllureLifecycle - Could not add attachment: no test is
+	    // running
+	}
+
+	if (attachmentType.equals("SHAFT Engine Logs") && attachmentName.equals("Current Method log")) {
+	    return currentTestLog.trim();
+	} else {
+	    return attachmentContent.trim();
+	}
+    }
+
+    private static void createAttachment(String attachmentType, String attachmentName, InputStream attachmentContent) {
+
+	String attachmentDescription = "Attachment: " + attachmentType + " - " + attachmentName;
+
+	if (attachmentType.toLowerCase().contains("screenshot")) {
+	    Allure.addAttachment(attachmentDescription, "image/png", attachmentContent, ".png");
+	} else if (attachmentType.toLowerCase().contains("recording")) {
+	    Allure.addAttachment(attachmentDescription, "video/quicktime", attachmentContent, ".mov");
+	    // attachmentName, "video/mp4", attachmentContent, ".mp4"
+	} else if (attachmentType.toLowerCase().contains("gif")) {
+	    Allure.addAttachment(attachmentDescription, "image/gif", attachmentContent, ".gif");
+	} else {
+	    Allure.addAttachment(attachmentDescription, attachmentContent);
+	}
+
+	createReportEntry("Successfully created attachment [" + attachmentType + " - " + attachmentName + "]");
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////// [Public] Core Reporting Actions
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /**
+     * @return the discreteLogging
+     */
+    public static boolean isDiscreteLogging() {
+	return discreteLogging;
+    }
+
+    /**
+     * @param discreteLogging the discreteLogging to set
+     */
+    public static void setDiscreteLogging(boolean discreteLogging) {
+	ReportManager.discreteLogging = discreteLogging;
+    }
+
     public static int getTestCasesCounter() {
 	return testCasesCounter;
     }
@@ -36,8 +173,41 @@ public class ReportManager {
 	ReportManager.totalNumberOfTests = totalNumberOfTests;
     }
 
-    private ReportManager() {
-	throw new IllegalStateException("Utility class");
+    public static void setDebugMode(Boolean debugMode) {
+	ReportManager.debugMode = debugMode;
+    }
+
+    public static void populateEnvironmentData() {
+	// sets up some parameters to the allure report
+	FileActions.writeToFile(System.getProperty("allureResultsFolderPath"), "environment.properties",
+		Arrays.asList("Engine " + System.getProperty("shaftEngineVersion"),
+			"OS " + System.getProperty("targetOperatingSystem"),
+			"Browser " + System.getProperty("targetBrowserName"),
+			"Location " + System.getProperty("executionAddress")));
+    }
+
+    public static void logEngineVersion(Boolean isStartingExecution) {
+	if (isStartingExecution) {
+	    createImportantReportEntry(
+		    "Detected SHAFT Engine Version: [" + System.getProperty("shaftEngineVersion") + "]");
+	} else {
+	    createImportantReportEntry("This test run was powered by SHAFT Engine, which was created by [Mohab Mohie]."
+		    + System.lineSeparator()
+		    + "SHAFT Engine is licensed under the MIT License: [https://github.com/MohabMohie/SHAFT_ENGINE/blob/master/LICENSE].");
+	}
+    }
+
+    public static void logTestInformation(String className, String testMethodName, String testDescription) {
+	clearTestLog();
+	testCasesCounter++;
+	if (!testDescription.equals("")) {
+	    createImportantReportEntry("Starting Execution:\t[" + testCasesCounter + " out of " + totalNumberOfTests
+		    + "] test cases in the current suite\nTest Method:\t\t[" + className + "." + testMethodName
+		    + "]\nTest Description:\t[" + testDescription + "]");
+	} else {
+	    createImportantReportEntry("Starting Execution:\t[" + testCasesCounter + " out of " + totalNumberOfTests
+		    + "] test cases in the current suite\nTest Method:\t\t[" + className + "." + testMethodName + "]");
+	}
     }
 
     /**
@@ -52,10 +222,6 @@ public class ReportManager {
 	    writeStepToReport(logText, actionCounter);
 	    actionCounter++;
 	}
-    }
-
-    public static void logDiscrete(String logText) {
-	createLogEntry(logText);
     }
 
     /**
@@ -84,50 +250,8 @@ public class ReportManager {
 	actionCounter++;
     }
 
-    /**
-     * Formats logText and adds timestamp, then logs it as a step in the execution
-     * report.
-     * 
-     * @param logText       the text that needs to be logged in this action
-     * @param actionCounter a number that represents the serial number of this
-     *                      action within this test run
-     */
-    @Step("Action [{actionCounter}]: {logText}")
-    private static void writeStepToReport(String logText, int actionCounter) {
-	createReportEntry(logText);
-    }
-
-    private static void createReportEntry(String logText) {
-	String timestamp = (new SimpleDateFormat("dd-MM-yyyy HH:mm:ss.SSSS aaa"))
-		.format(new Date(System.currentTimeMillis()));
-
-	String log = "[ReportManager] " + logText.trim() + " @" + timestamp;
-	Reporter.log(log, true);
-	appendToLog(log);
-	appendToLog(System.lineSeparator());
-    }
-
-    private static void createLogEntry(String logText) {
-	String timestamp = (new SimpleDateFormat("dd-MM-yyyy HH:mm:ss.SSSS aaa"))
-		.format(new Date(System.currentTimeMillis()));
-
-	String log = "[ReportManager] " + logText.trim() + " @" + timestamp;
-	appendToLog(log);
-	appendToLog(System.lineSeparator());
-    }
-
-    private static void createImportantReportEntry(String logText) {
-	Boolean initialLoggingStatus = discreteLogging;
-	setDiscreteLogging(false); // force log even if discrete logging was turned on
-	String log = System.lineSeparator()
-		+ "################################################################################################################################################"
-		+ System.lineSeparator() + logText.trim() + System.lineSeparator()
-		+ "################################################################################################################################################";
-
-	Reporter.log(log, true);
-	appendToLog(log);
-	appendToLog(System.lineSeparator());
-	setDiscreteLogging(initialLoggingStatus);
+    public static void logDiscrete(String logText) {
+	createLogEntry(logText);
     }
 
     /**
@@ -184,41 +308,6 @@ public class ReportManager {
 	}
     }
 
-    private static void createAttachment(String attachmentType, String attachmentName, InputStream attachmentContent) {
-
-	String attachmentDescription = "Attachment: " + attachmentType + " - " + attachmentName;
-
-	if (attachmentType.toLowerCase().contains("screenshot")) {
-	    Allure.addAttachment(attachmentDescription, "image/png", attachmentContent, ".png");
-	} else if (attachmentType.toLowerCase().contains("recording")) {
-	    Allure.addAttachment(attachmentDescription, "video/quicktime", attachmentContent, ".mov");
-	    // attachmentName, "video/mp4", attachmentContent, ".mp4"
-	} else if (attachmentType.toLowerCase().contains("gif")) {
-	    Allure.addAttachment(attachmentDescription, "image/gif", attachmentContent, ".gif");
-	} else {
-	    Allure.addAttachment(attachmentDescription, attachmentContent);
-	}
-
-	createReportEntry("Successfully created attachment [" + attachmentType + " - " + attachmentName + "]");
-    }
-
-    @Attachment("Attachment: {attachmentType} - {attachmentName}")
-    private static String createAttachment(String attachmentType, String attachmentName, String attachmentContent) {
-	createReportEntry("Successfully created attachment [" + attachmentType + " - " + attachmentName + "]");
-	if (debugMode && !attachmentType.contains("SHAFT Engine Logs")
-		&& !attachmentType.equalsIgnoreCase("Extra Logs")) {
-	    String timestamp = (new SimpleDateFormat("dd-MM-yyyy HH:mm:ss.SSSS aaa"))
-		    .format(new Date(System.currentTimeMillis()));
-	    System.out.print("[ReportManager] " + "Debugging Attachment Entry" + " @" + timestamp
-		    + System.lineSeparator() + attachmentContent.trim() + System.lineSeparator());
-	}
-	if (attachmentType.equals("SHAFT Engine Logs") && attachmentName.equals("Current Method log")) {
-	    return currentTestLog.trim();
-	} else {
-	    return attachmentContent.trim();
-	}
-    }
-
     /**
      * Returns the log of the current test, and attaches it in the end of the test
      * execution report.
@@ -231,27 +320,10 @@ public class ReportManager {
 	clearTestLog();
     }
 
-    /**
-     * Clears the current test log to prepare for a new test
-     */
-    private static void clearTestLog() {
-	currentTestLog = "";
-    }
-
     public static void attachFullLog() {
 	if (!fullLog.trim().equals("")) {
 	    createAttachment("SHAFT Engine Logs", "Full Execution log", fullLog);
 	}
-    }
-
-    /**
-     * Appends a log entry to the complete log of the current execution session.
-     * 
-     * @param log the log entry that needs to be appended to the full log
-     */
-    private static void appendToLog(String log) {
-	fullLog += log;
-	currentTestLog += log;
     }
 
     public static void generateAllureReportArchive() {
@@ -301,57 +373,6 @@ public class ReportManager {
 	    FileActions.deleteFile("generatedReport/");
 	    setDiscreteLogging(discreteLoggingState);
 	}
-    }
-
-    public static void setDebugMode(Boolean debugMode) {
-	ReportManager.debugMode = debugMode;
-    }
-
-    public static void populateEnvironmentData() {
-	// sets up some parameters to the allure report
-	FileActions.writeToFile(System.getProperty("allureResultsFolderPath"), "environment.properties",
-		Arrays.asList("Engine " + System.getProperty("shaftEngineVersion"),
-			"OS " + System.getProperty("targetOperatingSystem"),
-			"Browser " + System.getProperty("targetBrowserName"),
-			"Location " + System.getProperty("executionAddress")));
-    }
-
-    public static void logEngineVersion(Boolean isStartingExecution) {
-	if (isStartingExecution) {
-	    createImportantReportEntry(
-		    "Detected SHAFT Engine Version: [" + System.getProperty("shaftEngineVersion") + "]");
-	} else {
-	    createImportantReportEntry("This test run was powered by SHAFT Engine, which was created by [Mohab Mohie]."
-		    + System.lineSeparator()
-		    + "SHAFT Engine is licensed under the MIT License: [https://github.com/MohabMohie/SHAFT_ENGINE/blob/master/LICENSE].");
-	}
-    }
-
-    public static void logTestInformation(String className, String testMethodName, String testDescription) {
-	clearTestLog();
-	testCasesCounter++;
-	if (!testDescription.equals("")) {
-	    createImportantReportEntry("Starting Execution:\t[" + testCasesCounter + " out of " + totalNumberOfTests
-		    + "] test cases in the current suite\nTest Method:\t\t[" + className + "." + testMethodName
-		    + "]\nTest Description:\t[" + testDescription + "]");
-	} else {
-	    createImportantReportEntry("Starting Execution:\t[" + testCasesCounter + " out of " + totalNumberOfTests
-		    + "] test cases in the current suite\nTest Method:\t\t[" + className + "." + testMethodName + "]");
-	}
-    }
-
-    /**
-     * @return the discreteLogging
-     */
-    public static boolean isDiscreteLogging() {
-	return discreteLogging;
-    }
-
-    /**
-     * @param discreteLogging the discreteLogging to set
-     */
-    public static void setDiscreteLogging(boolean discreteLogging) {
-	ReportManager.discreteLogging = discreteLogging;
     }
 
 }
