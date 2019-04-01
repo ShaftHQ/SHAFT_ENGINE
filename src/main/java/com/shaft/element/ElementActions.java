@@ -150,8 +150,7 @@ public class ElementActions {
 	    }
 
 	    if (elementLocator != null) {
-		// ScreenshotManager.storeElementScreenshotForAISupportedElementIdentification(driver,
-		// elementLocator);
+		ScreenshotManager.storeElementScreenshotForAISupportedElementIdentification(driver, elementLocator);
 	    }
 
 	    return true;
@@ -1148,7 +1147,7 @@ public class ElementActions {
 	    int numberOfTries) {
 	if (identifyUniqueElement(driver, elementLocator)) {
 	    try {
-		(new WebDriverWait(driver, defaultElementIdentificationTimeout * numberOfTries))
+		(new WebDriverWait(driver, (long) defaultElementIdentificationTimeout * numberOfTries))
 			.until(ExpectedConditions.not(ExpectedConditions.textToBe(elementLocator, initialValue)));
 	    } catch (Exception e) {
 		ReportManager.log(e);
@@ -1163,8 +1162,13 @@ public class ElementActions {
 			"from: \"" + initialValue + "\", to a new value.");
 	    }
 	} else {
-	    failAction(driver, "waitForTextToChange",
-		    "Element with locator (" + elementLocator.toString() + ") was not found on this page.");
+	    if (elementLocator != null) {
+		failAction(driver, "waitForTextToChange",
+			"Element with locator (" + elementLocator.toString() + ") was not found on this page.");
+	    } else {
+		// this code is unreachable it's just in place to satisfy SonarLint
+		failAction(driver, "waitForTextToChange", "Element has Null locator.");
+	    }
 	}
     }
 

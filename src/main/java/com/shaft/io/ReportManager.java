@@ -104,8 +104,11 @@ public class ReportManager {
 		&& !attachmentType.equalsIgnoreCase("Extra Logs")) {
 	    String timestamp = (new SimpleDateFormat("dd-MM-yyyy HH:mm:ss.SSSS aaa"))
 		    .format(new Date(System.currentTimeMillis()));
-	    System.out.print("[ReportManager] " + "Debugging Attachment Entry" + " @" + timestamp
-		    + System.lineSeparator() + attachmentContent.trim() + System.lineSeparator());
+
+	    String logEntry = "[ReportManager] " + "Debugging Attachment Entry" + " @" + timestamp + System.lineSeparator()
+		    + attachmentContent.trim() + System.lineSeparator();
+	    System.out.print(logEntry);
+	    appendToLog(logEntry);
 	}
 	// force create a useless lifecycle as it fixes issue with attachments not being
 	// added to before/after configuration methods
@@ -351,10 +354,9 @@ public class ReportManager {
 	    allureReportFileExtension = ".sh";
 	    FileActions.writeToFile("generatedReport/", "open_allure_report" + allureReportFileExtension,
 		    commandsToOpenAllureReport);
-	    // make file executable on unix-based shells, doesn't work for security
-	    // restrictions
-	    // (new TerminalActions()).performTerminalCommand("chmod +x
-	    // generatedReport/open_allure_report" + allureReportFileExtension);
+	    // make file executable on unix-based shells
+	    (new TerminalActions())
+		    .performTerminalCommand("chmod +x generatedReport/open_allure_report" + allureReportFileExtension);
 
 	    // create windows batch file
 	    commandsToOpenAllureReport = Arrays.asList("@echo off", "set path=allure\\bin;%path%",
