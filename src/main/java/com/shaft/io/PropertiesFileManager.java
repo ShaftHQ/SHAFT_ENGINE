@@ -34,12 +34,12 @@ public class PropertiesFileManager {
 		    properties.putAll(System.getProperties());
 		    System.getProperties().putAll(properties);
 		} catch (IOException e) {
-		    // ReportManager.log(e);
+		    // do nothing
 		}
 	    });
 	    overrideTargetOperatingSystemForLocalExecution();
 	} catch (Exception e) {
-	    // ReportManager.log(e);
+	    // do nothing
 	}
     }
 
