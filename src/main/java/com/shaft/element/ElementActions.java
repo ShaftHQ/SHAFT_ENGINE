@@ -127,7 +127,7 @@ public class ElementActions {
 	switch (matchingElementsCount) {
 	case 0:
 	    failAction(driver, "identifyUniqueElement",
-		    "zero elements found matching this locator [" + elementLocator + "].");
+		    "zero elements found matching this locator \"" + elementLocator + "\".");
 	    break;
 	case 1:
 	    // unique element found
@@ -144,7 +144,7 @@ public class ElementActions {
 		    } catch (TimeoutException e) {
 			ReportManager.log(e);
 			failAction(driver, "identifyUniqueElement",
-				"unique element matching this locator [" + elementLocator + "] is not visible.");
+				"unique element matching this locator \"" + elementLocator + "\" is not visible.");
 		    }
 		}
 	    }
@@ -156,7 +156,7 @@ public class ElementActions {
 	    return true;
 	default:
 	    failAction(driver, "identifyUniqueElement",
-		    "multiple elements found matching this locator [" + elementLocator + "].");
+		    "multiple elements found matching this locator \"" + elementLocator + "\".");
 	    break;
 	}
 	return false;
@@ -854,8 +854,13 @@ public class ElementActions {
 	if (identifyUniqueElement(driver, hoverElementLocators.get(0))) {
 	    hoverElementLocators.forEach(hoverElementLocator -> chainedHoverAndClickAction
 		    .moveToElement(driver.findElement(hoverElementLocator)));
-	    chainedHoverAndClickAction.moveToElement(driver.findElement(clickableElementLocator))
-		    .click(driver.findElement(clickableElementLocator)).perform();
+	    try {
+		chainedHoverAndClickAction.moveToElement(driver.findElement(clickableElementLocator))
+			.click(driver.findElement(clickableElementLocator)).perform();
+	    } catch (NoSuchElementException e) {
+		ReportManager.log(e);
+		failAction(driver, "hoverAndClick");
+	    }
 	} else {
 	    failAction(driver, "hoverAndClick");
 	}

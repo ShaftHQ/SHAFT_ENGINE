@@ -5,6 +5,7 @@ import org.testng.IInvokedMethod;
 import org.testng.IInvokedMethodListener;
 import org.testng.ITestNGMethod;
 import org.testng.ITestResult;
+import org.testng.SkipException;
 
 import com.shaft.browser.BrowserFactory;
 import com.shaft.element.ElementActions;
@@ -39,6 +40,11 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 		    RecordManager.startRecording();
 		}
 	    }
+
+	    // implementing the new kill switch at the start of every test method
+	    if (BrowserFactory.isKillSwitch()) {
+		throw new SkipException("Skipping Test: " + testResult.getName());
+	    }
 	}
     }
 
@@ -53,12 +59,12 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 	    if (testMethod.isTest()) {
 		updateTestStatusInCaseOfVerificationFailure(testResult);
 		if (invokedTestsCounter == testSize - 1) {
-		    // is last test in the class
-		    RecordManager.stopRecording();
-		    RecordManager.attachRecording();
-		    BrowserFactory.attachBrowserLogs();
+		    // is last test in the last class of the test suite
 		    ReportManager.logEngineVersion(false);
-		    ReportManager.attachFullLog();
+		    ReportManager.triggerClosureActivitiesLogs();
+		    ReportManager.setDiscreteLogging(true);
+		    BrowserFactory.closeAllDrivers();
+		    ReportManager.setDiscreteLogging(false);
 		    invokedTestsCounter = 0;
 		} else {
 		    invokedTestsCounter++;

@@ -5,14 +5,14 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
-import java.util.Optional;
 
 import org.testng.Reporter;
+import org.testng.TestListenerAdapter;
+import org.testng.TestNG;
 
 import com.shaft.cli.TerminalActions;
 
 import io.qameta.allure.Allure;
-import io.qameta.allure.AllureLifecycle;
 import io.qameta.allure.Attachment;
 import io.qameta.allure.Step;
 
@@ -98,27 +98,17 @@ public class ReportManager {
     }
 
     @Attachment("Attachment: {attachmentType} - {attachmentName}")
-    private static String createAttachment(String attachmentType, String attachmentName, String attachmentContent) {
+    protected static String createAttachment(String attachmentType, String attachmentName, String attachmentContent) {
 	createReportEntry("Successfully created attachment [" + attachmentType + " - " + attachmentName + "]");
 	if (debugMode && !attachmentType.contains("SHAFT Engine Logs")
 		&& !attachmentType.equalsIgnoreCase("Extra Logs")) {
 	    String timestamp = (new SimpleDateFormat("dd-MM-yyyy HH:mm:ss.SSSS aaa"))
 		    .format(new Date(System.currentTimeMillis()));
 
-	    String logEntry = "[ReportManager] " + "Debugging Attachment Entry" + " @" + timestamp + System.lineSeparator()
-		    + attachmentContent.trim() + System.lineSeparator();
+	    String logEntry = "[ReportManager] " + "Debugging Attachment Entry" + " @" + timestamp
+		    + System.lineSeparator() + attachmentContent.trim() + System.lineSeparator();
 	    System.out.print(logEntry);
 	    appendToLog(logEntry);
-	}
-	// force create a useless lifecycle as it fixes issue with attachments not being
-	// added to before/after configuration methods
-	AllureLifecycle lc = new AllureLifecycle();
-	final Optional<String> current = lc.getCurrentTestCaseOrStep();
-	if (!current.isPresent()) {
-	    // WARNING: do not remove this useless block of code as the above import
-	    // (io.qameta.allure.AllureLifecycle) solves the issue with [main] ERROR
-	    // io.qameta.allure.AllureLifecycle - Could not add attachment: no test is
-	    // running
 	}
 
 	if (attachmentType.equals("SHAFT Engine Logs") && attachmentName.equals("Current Method log")) {
@@ -129,9 +119,7 @@ public class ReportManager {
     }
 
     private static void createAttachment(String attachmentType, String attachmentName, InputStream attachmentContent) {
-
 	String attachmentDescription = "Attachment: " + attachmentType + " - " + attachmentName;
-
 	if (attachmentType.toLowerCase().contains("screenshot")) {
 	    Allure.addAttachment(attachmentDescription, "image/png", attachmentContent, ".png");
 	} else if (attachmentType.toLowerCase().contains("recording")) {
@@ -329,6 +317,16 @@ public class ReportManager {
 	}
     }
 
+    public static void triggerClosureActivitiesLogs() {
+	TestListenerAdapter tla = new TestListenerAdapter();
+	TestNG testng = new TestNG();
+	testng.setTestClasses(new Class[] { LogsReporter.class });
+	testng.setDefaultSuiteName("# Closure Activities #");
+	testng.setDefaultTestName("# Execution Logs #");
+	testng.addListener(tla);
+	testng.run();
+    }
+
     public static void generateAllureReportArchive() {
 	if (Boolean.valueOf(System.getProperty("automaticallyGenerateAllureReport").trim())) {
 	    logDiscrete("Generating Allure Report Archive...");
@@ -354,10 +352,12 @@ public class ReportManager {
 	    allureReportFileExtension = ".sh";
 	    FileActions.writeToFile("generatedReport/", "open_allure_report" + allureReportFileExtension,
 		    commandsToOpenAllureReport);
-	    // make file executable on unix-based shells
-	    (new TerminalActions())
-		    .performTerminalCommand("chmod +x generatedReport/open_allure_report" + allureReportFileExtension);
 
+	    if (!targetOperatingSystem.equals("Windows-64")) {
+		// make file executable on unix-based shells
+		(new TerminalActions()).performTerminalCommand(
+			"chmod +x generatedReport/open_allure_report" + allureReportFileExtension);
+	    }
 	    // create windows batch file
 	    commandsToOpenAllureReport = Arrays.asList("@echo off", "set path=allure\\bin;%path%",
 		    "allure open allure-report", "pause", "exit");
@@ -376,5 +376,4 @@ public class ReportManager {
 	    setDiscreteLogging(discreteLoggingState);
 	}
     }
-
 }

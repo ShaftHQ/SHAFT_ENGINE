@@ -4,12 +4,12 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.mohies</groupId>
 	<artifactId>SHAFT_ENGINE</artifactId>
-	<version>2.4.20180401</version>
+	<version>2.4.20190423</version>
 	<name>SHAFT_ENGINE</name>
 	<description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
 
 	<properties>
-		<shaft_engine.version>SHAFT_ENGINE-2.4.20180401</shaft_engine.version>
+		<shaft_engine.version>SHAFT_ENGINE-2.4.20190423</shaft_engine.version>
 		<!-- SHAFT_Engine Properties and other property files are read from the 
 			below location -->
 		<propertiesFolderPath>src/test/resources/Properties/</propertiesFolderPath>
@@ -25,39 +25,42 @@
 		<allure.version>2.10.0</allure.version>
 		<aspectj.version>1.9.2</aspectj.version>
 
-		<rest-assured.version>3.2.0</rest-assured.version>
+		<rest-assured.version>3.3.0</rest-assured.version>
 		<json-simple.version>1.1.1</json-simple.version>
 		<skyscreamer-jsonassert.version>1.5.0</skyscreamer-jsonassert.version>
 
 		<testng.version>7.0.0-beta3</testng.version>
 
+		<pojosontheweb-monte.version>1.0.1</pojosontheweb-monte.version>
 
-		<apachepoi.version>4.0.0</apachepoi.version>
-		<org.slf4j.version>1.7.25</org.slf4j.version>
+		<apachepoi.version>4.1.0</apachepoi.version>
+		<org.slf4j.version>1.7.26</org.slf4j.version>
 		<maven-resources-plugin.version>3.1.0</maven-resources-plugin.version>
 		<maven-compiler-plugin.version>3.8.0</maven-compiler-plugin.version>
 		<maven-surefire-plugin.version>3.0.0-M3</maven-surefire-plugin.version>
-		<maven-shade-plugin.version>3.2.0</maven-shade-plugin.version>
-		<maven-jar-plugin.version>3.1.0</maven-jar-plugin.version>
-		<maven-javadoc-plugin.version>3.0.1</maven-javadoc-plugin.version>
+		<maven-shade-plugin.version>3.2.1</maven-shade-plugin.version>
+		<maven-jar-plugin.version>3.1.1</maven-jar-plugin.version>
+		<maven-javadoc-plugin.version>3.1.0</maven-javadoc-plugin.version>
 		<maven-source-plugin.version>3.0.1</maven-source-plugin.version>
 
-		<jcraft-jsch.version>0.1.54</jcraft-jsch.version>
+		<jcraft-jsch.version>0.1.55</jcraft-jsch.version>
 
-		<cucumber.version>4.2.1</cucumber.version>
+		<cucumber.version>4.3.0</cucumber.version>
 		<appium-java-client.version>6.1.0</appium-java-client.version>
 		<cverges-expect4j.version>1.9</cverges-expect4j.version>
 
 	</properties>
 
 	<dependencies>
-		<!-- Video Recording -->
+		<!-- TestNG Dependencies -->
 		<dependency>
-			<groupId>com.pojosontheweb</groupId>
-			<artifactId>monte-repack</artifactId>
-			<version>1.0.1</version>
+			<groupId>org.testng</groupId>
+			<artifactId>testng</artifactId>
+			<version>${testng.version}</version>
+			<!-- <scope>test</scope> -->
 		</dependency>
-		<!-- Selenium and Allure Dependencies -->
+
+		<!-- Selenium WebDriver Dependencies -->
 		<dependency>
 			<groupId>org.seleniumhq.selenium</groupId>
 			<artifactId>selenium-java</artifactId>
@@ -73,6 +76,8 @@
 			<artifactId>selenium-support</artifactId>
 			<version>${selenium.version}</version>
 		</dependency>
+
+		<!-- Allure Dependencies -->
 		<dependency>
 			<groupId>io.qameta.allure</groupId>
 			<artifactId>allure-testng</artifactId>
@@ -97,13 +102,6 @@
 			<version>${rest-assured.version}</version>
 		</dependency>
 
-		<!-- TestNG Dependencies -->
-		<dependency>
-			<groupId>org.testng</groupId>
-			<artifactId>testng</artifactId>
-			<version>${testng.version}</version>
-		</dependency>
-
 		<!-- Cucumber Dependencies -->
 		<dependency>
 			<groupId>io.cucumber</groupId>
@@ -118,14 +116,19 @@
 			<!-- <scope>test</scope> -->
 		</dependency>
 
-		<!-- https://mvnrepository.com/artifact/com.googlecode.json-simple/json-simple -->
+		<!-- Video Recording -->
+		<dependency>
+			<groupId>com.pojosontheweb</groupId>
+			<artifactId>monte-repack</artifactId>
+			<version>${pojosontheweb-monte.version}</version>
+		</dependency>
+
+		<!-- Other Dependencies -->
 		<dependency>
 			<groupId>com.googlecode.json-simple</groupId>
 			<artifactId>json-simple</artifactId>
 			<version>${json-simple.version}</version>
 		</dependency>
-
-		<!-- Other Dependencies -->
 		<dependency>
 			<groupId>org.skyscreamer</groupId>
 			<artifactId>jsonassert</artifactId>
@@ -216,6 +219,8 @@
 						<!-- <reuseForks>false</reuseForks> -->
 						<!-- <forkCount>2C</forkCount> -->
 						<!-- <threadCount>10</threadCount> -->
+						<!-- <threadCount>1</threadCount> -->
+						<!-- <perCoreThreadCount>false</perCoreThreadCount> -->
 						<failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
 						<failIfNoTests>false</failIfNoTests>
 						<systemPropertyVariables>

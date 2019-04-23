@@ -63,7 +63,7 @@ public class BrowserActions {
 	    ScreenshotManager.captureScreenShot(driver, actionName, false);
 	}
 	ReportManager.log(message);
-		Assert.fail(message);
+	Assert.fail(message);
     }
 
     /**
@@ -209,6 +209,18 @@ public class BrowserActions {
 	// force stop any current navigation
 	try {
 	    ((JavascriptExecutor) driver).executeScript("return window.stop;");
+	} catch (Exception e) {
+	    ReportManager.log(e);
+	    /*
+	     * org.openqa.selenium.NoSuchSessionException: Session ID is null. Using
+	     * WebDriver after calling quit()? Build info: version: '3.141.59', revision:
+	     * 'e82be7d358', time: '2018-11-14T08:17:03' System info: host:
+	     * 'gcp-test-automation-sys-187-jenkins-fullaccess', ip: '10.128.0.11', os.name:
+	     * 'Linux', os.arch: 'amd64', os.version: '4.15.0-1027-gcp', java.version:
+	     * '1.8.0_202' Driver info: driver.version: RemoteWebDriver
+	     */
+	}
+	try {
 	    JSWaiter.waitForLazyLoading();
 
 	    String initialURL = "";

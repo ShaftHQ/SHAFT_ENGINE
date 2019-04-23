@@ -54,6 +54,8 @@ public class ScreenshotManager {
 	    .valueOf(System.getProperty("screenshotParams_watermark").trim());
     private static final Float SCREENSHOT_PARAMS_WATERMARKOPACITY = Float
 	    .valueOf(System.getProperty("screenshotParams_watermarkOpacity").trim());
+    private static final Boolean AI_SUPPORTED_ELEMENT_IDENTIFICATION = Boolean
+	    .valueOf(System.getProperty("aiSupportedElementIdentification").trim());
 
     private static By targetElementLocator;
 
@@ -493,13 +495,15 @@ public class ScreenshotManager {
     }
 
     public static void storeElementScreenshotForAISupportedElementIdentification(WebDriver driver, By elementLocator) {
-	FileActions.createFolder(AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH);
-	File element = takeElementScreenshot(driver, false);
+	if (AI_SUPPORTED_ELEMENT_IDENTIFICATION) {
+	    FileActions.createFolder(AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH);
+	    File element = takeElementScreenshot(driver, false);
 
-	String elementFileName = elementLocator.toString().replaceAll("[\\W\\s]", "_");
+	    String elementFileName = elementLocator.toString().replaceAll("[\\W\\s]", "_");
 
-	FileActions.copyFile(element.getAbsolutePath(),
-		AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH + elementFileName + ".png");
+	    FileActions.copyFile(element.getAbsolutePath(),
+		    AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH + elementFileName + ".png");
+	}
     }
 
 }
