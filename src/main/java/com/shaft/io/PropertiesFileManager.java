@@ -32,6 +32,15 @@ public class PropertiesFileManager {
 		try {
 		    properties.load(new FileInputStream(propertyFile));
 		    properties.putAll(System.getProperties());
+
+		    // checks if the overriding value is not empty, then adds it and overrides the
+		    // value from the properties files
+		    // cancelled the above logic to reset the value at any given moment
+//		    properties.forEach((propertyKey, propertyValue) -> {
+//			if (!String.valueOf(propertyValue).trim().equals("")) {
+//			    System.getProperties().put(propertyKey, propertyValue);
+//			}
+//		    });
 		    System.getProperties().putAll(properties);
 		} catch (IOException e) {
 		    // do nothing

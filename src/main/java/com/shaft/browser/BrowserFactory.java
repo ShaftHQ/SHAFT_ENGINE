@@ -27,6 +27,7 @@ import org.openqa.selenium.logging.LoggingPreferences;
 import org.openqa.selenium.remote.CapabilityType;
 import org.openqa.selenium.remote.LocalFileDetector;
 import org.openqa.selenium.remote.RemoteWebDriver;
+import org.openqa.selenium.remote.UnreachableBrowserException;
 import org.openqa.selenium.safari.SafariDriver;
 import org.openqa.selenium.safari.SafariOptions;
 import org.testng.Assert;
@@ -53,6 +54,8 @@ public class BrowserFactory {
     private static final int IMPLICIT_WAIT_TIMEOUT = 30;
     private static final Boolean WAIT_IMPLICITLY = Boolean.valueOf(System.getProperty("waitImplicitly").trim());
     private static final Boolean CREATE_GIF = Boolean.valueOf(System.getProperty("createAnimatedGif").trim());
+    private static final Boolean BROWSEROBJECTSINGLETON = Boolean
+	    .valueOf(System.getProperty("browserObjectSingleton").trim());
 
     private static String driversPath;
     private static String fileExtension;
@@ -81,6 +84,13 @@ public class BrowserFactory {
     private static final String OS_WINDOWS = "Windows-64";
     private static final String OS_LINUX = "Linux-64";
     private static final String OS_MAC = "Mac-64";
+
+    // kill-switch
+    private static boolean killSwitch = false;
+
+    public static boolean isKillSwitch() {
+	return killSwitch;
+    }
 
     private BrowserFactory() {
 	throw new IllegalStateException("Utility class");
@@ -119,6 +129,10 @@ public class BrowserFactory {
 	    // set logging global preferences
 	    setDriverOptions(browserName);
 	    // set driver options with respect to the target browser name
+
+	    if (BROWSEROBJECTSINGLETON) {
+		closeAllDrivers();
+	    }
 
 	    if (EXECUTION_ADDRESS.equals("local")) {
 		// Manage local execution
@@ -378,6 +392,10 @@ public class BrowserFactory {
 		break;
 	    }
 	    ((RemoteWebDriver) driver).setFileDetector(new LocalFileDetector());
+	} catch (UnreachableBrowserException e) {
+	    killSwitch = true;
+	    ReportManager.log(e);
+	    Assert.fail("Unreachable Browser, terminated test suite execution.");
 	} catch (WebDriverException e) {
 	    ReportManager.log(e);
 	    if (e.getMessage().contains("Error forwarding the new session cannot find")) {
@@ -420,19 +438,26 @@ public class BrowserFactory {
      */
     public static void closeAllDrivers() {
 	if (!drivers.entrySet().isEmpty()) {
-	    try {
-		for (Entry<String, Map<String, WebDriver>> entry : drivers.entrySet()) {
-		    for (Entry<String, WebDriver> driverEntry : entry.getValue().entrySet()) {
+	    for (Entry<String, Map<String, WebDriver>> entry : drivers.entrySet()) {
+		for (Entry<String, WebDriver> driverEntry : entry.getValue().entrySet()) {
+		    try {
 			driverEntry.getValue().close();
+		    } catch (NoSuchSessionException e) {
+			// browser was already closed
+		    } catch (Exception e) {
+			ReportManager.log(e);
+		    }
+
+		    try {
 			driverEntry.getValue().quit();
+		    } catch (NoSuchSessionException e) {
+			// browser was already closed by the .close() method
+		    } catch (Exception e) {
+			ReportManager.log(e);
 		    }
 		}
-
-	    } catch (NoSuchSessionException e) {
-		// browser was already closed by the .close() method
-	    } catch (Exception e) {
-		ReportManager.log(e);
 	    }
+
 	    driver = null;
 	    drivers.clear();
 	    ReportManager.log("Successfully Closed All Browsers.");
@@ -444,13 +469,17 @@ public class BrowserFactory {
 	    try {
 		for (Entry<String, Map<String, WebDriver>> entry : drivers.entrySet()) {
 		    for (Entry<String, WebDriver> driverEntry : entry.getValue().entrySet()) {
-			attachBrowserLogs(driverEntry.getKey(), driverEntry.getValue());
+			attachBrowserLogs(entry.getKey(), driverEntry.getValue());
 		    }
 		}
 	    } catch (Exception e) {
 		ReportManager.log(e);
 	    }
 	}
+    }
+
+    public static Boolean isBrowsersListEmpty() {
+	return drivers.entrySet().isEmpty();
     }
 
     private static void attachBrowserLogs(String borwserName, WebDriver driver) {
@@ -469,7 +498,8 @@ public class BrowserFactory {
 		    logBuilder.append(entry.toString() + System.lineSeparator());
 		}
 		performanceLogText = logBuilder.toString();
-		ReportManager.attach("Extra Logs", "Performance Logs for [" + borwserName + "]", performanceLogText);
+		ReportManager.attach("Selenium WebDriver Logs", "Performance Logs for [" + borwserName + "]",
+			performanceLogText);
 	    } catch (WebDriverException e) {
 		// exception when the defined log type is not found
 		ReportManager.log(e);
@@ -481,7 +511,7 @@ public class BrowserFactory {
 		    logBuilder.append(entry.toString() + System.lineSeparator());
 		}
 		driverLogText = logBuilder.toString();
-		ReportManager.attach("Extra Logs", "Driver Logs for [" + borwserName + "]", driverLogText);
+		ReportManager.attach("Selenium WebDriver Logs", "Driver Logs for [" + borwserName + "]", driverLogText);
 	    } catch (WebDriverException e) {
 		// exception when the defined log type is not found
 		ReportManager.log(e);
