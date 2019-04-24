@@ -19,28 +19,33 @@ public class PropertiesFileManager {
 	throw new IllegalStateException("Utility class");
     }
 
+    /**
+     * Reads properties from all system variables that contain the word
+     * propertiesFolderPath, enables reading properties from multiple folders
+     * following this naming convention
+     * 
+     */
     public static void readPropertyFiles() {
 	readPropertyFiles(System.getProperty("propertiesFolderPath"));
+	Properties props = System.getProperties();
+	props.forEach((propertyKey, propertyValue) -> {
+	    if (String.valueOf(propertyKey).trim().contains("propertiesFolderPath")
+		    && !String.valueOf(propertyKey).trim().equals("propertiesFolderPath")) {
+		readPropertyFiles(String.valueOf(propertyValue).trim());
+	    }
+	});
     }
 
-    public static void readPropertyFiles(String customFolderPath) {
+    private static void readPropertyFiles(String propertiesFolderPath) {
 	try {
 	    Properties properties = new Properties();
 	    Collection<File> propertiesFilesList;
-	    propertiesFilesList = FileUtils.listFiles(new File(customFolderPath), new String[] { "properties" }, true);
+	    propertiesFilesList = FileUtils.listFiles(new File(propertiesFolderPath), new String[] { "properties" },
+		    true);
 	    propertiesFilesList.forEach(propertyFile -> {
 		try {
 		    properties.load(new FileInputStream(propertyFile));
 		    properties.putAll(System.getProperties());
-
-		    // checks if the overriding value is not empty, then adds it and overrides the
-		    // value from the properties files
-		    // cancelled the above logic to reset the value at any given moment
-//		    properties.forEach((propertyKey, propertyValue) -> {
-//			if (!String.valueOf(propertyValue).trim().equals("")) {
-//			    System.getProperties().put(propertyKey, propertyValue);
-//			}
-//		    });
 		    System.getProperties().putAll(properties);
 		} catch (IOException e) {
 		    // do nothing
