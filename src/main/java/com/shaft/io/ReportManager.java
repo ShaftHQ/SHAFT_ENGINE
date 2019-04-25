@@ -317,6 +317,10 @@ public class ReportManager {
 	}
     }
 
+    public static void attachSystemProperties() {
+	createAttachment("SHAFT Engine Logs", "System Properties", System.getProperties().toString());
+    }
+
     public static void triggerClosureActivitiesLogs() {
 	TestListenerAdapter tla = new TestListenerAdapter();
 	TestNG testng = new TestNG();

@@ -28,12 +28,23 @@ public class PropertiesFileManager {
     public static void readPropertyFiles() {
 	readPropertyFiles(System.getProperty("propertiesFolderPath"));
 	Properties props = System.getProperties();
-	props.forEach((propertyKey, propertyValue) -> {
-	    if (String.valueOf(propertyKey).trim().contains("propertiesFolderPath")
-		    && !String.valueOf(propertyKey).trim().equals("propertiesFolderPath")) {
-		readPropertyFiles(String.valueOf(propertyValue).trim());
+
+	for (int i = 0; i < props.size(); i++) {
+	    String propertyKey = ((String) (props.keySet().toArray())[i]).trim();
+	    if (propertyKey.contains("propertiesFolderPath") && !propertyKey.equals("propertiesFolderPath")) {
+		readPropertyFiles(props.getProperty(propertyKey));
 	    }
-	});
+	}
+
+//	// replace it with anything else other than foreach
+//	props.forEach((propertyKey, propertyValue) -> {
+//	    if (String.valueOf(propertyKey).trim().contains("propertiesFolderPath")
+//		    && !String.valueOf(propertyKey).trim().equals("propertiesFolderPath")) {
+//		readPropertyFiles(String.valueOf(propertyValue).trim());
+//	    }
+//	});
+
+//	ReportManager.attachSystemProperties();
     }
 
     private static void readPropertyFiles(String propertiesFolderPath) {
@@ -42,7 +53,10 @@ public class PropertiesFileManager {
 	    Collection<File> propertiesFilesList;
 	    propertiesFilesList = FileUtils.listFiles(new File(propertiesFolderPath), new String[] { "properties" },
 		    true);
-	    propertiesFilesList.forEach(propertyFile -> {
+
+	    File propertyFile;
+	    for (int i = 0; i < propertiesFilesList.size(); i++) {
+		propertyFile = (File) (propertiesFilesList.toArray())[i];
 		try {
 		    properties.load(new FileInputStream(propertyFile));
 		    properties.putAll(System.getProperties());
@@ -50,7 +64,17 @@ public class PropertiesFileManager {
 		} catch (IOException e) {
 		    // do nothing
 		}
-	    });
+	    }
+
+//	    propertiesFilesList.forEach(propertyFile -> {
+//		try {
+//		    properties.load(new FileInputStream(propertyFile));
+//		    properties.putAll(System.getProperties());
+//		    System.getProperties().putAll(properties);
+//		} catch (IOException e) {
+//		    // do nothing
+//		}
+//	    });
 	    overrideTargetOperatingSystemForLocalExecution();
 	} catch (Exception e) {
 	    // do nothing
