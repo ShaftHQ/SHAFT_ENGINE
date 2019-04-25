@@ -11,6 +11,7 @@ import io.qameta.allure.Epic;
 public class LogsReporter {
     @Test(priority = 1, alwaysRun = true, description = "SHAFT Engine Logs")
     public void attachFullLog() {
+	ReportManager.attachSystemProperties();
 	ReportManager.attachFullLog();
     }
 
