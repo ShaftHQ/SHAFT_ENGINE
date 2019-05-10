@@ -24,6 +24,9 @@ public class PropertiesFileManager {
      * propertiesFolderPath, enables reading properties from multiple folders
      * following this naming convention
      * 
+     * Priorities follow this order: Explicit Properties File 2 > Explicit
+     * Properties File 1 > Main Properties File > pom.xml
+     * 
      */
     public static void readPropertyFiles() {
 	readPropertyFiles(System.getProperty("propertiesFolderPath"));
@@ -58,11 +61,12 @@ public class PropertiesFileManager {
 	    for (int i = 0; i < propertiesFilesList.size(); i++) {
 		propertyFile = (File) (propertiesFilesList.toArray())[i];
 		try {
+		    properties.putAll(System.getProperties()); // set system properties from the main properties file
 		    properties.load(new FileInputStream(propertyFile));
-		    properties.putAll(System.getProperties());
+		    // override the current system properties with the alternate properties files
 		    System.getProperties().putAll(properties);
 		} catch (IOException e) {
-		    // do nothing
+		    ReportManager.log(e);
 		}
 	    }
 
@@ -77,7 +81,7 @@ public class PropertiesFileManager {
 //	    });
 	    overrideTargetOperatingSystemForLocalExecution();
 	} catch (Exception e) {
-	    // do nothing
+	    ReportManager.log(e);
 	}
     }
 
