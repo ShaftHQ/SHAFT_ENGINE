@@ -24,14 +24,13 @@ public class PropertiesFileManager {
      * propertiesFolderPath, enables reading properties from multiple folders
      * following this naming convention
      * 
-     * Priorities follow this order: Explicit Properties File 2 > Explicit
-     * Properties File 1 > Main Properties File > pom.xml
+     * Priorities follow this order: MVN system properties + pom.xml THEN Explicit
+     * properties files THEN Base properties files (lowest priority)
      * 
      */
     public static void readPropertyFiles() {
-	readPropertyFiles(System.getProperty("propertiesFolderPath"));
+	// read properties from any explicit properties files
 	Properties props = System.getProperties();
-
 	for (int i = 0; i < props.size(); i++) {
 	    String propertyKey = ((String) (props.keySet().toArray())[i]).trim();
 	    if (propertyKey.contains("propertiesFolderPath") && !propertyKey.equals("propertiesFolderPath")) {
@@ -39,15 +38,8 @@ public class PropertiesFileManager {
 	    }
 	}
 
-//	// replace it with anything else other than foreach
-//	props.forEach((propertyKey, propertyValue) -> {
-//	    if (String.valueOf(propertyKey).trim().contains("propertiesFolderPath")
-//		    && !String.valueOf(propertyKey).trim().equals("propertiesFolderPath")) {
-//		readPropertyFiles(String.valueOf(propertyValue).trim());
-//	    }
-//	});
-
-//	ReportManager.attachSystemProperties();
+	// read properties form the base properties file
+	readPropertyFiles(System.getProperty("propertiesFolderPath"));
     }
 
     private static void readPropertyFiles(String propertiesFolderPath) {
@@ -60,27 +52,23 @@ public class PropertiesFileManager {
 	    File propertyFile;
 	    for (int i = 0; i < propertiesFilesList.size(); i++) {
 		propertyFile = (File) (propertiesFilesList.toArray())[i];
-		try {
-		    properties.putAll(System.getProperties()); // set system properties from the main properties file
-		    properties.load(new FileInputStream(propertyFile));
-		    // override the current system properties with the alternate properties files
-		    System.getProperties().putAll(properties);
-		} catch (IOException e) {
-		    ReportManager.log(e);
-		}
+		loadPropertiesFileIntoSystemProperties(properties, propertyFile);
 	    }
-
-//	    propertiesFilesList.forEach(propertyFile -> {
-//		try {
-//		    properties.load(new FileInputStream(propertyFile));
-//		    properties.putAll(System.getProperties());
-//		    System.getProperties().putAll(properties);
-//		} catch (IOException e) {
-//		    // do nothing
-//		}
-//	    });
 	    overrideTargetOperatingSystemForLocalExecution();
 	} catch (Exception e) {
+	    ReportManager.log(e);
+	}
+    }
+
+    private static void loadPropertiesFileIntoSystemProperties(Properties properties, File propertyFile) {
+	try {
+	    properties.load(new FileInputStream(propertyFile));
+	    // load properties from the properties file
+	    properties.putAll(System.getProperties());
+	    // override properties file with system properties
+	    System.getProperties().putAll(properties);
+	    // reset system properties
+	} catch (IOException e) {
 	    ReportManager.log(e);
 	}
     }

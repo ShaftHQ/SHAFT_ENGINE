@@ -1,11 +1,21 @@
 package com.shaft.io;
 
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
 
+import org.apache.tools.ant.filters.StringInputStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.Reporter;
 import org.testng.TestListenerAdapter;
 import org.testng.TestNG;
@@ -13,7 +23,6 @@ import org.testng.TestNG;
 import com.shaft.cli.TerminalActions;
 
 import io.qameta.allure.Allure;
-import io.qameta.allure.Attachment;
 import io.qameta.allure.Step;
 
 public class ReportManager {
@@ -25,6 +34,8 @@ public class ReportManager {
     private static int totalNumberOfTests = 0;
     private static int testCasesCounter = 0;
     private static boolean debugMode = false;
+    private static final String TIMESTAMP_FORMAT = "dd-MM-yyyy HH:mm:ss.SSSS aaa";
+    private static final Logger slf4jLogger = LoggerFactory.getLogger(ReportManager.class);
 
     private ReportManager() {
 	throw new IllegalStateException("Utility class");
@@ -35,8 +46,7 @@ public class ReportManager {
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     private static void createLogEntry(String logText) {
-	String timestamp = (new SimpleDateFormat("dd-MM-yyyy HH:mm:ss.SSSS aaa"))
-		.format(new Date(System.currentTimeMillis()));
+	String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
 
 	String log = "[ReportManager] " + logText.trim() + " @" + timestamp;
 	appendToLog(log);
@@ -61,8 +71,7 @@ public class ReportManager {
     }
 
     private static void createReportEntry(String logText) {
-	String timestamp = (new SimpleDateFormat("dd-MM-yyyy HH:mm:ss.SSSS aaa"))
-		.format(new Date(System.currentTimeMillis()));
+	String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
 
 	String log = "[ReportManager] " + logText.trim() + " @" + timestamp;
 	Reporter.log(log, true);
@@ -97,29 +106,25 @@ public class ReportManager {
 	createReportEntry(logText);
     }
 
-    @Attachment("Attachment: {attachmentType} - {attachmentName}")
-    protected static String createAttachment(String attachmentType, String attachmentName, String attachmentContent) {
-	createReportEntry("Successfully created attachment [" + attachmentType + " - " + attachmentName + "]");
-	if (debugMode && !attachmentType.contains("SHAFT Engine Logs")
-		&& !attachmentType.equalsIgnoreCase("Extra Logs")) {
-	    String timestamp = (new SimpleDateFormat("dd-MM-yyyy HH:mm:ss.SSSS aaa"))
-		    .format(new Date(System.currentTimeMillis()));
-
-	    String logEntry = "[ReportManager] " + "Debugging Attachment Entry" + " @" + timestamp
-		    + System.lineSeparator() + attachmentContent.trim() + System.lineSeparator();
-	    System.out.print(logEntry);
-	    appendToLog(logEntry);
-	}
-
-	if (attachmentType.equals("SHAFT Engine Logs") && attachmentName.equals("Current Method log")) {
-	    return currentTestLog.trim();
-	} else {
-	    return attachmentContent.trim();
-	}
-    }
-
     private static void createAttachment(String attachmentType, String attachmentName, InputStream attachmentContent) {
+	InputStream attachmentContentCopy = null;
+	ByteArrayOutputStream baos = new ByteArrayOutputStream();
+	byte[] buffer = new byte[1024];
+	int len;
+	try {
+	    while ((len = attachmentContent.read(buffer)) > -1) {
+		baos.write(buffer, 0, len);
+	    }
+	    baos.flush();
+	} catch (IOException e) {
+	    slf4jLogger.info("Error while creating Attachment", e);
+	}
+
+	attachmentContent = new ByteArrayInputStream(baos.toByteArray());
+	attachmentContentCopy = new ByteArrayInputStream(baos.toByteArray());
+
 	String attachmentDescription = "Attachment: " + attachmentType + " - " + attachmentName;
+
 	if (attachmentType.toLowerCase().contains("screenshot")) {
 	    Allure.addAttachment(attachmentDescription, "image/png", attachmentContent, ".png");
 	} else if (attachmentType.toLowerCase().contains("recording")) {
@@ -127,11 +132,33 @@ public class ReportManager {
 	    // attachmentName, "video/mp4", attachmentContent, ".mp4"
 	} else if (attachmentType.toLowerCase().contains("gif")) {
 	    Allure.addAttachment(attachmentDescription, "image/gif", attachmentContent, ".gif");
+	} else if (attachmentType.toLowerCase().contains("engine logs")) {
+	    if (attachmentName.equals("Current Method log")) {
+		Allure.addAttachment(attachmentDescription, "text/plain", new StringInputStream(currentTestLog.trim()),
+			".txt");
+	    } else {
+		Allure.addAttachment(attachmentDescription, "text/plain", attachmentContent, ".txt");
+	    }
 	} else {
 	    Allure.addAttachment(attachmentDescription, attachmentContent);
 	}
-
 	createReportEntry("Successfully created attachment [" + attachmentType + " - " + attachmentName + "]");
+
+	if (debugMode && !attachmentType.contains("SHAFT Engine Logs")
+		&& !attachmentType.equalsIgnoreCase("Extra Logs")) {
+	    String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
+
+	    String theString = "";
+	    BufferedReader br = new BufferedReader(
+		    new InputStreamReader(attachmentContentCopy, StandardCharsets.UTF_8));
+	    theString = br.lines().collect(Collectors.joining(System.lineSeparator()));
+	    if (!theString.isEmpty()) {
+		String logEntry = "[ReportManager] " + "Debugging Attachment Entry" + " @" + timestamp
+			+ System.lineSeparator() + theString + System.lineSeparator();
+		slf4jLogger.info(logEntry);
+		appendToLog(logEntry);
+	    }
+	}
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -269,7 +296,7 @@ public class ReportManager {
     @Step("Attachment: {attachmentType} - {attachmentName}")
     public static void attachAsStep(String attachmentType, String attachmentName, String attachmentContent) {
 	if (!attachmentContent.trim().equals("")) {
-	    createAttachment(attachmentType, attachmentName, attachmentContent);
+	    createAttachment(attachmentType, attachmentName, new StringInputStream(attachmentContent));
 	}
     }
 
@@ -295,7 +322,8 @@ public class ReportManager {
      */
     public static void attach(String attachmentType, String attachmentName, String attachmentContent) {
 	if (!attachmentContent.trim().equals("")) {
-	    createAttachment(attachmentType, attachmentName, attachmentContent);
+	    createAttachment(attachmentType, attachmentName, new StringInputStream(attachmentContent));
+
 	}
     }
 
@@ -306,19 +334,24 @@ public class ReportManager {
      */
     public static void attachTestLog() {
 	if (!currentTestLog.trim().equals("")) {
-	    createAttachment("SHAFT Engine Logs", "Current Method log", currentTestLog);
+	    createAttachment("SHAFT Engine Logs", "Current Method log", new StringInputStream(currentTestLog));
+
 	}
 	clearTestLog();
     }
 
     public static void attachFullLog() {
 	if (!fullLog.trim().equals("")) {
-	    createAttachment("SHAFT Engine Logs", "Full Execution log", fullLog);
+	    createAttachment("SHAFT Engine Logs", "Full Execution log", new StringInputStream(fullLog.trim()));
+
 	}
     }
 
     public static void attachSystemProperties() {
-	createAttachment("SHAFT Engine Logs", "System Properties", System.getProperties().toString());
+	createAttachment("SHAFT Engine Logs", "System Properties",
+		new StringInputStream(System.getProperties().toString().trim()
+			.substring(1, System.getProperties().toString().trim().length() - 1).replaceAll(", ", "\n")));
+
     }
 
     public static void triggerClosureActivitiesLogs() {

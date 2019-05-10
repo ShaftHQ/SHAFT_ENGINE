@@ -20,9 +20,8 @@ public class SuiteListener implements ISuiteListener {
 
     @Override
     public void onFinish(ISuite suite) {
-	Boolean discreetLoggingState = ReportManager.isDiscreteLogging();
+	ReportManager.triggerClosureActivitiesLogs();
 	ReportManager.setDiscreteLogging(true);
-	ReportManager.setDiscreteLogging(discreetLoggingState);
 	ReportManager.generateAllureReportArchive();
     }
 }

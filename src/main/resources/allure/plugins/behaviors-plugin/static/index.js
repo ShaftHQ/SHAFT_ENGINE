@@ -84,6 +84,34 @@ allure.api.addTranslation('br', {
     }
 });
 
+allure.api.addTranslation('ja', {
+    tab: {
+        behaviors: {
+            name: '振る舞い'
+        }
+    },
+    widget: {
+        behaviors: {
+            name: 'ストーリー別の機能',
+            showAll: '全て表示'
+        }
+    }
+});
+
+allure.api.addTranslation('es', {
+    tab: {
+        behaviors: {
+            name: 'Funcionalidades'
+        }
+    },
+    widget: {
+        behaviors: {
+            name: 'Funcionalidades por Historias de Usuario',
+            showAll: 'mostrar todo'
+        }
+    }
+});
+
 allure.api.addTab('behaviors', {
     title: 'tab.behaviors.name', icon: 'fa fa-list',
     route: 'behaviors(/)(:testGroup)(/)(:testResult)(/)(:testResultTab)(/)',
