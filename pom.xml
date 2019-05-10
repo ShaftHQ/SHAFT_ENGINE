@@ -4,15 +4,16 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.mohies</groupId>
 	<artifactId>SHAFT_ENGINE</artifactId>
-	<version>2.4.20190425</version>
+	<version>2.4.20190425_1</version>
 	<name>SHAFT_ENGINE</name>
 	<description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
 
 	<properties>
-		<shaft_engine.version>SHAFT_ENGINE-2.4.20190425</shaft_engine.version>
+		<shaft_engine.version>SHAFT_ENGINE-2.4.20190425_1</shaft_engine.version>
 		<!-- SHAFT_Engine Properties and other property files are read from the 
 			below location -->
 		<propertiesFolderPath>src/test/resources/Properties/</propertiesFolderPath>
+		<propertiesFolderPath_jenkins>/home/incorta-mohab/git/qa/src/test/resources/Properties/</propertiesFolderPath_jenkins>
 
 		<!-- SHAFT Test Run Parameters -->
 		<testSuite.name>unitTestSuite</testSuite.name>
@@ -226,6 +227,7 @@
 						<systemPropertyVariables>
 							<shaftEngineVersion>${shaft_engine.version}</shaftEngineVersion>
 							<propertiesFolderPath>${propertiesFolderPath}</propertiesFolderPath>
+							<propertiesFolderPath_jenkins>${propertiesFolderPath_jenkins}</propertiesFolderPath_jenkins>
 						</systemPropertyVariables>
 						<!-- To continue execution after validation errors are thrown in the 
 							before method -->
