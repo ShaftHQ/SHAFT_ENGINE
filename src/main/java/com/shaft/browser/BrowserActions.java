@@ -21,7 +21,8 @@ import com.shaft.io.ReportManager;
 
 public class BrowserActions {
     private static final Boolean HEADLESS_EXECUTION = Boolean.valueOf(System.getProperty("headlessExecution").trim());
-    private static final int NAVIGATION_TIMEOUT = 30;
+    private static final int NAVIGATION_TIMEOUT = Integer
+	    .parseInt(System.getProperty("browserNavigationTimeout").trim());
 
     private BrowserActions() {
 	throw new IllegalStateException("Utility class");

@@ -2,6 +2,11 @@ package com.shaft.api;
 
 import static io.restassured.RestAssured.given;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.ObjectOutputStream;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -16,6 +21,8 @@ import com.shaft.support.JavaActions;
 import com.shaft.validation.Assertions;
 
 import io.restassured.builder.RequestSpecBuilder;
+import io.restassured.config.EncoderConfig;
+import io.restassured.config.RestAssuredConfig;
 import io.restassured.http.ContentType;
 import io.restassured.http.Cookie;
 import io.restassured.http.Header;
@@ -56,12 +63,12 @@ public class RestActions {
 	if (discreetLogging) {
 	    ReportManager.logDiscrete(message);
 	    if ((response != null) && response.getBody() != null && (!response.getBody().asString().equals(""))) {
-		ReportManager.logDiscrete("API Response - REST Body:\n" + response.getBody().asString());
+		reportResponseBody(response.getBody().asInputStream());
 	    }
 	} else {
 	    ReportManager.log(message);
 	    if ((response != null) && (!response.getBody().asString().equals(""))) {
-		ReportManager.attachAsStep("API Response", "REST Body", response.getBody().asString());
+		reportResponseBody(response.getBody().asInputStream());
 	    }
 	}
 
@@ -78,7 +85,7 @@ public class RestActions {
 	}
 	ReportManager.log(message);
 	if ((response != null) && (!response.getBody().asString().equals(""))) {
-	    ReportManager.attachAsStep("API Response", "REST Body", response.getBody().asString());
+	    reportResponseBody(response.getBody().asInputStream());
 	}
 	Assert.fail(message);
     }
@@ -110,6 +117,10 @@ public class RestActions {
     private RequestSpecification prepareRequestBody(List<List<Object>> formParameters, Object body,
 	    ContentType contentType) {
 	RequestSpecBuilder builder = new RequestSpecBuilder();
+
+	// fixing issue with non-unicode content being encoded with a non UTF-8 charset
+	builder.setConfig(
+		(new RestAssuredConfig()).encoderConfig((new EncoderConfig()).defaultContentCharset("UTF-8")));
 
 	if (body != null && contentType != null && !body.toString().equals("")) {
 	    try {
@@ -143,7 +154,30 @@ public class RestActions {
 	    ReportManager.logDiscrete("API Request - REST Body:\n" + body.toString());
 	} else {
 	    if (body.toString() != null && !body.toString().equals("")) {
-		ReportManager.attachAsStep("API Request", "REST Body", body.toString());
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		ObjectOutputStream oos;
+		try {
+		    oos = new ObjectOutputStream(baos);
+
+		    oos.writeObject(body);
+		    oos.flush();
+		    oos.close();
+
+		    ReportManager.attachAsStep("API Request", "REST Body",
+			    new ByteArrayInputStream(baos.toByteArray()));
+		} catch (IOException e) {
+		    ReportManager.attachAsStep("API Request", "REST Body", body.toString());
+		}
+	    }
+	}
+    }
+
+    private void reportResponseBody(InputStream body) {
+	if (ReportManager.isDiscreteLogging()) {
+	    ReportManager.logDiscrete("API Response - REST Body:\n" + body.toString());
+	} else {
+	    if (body.toString() != null && !body.toString().equals("")) {
+		ReportManager.attachAsStep("API Response", "REST Body", body);
 	    }
 	}
     }

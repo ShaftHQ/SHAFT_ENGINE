@@ -440,21 +440,8 @@ public class BrowserFactory {
 	if (!drivers.entrySet().isEmpty()) {
 	    for (Entry<String, Map<String, WebDriver>> entry : drivers.entrySet()) {
 		for (Entry<String, WebDriver> driverEntry : entry.getValue().entrySet()) {
-		    try {
-			driverEntry.getValue().close();
-		    } catch (NoSuchSessionException e) {
-			// browser was already closed
-		    } catch (Exception e) {
-			ReportManager.log(e);
-		    }
-
-		    try {
-			driverEntry.getValue().quit();
-		    } catch (NoSuchSessionException e) {
-			// browser was already closed by the .close() method
-		    } catch (Exception e) {
-			ReportManager.log(e);
-		    }
+		    attemptToCloseOrQuitBrowser(driverEntry, false);
+		    attemptToCloseOrQuitBrowser(driverEntry, true);
 		}
 	    }
 
@@ -462,6 +449,21 @@ public class BrowserFactory {
 	    drivers.clear();
 	    ReportManager.log("Successfully Closed All Browsers.");
 	}
+    }
+
+    private static void attemptToCloseOrQuitBrowser(Entry<String, WebDriver> driverEntry, boolean quit) {
+	try {
+	    if (quit) {
+		driverEntry.getValue().quit();
+	    } else {
+		driverEntry.getValue().close();
+	    }
+	} catch (NoSuchSessionException e) {
+	    // browser was already closed by the .close() method
+	} catch (Exception e) {
+	    ReportManager.log(e);
+	}
+
     }
 
     public static void attachBrowserLogs() {
