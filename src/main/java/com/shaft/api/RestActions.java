@@ -4,9 +4,11 @@ import static io.restassured.RestAssured.given;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectOutputStream;
+import java.net.URLConnection;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -20,6 +22,7 @@ import com.shaft.io.ReportManager;
 import com.shaft.support.JavaActions;
 import com.shaft.validation.Assertions;
 
+import io.restassured.builder.MultiPartSpecBuilder;
 import io.restassured.builder.RequestSpecBuilder;
 import io.restassured.config.EncoderConfig;
 import io.restassured.config.RestAssuredConfig;
@@ -114,9 +117,12 @@ public class RestActions {
 	}
     }
 
-    private RequestSpecification prepareRequestBody(List<List<Object>> formParameters, Object body,
+    private RequestSpecification prepareRequestSpecs(List<List<Object>> formParameters, Object body,
 	    ContentType contentType) {
 	RequestSpecBuilder builder = new RequestSpecBuilder();
+
+	// set the default content type as part of the specs
+	builder.setContentType(contentType);
 
 	// fixing issue with non-unicode content being encoded with a non UTF-8 charset
 	builder.setConfig(
@@ -144,7 +150,18 @@ public class RestActions {
 
 	    }
 	} else if (formParameters != null && !formParameters.isEmpty() && !formParameters.get(0).get(0).equals("")) {
-	    formParameters.forEach(param -> builder.addParam(param.get(0).toString(), param.get(1)));
+	    formParameters.forEach(param -> {
+		if (param.get(1).getClass().equals(File.class)) {
+		    MultiPartSpecBuilder multispec = new MultiPartSpecBuilder(param.get(1));
+		    multispec.controlName(param.get(0).toString());
+		    multispec.mimeType(URLConnection.guessContentTypeFromName(((File) param.get(1)).getName()));
+		    builder.addMultiPart(multispec.build());
+		    // override the default content type as part of the specs
+		    builder.setContentType("multipart/form-data");
+		} else {
+		    builder.addFormParam(param.get(0).toString(), param.get(1));
+		}
+	    });
 	}
 	return builder.build();
     }
@@ -182,52 +199,47 @@ public class RestActions {
 	}
     }
 
-    private Response sendRequest(String requestType, String request, RequestSpecification specs,
-	    ContentType contentType) {
+    private Response sendRequest(String requestType, String request, RequestSpecification specs) {
 	if (sessionCookies.size() == 0 && sessionHeaders.size() > 0) {
 	    switch (requestType.toLowerCase()) {
 	    case "post":
-		return given().headers(sessionHeaders).contentType(contentType).spec(specs).when().post(request)
-			.andReturn();
+		return given().headers(sessionHeaders).spec(specs).when().post(request).andReturn();
 	    case "patch":
-		return given().headers(sessionHeaders).contentType(contentType).spec(specs).when().patch(request)
-			.andReturn();
+		return given().headers(sessionHeaders).spec(specs).when().patch(request).andReturn();
 	    case "get":
-		return given().headers(sessionHeaders).contentType(contentType).spec(specs).when().get(request)
-			.andReturn();
+		return given().headers(sessionHeaders).spec(specs).when().get(request).andReturn();
 	    case "delete":
-		return given().headers(sessionHeaders).contentType(contentType).spec(specs).when().delete(request)
-			.andReturn();
+		return given().headers(sessionHeaders).spec(specs).when().delete(request).andReturn();
 	    default:
 		break;
 	    }
 	} else if (sessionCookies.size() == 0 && sessionHeaders.size() == 0) {
 	    switch (requestType.toLowerCase()) {
 	    case "post":
-		return given().contentType(contentType).spec(specs).when().post(request).andReturn();
+		return given().spec(specs).when().post(request).andReturn();
 	    case "patch":
-		return given().contentType(contentType).spec(specs).when().patch(request).andReturn();
+		return given().spec(specs).when().patch(request).andReturn();
 	    case "get":
-		return given().contentType(contentType).spec(specs).when().get(request).andReturn();
+		return given().spec(specs).when().get(request).andReturn();
 	    case "delete":
-		return given().contentType(contentType).spec(specs).when().delete(request).andReturn();
+		return given().spec(specs).when().delete(request).andReturn();
 	    default:
 		break;
 	    }
 	} else {
 	    switch (requestType.toLowerCase()) {
 	    case "post":
-		return given().headers(sessionHeaders).cookies(sessionCookies).contentType(contentType).spec(specs)
-			.when().post(request).andReturn();
+		return given().headers(sessionHeaders).cookies(sessionCookies).spec(specs).when().post(request)
+			.andReturn();
 	    case "patch":
-		return given().headers(sessionHeaders).cookies(sessionCookies).contentType(contentType).spec(specs)
-			.when().patch(request).andReturn();
+		return given().headers(sessionHeaders).cookies(sessionCookies).spec(specs).when().patch(request)
+			.andReturn();
 	    case "get":
-		return given().headers(sessionHeaders).cookies(sessionCookies).contentType(contentType).spec(specs)
-			.when().get(request).andReturn();
+		return given().headers(sessionHeaders).cookies(sessionCookies).spec(specs).when().get(request)
+			.andReturn();
 	    case "delete":
-		return given().headers(sessionHeaders).cookies(sessionCookies).contentType(contentType).spec(specs)
-			.when().delete(request).andReturn();
+		return given().headers(sessionHeaders).cookies(sessionCookies).spec(specs).when().delete(request)
+			.andReturn();
 	    default:
 		break;
 	    }
@@ -331,12 +343,12 @@ public class RestActions {
 
 	String request = prepareRequestURL(urlArguments, serviceName);
 	prepareRequestHeaderAuthorization(credentials);
-	RequestSpecification specs = prepareRequestBody(formParameters, body, contentType);
+	RequestSpecification specs = prepareRequestSpecs(formParameters, body, contentType);
 	Response response = null;
 	try {
 	    if (requestType.equalsIgnoreCase("post") || requestType.equalsIgnoreCase("patch")
 		    || requestType.equalsIgnoreCase("get") || requestType.equalsIgnoreCase("delete")) {
-		response = sendRequest(requestType, request, specs, contentType);
+		response = sendRequest(requestType, request, specs);
 	    } else {
 		failAction("performRequest", request);
 	    }
@@ -458,5 +470,4 @@ public class RestActions {
     public int getResponseStatusCode(Response response) {
 	return response.getStatusCode();
     }
-
 }
