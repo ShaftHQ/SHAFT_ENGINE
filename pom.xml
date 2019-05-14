@@ -4,12 +4,12 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.mohies</groupId>
 	<artifactId>SHAFT_ENGINE</artifactId>
-	<version>2.4.20190508</version>
+	<version>2.4.20190514</version>
 	<name>SHAFT_ENGINE</name>
 	<description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
 
 	<properties>
-		<shaft_engine.version>SHAFT_ENGINE-2.4.20190508</shaft_engine.version>
+		<shaft_engine.version>${project.artifactId}-${project.version}</shaft_engine.version>
 		<!-- SHAFT_Engine Properties and other property files are read from the 
 			below location -->
 		<propertiesFolderPath>src/test/resources/Properties/</propertiesFolderPath>
@@ -288,32 +288,32 @@
 						</excludes>
 					</configuration>
 				</plugin>
-				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-shade-plugin</artifactId>
-					<version>${maven-shade-plugin.version}</version>
-					<configuration>
-						<!-- put your configurations here -->
-						<!-- <createSourcesJar>true</createSourcesJar> -->
-						<!-- <finalName>SHAFT_Engine</finalName> -->
-						<minimizeJar>false</minimizeJar>
-						<outputDirectory>${project.build.directory}/SHADE</outputDirectory>
-						<promoteTransitiveDependencies>true</promoteTransitiveDependencies>
-						<artifactSet>
-							<excludes>
-								<exclude>org.slf4j:slf4j-api:*</exclude>
-							</excludes>
-						</artifactSet>
-					</configuration>
-					<executions>
-						<execution>
-							<phase>package</phase>
-							<goals>
-								<goal>shade</goal>
-							</goals>
-						</execution>
-					</executions>
-				</plugin>
+				<!-- <plugin> -->
+				<!-- <groupId>org.apache.maven.plugins</groupId> -->
+				<!-- <artifactId>maven-shade-plugin</artifactId> -->
+				<!-- <version>${maven-shade-plugin.version}</version> -->
+				<!-- <configuration> -->
+				<!-- put your configurations here -->
+				<!-- <createSourcesJar>true</createSourcesJar> -->
+				<!-- <finalName>SHAFT_Engine</finalName> -->
+				<!-- <minimizeJar>false</minimizeJar> -->
+				<!-- <outputDirectory>${project.build.directory}/SHADE</outputDirectory> -->
+				<!-- <promoteTransitiveDependencies>true</promoteTransitiveDependencies> -->
+				<!-- <artifactSet> -->
+				<!-- <excludes> -->
+				<!-- <exclude>org.slf4j:slf4j-api:*</exclude> -->
+				<!-- </excludes> -->
+				<!-- </artifactSet> -->
+				<!-- </configuration> -->
+				<!-- <executions> -->
+				<!-- <execution> -->
+				<!-- <phase>package</phase> -->
+				<!-- <goals> -->
+				<!-- <goal>shade</goal> -->
+				<!-- </goals> -->
+				<!-- </execution> -->
+				<!-- </executions> -->
+				<!-- </plugin> -->
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-javadoc-plugin</artifactId>
