@@ -144,8 +144,10 @@ public class ReportManager {
 	}
 	createReportEntry("Successfully created attachment [" + attachmentType + " - " + attachmentName + "]");
 
-	if (debugMode && !attachmentType.contains("SHAFT Engine Logs")
-		&& !attachmentType.equalsIgnoreCase("Extra Logs")) {
+	if (debugMode && !attachmentType.contains("SHAFT Engine Logs") && !attachmentType.equalsIgnoreCase("Selenium WebDriver Logs")
+		&& !attachmentType.toLowerCase().contains("screenshot")
+		&& !attachmentType.toLowerCase().contains("recording") && !attachmentType.toLowerCase().contains("gif")
+		&& !attachmentType.toLowerCase().contains("engine logs")) {
 	    String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
 
 	    String theString = "";
