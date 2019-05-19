@@ -18,6 +18,10 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 
     @Override
     public void beforeInvocation(IInvokedMethod method, ITestResult testResult) {
+	// resetting scope and config
+	ElementActions.switchToDefaultContent();
+	ReportManager.setDiscreteLogging(Boolean.valueOf(System.getProperty("alwaysLogDiscreetly")));
+
 	if (!method.isConfigurationMethod()) {
 	    try {
 		// testSize where the structure is testSuite > test > testClasses > testMethods
@@ -61,10 +65,10 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 		if (invokedTestsCounter == testSize - 1) {
 		    // is last test in the last class of the test suite
 		    ReportManager.logEngineVersion(false);
-		    ReportManager.triggerClosureActivitiesLogs();
-		    ReportManager.setDiscreteLogging(true);
-		    BrowserFactory.closeAllDrivers();
-		    ReportManager.setDiscreteLogging(false);
+//		    ReportManager.triggerClosureActivitiesLogs();
+//		    ReportManager.setDiscreteLogging(true);
+//		    BrowserFactory.closeAllDrivers();
+//		    ReportManager.setDiscreteLogging(false);
 		    invokedTestsCounter = 0;
 		} else {
 		    invokedTestsCounter++;
@@ -72,9 +76,6 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 	    }
 	}
 
-	// resetting scope and config
-	ElementActions.switchToDefaultContent();
-	ReportManager.setDiscreteLogging(Boolean.valueOf(System.getProperty("alwaysLogDiscreetly")));
     }
 
     private void updateTestStatusInCaseOfVerificationFailure(ITestResult testResult) {

@@ -154,6 +154,7 @@ public class RestActions {
 		if (param.get(1).getClass().equals(File.class)) {
 		    MultiPartSpecBuilder multispec = new MultiPartSpecBuilder(param.get(1));
 		    multispec.controlName(param.get(0).toString());
+		    multispec.fileName(((File) param.get(1)).getName());
 		    multispec.mimeType(URLConnection.guessContentTypeFromName(((File) param.get(1)).getName()));
 		    builder.addMultiPart(multispec.build());
 		    // override the default content type as part of the specs

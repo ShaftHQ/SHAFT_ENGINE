@@ -486,7 +486,7 @@ public class BrowserFactory {
 
     private static void attachBrowserLogs(String borwserName, WebDriver driver) {
 
-	if (!borwserName.equals(BROWSER_FIREFOX)) {
+	if (!borwserName.contains(BROWSER_FIREFOX)) {
 	    // The Selenium log API isn’t supported by geckodriver.
 	    // Confirmed to work with chromeDriver
 
