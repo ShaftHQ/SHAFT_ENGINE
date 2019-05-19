@@ -144,7 +144,8 @@ public class ReportManager {
 	}
 	createReportEntry("Successfully created attachment [" + attachmentType + " - " + attachmentName + "]");
 
-	if (debugMode && !attachmentType.contains("SHAFT Engine Logs") && !attachmentType.equalsIgnoreCase("Selenium WebDriver Logs")
+	if (debugMode && !attachmentType.contains("SHAFT Engine Logs")
+		&& !attachmentType.equalsIgnoreCase("Selenium WebDriver Logs")
 		&& !attachmentType.toLowerCase().contains("screenshot")
 		&& !attachmentType.toLowerCase().contains("recording") && !attachmentType.toLowerCase().contains("gif")
 		&& !attachmentType.toLowerCase().contains("engine logs")) {
@@ -178,6 +179,7 @@ public class ReportManager {
      * @param discreteLogging the discreteLogging to set
      */
     public static void setDiscreteLogging(boolean discreteLogging) {
+	ReportManager.logDiscrete("Setting discrete logging to: \"" + discreteLogging + "\"");
 	ReportManager.discreteLogging = discreteLogging;
     }
 
