@@ -6,6 +6,7 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
+import org.apache.poi.EmptyFileException;
 import org.apache.poi.hssf.usermodel.HSSFDateUtil;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.xssf.usermodel.XSSFCell;
@@ -15,33 +16,51 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.testng.Assert;
 
 public class ExcelFileManager {
-    private FileInputStream fis = null;
-    private XSSFWorkbook workbook = null;
-    private XSSFSheet sheet = null;
-    private XSSFRow row = null;
-    private XSSFCell cell = null;
-
-    private String testDataColumnNamePrefix = System.getProperty("testDataColumnNamePrefix");
+    private FileInputStream fis;
+    private XSSFWorkbook workbook;
+    private XSSFSheet sheet;
+    private XSSFRow row;
+    private XSSFCell cell;
+    private String excelFilePath;
+    private String testDataColumnNamePrefix;
 
     /**
      * Creates a new instance of the test data excel reader using the expected excel
      * file path
      * 
-     * @param xlFilePath the expected path for the target excel file
+     * @param excelFilePath the expected path for the target excel file
      */
-    public ExcelFileManager(String xlFilePath) {
+    public ExcelFileManager(String excelFilePath) {
+	initializeVariables();
+	this.excelFilePath = excelFilePath;
 	try {
-	    fis = new FileInputStream(xlFilePath);
+	    fis = new FileInputStream(excelFilePath);
 	    workbook = new XSSFWorkbook(fis);
 	    fis.close();
+	    ReportManager.logDiscrete("Reading test data from the following file [" + excelFilePath + "].");
 	} catch (IOException e) {
 	    ReportManager.log(e);
-	    ReportManager.log("Couldn't find the desired file. [" + xlFilePath + "].");
-	    Assert.fail("Couldn't find the desired file. [" + xlFilePath + "].");
+	    ReportManager.log("Couldn't find the desired file. [" + excelFilePath + "].");
+	    Assert.fail("Couldn't find the desired file. [" + excelFilePath + "].");
 	} catch (OutOfMemoryError e) {
-	    ReportManager.log("Couldn't open the desired file. [" + xlFilePath + "].");
-	    Assert.fail("Couldn't open the desired file. [" + xlFilePath + "].");
+//	    ReportManager.log(e); override function to be able to log errors
+	    ReportManager.log("Couldn't open the desired file. [" + excelFilePath + "].");
+	    Assert.fail("Couldn't open the desired file. [" + excelFilePath + "].");
+	} catch (EmptyFileException e) {
+	    ReportManager.log(e);
+	    ReportManager.log("Please check the target file, as it may be corrupted. [" + excelFilePath + "].");
+	    Assert.fail("Please check the target file, as it may be corrupted. [" + excelFilePath + "].");
 	}
+    }
+
+    private void initializeVariables() {
+	fis = null;
+	workbook = null;
+	sheet = null;
+	row = null;
+	cell = null;
+	excelFilePath = "";
+	testDataColumnNamePrefix = System.getProperty("testDataColumnNamePrefix");
     }
 
     /**
@@ -96,9 +115,11 @@ public class ExcelFileManager {
 	} catch (Exception e) {
 	    ReportManager.log(e);
 	    ReportManager.log("Failed to read data from row [" + rowName + "] and column [" + columnName
-		    + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
+		    + "] in the Test Data Sheet [" + sheetName + "], under the following path [" + excelFilePath
+		    + "].");
 	    Assert.fail("Failed to read data from row [" + rowName + "] and column [" + columnName
-		    + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
+		    + "] in the Test Data Sheet [" + sheetName + "], under the following path [" + excelFilePath
+		    + "].");
 	    return "";
 	}
     }
@@ -125,17 +146,21 @@ public class ExcelFileManager {
 
 	    // in case you provided valid data type, no exceptions were thrown, and yet the
 	    // rowName you mentioned was not present in this sheet
-	    ReportManager.log("Failed to get the row number that coresponds to rowName [" + rowName
-		    + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
-	    Assert.fail("Failed to get the row number that coresponds to rowName [" + rowName
-		    + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
+	    ReportManager.log(
+		    "Failed to get the row number that coresponds to rowName [" + rowName + "] in the Test Data Sheet ["
+			    + sheetName + "], under the following path [" + excelFilePath + "].");
+	    Assert.fail(
+		    "Failed to get the row number that coresponds to rowName [" + rowName + "] in the Test Data Sheet ["
+			    + sheetName + "], under the following path [" + excelFilePath + "].");
 	    return -1; // in case of failure this line is unreachable
 	} catch (Exception e) {
 	    ReportManager.log(e);
-	    ReportManager.log("Failed to get the row number that coresponds to rowName [" + rowName
-		    + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
-	    Assert.fail("Failed to get the row number that coresponds to rowName [" + rowName
-		    + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
+	    ReportManager.log(
+		    "Failed to get the row number that coresponds to rowName [" + rowName + "] in the Test Data Sheet ["
+			    + sheetName + "], under the following path [" + excelFilePath + "].");
+	    Assert.fail(
+		    "Failed to get the row number that coresponds to rowName [" + rowName + "] in the Test Data Sheet ["
+			    + sheetName + "], under the following path [" + excelFilePath + "].");
 	    return -1; // in case of failure this line is unreachable
 	}
     }
@@ -162,16 +187,20 @@ public class ExcelFileManager {
 	    // in case you provided valid data type, no exceptions were thrown, and yet the
 	    // columnName you mentioned was not present in this sheet
 	    ReportManager.log("Failed to get the column number that coresponds to columnName [" + columnName
-		    + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
+		    + "] in the Test Data Sheet [" + sheetName + "], under the following path [" + excelFilePath
+		    + "].");
 	    Assert.fail("Failed to get the column number that coresponds to columnName [" + columnName
-		    + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
+		    + "] in the Test Data Sheet [" + sheetName + "], under the following path [" + excelFilePath
+		    + "].");
 	    return -1; // in case of failure this line is unreachable
 	} catch (Exception e) {
 	    ReportManager.log(e);
 	    ReportManager.log("Failed to get the column number that coresponds to columnName [" + columnName
-		    + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
+		    + "] in the Test Data Sheet [" + sheetName + "], under the following path [" + excelFilePath
+		    + "].");
 	    Assert.fail("Failed to get the column number that coresponds to columnName [" + columnName
-		    + "] in the Test Data Sheet [" + sheetName + ".xlsx].");
+		    + "] in the Test Data Sheet [" + sheetName + "], under the following path [" + excelFilePath
+		    + "].");
 	    return -1; // in case of failure this line is unreachable
 	}
     }
@@ -266,9 +295,9 @@ public class ExcelFileManager {
 	    }
 	}
 	ReportManager.log("Failed to get column name using row [" + rowName + "] and cell data [" + cellData
-		+ "] in the Test Data Sheet [" + sheetName + ".xlsx].");
+		+ "] in the Test Data Sheet [" + sheetName + "], under the following path [" + excelFilePath + "].");
 	Assert.fail("Failed to get column name using row [" + rowName + "] and cell data [" + cellData
-		+ "] in the Test Data Sheet [" + sheetName + ".xlsx].");
+		+ "] in the Test Data Sheet [" + sheetName + "], under the following path [" + excelFilePath + "].");
 	return "";
     }
 

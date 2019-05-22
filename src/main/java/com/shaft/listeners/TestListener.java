@@ -9,13 +9,11 @@ public class TestListener implements ITestListener {
     @Override
     public void onStart(ITestContext context) {
 	// Auto-generated method stub
-
     }
 
     @Override
     public void onTestStart(ITestResult result) {
 	// Auto-generated method stub
-
     }
 
     @Override

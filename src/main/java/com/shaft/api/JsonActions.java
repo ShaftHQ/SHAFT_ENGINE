@@ -17,7 +17,7 @@ import com.shaft.io.ReportManager;
 import io.restassured.response.Response;
 
 public class JsonActions {
-
+    
     private JsonActions() {
 	throw new IllegalStateException("Utility class");
     }

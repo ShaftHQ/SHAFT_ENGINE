@@ -69,4 +69,8 @@ public class RecordManager {
 	    }
 	}
     }
+
+    public static Boolean getRecordVideo() {
+        return RECORD_VIDEO;
+    }
 }
