@@ -18,10 +18,6 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 
     @Override
     public void beforeInvocation(IInvokedMethod method, ITestResult testResult) {
-	// resetting scope and config
-	ElementActions.switchToDefaultContent();
-	ReportManager.setDiscreteLogging(Boolean.valueOf(System.getProperty("alwaysLogDiscreetly")));
-
 	if (!method.isConfigurationMethod()) {
 	    try {
 		// testSize where the structure is testSuite > test > testClasses > testMethods
@@ -75,7 +71,9 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 		}
 	    }
 	}
-
+	// resetting scope and config
+	ElementActions.switchToDefaultContent();
+	ReportManager.setDiscreteLogging(Boolean.valueOf(System.getProperty("alwaysLogDiscreetly")));
     }
 
     private void updateTestStatusInCaseOfVerificationFailure(ITestResult testResult) {
