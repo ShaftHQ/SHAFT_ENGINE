@@ -127,7 +127,7 @@ public class ElementActions {
 	switch (matchingElementsCount) {
 	case 0:
 	    failAction(driver, "identifyUniqueElement",
-		    "zero elements found matching this locator [" + elementLocator + "].");
+		    "zero elements found matching this locator \"" + elementLocator + "\".");
 	    break;
 	case 1:
 	    // unique element found
@@ -144,20 +144,19 @@ public class ElementActions {
 		    } catch (TimeoutException e) {
 			ReportManager.log(e);
 			failAction(driver, "identifyUniqueElement",
-				"unique element matching this locator [" + elementLocator + "] is not visible.");
+				"unique element matching this locator \"" + elementLocator + "\" is not visible.");
 		    }
 		}
 	    }
 
 	    if (elementLocator != null) {
-		// ScreenshotManager.storeElementScreenshotForAISupportedElementIdentification(driver,
-		// elementLocator);
+		ScreenshotManager.storeElementScreenshotForAISupportedElementIdentification(driver, elementLocator);
 	    }
 
 	    return true;
 	default:
 	    failAction(driver, "identifyUniqueElement",
-		    "multiple elements found matching this locator [" + elementLocator + "].");
+		    "multiple elements found matching this locator \"" + elementLocator + "\".");
 	    break;
 	}
 	return false;
@@ -443,6 +442,26 @@ public class ElementActions {
 	    break;
 	}
 	passAction(driver, elementLocator, "clipboardActions", action);
+    }
+
+    private static void performHover(WebDriver driver, By elementLocator) {
+	String createMouseEvent = "var evObj = document.createEvent('MouseEvents');";
+	String dispatchMouseEvent = "arguments[arguments.length -1].dispatchEvent(evObj);";
+	
+	String mouseEventFirstHalf = "evObj.initMouseEvent(\"";
+	String mouseEventSecondHalf = "\", true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);";
+
+	String javaScript = createMouseEvent + mouseEventFirstHalf + "mousemove" + mouseEventSecondHalf
+		+ dispatchMouseEvent;
+	((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
+
+	javaScript = createMouseEvent + mouseEventFirstHalf + "mouseenter" + mouseEventSecondHalf + dispatchMouseEvent;
+	((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
+
+	javaScript = createMouseEvent + mouseEventFirstHalf + "mouseover" + mouseEventSecondHalf + dispatchMouseEvent;
+	((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
+
+	(new Actions(driver)).moveToElement(driver.findElement(elementLocator)).perform();
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -836,8 +855,13 @@ public class ElementActions {
 	if (identifyUniqueElement(driver, hoverElementLocators.get(0))) {
 	    hoverElementLocators.forEach(hoverElementLocator -> chainedHoverAndClickAction
 		    .moveToElement(driver.findElement(hoverElementLocator)));
-	    chainedHoverAndClickAction.moveToElement(driver.findElement(clickableElementLocator))
-		    .click(driver.findElement(clickableElementLocator)).perform();
+	    try {
+		chainedHoverAndClickAction.moveToElement(driver.findElement(clickableElementLocator))
+			.click(driver.findElement(clickableElementLocator)).perform();
+	    } catch (NoSuchElementException e) {
+		ReportManager.log(e);
+		failAction(driver, "hoverAndClick");
+	    }
 	} else {
 	    failAction(driver, "hoverAndClick");
 	}
@@ -856,25 +880,6 @@ public class ElementActions {
      */
     public static void hoverAndClick(WebDriver driver, By hoverElementLocator, By clickableElementLocator) {
 	hoverAndClick(driver, Arrays.asList(hoverElementLocator), clickableElementLocator);
-    }
-
-    private static void performHover(WebDriver driver, By elementLocator) {
-	String javaScript = "var evObj = document.createEvent('MouseEvent');"
-		+ "evObj.initMouseEvent(\"mousemove\", true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);"
-		+ "arguments[arguments.length -1].dispatchEvent(evObj);";
-	((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
-
-	javaScript = "var evObj = document.createEvent('MouseEvents');"
-		+ "evObj.initMouseEvent(\"mouseenter\",true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);"
-		+ "arguments[arguments.length -1].dispatchEvent(evObj);";
-	((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
-
-	javaScript = "var evObj = document.createEvent('MouseEvents');"
-		+ "evObj.initMouseEvent(\"mouseover\",true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);"
-		+ "arguments[arguments.length -1].dispatchEvent(evObj);";
-	((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
-
-	(new Actions(driver)).moveToElement(driver.findElement(elementLocator)).perform();
     }
 
     /**
@@ -1148,7 +1153,7 @@ public class ElementActions {
 	    int numberOfTries) {
 	if (identifyUniqueElement(driver, elementLocator)) {
 	    try {
-		(new WebDriverWait(driver, defaultElementIdentificationTimeout * numberOfTries))
+		(new WebDriverWait(driver, (long) defaultElementIdentificationTimeout * numberOfTries))
 			.until(ExpectedConditions.not(ExpectedConditions.textToBe(elementLocator, initialValue)));
 	    } catch (Exception e) {
 		ReportManager.log(e);
@@ -1163,8 +1168,13 @@ public class ElementActions {
 			"from: \"" + initialValue + "\", to a new value.");
 	    }
 	} else {
-	    failAction(driver, "waitForTextToChange",
-		    "Element with locator (" + elementLocator.toString() + ") was not found on this page.");
+	    if (elementLocator != null) {
+		failAction(driver, "waitForTextToChange",
+			"Element with locator (" + elementLocator.toString() + ") was not found on this page.");
+	    } else {
+		// this code is unreachable it's just in place to satisfy SonarLint
+		failAction(driver, "waitForTextToChange", "Element has Null locator.");
+	    }
 	}
     }
 

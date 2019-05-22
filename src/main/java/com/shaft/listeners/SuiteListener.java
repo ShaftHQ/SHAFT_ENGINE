@@ -3,7 +3,6 @@ package com.shaft.listeners;
 import org.testng.ISuite;
 import org.testng.ISuiteListener;
 
-import com.shaft.browser.BrowserFactory;
 import com.shaft.io.PropertiesFileManager;
 import com.shaft.io.ReportManager;
 
@@ -21,10 +20,8 @@ public class SuiteListener implements ISuiteListener {
 
     @Override
     public void onFinish(ISuite suite) {
-	Boolean discreetLoggingState = ReportManager.isDiscreteLogging();
+	ReportManager.triggerClosureActivitiesLogs();
 	ReportManager.setDiscreteLogging(true);
-	BrowserFactory.closeAllDrivers();
-	ReportManager.setDiscreteLogging(discreetLoggingState);
 	ReportManager.generateAllureReportArchive();
     }
 }
