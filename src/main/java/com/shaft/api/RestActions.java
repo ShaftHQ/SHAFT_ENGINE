@@ -385,7 +385,7 @@ public class RestActions {
      */
     public String getResponseJSONValue(Response response, String jsonPath) {
 	String searchPool = response.jsonPath().getString(jsonPath);
-	if (searchPool != null) {
+	if (!searchPool.equals(null)) {
 	    passAction("getResponseJSONValue", jsonPath);
 	    return searchPool;
 	} else {
