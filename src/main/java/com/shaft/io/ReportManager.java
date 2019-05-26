@@ -179,7 +179,9 @@ public class ReportManager {
      * @param discreteLogging the discreteLogging to set
      */
     public static void setDiscreteLogging(boolean discreteLogging) {
-	ReportManager.logDiscrete("Setting discrete logging to: \"" + discreteLogging + "\"");
+	if (debugMode) {
+	    ReportManager.logDiscrete("Setting discrete logging to: \"" + discreteLogging + "\"");
+	}
 	ReportManager.discreteLogging = discreteLogging;
     }
 
@@ -339,7 +341,6 @@ public class ReportManager {
     public static void attachTestLog() {
 	if (!currentTestLog.trim().equals("")) {
 	    createAttachment("SHAFT Engine Logs", "Current Method log", new StringInputStream(currentTestLog));
-
 	}
 	clearTestLog();
     }
