@@ -385,13 +385,16 @@ public class RestActions {
      */
     public String getResponseJSONValue(Response response, String jsonPath) {
 	String searchPool = response.jsonPath().getString(jsonPath);
-	if (!searchPool.equals(null)) {
+	if (searchPool != null) {
 	    passAction("getResponseJSONValue", jsonPath);
 	    return searchPool;
 	} else {
-	    ReportManager.log("Couldn't find anything that matches with the desired jsonPath [" + jsonPath + "]");
-	    failAction("getResponseJSONValue", jsonPath);
-	    return "";
+	    ReportManager.log(
+		    "Either actual value is \"null\" or couldn't find anything that matches with the desired jsonPath ["
+			    + jsonPath + "]");
+	    passAction("getResponseJSONValue", jsonPath);
+//	    failAction("getResponseJSONValue", jsonPath);
+	    return searchPool;
 	}
     }
 
@@ -404,9 +407,12 @@ public class RestActions {
 	    passAction("getResponseJSONValue", jsonPath);
 	    return searchPool;
 	} else {
-	    ReportManager.log("Couldn't find anything that matches with the desired jsonPath [" + jsonPath + "]");
-	    failAction("getResponseJSONValue", jsonPath);
-	    return "";
+	    ReportManager.log(
+		    "Either actual value is \"null\" or couldn't find anything that matches with the desired jsonPath ["
+			    + jsonPath + "]");
+	    passAction("getResponseJSONValue", jsonPath);
+//	    failAction("getResponseJSONValue", jsonPath);
+	    return searchPool;
 	}
     }
 
@@ -416,9 +422,12 @@ public class RestActions {
 	    passAction("getResponseJSONValueAsList", jsonPath);
 	    return searchPool;
 	} else {
-	    ReportManager.log("Couldn't find anything that matches with the desired jsonPath [" + jsonPath + "]");
-	    failAction("getResponseJSONValueAsList", jsonPath);
-	    return Arrays.asList("");
+	    ReportManager.log(
+		    "Either actual value is \"null\" or couldn't find anything that matches with the desired jsonPath ["
+			    + jsonPath + "]");
+	    passAction("getResponseJSONValueAsList", jsonPath);
+//	    failAction("getResponseJSONValueAsList", jsonPath);
+	    return searchPool;
 	}
     }
 
@@ -428,9 +437,12 @@ public class RestActions {
 	    passAction("getResponseXMLValue", xmlPath);
 	    return searchPool;
 	} else {
-	    ReportManager.log("Couldn't find anything that matches with the desired xmlPath [" + xmlPath + "]");
-	    failAction("getResponseXMLValue", xmlPath);
-	    return "";
+	    ReportManager.log(
+		    "Either actual value is \"null\" or couldn't find anything that matches with the desired xmlPath ["
+			    + xmlPath + "]");
+	    passAction("getResponseXMLValue", xmlPath);
+//	    failAction("getResponseXMLValue", xmlPath);
+	    return searchPool;
 	}
     }
 
@@ -440,9 +452,12 @@ public class RestActions {
 	    passAction("getResponseXMLValueAsList", xmlPath);
 	    return output;
 	} else {
-	    ReportManager.log("Couldn't find anything that matches with the desired xmlPath [" + xmlPath + "]");
-	    failAction("getResponseXMLValueAsList", xmlPath);
-	    return "";
+	    ReportManager.log(
+		    "Either actual value is \"null\" or couldn't find anything that matches with the desired xmlPath ["
+			    + xmlPath + "]");
+	    passAction("getResponseXMLValueAsList", xmlPath);
+//	    failAction("getResponseXMLValueAsList", xmlPath);
+	    return output;
 	}
     }
 
@@ -462,9 +477,12 @@ public class RestActions {
 	    passAction("getResponseXMLValueAsList", xmlPath);
 	    return searchPool;
 	} else {
-	    ReportManager.log("Couldn't find anything that matches with the desired xmlPath [" + xmlPath + "]");
-	    failAction("getResponseXMLValueAsList", xmlPath);
-	    return Arrays.asList("");
+	    ReportManager.log(
+		    "Either actual value is \"null\" or couldn't find anything that matches with the desired xmlPath ["
+			    + xmlPath + "]");
+	    passAction("getResponseXMLValueAsList", xmlPath);
+//	    failAction("getResponseXMLValueAsList", xmlPath);
+	    return searchPool;
 	}
     }
 
