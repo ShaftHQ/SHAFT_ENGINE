@@ -45,15 +45,20 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 
     @Override
     public void afterInvocation(IInvokedMethod method, ITestResult testResult) {
+	if (!method.getTestMethod().getQualifiedName().contains("closureActivities")) {
+	    // attaching log and gif for test methods only
+	    BrowserFactory.attachAnimatedGif();
+	    ReportManager.attachTestLog();
+	}
+
 	// resetting scope and config
 	ElementActions.switchToDefaultContent();
 	ReportManager.setDiscreteLogging(Boolean.valueOf(System.getProperty("alwaysLogDiscreetly")));
 	ITestNGMethod testMethod = method.getTestMethod();
 	if (testMethod.isTest()) {
-	    // attaching log and gif for test methods only
-	    BrowserFactory.attachAnimatedGif();
-	    ReportManager.attachTestLog();
-	    // test fixture attachment??
+//		// attaching log and gif for test methods only
+//		BrowserFactory.attachAnimatedGif();
+//		ReportManager.attachTestLog();
 	    updateTestStatusInCaseOfVerificationFailure(testResult);
 	    if (invokedTestsCounter == testSize - 1) {
 		// is last test in the last class of the test suite

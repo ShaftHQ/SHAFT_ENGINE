@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.mohies</groupId>
 	<artifactId>SHAFT_ENGINE</artifactId>
-	<version>2.4.20190526</version>
+	<version>2.4.20190529</version>
 	<name>SHAFT_ENGINE</name>
 	<description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
 
@@ -22,7 +22,7 @@
 		<jdk.version>1.8</jdk.version>
 
 		<selenium.version>4.0.0-alpha-1</selenium.version>
-		<allure.version>2.11.0</allure.version>
+		<allure.version>2.12.1</allure.version>
 		<aspectj.version>1.8.10</aspectj.version> <!-- DO NOT UPDATE -->
 
 		<rest-assured.version>3.3.0</rest-assured.version>
@@ -247,11 +247,11 @@
 						<properties>
 							<property>
 								<name>usedefaultlisteners</name>
-								<value>true</value>
+								<value>false</value>
 							</property>
 							<property>
 								<name>listener</name>
-								<value>com.shaft.listeners.SuiteListener,com.shaft.listeners.InvokedMethodListener,com.shaft.listeners.TestListener</value>
+								<value>com.shaft.listeners.SuiteListener,com.shaft.listeners.InvokedMethodListener,com.shaft.listeners.AlterSuiteListener</value>
 							</property>
 						</properties>
 					</configuration>

@@ -17,8 +17,6 @@ import org.apache.tools.ant.filters.StringInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Reporter;
-import org.testng.TestListenerAdapter;
-import org.testng.TestNG;
 
 import com.shaft.cli.TerminalActions;
 
@@ -339,7 +337,9 @@ public class ReportManager {
      * 
      */
     public static void attachTestLog() {
-	if (!currentTestLog.trim().equals("")) {
+	String trimmed = currentTestLog.trim();
+	if (!currentTestLog.trim().equals("") && (!(String.valueOf(trimmed.charAt(0)).equals("#")
+		&& String.valueOf(trimmed.charAt(trimmed.length() - 1)).equals("#")))) {
 	    createAttachment("SHAFT Engine Logs", "Current Method log", new StringInputStream(currentTestLog));
 	}
 	clearTestLog();
@@ -357,16 +357,6 @@ public class ReportManager {
 		new StringInputStream(System.getProperties().toString().trim()
 			.substring(1, System.getProperties().toString().trim().length() - 1).replaceAll(", ", "\n")));
 
-    }
-
-    public static void triggerClosureActivitiesLogs() {
-	TestListenerAdapter tla = new TestListenerAdapter();
-	TestNG testng = new TestNG();
-	testng.setTestClasses(new Class[] { LogsReporter.class });
-	testng.setDefaultSuiteName("# Closure Activities #");
-	testng.setDefaultTestName("# Execution Logs #");
-	testng.addListener(tla);
-	testng.run();
     }
 
     public static void generateAllureReportArchive() {
