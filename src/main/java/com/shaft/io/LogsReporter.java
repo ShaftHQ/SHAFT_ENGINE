@@ -1,21 +1,23 @@
 package com.shaft.io;
 
-import org.testng.annotations.Test;
+import org.testng.annotations.AfterSuite;
 
 import com.shaft.browser.BrowserFactory;
 import com.shaft.video.RecordManager;
 
-import io.qameta.allure.Epic;
-
-@Epic("Closure Activities")
 public class LogsReporter {
-    @Test(priority = 1, alwaysRun = true, description = "SHAFT Engine Logs")
-    public void attachFullLog() {
-	ReportManager.attachSystemProperties();
-	ReportManager.attachFullLog();
+    @AfterSuite
+    public void closureActivities() {
+	attachFullLogs();
+	attachBrowserLogs();
+	attachExecutionVideoRecording();
     }
 
-    @Test(priority = 2, alwaysRun = true, description = "Selenium WebDriver Logs")
+    public void attachFullLogs() {
+	ReportManager.attachFullLog();
+	ReportManager.attachSystemProperties();
+    }
+
     public void attachBrowserLogs() {
 	if (!BrowserFactory.isBrowsersListEmpty()) {
 	    BrowserFactory.attachBrowserLogs();
@@ -25,7 +27,6 @@ public class LogsReporter {
 	}
     }
 
-    @Test(priority = 3, alwaysRun = true, description = "Video Recording")
     public void attachExecutionVideoRecording() {
 	if (RecordManager.getRecordVideo()) {
 	    RecordManager.stopRecording();
@@ -35,5 +36,4 @@ public class LogsReporter {
 		    "Video Recording has been disabled for this test run. Please use the relevant property in the execution.properties file to enable video recording for future test runs.");
 	}
     }
-
 }
