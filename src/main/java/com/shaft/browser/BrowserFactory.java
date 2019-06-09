@@ -444,7 +444,6 @@ public class BrowserFactory {
 		    attemptToCloseOrQuitBrowser(driverEntry, true);
 		}
 	    }
-
 	    driver = null;
 	    drivers.clear();
 	    ReportManager.log("Successfully Closed All Browsers.");

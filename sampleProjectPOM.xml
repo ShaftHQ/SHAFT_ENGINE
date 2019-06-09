@@ -8,7 +8,7 @@
 
 	<properties>
 		<!-- Make sure you point to the latest version: https://bintray.com/mohabmohie/SHAFT/SHAFT_Engine/_latestVersion -->
-		<shaft_engine.version>2.4.20180324</shaft_engine.version>
+		<shaft_engine.version>2.4.20190609</shaft_engine.version>
 
 		<!-- SHAFT_Engine Properties and other property files are read from the 
 			below location -->
@@ -20,7 +20,7 @@
 		<maven-resources-plugin.version>3.1.0</maven-resources-plugin.version>
 		<maven-compiler-plugin.version>3.8.0</maven-compiler-plugin.version>
 		<maven-surefire-plugin.version>3.0.0-M3</maven-surefire-plugin.version>
-		<aspectj.version>1.9.2</aspectj.version>
+		<aspectj.version>1.8.10</aspectj.version>
 	</properties>
 
 	<dependencies>
@@ -87,6 +87,9 @@
 							<propertiesFolderPath>${propertiesFolderPath}</propertiesFolderPath>
 						</systemPropertyVariables>
 						<configfailurepolicy>continue</configfailurepolicy>
+						<!-- You must remove the following suiteXmlFiles tag if you're planning 
+							to define custom test suites programatically using the tests parameter. You 
+							can refer to this document for more steps: http://maven.apache.org/surefire/maven-surefire-plugin/examples/single-test.html -->
 						<suiteXmlFiles>
 							<suiteXmlFile>src\test\resources\TestSuites\${testSuite.name}.xml</suiteXmlFile>
 						</suiteXmlFiles>
@@ -99,11 +102,11 @@
 						<properties>
 							<property>
 								<name>usedefaultlisteners</name>
-								<value>true</value> <!-- disabling default listeners is optional -->
+								<value>false</value>
 							</property>
 							<property>
 								<name>listener</name>
-								<value>com.shaft.listeners.SuiteListener,com.shaft.listeners.InvokedMethodListener,com.shaft.listeners.TestListener</value>
+								<value>com.shaft.listeners.SuiteListener,com.shaft.listeners.InvokedMethodListener,com.shaft.listeners.AlterSuiteListener</value>
 							</property>
 						</properties>
 					</configuration>
