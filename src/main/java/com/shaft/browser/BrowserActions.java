@@ -2,6 +2,8 @@ package com.shaft.browser;
 
 import java.awt.HeadlessException;
 import java.awt.Toolkit;
+import java.util.Arrays;
+import java.util.List;
 
 import org.openqa.selenium.By;
 import org.openqa.selenium.Dimension;
@@ -231,25 +233,38 @@ public class BrowserActions {
 		// navigate to new url
 		navigateToNewURL(driver, targetUrl, targetUrlAfterRedirection);
 		JSWaiter.waitForLazyLoading();
-
 		if ((ElementActions.getElementsCount(driver, By.tagName("html")) == 1)
 			&& (!driver.getPageSource().equalsIgnoreCase(initialSource))) {
+		    confirmThatWebsiteIsNotDown(driver, targetUrl);
 		    passAction(driver, "navigateToURL", targetUrl);
+		} else {
+		    failAction(driver, "navigateToURL", targetUrl);
 		}
 	    } else {
 		// already on the same page
 		driver.navigate().refresh();
 		JSWaiter.waitForLazyLoading();
-
 		if (ElementActions.getElementsCount(driver, By.tagName("html")) == 1) {
+		    confirmThatWebsiteIsNotDown(driver, targetUrl);
 		    passAction(driver, "navigateToURL", targetUrl);
 		}
 	    }
-
 	} catch (Exception e) {
 	    ReportManager.log(e);
 	    failAction(driver, "navigateToURL", targetUrl);
 	}
+    }
+
+    private static void confirmThatWebsiteIsNotDown(WebDriver driver, String targetUrl) {
+	List<String> navigationErrorMessages = Arrays.asList("This site can’t be reached", "Unable to connect",
+		"Safari Can’t Connect to the Server", "This page can't be displayed", "Invalid URL",
+		"<head></head><body></body>");
+	navigationErrorMessages.forEach(errorMessage -> {
+	    if (driver.getPageSource().contains(errorMessage)) {
+		failAction(driver, "navigateToURL",
+			"Error message: \"" + errorMessage + "\", Target URL: \"" + targetUrl + "\"");
+	    }
+	});
     }
 
     /**

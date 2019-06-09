@@ -26,8 +26,10 @@ import io.qameta.allure.Step;
 public class ReportManager {
 
     private static String fullLog = "";
+    private static String issuesLog = "";
     private static String currentTestLog = "";
     private static int actionCounter = 1;
+    private static int issueCounter = 1;
     private static boolean discreteLogging = false;
     private static int totalNumberOfTests = 0;
     private static int testCasesCounter = 0;
@@ -45,7 +47,6 @@ public class ReportManager {
 
     private static void createLogEntry(String logText) {
 	String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
-
 	String log = "[ReportManager] " + logText.trim() + " @" + timestamp;
 	appendToLog(log);
 	appendToLog(System.lineSeparator());
@@ -61,6 +62,30 @@ public class ReportManager {
 	currentTestLog += log;
     }
 
+    public static void logIssue(String issue) {
+	if (issuesLog.trim().equals("")) {
+	    issuesLog = "################################################################################################################################################"
+		    + System.lineSeparator() + "Issues Analysis" + System.lineSeparator()
+		    + "################################################################################################################################################";
+	}
+	String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
+	String log = System.lineSeparator() + "[ReportManager] " + issueCounter + ". " + issue.trim() + " @"
+		+ timestamp;
+	issuesLog += log;
+	issueCounter++;
+    }
+
+    public static void logIssuesSummary(int openIssuesForFailedTestsCounter, int openIssuesForPassedTestsCounter,
+	    int failedTestsWithoutOpenIssuesCounter) {
+	issuesLog += System.lineSeparator()
+		+ "################################################################################################################################################"
+		+ System.lineSeparator() + "Total Issues: " + (issueCounter - 1) + ", Failed tests with open issues: "
+		+ openIssuesForFailedTestsCounter + ", Failed tests without open issues: "
+		+ failedTestsWithoutOpenIssuesCounter + ", Passed tests with open issues: "
+		+ openIssuesForPassedTestsCounter + System.lineSeparator()
+		+ "################################################################################################################################################";
+    }
+
     /**
      * Clears the current test log to prepare for a new test
      */
@@ -70,7 +95,6 @@ public class ReportManager {
 
     private static void createReportEntry(String logText) {
 	String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
-
 	String log = "[ReportManager] " + logText.trim() + " @" + timestamp;
 	Reporter.log(log, true);
 	appendToLog(log);
@@ -200,12 +224,12 @@ public class ReportManager {
     }
 
     public static void populateEnvironmentData() {
-	// sets up some parameters to the allure report
+	// reads all environment variables and then formats and writes them to be read
+	// by the Allure report
 	FileActions.writeToFile(System.getProperty("allureResultsFolderPath"), "environment.properties",
-		Arrays.asList("Engine " + System.getProperty("shaftEngineVersion"),
-			"OS " + System.getProperty("targetOperatingSystem"),
-			"Browser " + System.getProperty("targetBrowserName"),
-			"Location " + System.getProperty("executionAddress")));
+		Arrays.asList(System.getProperties().toString().trim()
+			.substring(1, System.getProperties().toString().trim().length() - 1).replaceAll(", ", "\n")
+			.replaceAll("=", "\t").split("\n")));
     }
 
     public static void logEngineVersion(Boolean isStartingExecution) {
@@ -347,16 +371,16 @@ public class ReportManager {
 
     public static void attachFullLog() {
 	if (!fullLog.trim().equals("")) {
-	    createAttachment("SHAFT Engine Logs", "Full Execution log", new StringInputStream(fullLog.trim()));
+	    createAttachment("SHAFT Engine Logs", "Execution log", new StringInputStream(fullLog.trim()));
 
 	}
     }
 
-    public static void attachSystemProperties() {
-	createAttachment("SHAFT Engine Logs", "System Properties",
-		new StringInputStream(System.getProperties().toString().trim()
-			.substring(1, System.getProperties().toString().trim().length() - 1).replaceAll(", ", "\n")));
+    public static void attachIssuesLog() {
+	if (!issuesLog.trim().equals("")) {
+	    createAttachment("SHAFT Engine Logs", "Issues log", new StringInputStream(issuesLog.trim()));
 
+	}
     }
 
     public static void generateAllureReportArchive() {

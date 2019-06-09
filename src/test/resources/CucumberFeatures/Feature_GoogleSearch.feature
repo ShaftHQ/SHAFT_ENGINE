@@ -20,19 +20,14 @@
 Feature: Basic Google Search Feature
   The user will search Google and explore the results
 
-  Scenario: TC001 - Navigate to URL and Verify page title
-    Given Target browser is launched
+  Scenario: TC001 - Navigate to URL and Verify page title, perform search and try-out framework features
+    Given Test data file "testSuite01/TestData.xlsx" is ready
+    And Target browser is launched
     When I navigate to Google search page URL
     Then I validate that the correct page has been opened
     And I validate that page title is equal to expected title from test data
-
-  Scenario: TC002 - Search for Query and Assert that the number of results is displayed
-    Given Target browser is launched
     When I perform search for the query that is retrieved from test data
     Then I validate that search results counter exists
     And I validate that search results counter holds a value
-
-  Scenario: TC003 - Clicks the next button thrice to make sure that the framework can scroll element into view before clicking it
-    Given Target browser is launched
     When I click the next button to make sure that the framework can scroll element into view before clicking it
     Then I find that ten results are displayed in this page

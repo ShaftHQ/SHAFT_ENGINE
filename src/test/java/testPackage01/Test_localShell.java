@@ -7,6 +7,8 @@ import org.testng.annotations.Test;
 import com.shaft.cli.TerminalActions;
 import com.shaft.validation.Assertions;
 
+import io.qameta.allure.Issue;
+
 public class Test_localShell {
     @Test
     public void test_localShellCommand() {
@@ -14,12 +16,14 @@ public class Test_localShell {
 	Assertions.assertEquals("", response, 3, true);
     }
 
+    @Issue("sampleIssueLink-PassingTest")
     @Test
     public void test_localShellCommands() {
 	String response = (new TerminalActions()).performTerminalCommands(Arrays.asList("ls", "ls -ltr"));
 	Assertions.assertEquals("", response, 3, true);
     }
 
+    @Issue("sampleIssueLink-FailingTest")
     @Test
     public void test_localShellIssue() {
 	String response = (new TerminalActions()).performTerminalCommand("date +%m/%d/%y");

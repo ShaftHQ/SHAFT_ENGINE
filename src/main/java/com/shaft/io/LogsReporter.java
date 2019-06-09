@@ -15,7 +15,7 @@ public class LogsReporter {
 
     public void attachFullLogs() {
 	ReportManager.attachFullLog();
-	ReportManager.attachSystemProperties();
+	ReportManager.attachIssuesLog();
     }
 
     public void attachBrowserLogs() {
@@ -23,7 +23,7 @@ public class LogsReporter {
 	    BrowserFactory.attachBrowserLogs();
 	    BrowserFactory.closeAllDrivers();
 	} else {
-	    ReportManager.log("There were no Web Browsers used for this test run.");
+	    ReportManager.logDiscrete("There were no Web Browsers used for this test run.");
 	}
     }
 
@@ -32,7 +32,7 @@ public class LogsReporter {
 	    RecordManager.stopRecording();
 	    RecordManager.attachRecording();
 	} else {
-	    ReportManager.log(
+	    ReportManager.logDiscrete(
 		    "Video Recording has been disabled for this test run. Please use the relevant property in the execution.properties file to enable video recording for future test runs.");
 	}
     }

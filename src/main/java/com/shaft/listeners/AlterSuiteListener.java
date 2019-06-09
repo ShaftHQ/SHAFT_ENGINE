@@ -18,13 +18,15 @@ public class AlterSuiteListener implements IAlterSuiteListener {
 	String prefix = "SHAFT_Engine: ";
 	// rename default suite and test
 	suites.forEach(suite -> {
-	    if (suite.getName().toLowerCase().trim().equals("default suite")) {
+	    if (suite.getName().toLowerCase().trim().equals("default suite")
+		    || suite.getName().toLowerCase().trim().equals("surefire suite")) {
 		suite.setName(prefix + "Custom Suite");
 	    } else {
 		suite.setName(prefix + suite.getName());
 	    }
 	    suite.getTests().forEach(test -> {
-		if (test.getName().toLowerCase().trim().equals("default test")) {
+		if (test.getName().toLowerCase().trim().equals("default test")
+			|| test.getName().toLowerCase().trim().equals("surefire test")) {
 		    test.setName(prefix + "Custom Test");
 		} else {
 		    test.setName(prefix + test.getName());
