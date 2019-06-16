@@ -61,6 +61,7 @@
 		<cucumber.version>3.0.2</cucumber.version>
 		<appium-java-client.version>6.1.0</appium-java-client.version>
 		<cverges-expect4j.version>1.9</cverges-expect4j.version>
+		<mysql-version>5.1.6</mysql-version>
 
 	</properties>
 
@@ -116,7 +117,7 @@
 		<dependency>
 			<groupId>mysql</groupId>
 			<artifactId>mysql-connector-java</artifactId>
-			<version>5.1.6</version>
+			<version>${mysql-version}</version>
 		</dependency>
 
 		<!-- Cucumber Dependencies -->
