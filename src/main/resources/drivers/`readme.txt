@@ -14,17 +14,17 @@ IE - driver v3.4.0.1 - 32-bit
 =============================
 geckodriver:
 =============================
-Mozilla Gecko Driver v0.21.0
-Supports Firefox 57 (and greater)
+Mozilla Gecko Driver v0.24.0
+Supports Firefox 57 (and greater) > make sure to always have the latest version
 =============================
 
 =============================
 chromedriver:
 =============================
-ChromeDriver 2.41
-Supports Chrome v67-69
+ChromeDriver 2.46
+Supports Chrome v71-73
 =============================
 
 selenium-server-standalone
-v-3.13.0
+v-3.141.59
 selenium.jar is added from Jenkins plugin as a workaround to the issue that otherwise disables firefox

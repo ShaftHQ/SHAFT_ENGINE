@@ -12,6 +12,5 @@ public class Test_testData {
 		ExcelFileManager testDataReader = new ExcelFileManager(System.getProperty("testDataFilePath"));
 
 		ReportManager.log("Last Column Number is: [" + testDataReader.getLastColumnNumber() + "]. Zero-based.");
-		ReportManager.getTestLog();
 	}
 }

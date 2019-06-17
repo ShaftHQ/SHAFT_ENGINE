@@ -12,144 +12,167 @@ import javax.imageio.ImageIO;
 
 import org.testng.Assert;
 
-import com.shaft.io.FileManager;
+import com.shaft.io.FileActions;
 import com.shaft.io.ReportManager;
+import com.shaft.validation.Assertions;
 import com.shaft.validation.Verifications;
 
 public class ImageProcessingActions {
-	private ImageProcessingActions() {
-		throw new IllegalStateException("Utility class");
-	}
+    private ImageProcessingActions() {
+	throw new IllegalStateException("Utility class");
+    }
 
-	public static void compareImageFolders(String refrenceFolderPath, String testFolderPath, double threshhold) {
+    public static void compareImageFolders(String refrenceFolderPath, String testFolderPath, double threshhold) {
 
-		try {
-			// long screenshotsCount = 0;
-			long fileCounter = 1;
+	try {
+	    long fileCounter = 1;
 
-			File refrenceFolder = new File(refrenceFolderPath);
-			File testFolder = new File(testFolderPath);
+	    File refrenceFolder = new File(refrenceFolderPath);
+	    File testFolder = new File(testFolderPath);
 
-			// cleaning processing folders
-			FileManager.deleteFolder(refrenceFolder.getAbsolutePath() + "/processingDirectory/");
-			FileManager.deleteFolder(testFolder.getAbsolutePath() + "/processingDirectory/");
+	    // cleaning processing folders
+	    FileActions.deleteFolder(refrenceFolder.getAbsolutePath() + "/processingDirectory/");
+	    FileActions.deleteFolder(testFolder.getAbsolutePath() + "/processingDirectory/");
+	    FileActions.deleteFolder(testFolder.getAbsolutePath() + "/failedImagesDirectory/");
 
-			// preparing objects for files
-			File[] refrenceFiles = refrenceFolder.listFiles();
-			File[] testFiles = testFolder.listFiles();
+	    // preparing objects for files
+	    File[] refrenceFiles = refrenceFolder.listFiles();
+	    File[] testFiles = testFolder.listFiles();
 
-			// sorting objects for files by fileName
-			Arrays.sort(refrenceFiles);
-			Arrays.sort(testFiles);
+	    ReportManager.log("Comparing [" + testFiles.length + "] image files from the testFolder ["
+		    + testFolder.getPath() + "] against [" + refrenceFiles.length
+		    + "] image files from the refrenceFolder [" + testFolder.getPath() + "]");
 
-			// confirming that the number of screenshots match
-			if (refrenceFiles.length == testFiles.length) {
+	    // sorting objects for files by fileName
+	    Arrays.sort(refrenceFiles);
+	    Arrays.sort(testFiles);
 
-				// copy and rename reference screenshots to a processing directory
-				for (File refrenceScreenshot : refrenceFiles) {
-					FileManager.copyFile(refrenceScreenshot.getAbsolutePath(),
-							refrenceScreenshot.getParent() + "/processingDirectory/" + fileCounter);
-					fileCounter++;
-				}
-
-				// copy and rename test screenshots to match reference screenshots in a
-				// processing directory
-
-				fileCounter = 1;
-				for (File testScreenshot : testFiles) {
-					FileManager.copyFile(testScreenshot.getAbsolutePath(),
-							testScreenshot.getParent() + "/processingDirectory/" + fileCounter);
-					fileCounter++;
-				}
-
-				// point to the two new processing directories
-				File refrenceProcessingFolder = new File(refrenceFolderPath + "/processingDirectory/");
-				File testProcessingFolder = new File(testFolderPath + "/processingDirectory/");
-
-				// preparing objects for files
-				// File[] refrenceProcessingFiles = refrenceProcessingFolder.listFiles();
-				File[] testProcessingFiles = testProcessingFolder.listFiles();
-
-				// sorting objects for files by fileName
-				// Arrays.sort(refrenceProcessingFiles);
-				Arrays.sort(testProcessingFiles);
-
-				// compare images from the test directory against the reference directory
-				compareImageFolders(refrenceFiles, testFiles, testProcessingFiles, refrenceProcessingFolder,
-						threshhold);
-
-				// cleaning processing folders
-				FileManager.deleteFolder(refrenceFolder.getAbsolutePath() + "/processingDirectory/");
-				FileManager.deleteFolder(testFolder.getAbsolutePath() + "/processingDirectory/");
-
-			} else {
-				// fail because the number of screenshots don't match
-				// refrenceFiles.length == testFiles.length
-				ReportManager.log("Number of screenshots  [" + testFiles.length + "] from the test folder ["
-						+ testFolderPath + "] do not match the number of screenshots [" + refrenceFiles.length
-						+ "] from the reference folder [" + refrenceFolderPath + "].");
-				Assert.fail("Number of screenshots  [" + testFiles.length + "] from the test folder [" + testFolderPath
-						+ "] do not match the number of screenshots [" + refrenceFiles.length
-						+ "] from the reference folder [" + refrenceFolderPath + "].");
-			}
-
-		} catch (NullPointerException | IOException e) {
-			ReportManager.log(e);
-			ReportManager.log("Failed to compare image files ...");
+	    // confirming that the number of screenshots match
+	    if (refrenceFiles.length == testFiles.length) {
+		// copy and rename reference screenshots to a processing directory
+		for (File refrenceScreenshot : refrenceFiles) {
+		    FileActions.copyFile(refrenceScreenshot.getAbsolutePath(),
+			    refrenceScreenshot.getParent() + "/processingDirectory/" + fileCounter);
+		    fileCounter++;
 		}
-	}
 
-	private static void compareImageFolders(File[] refrenceFiles, File[] testFiles, File[] testProcessingFiles,
-			File refrenceProcessingFolder, double threshhold) throws IOException {
+		// copy and rename test screenshots to match reference screenshots in a
+		// processing directory
+
+		fileCounter = 1;
+		for (File testScreenshot : testFiles) {
+		    FileActions.copyFile(testScreenshot.getAbsolutePath(),
+			    testScreenshot.getParent() + "/processingDirectory/" + fileCounter);
+		    fileCounter++;
+		}
+
+		// point to the two new processing directories
+		File refrenceProcessingFolder = new File(refrenceFolderPath + "/processingDirectory/");
+		File testProcessingFolder = new File(testFolderPath + "/processingDirectory/");
+
+		// preparing objects for files
+		File[] testProcessingFiles = testProcessingFolder.listFiles();
+
+		// sorting objects for files by fileName
+		Arrays.sort(testProcessingFiles);
+
 		// compare images from the test directory against the reference directory
-		for (File screenshot : testProcessingFiles) {
-			float percentage = 0;
-			// take buffer data from both image files //
-			// ReportManager.log("Attempting to read test image: [" + screenshot + "].");
+		compareImageFolders(refrenceFiles, testFiles, testProcessingFiles, refrenceProcessingFolder,
+			testProcessingFolder, threshhold);
 
-			BufferedImage biA = ImageIO.read(screenshot);
-			DataBuffer dbA = biA.getData().getDataBuffer();
-			float sizeA = dbA.getSize();
+		// cleaning processing folders
+		FileActions.deleteFolder(refrenceFolder.getAbsolutePath() + "/processingDirectory/");
+		FileActions.deleteFolder(testFolder.getAbsolutePath() + "/processingDirectory/");
 
-			// ReportManager.log("Attempting to read reference image: [" +
-			// refrenceProcessingFolder+ FileSystems.getDefault().getSeparator() +
-			// screenshot.getName() + "].");
-			BufferedImage biB = ImageIO.read(new File(
-					refrenceProcessingFolder + FileSystems.getDefault().getSeparator() + screenshot.getName()));
-			DataBuffer dbB = biB.getData().getDataBuffer();
-			float sizeB = dbB.getSize();
-			float count = 0;
+	    } else {
+		// fail because the number of screenshots don't match
+		// refrenceFiles.length == testFiles.length
+		ReportManager.log("Number of screenshots  [" + testFiles.length + "] from the test folder ["
+			+ testFolderPath + "] do not match the number of screenshots [" + refrenceFiles.length
+			+ "] from the reference folder [" + refrenceFolderPath + "].");
+		Assert.fail("Number of screenshots  [" + testFiles.length + "] from the test folder [" + testFolderPath
+			+ "] do not match the number of screenshots [" + refrenceFiles.length
+			+ "] from the reference folder [" + refrenceFolderPath + "].");
+	    }
 
-			// compare data-buffer objects //
-			if (sizeA == sizeB) {
-				// ReportManager.log("Comparing images of equal size...");
-				for (int i = 0; i < sizeA; i++) {
-
-					if (dbA.getElem(i) == dbB.getElem(i)) {
-						count = count + 1;
-					}
-
-				}
-				percentage = (count * 100) / sizeA;
-
-				// fetch the related reference screenshot file name using the current file
-				// name/number as index
-				String relatedReferenceFileName = refrenceFiles[Integer.parseInt(screenshot.getName()) - 1].getName();
-				ReportManager.attach("Reference Screenshot", relatedReferenceFileName, new FileInputStream(new File(
-						refrenceProcessingFolder + FileSystems.getDefault().getSeparator() + screenshot.getName())));
-
-				String relatedTestFileName = testFiles[Integer.parseInt(screenshot.getName()) - 1].getName();
-
-				ReportManager.attach("Test Screenshot", relatedTestFileName, new FileInputStream(screenshot));
-
-				ReportManager.log("Test Screenshot [" + relatedTestFileName + "] and related Refrence Image ["
-						+ relatedReferenceFileName + "] match by [" + percentage + "] percent.");
-			} else {
-				ReportManager.log("Both the images are not of same size");
-			}
-
-			Verifications.verifyGreaterThanOrEquals(threshhold, percentage, true);
-		}
-
+	} catch (NullPointerException | IOException e) {
+	    ReportManager.log(e);
+	    ReportManager.log("Failed to compare image files ...");
 	}
+    }
+
+    private static void compareImageFolders(File[] refrenceFiles, File[] testFiles, File[] testProcessingFiles,
+	    File refrenceProcessingFolder, File testProcessingFolder, double threshhold) throws IOException {
+	int passedImagesCount = 0;
+	int failedImagesCount = 0;
+
+	// compare images from the test directory against the reference directory
+	for (File screenshot : testProcessingFiles) {
+	    float percentage = 0;
+	    // take buffer data from both image files //
+
+	    BufferedImage biA = ImageIO.read(screenshot);
+	    DataBuffer dbA = biA.getData().getDataBuffer();
+	    float sizeA = dbA.getSize();
+
+	    BufferedImage biB = ImageIO.read(new File(
+		    refrenceProcessingFolder + FileSystems.getDefault().getSeparator() + screenshot.getName()));
+	    DataBuffer dbB = biB.getData().getDataBuffer();
+	    float sizeB = dbB.getSize();
+	    float count = 0;
+
+	    // compare data-buffer objects //
+	    if (sizeA == sizeB) {
+
+		for (int i = 0; i < sizeA; i++) {
+
+		    if (dbA.getElem(i) == dbB.getElem(i)) {
+			count = count + 1;
+		    }
+
+		}
+		percentage = (count * 100) / sizeA;
+	    } else {
+		ReportManager.log("Both the images are not of same size");
+	    }
+
+	    // fetch the related reference screenshot file name using the current file
+	    // name/number as index
+	    String relatedReferenceFileName = refrenceFiles[Integer.parseInt(screenshot.getName()) - 1].getName();
+	    ReportManager.attachAsStep("Reference Screenshot", relatedReferenceFileName, new FileInputStream(new File(
+		    refrenceProcessingFolder + FileSystems.getDefault().getSeparator() + screenshot.getName())));
+
+	    String relatedTestFileName = testFiles[Integer.parseInt(screenshot.getName()) - 1].getName();
+
+	    ReportManager.attachAsStep("Test Screenshot", relatedTestFileName, new FileInputStream(screenshot));
+
+	    ReportManager.log("Test Screenshot [" + relatedTestFileName + "] and related Refrence Image ["
+		    + relatedReferenceFileName + "] match by [" + percentage + "] percent.");
+
+	    Boolean discreetLoggingState = ReportManager.isDiscreteLogging();
+	    try {
+		// add to pass/fail counter depending on assertion result, without logging
+		ReportManager.setDiscreteLogging(true);
+		Assertions.assertComparativeRelation(threshhold, percentage, ">=", true);
+		ReportManager.setDiscreteLogging(discreetLoggingState);
+		passedImagesCount++;
+	    } catch (AssertionError e) {
+		ReportManager.setDiscreteLogging(discreetLoggingState);
+		// copying image to failed images directory
+		FileActions.copyFile(screenshot.getAbsolutePath(), testProcessingFolder.getParent()
+			+ "/failedImagesDirectory/" + relatedTestFileName + "_testImage");
+		FileActions.copyFile(
+			refrenceProcessingFolder + FileSystems.getDefault().getSeparator() + screenshot.getName(),
+			testProcessingFolder.getParent() + "/failedImagesDirectory/" + relatedTestFileName
+				+ "_refrenceImage");
+		failedImagesCount++;
+	    }
+
+	    Verifications.verifyComparativeRelation(threshhold, percentage, ">=", true);
+	}
+
+	ReportManager.log("[" + passedImagesCount + "] images passed, and [" + failedImagesCount
+		+ "] images failed the threshold of [" + threshhold + "%] matching.");
+
+    }
 }
