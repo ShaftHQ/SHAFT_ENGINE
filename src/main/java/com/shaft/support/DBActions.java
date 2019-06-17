@@ -103,7 +103,7 @@ public class DBActions {
 	 * @return ResultSet
 	 * @throws SQLException
 	 */
-	public ResultSet executeQuery(String dbQuery) {
+	public ResultSet executeSelectQuery(String dbQuery) {
 		try {
 			resultSet = statement.executeQuery(dbQuery);
 			passAction("Execute DB query", dbQuery);
