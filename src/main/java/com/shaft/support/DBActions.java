@@ -38,7 +38,7 @@ public class DBActions {
 		}
 		ReportManager.log(message);
 		if (log != null) {
-			ReportManager.attach("DB Connection Log", log);
+			ReportManager.attachAsStep("Passed","DB Connection Log", log);
 		}
 	}
 
@@ -53,7 +53,7 @@ public class DBActions {
 		}
 		ReportManager.log(message);
 		if (log != null) {
-			ReportManager.attach("DB Connection Log", log);
+			ReportManager.attachAsStep("Failed","DB Connection Log", log);
 		}
 		Assert.fail(message);
 	}
