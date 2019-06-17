@@ -33,6 +33,7 @@
 		<testng.version>7.0.0-beta3</testng.version>
 		
 		<mysql-version>5.1.6</mysql-version>
+		<sqlserver-version>7.2.2.jre8</sqlserver-version>
 
 		<pojosontheweb-monte.version>1.0.1</pojosontheweb-monte.version>
 
@@ -69,6 +70,13 @@
 			<artifactId>mysql-connector-java</artifactId>
 			<version>${mysql-version}</version>
 		</dependency>
+		
+		<!-- SQL Server Connector Dependencies -->
+		<dependency>
+            <groupId>com.microsoft.sqlserver</groupId>
+            <artifactId>mssql-jdbc</artifactId>
+            <version>${sqlserver-version}</version>
+        </dependency>
 		
 		<!-- Selenium WebDriver Dependencies -->
 		<dependency>

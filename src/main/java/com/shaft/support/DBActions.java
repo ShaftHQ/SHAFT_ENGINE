@@ -38,7 +38,7 @@ public class DBActions {
 		}
 		ReportManager.log(message);
 		if (log != null) {
-			ReportManager.attachAsStep("Passed","DB Connection Log", log);
+			ReportManager.attachAsStep("Passed", "DB Connection Log", log);
 		}
 	}
 
@@ -53,7 +53,7 @@ public class DBActions {
 		}
 		ReportManager.log(message);
 		if (log != null) {
-			ReportManager.attachAsStep("Failed","DB Connection Log", log);
+			ReportManager.attachAsStep("Failed", "DB Connection Log", log);
 		}
 		Assert.fail(message);
 	}
@@ -79,7 +79,13 @@ public class DBActions {
 				connection = DriverManager.getConnection("jdbc:mysql://" + dbServerIP + ":" + dbPort + "/" + dbName,
 						username, password);
 				break;
-
+			// create connection to SQL Server DB
+			case ("sqlserver"):
+				Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+				connection = DriverManager.getConnection(
+						"jdbc:sqlserver://" + dbServerIP + ":" + dbPort + ";databaseName=" + dbName, username,
+						password);
+				break;
 			// create connection to oracle DB
 			case ("oracle"):
 				break;
@@ -112,7 +118,7 @@ public class DBActions {
 		catch (SQLException e) {
 			ReportManager.log(e);
 		}
-	return resultSet;
+		return resultSet;
 	}
 
 	/**
