@@ -69,7 +69,7 @@ public class DBActions {
 	 * @throws SQLException
 	 */
 	public void createConnection() {
-		String testData = "jdbc:mysql://" + dbServerIP + ":" + dbPort + "/" + dbName;
+		String testData = dbServerIP + ":" + dbPort + "/" + dbName;
 
 		try {
 			switch (dbType) {
@@ -85,6 +85,12 @@ public class DBActions {
 				connection = DriverManager.getConnection(
 						"jdbc:sqlserver://" + dbServerIP + ":" + dbPort + ";databaseName=" + dbName, username,
 						password);
+				break;
+			// create connection to SQL Server DB
+			case ("postgresql"):
+				Class.forName("org.postgresql.Driver");
+				connection = DriverManager.getConnection("jdbc:postgresql://" + dbServerIP + ":" + dbPort + "/" + dbName,
+						username, password);
 				break;
 			// create connection to oracle DB
 			case ("oracle"):
