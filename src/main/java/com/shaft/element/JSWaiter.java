@@ -2,6 +2,7 @@ package com.shaft.element;
 
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.support.ui.ExpectedCondition;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
@@ -9,201 +10,156 @@ import com.shaft.io.ReportManager;
 
 public class JSWaiter {
 
-	private static boolean debug = false;
+    private static WebDriver jsWaitDriver;
+    private static WebDriverWait jsWait;
+    private static JavascriptExecutor jsExec;
 
-	private static WebDriver jsWaitDriver;
-	private static WebDriverWait jsWait;
-	private static JavascriptExecutor jsExec;
+    private JSWaiter() {
+	throw new IllegalStateException("Utility class");
+    }
 
-	private JSWaiter() {
-		throw new IllegalStateException("Utility class");
+    // Get the driver
+    public static void setDriver(WebDriver driver) {
+	jsWaitDriver = driver;
+	jsWait = new WebDriverWait(jsWaitDriver, 10);
+	jsExec = (JavascriptExecutor) jsWaitDriver;
+    }
+
+    /**
+     * Waits for jQuery, Angular, and/or Javascript if present on the current page.
+     * 
+     * @return true in case waiting didn't face any isssues, and false in case of a
+     *         severe exception
+     */
+    public static boolean waitForLazyLoading() {
+	try {
+	    waitForJQueryLoadIfDefined();
+	    waitForAngularIfDefined();
+	    waitForJSLoadIfDefined();
+	    return true;
+	} catch (WebDriverException e) {
+	    ReportManager.log(e);
+	    return true;
+	} catch (Exception e) {
+	    if (e.getMessage().contains("jQuery is not defined")) {
+		// do nothing
+		return true;
+	    } else if (e.getMessage().contains("Error communicating with the remote browser. It may have died.")) {
+		ReportManager.log(e);
+		return false;
+	    } else {
+		ReportManager.log(e);
+		ReportManager.log("Unhandled Exception: " + e.getMessage());
+		return false;
+	    }
 	}
+    }
 
-	// Get the driver
-	public static void setDriver(WebDriver driver) {
-		jsWaitDriver = driver;
-		jsWait = new WebDriverWait(jsWaitDriver, 10);
-		jsExec = (JavascriptExecutor) jsWaitDriver;
-	}
+    // Wait for JQuery Load
+    private static void waitForJQueryLoadIfDefined() {
+	Boolean jQueryDefined = (Boolean) jsExec.executeScript("return typeof jQuery != 'undefined'");
+	if (jQueryDefined) {
+	    // Wait for jQuery to load
+	    ExpectedCondition<Boolean> jQueryLoad = driver -> ((Long) ((JavascriptExecutor) jsWaitDriver)
+		    .executeScript("return jQuery.active") == 0);
 
-	// Wait for JQuery Load
-	public static void waitForJQueryLoad() {
-		// Wait for jQuery to load
-		ExpectedCondition<Boolean> jQueryLoad = driver -> ((Long) ((JavascriptExecutor) jsWaitDriver)
-				.executeScript("return jQuery.active") == 0);
+	    // Get JQuery is Ready
+	    boolean jqueryReady = (Boolean) jsExec.executeScript("return jQuery.active==0");
 
-		// Get JQuery is Ready
-		boolean jqueryReady = (Boolean) jsExec.executeScript("return jQuery.active==0");
-
-		if (!jqueryReady) {
-			// Wait JQuery until it is Ready!
-			if (debug) {
-				ReportManager.log("Waiting for JQuery to be Ready!");
-			}
-			int tryCounter = 0;
-			while ((!jqueryReady) && (tryCounter < 5)) {
-				if (debug) {
-					ReportManager.log("JQuery is NOT Ready!");
-				}
-				// Wait for jQuery to load
-				jsWait.until(jQueryLoad);
-				sleep(20);
-				tryCounter++;
-				jqueryReady = (Boolean) jsExec.executeScript("return jQuery.active==0");
-			}
-			if (debug) {
-				ReportManager.log("JQuery is Ready!");
-			}
-		} else {
-			if (debug) {
-				ReportManager.log("JQuery is Ready!");
-			}
+	    if (!jqueryReady) {
+		// Wait JQuery until it is Ready!
+		int tryCounter = 0;
+		while ((!jqueryReady) && (tryCounter < 5)) {
+		    // Wait for jQuery to load
+		    jsWait.until(jQueryLoad);
+		    sleep(20);
+		    tryCounter++;
+		    jqueryReady = (Boolean) jsExec.executeScript("return jQuery.active == 0");
 		}
+	    }
 	}
+    }
 
-	// Wait for Angular Load
-	public static void waitForAngularLoad() {
-		WebDriverWait wait = new WebDriverWait(jsWaitDriver, 15);
-		JavascriptExecutor jsExec = (JavascriptExecutor) jsWaitDriver;
+    // Wait for Angular Load
+    private static void waitForAngularLoad() {
+	WebDriverWait wait = new WebDriverWait(jsWaitDriver, 15);
+	JavascriptExecutor jsExec = (JavascriptExecutor) jsWaitDriver;
 
-		String angularReadyScript = "return angular.element(document).injector().get('$http').pendingRequests.length === 0";
+	String angularReadyScript = "return angular.element(document).injector().get('$http').pendingRequests.length === 0";
 
-		// Wait for ANGULAR to load
-		ExpectedCondition<Boolean> angularLoad = driver -> Boolean
-				.valueOf(((JavascriptExecutor) driver).executeScript(angularReadyScript).toString());
+	// Wait for ANGULAR to load
+	ExpectedCondition<Boolean> angularLoad = driver -> Boolean
+		.valueOf(((JavascriptExecutor) driver).executeScript(angularReadyScript).toString());
 
-		// Get Angular is Ready
-		boolean angularReady = Boolean.parseBoolean(jsExec.executeScript(angularReadyScript).toString());
+	// Get Angular is Ready
+	boolean angularReady = Boolean.parseBoolean(jsExec.executeScript(angularReadyScript).toString());
 
-		if (!angularReady) {
-			// Wait ANGULAR until it is Ready!
-			if (debug) {
-				ReportManager.log("Waiting for ANGULAR to be Ready!");
-			}
-			int tryCounter = 0;
-			while ((!angularReady) && (tryCounter < 5)) {
-				if (debug) {
-					ReportManager.log("ANGULAR is NOT Ready!");
-				}
-				// Wait for Angular to load
-				wait.until(angularLoad);
-				// More Wait for stability (Optional)
-				sleep(20);
-				tryCounter++;
-				angularReady = Boolean.valueOf(jsExec.executeScript(angularReadyScript).toString());
-			}
-			if (debug) {
-				ReportManager.log("ANGULAR is Ready!");
-			}
-		} else {
-			if (debug) {
-				ReportManager.log("ANGULAR is Ready!");
-			}
-		}
+	if (!angularReady) {
+	    // Wait ANGULAR until it is Ready!
+	    int tryCounter = 0;
+	    while ((!angularReady) && (tryCounter < 5)) {
+		// Wait for Angular to load
+		wait.until(angularLoad);
+		// More Wait for stability (Optional)
+		sleep(20);
+		tryCounter++;
+		angularReady = Boolean.valueOf(jsExec.executeScript(angularReadyScript).toString());
+	    }
 	}
+    }
 
-	// Wait Until JS Ready
-	public static void waitForJSLoad() {
-		WebDriverWait wait = new WebDriverWait(jsWaitDriver, 15);
-		JavascriptExecutor jsExec = (JavascriptExecutor) jsWaitDriver;
+    // Wait Until JS Ready
+    private static void waitForJSLoadIfDefined() {
+	WebDriverWait wait = new WebDriverWait(jsWaitDriver, 15);
+	JavascriptExecutor jsExec = (JavascriptExecutor) jsWaitDriver;
 
+	// Wait for Javascript to load
+	ExpectedCondition<Boolean> jsLoad = driver -> ((JavascriptExecutor) jsWaitDriver)
+		.executeScript("return document.readyState").toString().trim().equalsIgnoreCase("complete");
+
+	// Get JS is Ready
+	boolean jsReady = (Boolean) jsExec.executeScript("return document.readyState").toString().trim()
+		.equalsIgnoreCase("complete");
+
+	// Wait Javascript until it is Ready!
+	if (!jsReady) {
+	    // Wait JS until it is Ready!
+	    int tryCounter = 0;
+	    while ((!jsReady) && (tryCounter < 5)) {
 		// Wait for Javascript to load
-		ExpectedCondition<Boolean> jsLoad = driver -> ((JavascriptExecutor) jsWaitDriver)
-				.executeScript("return document.readyState").toString().equals("complete");
-
-		// Get JS is Ready
-		boolean jsReady = (Boolean) jsExec.executeScript("return document.readyState").toString().equals("complete");
-
-		// Wait Javascript until it is Ready!
-		if (!jsReady) {
-			// Wait JS until it is Ready!
-			if (debug) {
-				ReportManager.log("Waiting for JS to be Ready!");
-			}
-			int tryCounter = 0;
-			while ((!jsReady) && (tryCounter < 5)) {
-				if (debug) {
-					ReportManager.log("JS in NOT Ready!");
-				}
-				// Wait for Javascript to load
-				wait.until(jsLoad);
-				// More Wait for stability (Optional)
-				sleep(20);
-				tryCounter++;
-				jsReady = (Boolean) jsExec.executeScript("return document.readyState").toString().equals("complete");
-			}
-			if (debug) {
-				ReportManager.log("JS is Ready!");
-			}
-		} else {
-			if (debug) {
-				ReportManager.log("JS is Ready!");
-			}
-		}
+		wait.until(jsLoad);
+		// More Wait for stability (Optional)
+		sleep(20);
+		tryCounter++;
+		jsReady = (Boolean) jsExec.executeScript("return document.readyState").toString().trim()
+			.equalsIgnoreCase("complete");
+	    }
 	}
+    }
 
-	/**
-	 * Waits for jQuery, Angular, and/or Javascript if present on the current page.
-	 */
+    private static void waitForAngularIfDefined() {
+	try {
+	    Boolean angularDefined = !((Boolean) jsExec.executeScript("return window.angular === undefined"));
+	    if (angularDefined) {
+		Boolean angularInjectorDefined = !((Boolean) jsExec
+			.executeScript("return angular.element(document).injector() === undefined"));
 
-	public static void waitForLazyLoading() {
-		Boolean jQueryDefined = (Boolean) jsExec.executeScript("return typeof jQuery != 'undefined'");
-		if (jQueryDefined) {
-			waitForJQueryLoad();
-		} else {
-			if (debug) {
-				ReportManager.log("jQuery is not defined on this site!");
-			}
+		if (angularInjectorDefined) {
+		    waitForAngularLoad();
 		}
-
-		try {
-			// check if angular is defined
-			waitForAngularIfDefined();
-		} catch (org.openqa.selenium.WebDriverException e) {
-			if (debug) {
-				ReportManager.log(e);
-				ReportManager.log("Angular is not defined on this site!");
-			}
-		}
-
-		Boolean jsReady = (Boolean) jsExec.executeScript("return document.readyState").toString().equals("complete");
-		if (!jsReady) {
-			waitForJSLoad();
-		} else {
-			if (debug) {
-				ReportManager.log("JS is Ready!");
-			}
-		}
-
+	    }
+	} catch (WebDriverException e) {
+	    // do nothing
 	}
+    }
 
-	private static void waitForAngularIfDefined() {
-		Boolean angularDefined = !((Boolean) jsExec.executeScript("return window.angular === undefined"));
-		if (angularDefined) {
-			Boolean angularInjectorDefined = !((Boolean) jsExec
-					.executeScript("return angular.element(document).injector() === undefined"));
-
-			if (angularInjectorDefined) {
-				waitForAngularLoad();
-			} else {
-				if (debug) {
-					ReportManager.log("Angular injector is not defined on this site!");
-				}
-			}
-		} else {
-			if (debug) {
-				ReportManager.log("Angular is not defined on this site!");
-			}
-		}
+    private static void sleep(Integer milliSeconds) {
+	long secondsLong = (long) milliSeconds;
+	try {
+	    Thread.sleep(secondsLong);
+	} catch (Exception e) {
+	    ReportManager.log(e);
+	    // InterruptedException
 	}
-
-	public static void sleep(Integer milliSeconds) {
-		long secondsLong = (long) milliSeconds;
-		try {
-			Thread.sleep(secondsLong);
-		} catch (Exception e) {
-			ReportManager.log(e);
-			// InterruptedException
-		}
-	}
+    }
 }

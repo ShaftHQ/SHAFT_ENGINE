@@ -1,36 +1,44 @@
 package testPackage01;
 
 import java.util.Arrays;
-import java.util.List;
 
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.shaft.io.ReportManager;
-import com.shaft.support.SSHActions;
+import com.shaft.cli.TerminalActions;
+import com.shaft.validation.Assertions;
+
+import io.qameta.allure.Issue;
 
 public class Test_localShell {
-	@Test
-	public void test_localShellCommand() {
+    @Test
+    public void test_localShellCommand() {
+	String response = (new TerminalActions()).performTerminalCommand("ls");
+	Assertions.assertEquals("", response, 3, true);
+    }
 
-		List<String> commands = Arrays.asList("ls", "ls -ltr");
-		(new SSHActions()).executeShellCommand(commands);
-	}
+    @Issue("sampleIssueLink-PassingTest")
+    @Test
+    public void test_localShellCommands() {
+	String response = (new TerminalActions()).performTerminalCommands(Arrays.asList("ls", "ls -ltr"));
+	Assertions.assertEquals("", response, 3, true);
+    }
 
-	@BeforeClass // Set-up method, to be run once before the first test
-	public void beforeClass() {
+    @Issue("sampleIssueLink-FailingTest")
+    @Test
+    public void test_localShellIssue() {
+	String response = (new TerminalActions()).performTerminalCommand("date +%m/%d/%y");
+	Assertions.assertEquals("04/17/19", response.trim(), 1, true);
+    }
 
-	}
+    @Test
+    public void test_localShellIssue2() {
+	String calendar = (new TerminalActions()).performTerminalCommand("cal").replaceAll("\n", "").replaceAll(" ", "")
+		.replaceAll("_\b", "").trim();
+	String lastDayOfCurrentMonth = calendar.substring(calendar.length() - 2, calendar.length());
 
-	@AfterClass(alwaysRun = true) // Tear-down method, to be run once after the last test
-	public void afterClass() {
-		ReportManager.getFullLog();
-	}
+	String lastDateOfCurrentMonth = (new TerminalActions())
+		.performTerminalCommand("date +%m/" + lastDayOfCurrentMonth + "/%y");
 
-	@AfterMethod
-	public void afterMethod() {
-		ReportManager.getTestLog();
-	}
+	Assertions.assertEquals("04/30/19", lastDateOfCurrentMonth, 1, true);
+    }
 }
