@@ -16,7 +16,7 @@ public class Test_dbConnection {
 
 	@Test
 	public void test_mySQLConnection() {
-		QR= dbActions.executeQuery("select * from DASHBOARD;");
+		QR= dbActions.executeSelectQuery("select * from DASHBOARD;");
 		
 		try {
 			while(QR.next())
