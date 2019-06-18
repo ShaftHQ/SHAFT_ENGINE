@@ -10,17 +10,43 @@ import org.testng.Assert;
 
 import com.shaft.io.ReportManager;
 
+/**
+ * 
+ * @author mennamaged
+ *
+ */
+
 public class DBActions {
 
-	Connection connection;
-	Statement statement;
-	ResultSet resultSet;
-	String dbType;
-	String dbServerIP;
-	String dbPort;
-	String dbName;
-	String username;
-	String password;
+	private Connection connection;
+	private Statement statement;
+	private ResultSet resultSet;
+	private String dbType;
+	private String dbServerIP;
+	private String dbPort;
+	private String dbName;
+	private String username;
+	private String password;
+	private String testData = "";
+
+	private static final String MySQL = "mysql";
+	private static final String SqlServer = "sqlserver";
+	private static final String PostgreSql = "postgresql";
+	private static final String Oracle = "oracle";
+
+	/**
+	 * This constructor is used for initializing database variables that needed to
+	 * create new connection
+	 * 
+	 * @param dbType     database type that you want to connect with:
+	 *                   MySQL,SqlServer,PostgreSql.
+	 * @param dbServerIP IP address that has database installation that we need to
+	 *                   connect to (e.g. 72.55.136.25)
+	 * @param dbPort     port of database installation on the server (e.g. 3306)
+	 * @param dbName     database name that you need to connect to
+	 * @param username   database username
+	 * @param password   password of database user
+	 */
 
 	public DBActions(String dbType, String dbServerIP, String dbPort, String dbName, String username, String password) {
 		this.dbType = dbType;
@@ -30,6 +56,10 @@ public class DBActions {
 		this.username = username;
 		this.password = password;
 	}
+
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////// [private] Reporting Actions
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	private void passAction(String actionName, String testData, String log) {
 		String message = "Successfully performed action [" + actionName + "].";
@@ -62,38 +92,43 @@ public class DBActions {
 		failAction(actionName, testData, null);
 	}
 
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////// [Public] Core Database Actions
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 	/**
 	 * Setup connection to database
 	 * 
 	 * @throws ClassNotFoundException
 	 * @throws SQLException
 	 */
-	public void createConnection() {
-		String testData = dbServerIP + ":" + dbPort + "/" + dbName;
-
+	private void createConnection() {
 		try {
-			switch (dbType) {
+			switch (dbType.toLowerCase().trim()) {
 			// create connection to mysql DB
-			case ("mysql"):
+			case MySQL:
 				Class.forName("com.mysql.jdbc.Driver");
 				connection = DriverManager.getConnection("jdbc:mysql://" + dbServerIP + ":" + dbPort + "/" + dbName,
 						username, password);
+				testData = "jdbc:mysql://" + dbServerIP + ":" + dbPort + "/" + dbName;
 				break;
 			// create connection to SQL Server DB
-			case ("sqlserver"):
+			case SqlServer:
 				Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
 				connection = DriverManager.getConnection(
 						"jdbc:sqlserver://" + dbServerIP + ":" + dbPort + ";databaseName=" + dbName, username,
 						password);
+				testData = "jdbc:sqlserver://" + dbServerIP + ":" + dbPort + ";databaseName=" + dbName;
 				break;
 			// create connection to SQL Server DB
-			case ("postgresql"):
+			case PostgreSql:
 				Class.forName("org.postgresql.Driver");
-				connection = DriverManager.getConnection("jdbc:postgresql://" + dbServerIP + ":" + dbPort + "/" + dbName,
-						username, password);
+				connection = DriverManager.getConnection(
+						"jdbc:postgresql://" + dbServerIP + ":" + dbPort + "/" + dbName, username, password);
+				testData = "jdbc:postgresql://" + dbServerIP + ":" + dbPort + "/" + dbName;
 				break;
 			// create connection to oracle DB
-			case ("oracle"):
+			case Oracle:
 				break;
 			}
 
@@ -117,39 +152,33 @@ public class DBActions {
 	 */
 	public ResultSet executeSelectQuery(String dbQuery) {
 		try {
+			createConnection();
 			resultSet = statement.executeQuery(dbQuery);
-			passAction("Execute DB query", dbQuery);
+			passAction("execute DB query", dbQuery);
 		}
-
 		catch (SQLException e) {
 			ReportManager.log(e);
+			failAction("execute DB query", dbQuery);
 		}
+		closeTheConnection();
 		return resultSet;
 	}
 
 	/**
 	 * Close database connection
 	 */
-	public void closeTheConnection() {
-		if (resultSet != null) {
-			try {
+	private void closeTheConnection() {
+		try {
+			if (resultSet != null)
 				resultSet.close();
-			} catch (Exception e) {
-			}
-		}
-
-		if (statement != null) {
-			try {
+			if (statement != null)
 				statement.close();
-			} catch (Exception e) {
-			}
-		}
-
-		if (connection != null) {
-			try {
+			if (connection != null)
 				connection.close();
-			} catch (Exception e) {
-			}
+			passAction("closing connection", testData);
+		} catch (SQLException e) {
+			ReportManager.log(e);
+			failAction("closing connection", testData);
 		}
 	}
 }
