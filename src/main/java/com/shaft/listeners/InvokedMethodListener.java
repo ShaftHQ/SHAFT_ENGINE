@@ -75,10 +75,10 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 	    updateIssuesLog(testResult, testMethod);
 	    if (invokedTestsCounter == testSize - 1) {
 		// is last test in the last class of the test suite
-		ReportManager.logEngineVersion(false);
-		invokedTestsCounter = 0;
 		ReportManager.logIssuesSummary(openIssuesForFailedTestsCounter, openIssuesForPassedTestsCounter,
 			failedTestsWithoutOpenIssuesCounter);
+		ReportManager.logEngineVersion(false);
+		invokedTestsCounter = 0;
 	    } else {
 		invokedTestsCounter++;
 	    }
