@@ -379,7 +379,6 @@ public class ReportManager {
     public static void attachIssuesLog() {
 	if (!issuesLog.trim().equals("")) {
 	    createAttachment("SHAFT Engine Logs", "Issues log", new StringInputStream(issuesLog.trim()));
-
 	}
     }
 
