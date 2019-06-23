@@ -1,4 +1,4 @@
-package com.shaft.support;
+package com.shaft.database;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -27,12 +27,6 @@ public class DBActions {
 	private String dbName;
 	private String username;
 	private String password;
-	private String testData = "";
-
-	private static final String MySQL = "mysql";
-	private static final String SqlServer = "sqlserver";
-	private static final String PostgreSql = "postgresql";
-	private static final String Oracle = "oracle";
 
 	/**
 	 * This constructor is used for initializing database variables that needed to
@@ -101,45 +95,53 @@ public class DBActions {
 	 * 
 	 * @throws ClassNotFoundException
 	 * @throws SQLException
+	 * 
+	 * 
 	 */
+	
 	private void createConnection() {
+		String connectionString = "";
 		try {
 			switch (dbType.toLowerCase().trim()) {
-			// create connection to mysql DB
-			case MySQL:
-				Class.forName("com.mysql.jdbc.Driver");
-				connection = DriverManager.getConnection("jdbc:mysql://" + dbServerIP + ":" + dbPort + "/" + dbName,
-						username, password);
-				testData = "jdbc:mysql://" + dbServerIP + ":" + dbPort + "/" + dbName;
+
+			case ("mysql"):
+				connectionString = "jdbc:mysql://" + dbServerIP + ":" + dbPort + "/" + dbName;
 				break;
-			// create connection to SQL Server DB
-			case SqlServer:
-				Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-				connection = DriverManager.getConnection(
-						"jdbc:sqlserver://" + dbServerIP + ":" + dbPort + ";databaseName=" + dbName, username,
-						password);
-				testData = "jdbc:sqlserver://" + dbServerIP + ":" + dbPort + ";databaseName=" + dbName;
+
+			case ("sqlserver"):
+				connectionString = "jdbc:sqlserver://" + dbServerIP + ":" + dbPort + ";databaseName=" + dbName;
 				break;
-			// create connection to SQL Server DB
-			case PostgreSql:
-				Class.forName("org.postgresql.Driver");
-				connection = DriverManager.getConnection(
-						"jdbc:postgresql://" + dbServerIP + ":" + dbPort + "/" + dbName, username, password);
-				testData = "jdbc:postgresql://" + dbServerIP + ":" + dbPort + "/" + dbName;
+
+			case ("postgresql"):
+				connectionString = "jdbc:postgresql://" + dbServerIP + ":" + dbPort + "/" + dbName;
 				break;
-			// create connection to oracle DB
-			case Oracle:
+
+			default:
+				ReportManager.log("Database not supported");
+				failAction("createConnection", dbType);
 				break;
 			}
-
-			statement = connection.createStatement();
-			passAction("create DB connection", testData);
+			connection = DriverManager.getConnection(connectionString, username, password);
+			passAction("createConnection", connectionString);
 		} catch (SQLException e) {
 			ReportManager.log(e);
-			failAction("create DB connection", testData);
-		} catch (ClassNotFoundException e) {
+			failAction("createConnection", connectionString);
+		}
+	}
+	
+	/**
+	 * prepare statement for database connection to perform execute query
+	 * 
+	 * 
+	 */
+	
+	private void createStatement() {
+		try {
+			statement = connection.createStatement();
+			passAction("createStatement", connection.toString());
+		} catch (SQLException e) {
 			ReportManager.log(e);
-			failAction("create DB connection", testData);
+			failAction("createStatement", connection.toString());
 		}
 	}
 
@@ -149,25 +151,27 @@ public class DBActions {
 	 * @param dbQuery
 	 * @return ResultSet
 	 * @throws SQLException
+	 * 
+	 * return ResultSet
 	 */
 	public ResultSet executeSelectQuery(String dbQuery) {
+		ResultSet resultSet = null;
 		try {
 			createConnection();
+			createStatement();
 			resultSet = statement.executeQuery(dbQuery);
-			passAction("execute DB query", dbQuery);
-		}
-		catch (SQLException e) {
+			passAction("executeSelectQuery", dbQuery);
+		} catch (SQLException e) {
 			ReportManager.log(e);
-			failAction("execute DB query", dbQuery);
+			failAction("executeSelectQuery", dbQuery);
 		}
-		closeTheConnection();
 		return resultSet;
 	}
 
 	/**
 	 * Close database connection
 	 */
-	private void closeTheConnection() {
+	public void closeConnection() {
 		try {
 			if (resultSet != null)
 				resultSet.close();
@@ -175,10 +179,12 @@ public class DBActions {
 				statement.close();
 			if (connection != null)
 				connection.close();
-			passAction("closing connection", testData);
+			ReportManager.logDiscrete("closeConnection");
+			passAction("closeConnection", connection.toString());
 		} catch (SQLException e) {
 			ReportManager.log(e);
-			failAction("closing connection", testData);
+			ReportManager.logDiscrete("closeConnection");
+			failAction("closeConnection", connection.toString());
 		}
 	}
 }
