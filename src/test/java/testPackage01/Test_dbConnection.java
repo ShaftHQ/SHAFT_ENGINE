@@ -3,9 +3,10 @@ package testPackage01;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
-import com.shaft.support.DBActions;
+import com.shaft.database.DBActions;
 
 public class Test_dbConnection {
 	
@@ -56,5 +57,10 @@ public class Test_dbConnection {
 			e.printStackTrace();
 		}
     }
+	
+	  @AfterMethod
+	    public void afterMethod() {
+		  dbActions.closeConnection();
+	    }
 
 }
