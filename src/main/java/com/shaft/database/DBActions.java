@@ -122,7 +122,7 @@ public class DBActions {
 				break;
 			}
 			connection = DriverManager.getConnection(connectionString, username, password);
-			passAction("createConnection", connectionString);
+			ReportManager.logDiscrete("Connection is created successfully");
 		} catch (SQLException e) {
 			ReportManager.log(e);
 			failAction("createConnection", connectionString);
@@ -138,7 +138,7 @@ public class DBActions {
 	private void createStatement() {
 		try {
 			statement = connection.createStatement();
-			passAction("createStatement", connection.toString());
+			ReportManager.logDiscrete("Statement is created successfully");
 		} catch (SQLException e) {
 			ReportManager.log(e);
 			failAction("createStatement", connection.toString());
@@ -179,11 +179,9 @@ public class DBActions {
 				statement.close();
 			if (connection != null)
 				connection.close();
-			ReportManager.logDiscrete("closeConnection");
-			passAction("closeConnection", connection.toString());
+			ReportManager.logDiscrete("Connection is closed successfully");
 		} catch (SQLException e) {
 			ReportManager.log(e);
-			ReportManager.logDiscrete("closeConnection");
 			failAction("closeConnection", connection.toString());
 		}
 	}
