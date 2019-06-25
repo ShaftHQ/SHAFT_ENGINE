@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.mohies</groupId>
 	<artifactId>SHAFT_ENGINE</artifactId>
-	<version>2.4.20190522</version>
+	<version>2.4.20190609</version>
 	<name>SHAFT_ENGINE</name>
 	<description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
 
@@ -13,6 +13,7 @@
 		<!-- SHAFT_Engine Properties and other property files are read from the 
 			below location -->
 		<propertiesFolderPath>src/test/resources/Properties/</propertiesFolderPath>
+		<propertiesFolderPath_jenkins></propertiesFolderPath_jenkins>
 
 		<!-- SHAFT Test Run Parameters -->
 		<testSuite.name>unitTestSuite</testSuite.name>
@@ -22,10 +23,10 @@
 		<jdk.version>1.8</jdk.version>
 
 		<selenium.version>4.0.0-alpha-1</selenium.version>
-		<allure.version>2.11.0</allure.version>
+		<allure.version>2.12.1</allure.version>
 		<aspectj.version>1.8.10</aspectj.version> <!-- DO NOT UPDATE -->
 
-		<rest-assured.version>3.3.0</rest-assured.version>
+		<rest-assured.version>4.0.0</rest-assured.version>
 		<json-simple.version>1.1.1</json-simple.version>
 		<skyscreamer-jsonassert.version>1.5.0</skyscreamer-jsonassert.version>
 
@@ -45,7 +46,7 @@
 
 		<jcraft-jsch.version>0.1.55</jcraft-jsch.version>
 
-		<cucumber.version>4.3.0</cucumber.version>
+		<cucumber.version>4.3.1</cucumber.version>
 		<appium-java-client.version>6.1.0</appium-java-client.version>
 		<cverges-expect4j.version>1.9</cverges-expect4j.version>
 
@@ -187,16 +188,16 @@
 		<pluginManagement>
 			<!--Plugins -->
 			<plugins>
-				<plugin>
-					<groupId>org.apache.maven.plugins</groupId>
-					<artifactId>maven-resources-plugin</artifactId>
-					<version>${maven-resources-plugin.version}</version>
-					<configuration>
-						<encoding>${encoding.type}</encoding>
-						<inputEncoding>${encoding.type}</inputEncoding>
-						<outputEncoding>${encoding.type}</outputEncoding>
-					</configuration>
-				</plugin>
+				<!-- <plugin> -->
+				<!-- <groupId>org.apache.maven.plugins</groupId> -->
+				<!-- <artifactId>maven-resources-plugin</artifactId> -->
+				<!-- <version>${maven-resources-plugin.version}</version> -->
+				<!-- <configuration> -->
+				<!-- <encoding>${encoding.type}</encoding> -->
+				<!-- <inputEncoding>${encoding.type}</inputEncoding> -->
+				<!-- <outputEncoding>${encoding.type}</outputEncoding> -->
+				<!-- </configuration> -->
+				<!-- </plugin> -->
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-compiler-plugin</artifactId>
@@ -226,6 +227,7 @@
 						<systemPropertyVariables>
 							<shaftEngineVersion>${shaft_engine.version}</shaftEngineVersion>
 							<propertiesFolderPath>${propertiesFolderPath}</propertiesFolderPath>
+							<propertiesFolderPath_jenkins>${propertiesFolderPath_jenkins}</propertiesFolderPath_jenkins>
 						</systemPropertyVariables>
 						<!-- To continue execution after validation errors are thrown in the 
 							before method -->
@@ -247,11 +249,11 @@
 						<properties>
 							<property>
 								<name>usedefaultlisteners</name>
-								<value>true</value>
+								<value>false</value>
 							</property>
 							<property>
 								<name>listener</name>
-								<value>com.shaft.listeners.SuiteListener,com.shaft.listeners.InvokedMethodListener,com.shaft.listeners.TestListener</value>
+								<value>com.shaft.listeners.SuiteListener,com.shaft.listeners.InvokedMethodListener,com.shaft.listeners.AlterSuiteListener</value>
 							</property>
 						</properties>
 					</configuration>

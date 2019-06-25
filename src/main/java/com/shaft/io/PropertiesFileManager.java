@@ -33,7 +33,8 @@ public class PropertiesFileManager {
 	Properties props = System.getProperties();
 	for (int i = 0; i < props.size(); i++) {
 	    String propertyKey = ((String) (props.keySet().toArray())[i]).trim();
-	    if (propertyKey.contains("propertiesFolderPath") && !propertyKey.equals("propertiesFolderPath")) {
+	    if (propertyKey.contains("propertiesFolderPath") && !propertyKey.equals("propertiesFolderPath")
+		    && !props.getProperty(propertyKey).trim().equals("")) {
 		readPropertyFiles(props.getProperty(propertyKey));
 	    }
 	}
