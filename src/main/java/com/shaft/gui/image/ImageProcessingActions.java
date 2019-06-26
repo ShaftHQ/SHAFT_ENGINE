@@ -1,4 +1,4 @@
-package com.shaft.image;
+package com.shaft.gui.image;
 
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
@@ -12,8 +12,8 @@ import javax.imageio.ImageIO;
 
 import org.testng.Assert;
 
-import com.shaft.io.FileActions;
-import com.shaft.io.ReportManager;
+import com.shaft.cli.FileActions;
+import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Assertions;
 import com.shaft.validation.Verifications;
 

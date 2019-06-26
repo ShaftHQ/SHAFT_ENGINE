@@ -6,9 +6,9 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.shaft.browser.BrowserActions;
-import com.shaft.browser.BrowserFactory;
-import com.shaft.element.ElementActions;
+import com.shaft.gui.browser.BrowserActions;
+import com.shaft.gui.browser.BrowserFactory;
+import com.shaft.gui.element.ElementActions;
 
 public class tests_element_elementActions {
     WebDriver driver;

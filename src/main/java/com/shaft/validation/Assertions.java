@@ -4,12 +4,12 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.testng.Assert;
 
-import com.shaft.browser.BrowserActions;
-import com.shaft.element.ElementActions;
-import com.shaft.image.ScreenshotManager;
-import com.shaft.io.FileActions;
-import com.shaft.io.ReportManager;
-import com.shaft.support.JavaActions;
+import com.shaft.cli.FileActions;
+import com.shaft.gui.browser.BrowserActions;
+import com.shaft.gui.element.ElementActions;
+import com.shaft.gui.image.ScreenshotManager;
+import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.support.JavaActions;
 
 public class Assertions {
     private static int attemptsBeforeThrowingElementNotFoundException = Integer

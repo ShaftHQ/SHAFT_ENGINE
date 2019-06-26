@@ -14,8 +14,7 @@ import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
-import com.shaft.io.FileActions;
-import com.shaft.io.ReportManager;
+import com.shaft.tools.io.ReportManager;
 
 public class TerminalActions {
     private String sshHostName = "";

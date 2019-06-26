@@ -1,4 +1,4 @@
-package com.shaft.io;
+package com.shaft.tools.io;
 
 import java.io.FileInputStream;
 import java.io.IOException;

@@ -1,4 +1,4 @@
-package com.shaft.image;
+package com.shaft.gui.image;
 
 //
 
