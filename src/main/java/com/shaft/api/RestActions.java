@@ -18,8 +18,8 @@ import java.util.concurrent.TimeUnit;
 import org.json.JSONObject;
 import org.testng.Assert;
 
-import com.shaft.io.ReportManager;
-import com.shaft.support.JavaActions;
+import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.support.JavaActions;
 import com.shaft.validation.Assertions;
 
 import io.restassured.builder.MultiPartSpecBuilder;

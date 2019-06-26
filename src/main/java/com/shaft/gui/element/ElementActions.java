@@ -1,4 +1,4 @@
-package com.shaft.element;
+package com.shaft.gui.element;
 
 import java.awt.HeadlessException;
 import java.awt.Toolkit;
@@ -31,9 +31,9 @@ import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.testng.Assert;
 
-import com.shaft.browser.BrowserFactory;
-import com.shaft.image.ScreenshotManager;
-import com.shaft.io.ReportManager;
+import com.shaft.gui.browser.BrowserFactory;
+import com.shaft.gui.image.ScreenshotManager;
+import com.shaft.tools.io.ReportManager;
 
 public class ElementActions {
     private static int defaultElementIdentificationTimeout = Integer

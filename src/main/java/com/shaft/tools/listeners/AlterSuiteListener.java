@@ -1,10 +1,12 @@
-package com.shaft.listeners;
+package com.shaft.tools.listeners;
 
 import java.util.List;
 
 import org.testng.IAlterSuiteListener;
 import org.testng.xml.XmlClass;
 import org.testng.xml.XmlSuite;
+
+import com.shaft.tools.io.LogsReporter;
 
 public class AlterSuiteListener implements IAlterSuiteListener {
 
@@ -37,7 +39,7 @@ public class AlterSuiteListener implements IAlterSuiteListener {
 
     private void addLogsReporterToFirstTest(List<XmlSuite> suites) {
 	// alter first test and add the afterSuiteMethod
-	XmlClass logsReporter = new XmlClass("com.shaft.io.LogsReporter");
+	XmlClass logsReporter = new XmlClass(LogsReporter.class.getName());
 	suites.get(0).getTests().get(0).getClasses().add(logsReporter);
     }
 }

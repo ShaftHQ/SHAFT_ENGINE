@@ -1,4 +1,4 @@
-package com.shaft.io;
+package com.shaft.cli;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -10,16 +10,18 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.filefilter.TrueFileFilter;
 import org.apache.commons.lang3.SystemUtils;
 import org.testng.Assert;
 
 import com.google.common.hash.Hashing;
-import com.shaft.cli.TerminalActions;
+import com.shaft.tools.io.ReportManager;
 
 public class FileActions {
     private FileActions() {
@@ -211,10 +213,11 @@ public class FileActions {
     }
 
     /**
-     * * https://www.computerhope.com/unix/ucp.htm
+     * Copies files from sourceDirectory to destinationDirectory using the provided
+     * terminalSession. References: https://www.computerhope.com/unix/ucp.htm
      * https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/robocopy
      * 
-     * @param terminalSession      an object that determines the time of
+     * @param terminalSession      an object that determines the type of
      *                             terminalSession which will be used to execute
      *                             this File Action
      * @param sourceDirectory      full path to the sourceDirectory
@@ -239,6 +242,29 @@ public class FileActions {
 	return terminalSession.performTerminalCommand(command);
     }
 
+    public static String listFilesInDirectory(String targetDirectory) {
+	StringBuilder files = new StringBuilder();
+	try {
+	    Collection<File> filesList = FileUtils.listFiles(new File(targetDirectory), TrueFileFilter.TRUE,
+		    TrueFileFilter.TRUE);
+	    filesList.forEach(file -> {
+		files.append(file.getName() + System.lineSeparator());
+	    });
+	} catch (IllegalArgumentException e) {
+	    ReportManager.log(e);
+	    failAction("listFilesInDirectory", "Failed to list files in this directory: \"" + targetDirectory + "\"");
+	}
+	return files.toString().trim();
+    }
+
+    /**
+     * Lists all files inside the targetDirectory
+     * 
+     * @param terminalSession an object that determines the type of terminalSession
+     *                        which will be used to execute this File Action
+     * @param targetDirectory
+     * @return
+     */
     public static String listFilesInDirectory(TerminalActions terminalSession, String targetDirectory) {
 	List<String> commands;
 	if (isTargetOSUnixBased()) {

@@ -1,4 +1,4 @@
-package com.shaft.io;
+package com.shaft.tools.io;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -18,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Reporter;
 
+import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 
 import io.qameta.allure.Allure;

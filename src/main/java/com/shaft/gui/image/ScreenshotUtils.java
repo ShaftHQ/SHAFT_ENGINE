@@ -1,4 +1,4 @@
-package com.shaft.image;
+package com.shaft.gui.image;
 
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;

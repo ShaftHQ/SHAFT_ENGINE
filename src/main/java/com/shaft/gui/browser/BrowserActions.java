@@ -1,4 +1,4 @@
-package com.shaft.browser;
+package com.shaft.gui.browser;
 
 import java.awt.HeadlessException;
 import java.awt.Toolkit;
@@ -16,10 +16,10 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.testng.Assert;
 
-import com.shaft.element.ElementActions;
-import com.shaft.element.JSWaiter;
-import com.shaft.image.ScreenshotManager;
-import com.shaft.io.ReportManager;
+import com.shaft.gui.element.ElementActions;
+import com.shaft.gui.element.JSWaiter;
+import com.shaft.gui.image.ScreenshotManager;
+import com.shaft.tools.io.ReportManager;
 
 public class BrowserActions {
     private static final Boolean HEADLESS_EXECUTION = Boolean.valueOf(System.getProperty("headlessExecution").trim());
