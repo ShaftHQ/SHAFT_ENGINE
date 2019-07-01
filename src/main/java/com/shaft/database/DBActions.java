@@ -5,6 +5,7 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 
 import org.testng.Assert;
 
@@ -98,7 +99,7 @@ public class DBActions {
 	 * 
 	 * 
 	 */
-	
+
 	private void createConnection() {
 		String connectionString = "";
 		try {
@@ -128,13 +129,13 @@ public class DBActions {
 			failAction("createConnection", connectionString);
 		}
 	}
-	
+
 	/**
 	 * prepare statement for database connection to perform execute query
 	 * 
 	 * 
 	 */
-	
+
 	private void createStatement() {
 		try {
 			statement = connection.createStatement();
@@ -149,13 +150,10 @@ public class DBActions {
 	 * execute DB query and return the result as ResultSet object
 	 * 
 	 * @param dbQuery
-	 * @return ResultSet
-	 * @throws SQLException
 	 * 
-	 * return ResultSet
 	 */
-	public ResultSet executeSelectQuery(String dbQuery) {
-		ResultSet resultSet = null;
+	public void executeSelectQuery(String dbQuery) {
+		resultSet = null;
 		try {
 			createConnection();
 			createStatement();
@@ -165,11 +163,78 @@ public class DBActions {
 			ReportManager.log(e);
 			failAction("executeSelectQuery", dbQuery);
 		}
-		return resultSet;
+	}
+	
+	/**
+	 * Retrieve single string value from resultset 
+	 * @param dataType
+	 * @param columnIndex after executing query
+	 * @return string value
+	 */
+
+	public String retrieveSingleValue(String dataType, int columnIndex) {
+		int intSearchResult;
+		String stringSearchResult;
+		try {
+			while (resultSet.next()) {
+				switch (dataType.toLowerCase().trim()) {
+				case ("int"):
+					intSearchResult = resultSet.getInt(columnIndex); 
+					return String.valueOf(intSearchResult);
+				case ("string"):
+					stringSearchResult = resultSet.getString(columnIndex);
+					return stringSearchResult;
+				default:
+					ReportManager.log("Data type is not supported");
+					failAction("retrieveSingleValue", dbType);
+					break;
+				}
+			}
+		} catch (SQLException e) {
+			ReportManager.log(e);
+			failAction("retrieveSingleDataValue", dataType);
+		}
+		return "";
+	}
+	
+	/**
+	 * Retrieve string list from resultset 
+	 * @param columnIndex
+	 * @return list of strings
+	 */
+	
+	public ArrayList<String> retrieveStringList(int columnIndex){
+		ArrayList<String> retrievedList = new ArrayList<String>();
+		try {
+			while (resultSet.next()) {
+				retrievedList.add(resultSet.getString(columnIndex));
+			}
+		} catch (SQLException e) {
+			ReportManager.log(e);
+			failAction("retrieveStringList","");
+		}
+		return retrievedList;
 	}
 
 	/**
-	 * Close database connection
+	 * execute DB queries including DELETE\UPDATE\INSERT
+	 * 
+	 * @param dbQuery
+	 */
+	public void executeUpdateQuery(String dbQuery) {
+		createConnection();
+		createStatement();
+		try {
+			statement.executeUpdate(dbQuery);
+			passAction("executeUpdateQuery", dbQuery);
+		} catch (SQLException e) {
+			ReportManager.log(e);
+			failAction("executeUpdateQuery", dbQuery);
+		}
+	}
+
+	/**
+	 * Close database connection, resultset and statement
 	 */
 	public void closeConnection() {
 		try {
