@@ -64,6 +64,10 @@ public class DatabaseActions {
 	}
     }
 
+    private static void passAction(String actionName) {
+	passAction(actionName, null, null);
+    }
+
     private static void failAction(String actionName, String testData) {
 	String message = "Failed to perform action [" + actionName + "].";
 	if (testData != null) {
@@ -71,6 +75,10 @@ public class DatabaseActions {
 	}
 	ReportManager.log(message);
 	Assert.fail(message);
+    }
+
+    private static void failAction(String actionName) {
+	failAction(actionName, null);
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -212,15 +220,14 @@ public class DatabaseActions {
 	    }
 	} catch (SQLException | NullPointerException e) {
 	    ReportManager.log(e);
-	    failAction("getStringFromResultSet",
-		    "Couldn't extract string from resultSet object due to an unhandled exception.");
+	    failAction("getStringFromResultSet");
 	}
 	return str.toString().trim();
     }
 
     public static String getResultSetValue(ResultSet resultSet) {
 	String resultSetString = getStringFromResultSet(resultSet);
-	passAction("getResultSetValue", "Successfully extracted string from resultSet", resultSetString);
+	passAction("getResultSetValue");
 	return resultSetString;
     }
 }
