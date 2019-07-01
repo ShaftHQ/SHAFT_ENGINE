@@ -129,7 +129,7 @@ public class DatabaseActions {
 	}
 
 	if (connection != null) {
-	    ReportManager.logDiscrete("Connection is created successfully");
+	    ReportManager.logDiscrete("Connection created successfully");
 	} else {
 	    failAction("createConnection", "Failed to create a connection with this string [" + connectionString
 		    + "] due to an unhandled exception.");
@@ -160,7 +160,7 @@ public class DatabaseActions {
 	}
 
 	if (statement != null) {
-	    ReportManager.logDiscrete("Statement is created successfully");
+	    ReportManager.logDiscrete("Statement created successfully");
 	} else {
 	    failAction("createConnection", "Failed to create a statement with this string [" + connection.toString()
 		    + "] due to an unhandled exception.");
