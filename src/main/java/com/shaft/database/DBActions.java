@@ -244,7 +244,7 @@ public class DBActions {
 				statement.close();
 			if (connection != null)
 				connection.close();
-			ReportManager.logDiscrete("Connection is closed successfully");
+			passAction("closeConnection", connection.toString());
 		} catch (SQLException e) {
 			ReportManager.log(e);
 			failAction("closeConnection", connection.toString());
