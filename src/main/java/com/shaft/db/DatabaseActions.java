@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Statement;
 import java.util.concurrent.Executors;
 
@@ -18,20 +19,12 @@ import com.shaft.tools.io.ReportManager;
  */
 
 public class DatabaseActions {
-
-//    private Connection connection;
-//    private Statement statement;
-//    private ResultSet resultSet;
     private String dbType;
     private String dbServerIP;
     private String dbPort;
     private String dbName;
     private String username;
     private String password;
-
-    private int databaseLoginTimeout = 10; // seconds
-    private int databaseNetworkTimeout = 60; // seconds
-    private int queryTimeout = 60; // seconds
 
     /**
      * This constructor is used for initializing database variables that needed to
@@ -46,7 +39,6 @@ public class DatabaseActions {
      * @param username   database username
      * @param password   password of database user
      */
-
     public DatabaseActions(String dbType, String dbServerIP, String dbPort, String dbName, String username,
 	    String password) {
 	this.dbType = dbType;
@@ -61,35 +53,24 @@ public class DatabaseActions {
     //////////////////////////////////// [private] Reporting Actions
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    private void passAction(String actionName, String testData, String log) {
+    private static void passAction(String actionName, String testData, String queryResult) {
 	String message = "Successfully performed action [" + actionName + "].";
 	if (testData != null) {
 	    message = message + " With the following test data [" + testData + "].";
 	}
 	ReportManager.log(message);
-	if (log != null) {
-	    ReportManager.attachAsStep("Passed", "DB Connection Log", log);
+	if (queryResult != null) {
+	    ReportManager.attachAsStep("DB Response", "Query Result", queryResult);
 	}
     }
 
-    private void passAction(String actionName, String testData) {
-	passAction(actionName, testData, null);
-    }
-
-    private void failAction(String actionName, String testData, String log) {
+    private static void failAction(String actionName, String testData) {
 	String message = "Failed to perform action [" + actionName + "].";
 	if (testData != null) {
 	    message = message + " With the following test data [" + testData + "].";
 	}
 	ReportManager.log(message);
-	if (log != null) {
-	    ReportManager.attachAsStep("Failed", "DB Connection Log", log);
-	}
 	Assert.fail(message);
-    }
-
-    private void failAction(String actionName, String testData) {
-	failAction(actionName, testData, null);
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -125,13 +106,25 @@ public class DatabaseActions {
 		failAction("createConnection", dbType);
 		break;
 	    }
-	    DriverManager.setLoginTimeout(databaseLoginTimeout);
+	    DriverManager.setLoginTimeout(Integer.parseInt(System.getProperty("databaseLoginTimeout")));
 	    connection = DriverManager.getConnection(connectionString, username, password);
-	    connection.setNetworkTimeout(Executors.newFixedThreadPool(1), databaseNetworkTimeout * 60000);
-	    ReportManager.logDiscrete("Connection is created successfully");
+
+	    if (!dbType.toLowerCase().trim().equals("mysql") && !dbType.toLowerCase().trim().equals("postgresql")) {
+		// com.mysql.jdbc.JDBC4Connection.setNetworkTimeout
+		// org.postgresql.jdbc4.Jdbc4Connection.setNetworkTimeout
+		connection.setNetworkTimeout(Executors.newFixedThreadPool(1),
+			Integer.parseInt(System.getProperty("databaseNetworkTimeout")) * 60000);
+	    }
 	} catch (SQLException e) {
 	    ReportManager.log(e);
 	    failAction("createConnection", connectionString);
+	}
+
+	if (connection != null) {
+	    ReportManager.logDiscrete("Connection is created successfully");
+	} else {
+	    failAction("createConnection", "Failed to create a connection with this string [" + connectionString
+		    + "] due to an unhandled exception.");
 	}
 	return connection;
     }
@@ -145,13 +138,26 @@ public class DatabaseActions {
     private Statement createStatement(Connection connection) {
 	Statement statement = null;
 	try {
-	    statement = connection.createStatement();
-	    statement.setQueryTimeout(queryTimeout);
-	    ReportManager.logDiscrete("Statement is created successfully");
+	    statement = connection.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
+	    // https://www.tutorialspoint.com/jdbc/jdbc-result-sets.htm
+	    statement.setQueryTimeout(Integer.parseInt(System.getProperty("databaseQueryTimeout")));
+	} catch (SQLFeatureNotSupportedException e) {
+	    if (!e.getMessage().contains("org.postgresql.jdbc4.Jdbc4Statement.setQueryTimeout")) {
+		ReportManager.log(e);
+		failAction("createConnection", connection.toString());
+	    }
 	} catch (SQLException e) {
 	    ReportManager.log(e);
 	    failAction("createStatement", connection.toString());
 	}
+
+	if (statement != null) {
+	    ReportManager.logDiscrete("Statement is created successfully");
+	} else {
+	    failAction("createConnection", "Failed to create a statement with this string [" + connection.toString()
+		    + "] due to an unhandled exception.");
+	}
+
 	return statement;
     }
 
@@ -167,30 +173,54 @@ public class DatabaseActions {
 	ResultSet resultSet = null;
 	try {
 	    resultSet = createStatement(createConnection()).executeQuery(dbQuery);
-	    passAction("executeSelectQuery", dbQuery);
 	} catch (SQLException | NullPointerException e) {
 	    ReportManager.log(e);
 	    failAction("executeSelectQuery", dbQuery);
 	}
-//	resultSet
+
+	if (resultSet != null) {
+	    passAction("executeSelectQuery", dbQuery, getStringFromResultSet(resultSet));
+	} else {
+	    failAction("executeSelectQuery",
+		    "Null or no resultSet was returned from executing this query [" + dbQuery + "]");
+	}
+
 	return resultSet;
     }
 
-//    /**
-//     * Close database connection
-//     */
-//    private void closeConnection() {
-//	try {
-//	    if (resultSet != null)
-//		resultSet.close();
-//	    if (statement != null)
-//		statement.close();
-//	    if (connection != null)
-//		connection.close();
-//	    ReportManager.logDiscrete("Connection is closed successfully");
-//	} catch (SQLException e) {
-//	    ReportManager.log(e);
-//	    failAction("closeConnection", connection.toString());
-//	}
-//    }
+    private static String getStringFromResultSet(ResultSet resultSet) {
+	StringBuilder str = new StringBuilder();
+
+	try {
+	    if (resultSet.last()) {
+		int lastRowID = resultSet.getRow();
+		for (int i = 1; i <= lastRowID; i++) {
+		    resultSet.absolute(i);
+		    int currentColumnIndex = 1;
+		    boolean reachedLastColumn = false;
+		    do {
+			try {
+			    str.append(String.valueOf(resultSet.getString(currentColumnIndex)) + "\t");
+			} catch (SQLException e) {
+			    reachedLastColumn = true;
+			    str.append("\n");
+			}
+			currentColumnIndex++;
+		    } while (!reachedLastColumn);
+		}
+		resultSet.beforeFirst(); // reset pointer
+	    }
+	} catch (SQLException | NullPointerException e) {
+	    ReportManager.log(e);
+	    failAction("getStringFromResultSet",
+		    "Couldn't extract string from resultSet object due to an unhandled exception.");
+	}
+	return str.toString().trim();
+    }
+
+    public static String getResultSetValue(ResultSet resultSet) {
+	String resultSetString = getStringFromResultSet(resultSet);
+	passAction("getResultSetValue", "Successfully extracted string from resultSet", resultSetString);
+	return resultSetString;
+    }
 }
