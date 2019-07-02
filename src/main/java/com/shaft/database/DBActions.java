@@ -181,10 +181,12 @@ public class DBActions {
 				case ("int"):
 					intSearchResult = resultSet.getInt(columnIndex); 
 					closeConnection();
+					passAction("retrieveSingleValue", String.valueOf(intSearchResult));
 					return String.valueOf(intSearchResult);
 				case ("string"):
 					stringSearchResult = resultSet.getString(columnIndex);
 					closeConnection();
+					passAction("retrieveSingleValue", String.valueOf(stringSearchResult));
 					return stringSearchResult;
 				default:
 					ReportManager.log("Data type is not supported");
@@ -211,6 +213,7 @@ public class DBActions {
 		try {
 			while (resultSet.next()) {
 				retrievedList.add(resultSet.getString(columnIndex));
+				passAction("retrieveStringList", "");
 			}
 		} catch (SQLException e) {
 			ReportManager.log(e);
