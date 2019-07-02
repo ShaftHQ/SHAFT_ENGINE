@@ -1,4 +1,4 @@
-package com.shaft.browser;
+package com.shaft.gui.browser;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -32,10 +32,10 @@ import org.openqa.selenium.safari.SafariDriver;
 import org.openqa.selenium.safari.SafariOptions;
 import org.testng.Assert;
 
-import com.shaft.element.JSWaiter;
-import com.shaft.image.ScreenshotManager;
-import com.shaft.io.FileActions;
-import com.shaft.io.ReportManager;
+import com.shaft.cli.FileActions;
+import com.shaft.gui.element.JSWaiter;
+import com.shaft.gui.image.ScreenshotManager;
+import com.shaft.tools.io.ReportManager;
 
 public class BrowserFactory {
 

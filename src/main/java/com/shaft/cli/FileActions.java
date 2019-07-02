@@ -1,4 +1,4 @@
-package com.shaft.io;
+package com.shaft.cli;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -10,18 +10,42 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.filefilter.TrueFileFilter;
 import org.apache.commons.lang3.SystemUtils;
+import org.testng.Assert;
 
-import com.shaft.cli.TerminalActions;
+import com.google.common.hash.Hashing;
+import com.shaft.tools.io.ReportManager;
 
 public class FileActions {
     private FileActions() {
 	throw new IllegalStateException("Utility class");
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////// [private] Reporting Actions
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    private static void failAction(String actionName, String testData, String log) {
+	String message = "Failed to perform action [" + actionName + "].";
+	if (testData != null) {
+	    message = message + " With the following test data [" + testData + "].";
+	}
+	ReportManager.log(message);
+	if ((log != null) && (!log.trim().equals(""))) {
+	    ReportManager.attachAsStep("API Response", "Command Log", log);
+	}
+	Assert.fail(message);
+    }
+
+    private static void failAction(String actionName, String testData) {
+	failAction(actionName, testData, null);
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -189,10 +213,11 @@ public class FileActions {
     }
 
     /**
-     * * https://www.computerhope.com/unix/ucp.htm
+     * Copies files from sourceDirectory to destinationDirectory using the provided
+     * terminalSession. References: https://www.computerhope.com/unix/ucp.htm
      * https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/robocopy
      * 
-     * @param terminalSession      an object that determines the time of
+     * @param terminalSession      an object that determines the type of
      *                             terminalSession which will be used to execute
      *                             this File Action
      * @param sourceDirectory      full path to the sourceDirectory
@@ -210,13 +235,36 @@ public class FileActions {
 	    } else {
 		command = "rsync --verbose --recursive " + sourceDirectory + File.separator + fileName + " "
 			+ destinationDirectory + File.separator;
-	    }	    
+	    }
 	} else {
 	    command = "robocopy  /e /v /fp " + sourceDirectory + " " + destinationDirectory + " " + fileName;
 	}
 	return terminalSession.performTerminalCommand(command);
     }
 
+    public static String listFilesInDirectory(String targetDirectory) {
+	StringBuilder files = new StringBuilder();
+	try {
+	    Collection<File> filesList = FileUtils.listFiles(new File(targetDirectory), TrueFileFilter.TRUE,
+		    TrueFileFilter.TRUE);
+	    filesList.forEach(file -> {
+		files.append(file.getName() + System.lineSeparator());
+	    });
+	} catch (IllegalArgumentException e) {
+	    ReportManager.log(e);
+	    failAction("listFilesInDirectory", "Failed to list files in this directory: \"" + targetDirectory + "\"");
+	}
+	return files.toString().trim();
+    }
+
+    /**
+     * Lists all files inside the targetDirectory
+     * 
+     * @param terminalSession an object that determines the type of terminalSession
+     *                        which will be used to execute this File Action
+     * @param targetDirectory
+     * @return
+     */
     public static String listFilesInDirectory(TerminalActions terminalSession, String targetDirectory) {
 	List<String> commands;
 	if (isTargetOSUnixBased()) {
@@ -225,6 +273,129 @@ public class FileActions {
 	    commands = Arrays.asList("dir " + targetDirectory);
 	}
 	return terminalSession.performTerminalCommands(commands);
+    }
+
+    /**
+     * This method is used to compute the SHA256 checksum for any file. This
+     * checksum can be used to compare two files and confirm that they are
+     * identical, regardless of the file type.
+     * 
+     * @param terminalSession                    provides information about the
+     *                                           machine which contains the target
+     *                                           file
+     * @param targetFileFolderPath               the full absolute path of the
+     *                                           folder that contains the target
+     *                                           file, must end with a slash "/"
+     * @param targetFileName                     the name and extension of the
+     *                                           target file
+     * @param pathToTempDirectoryOnRemoteMachine [OPTIONAL] to be used in case of
+     *                                           dockerized target machine. This is
+     *                                           a temporary directory that will be
+     *                                           created on the remote machine to
+     *                                           extract a file from inside a
+     *                                           docker, and will be deleted
+     *                                           afterwards
+     * @return a string that holds the SHA256 checksum for the target file
+     */
+    public static String getFileChecksum(TerminalActions terminalSession, String targetFileFolderPath,
+	    String targetFileName, String... pathToTempDirectoryOnRemoteMachine) {
+
+	String targetFilePath = copyFileToLocalMachine(terminalSession, targetFileFolderPath, targetFileName,
+		pathToTempDirectoryOnRemoteMachine);
+
+	// read file
+	byte[] fileBytes;
+	String sha256 = "";
+	try {
+	    fileBytes = Files.readAllBytes(Paths.get(targetFilePath));
+	    sha256 = Hashing.sha256().hashBytes(fileBytes).toString();
+	} catch (IOException e) {
+	    ReportManager.log(e);
+	    failAction("getFileChecksum", "Failed to read file \"" + targetFilePath + "\"");
+	}
+	ReportManager.logDiscrete(
+		"Successfully calculated SHA-256: \"" + sha256 + "\" from this file \"" + targetFilePath + "\"");
+	return sha256;
+    }
+
+    /**
+     * This method is used to copy a certain file from a remote machine (dockerized
+     * or not) to the current execution machine.
+     * 
+     * @param terminalSession                    provides information about the
+     *                                           machine which contains the target
+     *                                           file
+     * @param targetFileFolderPath               the full absolute path of the
+     *                                           folder that contains the target
+     *                                           file, must end with a slash "/"
+     * @param targetFileName                     the name and extension of the
+     *                                           target file
+     * @param pathToTempDirectoryOnRemoteMachine [OPTIONAL] to be used in case of
+     *                                           dockerized target machine. This is
+     *                                           a temporary directory that will be
+     *                                           created on the remote machine to
+     *                                           extract a file from inside a
+     *                                           docker, and will be deleted
+     *                                           afterwards
+     * @return a string that holds the full absolute path (inside a temporary
+     *         folder) for the file that was copied to the local machine
+     */
+    public static String copyFileToLocalMachine(TerminalActions terminalSession, String targetFileFolderPath,
+	    String targetFileName, String... pathToTempDirectoryOnRemoteMachine) {
+	String targetFilePath = targetFileFolderPath + targetFileName;
+	TerminalActions terminalSessionForRemoteMachine = new TerminalActions();
+
+	// fetch file from inside docker to the machine itself
+	if (terminalSession.isDockerizedTerminal()) {
+	    terminalSessionForRemoteMachine = new TerminalActions(terminalSession.getSshHostName(),
+		    terminalSession.getSshPortNumber(), terminalSession.getSshUsername(),
+		    terminalSession.getSshKeyFileFolderName(), terminalSession.getSshKeyFileName());
+
+	    // copy from docker to machine
+	    terminalSessionForRemoteMachine.performTerminalCommand("rm -r " + pathToTempDirectoryOnRemoteMachine[0]);
+	    terminalSessionForRemoteMachine
+		    .performTerminalCommand("mkdir -p " + pathToTempDirectoryOnRemoteMachine[0] + targetFileFolderPath);
+	    terminalSessionForRemoteMachine.performTerminalCommand("docker cp " + terminalSession.getDockerName() + ":"
+		    + targetFilePath + " " + pathToTempDirectoryOnRemoteMachine[0] + targetFilePath);
+	    targetFilePath = pathToTempDirectoryOnRemoteMachine[0] + targetFilePath;
+	}
+
+	// fetch file from terminal session to local machine
+	if (terminalSession.isRemoteTerminal()) {
+	    // remote regular
+	    String sshParameters = "-i " + FileActions.getAbsolutePath(terminalSession.getSshKeyFileFolderName(),
+		    terminalSession.getSshKeyFileName()) + " -P " + terminalSession.getSshPortNumber();
+
+	    String pathToRemoteFileThatWillBeCopied = targetFilePath;
+	    String source = terminalSession.getSshUsername() + "@" + terminalSession.getSshHostName() + ":"
+		    + pathToRemoteFileThatWillBeCopied;
+
+	    // creating local temp directory
+	    String pathToLocalParentFolder = FileActions.getAbsolutePath("target/temp");
+	    FileActions.deleteFolder(pathToLocalParentFolder);
+	    FileActions.createFolder(pathToLocalParentFolder);
+
+	    String destination = pathToLocalParentFolder + "/" + targetFileName;
+	    targetFilePath = destination;
+
+	    String command = "scp -v -o StrictHostKeyChecking=no " + sshParameters + " -r " + source + " "
+		    + destination;
+
+	    // restricting file access to bypass jenkins issue
+	    (new TerminalActions()).performTerminalCommand("chmod 400 " + FileActions
+		    .getAbsolutePath(terminalSession.getSshKeyFileFolderName(), terminalSession.getSshKeyFileName()));
+
+	    (new TerminalActions()).performTerminalCommand(command);
+	} else {
+	    // local regular
+	    // it's already on the local machine so no need to do anything here
+	}
+
+	// clean temp directory on remote machine
+	if (terminalSession.isDockerizedTerminal() && terminalSession.isRemoteTerminal()) {
+	    terminalSessionForRemoteMachine.performTerminalCommand("rm -r " + pathToTempDirectoryOnRemoteMachine);
+	}
+	return targetFilePath;
     }
 
     /**
@@ -373,5 +544,4 @@ public class FileActions {
 	}
 	return result;
     }
-
 }

@@ -1,4 +1,4 @@
-package com.shaft.image;
+package com.shaft.gui.image;
 
 import java.awt.AlphaComposite;
 import java.awt.Color;
@@ -32,11 +32,11 @@ import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
 import org.testng.Reporter;
 
-import com.shaft.browser.BrowserFactory;
-import com.shaft.element.ElementActions;
-import com.shaft.element.JSWaiter;
-import com.shaft.io.FileActions;
-import com.shaft.io.ReportManager;
+import com.shaft.cli.FileActions;
+import com.shaft.gui.browser.BrowserFactory;
+import com.shaft.gui.element.ElementActions;
+import com.shaft.gui.element.JSWaiter;
+import com.shaft.tools.io.ReportManager;
 
 public class ScreenshotManager {
     private static final String SCREENSHOT_FOLDERPATH = "allure-results/screenshots/";

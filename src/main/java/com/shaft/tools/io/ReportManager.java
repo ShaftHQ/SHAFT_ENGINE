@@ -1,4 +1,4 @@
-package com.shaft.io;
+package com.shaft.tools.io;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -18,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Reporter;
 
+import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 
 import io.qameta.allure.Allure;
@@ -275,24 +276,25 @@ public class ReportManager {
      * Format an exception message and stack trace, and calls attach to add it as a
      * log entry.
      * 
-     * @param e the exception that will be logged in this action
+     * @param t the throwable (exception or error) that will be logged in this
+     *          action
      */
-    public static void log(Exception e) {
+    public static void log(Throwable t) {
 	StringBuilder logBuilder = new StringBuilder();
 	String logText = "";
-	StackTraceElement[] trace = e.getStackTrace();
+	StackTraceElement[] trace = t.getStackTrace();
 
 	// enhance to include exception type
 
 	logBuilder.append(
-		e.getClass().getName() + ":" + System.lineSeparator() + e.getMessage() + System.lineSeparator());
+		t.getClass().getName() + ":" + System.lineSeparator() + t.getMessage() + System.lineSeparator());
 
 	for (int i = 0; i < trace.length; ++i) {
 	    logBuilder.append(trace[i].toString() + System.lineSeparator());
 	}
 	logText = logBuilder.toString();
 
-	attachAsStep("Exception Stack Trace", e.getClass().getName(), logText);
+	attachAsStep("Exception Stack Trace", t.getClass().getName(), logText);
 	actionCounter++;
     }
 

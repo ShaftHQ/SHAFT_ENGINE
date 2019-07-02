@@ -1,10 +1,10 @@
-package com.shaft.listeners;
+package com.shaft.tools.listeners;
 
 import org.testng.ISuite;
 import org.testng.ISuiteListener;
 
-import com.shaft.io.PropertiesFileManager;
-import com.shaft.io.ReportManager;
+import com.shaft.tools.io.PropertiesFileManager;
+import com.shaft.tools.io.ReportManager;
 
 public class SuiteListener implements ISuiteListener {
 

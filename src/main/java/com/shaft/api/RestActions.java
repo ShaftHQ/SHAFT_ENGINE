@@ -18,8 +18,8 @@ import java.util.concurrent.TimeUnit;
 import org.json.JSONObject;
 import org.testng.Assert;
 
-import com.shaft.io.ReportManager;
-import com.shaft.support.JavaActions;
+import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.support.JavaActions;
 import com.shaft.validation.Assertions;
 
 import io.restassured.builder.MultiPartSpecBuilder;
@@ -384,7 +384,15 @@ public class RestActions {
      * @return a string value that contains the extracted object
      */
     public String getResponseJSONValue(Response response, String jsonPath) {
-	String searchPool = response.jsonPath().getString(jsonPath);
+	String searchPool = "";
+	try {
+	    searchPool = response.jsonPath().getString(jsonPath);
+	} catch (ClassCastException e) {
+	    ReportManager.log(
+		    "Either desired jsonPath \"NOT CORRECT\" or couldn't find anything that matches with the desired jsonPath ["
+			    + jsonPath + "]");
+	    failAction("getResponseJSONValue", jsonPath);
+	}
 	if (searchPool != null) {
 	    passAction("getResponseJSONValue", jsonPath);
 	    return searchPool;
@@ -402,7 +410,15 @@ public class RestActions {
 	@SuppressWarnings("unchecked")
 	JSONObject obj = new JSONObject((java.util.HashMap<String, String>) response);
 
-	String searchPool = JsonPath.from(obj.toString()).getString(jsonPath);
+	String searchPool = "";
+	try {
+	    searchPool = JsonPath.from(obj.toString()).getString(jsonPath);
+	} catch (ClassCastException e) {
+	    ReportManager.log(
+		    "Either desired jsonPath \"NOT CORRECT\" or couldn't find anything that matches with the desired jsonPath ["
+			    + jsonPath + "]");
+	    failAction("getResponseJSONValue", jsonPath);
+	}
 	if (searchPool != null) {
 	    passAction("getResponseJSONValue", jsonPath);
 	    return searchPool;
@@ -417,7 +433,16 @@ public class RestActions {
     }
 
     public List<Object> getResponseJSONValueAsList(Response response, String jsonPath) {
-	List<Object> searchPool = response.jsonPath().getList(jsonPath);
+	List<Object> searchPool = null;
+	try {
+	    searchPool = response.jsonPath().getList(jsonPath);
+	} catch (ClassCastException e) {
+	    ReportManager.log(
+		    "Either desired jsonPath \"NOT CORRECT\" or couldn't find anything that matches with the desired jsonPath ["
+			    + jsonPath + "]");
+	    failAction("getResponseJSONValue", jsonPath);
+
+	}
 	if (searchPool != null) {
 	    passAction("getResponseJSONValueAsList", jsonPath);
 	    return searchPool;
@@ -432,7 +457,16 @@ public class RestActions {
     }
 
     public String getResponseXMLValue(Response response, String xmlPath) {
-	String searchPool = response.xmlPath().getString(xmlPath);
+	String searchPool = "";
+	try {
+	    searchPool = response.xmlPath().getString(xmlPath);
+	} catch (ClassCastException e) {
+	    ReportManager.log(
+		    "Either desired xmlPath \"NOT CORRECT\" or couldn't find anything that matches with the desired xmlPath ["
+			    + xmlPath + "]");
+	    failAction("getResponseJSONValue", xmlPath);
+
+	}
 	if (searchPool != null) {
 	    passAction("getResponseXMLValue", xmlPath);
 	    return searchPool;
@@ -447,7 +481,16 @@ public class RestActions {
     }
 
     public String getResponseXMLValue(Object response, String xmlPath) {
-	String output = ((Node) response).getAttribute(xmlPath);
+	String output = "";
+	try {
+	    output = ((Node) response).getAttribute(xmlPath);
+	} catch (ClassCastException e) {
+	    ReportManager.log(
+		    "Either desired xmlPath \"NOT CORRECT\" or couldn't find anything that matches with the desired xmlPath ["
+			    + xmlPath + "]");
+	    failAction("getResponseJSONValue", xmlPath);
+
+	}
 	if (output != null) {
 	    passAction("getResponseXMLValueAsList", xmlPath);
 	    return output;
@@ -468,7 +511,17 @@ public class RestActions {
      * @return
      */
     public List<Object> getResponseXMLValueAsList(Response response, String xmlPath) {
-	NodeChildren output = response.xmlPath().get(xmlPath);
+	NodeChildren output = null;
+	try {
+	    output = response.xmlPath().get(xmlPath);
+
+	} catch (ClassCastException e) {
+	    ReportManager.log(
+		    "Either desired xmlPath \"NOT CORRECT\" or couldn't find anything that matches with the desired xmlPath ["
+			    + xmlPath + "]");
+	    failAction("getResponseJSONValue", xmlPath);
+
+	}
 
 	List<Node> nodes = output.list();
 	List<Object> searchPool = Arrays.asList(nodes.toArray());
