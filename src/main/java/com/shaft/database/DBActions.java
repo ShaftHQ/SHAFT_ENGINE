@@ -180,9 +180,11 @@ public class DBActions {
 				switch (dataType.toLowerCase().trim()) {
 				case ("int"):
 					intSearchResult = resultSet.getInt(columnIndex); 
+					closeConnection();
 					return String.valueOf(intSearchResult);
 				case ("string"):
 					stringSearchResult = resultSet.getString(columnIndex);
+					closeConnection();
 					return stringSearchResult;
 				default:
 					ReportManager.log("Data type is not supported");
@@ -194,6 +196,7 @@ public class DBActions {
 			ReportManager.log(e);
 			failAction("retrieveSingleDataValue", dataType);
 		}
+		closeConnection();
 		return "";
 	}
 	
@@ -213,6 +216,7 @@ public class DBActions {
 			ReportManager.log(e);
 			failAction("retrieveStringList","");
 		}
+		closeConnection();
 		return retrievedList;
 	}
 
@@ -231,12 +235,13 @@ public class DBActions {
 			ReportManager.log(e);
 			failAction("executeUpdateQuery", dbQuery);
 		}
+		closeConnection();
 	}
 
 	/**
 	 * Close database connection, resultset and statement
 	 */
-	public void closeConnection() {
+	private void closeConnection() {
 		try {
 			if (resultSet != null)
 				resultSet.close();
@@ -244,7 +249,7 @@ public class DBActions {
 				statement.close();
 			if (connection != null)
 				connection.close();
-			passAction("closeConnection", connection.toString());
+			ReportManager.logDiscrete("connection is closed successfully");
 		} catch (SQLException e) {
 			ReportManager.log(e);
 			failAction("closeConnection", connection.toString());
