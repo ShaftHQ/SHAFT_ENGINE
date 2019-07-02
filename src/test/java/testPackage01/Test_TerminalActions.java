@@ -4,8 +4,8 @@ import java.util.Arrays;
 
 import org.testng.annotations.Test;
 
+import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
-import com.shaft.io.FileActions;
 import com.shaft.validation.Assertions;
 
 public class Test_TerminalActions {

@@ -1,10 +1,10 @@
-package com.shaft.support;
+package com.shaft.tools.support;
 
 import java.util.Base64;
 
 import org.testng.Assert;
 
-import com.shaft.io.ReportManager;
+import com.shaft.tools.io.ReportManager;
 
 public class JavaActions {
 

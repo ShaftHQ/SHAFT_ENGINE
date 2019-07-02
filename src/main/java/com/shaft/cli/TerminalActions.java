@@ -14,8 +14,7 @@ import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
-import com.shaft.io.FileActions;
-import com.shaft.io.ReportManager;
+import com.shaft.tools.io.ReportManager;
 
 public class TerminalActions {
     private String sshHostName = "";
@@ -182,11 +181,11 @@ public class TerminalActions {
 	return session;
     }
 
-    private boolean isRemoteTerminal() {
+    public boolean isRemoteTerminal() {
 	return !sshHostName.equals("");
     }
 
-    private boolean isDockerizedTerminal() {
+    public boolean isDockerizedTerminal() {
 	return !dockerName.equals("");
     }
 
@@ -315,6 +314,34 @@ public class TerminalActions {
 
     public String performTerminalCommand(String command) {
 	return performTerminalCommands(Arrays.asList(command));
+    }
+
+    public String getSshHostName() {
+	return sshHostName;
+    }
+
+    public String getSshUsername() {
+	return sshUsername;
+    }
+
+    public String getSshKeyFileFolderName() {
+	return sshKeyFileFolderName;
+    }
+
+    public String getSshKeyFileName() {
+	return sshKeyFileName;
+    }
+
+    public int getSshPortNumber() {
+	return sshPortNumber;
+    }
+
+    public String getDockerName() {
+	return dockerName;
+    }
+
+    public String getDockerUsername() {
+	return dockerUsername;
     }
 
 }

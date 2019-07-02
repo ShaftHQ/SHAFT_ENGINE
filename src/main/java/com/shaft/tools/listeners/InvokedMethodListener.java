@@ -1,4 +1,4 @@
-package com.shaft.listeners;
+package com.shaft.tools.listeners;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -14,10 +14,10 @@ import org.testng.ITestResult;
 import org.testng.SkipException;
 import org.testng.internal.ConstructorOrMethod;
 
-import com.shaft.browser.BrowserFactory;
-import com.shaft.element.ElementActions;
-import com.shaft.io.ReportManager;
-import com.shaft.video.RecordManager;
+import com.shaft.gui.browser.BrowserFactory;
+import com.shaft.gui.element.ElementActions;
+import com.shaft.gui.video.RecordManager;
+import com.shaft.tools.io.ReportManager;
 
 import io.qameta.allure.model.Link;
 import io.qameta.allure.util.AnnotationUtils;

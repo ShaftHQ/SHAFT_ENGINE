@@ -9,7 +9,7 @@ import java.util.ArrayList;
 
 import org.testng.Assert;
 
-import com.shaft.io.ReportManager;
+import com.shaft.tools.io.ReportManager;
 
 /**
  * 

@@ -3,8 +3,8 @@ package unitTests;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.shaft.io.ExcelFileManager;
-import com.shaft.io.ReportManager;
+import com.shaft.tools.io.ExcelFileManager;
+import com.shaft.tools.io.ReportManager;
 
 public class tests_io_excelFileManager {
 

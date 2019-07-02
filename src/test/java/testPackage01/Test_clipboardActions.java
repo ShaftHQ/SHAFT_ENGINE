@@ -4,7 +4,7 @@ import org.openqa.selenium.WebDriver;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.shaft.browser.BrowserFactory;
+import com.shaft.gui.browser.BrowserFactory;
 
 import poms.GoogleSearch;
 

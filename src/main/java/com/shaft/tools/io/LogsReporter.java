@@ -1,9 +1,9 @@
-package com.shaft.io;
+package com.shaft.tools.io;
 
 import org.testng.annotations.AfterSuite;
 
-import com.shaft.browser.BrowserFactory;
-import com.shaft.video.RecordManager;
+import com.shaft.gui.browser.BrowserFactory;
+import com.shaft.gui.video.RecordManager;
 
 public class LogsReporter {
     @AfterSuite
