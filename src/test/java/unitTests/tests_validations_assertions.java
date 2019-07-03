@@ -10,11 +10,18 @@ import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Assertions;
+import com.shaft.validation.Assertions.AssertionType;
+import com.shaft.validation.Assertions.AssertionComparisonType;
 
 public class tests_validations_assertions {
     @Test(description = "Assert that assertEquals works as expected when the two values are equal.")
     public void assertEquals_true_expectedToPass() {
 	Assertions.assertEquals(1, 1, 1, true);
+    }
+
+    @Test
+    public void assertEquals_true_expectedToPass__() {
+	Assertions.assertEquals(1, 1, AssertionComparisonType.LITERAL, AssertionType.POSITIVE);
     }
 
     @Test

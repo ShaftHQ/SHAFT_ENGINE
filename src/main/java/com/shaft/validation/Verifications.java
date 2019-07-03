@@ -15,6 +15,8 @@ import com.shaft.tools.support.JavaActions;
 
 public class Verifications {
 
+    // TODO: apply enums
+
     private static StringBuilder verificationFailures = new StringBuilder();
     private static StringBuilder verificationSuccesses = new StringBuilder();
 
@@ -295,7 +297,7 @@ public class Verifications {
      *                         element CSSProperty actual value doesn't match the
      *                         expected value
      */
-    public static void assertElementCSSProperty(WebDriver driver, By elementLocator, String propertyName,
+    public static void verifyElementCSSProperty(WebDriver driver, By elementLocator, String propertyName,
 	    String expectedValue, int comparisonType, Boolean verificationType) {
 	ReportManager.logDiscrete("Verification [" + "verifyElementCSSProperty"
 		+ "] is being performed for target CSS Property [" + propertyName + "].");
