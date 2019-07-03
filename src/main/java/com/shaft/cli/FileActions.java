@@ -262,8 +262,8 @@ public class FileActions {
      * 
      * @param terminalSession an object that determines the type of terminalSession
      *                        which will be used to execute this File Action
-     * @param targetDirectory
-     * @return
+     * @param targetDirectory full path to the targetDirectory
+     * @return a string value that holds the result of this terminal command
      */
     public static String listFilesInDirectory(TerminalActions terminalSession, String targetDirectory) {
 	List<String> commands;
