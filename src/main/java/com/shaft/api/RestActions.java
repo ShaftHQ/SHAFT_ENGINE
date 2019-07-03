@@ -504,12 +504,6 @@ public class RestActions {
 	}
     }
 
-    /**
-     * 
-     * @param response
-     * @param xmlPath  leading down to the final list of objects (nodes.children())
-     * @return
-     */
     public List<Object> getResponseXMLValueAsList(Response response, String xmlPath) {
 	NodeChildren output = null;
 	try {

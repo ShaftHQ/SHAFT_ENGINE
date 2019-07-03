@@ -692,9 +692,9 @@ public class Assertions {
      *                                assertion
      * @param actualValue             the actual value (calculated data) of this
      *                                assertion
-     * @param comparativeRelationType assertComparativeRelation.GREATER_THAN(">"),
-     *                                GREATER_THAN_OR_EQUALS(">="), LESS_THAN("<"),
-     *                                LESS_THAN_OR_EQUALS("<="), EQUALS("==")
+     * @param comparativeRelationType assertComparativeRelation.GREATER_THAN,
+     *                                GREATER_THAN_OR_EQUALS, LESS_THAN,
+     *                                LESS_THAN_OR_EQUALS, EQUALS
      * @param assertionType           AssertionType.POSITIVE, NEGATIVE
      * 
      */
