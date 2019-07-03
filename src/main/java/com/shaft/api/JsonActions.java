@@ -12,7 +12,7 @@ import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.skyscreamer.jsonassert.JSONCompareResult;
 import org.testng.Assert;
 
-import com.shaft.io.ReportManager;
+import com.shaft.tools.io.ReportManager;
 
 import io.restassured.response.Response;
 
