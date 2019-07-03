@@ -2,8 +2,8 @@ package testPackage01;
 
 import org.testng.annotations.Test;
 
-import com.shaft.io.ExcelFileManager;
-import com.shaft.io.ReportManager;
+import com.shaft.tools.io.ExcelFileManager;
+import com.shaft.tools.io.ReportManager;
 
 public class Test_testData {
 	@Test

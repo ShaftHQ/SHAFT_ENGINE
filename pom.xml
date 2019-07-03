@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.mohies</groupId>
 	<artifactId>SHAFT_ENGINE</artifactId>
-	<version>2.4.20190609</version>
+	<version>2.5.20190703_BETA</version>
 	<name>SHAFT_ENGINE</name>
 	<description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
 
@@ -31,6 +31,10 @@
 		<skyscreamer-jsonassert.version>1.5.0</skyscreamer-jsonassert.version>
 
 		<testng.version>7.0.0-beta3</testng.version>
+		
+		<mysql-version>5.1.6</mysql-version>
+		<sqlserver-version>7.2.2.jre8</sqlserver-version>
+		<postgresql-version>9.1-901-1.jdbc4</postgresql-version>
 
 		<pojosontheweb-monte.version>1.0.1</pojosontheweb-monte.version>
 
@@ -60,7 +64,28 @@
 			<version>${testng.version}</version>
 			<!-- <scope>test</scope> -->
 		</dependency>
-
+		
+		<!-- MySQL Connector Dependencies -->
+		<dependency>
+			<groupId>mysql</groupId>
+			<artifactId>mysql-connector-java</artifactId>
+			<version>${mysql-version}</version>
+		</dependency>
+		
+		<!-- SQL Server Connector Dependencies -->
+		<dependency>
+            <groupId>com.microsoft.sqlserver</groupId>
+            <artifactId>mssql-jdbc</artifactId>
+            <version>${sqlserver-version}</version>
+        </dependency>
+        
+        <!-- PostgreSQL Connector Dependencies -->
+        <dependency>
+            <groupId>postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>${postgresql-version}</version>
+        </dependency>
+		
 		<!-- Selenium WebDriver Dependencies -->
 		<dependency>
 			<groupId>org.seleniumhq.selenium</groupId>
@@ -253,7 +278,7 @@
 							</property>
 							<property>
 								<name>listener</name>
-								<value>com.shaft.listeners.SuiteListener,com.shaft.listeners.InvokedMethodListener,com.shaft.listeners.AlterSuiteListener</value>
+								<value>com.shaft.tools.listeners.SuiteListener,com.shaft.tools.listeners.InvokedMethodListener,com.shaft.tools.listeners.AlterSuiteListener</value>
 							</property>
 						</properties>
 					</configuration>

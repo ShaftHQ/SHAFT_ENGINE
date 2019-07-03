@@ -2,7 +2,7 @@ package testPackage01;
 
 import org.testng.annotations.Test;
 
-import com.shaft.image.ImageProcessingActions;
+import com.shaft.gui.image.ImageProcessingActions;
 
 public class Test_imageComparison {
     @Test
