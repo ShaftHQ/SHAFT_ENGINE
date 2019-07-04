@@ -193,29 +193,51 @@ public class DatabaseActions {
     /**
      * Executes a SELECT statement and returns the result as a ResultSet object
      * 
-     * @param query the desired query which will be executed against the target
-     *              database
-     * @return a ResultSet object which represents the result of performing a
-     *         certain database query
+     * @param sql an SQL statement to be sent to the database, typically a static
+     *            SQL SELECT statement
+     * @return a ResultSet object that contains the data produced by the given
+     *         query; never null
      * 
      */
-    public ResultSet executeSelectQuery(String query) {
+    public ResultSet executeSelectQuery(String sql) {
 	ResultSet resultSet = null;
 	try {
-	    resultSet = createStatement(createConnection()).executeQuery(query);
+	    resultSet = createStatement(createConnection()).executeQuery(sql);
 	} catch (SQLException | NullPointerException e) {
 	    ReportManager.log(e);
-	    failAction("executeSelectQuery", query);
+	    failAction("executeSelectQuery", sql);
 	}
 
 	if (resultSet != null) {
-	    passAction("executeSelectQuery", query, getResultStringValue(resultSet, true));
+	    passAction("executeSelectQuery", sql, getResultStringValue(resultSet, true));
 	} else {
 	    failAction("executeSelectQuery",
-		    "Null or no resultSet was returned from executing this query [" + query + "]");
+		    "Null or no resultSet was returned from executing this query [" + sql + "]");
 	}
 
 	return resultSet;
+    }
+
+    /**
+     * Executes any DML or DDL statement and returns the result as a ResultSet
+     * object
+     * 
+     * @param sql an SQL Data Manipulation Language (DML) statement, such as INSERT,
+     *            UPDATE or DELETE; or an SQL statement that returns nothing, such
+     *            as a DDL statement.
+     * @return either (1) the row count for SQL Data Manipulation Language (DML)
+     *         statements or (2) 0 for SQL statements that return nothing
+     */
+    public int executeUpdateQuery(String sql) {
+	int updatedRows = 0;
+	try {
+	    updatedRows = createStatement(createConnection()).executeUpdate(sql);
+	    passAction("executeUpdateQuery", sql);
+	} catch (SQLException e) {
+	    ReportManager.log(e);
+	    failAction("executeUpdateQuery", sql);
+	}
+	return updatedRows;
     }
 
     /**
