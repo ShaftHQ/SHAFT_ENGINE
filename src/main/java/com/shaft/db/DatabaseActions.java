@@ -13,32 +13,46 @@ import org.testng.Assert;
 import com.shaft.tools.io.ReportManager;
 
 public class DatabaseActions {
-    private String dbType;
+    private DatabaseType dbType;
     private String dbServerIP;
     private String dbPort;
     private String dbName;
     private String username;
     private String password;
 
+    public enum DatabaseType {
+	MY_SQL("mysql"), SQL_SERVER("sqlserver"), POSTGRE_SQL("postgresql");
+
+	private String value;
+
+	DatabaseType(String type) {
+	    this.value = type;
+	}
+
+	protected String value() {
+	    return value;
+	}
+    }
+
     /**
      * This constructor is used for initializing the database variables that are
      * needed to create new connections and perform queries
      * 
-     * @param dbType     database type that you want to connect with:
-     *                   MySQL,SqlServer,PostgreSql.
-     * @param dbServerIP IP address that has database installation that we need to
-     *                   connect to (e.g. 72.55.136.25)
-     * @param dbPort     port of database installation on the server (e.g. 3306)
-     * @param dbName     database name that you need to connect to
-     * @param username   database username
-     * @param password   password of database user
+     * @param databaseType database type that you want to connect with:
+     *                     DatabaseType.MY_SQL ,SQL_SERVER,POSTGRE_SQL.
+     * @param ip           IP address that has database installation that we need to
+     *                     connect to (e.g. 72.55.136.25)
+     * @param port         port of database installation on the server (e.g. 3306)
+     * @param name         database name that you need to connect to
+     * @param username     database username
+     * @param password     password of database user
      */
-    public DatabaseActions(String dbType, String dbServerIP, String dbPort, String dbName, String username,
+    public DatabaseActions(DatabaseType databaseType, String ip, String port, String name, String username,
 	    String password) {
-	this.dbType = dbType;
-	this.dbServerIP = dbServerIP;
-	this.dbPort = dbPort;
-	this.dbName = dbName;
+	this.dbType = databaseType;
+	this.dbServerIP = ip;
+	this.dbPort = port;
+	this.dbName = name;
 	this.username = username;
 	this.password = password;
     }
@@ -87,29 +101,29 @@ public class DatabaseActions {
 	Connection connection = null;
 	String connectionString = "";
 	try {
-	    switch (dbType.toLowerCase().trim()) {
+	    switch (dbType) {
 
-	    case ("mysql"):
+	    case MY_SQL:
 		connectionString = "jdbc:mysql://" + dbServerIP + ":" + dbPort + "/" + dbName;
 		break;
 
-	    case ("sqlserver"):
+	    case SQL_SERVER:
 		connectionString = "jdbc:sqlserver://" + dbServerIP + ":" + dbPort + ";databaseName=" + dbName;
 		break;
 
-	    case ("postgresql"):
+	    case POSTGRE_SQL:
 		connectionString = "jdbc:postgresql://" + dbServerIP + ":" + dbPort + "/" + dbName;
 		break;
 
 	    default:
 		ReportManager.log("Database not supported");
-		failAction("createConnection", dbType);
+		failAction("createConnection", dbType.value());
 		break;
 	    }
 	    DriverManager.setLoginTimeout(Integer.parseInt(System.getProperty("databaseLoginTimeout")));
 	    connection = DriverManager.getConnection(connectionString, username, password);
 
-	    if (!dbType.toLowerCase().trim().equals("mysql") && !dbType.toLowerCase().trim().equals("postgresql")) {
+	    if (!dbType.value().equals("mysql") && !dbType.value().equals("postgresql")) {
 		// com.mysql.jdbc.JDBC4Connection.setNetworkTimeout
 		// org.postgresql.jdbc4.Jdbc4Connection.setNetworkTimeout
 		connection.setNetworkTimeout(Executors.newFixedThreadPool(1),
@@ -138,7 +152,7 @@ public class DatabaseActions {
 	} catch (SQLFeatureNotSupportedException e) {
 	    if (!e.getMessage().contains("org.postgresql.jdbc4.Jdbc4Statement.setQueryTimeout")) {
 		ReportManager.log(e);
-		failAction("createConnection", connection.toString());
+		failAction("createStatement", connection.toString());
 	    }
 	} catch (SQLException e) {
 	    ReportManager.log(e);
@@ -148,7 +162,7 @@ public class DatabaseActions {
 	if (statement != null) {
 	    ReportManager.logDiscrete("Statement created successfully");
 	} else {
-	    failAction("createConnection", "Failed to create a statement with this string [" + connection.toString()
+	    failAction("createStatement", "Failed to create a statement with this string [" + connection.toString()
 		    + "] due to an unhandled exception.");
 	}
 
@@ -253,6 +267,18 @@ public class DatabaseActions {
 	return resultSetString;
     }
 
+    /**
+     * Returns a string value which represents the data of the target row
+     * 
+     * @param resultSet      the object returned as a result of performing a certain
+     *                       database query
+     * @param columnName     the name of the column holding the knownCellValue
+     * @param knownCellValue a value that the engine searches for under the
+     *                       specified columnName, when that value is found, the row
+     *                       that contains it is read and added to the returned
+     *                       string
+     * @return a string value which represents the data of the target row
+     */
     public static String getRow(ResultSet resultSet, String columnName, String knownCellValue) {
 	StringBuilder str = new StringBuilder();
 	Boolean foundRow = false;
@@ -288,6 +314,14 @@ public class DatabaseActions {
 	return str.toString().trim();
     }
 
+    /**
+     * Returns a string value which represents the data of the target column
+     * 
+     * @param resultSet  the object returned as a result of performing a certain
+     *                   database query
+     * @param columnName the name of the target column that will be read
+     * @return a string value which represents the data of the target column
+     */
     public static String getColumn(ResultSet resultSet, String columnName) {
 	StringBuilder str = new StringBuilder();
 	try {
