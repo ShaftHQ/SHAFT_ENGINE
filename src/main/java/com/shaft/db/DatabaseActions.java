@@ -29,7 +29,7 @@ public class DatabaseActions {
 	    this.value = type;
 	}
 
-	protected String value() {
+	protected String getValue() {
 	    return value;
 	}
     }
@@ -117,13 +117,13 @@ public class DatabaseActions {
 
 	    default:
 		ReportManager.log("Database not supported");
-		failAction("createConnection", dbType.value());
+		failAction("createConnection", dbType.getValue());
 		break;
 	    }
 	    DriverManager.setLoginTimeout(Integer.parseInt(System.getProperty("databaseLoginTimeout")));
 	    connection = DriverManager.getConnection(connectionString, username, password);
 
-	    if (!dbType.value().equals("mysql") && !dbType.value().equals("postgresql")) {
+	    if (!dbType.getValue().equals("mysql") && !dbType.getValue().equals("postgresql")) {
 		// com.mysql.jdbc.JDBC4Connection.setNetworkTimeout
 		// org.postgresql.jdbc4.Jdbc4Connection.setNetworkTimeout
 		connection.setNetworkTimeout(Executors.newFixedThreadPool(1),

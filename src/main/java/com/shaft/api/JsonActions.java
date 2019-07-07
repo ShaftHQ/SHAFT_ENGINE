@@ -12,12 +12,14 @@ import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.skyscreamer.jsonassert.JSONCompareResult;
 import org.testng.Assert;
 
+import com.shaft.api.RestActions.ComparisonType;
 import com.shaft.tools.io.ReportManager;
 
 import io.restassured.response.Response;
 
+@Deprecated
 public class JsonActions {
-    
+
     private JsonActions() {
 	throw new IllegalStateException("Utility class");
     }
@@ -27,11 +29,17 @@ public class JsonActions {
      * initialized in the constructor Return True if files are typically (order,
      * size, keys and values) equal and false otherwise
      * 
+     * <p>
+     * This method has been @deprecated. Use
+     * {@link RestActions#compareJSON(Response response, String jsFilePath, ComparisonType comparisonType)}
+     * instead.
+     * 
      * @param response   JSON file returned from a RestAction
      * @param jsFilePath the JSON file that's holding the expected result
      * @return boolean value; true if the comparison passes, and false if the
      *         comparison fails
      */
+    @Deprecated
     public static boolean compareTypically(Response response, String jsFilePath) {
 
 	JSONParser parser = new JSONParser();
@@ -58,11 +66,17 @@ public class JsonActions {
      * true if two objects are strictly matching (strict array ordering), otherwise
      * return false
      * 
+     * <p>
+     * This method has been @deprecated. Use
+     * {@link RestActions#compareJSON(Response response, String jsFilePath, ComparisonType comparisonType)}
+     * instead.
+     * 
      * @param response   JSON file returned from a RestAction
      * @param jsFilePath the JSON file that's holding the expected result
      * @return boolean value; true if the comparison passes, and false if the
      *         comparison fails
      */
+    @Deprecated
     public static boolean compareStrictly(Response response, String jsFilePath) {
 	JSONParser parser = new JSONParser();
 	JSONObject expectedJsonObject;
@@ -72,7 +86,7 @@ public class JsonActions {
 	try {
 	    expectedJsonObject = (JSONObject) parser.parse(new FileReader(jsFilePath));
 	    actualJsonObject = (JSONObject) parser.parse(response.asString());
-	    result = JSONCompare.compareJSON(actualJsonObject.toJSONString(), expectedJsonObject.toJSONString(),
+	    result = JSONCompare.compareJSON(expectedJsonObject.toJSONString(), actualJsonObject.toJSONString(),
 		    JSONCompareMode.STRICT);
 	} catch (JSONException | ParseException e) {
 	    ReportManager.log(e);
@@ -95,11 +109,17 @@ public class JsonActions {
      * value, true if two objects are non-strictly matching (non-strict array
      * ordering), otherwise return false
      * 
+     * <p>
+     * This method has been @deprecated. Use
+     * {@link RestActions#compareJSON(Response response, String jsFilePath, ComparisonType comparisonType)}
+     * instead.
+     * 
      * @param response   JSON file returned from a RestAction
      * @param jsFilePath the JSON file that's holding the expected result
      * @return boolean value; true if the comparison passes, and false if the
      *         comparison fails
      */
+    @Deprecated
     public static boolean compareNonStrictly(Response response, String jsFilePath) {
 	JSONParser parser = new JSONParser();
 	JSONObject expectedJsonObject;
@@ -109,7 +129,7 @@ public class JsonActions {
 	try {
 	    expectedJsonObject = (JSONObject) parser.parse(new FileReader(jsFilePath));
 	    actualJsonObject = (JSONObject) parser.parse(response.asString());
-	    result = JSONCompare.compareJSON(actualJsonObject.toJSONString(), expectedJsonObject.toJSONString(),
+	    result = JSONCompare.compareJSON(expectedJsonObject.toJSONString(), actualJsonObject.toJSONString(),
 		    JSONCompareMode.NON_EXTENSIBLE);
 	} catch (IOException e) {
 	    ReportManager.log(e);
@@ -132,11 +152,17 @@ public class JsonActions {
      * expected object contains all elements in actual object, otherwise return
      * false (if element is array, it should be as same as expected)
      * 
+     * <p>
+     * This method has been @deprecated. Use
+     * {@link RestActions#compareJSON(Response response, String jsFilePath, ComparisonType comparisonType)}
+     * instead.
+     * 
      * @param response   JSON file returned from a RestAction
      * @param jsFilePath the JSON file that's holding the expected result
      * @return boolean value; true if the comparison passes, and false if the
      *         comparison fails
      */
+    @Deprecated
     public static boolean containElements(Response response, String jsFilePath) {
 	JSONParser parser = new JSONParser();
 	JSONObject expectedJsonObject;
@@ -161,4 +187,5 @@ public class JsonActions {
 	    return false;
 	}
     }
+
 }

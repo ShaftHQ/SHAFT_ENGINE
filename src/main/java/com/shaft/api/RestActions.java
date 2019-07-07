@@ -5,6 +5,7 @@ import static io.restassured.RestAssured.given;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectOutputStream;
@@ -15,7 +16,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import org.json.JSONException;
 import org.json.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
+import org.skyscreamer.jsonassert.JSONCompare;
+import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.testng.Assert;
 
 import com.shaft.tools.io.ReportManager;
@@ -44,6 +50,10 @@ public class RestActions {
     private Map<String, String> sessionCookies;
     private Map<String, String> sessionHeaders;
     private String serviceURI;
+
+    public enum ComparisonType {
+	EQUALS, CONTAINS, MATCHES, EQUALS_STRICT;
+    }
 
     public RestActions(String serviceURI) {
 	headerAuthorization = "";
@@ -81,7 +91,7 @@ public class RestActions {
 	passAction(actionName, testData, null);
     }
 
-    private void failAction(String actionName, String testData, Response response) {
+    private static void failAction(String actionName, String testData, Response response) {
 	String message = "Failed to perform action [" + actionName + "].";
 	if (testData != null) {
 	    message = message + " With the following test data [" + testData + "].";
@@ -93,7 +103,7 @@ public class RestActions {
 	Assert.fail(message);
     }
 
-    private void failAction(String actionName, String testData) {
+    private static void failAction(String actionName, String testData) {
 	failAction(actionName, testData, null);
     }
 
@@ -190,7 +200,7 @@ public class RestActions {
 	}
     }
 
-    private void reportResponseBody(InputStream body) {
+    private static void reportResponseBody(InputStream body) {
 	if (ReportManager.isDiscreteLogging()) {
 	    ReportManager.logDiscrete("API Response - REST Body:\n" + body.toString());
 	} else {
@@ -535,5 +545,57 @@ public class RestActions {
 
     public int getResponseStatusCode(Response response) {
 	return response.getStatusCode();
+    }
+
+    /**
+     * Compares the Response object against the content of the referenceJsonFilePath
+     * 
+     * @param response              the full response object returned by
+     *                              {@link RestActions#performRequest(String,
+     *                              String, String, String, List<List<Object>>,
+     *                              Object, ContentType, String...)} method.
+     * @param referenceJsonFilePath the full absolute path to the test data file
+     *                              that will be used as a reference for this
+     *                              comparison
+     * @param comparisonType        ComparisonType.EQUALS, CONTAINS, MATCHES,
+     *                              EQUALS_STRICT; Note that MATCHES ignores the
+     *                              content ordering inside the JSON
+     * @return a boolean value that is TRUE in case the comparison passed, or FALSE
+     *         in case it failed
+     */
+    public static boolean compareJSON(Response response, String referenceJsonFilePath,
+	    ComparisonType comparisonType) {
+	try {
+	    JSONParser parser = new JSONParser();
+	    org.json.simple.JSONObject expectedJsonObject = (org.json.simple.JSONObject) parser
+		    .parse(new FileReader(referenceJsonFilePath));
+	    org.json.simple.JSONObject actualJsonObject = (org.json.simple.JSONObject) parser
+		    .parse(response.asString());
+
+	    switch (comparisonType) {
+	    case EQUALS:
+		return expectedJsonObject.equals(actualJsonObject);
+	    case EQUALS_STRICT:
+		return JSONCompare.compareJSON(expectedJsonObject.toJSONString(), actualJsonObject.toJSONString(),
+			JSONCompareMode.STRICT).passed();
+	    case MATCHES:
+		return JSONCompare.compareJSON(expectedJsonObject.toJSONString(), actualJsonObject.toJSONString(),
+			JSONCompareMode.NON_EXTENSIBLE).passed();
+	    case CONTAINS:
+		return JSONCompare.compareJSON(expectedJsonObject.toJSONString(), actualJsonObject.toJSONString(),
+			JSONCompareMode.LENIENT).passed();
+	    default:
+		return false;
+	    }
+
+	} catch (IOException e) {
+	    ReportManager.log(e);
+	    failAction("compareJsonFiles", "Couldn't find the desired file. [" + referenceJsonFilePath + "].");
+	    return false;
+	} catch (ParseException | JSONException e) {
+	    ReportManager.log(e);
+	    failAction("compareJsonFiles", "Couldn't parse the desired file. [" + referenceJsonFilePath + "].");
+	    return false;
+	}
     }
 }

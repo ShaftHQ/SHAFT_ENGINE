@@ -27,13 +27,13 @@ public class Assertions {
 	    this.value = type;
 	}
 
-	protected boolean value() {
+	protected boolean getValue() {
 	    return value;
 	}
     }
 
     public enum AssertionComparisonType {
-	LITERAL(1), CONTAINS(3), REGEX(2), CASE_INSENSITIVE(4);
+	EQUALS(1), CONTAINS(3), MATCHES(2), CASE_INSENSITIVE(4);
 
 	private int value;
 
@@ -41,7 +41,7 @@ public class Assertions {
 	    this.value = type;
 	}
 
-	protected int value() {
+	protected int getValue() {
 	    return value;
 	}
     }
@@ -55,7 +55,7 @@ public class Assertions {
 	    this.value = type;
 	}
 
-	protected String value() {
+	protected String getValue() {
 	    return value;
 	}
     }
@@ -166,7 +166,7 @@ public class Assertions {
      */
     public static void assertEquals(Object expectedValue, Object actualValue,
 	    AssertionComparisonType assertionComparisonType, AssertionType assertionType) {
-	assertEquals(expectedValue, actualValue, assertionComparisonType.value(), assertionType.value());
+	assertEquals(expectedValue, actualValue, assertionComparisonType.getValue(), assertionType.getValue());
     }
 
     /**
@@ -284,7 +284,7 @@ public class Assertions {
      * @param assertionType  AssertionType.POSITIVE, NEGATIVE
      */
     public static void assertElementExists(WebDriver driver, By elementLocator, AssertionType assertionType) {
-	assertElementExists(driver, elementLocator, assertionType.value());
+	assertElementExists(driver, elementLocator, assertionType.getValue());
     }
 
     /**
@@ -382,8 +382,8 @@ public class Assertions {
      */
     public static void assertElementAttribute(WebDriver driver, By elementLocator, String elementAttribute,
 	    String expectedValue, AssertionComparisonType assertionComparisonType, AssertionType assertionType) {
-	assertElementAttribute(driver, elementLocator, elementAttribute, expectedValue, assertionComparisonType.value(),
-		assertionType.value());
+	assertElementAttribute(driver, elementLocator, elementAttribute, expectedValue, assertionComparisonType.getValue(),
+		assertionType.getValue());
     }
 
     /**
@@ -467,8 +467,8 @@ public class Assertions {
      */
     public static void assertElementCSSProperty(WebDriver driver, By elementLocator, String propertyName,
 	    String expectedValue, AssertionComparisonType assertionComparisonType, AssertionType assertionType) {
-	assertElementCSSProperty(driver, elementLocator, propertyName, expectedValue, assertionComparisonType.value(),
-		assertionType.value());
+	assertElementCSSProperty(driver, elementLocator, propertyName, expectedValue, assertionComparisonType.getValue(),
+		assertionType.getValue());
     }
 
     /**
@@ -579,8 +579,8 @@ public class Assertions {
      */
     public static void assertBrowserAttribute(WebDriver driver, String browserAttribute, String expectedValue,
 	    AssertionComparisonType assertionComparisonType, AssertionType assertionType) {
-	assertBrowserAttribute(driver, browserAttribute, expectedValue, assertionComparisonType.value(),
-		assertionType.value());
+	assertBrowserAttribute(driver, browserAttribute, expectedValue, assertionComparisonType.getValue(),
+		assertionType.getValue());
     }
 
     /**
@@ -700,7 +700,7 @@ public class Assertions {
      */
     public static void assertComparativeRelation(Number expectedValue, Number actualValue,
 	    ComparativeRelationType comparativeRelationType, AssertionType assertionType) {
-	assertComparativeRelation(expectedValue, actualValue, comparativeRelationType.value(), assertionType.value());
+	assertComparativeRelation(expectedValue, actualValue, comparativeRelationType.getValue(), assertionType.getValue());
     }
 
     /**
@@ -764,6 +764,6 @@ public class Assertions {
      */
     public static void assertFileExists(String fileFolderName, String fileName, int numberOfRetries,
 	    AssertionType assertionType) {
-	assertFileExists(fileFolderName, fileName, numberOfRetries, assertionType.value());
+	assertFileExists(fileFolderName, fileName, numberOfRetries, assertionType.getValue());
     }
 }
