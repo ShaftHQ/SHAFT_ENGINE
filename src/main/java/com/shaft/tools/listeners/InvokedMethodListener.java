@@ -61,7 +61,7 @@ public class InvokedMethodListener implements IInvokedMethodListener {
     @Override
     public void afterInvocation(IInvokedMethod method, ITestResult testResult) {
 	if (!method.getTestMethod().getQualifiedName().contains("closureActivities")) {
-	    // attaching log and gif for test methods only
+//		&& !method.getTestMethod().getQualifiedName().contains("Class")) {
 	    BrowserFactory.attachAnimatedGif();
 	    ReportManager.attachTestLog();
 	}
