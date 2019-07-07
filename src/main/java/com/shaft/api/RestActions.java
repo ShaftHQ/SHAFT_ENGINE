@@ -551,9 +551,7 @@ public class RestActions {
      * Compares the Response object against the content of the referenceJsonFilePath
      * 
      * @param response              the full response object returned by
-     *                              {@link RestActions#performRequest(String,
-     *                              String, String, String, List<List<Object>>,
-     *                              Object, ContentType, String...)} method.
+     *                              performRequest method.
      * @param referenceJsonFilePath the full absolute path to the test data file
      *                              that will be used as a reference for this
      *                              comparison
@@ -563,8 +561,7 @@ public class RestActions {
      * @return a boolean value that is TRUE in case the comparison passed, or FALSE
      *         in case it failed
      */
-    public static boolean compareJSON(Response response, String referenceJsonFilePath,
-	    ComparisonType comparisonType) {
+    public static boolean compareJSON(Response response, String referenceJsonFilePath, ComparisonType comparisonType) {
 	try {
 	    JSONParser parser = new JSONParser();
 	    org.json.simple.JSONObject expectedJsonObject = (org.json.simple.JSONObject) parser
