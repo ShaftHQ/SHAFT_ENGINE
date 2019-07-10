@@ -291,6 +291,7 @@ public class ScreenshotManager {
     }
 
     private static File takeElementScreenshot(WebDriver driver, boolean isBaseFullPage) {
+	// TODO: investigate new selenium element screenshot API
 	try {
 	    if (targetElementLocator != null && ElementActions.getElementsCount(driver, targetElementLocator,
 		    RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1) {
