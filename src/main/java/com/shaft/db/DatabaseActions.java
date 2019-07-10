@@ -10,6 +10,7 @@ import java.util.concurrent.Executors;
 
 import org.testng.Assert;
 
+import com.mysql.jdbc.exceptions.jdbc4.MySQLSyntaxErrorException;
 import com.shaft.tools.io.ReportManager;
 
 public class DatabaseActions {
@@ -217,6 +218,9 @@ public class DatabaseActions {
 	ResultSet resultSet = null;
 	try {
 	    resultSet = createStatement(createConnection()).executeQuery(sql);
+	} catch (MySQLSyntaxErrorException e) {
+	    ReportManager.log(e);
+	    failAction("executeSelectQuery", "this query has a syntax error [" + sql + "]");
 	} catch (SQLException | NullPointerException e) {
 	    ReportManager.log(e);
 	    failAction("executeSelectQuery", sql);
@@ -247,6 +251,9 @@ public class DatabaseActions {
 	try {
 	    updatedRows = createStatement(createConnection()).executeUpdate(sql);
 	    passAction("executeUpdateQuery", sql);
+	} catch (MySQLSyntaxErrorException e) {
+	    ReportManager.log(e);
+	    failAction("executeSelectQuery", "this query has a syntax error [" + sql + "]");
 	} catch (SQLException e) {
 	    ReportManager.log(e);
 	    failAction("executeUpdateQuery", sql);

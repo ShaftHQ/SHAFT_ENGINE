@@ -8,14 +8,19 @@ import com.shaft.gui.video.RecordManager;
 public class LogsReporter {
     @AfterSuite
     public void closureActivities() {
-	attachFullLogs();
-	attachBrowserLogs();
+	initializeClosureActivities();
 	attachExecutionVideoRecording();
+	attachBrowserLogs();
+	attachFullLogs();
+    }
+
+    private void initializeClosureActivities() {
+	ReportManager.createImportantReportEntry("Test Closure Activities");
     }
 
     public void attachFullLogs() {
-	ReportManager.attachFullLog();
 	ReportManager.attachIssuesLog();
+	ReportManager.attachFullLog();
     }
 
     public void attachBrowserLogs() {

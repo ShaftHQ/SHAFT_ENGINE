@@ -2,6 +2,7 @@ package com.shaft.gui.browser;
 
 import java.awt.HeadlessException;
 import java.awt.Toolkit;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
@@ -23,8 +24,8 @@ import com.shaft.tools.io.ReportManager;
 
 public class BrowserActions {
     private static final Boolean HEADLESS_EXECUTION = Boolean.valueOf(System.getProperty("headlessExecution").trim());
-    private static final int NAVIGATION_TIMEOUT = Integer
-	    .parseInt(System.getProperty("browserNavigationTimeout").trim());
+    private static final Duration NAVIGATION_TIMEOUT = Duration
+	    .ofSeconds(Integer.parseInt(System.getProperty("browserNavigationTimeout").trim()));
 
     private BrowserActions() {
 	throw new IllegalStateException("Utility class");
@@ -96,7 +97,6 @@ public class BrowserActions {
 	    // redirection contains a random token that cannot be predefined, also as a
 	    // precaution against the failure in case the user tries to navigate back to the
 	    // source url which already redirected him
-
 	    (new WebDriverWait(driver, NAVIGATION_TIMEOUT))
 		    .until(ExpectedConditions.urlContains(targetUrlAfterRedirection));
 	} catch (WebDriverException e) {
@@ -359,7 +359,8 @@ public class BrowserActions {
 	    initialURL = driver.getCurrentUrl();
 	    driver.navigate().back();
 	    JSWaiter.waitForLazyLoading();
-	    (new WebDriverWait(driver, 30)).until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
+	    (new WebDriverWait(driver, NAVIGATION_TIMEOUT))
+		    .until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
 	    if (!initialURL.equals(driver.getCurrentUrl())) {
 		passAction(driver, "navigateBack");
 	    } else {
@@ -378,7 +379,8 @@ public class BrowserActions {
 	    initialURL = driver.getCurrentUrl();
 	    driver.navigate().forward();
 	    JSWaiter.waitForLazyLoading();
-	    (new WebDriverWait(driver, 30)).until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
+	    (new WebDriverWait(driver, NAVIGATION_TIMEOUT))
+		    .until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
 	    if (!initialURL.equals(driver.getCurrentUrl())) {
 		passAction(driver, "navigateForward");
 	    } else {

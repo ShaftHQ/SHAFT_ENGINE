@@ -411,7 +411,6 @@ public class RestActions {
 		    "Either actual value is \"null\" or couldn't find anything that matches with the desired jsonPath ["
 			    + jsonPath + "]");
 	    passAction("getResponseJSONValue", jsonPath);
-//	    failAction("getResponseJSONValue", jsonPath);
 	    return searchPool;
 	}
     }
@@ -437,7 +436,6 @@ public class RestActions {
 		    "Either actual value is \"null\" or couldn't find anything that matches with the desired jsonPath ["
 			    + jsonPath + "]");
 	    passAction("getResponseJSONValue", jsonPath);
-//	    failAction("getResponseJSONValue", jsonPath);
 	    return searchPool;
 	}
     }
@@ -461,7 +459,6 @@ public class RestActions {
 		    "Either actual value is \"null\" or couldn't find anything that matches with the desired jsonPath ["
 			    + jsonPath + "]");
 	    passAction("getResponseJSONValueAsList", jsonPath);
-//	    failAction("getResponseJSONValueAsList", jsonPath);
 	    return searchPool;
 	}
     }
@@ -485,7 +482,6 @@ public class RestActions {
 		    "Either actual value is \"null\" or couldn't find anything that matches with the desired xmlPath ["
 			    + xmlPath + "]");
 	    passAction("getResponseXMLValue", xmlPath);
-//	    failAction("getResponseXMLValue", xmlPath);
 	    return searchPool;
 	}
     }
@@ -509,7 +505,6 @@ public class RestActions {
 		    "Either actual value is \"null\" or couldn't find anything that matches with the desired xmlPath ["
 			    + xmlPath + "]");
 	    passAction("getResponseXMLValueAsList", xmlPath);
-//	    failAction("getResponseXMLValueAsList", xmlPath);
 	    return output;
 	}
     }
@@ -538,7 +533,6 @@ public class RestActions {
 		    "Either actual value is \"null\" or couldn't find anything that matches with the desired xmlPath ["
 			    + xmlPath + "]");
 	    passAction("getResponseXMLValueAsList", xmlPath);
-//	    failAction("getResponseXMLValueAsList", xmlPath);
 	    return searchPool;
 	}
     }

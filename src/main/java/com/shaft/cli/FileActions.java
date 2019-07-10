@@ -247,9 +247,7 @@ public class FileActions {
 	try {
 	    Collection<File> filesList = FileUtils.listFiles(new File(targetDirectory), TrueFileFilter.TRUE,
 		    TrueFileFilter.TRUE);
-	    filesList.forEach(file -> {
-		files.append(file.getName() + System.lineSeparator());
-	    });
+	    filesList.forEach(file -> files.append(file.getName() + System.lineSeparator()));
 	} catch (IllegalArgumentException e) {
 	    ReportManager.log(e);
 	    failAction("listFilesInDirectory", "Failed to list files in this directory: \"" + targetDirectory + "\"");

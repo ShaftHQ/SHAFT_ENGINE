@@ -8,6 +8,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
@@ -37,6 +38,41 @@ public class ReportManager {
     private static boolean debugMode = false;
     private static final String TIMESTAMP_FORMAT = "dd-MM-yyyy HH:mm:ss.SSSS aaa";
     private static final Logger slf4jLogger = LoggerFactory.getLogger(ReportManager.class);
+
+    private static int openIssuesForFailedTestsCounter = 0;
+    private static int openIssuesForPassedTestsCounter = 0;
+    private static int failedTestsWithoutOpenIssuesCounter = 0;
+
+    public static void setOpenIssuesForFailedTestsCounter(int openIssuesForFailedTestsCounter) {
+	ReportManager.openIssuesForFailedTestsCounter = openIssuesForFailedTestsCounter;
+    }
+
+    public static void setOpenIssuesForPassedTestsCounter(int openIssuesForPassedTestsCounter) {
+	ReportManager.openIssuesForPassedTestsCounter = openIssuesForPassedTestsCounter;
+    }
+
+    public static void setFailedTestsWithoutOpenIssuesCounter(int failedTestsWithoutOpenIssuesCounter) {
+	ReportManager.failedTestsWithoutOpenIssuesCounter = failedTestsWithoutOpenIssuesCounter;
+    }
+
+    private static List<List<String>> listOfOpenIssuesForFailedTests = new ArrayList<>();
+    // class name, method name, link name, link url
+    private static List<List<String>> listOfOpenIssuesForPassedTests = new ArrayList<>();
+    // class name, method name, link name, link url
+    private static List<List<String>> listOfNewIssuesForFailedTests = new ArrayList<>();
+    // class name, method name
+
+    public static void setListOfOpenIssuesForFailedTests(List<List<String>> listOfOpenIssuesForFailedTests) {
+	ReportManager.listOfOpenIssuesForFailedTests = listOfOpenIssuesForFailedTests;
+    }
+
+    public static void setListOfOpenIssuesForPassedTests(List<List<String>> listOfOpenIssuesForPassedTests) {
+	ReportManager.listOfOpenIssuesForPassedTests = listOfOpenIssuesForPassedTests;
+    }
+
+    public static void setListOfNewIssuesForFailedTests(List<List<String>> listOfNewIssuesForFailedTests) {
+	ReportManager.listOfNewIssuesForFailedTests = listOfNewIssuesForFailedTests;
+    }
 
     private ReportManager() {
 	throw new IllegalStateException("Utility class");
@@ -76,15 +112,41 @@ public class ReportManager {
 	issueCounter++;
     }
 
-    public static void logIssuesSummary(int openIssuesForFailedTestsCounter, int openIssuesForPassedTestsCounter,
-	    int failedTestsWithoutOpenIssuesCounter) {
-	issuesLog += System.lineSeparator()
-		+ "################################################################################################################################################"
-		+ System.lineSeparator() + "Total Issues: " + (issueCounter - 1) + ", Failed tests with open issues: "
-		+ openIssuesForFailedTestsCounter + ", Failed tests without open issues: "
-		+ failedTestsWithoutOpenIssuesCounter + ", Passed tests with open issues: "
-		+ openIssuesForPassedTestsCounter + System.lineSeparator()
-		+ "################################################################################################################################################";
+    public static void prepareIssuesLog() {
+	// TODO: refactor
+	// read different log array lists
+	if (!listOfNewIssuesForFailedTests.isEmpty()) {
+	    listOfNewIssuesForFailedTests.forEach(issue -> {
+		logIssue("Test Method \"" + issue.get(0) + "." + issue.get(1)
+			+ "\" failed. Please investigate and open a new Issue if needed.\n");
+	    });
+	}
+	if (!listOfOpenIssuesForPassedTests.isEmpty()) {
+	    listOfOpenIssuesForPassedTests.forEach(issue -> {
+		logIssue("Test Method \"" + issue.get(0) + "." + issue.get(1)
+			+ "\" passed. Please validate and close this open issue \"" + issue.get(2) + "\": \""
+			+ issue.get(3) + "\".\n");
+	    });
+	}
+	if (!listOfOpenIssuesForFailedTests.isEmpty()) {
+	    listOfOpenIssuesForFailedTests.forEach(issue -> {
+		logIssue("Test Method \"" + issue.get(0) + "." + issue.get(1) + "\" failed with open issue \""
+			+ issue.get(2) + "\": \"" + issue.get(3) + "\".\n");
+	    });
+
+	}
+	// display them in the desired order with the proper messages for each issue
+	// type
+	// append the summary at the start instead of at the finish
+	if (!issuesLog.trim().equals("")) {
+	    issuesLog += System.lineSeparator()
+		    + "################################################################################################################################################"
+		    + System.lineSeparator() + "Total Issues: " + (issueCounter - 1) + ", New issues for Failed Tests: "
+		    + failedTestsWithoutOpenIssuesCounter + ", Open issues for Passed Tests: "
+		    + openIssuesForPassedTestsCounter + ", Open issues for Failed Tests: "
+		    + openIssuesForFailedTestsCounter + System.lineSeparator()
+		    + "################################################################################################################################################";
+	}
     }
 
     /**
@@ -102,7 +164,7 @@ public class ReportManager {
 	appendToLog(System.lineSeparator());
     }
 
-    private static void createImportantReportEntry(String logText) {
+    protected static void createImportantReportEntry(String logText) {
 	Boolean initialLoggingStatus = discreteLogging;
 	setDiscreteLogging(false); // force log even if discrete logging was turned on
 	String log = System.lineSeparator()
@@ -165,7 +227,10 @@ public class ReportManager {
 	} else {
 	    Allure.addAttachment(attachmentDescription, attachmentContent);
 	}
-	createReportEntry("Successfully created attachment [" + attachmentType + " - " + attachmentName + "]");
+
+	if (!(attachmentType.equals("SHAFT Engine Logs") && attachmentName.equals("Execution log"))) {
+	    createReportEntry("Successfully created attachment [" + attachmentType + " - " + attachmentName + "]");
+	}
 
 	if (debugMode && !attachmentType.contains("SHAFT Engine Logs")
 		&& !attachmentType.equalsIgnoreCase("Selenium WebDriver Logs")
@@ -233,15 +298,8 @@ public class ReportManager {
 			.replaceAll("=", "\t").split("\n")));
     }
 
-    public static void logEngineVersion(Boolean isStartingExecution) {
-	if (isStartingExecution) {
-	    createImportantReportEntry(
-		    "Detected SHAFT Engine Version: [" + System.getProperty("shaftEngineVersion") + "]");
-	} else {
-	    createImportantReportEntry("This test run was powered by SHAFT Engine, which was created by [Mohab Mohie]."
-		    + System.lineSeparator()
-		    + "SHAFT Engine is licensed under the MIT License: [https://github.com/MohabMohie/SHAFT_ENGINE/blob/master/LICENSE].");
-	}
+    public static void logEngineVersion() {
+	createImportantReportEntry("Detected SHAFT Engine Version: [" + System.getProperty("shaftEngineVersion") + "]");
     }
 
     public static void logTestInformation(String className, String testMethodName, String testDescription) {
@@ -373,12 +431,17 @@ public class ReportManager {
 
     public static void attachFullLog() {
 	if (!fullLog.trim().equals("")) {
+	    createReportEntry(
+		    "Successfully created attachment [" + "SHAFT Engine Logs" + " - " + "Execution log" + "]");
+	    createImportantReportEntry("This test run was powered by SHAFT Engine, which was created by [Mohab Mohie]."
+		    + System.lineSeparator()
+		    + "SHAFT Engine is licensed under the MIT License: [https://github.com/MohabMohie/SHAFT_ENGINE/blob/master/LICENSE].");
 	    createAttachment("SHAFT Engine Logs", "Execution log", new StringInputStream(fullLog.trim()));
-
 	}
     }
 
     public static void attachIssuesLog() {
+	prepareIssuesLog();
 	if (!issuesLog.trim().equals("")) {
 	    createAttachment("SHAFT Engine Logs", "Issues log", new StringInputStream(issuesLog.trim()));
 	}
