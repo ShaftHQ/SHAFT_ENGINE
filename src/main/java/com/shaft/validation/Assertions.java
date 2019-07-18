@@ -4,12 +4,16 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.testng.Assert;
 
+import com.shaft.api.RestActions;
+import com.shaft.api.RestActions.ComparisonType;
 import com.shaft.cli.FileActions;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.support.JavaActions;
+
+import io.restassured.response.Response;
 
 public class Assertions {
     private static int attemptsBeforeThrowingElementNotFoundException = Integer
@@ -216,7 +220,7 @@ public class Assertions {
      * @param assertionType AssertionType.POSITIVE, NEGATIVE
      */
     public static void assertNull(Object object, AssertionType assertionType) {
-	assertNull(object, assertionType.value);
+	assertNull(object, assertionType.getValue());
     }
 
     /**
@@ -382,8 +386,8 @@ public class Assertions {
      */
     public static void assertElementAttribute(WebDriver driver, By elementLocator, String elementAttribute,
 	    String expectedValue, AssertionComparisonType assertionComparisonType, AssertionType assertionType) {
-	assertElementAttribute(driver, elementLocator, elementAttribute, expectedValue, assertionComparisonType.getValue(),
-		assertionType.getValue());
+	assertElementAttribute(driver, elementLocator, elementAttribute, expectedValue,
+		assertionComparisonType.getValue(), assertionType.getValue());
     }
 
     /**
@@ -467,8 +471,8 @@ public class Assertions {
      */
     public static void assertElementCSSProperty(WebDriver driver, By elementLocator, String propertyName,
 	    String expectedValue, AssertionComparisonType assertionComparisonType, AssertionType assertionType) {
-	assertElementCSSProperty(driver, elementLocator, propertyName, expectedValue, assertionComparisonType.getValue(),
-		assertionType.getValue());
+	assertElementCSSProperty(driver, elementLocator, propertyName, expectedValue,
+		assertionComparisonType.getValue(), assertionType.getValue());
     }
 
     /**
@@ -700,7 +704,8 @@ public class Assertions {
      */
     public static void assertComparativeRelation(Number expectedValue, Number actualValue,
 	    ComparativeRelationType comparativeRelationType, AssertionType assertionType) {
-	assertComparativeRelation(expectedValue, actualValue, comparativeRelationType.getValue(), assertionType.getValue());
+	assertComparativeRelation(expectedValue, actualValue, comparativeRelationType.getValue(),
+		assertionType.getValue());
     }
 
     /**
@@ -766,4 +771,93 @@ public class Assertions {
 	    AssertionType assertionType) {
 	assertFileExists(fileFolderName, fileName, numberOfRetries, assertionType.getValue());
     }
+
+    /**
+     * Asserts that the provided conditional statement evaluates to true if
+     * AssertionType is POSITIVE, or to false if AssertionType is NEGATIVE.
+     * 
+     * @param conditionalStatement the statement that will be evaluated to see if it
+     *                             matches the expected result
+     * @param assertionType        AssertionType.POSITIVE, NEGATIVE
+     */
+    public static void assertTrue(Boolean conditionalStatement, AssertionType assertionType) {
+	ReportManager.logDiscrete("Assertion [" + "assertTrue" + "] is being performed for target value ["
+		+ conditionalStatement + "], with AssertionType [" + assertionType + "].");
+	if (assertionType.getValue()) {
+	    if (conditionalStatement == null) {
+		fail("Assertion Failed; conditional statement evaluated to NULL while it was expected to evaluate to true.");
+	    }
+	    try {
+		Assert.assertTrue(conditionalStatement);
+		pass("Assertion Passed; conditional statement evaluated to true as expected.");
+	    } catch (AssertionError e) {
+		fail("Assertion Failed; conditional statement evaluated to false while it was expected to evaluate to true.",
+			e);
+	    } catch (Exception e) {
+		ReportManager.log(e);
+		fail("Assertion Failed; an unhandled exception occured.", e);
+	    }
+	} else {
+	    if (conditionalStatement == null) {
+		fail("Assertion Failed; conditional statement evaluated to NULL while it was expected to evaluate to false.");
+	    }
+	    try {
+		Assert.assertFalse(conditionalStatement);
+		pass("Assertion Passed; conditional statement evaluated to false as expected.");
+	    } catch (AssertionError e) {
+		fail("Assertion Failed; conditional statement evaluated to true while it was expected to evaluate to false.",
+			e);
+	    } catch (Exception e) {
+		ReportManager.log(e);
+		fail("Assertion Failed; an unhandled exception occured.", e);
+	    }
+	}
+
+    }
+
+    /**
+     * Asserts that the target API Response object matches the expected
+     * referenceJsonFile if AssertionType is POSITIVE, or doesn't match it if
+     * AssertionType is NEGATIVE.
+     * 
+     * @param response              the full response object returned by
+     *                              performRequest method.
+     * @param referenceJsonFilePath the full absolute path to the test data file
+     *                              that will be used as a reference for this
+     *                              comparison
+     * @param comparisonType        ComparisonType.EQUALS, CONTAINS, MATCHES,
+     *                              EQUALS_STRICT; Note that MATCHES ignores the
+     *                              content ordering inside the JSON
+     * @param assertionType         AssertionType.POSITIVE, NEGATIVE
+     */
+    public static void assertJSONFileContent(Response response, String referenceJsonFilePath,
+	    ComparisonType comparisonType, AssertionType assertionType) {
+	Boolean comparisonResult = RestActions.compareJSON(response, referenceJsonFilePath, comparisonType, "");
+	assertTrue(comparisonResult, assertionType);
+    }
+
+    /**
+     * Asserts that the target array extracted by parsing the API Response object
+     * matches the expected referenceJsonFile if AssertionType is POSITIVE, or
+     * doesn't match it if AssertionType is NEGATIVE.
+     * 
+     * @param response              the full response object returned by
+     *                              performRequest method.
+     * @param referenceJsonFilePath the full absolute path to the test data file
+     *                              that will be used as a reference for this
+     *                              comparison
+     * @param comparisonType        ComparisonType.EQUALS, CONTAINS, MATCHES,
+     *                              EQUALS_STRICT; Note that MATCHES ignores the
+     *                              content ordering inside the JSON
+     * @param jsonPathToTargetArray a jsonpath that will be parsed to point to the
+     *                              target JSON Array
+     * @param assertionType         AssertionType.POSITIVE, NEGATIVE
+     */
+    public static void assertJSONFileContent(Response response, String referenceJsonFilePath,
+	    ComparisonType comparisonType, String jsonPathToTargetArray, AssertionType assertionType) {
+	Boolean comparisonResult = RestActions.compareJSON(response, referenceJsonFilePath, comparisonType,
+		jsonPathToTargetArray);
+	assertTrue(comparisonResult, assertionType);
+    }
+
 }

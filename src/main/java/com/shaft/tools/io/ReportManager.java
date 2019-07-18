@@ -116,23 +116,18 @@ public class ReportManager {
 	// TODO: refactor
 	// read different log array lists
 	if (!listOfNewIssuesForFailedTests.isEmpty()) {
-	    listOfNewIssuesForFailedTests.forEach(issue -> {
-		logIssue("Test Method \"" + issue.get(0) + "." + issue.get(1)
-			+ "\" failed. Please investigate and open a new Issue if needed.\n");
-	    });
+	    listOfNewIssuesForFailedTests.forEach(issue -> logIssue("Test Method \"" + issue.get(0) + "." + issue.get(1)
+		    + "\" failed. Please investigate and open a new Issue if needed.\n"));
 	}
 	if (!listOfOpenIssuesForPassedTests.isEmpty()) {
-	    listOfOpenIssuesForPassedTests.forEach(issue -> {
-		logIssue("Test Method \"" + issue.get(0) + "." + issue.get(1)
-			+ "\" passed. Please validate and close this open issue \"" + issue.get(2) + "\": \""
-			+ issue.get(3) + "\".\n");
-	    });
+	    listOfOpenIssuesForPassedTests.forEach(issue -> logIssue("Test Method \"" + issue.get(0) + "."
+		    + issue.get(1) + "\" passed. Please validate and close this open issue \"" + issue.get(2) + "\": \""
+		    + issue.get(3) + "\".\n"));
 	}
 	if (!listOfOpenIssuesForFailedTests.isEmpty()) {
-	    listOfOpenIssuesForFailedTests.forEach(issue -> {
-		logIssue("Test Method \"" + issue.get(0) + "." + issue.get(1) + "\" failed with open issue \""
-			+ issue.get(2) + "\": \"" + issue.get(3) + "\".\n");
-	    });
+	    listOfOpenIssuesForFailedTests
+		    .forEach(issue -> logIssue("Test Method \"" + issue.get(0) + "." + issue.get(1)
+			    + "\" failed with open issue \"" + issue.get(2) + "\": \"" + issue.get(3) + "\".\n"));
 
 	}
 	// display them in the desired order with the proper messages for each issue
