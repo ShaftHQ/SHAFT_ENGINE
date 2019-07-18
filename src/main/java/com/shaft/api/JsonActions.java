@@ -17,7 +17,6 @@ import com.shaft.tools.io.ReportManager;
 
 import io.restassured.response.Response;
 
-@Deprecated
 public class JsonActions {
 
     private JsonActions() {
@@ -48,7 +47,7 @@ public class JsonActions {
 	try {
 	    expectedJsonObject = (JSONObject) parser.parse(new FileReader(jsFilePath));
 	    actualJsonObject = (JSONObject) parser.parse(response.asString());
-	    return expectedJsonObject.equals(actualJsonObject);
+	    return actualJsonObject.equals(expectedJsonObject);
 	} catch (IOException e) {
 	    ReportManager.log(e);
 	    ReportManager.log("Couldn't find the desired file. [" + jsFilePath + "].");

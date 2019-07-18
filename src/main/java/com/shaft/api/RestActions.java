@@ -24,6 +24,7 @@ import org.skyscreamer.jsonassert.JSONCompare;
 import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.testng.Assert;
 
+import com.google.gson.Gson;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.support.JavaActions;
 import com.shaft.validation.Assertions;
@@ -50,9 +51,12 @@ public class RestActions {
     private Map<String, String> sessionCookies;
     private Map<String, String> sessionHeaders;
     private String serviceURI;
+    private static final String ERROR_NOT_FOUND = "Either actual value is \"null\" or couldn't find anything that matches with the desired ";
+    private static final String ERROR_INCORRECT_JSONPATH = "Incorrect jsonPath ";
+    private static final String ERROR_INCORRECT_XMLPATH = "Incorrect xmlPath ";
 
     public enum ComparisonType {
-	EQUALS, CONTAINS, MATCHES, EQUALS_STRICT;
+	EQUALS, CONTAINS;
     }
 
     public RestActions(String serviceURI) {
@@ -66,7 +70,7 @@ public class RestActions {
     //////////////////////////////////// [private] Reporting Actions
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    private void passAction(String actionName, String testData, Response response) {
+    private static void passAction(String actionName, String testData, Response response, Boolean isDiscrete) {
 	String message = "Successfully performed action [" + actionName + "].";
 	if (testData != null) {
 	    message = message + " With the following test data [" + testData + "].";
@@ -87,8 +91,14 @@ public class RestActions {
 
     }
 
-    private void passAction(String actionName, String testData) {
-	passAction(actionName, testData, null);
+    private static void passAction(String actionName, String testData, Boolean isDiscrete) {
+	if (isDiscrete) {
+	    ReportManager.setDiscreteLogging(true);
+	}
+	passAction(actionName, testData, null, isDiscrete);
+	if (isDiscrete) {
+	    ReportManager.setDiscreteLogging(false);
+	}
     }
 
     private static void failAction(String actionName, String testData, Response response) {
@@ -304,7 +314,7 @@ public class RestActions {
 	    Assertions.assertEquals(targetStatusCode, String.valueOf(response.getStatusCode()), 1, true);
 	    ReportManager.setDiscreteLogging(discreetLoggingState);
 	    passAction("performRequest", request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms",
-		    response);
+		    response, false);
 	} catch (AssertionError e) {
 	    failAction("performRequest", request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms",
 		    response);
@@ -393,29 +403,25 @@ public class RestActions {
      *                 http://jsonpath.com/
      * @return a string value that contains the extracted object
      */
-    public String getResponseJSONValue(Response response, String jsonPath) {
+    public static String getResponseJSONValue(Response response, String jsonPath) {
 	String searchPool = "";
 	try {
 	    searchPool = response.jsonPath().getString(jsonPath);
 	} catch (ClassCastException e) {
-	    ReportManager.log(
-		    "Either desired jsonPath \"NOT CORRECT\" or couldn't find anything that matches with the desired jsonPath ["
-			    + jsonPath + "]");
+	    ReportManager.log(ERROR_INCORRECT_JSONPATH + "[" + jsonPath + "]");
 	    failAction("getResponseJSONValue", jsonPath);
 	}
 	if (searchPool != null) {
-	    passAction("getResponseJSONValue", jsonPath);
+	    passAction("getResponseJSONValue", jsonPath, true);
 	    return searchPool;
 	} else {
-	    ReportManager.log(
-		    "Either actual value is \"null\" or couldn't find anything that matches with the desired jsonPath ["
-			    + jsonPath + "]");
-	    passAction("getResponseJSONValue", jsonPath);
+	    ReportManager.logDiscrete(ERROR_NOT_FOUND + "jsonPath [" + jsonPath + "]");
+	    passAction("getResponseJSONValue", jsonPath, true);
 	    return searchPool;
 	}
     }
 
-    public String getResponseJSONValue(Object response, String jsonPath) {
+    public static String getResponseJSONValue(Object response, String jsonPath) {
 	@SuppressWarnings("unchecked")
 	JSONObject obj = new JSONObject((java.util.HashMap<String, String>) response);
 
@@ -423,122 +429,107 @@ public class RestActions {
 	try {
 	    searchPool = JsonPath.from(obj.toString()).getString(jsonPath);
 	} catch (ClassCastException e) {
-	    ReportManager.log(
-		    "Either desired jsonPath \"NOT CORRECT\" or couldn't find anything that matches with the desired jsonPath ["
-			    + jsonPath + "]");
+	    ReportManager.log(ERROR_INCORRECT_JSONPATH + "[" + jsonPath + "]");
 	    failAction("getResponseJSONValue", jsonPath);
 	}
 	if (searchPool != null) {
-	    passAction("getResponseJSONValue", jsonPath);
+	    passAction("getResponseJSONValue", jsonPath, true);
 	    return searchPool;
 	} else {
-	    ReportManager.log(
-		    "Either actual value is \"null\" or couldn't find anything that matches with the desired jsonPath ["
-			    + jsonPath + "]");
-	    passAction("getResponseJSONValue", jsonPath);
+	    ReportManager.logDiscrete(ERROR_NOT_FOUND + "jsonPath [" + jsonPath + "]");
+	    passAction("getResponseJSONValue", jsonPath, true);
 	    return searchPool;
 	}
     }
 
-    public List<Object> getResponseJSONValueAsList(Response response, String jsonPath) {
+    public static List<Object> getResponseJSONValueAsList(Response response, String jsonPath) {
 	List<Object> searchPool = null;
 	try {
 	    searchPool = response.jsonPath().getList(jsonPath);
 	} catch (ClassCastException e) {
-	    ReportManager.log(
-		    "Either desired jsonPath \"NOT CORRECT\" or couldn't find anything that matches with the desired jsonPath ["
-			    + jsonPath + "]");
-	    failAction("getResponseJSONValue", jsonPath);
+	    ReportManager.log(ERROR_INCORRECT_JSONPATH + "[" + jsonPath + "]");
+	    failAction("getResponseJSONValueAsList", jsonPath);
 
 	}
 	if (searchPool != null) {
-	    passAction("getResponseJSONValueAsList", jsonPath);
+	    passAction("getResponseJSONValueAsList", jsonPath, true);
 	    return searchPool;
 	} else {
-	    ReportManager.log(
-		    "Either actual value is \"null\" or couldn't find anything that matches with the desired jsonPath ["
-			    + jsonPath + "]");
-	    passAction("getResponseJSONValueAsList", jsonPath);
+	    ReportManager.logDiscrete(ERROR_NOT_FOUND + "jsonPath [" + jsonPath + "]");
+	    passAction("getResponseJSONValueAsList", jsonPath, true);
 	    return searchPool;
 	}
     }
 
-    public String getResponseXMLValue(Response response, String xmlPath) {
+    public static String getResponseXMLValue(Response response, String xmlPath) {
 	String searchPool = "";
 	try {
 	    searchPool = response.xmlPath().getString(xmlPath);
 	} catch (ClassCastException e) {
-	    ReportManager.log(
-		    "Either desired xmlPath \"NOT CORRECT\" or couldn't find anything that matches with the desired xmlPath ["
-			    + xmlPath + "]");
-	    failAction("getResponseJSONValue", xmlPath);
+	    ReportManager.log(ERROR_INCORRECT_XMLPATH + "[" + xmlPath + "]");
+	    failAction("getResponseXMLValue", xmlPath);
 
 	}
 	if (searchPool != null) {
-	    passAction("getResponseXMLValue", xmlPath);
+	    passAction("getResponseXMLValue", xmlPath, true);
 	    return searchPool;
 	} else {
-	    ReportManager.log(
-		    "Either actual value is \"null\" or couldn't find anything that matches with the desired xmlPath ["
-			    + xmlPath + "]");
-	    passAction("getResponseXMLValue", xmlPath);
+	    ReportManager.logDiscrete(ERROR_NOT_FOUND + "xmlPath [" + xmlPath + "]");
+	    passAction("getResponseXMLValue", xmlPath, true);
 	    return searchPool;
 	}
     }
 
-    public String getResponseXMLValue(Object response, String xmlPath) {
+    public static String getResponseXMLValue(Object response, String xmlPath) {
 	String output = "";
 	try {
 	    output = ((Node) response).getAttribute(xmlPath);
 	} catch (ClassCastException e) {
-	    ReportManager.log(
-		    "Either desired xmlPath \"NOT CORRECT\" or couldn't find anything that matches with the desired xmlPath ["
-			    + xmlPath + "]");
-	    failAction("getResponseJSONValue", xmlPath);
+	    ReportManager.log(ERROR_INCORRECT_XMLPATH + "[" + xmlPath + "]");
+	    failAction("getResponseXMLValue", xmlPath);
 
 	}
 	if (output != null) {
-	    passAction("getResponseXMLValueAsList", xmlPath);
+	    passAction("getResponseXMLValue", xmlPath, true);
 	    return output;
 	} else {
-	    ReportManager.log(
-		    "Either actual value is \"null\" or couldn't find anything that matches with the desired xmlPath ["
-			    + xmlPath + "]");
-	    passAction("getResponseXMLValueAsList", xmlPath);
+	    ReportManager.logDiscrete(ERROR_NOT_FOUND + "xmlPath [" + xmlPath + "]");
+	    passAction("getResponseXMLValue", xmlPath, true);
 	    return output;
 	}
     }
 
-    public List<Object> getResponseXMLValueAsList(Response response, String xmlPath) {
+    public static List<Object> getResponseXMLValueAsList(Response response, String xmlPath) {
 	NodeChildren output = null;
 	try {
 	    output = response.xmlPath().get(xmlPath);
-
 	} catch (ClassCastException e) {
-	    ReportManager.log(
-		    "Either desired xmlPath \"NOT CORRECT\" or couldn't find anything that matches with the desired xmlPath ["
-			    + xmlPath + "]");
-	    failAction("getResponseJSONValue", xmlPath);
+	    ReportManager.log(ERROR_INCORRECT_XMLPATH + "[" + xmlPath + "]");
+	    failAction("getResponseXMLValueAsList", xmlPath);
 
 	}
-
-	List<Node> nodes = output.list();
-	List<Object> searchPool = Arrays.asList(nodes.toArray());
-
+	List<Node> nodes = null;
+	if (output != null) {
+	    nodes = output.list();
+	}
+	List<Object> searchPool = null;
+	if (nodes != null) {
+	    searchPool = Arrays.asList(nodes.toArray());
+	}
 	if (searchPool != null) {
-	    passAction("getResponseXMLValueAsList", xmlPath);
+	    passAction("getResponseXMLValueAsList", xmlPath, true);
 	    return searchPool;
 	} else {
-	    ReportManager.log(
-		    "Either actual value is \"null\" or couldn't find anything that matches with the desired xmlPath ["
-			    + xmlPath + "]");
-	    passAction("getResponseXMLValueAsList", xmlPath);
+	    ReportManager.logDiscrete(ERROR_NOT_FOUND + "xmlPath [" + xmlPath + "]");
+	    passAction("getResponseXMLValueAsList", xmlPath, true);
 	    return searchPool;
 	}
     }
 
-    public int getResponseStatusCode(Response response) {
-	return response.getStatusCode();
+    public static int getResponseStatusCode(Response response) {
+	int statusCode = response.getStatusCode();
+	passAction("getResponseStatusCode", String.valueOf(statusCode), true);
+	return statusCode;
     }
 
     /**
@@ -556,36 +547,107 @@ public class RestActions {
      *         in case it failed
      */
     public static boolean compareJSON(Response response, String referenceJsonFilePath, ComparisonType comparisonType) {
+	return compareJSON(response, referenceJsonFilePath, comparisonType, "");
+    }
+
+    /**
+     * Compares the Response object against the content of the referenceJsonFilePath
+     * 
+     * @param response              the full response object returned by
+     *                              performRequest method.
+     * @param referenceJsonFilePath the full absolute path to the test data file
+     *                              that will be used as a reference for this
+     *                              comparison
+     * @param comparisonType        ComparisonType.EQUALS, CONTAINS, MATCHES,
+     *                              EQUALS_STRICT; Note that MATCHES ignores the
+     *                              content ordering inside the JSON
+     * @param jsonPathToTargetArray a jsonpath that will be parsed to point to the
+     *                              target JSON Array
+     * @return a boolean value that is TRUE in case the comparison passed, or FALSE
+     *         in case it failed
+     */
+    public static boolean compareJSON(Response response, String referenceJsonFilePath, ComparisonType comparisonType,
+	    String jsonPathToTargetArray) {
+	Boolean comparisonResult;
+	JSONParser parser = new JSONParser();
 	try {
-	    JSONParser parser = new JSONParser();
-	    org.json.simple.JSONObject expectedJsonObject = (org.json.simple.JSONObject) parser
-		    .parse(new FileReader(referenceJsonFilePath));
 	    org.json.simple.JSONObject actualJsonObject = (org.json.simple.JSONObject) parser
 		    .parse(response.asString());
-
+	    org.json.simple.JSONObject expectedJsonObject = null;
+	    org.json.simple.JSONArray expectedJsonArray = null;
+	    try {
+		expectedJsonObject = (org.json.simple.JSONObject) parser.parse(new FileReader(referenceJsonFilePath));
+	    } catch (ClassCastException e) {
+		// org.json.simple.JSONArray cannot be cast to org.json.simple.JSONObject
+		expectedJsonArray = (org.json.simple.JSONArray) parser.parse(new FileReader(referenceJsonFilePath));
+	    }
 	    switch (comparisonType) {
 	    case EQUALS:
-		return expectedJsonObject.equals(actualJsonObject);
-	    case EQUALS_STRICT:
-		return JSONCompare.compareJSON(expectedJsonObject.toJSONString(), actualJsonObject.toJSONString(),
-			JSONCompareMode.STRICT).passed();
-	    case MATCHES:
-		return JSONCompare.compareJSON(expectedJsonObject.toJSONString(), actualJsonObject.toJSONString(),
-			JSONCompareMode.NON_EXTENSIBLE).passed();
+		comparisonResult = compareJSONEquals(expectedJsonObject, expectedJsonArray, actualJsonObject);
+		break;
 	    case CONTAINS:
-		return JSONCompare.compareJSON(expectedJsonObject.toJSONString(), actualJsonObject.toJSONString(),
-			JSONCompareMode.LENIENT).passed();
+		comparisonResult = compareJSONContains(response, expectedJsonObject, expectedJsonArray,
+			actualJsonObject, jsonPathToTargetArray);
+		break;
 	    default:
-		return false;
+		comparisonResult = false;
+		break;
 	    }
-
 	} catch (IOException e) {
 	    ReportManager.log(e);
-	    failAction("compareJsonFiles", "Couldn't find the desired file. [" + referenceJsonFilePath + "].");
-	    return false;
+	    failAction("compareJSON", "Couldn't find the desired file. [" + referenceJsonFilePath + "].");
+	    comparisonResult = false;
 	} catch (ParseException | JSONException e) {
 	    ReportManager.log(e);
-	    failAction("compareJsonFiles", "Couldn't parse the desired file. [" + referenceJsonFilePath + "].");
+	    failAction("compareJSON", "Couldn't parse the desired file. [" + referenceJsonFilePath + "].");
+	    comparisonResult = false;
+	}
+	passAction("compareJSON", referenceJsonFilePath, true);
+	return comparisonResult;
+    }
+
+    private static boolean compareJSONEquals(org.json.simple.JSONObject expectedJsonObject,
+	    org.json.simple.JSONArray expectedJsonArray, org.json.simple.JSONObject actualJsonObject) {
+	if (expectedJsonObject != null) {
+	    // if expected is an object and actual is also an object
+	    return actualJsonObject.toString().equals(expectedJsonObject.toString());
+	} else {
+	    // if expected is an array and actual response is also an array
+	    // not tested
+	    return actualJsonObject.toString().equals(expectedJsonArray.toString());
+	}
+    }
+
+    @SuppressWarnings("unchecked")
+    private static boolean compareJSONContains(Response response, org.json.simple.JSONObject expectedJsonObject,
+	    org.json.simple.JSONArray expectedJsonArray, org.json.simple.JSONObject actualJsonObject,
+	    String jsonPathToTargetArray) throws JSONException, ParseException {
+	JSONParser parser = new JSONParser();
+	if (!jsonPathToTargetArray.equals("") && (expectedJsonArray != null)) {
+	    // if expected is an array and the user provided the path to extract it from the
+	    // response
+	    org.json.simple.JSONArray actualJsonArray = (org.json.simple.JSONArray) parser
+		    .parse((new Gson()).toJsonTree(getResponseJSONValueAsList(response, jsonPathToTargetArray))
+			    .getAsJsonArray().toString());
+	    return actualJsonArray.containsAll(expectedJsonArray);
+	} else if (jsonPathToTargetArray.equals("") && (expectedJsonArray != null)) {
+	    // if expected is an array and the user did not provide the path to extract it
+	    // from the response
+	    String actual = (new Gson()).toJson(actualJsonObject);
+	    String expected = (new Gson()).toJson(expectedJsonArray);
+	    return actual.contains(expected.substring(1, expected.length()));
+	} else if (expectedJsonObject != null) {
+	    // if expected is an object and actual is also an object
+	    Boolean initialComparison = JSONCompare.compareJSON(expectedJsonObject.toJSONString(),
+		    actualJsonObject.toJSONString(), JSONCompareMode.LENIENT).passed();
+	    if (!initialComparison) {
+		// secondary comparison using java contains
+		// not tested
+		return actualJsonObject.toString().contains(expectedJsonObject.toString());
+	    } else {
+		return initialComparison;
+	    }
+	} else {
 	    return false;
 	}
     }
