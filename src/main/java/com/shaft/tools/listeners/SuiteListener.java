@@ -12,7 +12,7 @@ public class SuiteListener implements ISuiteListener {
     public void onStart(ISuite suite) {
 	PropertiesFileManager.readPropertyFiles();
 	ReportManager.populateEnvironmentData();
-	ReportManager.logEngineVersion(true);
+	ReportManager.logEngineVersion();
 	ReportManager.setTotalNumberOfTests(suite.getAllMethods().size());
 	ReportManager.setDiscreteLogging(Boolean.valueOf(System.getProperty("alwaysLogDiscreetly")));
 	ReportManager.setDebugMode(Boolean.valueOf(System.getProperty("debugMode")));

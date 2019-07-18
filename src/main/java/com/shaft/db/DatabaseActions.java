@@ -10,6 +10,7 @@ import java.util.concurrent.Executors;
 
 import org.testng.Assert;
 
+import com.mysql.jdbc.exceptions.jdbc4.MySQLSyntaxErrorException;
 import com.shaft.tools.io.ReportManager;
 
 public class DatabaseActions {
@@ -29,7 +30,7 @@ public class DatabaseActions {
 	    this.value = type;
 	}
 
-	protected String value() {
+	protected String getValue() {
 	    return value;
 	}
     }
@@ -117,13 +118,13 @@ public class DatabaseActions {
 
 	    default:
 		ReportManager.log("Database not supported");
-		failAction("createConnection", dbType.value());
+		failAction("createConnection", dbType.getValue());
 		break;
 	    }
 	    DriverManager.setLoginTimeout(Integer.parseInt(System.getProperty("databaseLoginTimeout")));
 	    connection = DriverManager.getConnection(connectionString, username, password);
 
-	    if (!dbType.value().equals("mysql") && !dbType.value().equals("postgresql")) {
+	    if (!dbType.getValue().equals("mysql") && !dbType.getValue().equals("postgresql")) {
 		// com.mysql.jdbc.JDBC4Connection.setNetworkTimeout
 		// org.postgresql.jdbc4.Jdbc4Connection.setNetworkTimeout
 		connection.setNetworkTimeout(Executors.newFixedThreadPool(1),
@@ -217,6 +218,9 @@ public class DatabaseActions {
 	ResultSet resultSet = null;
 	try {
 	    resultSet = createStatement(createConnection()).executeQuery(sql);
+	} catch (MySQLSyntaxErrorException e) {
+	    ReportManager.log(e);
+	    failAction("executeSelectQuery", "this query has a syntax error [" + sql + "]");
 	} catch (SQLException | NullPointerException e) {
 	    ReportManager.log(e);
 	    failAction("executeSelectQuery", sql);
@@ -247,6 +251,9 @@ public class DatabaseActions {
 	try {
 	    updatedRows = createStatement(createConnection()).executeUpdate(sql);
 	    passAction("executeUpdateQuery", sql);
+	} catch (MySQLSyntaxErrorException e) {
+	    ReportManager.log(e);
+	    failAction("executeSelectQuery", "this query has a syntax error [" + sql + "]");
 	} catch (SQLException e) {
 	    ReportManager.log(e);
 	    failAction("executeUpdateQuery", sql);

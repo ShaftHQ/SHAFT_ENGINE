@@ -2,6 +2,7 @@ package com.shaft.gui.browser;
 
 import java.awt.HeadlessException;
 import java.awt.Toolkit;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
@@ -23,12 +24,16 @@ import com.shaft.tools.io.ReportManager;
 
 public class BrowserActions {
     private static final Boolean HEADLESS_EXECUTION = Boolean.valueOf(System.getProperty("headlessExecution").trim());
-    private static final int NAVIGATION_TIMEOUT = Integer
-	    .parseInt(System.getProperty("browserNavigationTimeout").trim());
+    private static final Duration NAVIGATION_TIMEOUT = Duration
+	    .ofSeconds(Integer.parseInt(System.getProperty("browserNavigationTimeout").trim()));
 
     private BrowserActions() {
 	throw new IllegalStateException("Utility class");
     }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////// [private] Reporting Actions
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     private static void passAction(String actionName) {
 	passAction(null, actionName, null);
@@ -68,6 +73,93 @@ public class BrowserActions {
 	ReportManager.log(message);
 	Assert.fail(message);
     }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////// [private] Preparation and Support Actions
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    private static void confirmThatWebsiteIsNotDown(WebDriver driver, String targetUrl) {
+	List<String> navigationErrorMessages = Arrays.asList("This site can’t be reached", "Unable to connect",
+		"Safari Can’t Connect to the Server", "This page can't be displayed", "Invalid URL",
+		"<head></head><body></body>");
+	navigationErrorMessages.forEach(errorMessage -> {
+	    if (driver.getPageSource().contains(errorMessage)) {
+		failAction(driver, "navigateToURL",
+			"Error message: \"" + errorMessage + "\", Target URL: \"" + targetUrl + "\"");
+	    }
+	});
+    }
+
+    private static void navigateToNewURL(WebDriver driver, String targetUrl, String targetUrlAfterRedirection) {
+	try {
+	    driver.navigate().to(targetUrl);
+	    // will use contains here instead of equals, because sometimes the url after
+	    // redirection contains a random token that cannot be predefined, also as a
+	    // precaution against the failure in case the user tries to navigate back to the
+	    // source url which already redirected him
+	    (new WebDriverWait(driver, NAVIGATION_TIMEOUT))
+		    .until(ExpectedConditions.urlContains(targetUrlAfterRedirection));
+	} catch (WebDriverException e) {
+	    ReportManager.log(e);
+	    failAction(driver, "navigateToURL", targetUrl);
+	}
+    }
+
+    private static Dimension attemptMaximizeUsingSeleniumWebDriver(WebDriver driver, String executionAddress,
+	    String targetBrowserName, String targetOperatingSystem) {
+	if ((!executionAddress.equals("local") && !targetBrowserName.equals("GoogleChrome"))
+		|| (executionAddress.equals("local")
+			&& !(targetBrowserName.equals("GoogleChrome") && targetOperatingSystem.equals("Mac-64")))) {
+	    try {
+		driver.manage().window().maximize();
+		ReportManager.logDiscrete(
+			"Window size after SWD Maximize: " + driver.manage().window().getSize().toString());
+		return driver.manage().window().getSize();
+	    } catch (WebDriverException e) {
+		// org.openqa.selenium.WebDriverException: unknown error: failed to change
+		// window state to maximized, current state is normal
+		ReportManager.log(e);
+	    }
+	}
+	return null;
+    }
+
+    private static Dimension attemptMazimizeUsingToolkitAndJavascript(WebDriver driver, int width, int height) {
+	try {
+	    Toolkit toolkit = Toolkit.getDefaultToolkit();
+	    if (!HEADLESS_EXECUTION) {
+		width = (int) toolkit.getScreenSize().getWidth();
+		height = (int) toolkit.getScreenSize().getHeight();
+	    }
+	    driver.manage().window().setPosition(new Point(0, 0));
+	    driver.manage().window().setSize(new Dimension(width, height));
+
+	    ReportManager.logDiscrete("Window size after Toolkit: " + driver.manage().window().getSize().toString());
+	    return driver.manage().window().getSize();
+	} catch (HeadlessException e) {
+	    ((JavascriptExecutor) driver).executeScript("window.focus();");
+	    ((JavascriptExecutor) driver).executeScript("window.moveTo(0,0);");
+	    ((JavascriptExecutor) driver).executeScript("window.resizeTo(" + width + ", " + height + ");");
+
+	    ReportManager.logDiscrete(
+		    "Window size after JavascriptExecutor: " + driver.manage().window().getSize().toString());
+	    return driver.manage().window().getSize();
+	}
+    }
+
+    private static Dimension attemptMaximizeUsingSeleniumWebDriverManageWindow(WebDriver driver, int width,
+	    int height) {
+	driver.manage().window().setPosition(new Point(0, 0));
+	driver.manage().window().setSize(new Dimension(width, height));
+
+	ReportManager.logDiscrete(
+		"Window size after WebDriver.Manage.Window: " + driver.manage().window().getSize().toString());
+	return driver.manage().window().getSize();
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////// [Public] Core Browser Factory Actions
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     /**
      * Gets the current page URL and returns it as a string
@@ -255,18 +347,6 @@ public class BrowserActions {
 	}
     }
 
-    private static void confirmThatWebsiteIsNotDown(WebDriver driver, String targetUrl) {
-	List<String> navigationErrorMessages = Arrays.asList("This site can’t be reached", "Unable to connect",
-		"Safari Can’t Connect to the Server", "This page can't be displayed", "Invalid URL",
-		"<head></head><body></body>");
-	navigationErrorMessages.forEach(errorMessage -> {
-	    if (driver.getPageSource().contains(errorMessage)) {
-		failAction(driver, "navigateToURL",
-			"Error message: \"" + errorMessage + "\", Target URL: \"" + targetUrl + "\"");
-	    }
-	});
-    }
-
     /**
      * Navigates one step back from the browsers history
      * 
@@ -279,7 +359,8 @@ public class BrowserActions {
 	    initialURL = driver.getCurrentUrl();
 	    driver.navigate().back();
 	    JSWaiter.waitForLazyLoading();
-	    (new WebDriverWait(driver, 30)).until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
+	    (new WebDriverWait(driver, NAVIGATION_TIMEOUT))
+		    .until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
 	    if (!initialURL.equals(driver.getCurrentUrl())) {
 		passAction(driver, "navigateBack");
 	    } else {
@@ -298,7 +379,8 @@ public class BrowserActions {
 	    initialURL = driver.getCurrentUrl();
 	    driver.navigate().forward();
 	    JSWaiter.waitForLazyLoading();
-	    (new WebDriverWait(driver, 30)).until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
+	    (new WebDriverWait(driver, NAVIGATION_TIMEOUT))
+		    .until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
 	    if (!initialURL.equals(driver.getCurrentUrl())) {
 		passAction(driver, "navigateForward");
 	    } else {
@@ -321,22 +403,6 @@ public class BrowserActions {
 	passAction(driver, "refreshCurrentPage");
 	// removed all exception handling as there was no comments on when and why this
 	// exception happens
-    }
-
-    private static void navigateToNewURL(WebDriver driver, String targetUrl, String targetUrlAfterRedirection) {
-	try {
-	    driver.navigate().to(targetUrl);
-	    // will use contains here instead of equals, because sometimes the url after
-	    // redirection contains a random token that cannot be predefined, also as a
-	    // precaution against the failure in case the user tries to navigate back to the
-	    // source url which already redirected him
-
-	    (new WebDriverWait(driver, NAVIGATION_TIMEOUT))
-		    .until(ExpectedConditions.urlContains(targetUrlAfterRedirection));
-	} catch (WebDriverException e) {
-	    ReportManager.log(e);
-	    failAction(driver, "navigateToURL", targetUrl);
-	}
     }
 
     /**
@@ -414,58 +480,6 @@ public class BrowserActions {
 	}
 
 	passAction(driver, "maximizeWindow", "New screen size is now: " + currentWindowSize.toString());
-    }
-
-    private static Dimension attemptMaximizeUsingSeleniumWebDriver(WebDriver driver, String executionAddress,
-	    String targetBrowserName, String targetOperatingSystem) {
-	if ((!executionAddress.equals("local") && !targetBrowserName.equals("GoogleChrome"))
-		|| (executionAddress.equals("local")
-			&& !(targetBrowserName.equals("GoogleChrome") && targetOperatingSystem.equals("Mac-64")))) {
-	    try {
-		driver.manage().window().maximize();
-		ReportManager.logDiscrete(
-			"Window size after SWD Maximize: " + driver.manage().window().getSize().toString());
-		return driver.manage().window().getSize();
-	    } catch (WebDriverException e) {
-		// org.openqa.selenium.WebDriverException: unknown error: failed to change
-		// window state to maximized, current state is normal
-		ReportManager.log(e);
-	    }
-	}
-	return null;
-    }
-
-    private static Dimension attemptMazimizeUsingToolkitAndJavascript(WebDriver driver, int width, int height) {
-	try {
-	    Toolkit toolkit = Toolkit.getDefaultToolkit();
-	    if (!HEADLESS_EXECUTION) {
-		width = (int) toolkit.getScreenSize().getWidth();
-		height = (int) toolkit.getScreenSize().getHeight();
-	    }
-	    driver.manage().window().setPosition(new Point(0, 0));
-	    driver.manage().window().setSize(new Dimension(width, height));
-
-	    ReportManager.logDiscrete("Window size after Toolkit: " + driver.manage().window().getSize().toString());
-	    return driver.manage().window().getSize();
-	} catch (HeadlessException e) {
-	    ((JavascriptExecutor) driver).executeScript("window.focus();");
-	    ((JavascriptExecutor) driver).executeScript("window.moveTo(0,0);");
-	    ((JavascriptExecutor) driver).executeScript("window.resizeTo(" + width + ", " + height + ");");
-
-	    ReportManager.logDiscrete(
-		    "Window size after JavascriptExecutor: " + driver.manage().window().getSize().toString());
-	    return driver.manage().window().getSize();
-	}
-    }
-
-    private static Dimension attemptMaximizeUsingSeleniumWebDriverManageWindow(WebDriver driver, int width,
-	    int height) {
-	driver.manage().window().setPosition(new Point(0, 0));
-	driver.manage().window().setSize(new Dimension(width, height));
-
-	ReportManager.logDiscrete(
-		"Window size after WebDriver.Manage.Window: " + driver.manage().window().getSize().toString());
-	return driver.manage().window().getSize();
     }
 
     /**

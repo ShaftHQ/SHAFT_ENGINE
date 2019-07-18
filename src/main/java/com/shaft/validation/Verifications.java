@@ -6,6 +6,8 @@ import org.testng.Assert;
 import org.testng.ITestResult;
 import org.testng.Reporter;
 
+import com.shaft.api.RestActions;
+import com.shaft.api.RestActions.ComparisonType;
 import com.shaft.cli.FileActions;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
@@ -13,10 +15,9 @@ import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.support.JavaActions;
 
+import io.restassured.response.Response;
+
 public class Verifications {
-
-    // TODO: apply enums
-
     private static StringBuilder verificationFailures = new StringBuilder();
     private static StringBuilder verificationSuccesses = new StringBuilder();
 
@@ -25,6 +26,48 @@ public class Verifications {
     private static int attemptsBeforeThrowingElementNotFoundExceptionInCaseElementShouldntExist = 1;
 
     private static Boolean discreetLoggingState = Boolean.valueOf(System.getProperty("alwaysLogDiscreetly"));
+
+    public enum VerificationType {
+	POSITIVE(true), NEGATIVE(false);
+
+	private Boolean value;
+
+	VerificationType(Boolean type) {
+	    this.value = type;
+	}
+
+	protected boolean getValue() {
+	    return value;
+	}
+    }
+
+    public enum VerificationComparisonType {
+	EQUALS(1), CONTAINS(3), MATCHES(2), CASE_INSENSITIVE(4);
+
+	private int value;
+
+	VerificationComparisonType(int type) {
+	    this.value = type;
+	}
+
+	protected int getValue() {
+	    return value;
+	}
+    }
+
+    public enum ComparativeRelationType {
+	GREATER_THAN(">"), GREATER_THAN_OR_EQUALS(">="), LESS_THAN("<"), LESS_THAN_OR_EQUALS("<="), EQUALS("==");
+
+	private String value;
+
+	ComparativeRelationType(String type) {
+	    this.value = type;
+	}
+
+	protected String getValue() {
+	    return value;
+	}
+    }
 
     private Verifications() {
 	throw new IllegalStateException("Utility class");
@@ -74,8 +117,30 @@ public class Verifications {
     }
 
     /**
+     * Verifies that two strings are equal if VerificationType is POSITIVE, or not
+     * equal if VerificationType is NEGATIVE.
+     * 
+     * @param expectedValue              the expected value (test data) of this
+     *                                   verification
+     * @param actualValue                the actual value (calculated data) of this
+     *                                   verification
+     * @param verificationComparisonType VerificationComparisonType.LITERAL,
+     *                                   CONTAINS, REGEX, CASE_INSENSITIVE
+     * @param verificationType           VerificationType.POSITIVE, NEGATIVE
+     */
+    public static void verifyEquals(Object expectedValue, Object actualValue,
+	    VerificationComparisonType verificationComparisonType, VerificationType verificationType) {
+	verifyEquals(expectedValue, actualValue, verificationComparisonType.getValue(), verificationType.getValue());
+    }
+
+    /**
      * Verifies that two strings are equal if VerificationType is true, or not equal
      * if VerificationType is false.
+     * 
+     * <p>
+     * This method will be removed soon. Use
+     * {@link Verifications#verifyEquals(Object , Object , VerificationComparisonType , VerificationType)}
+     * instead.
      * 
      * @param expectedValue    the expected value (test data) of this verification
      * @param actualValue      the actual value (calculated data) of this
@@ -122,8 +187,23 @@ public class Verifications {
     }
 
     /**
+     * Verifies that object is null if VerificationType is POSITIVE, or not equal if
+     * VerificationType is NEGATIVE.
+     * 
+     * @param object           the object under test
+     * @param verificationType VerificationType.POSITIVE, NEGATIVE
+     */
+    public static void verifyNull(Object object, VerificationType verificationType) {
+	verifyNull(object, verificationType.getValue());
+    }
+
+    /**
      * Verifies that object is null if VerificationType is true, or not equal if
      * VerificationType is false.
+     * 
+     * <p>
+     * This method will be removed soon. Use
+     * {@link Verifications#verifyNull(Object , VerificationType)} instead.
      * 
      * @param object           the object under test
      * @param verificationType either 'true' for a positive verification that the
@@ -158,8 +238,26 @@ public class Verifications {
     }
 
     /**
+     * Verifies that webElement exists if VerificationType is POSITIVE, or does not
+     * exist if VerificationType is NEGATIVE.
+     * 
+     * @param driver           the current instance of Selenium webdriver
+     * @param elementLocator   the locator of the webElement under test (By xpath,
+     *                         id, selector, name ...etc)
+     * @param verificationType VerificationType.POSITIVE, NEGATIVE
+     */
+    public static void verifyElementExists(WebDriver driver, By elementLocator, VerificationType verificationType) {
+	verifyElementExists(driver, elementLocator, verificationType.getValue());
+    }
+
+    /**
      * Verifies that webElement exists if VerificationType is true, or does not
      * exist if VerificationType is false.
+     * 
+     * <p>
+     * This method will be removed soon. Use
+     * {@link Verifications#verifyElementExists(WebDriver , By , VerificationType)}
+     * instead.
      * 
      * @param driver           the current instance of Selenium webdriver
      * @param elementLocator   the locator of the webElement under test (By xpath,
@@ -211,7 +309,35 @@ public class Verifications {
 
     /**
      * Verifies that webElement attribute equals expectedValue if verificationType
+     * is POSITIVE, or does not equal expectedValue if verificationType is NEGATIVE.
+     * 
+     * @param driver                     the current instance of Selenium webdriver
+     * @param elementLocator             the locator of the webElement under test
+     *                                   (By xpath, id, selector, name ...etc)
+     * @param elementAttribute           the desired attribute of the webElement
+     *                                   under test
+     * @param expectedValue              the expected value (test data) of this
+     *                                   verification
+     * @param verificationComparisonType VerificationComparisonType.LITERAL,
+     *                                   CONTAINS, REGEX, CASE_INSENSITIVE
+     * @param verificationType           VerificationType.POSITIVE, NEGATIVE
+     *                                   expected value
+     */
+    public static void verifyElementAttribute(WebDriver driver, By elementLocator, String elementAttribute,
+	    String expectedValue, VerificationComparisonType verificationComparisonType,
+	    VerificationType verificationType) {
+	verifyElementAttribute(driver, elementLocator, elementAttribute, expectedValue,
+		verificationComparisonType.getValue(), verificationType.getValue());
+    }
+
+    /**
+     * Verifies that webElement attribute equals expectedValue if verificationType
      * is true, or does not equal expectedValue if verificationType is false.
+     * 
+     * <p>
+     * This method will be removed soon. Use
+     * {@link Verifications#verifyElementAttribute(WebDriver , By , String, String, VerificationComparisonType , VerificationType)}
+     * instead.
      * 
      * @param driver           the current instance of Selenium webdriver
      * @param elementLocator   the locator of the webElement under test (By xpath,
@@ -282,7 +408,35 @@ public class Verifications {
 
     /**
      * Verifies webElement CSSProperty equals expectedValue if verificationType is
+     * POSITIVE, or does not equal expectedValue if verificationType is NEGATIVE.
+     * 
+     * @param driver                     the current instance of Selenium webdriver
+     * @param elementLocator             the locator of the webElement under test
+     *                                   (By xpath, id, selector, name ...etc)
+     * @param propertyName               the target CSS property of the webElement
+     *                                   under test
+     * @param expectedValue              the expected value (test data) of this
+     *                                   assertion
+     * @param verificationComparisonType VerificationComparisonType.LITERAL,
+     *                                   CONTAINS, REGEX, CASE_INSENSITIVE
+     * @param verificationType           VerificationType.POSITIVE, NEGATIVE
+     *                                   expected value
+     */
+    public static void verifyElementCSSProperty(WebDriver driver, By elementLocator, String propertyName,
+	    String expectedValue, VerificationComparisonType verificationComparisonType,
+	    VerificationType verificationType) {
+	verifyElementCSSProperty(driver, elementLocator, propertyName, expectedValue,
+		verificationComparisonType.getValue(), verificationType.getValue());
+    }
+
+    /**
+     * Verifies webElement CSSProperty equals expectedValue if verificationType is
      * true, or does not equal expectedValue if verificationType is false.
+     * 
+     * <p>
+     * This method will be removed soon. Use
+     * {@link Verifications#verifyElementCSSProperty(WebDriver , By , String, String, VerificationComparisonType , VerificationType)}
+     * instead.
      * 
      * @param driver           the current instance of Selenium webdriver
      * @param elementLocator   the locator of the webElement under test (By xpath,
@@ -340,7 +494,32 @@ public class Verifications {
 
     /**
      * Verifies that browser attribute equals expectedValue if verificationType is
+     * POSITIVE, or does not equal expectedValue if verificationType is NEGATIVE.
+     * 
+     * @param driver                     the current instance of Selenium webdriver
+     * @param browserAttribute           the desired attribute of the browser window
+     *                                   under test
+     * @param expectedValue              the expected value (test data) of this
+     *                                   verification
+     * @param verificationComparisonType VerificationComparisonType.LITERAL,
+     *                                   CONTAINS, REGEX, CASE_INSENSITIVE
+     * @param verificationType           VerificationType.POSITIVE, NEGATIVE
+     *                                   expected value
+     */
+    public static void verifyBrowserAttribute(WebDriver driver, String browserAttribute, String expectedValue,
+	    VerificationComparisonType verificationComparisonType, VerificationType verificationType) {
+	verifyBrowserAttribute(driver, browserAttribute, expectedValue, verificationComparisonType.getValue(),
+		verificationType.getValue());
+    }
+
+    /**
+     * Verifies that browser attribute equals expectedValue if verificationType is
      * true, or does not equal expectedValue if verificationType is false.
+     * 
+     * <p>
+     * This method will be removed soon. Use
+     * {@link Verifications#verifyBrowserAttribute(WebDriver , String, String, VerificationComparisonType , VerificationType)}
+     * instead.
      * 
      * @param driver           the current instance of Selenium webdriver
      * @param browserAttribute the desired attribute of the browser window under
@@ -419,8 +598,34 @@ public class Verifications {
 
     /**
      * Verifies that the expectedValue is related to the actualValue using the
+     * desired comparativeRelationType if verificationType is POSITIVE, or not
+     * related if verificationType is NEGATIVE.
+     * 
+     * @param expectedValue           the expected value (test data) of this
+     *                                assertion
+     * @param actualValue             the actual value (calculated data) of this
+     *                                assertion
+     * @param comparativeRelationType assertComparativeRelation.GREATER_THAN,
+     *                                GREATER_THAN_OR_EQUALS, LESS_THAN,
+     *                                LESS_THAN_OR_EQUALS, EQUALS
+     * @param verificationType        VerificationType.POSITIVE, NEGATIVE expected
+     *                                value
+     */
+    public static void verifyComparativeRelation(Number expectedValue, Number actualValue,
+	    ComparativeRelationType comparativeRelationType, VerificationType verificationType) {
+	verifyComparativeRelation(expectedValue, actualValue, comparativeRelationType.getValue(),
+		verificationType.getValue());
+    }
+
+    /**
+     * Verifies that the expectedValue is related to the actualValue using the
      * desired comparativeRelationType if verificationType is true, or not related
-     * if AssertionType is false.
+     * if verificationType is false.
+     * 
+     * <p>
+     * This method will be removed soon. Use
+     * {@link Verifications#verifyComparativeRelation(Number , Number, ComparativeRelationType , VerificationType)}
+     * instead.
      * 
      * @param expectedValue           the expected value (test data) of this
      *                                assertion
@@ -512,8 +717,32 @@ public class Verifications {
     }
 
     /**
+     * Verifies that a certain file exists if verificationType is POSITIVE, or
+     * doesn't exist if verificationType is NEGATIVE.
+     * 
+     * @param fileFolderName   The location of the folder that contains the target
+     *                         file, relative to the project's root folder, ending
+     *                         with a /
+     * @param fileName         The name of the target file (including its extension
+     *                         if any)
+     * @param numberOfRetries  number of times to try to find the file, given that
+     *                         each retry is separated by a 500 millisecond wait
+     *                         time
+     * @param verificationType VerificationType.POSITIVE, NEGATIVE expected value
+     */
+    public static void verifyFileExists(String fileFolderName, String fileName, int numberOfRetries,
+	    VerificationType verificationType) {
+	verifyFileExists(fileFolderName, fileName, numberOfRetries, verificationType.getValue());
+    }
+
+    /**
      * Verifies that a certain file exists if verificationType is true, or doesn't
      * exist if verificationType is false.
+     * 
+     * <p>
+     * This method will be removed soon. Use
+     * {@link Verifications#verifyFileExists(String , String, int , VerificationType)}
+     * instead.
      * 
      * @param fileFolderName   The location of the folder that contains the target
      *                         file, relative to the project's root folder, ending
@@ -557,6 +786,98 @@ public class Verifications {
 	}
 	reportVerificationResults("verifyFileExists", null, null);
 
+    }
+
+    /**
+     * Verifies that the provided conditional statement evaluates to true if
+     * VerificationType is POSITIVE, or to false if VerificationType is NEGATIVE.
+     * 
+     * @param conditionalStatement the statement that will be evaluated to see if it
+     *                             matches the expected result
+     * @param verificationType     VerificationType.POSITIVE, NEGATIVE
+     */
+    public static void verifyTrue(Boolean conditionalStatement, VerificationType verificationType) {
+	ReportManager.logDiscrete("Verification [" + "verifyTrue" + "] is being performed for target value ["
+		+ conditionalStatement + "], with VerificationType [" + verificationType + "].");
+	if (verificationType.getValue()) {
+	    if (conditionalStatement == null) {
+		verificationFailures.append(
+			"Verification Failed; conditional statement evaluated to NULL while it was expected to evaluate to true.");
+	    }
+	    try {
+		Assert.assertTrue(conditionalStatement);
+		verificationSuccesses
+			.append("Verification Passed; conditional statement evaluated to true as expected.");
+	    } catch (AssertionError e) {
+		verificationFailures.append(
+			"Verification Failed; conditional statement evaluated to false while it was expected to evaluate to true.");
+	    } catch (Exception e) {
+		ReportManager.log(e);
+		verificationFailures.append("Verification Failed; an unhandled exception occured.");
+	    }
+	} else {
+	    if (conditionalStatement == null) {
+		verificationFailures.append(
+			"Verification Failed; conditional statement evaluated to NULL while it was expected to evaluate to false.");
+	    }
+	    try {
+		Assert.assertFalse(conditionalStatement);
+		verificationSuccesses
+			.append("Verification Passed; conditional statement evaluated to false as expected.");
+	    } catch (AssertionError e) {
+		verificationFailures.append(
+			"Verification Failed; conditional statement evaluated to true while it was expected to evaluate to false.");
+	    } catch (Exception e) {
+		ReportManager.log(e);
+		verificationFailures.append("Verification Failed; an unhandled exception occured.");
+	    }
+	}
+
+    }
+
+    /**
+     * Verifies that the target API Response object matches the expected
+     * referenceJsonFile if VerificationType is POSITIVE, or doesn't match it if
+     * VerificationType is NEGATIVE.
+     * 
+     * @param response              the full response object returned by
+     *                              performRequest method.
+     * @param referenceJsonFilePath the full absolute path to the test data file
+     *                              that will be used as a reference for this
+     *                              comparison
+     * @param comparisonType        ComparisonType.EQUALS, CONTAINS, MATCHES,
+     *                              EQUALS_STRICT; Note that MATCHES ignores the
+     *                              content ordering inside the JSON
+     * @param verificationType      AssertionType.POSITIVE, NEGATIVE
+     */
+    public static void verifyJSONFileContent(Response response, String referenceJsonFilePath,
+	    ComparisonType comparisonType, VerificationType verificationType) {
+	Boolean comparisonResult = RestActions.compareJSON(response, referenceJsonFilePath, comparisonType, "");
+	verifyTrue(comparisonResult, verificationType);
+    }
+
+    /**
+     * Verifies that the target array extracted by parsing the API Response object
+     * matches the expected referenceJsonFile if VerificationType is POSITIVE, or
+     * doesn't match it if VerificationType is NEGATIVE.
+     * 
+     * @param response              the full response object returned by
+     *                              performRequest method.
+     * @param referenceJsonFilePath the full absolute path to the test data file
+     *                              that will be used as a reference for this
+     *                              comparison
+     * @param comparisonType        ComparisonType.EQUALS, CONTAINS, MATCHES,
+     *                              EQUALS_STRICT; Note that MATCHES ignores the
+     *                              content ordering inside the JSON
+     * @param jsonPathToTargetArray a jsonpath that will be parsed to point to the
+     *                              target JSON Array
+     * @param verificationType      AssertionType.POSITIVE, NEGATIVE
+     */
+    public static void verifyJSONFileContent(Response response, String referenceJsonFilePath,
+	    ComparisonType comparisonType, String jsonPathToTargetArray, VerificationType verificationType) {
+	Boolean comparisonResult = RestActions.compareJSON(response, referenceJsonFilePath, comparisonType,
+		jsonPathToTargetArray);
+	verifyTrue(comparisonResult, verificationType);
     }
 
 }
