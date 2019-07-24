@@ -7,7 +7,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.ObjectOutputStream;
 import java.net.URLConnection;
 import java.util.Arrays;
@@ -25,6 +24,9 @@ import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.testng.Assert;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.support.JavaActions;
 import com.shaft.validation.Assertions;
@@ -76,17 +78,21 @@ public class RestActions {
 	    message = message + " With the following test data [" + testData + "].";
 	}
 
-	Boolean discreetLogging = ReportManager.isDiscreteLogging();
+	Boolean discreetLogging;
+	if (isDiscrete) {
+	    discreetLogging = isDiscrete;
+	} else {
+	    discreetLogging = ReportManager.isDiscreteLogging();
+	}
+
 	if (discreetLogging) {
 	    ReportManager.logDiscrete(message);
-	    if ((response != null) && response.getBody() != null && (!response.getBody().asString().equals(""))) {
-		reportResponseBody(response.getBody().asInputStream());
-	    }
 	} else {
 	    ReportManager.log(message);
-	    if ((response != null) && (!response.getBody().asString().equals(""))) {
-		reportResponseBody(response.getBody().asInputStream());
-	    }
+	}
+
+	if (response != null) {
+	    reportResponseBody(response, discreetLogging);
 	}
 
     }
@@ -107,8 +113,8 @@ public class RestActions {
 	    message = message + " With the following test data [" + testData + "].";
 	}
 	ReportManager.log(message);
-	if ((response != null) && (!response.getBody().asString().equals(""))) {
-	    reportResponseBody(response.getBody().asInputStream());
+	if (response != null) {
+	    reportResponseBody(response, false);
 	}
 	Assert.fail(message);
     }
@@ -162,8 +168,9 @@ public class RestActions {
 		    break;
 		}
 		// attach body
-		reportRequestBody(body);
-
+		if (!body.equals(new JsonObject())) {
+		    reportRequestBody(body);
+		}
 	    } catch (Exception e) {
 		ReportManager.log(e);
 		failAction("performRequest", "Issue with parsing body content");
@@ -210,12 +217,21 @@ public class RestActions {
 	}
     }
 
-    private static void reportResponseBody(InputStream body) {
-	if (ReportManager.isDiscreteLogging()) {
-	    ReportManager.logDiscrete("API Response - REST Body:\n" + body.toString());
+    private static void reportResponseBody(Response response, Boolean isDiscrete) {
+	if (isDiscrete) {
+	    ReportManager.logDiscrete("API Response - REST Body:\n" + response.getBody().asString());
 	} else {
-	    if (body.toString() != null && !body.toString().equals("")) {
-		ReportManager.attachAsStep("API Response", "REST Body", body);
+	    if (response.getBody().asString() != null && !response.getBody().asString().equals("")) {
+		JSONParser parser = new JSONParser();
+		try {
+		    org.json.simple.JSONObject actualJsonObject = (org.json.simple.JSONObject) parser
+			    .parse(response.asString());
+		    ReportManager.attachAsStep("API Response", "REST Body", new GsonBuilder().setPrettyPrinting()
+			    .create().toJson(new JsonParser().parse(actualJsonObject.toJSONString())));
+		} catch (Exception e) {
+		    // response is not parsable to JSON
+		    ReportManager.attachAsStep("API Response", "REST Body", response.getBody().asInputStream());
+		}
 	    }
 	}
     }
@@ -585,9 +601,13 @@ public class RestActions {
 	    org.json.simple.JSONArray expectedJsonArray = null;
 	    try {
 		expectedJsonObject = (org.json.simple.JSONObject) parser.parse(new FileReader(referenceJsonFilePath));
+		ReportManager.attachAsStep("File Content", "Expected JSON", new GsonBuilder().setPrettyPrinting()
+			.create().toJson(new JsonParser().parse(expectedJsonObject.toJSONString())));
 	    } catch (ClassCastException e) {
 		// org.json.simple.JSONArray cannot be cast to org.json.simple.JSONObject
 		expectedJsonArray = (org.json.simple.JSONArray) parser.parse(new FileReader(referenceJsonFilePath));
+		ReportManager.attachAsStep("File Content", "Expected JSON", new GsonBuilder().setPrettyPrinting()
+			.create().toJson(new JsonParser().parse(expectedJsonArray.toJSONString())));
 	    }
 	    switch (comparisonType) {
 	    case EQUALS:
