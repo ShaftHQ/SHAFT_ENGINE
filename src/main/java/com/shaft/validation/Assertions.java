@@ -832,8 +832,7 @@ public class Assertions {
      */
     public static void assertJSONFileContent(Response response, String referenceJsonFilePath,
 	    ComparisonType comparisonType, AssertionType assertionType) {
-	Boolean comparisonResult = RestActions.compareJSON(response, referenceJsonFilePath, comparisonType, "");
-	assertTrue(comparisonResult, assertionType);
+	assertJSONFileContent(response, referenceJsonFilePath, comparisonType, "", assertionType);
     }
 
     /**
@@ -855,9 +854,38 @@ public class Assertions {
      */
     public static void assertJSONFileContent(Response response, String referenceJsonFilePath,
 	    ComparisonType comparisonType, String jsonPathToTargetArray, AssertionType assertionType) {
+	if (jsonPathToTargetArray.equals("")) {
+	    ReportManager.logDiscrete("Assertion [" + "assertJSONFileContent"
+		    + "] is being performed, with referenceJsonFile [" + referenceJsonFilePath + "], comparisonType ["
+		    + comparisonType + "], and assertionType [" + assertionType + "].");
+	} else {
+	    ReportManager.logDiscrete(
+		    "Assertion [" + "assertJSONFileContent" + "] is being performed, with referenceJsonFile ["
+			    + referenceJsonFilePath + "], jsonPathToTargetArray [" + jsonPathToTargetArray
+			    + "], comparisonType [" + comparisonType + "], and assertionType [" + assertionType + "].");
+	}
 	Boolean comparisonResult = RestActions.compareJSON(response, referenceJsonFilePath, comparisonType,
 		jsonPathToTargetArray);
-	assertTrue(comparisonResult, assertionType);
+	if (comparisonResult) {
+	    if (assertionType.getValue()) {
+		// comparison passed and is expected to pass
+		pass("Assertion Passed; the actual API response does match the expected JSON file at this path \""
+			+ referenceJsonFilePath + "\".");
+	    } else {
+		// comparison passed and is expected to fail
+		fail("Assertion Failed; the actual API response does match the expected JSON file at this path \""
+			+ referenceJsonFilePath + "\".");
+	    }
+	} else {
+	    if (assertionType.getValue()) {
+		// comparison failed and is expected to pass
+		fail("Assertion Failed; the actual API response does not match the expected JSON file at this path \""
+			+ referenceJsonFilePath + "\".");
+	    } else {
+		// comparison failed and is expected to fail
+		pass("Assertion Passed; the actual API response does not match the expected JSON file at this path \""
+			+ referenceJsonFilePath + "\".");
+	    }
+	}
     }
-
 }

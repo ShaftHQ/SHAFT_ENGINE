@@ -568,6 +568,14 @@ public class RestActions {
      */
     public static boolean compareJSON(Response response, String referenceJsonFilePath, ComparisonType comparisonType,
 	    String jsonPathToTargetArray) {
+	if (jsonPathToTargetArray.equals("")) {
+	    ReportManager.logDiscrete("Comparing the provided API response with the file at this path \""
+		    + referenceJsonFilePath + "\", comparison type \"" + comparisonType + "\"");
+	} else {
+	    ReportManager.logDiscrete("Comparing the provided API response with the file at this path \""
+		    + referenceJsonFilePath + "\", comparison type \"" + comparisonType
+		    + "\", jsonPath to target array \"" + jsonPathToTargetArray + "\".");
+	}
 	Boolean comparisonResult;
 	JSONParser parser = new JSONParser();
 	try {
