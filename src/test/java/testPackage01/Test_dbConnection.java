@@ -35,4 +35,12 @@ public class Test_dbConnection {
 	Assertions.assertEquals("", DatabaseActions.getResult(queryResult), AssertionComparisonType.CONTAINS,
 		AssertionType.POSITIVE);
     }
+
+    @Test
+    public void test_OracleConnection() {
+	DatabaseActions dbActions = new DatabaseActions(DatabaseType.ORACLE, "", "", "", "", "");
+	ResultSet queryResult = dbActions.executeSelectQuery("select 1 from dual");
+	Assertions.assertEquals("", DatabaseActions.getResult(queryResult), AssertionComparisonType.CONTAINS,
+		AssertionType.POSITIVE);
+    }
 }

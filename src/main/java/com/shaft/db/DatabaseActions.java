@@ -22,17 +22,7 @@ public class DatabaseActions {
     private String password;
 
     public enum DatabaseType {
-	MY_SQL("mysql"), SQL_SERVER("sqlserver"), POSTGRE_SQL("postgresql");
-
-	private String value;
-
-	DatabaseType(String type) {
-	    this.value = type;
-	}
-
-	protected String getValue() {
-	    return value;
-	}
+	MY_SQL, SQL_SERVER, POSTGRE_SQL, ORACLE;
     }
 
     /**
@@ -50,12 +40,18 @@ public class DatabaseActions {
      */
     public DatabaseActions(DatabaseType databaseType, String ip, String port, String name, String username,
 	    String password) {
-	this.dbType = databaseType;
-	this.dbServerIP = ip;
-	this.dbPort = port;
-	this.dbName = name;
-	this.username = username;
-	this.password = password;
+	if (!ip.equals("") && !port.equals("") && !name.equals("") && !username.equals("") && !password.equals("")) {
+	    this.dbType = databaseType;
+	    this.dbServerIP = ip;
+	    this.dbPort = port;
+	    this.dbName = name;
+	    this.username = username;
+	    this.password = password;
+	} else {
+	    failAction("createDatabaseActionsObject",
+		    "Database Type: \"" + databaseType + "\", IP: \"" + ip + "\", Port: \"" + port + "\", Name: \""
+			    + name + "\", Username: \"" + username + "\", Password: \"" + password + "\"");
+	}
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -116,15 +112,18 @@ public class DatabaseActions {
 		connectionString = "jdbc:postgresql://" + dbServerIP + ":" + dbPort + "/" + dbName;
 		break;
 
+	    case ORACLE:
+		connectionString = "jdbc:oracle:thin:@" + dbServerIP + ":" + dbPort + ":" + dbName;
+		break;
+
 	    default:
 		ReportManager.log("Database not supported");
-		failAction("createConnection", dbType.getValue());
+		failAction("createConnection", dbType.toString());
 		break;
 	    }
 	    DriverManager.setLoginTimeout(Integer.parseInt(System.getProperty("databaseLoginTimeout")));
 	    connection = DriverManager.getConnection(connectionString, username, password);
-
-	    if (!dbType.getValue().equals("mysql") && !dbType.getValue().equals("postgresql")) {
+	    if (!dbType.toString().equals("MY_SQL") && !dbType.toString().equals("POSTGRE_SQL")) {
 		// com.mysql.jdbc.JDBC4Connection.setNetworkTimeout
 		// org.postgresql.jdbc4.Jdbc4Connection.setNetworkTimeout
 		connection.setNetworkTimeout(Executors.newFixedThreadPool(1),
