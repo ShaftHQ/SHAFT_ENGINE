@@ -1,5 +1,7 @@
 package com.shaft.gui.element;
 
+import java.time.Duration;
+
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
@@ -11,8 +13,9 @@ import com.shaft.tools.io.ReportManager;
 public class JSWaiter {
 
     private static WebDriver jsWaitDriver;
-    private static WebDriverWait jsWait;
     private static JavascriptExecutor jsExec;
+    private static Duration waitDuration = Duration.ofSeconds(15);
+    private static int delayBetweenPolls = 20; // milliseconds
 
     private JSWaiter() {
 	throw new IllegalStateException("Utility class");
@@ -21,7 +24,6 @@ public class JSWaiter {
     // Get the driver
     public static void setDriver(WebDriver driver) {
 	jsWaitDriver = driver;
-	jsWait = new WebDriverWait(jsWaitDriver, 10);
 	jsExec = (JavascriptExecutor) jsWaitDriver;
     }
 
@@ -71,8 +73,8 @@ public class JSWaiter {
 		int tryCounter = 0;
 		while ((!jqueryReady) && (tryCounter < 5)) {
 		    // Wait for jQuery to load
-		    jsWait.until(jQueryLoad);
-		    sleep(20);
+		    (new WebDriverWait(jsWaitDriver, waitDuration)).until(jQueryLoad);
+		    sleep(delayBetweenPolls);
 		    tryCounter++;
 		    jqueryReady = (Boolean) jsExec.executeScript("return jQuery.active == 0");
 		}
@@ -82,7 +84,6 @@ public class JSWaiter {
 
     // Wait for Angular Load
     private static void waitForAngularLoad() {
-	WebDriverWait wait = new WebDriverWait(jsWaitDriver, 15);
 	JavascriptExecutor jsExec = (JavascriptExecutor) jsWaitDriver;
 
 	String angularReadyScript = "return angular.element(document).injector().get('$http').pendingRequests.length === 0";
@@ -99,9 +100,9 @@ public class JSWaiter {
 	    int tryCounter = 0;
 	    while ((!angularReady) && (tryCounter < 5)) {
 		// Wait for Angular to load
-		wait.until(angularLoad);
+		(new WebDriverWait(jsWaitDriver, waitDuration)).until(angularLoad);
 		// More Wait for stability (Optional)
-		sleep(20);
+		sleep(delayBetweenPolls);
 		tryCounter++;
 		angularReady = Boolean.valueOf(jsExec.executeScript(angularReadyScript).toString());
 	    }
@@ -110,7 +111,6 @@ public class JSWaiter {
 
     // Wait Until JS Ready
     private static void waitForJSLoadIfDefined() {
-	WebDriverWait wait = new WebDriverWait(jsWaitDriver, 15);
 	JavascriptExecutor jsExec = (JavascriptExecutor) jsWaitDriver;
 
 	// Wait for Javascript to load
@@ -127,9 +127,9 @@ public class JSWaiter {
 	    int tryCounter = 0;
 	    while ((!jsReady) && (tryCounter < 5)) {
 		// Wait for Javascript to load
-		wait.until(jsLoad);
+		(new WebDriverWait(jsWaitDriver, waitDuration)).until(jsLoad);
 		// More Wait for stability (Optional)
-		sleep(20);
+		sleep(delayBetweenPolls);
 		tryCounter++;
 		jsReady = (Boolean) jsExec.executeScript("return document.readyState").toString().trim()
 			.equalsIgnoreCase("complete");

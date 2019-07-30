@@ -291,6 +291,7 @@ public class ScreenshotManager {
     }
 
     private static File takeElementScreenshot(WebDriver driver, boolean isBaseFullPage) {
+	// TODO: investigate new selenium element screenshot API
 	try {
 	    if (targetElementLocator != null && ElementActions.getElementsCount(driver, targetElementLocator,
 		    RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1) {
@@ -388,7 +389,7 @@ public class ScreenshotManager {
 		gifWriter.writeToSequence(overlayShaftEngineLogo(firstImage));
 	    } catch (IOException | WebDriverException e) {
 		ReportManager.log(e);
-	    } catch (NullPointerException e2) {
+	    } catch (NullPointerException e) {
 		// this happens in case the start animated Gif is triggered in a none-test
 		// method
 	    }
