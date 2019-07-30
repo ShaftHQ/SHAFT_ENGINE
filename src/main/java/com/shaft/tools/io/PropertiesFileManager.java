@@ -204,8 +204,8 @@ public class PropertiesFileManager {
 	private static void setPatternProperties() {
 
 		System.setProperty("testDataColumnNamePrefix", "Data");
-		System.setProperty("allure.link.issue.pattern", "https://incorta.atlassian.net/browse/{}");
-		System.setProperty("allure.link.tms.pattern", "https://iqc.testrail.net/index.php?/cases/view/{}");
+		System.setProperty("allure.link.issue.pattern", "");
+		System.setProperty("allure.link.tms.pattern", "");
 
 	}
 
