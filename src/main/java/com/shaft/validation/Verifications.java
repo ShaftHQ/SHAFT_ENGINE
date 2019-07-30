@@ -714,6 +714,7 @@ public class Verifications {
 		verificationFailures.append("Verification Failed; an unhandled exception occured.");
 	    }
 	}
+	reportVerificationResults("verifyComparativeRelation", null, null);
     }
 
     /**
@@ -785,7 +786,6 @@ public class Verifications {
 	    }
 	}
 	reportVerificationResults("verifyFileExists", null, null);
-
     }
 
     /**
@@ -832,7 +832,7 @@ public class Verifications {
 		verificationFailures.append("Verification Failed; an unhandled exception occured.");
 	    }
 	}
-
+	reportVerificationResults("verifyTrue", null, null);
     }
 
     /**
@@ -852,8 +852,7 @@ public class Verifications {
      */
     public static void verifyJSONFileContent(Response response, String referenceJsonFilePath,
 	    ComparisonType comparisonType, VerificationType verificationType) {
-	Boolean comparisonResult = RestActions.compareJSON(response, referenceJsonFilePath, comparisonType, "");
-	verifyTrue(comparisonResult, verificationType);
+	verifyJSONFileContent(response, referenceJsonFilePath, comparisonType, "", verificationType);
     }
 
     /**
@@ -875,9 +874,44 @@ public class Verifications {
      */
     public static void verifyJSONFileContent(Response response, String referenceJsonFilePath,
 	    ComparisonType comparisonType, String jsonPathToTargetArray, VerificationType verificationType) {
+	if (jsonPathToTargetArray.equals("")) {
+	    ReportManager.logDiscrete("Verification [" + "verifyJSONFileContent"
+		    + "] is being performed, with referenceJsonFile [" + referenceJsonFilePath + "], comparisonType ["
+		    + comparisonType + "], and verificationType [" + verificationType + "].");
+	} else {
+	    ReportManager.logDiscrete("Verification [" + "verifyJSONFileContent"
+		    + "] is being performed, with referenceJsonFile [" + referenceJsonFilePath
+		    + "], jsonPathToTargetArray [" + jsonPathToTargetArray + "], comparisonType [" + comparisonType
+		    + "], and verificationType [" + verificationType + "].");
+	}
 	Boolean comparisonResult = RestActions.compareJSON(response, referenceJsonFilePath, comparisonType,
 		jsonPathToTargetArray);
-	verifyTrue(comparisonResult, verificationType);
+	if (comparisonResult) {
+	    if (verificationType.getValue()) {
+		// comparison passed and is expected to pass
+		verificationSuccesses.append(
+			"Verification Passed; the actual API response does match the expected JSON file at this path \""
+				+ referenceJsonFilePath + "\".");
+	    } else {
+		// comparison passed and is expected to fail
+		verificationFailures.append(
+			"Verification Failed; the actual API response does match the expected JSON file at this path \""
+				+ referenceJsonFilePath + "\".");
+	    }
+	} else {
+	    if (verificationType.getValue()) {
+		// comparison failed and is expected to pass
+		verificationFailures.append(
+			"Verification Failed; the actual API response does not match the expected JSON file at this path \""
+				+ referenceJsonFilePath + "\".");
+	    } else {
+		// comparison failed and is expected to fail
+		verificationSuccesses.append(
+			"Verification Passed; the actual API response does not match the expected JSON file at this path \""
+				+ referenceJsonFilePath + "\".");
+	    }
+	}
+	reportVerificationResults("verifyJSONFileContent", null, null);
     }
 
 }
