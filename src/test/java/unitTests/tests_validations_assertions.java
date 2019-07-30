@@ -21,7 +21,7 @@ public class tests_validations_assertions {
 
     @Test
     public void assertEquals_true_expectedToPass__() {
-	Assertions.assertEquals(1, 1, AssertionComparisonType.LITERAL, AssertionType.POSITIVE);
+	Assertions.assertEquals(1, 1, AssertionComparisonType.EQUALS, AssertionType.POSITIVE);
     }
 
     @Test

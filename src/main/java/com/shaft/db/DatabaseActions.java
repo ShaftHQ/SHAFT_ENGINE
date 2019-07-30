@@ -10,6 +10,7 @@ import java.util.concurrent.Executors;
 
 import org.testng.Assert;
 
+import com.mysql.jdbc.exceptions.jdbc4.MySQLSyntaxErrorException;
 import com.shaft.tools.io.ReportManager;
 
 public class DatabaseActions {
@@ -21,17 +22,7 @@ public class DatabaseActions {
     private String password;
 
     public enum DatabaseType {
-	MY_SQL("mysql"), SQL_SERVER("sqlserver"), POSTGRE_SQL("postgresql");
-
-	private String value;
-
-	DatabaseType(String type) {
-	    this.value = type;
-	}
-
-	protected String value() {
-	    return value;
-	}
+	MY_SQL, SQL_SERVER, POSTGRE_SQL, ORACLE;
     }
 
     /**
@@ -49,12 +40,18 @@ public class DatabaseActions {
      */
     public DatabaseActions(DatabaseType databaseType, String ip, String port, String name, String username,
 	    String password) {
-	this.dbType = databaseType;
-	this.dbServerIP = ip;
-	this.dbPort = port;
-	this.dbName = name;
-	this.username = username;
-	this.password = password;
+	if (!ip.equals("") && !port.equals("") && !name.equals("") && !username.equals("") && !password.equals("")) {
+	    this.dbType = databaseType;
+	    this.dbServerIP = ip;
+	    this.dbPort = port;
+	    this.dbName = name;
+	    this.username = username;
+	    this.password = password;
+	} else {
+	    failAction("createDatabaseActionsObject",
+		    "Database Type: \"" + databaseType + "\", IP: \"" + ip + "\", Port: \"" + port + "\", Name: \""
+			    + name + "\", Username: \"" + username + "\", Password: \"" + password + "\"");
+	}
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -115,15 +112,18 @@ public class DatabaseActions {
 		connectionString = "jdbc:postgresql://" + dbServerIP + ":" + dbPort + "/" + dbName;
 		break;
 
+	    case ORACLE:
+		connectionString = "jdbc:oracle:thin:@" + dbServerIP + ":" + dbPort + ":" + dbName;
+		break;
+
 	    default:
 		ReportManager.log("Database not supported");
-		failAction("createConnection", dbType.value());
+		failAction("createConnection", dbType.toString());
 		break;
 	    }
 	    DriverManager.setLoginTimeout(Integer.parseInt(System.getProperty("databaseLoginTimeout")));
 	    connection = DriverManager.getConnection(connectionString, username, password);
-
-	    if (!dbType.value().equals("mysql") && !dbType.value().equals("postgresql")) {
+	    if (!dbType.toString().equals("MY_SQL") && !dbType.toString().equals("POSTGRE_SQL")) {
 		// com.mysql.jdbc.JDBC4Connection.setNetworkTimeout
 		// org.postgresql.jdbc4.Jdbc4Connection.setNetworkTimeout
 		connection.setNetworkTimeout(Executors.newFixedThreadPool(1),
@@ -217,6 +217,9 @@ public class DatabaseActions {
 	ResultSet resultSet = null;
 	try {
 	    resultSet = createStatement(createConnection()).executeQuery(sql);
+	} catch (MySQLSyntaxErrorException e) {
+	    ReportManager.log(e);
+	    failAction("executeSelectQuery", "this query has a syntax error [" + sql + "]");
 	} catch (SQLException | NullPointerException e) {
 	    ReportManager.log(e);
 	    failAction("executeSelectQuery", sql);
@@ -247,6 +250,9 @@ public class DatabaseActions {
 	try {
 	    updatedRows = createStatement(createConnection()).executeUpdate(sql);
 	    passAction("executeUpdateQuery", sql);
+	} catch (MySQLSyntaxErrorException e) {
+	    ReportManager.log(e);
+	    failAction("executeSelectQuery", "this query has a syntax error [" + sql + "]");
 	} catch (SQLException e) {
 	    ReportManager.log(e);
 	    failAction("executeUpdateQuery", sql);

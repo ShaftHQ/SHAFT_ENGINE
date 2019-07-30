@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -36,8 +37,8 @@ import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
 
 public class ElementActions {
-    private static int defaultElementIdentificationTimeout = Integer
-	    .parseInt(System.getProperty("defaultElementIdentificationTimeout").trim());
+    private static Duration defaultElementIdentificationTimeout = Duration
+	    .ofSeconds(Integer.parseInt(System.getProperty("defaultElementIdentificationTimeout").trim()));
     private static int attemptsBeforeThrowingElementNotFoundException = Integer
 	    .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
     private static boolean forceCheckForElementVisibility = Boolean
@@ -124,42 +125,46 @@ public class ElementActions {
 	    boolean checkForVisibility) {
 	int matchingElementsCount = getMatchingElementsCount(driver, elementLocator, numberOfAttempts);
 
-	switch (matchingElementsCount) {
-	case 0:
-	    failAction(driver, "identifyUniqueElement",
-		    "zero elements found matching this locator \"" + elementLocator + "\".");
-	    break;
-	case 1:
-	    // unique element found
-	    if (checkForVisibility && !elementLocator.toString().contains("input[@type='file']")
-		    && !elementLocator.equals(By.tagName("html"))) {
-		// scroll element into viewPort
-		((Locatable) driver.findElement(elementLocator)).getCoordinates().inViewPort();
+	if (elementLocator != null) {
+	    switch (matchingElementsCount) {
+	    case 0:
+		failAction(driver, "identifyUniqueElement",
+			"zero elements found matching this locator \"" + elementLocator + "\".");
+		break;
+	    case 1:
+		// unique element found
+		if (checkForVisibility && !elementLocator.toString().contains("input[@type='file']")
+			&& !elementLocator.equals(By.tagName("html"))) {
+		    // scroll element into viewPort
+		    ((Locatable) driver.findElement(elementLocator)).getCoordinates().inViewPort();
 
-		// check for visibility
-		if (forceCheckForElementVisibility) {
-		    try {
-			(new WebDriverWait(driver, defaultElementIdentificationTimeout))
-				.until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
-		    } catch (TimeoutException e) {
-			ReportManager.log(e);
-			failAction(driver, "identifyUniqueElement",
-				"unique element matching this locator \"" + elementLocator + "\" is not visible.");
-		    }
+		    // check for visibility
+		    checkForElementVisibility(driver, elementLocator);
 		}
-	    }
-
-	    if (elementLocator != null) {
 		ScreenshotManager.storeElementScreenshotForAISupportedElementIdentification(driver, elementLocator);
+		return true;
+	    default:
+		failAction(driver, "identifyUniqueElement",
+			"multiple elements found matching this locator \"" + elementLocator + "\".");
+		break;
 	    }
-
-	    return true;
-	default:
-	    failAction(driver, "identifyUniqueElement",
-		    "multiple elements found matching this locator \"" + elementLocator + "\".");
-	    break;
+	} else {
+	    failAction(driver, "identifyUniqueElement", "element locator is NULL.");
 	}
 	return false;
+    }
+
+    private static void checkForElementVisibility(WebDriver driver, By elementLocator) {
+	if (forceCheckForElementVisibility) {
+	    try {
+		(new WebDriverWait(driver, defaultElementIdentificationTimeout))
+			.until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
+	    } catch (TimeoutException e) {
+		ReportManager.log(e);
+		failAction(driver, "identifyUniqueElement",
+			"unique element matching this locator \"" + elementLocator + "\" is not visible.");
+	    }
+	}
     }
 
     private static int getMatchingElementsCount(WebDriver driver, By elementLocator, int numberOfAttempts) {
@@ -447,7 +452,7 @@ public class ElementActions {
     private static void performHover(WebDriver driver, By elementLocator) {
 	String createMouseEvent = "var evObj = document.createEvent('MouseEvents');";
 	String dispatchMouseEvent = "arguments[arguments.length -1].dispatchEvent(evObj);";
-	
+
 	String mouseEventFirstHalf = "evObj.initMouseEvent(\"";
 	String mouseEventSecondHalf = "\", true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);";
 
@@ -641,7 +646,8 @@ public class ElementActions {
      */
     public static void clickAndHold(WebDriver driver, By elementLocator) {
 	if (identifyUniqueElement(driver, elementLocator)) {
-	    (new WebDriverWait(driver, 30)).until(ExpectedConditions.elementToBeClickable(elementLocator));
+	    (new WebDriverWait(driver, defaultElementIdentificationTimeout))
+		    .until(ExpectedConditions.elementToBeClickable(elementLocator));
 	    // wait for element to be clickable
 	    passAction(driver, elementLocator, "clickAndHold");
 	    (new Actions(driver)).clickAndHold(driver.findElement(elementLocator)).build().perform();
@@ -1153,12 +1159,13 @@ public class ElementActions {
 	    int numberOfTries) {
 	if (identifyUniqueElement(driver, elementLocator)) {
 	    try {
-		(new WebDriverWait(driver, (long) defaultElementIdentificationTimeout * numberOfTries))
-			.until(ExpectedConditions.not(ExpectedConditions.textToBe(elementLocator, initialValue)));
+		(new WebDriverWait(driver,
+			Duration.ofSeconds(defaultElementIdentificationTimeout.getSeconds() * numberOfTries))).until(
+				ExpectedConditions.not(ExpectedConditions.textToBe(elementLocator, initialValue)));
 	    } catch (Exception e) {
 		ReportManager.log(e);
-		failAction(driver, "waitForTextToChange",
-			"waited for (" + defaultElementIdentificationTimeout * numberOfTries + ") seconds");
+		failAction(driver, "waitForTextToChange", "waited for ("
+			+ defaultElementIdentificationTimeout.getSeconds() * numberOfTries + ") seconds");
 	    }
 	    try {
 		passAction(driver, elementLocator, "waitForTextToChange",
@@ -1196,29 +1203,33 @@ public class ElementActions {
 	    boolean stateOfPresence) {
 	int foundElementsCount = getMatchingElementsCount(driver, elementLocator, numberOfTries);
 
-	if (foundElementsCount <= 1) {
+	if (foundElementsCount <= 1 && elementLocator != null) {
 	    try {
 		if (stateOfPresence) {
 		    passAction(driver, elementLocator, "waitForElementToBePresent",
-			    "waited for (" + defaultElementIdentificationTimeout * numberOfTries
+			    "waited for (" + defaultElementIdentificationTimeout.getSeconds() * numberOfTries
 				    + ") seconds, for the element's state of presence to be (" + stateOfPresence
 				    + "). Element locator (" + elementLocator.toString() + ")");
 		} else {
 		    passAction(driver, "waitForElementToBePresent",
-			    "waited for (" + defaultElementIdentificationTimeout * numberOfTries
+			    "waited for (" + defaultElementIdentificationTimeout.getSeconds() * numberOfTries
 				    + ") seconds, for the element's state of presence to be (" + stateOfPresence
 				    + "). Element locator (" + elementLocator.toString() + ")");
 		}
 	    } catch (Exception e) {
 		ReportManager.log(e);
 		failAction(driver, "waitForElementToBePresent",
-			"waited for (" + defaultElementIdentificationTimeout * numberOfTries
+			"waited for (" + defaultElementIdentificationTimeout.getSeconds() * numberOfTries
 				+ ") seconds, for the element's state of presence to be (" + stateOfPresence
 				+ "). Element locator (" + elementLocator.toString() + ")");
 	    }
 	} else {
-	    failAction(driver, "waitForElementToBePresent", "Element with locator (" + elementLocator.toString()
-		    + "] was found [" + foundElementsCount + "] times on this page.");
+	    if (elementLocator != null) {
+		failAction(driver, "waitForElementToBePresent", "Element with locator (" + elementLocator.toString()
+			+ "] was found [" + foundElementsCount + "] times on this page.");
+	    } else {
+		failAction(driver, "waitForElementToBePresent", "Element locator is NULL.");
+	    }
 	}
     }
 

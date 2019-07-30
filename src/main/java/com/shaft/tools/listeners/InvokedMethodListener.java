@@ -23,13 +23,19 @@ import io.qameta.allure.model.Link;
 import io.qameta.allure.util.AnnotationUtils;
 
 public class InvokedMethodListener implements IInvokedMethodListener {
-    private int invokedTestsCounter = 0;
+    private int invokedTestsCounter = 0; // TODO: remove this variable
     private int testSize = 0;
     private List<List<String>> listOfOpenIssues = new ArrayList<>();
+    // link name, link url
     private int openIssuesForFailedTestsCounter = 0;
     private int openIssuesForPassedTestsCounter = 0;
-    private int failedTestsWithoutOpenIssuesCounter = 0;
-//    private int flakyTestsCounter = 0;
+    private int newIssuesForFailedTestsCounter = 0;
+    private List<List<String>> listOfOpenIssuesForFailedTests = new ArrayList<>();
+    // class name, method name, link name, link url
+    private List<List<String>> listOfOpenIssuesForPassedTests = new ArrayList<>();
+    // class name, method name, link name, link url
+    private List<List<String>> listOfNewIssuesForFailedTests = new ArrayList<>();
+    // class name, method name
 
     @Override
     public void beforeInvocation(IInvokedMethod method, ITestResult testResult) {
@@ -61,7 +67,6 @@ public class InvokedMethodListener implements IInvokedMethodListener {
     @Override
     public void afterInvocation(IInvokedMethod method, ITestResult testResult) {
 	if (!method.getTestMethod().getQualifiedName().contains("closureActivities")) {
-	    // attaching log and gif for test methods only
 	    BrowserFactory.attachAnimatedGif();
 	    ReportManager.attachTestLog();
 	}
@@ -75,9 +80,6 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 	    updateIssuesLog(testResult, testMethod);
 	    if (invokedTestsCounter == testSize - 1) {
 		// is last test in the last class of the test suite
-		ReportManager.logIssuesSummary(openIssuesForFailedTestsCounter, openIssuesForPassedTestsCounter,
-			failedTestsWithoutOpenIssuesCounter);
-		ReportManager.logEngineVersion(false);
 		invokedTestsCounter = 0;
 	    } else {
 		invokedTestsCounter++;
@@ -94,69 +96,76 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 	}
     }
 
-    private void reportOpenIssueStatus(ITestResult testResult, ITestNGMethod testMethod, Boolean executionStatus) {
-	Optional<Method> method = Optional.ofNullable(testMethod).map(ITestNGMethod::getConstructorOrMethod)
-		.map(ConstructorOrMethod::getMethod);
-	if (method.isPresent()) {
-	    Set<Link> links = method.map(AnnotationUtils::getLinks).get();
-	    int previouslyOpenedIssues = listOfOpenIssues.size();
-	    links.forEach(link -> {
-		if (link.getType().equals("issue")) {
-		    List<String> newIssue = new ArrayList<String>();
-		    newIssue.add(link.getName());
-		    newIssue.add(link.getUrl());
-		    listOfOpenIssues.add(newIssue);
-		}
-	    });
-	    // log issue
-	    String className = testMethod.getTestClass().getName();
-	    String methodName = testMethod.getMethodName();
-	    if (previouslyOpenedIssues < listOfOpenIssues.size()) {
-		if (executionStatus) {
-		    openIssuesForPassedTestsCounter++;
-		    // flag already opened issue for closure
-		    ReportManager.logIssue("Test Method \"" + className + "." + methodName
-			    + "\" passed. Please validate and close this open issue \""
-			    + listOfOpenIssues.get(listOfOpenIssues.size() - 1).get(0) + "\": \""
-			    + listOfOpenIssues.get(listOfOpenIssues.size() - 1).get(1) + "\".\n");
-		} else {
-		    openIssuesForFailedTestsCounter++;
-		    // confirm already opened issue
-		    ReportManager.logIssue("Test Method \"" + className + "." + methodName
-			    + "\" failed with open issue \"" + listOfOpenIssues.get(listOfOpenIssues.size() - 1).get(0)
-			    + "\": \"" + listOfOpenIssues.get(listOfOpenIssues.size() - 1).get(1) + "\".\n");
-		}
-	    } else {
-		if (!executionStatus) {
-		    // log new issue
-		    failedTestsWithoutOpenIssuesCounter++;
-		    ReportManager.logIssue("Test Method \"" + className + "." + methodName
-			    + "\" failed. Please investigate and open a new Issue if needed.\n");
-		}
-	    }
-	}
-    }
-
     private void updateIssuesLog(ITestResult testResult, ITestNGMethod testMethod) {
 	if (testResult != null && testResult.getStatus() == ITestResult.SUCCESS) {
 	    // if test passed
-	    reportOpenIssueStatus(testResult, testMethod, true);
+	    reportOpenIssueStatus(testMethod, true);
 	} else if (testResult != null && testResult.getStatus() == ITestResult.FAILURE) {
 	    // if test failed
-	    reportOpenIssueStatus(testResult, testMethod, false);
+	    reportOpenIssueStatus(testMethod, false);
 	}
     }
 
-//    private void updateFlakyTestsLog(ITestResult testResult, ITestNGMethod testMethod) {
-//	if (testResult != null && testResult.getStatus() == ITestResult.FAILURE) {
-//	    // if test failed
-//	    Optional<Method> method = Optional.ofNullable(testMethod).map(ITestNGMethod::getConstructorOrMethod)
-//		    .map(ConstructorOrMethod::getMethod);
-//	    if (method.isPresent()) {
-//		if (method.get().isAnnotationPresent(Flaky.class)) {
-//		    flakyTestsCounter++;
-//		}
-//	    }
-//	}
-//    }
+    private void reportOpenIssueStatus(ITestNGMethod testMethod, Boolean executionStatus) {
+	Optional<Method> method = Optional.ofNullable(testMethod).map(ITestNGMethod::getConstructorOrMethod)
+		.map(ConstructorOrMethod::getMethod);
+	if (method.isPresent()) {
+	    Set<Link> links = method.map(AnnotationUtils::getLinks).orElse(null);
+	    int previouslyOpenedIssues = listOfOpenIssues.size();
+	    if (links != null) {
+		links.forEach(link -> {
+		    if (link.getType().equals("issue")) {
+			List<String> newIssue = new ArrayList<>();
+			newIssue.add(link.getName());
+			newIssue.add(link.getUrl());
+			listOfOpenIssues.add(newIssue);
+		    }
+		});
+	    }
+	    // log issue
+	    logIssue(testMethod, previouslyOpenedIssues, executionStatus);
+	}
+    }
+
+    private void logIssue(ITestNGMethod testMethod, int previouslyOpenedIssues, Boolean executionStatus) {
+	// log issue
+	String className = testMethod.getTestClass().getName();
+	String methodName = testMethod.getMethodName();
+	if (previouslyOpenedIssues < listOfOpenIssues.size()) {
+	    if (executionStatus) {
+		// flag already opened issue for closure 
+		openIssuesForPassedTestsCounter++;
+		ReportManager.setOpenIssuesForPassedTestsCounter(openIssuesForPassedTestsCounter);
+		List<String> newIssue = new ArrayList<>();
+		newIssue.add(className);
+		newIssue.add(methodName);
+		newIssue.add(listOfOpenIssues.get(listOfOpenIssues.size() - 1).get(0));
+		newIssue.add(listOfOpenIssues.get(listOfOpenIssues.size() - 1).get(1));
+		listOfOpenIssuesForPassedTests.add(newIssue);
+		ReportManager.setListOfOpenIssuesForPassedTests(listOfOpenIssuesForPassedTests);
+	    } else {
+		// confirm already opened issue
+		openIssuesForFailedTestsCounter++;
+		ReportManager.setOpenIssuesForFailedTestsCounter(openIssuesForFailedTestsCounter);
+		List<String> newIssue = new ArrayList<>();
+		newIssue.add(className);
+		newIssue.add(methodName);
+		newIssue.add(listOfOpenIssues.get(listOfOpenIssues.size() - 1).get(0));
+		newIssue.add(listOfOpenIssues.get(listOfOpenIssues.size() - 1).get(1));
+		listOfOpenIssuesForFailedTests.add(newIssue);
+		ReportManager.setListOfOpenIssuesForFailedTests(listOfOpenIssuesForFailedTests);
+	    }
+	} else {
+	    if (!executionStatus) {
+		// log new issue
+		newIssuesForFailedTestsCounter++;
+		ReportManager.setFailedTestsWithoutOpenIssuesCounter(newIssuesForFailedTestsCounter);
+		List<String> newIssue = new ArrayList<>();
+		newIssue.add(className);
+		newIssue.add(methodName);
+		listOfNewIssuesForFailedTests.add(newIssue);
+		ReportManager.setListOfNewIssuesForFailedTests(listOfNewIssuesForFailedTests);
+	    }
+	}
+    }
 }
