@@ -31,9 +31,13 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.support.JavaActions;
 import com.shaft.validation.Assertions;
 
+import eu.medsea.mimeutil.MimeUtil;
+import eu.medsea.mimeutil.MimeUtil2;
 import io.restassured.builder.MultiPartSpecBuilder;
 import io.restassured.builder.RequestSpecBuilder;
 import io.restassured.config.EncoderConfig;
+import io.restassured.config.HttpClientConfig;
+//import io.restassured.config.HttpClientConfig;
 import io.restassured.config.RestAssuredConfig;
 import io.restassured.http.ContentType;
 import io.restassured.http.Cookie;
@@ -56,6 +60,14 @@ public class RestActions {
     private static final String ERROR_NOT_FOUND = "Either actual value is \"null\" or couldn't find anything that matches with the desired ";
     private static final String ERROR_INCORRECT_JSONPATH = "Incorrect jsonPath ";
     private static final String ERROR_INCORRECT_XMLPATH = "Incorrect xmlPath ";
+
+    private static final int HTTP_SOCKET_TIMEOUT = Integer.parseInt(System.getProperty("apiSocketTimeout"));
+    // timeout between two consecutive data packets in seconds
+    private static final int HTTP_CONNECTION_TIMEOUT = Integer.parseInt(System.getProperty("apiConnectionTimeout"));
+    // timeout until a connection is established in seconds
+    private static final int HTTP_CONNECTION_MANAGER_TIMEOUT = Integer
+	    .parseInt(System.getProperty("apiConnectionManagerTimeout"));
+    // timeout to wait for an available connection from the connection manager/pool
 
     public enum ComparisonType {
 	EQUALS, CONTAINS;
@@ -151,8 +163,35 @@ public class RestActions {
 	builder.setContentType(contentType);
 
 	// fixing issue with non-unicode content being encoded with a non UTF-8 charset
+	// adding timeouts
 	builder.setConfig(
-		(new RestAssuredConfig()).encoderConfig((new EncoderConfig()).defaultContentCharset("UTF-8")));
+		(new RestAssuredConfig()).encoderConfig((new EncoderConfig()).defaultContentCharset("UTF-8")).and()
+			.httpClient(HttpClientConfig.httpClientConfig()
+				.setParam("http.connection.timeout", HTTP_CONNECTION_TIMEOUT * 1000)
+				.setParam("http.socket.timeout", HTTP_SOCKET_TIMEOUT * 1000)
+				.setParam("http.connection-manager.timeout", HTTP_CONNECTION_MANAGER_TIMEOUT * 1000)));
+
+//	builder.setConfig(
+//		(new RestAssuredConfig()).encoderConfig((new EncoderConfig()).defaultContentCharset("UTF-8")));
+
+	// timeouts documentation
+	/**
+	 * CoreConnectionPNames.SO_TIMEOUT='http.socket.timeout': defines the socket
+	 * timeout (SO_TIMEOUT) in milliseconds, which is the timeout for waiting for
+	 * data or, put differently, a maximum period inactivity between two consecutive
+	 * data packets). A timeout value of zero is interpreted as an infinite timeout.
+	 * This parameter expects a value of type java.lang.Integer. If this parameter
+	 * is not set, read operations will not time out (infinite timeout).
+	 * 
+	 * CoreConnectionPNames.CONNECTION_TIMEOUT='http.connection.timeout': determines
+	 * the timeout in milliseconds until a connection is established. A timeout
+	 * value of zero is interpreted as an infinite timeout. This parameter expects a
+	 * value of type java.lang.Integer. If this parameter is not set, connect
+	 * operations will not time out (infinite timeout).
+	 * 
+	 * the Connection Manager Timeout (http.connection-manager.timeout) – the time
+	 * to wait for a connection from the connection manager/pool
+	 */
 
 	if (body != null && contentType != null && !body.toString().equals("")) {
 	    try {
@@ -181,8 +220,14 @@ public class RestActions {
 		if (param.get(1).getClass().equals(File.class)) {
 		    MultiPartSpecBuilder multispec = new MultiPartSpecBuilder(param.get(1));
 		    multispec.controlName(param.get(0).toString());
-		    multispec.fileName(((File) param.get(1)).getName());
-		    multispec.mimeType(URLConnection.guessContentTypeFromName(((File) param.get(1)).getName()));
+		    String fileName = ((File) param.get(1)).getName();
+		    multispec.fileName(fileName);
+		    String mimeType;
+		    mimeType = URLConnection.guessContentTypeFromName(((File) param.get(1)).getName());
+		    if (mimeType == null) {
+			mimeType = MimeUtil2.getMostSpecificMimeType(MimeUtil.getMimeTypes(fileName)).toString();
+		    }
+		    multispec.mimeType(mimeType);
 		    builder.addMultiPart(multispec.build());
 		    // override the default content type as part of the specs
 		    builder.setContentType("multipart/form-data");
