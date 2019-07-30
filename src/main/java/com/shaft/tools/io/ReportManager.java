@@ -346,7 +346,10 @@ public class ReportManager {
 	    logBuilder.append(trace[i].toString() + System.lineSeparator());
 	}
 	logText = logBuilder.toString();
-
+	if (t.getMessage() != null) {
+	    ReportManager.log("An Exception Occured with this Message: "
+		    + t.getMessage().replace(System.lineSeparator(), " ").trim() + ".");
+	}
 	attachAsStep("Exception Stack Trace", t.getClass().getName(), logText);
 	actionCounter++;
     }
@@ -428,8 +431,8 @@ public class ReportManager {
 	if (!fullLog.trim().equals("")) {
 	    createReportEntry(
 		    "Successfully created attachment [" + "SHAFT Engine Logs" + " - " + "Execution log" + "]");
-	    createImportantReportEntry("This test run was powered by SHAFT Engine, which was created by [Mohab Mohie]."
-		    + System.lineSeparator()
+	    createImportantReportEntry("This test run was powered by SHAFT Engine Version: ["
+		    + System.getProperty("shaftEngineVersion") + "]" + System.lineSeparator()
 		    + "SHAFT Engine is licensed under the MIT License: [https://github.com/MohabMohie/SHAFT_ENGINE/blob/master/LICENSE].");
 	    createAttachment("SHAFT Engine Logs", "Execution log", new StringInputStream(fullLog.trim()));
 	}
