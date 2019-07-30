@@ -139,16 +139,7 @@ public class ElementActions {
 		    ((Locatable) driver.findElement(elementLocator)).getCoordinates().inViewPort();
 
 		    // check for visibility
-		    if (forceCheckForElementVisibility) {
-			try {
-			    (new WebDriverWait(driver, defaultElementIdentificationTimeout))
-				    .until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
-			} catch (TimeoutException e) {
-			    ReportManager.log(e);
-			    failAction(driver, "identifyUniqueElement",
-				    "unique element matching this locator \"" + elementLocator + "\" is not visible.");
-			}
-		    }
+		    checkForElementVisibility(driver, elementLocator);
 		}
 		ScreenshotManager.storeElementScreenshotForAISupportedElementIdentification(driver, elementLocator);
 		return true;
@@ -161,6 +152,19 @@ public class ElementActions {
 	    failAction(driver, "identifyUniqueElement", "element locator is NULL.");
 	}
 	return false;
+    }
+
+    private static void checkForElementVisibility(WebDriver driver, By elementLocator) {
+	if (forceCheckForElementVisibility) {
+	    try {
+		(new WebDriverWait(driver, defaultElementIdentificationTimeout))
+			.until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
+	    } catch (TimeoutException e) {
+		ReportManager.log(e);
+		failAction(driver, "identifyUniqueElement",
+			"unique element matching this locator \"" + elementLocator + "\" is not visible.");
+	    }
+	}
     }
 
     private static int getMatchingElementsCount(WebDriver driver, By elementLocator, int numberOfAttempts) {
