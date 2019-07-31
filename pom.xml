@@ -84,6 +84,13 @@
 			<artifactId>selenium-support</artifactId>
 			<version>${selenium.version}</version>
 		</dependency>
+		
+		<!-- Webdriver Manager -->
+		<dependency>
+			<groupId>io.github.bonigarcia</groupId>
+			<artifactId>webdrivermanager</artifactId>
+			<version>3.6.2</version>
+		</dependency>
 
 		<!-- Excel file manipulation -->
 		<dependency>

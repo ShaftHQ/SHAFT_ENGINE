@@ -33,6 +33,8 @@ import org.openqa.selenium.safari.SafariDriver;
 import org.openqa.selenium.safari.SafariOptions;
 import org.testng.Assert;
 
+import io.github.bonigarcia.wdm.WebDriverManager;
+
 import com.shaft.cli.FileActions;
 import com.shaft.gui.element.JSWaiter;
 import com.shaft.gui.image.ScreenshotManager;
@@ -58,8 +60,8 @@ public class BrowserFactory {
     private static final Boolean BROWSEROBJECTSINGLETON = Boolean
 	    .valueOf(System.getProperty("browserObjectSingleton").trim());
 
-    private static String driversPath;
-    private static String fileExtension;
+//    private static String driversPath;
+//    private static String fileExtension;
     private static Map<String, Map<String, WebDriver>> drivers = new HashMap<>();
     // browser, <os,driver>
     private static WebDriver driver = null;
@@ -196,27 +198,27 @@ public class BrowserFactory {
      * Set the driver folder path and file extension based on the target Operating
      * System
      */
-    private static void setDriversPath() {
-	OperatingSystemType operatingSystem = getOperatingSystemFromName(targetOperatingSystem);
-
-	switch (operatingSystem) {
-	case WINDOWS:
-	    driversPath = "src/main/resources/drivers/windows-64/";
-	    fileExtension = ".exe";
-	    break;
-	case LINUX:
-	    driversPath = "src/main/resources/drivers/linux-64/";
-	    fileExtension = "";
-	    break;
-	case MACOS:
-	    driversPath = "src/main/resources/drivers/mac-64/";
-	    fileExtension = "";
-	    break;
-	default:
-	    failAction("setDriversPath", "Unsupported Operating System [" + targetOperatingSystem + "].");
-	    break;
-	}
-    }
+//    private static void setDriversPath() {
+//	OperatingSystemType operatingSystem = getOperatingSystemFromName(targetOperatingSystem);
+//
+//	switch (operatingSystem) {
+//	case WINDOWS:
+//	    driversPath = "src/main/resources/drivers/windows-64/";
+//	    fileExtension = ".exe";
+//	    break;
+//	case LINUX:
+//	    driversPath = "src/main/resources/drivers/linux-64/";
+//	    fileExtension = "";
+//	    break;
+//	case MACOS:
+//	    driversPath = "src/main/resources/drivers/mac-64/";
+//	    fileExtension = "";
+//	    break;
+//	default:
+//	    failAction("setDriversPath", "Unsupported Operating System [" + targetOperatingSystem + "].");
+//	    break;
+//	}
+//    }
 
     private static void setLoggingPrefrences() {
 	logPrefs = new LoggingPreferences();
@@ -299,7 +301,8 @@ public class BrowserFactory {
 
 	switch (browserType) {
 	case MOZILLA_FIREFOX:
-	    System.setProperty("webdriver.gecko.driver", driversPath + "geckodriver" + fileExtension);
+//	    System.setProperty("webdriver.gecko.driver", driversPath + "geckodriver" + fileExtension);
+	    WebDriverManager.firefoxdriver().setup();
 	    driver = new FirefoxDriver(ffOptions);
 	    drivers.put(browserInstanceID, new HashMap<String, WebDriver>());
 	    drivers.get(browserInstanceID).put(targetOperatingSystem, driver);
@@ -307,7 +310,8 @@ public class BrowserFactory {
 
 	    break;
 	case MICROSOFT_IE:
-	    System.setProperty("webdriver.ie.driver", driversPath + "IEDriverServer" + fileExtension);
+//	    System.setProperty("webdriver.ie.driver", driversPath + "IEDriverServer" + fileExtension);
+	    WebDriverManager.iedriver().setup();
 	    driver = new InternetExplorerDriver(ieOptions);
 	    drivers.put(browserInstanceID, new HashMap<String, WebDriver>());
 	    drivers.get(browserInstanceID).put(targetOperatingSystem, driver);
@@ -315,21 +319,30 @@ public class BrowserFactory {
 
 	    break;
 	case GOOGLE_CHROME:
-	    System.setProperty("webdriver.chrome.driver", driversPath + "chromedriver" + fileExtension);
+//	    System.setProperty("webdriver.chrome.driver", driversPath + "chromedriver" + fileExtension);
+	    WebDriverManager.chromedriver().setup();
 	    driver = new ChromeDriver(chOptions);
 	    drivers.put(browserInstanceID, new HashMap<String, WebDriver>());
 	    drivers.get(browserInstanceID).put(targetOperatingSystem, driver);
 	    ReportManager.log("Successfully Opened Google Chrome.");
 	    break;
 	case MICROSOFT_EDGE:
-	    System.setProperty("webdriver.edge.driver", driversPath + "MicrosoftWebDriver" + fileExtension);
+//	    System.setProperty("webdriver.edge.driver", driversPath + "MicrosoftWebDriver" + fileExtension);
+	    WebDriverManager.edgedriver().setup();
 	    driver = new EdgeDriver(edOptions);
 	    drivers.put(browserInstanceID, new HashMap<String, WebDriver>());
 	    drivers.get(browserInstanceID).put(targetOperatingSystem, driver);
 	    ReportManager.log("Successfully Opened Microsoft Edge.");
 	    break;
 	case APPLE_SAFARI:
-	    driver = new SafariDriver(sfOptions);
+
+	    try {
+		driver = new SafariDriver(sfOptions);
+	    } catch (org.openqa.selenium.SessionNotCreatedException e) {
+		ReportManager.log(e);
+		failAction("createNewLocalDriverInstance", "Failed to create a session on" + browserType.toString());
+	    }
+
 	    drivers.put(browserInstanceID, new HashMap<String, WebDriver>());
 	    drivers.get(browserInstanceID).put(targetOperatingSystem, driver);
 	    ReportManager.log("Successfully Opened Safari.");
@@ -514,7 +527,7 @@ public class BrowserFactory {
 	    checkBrowserOSCrossCompatibility(browserName);
 	    // check cross-compatibility between the selected operating system and browser
 	    // and report in case they are not compatible
-	    setDriversPath();
+//	    setDriversPath();
 	    // set path based on operating system
 	    setLoggingPrefrences();
 	    // set logging global preferences
