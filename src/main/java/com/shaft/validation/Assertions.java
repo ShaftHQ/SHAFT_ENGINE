@@ -15,6 +15,8 @@ import com.shaft.tools.support.JavaActions;
 
 import io.restassured.response.Response;
 
+//TODO: Assert Element matches reference file
+
 public class Assertions {
     private static int attemptsBeforeThrowingElementNotFoundException = Integer
 	    .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());

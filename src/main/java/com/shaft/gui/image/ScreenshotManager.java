@@ -291,7 +291,9 @@ public class ScreenshotManager {
     }
 
     private static File takeElementScreenshot(WebDriver driver, boolean isBaseFullPage) {
-	// TODO: investigate new selenium element screenshot API
+	// TODO: investigate new selenium element screenshot API >> use selenium api and
+	// compare image size to element size, if element is bigger then use the current
+	// implementation
 	try {
 	    if (targetElementLocator != null && ElementActions.getElementsCount(driver, targetElementLocator,
 		    RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1) {
@@ -495,6 +497,8 @@ public class ScreenshotManager {
 	}
     }
 
+    // TODO: investigate phase 2 and libraries that can be used for visual element
+    // identification
     public static void storeElementScreenshotForAISupportedElementIdentification(WebDriver driver, By elementLocator) {
 	if (AI_SUPPORTED_ELEMENT_IDENTIFICATION) {
 	    FileActions.createFolder(AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH);
