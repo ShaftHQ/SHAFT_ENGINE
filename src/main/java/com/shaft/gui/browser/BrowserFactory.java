@@ -301,7 +301,8 @@ public class BrowserFactory {
 
 	switch (browserType) {
 	case MOZILLA_FIREFOX:
-		WebDriverManager.firefoxdriver().setup();
+//	    System.setProperty("webdriver.gecko.driver", driversPath + "geckodriver" + fileExtension);
+	    WebDriverManager.firefoxdriver().setup();
 	    driver = new FirefoxDriver(ffOptions);
 	    drivers.put(browserInstanceID, new HashMap<String, WebDriver>());
 	    drivers.get(browserInstanceID).put(targetOperatingSystem, driver);
@@ -309,7 +310,8 @@ public class BrowserFactory {
 
 	    break;
 	case MICROSOFT_IE:
-		WebDriverManager.iedriver().setup();
+//	    System.setProperty("webdriver.ie.driver", driversPath + "IEDriverServer" + fileExtension);
+	    WebDriverManager.iedriver().setup();
 	    driver = new InternetExplorerDriver(ieOptions);
 	    drivers.put(browserInstanceID, new HashMap<String, WebDriver>());
 	    drivers.get(browserInstanceID).put(targetOperatingSystem, driver);
@@ -317,21 +319,30 @@ public class BrowserFactory {
 
 	    break;
 	case GOOGLE_CHROME:
-		WebDriverManager.chromedriver().setup();
+//	    System.setProperty("webdriver.chrome.driver", driversPath + "chromedriver" + fileExtension);
+	    WebDriverManager.chromedriver().setup();
 	    driver = new ChromeDriver(chOptions);
 	    drivers.put(browserInstanceID, new HashMap<String, WebDriver>());
 	    drivers.get(browserInstanceID).put(targetOperatingSystem, driver);
 	    ReportManager.log("Successfully Opened Google Chrome.");
 	    break;
 	case MICROSOFT_EDGE:
-		WebDriverManager.edgedriver().setup();
+//	    System.setProperty("webdriver.edge.driver", driversPath + "MicrosoftWebDriver" + fileExtension);
+	    WebDriverManager.edgedriver().setup();
 	    driver = new EdgeDriver(edOptions);
 	    drivers.put(browserInstanceID, new HashMap<String, WebDriver>());
 	    drivers.get(browserInstanceID).put(targetOperatingSystem, driver);
 	    ReportManager.log("Successfully Opened Microsoft Edge.");
 	    break;
 	case APPLE_SAFARI:
-	    driver = new SafariDriver(sfOptions);
+
+	    try {
+		driver = new SafariDriver(sfOptions);
+	    } catch (org.openqa.selenium.SessionNotCreatedException e) {
+		ReportManager.log(e);
+		failAction("createNewLocalDriverInstance", "Failed to create a session on" + browserType.toString());
+	    }
+
 	    drivers.put(browserInstanceID, new HashMap<String, WebDriver>());
 	    drivers.get(browserInstanceID).put(targetOperatingSystem, driver);
 	    ReportManager.log("Successfully Opened Safari.");
