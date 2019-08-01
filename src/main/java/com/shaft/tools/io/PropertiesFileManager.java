@@ -210,7 +210,7 @@ public class PropertiesFileManager {
 	properties.put("testDataFolderPath", "src/test/resources/TestDataFiles/");
 	properties.put("testSuiteFolderPath", "src/test/resources/TestSuites/");
 	properties.put("jsonFolderPath", "src/test/resources/TestJsonFiles/");
-	properties.put("watermarkImagePath", "src/main/resources/images/shaft.png");
+	properties.put("watermarkImagePath", "/images/shaft.png");
 	properties.put("downloadsFolderPath", "target/downloadedFiles/");
 	properties.put("allureResultsFolderPath", "allure-results/");
 	return properties;
