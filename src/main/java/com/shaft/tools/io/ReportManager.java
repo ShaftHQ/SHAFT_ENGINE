@@ -43,6 +43,9 @@ public class ReportManager {
     private static int openIssuesForPassedTestsCounter = 0;
     private static int failedTestsWithoutOpenIssuesCounter = 0;
 
+    private static final String ALLURE_RESULTS_FOLDER_PATH = System.getProperty("allureResultsFolderPath").trim();
+    private static final String ALLURE_EXECUTABLE_PATH = "src/main/resources/allure/bin/allure";
+
     public static void setOpenIssuesForFailedTestsCounter(int openIssuesForFailedTestsCounter) {
 	ReportManager.openIssuesForFailedTestsCounter = openIssuesForFailedTestsCounter;
     }
@@ -458,9 +461,13 @@ public class ReportManager {
 	    String allureReportFileExtension;
 
 	    if (targetOperatingSystem.equals("Windows-64")) {
-		commandToCreateAllureReport = "src/main/resources/allure/bin/allure.bat generate \"allure-results\" -o \"generatedReport/allure-report\"";
+		commandToCreateAllureReport = ALLURE_EXECUTABLE_PATH + ".bat" + " generate \""
+			+ ALLURE_RESULTS_FOLDER_PATH.substring(0, ALLURE_RESULTS_FOLDER_PATH.length() - 1)
+			+ "\" -o \"generatedReport/allure-report\"";
 	    } else {
-		commandToCreateAllureReport = "src/main/resources/allure/bin/allure generate \"allure-results\" -o \"generatedReport/allure-report\"";
+		commandToCreateAllureReport = ALLURE_EXECUTABLE_PATH + " generate \""
+			+ ALLURE_RESULTS_FOLDER_PATH.substring(0, ALLURE_RESULTS_FOLDER_PATH.length() - 1)
+			+ "\" -o \"generatedReport/allure-report\"";
 	    }
 
 	    // create unix-based sh file

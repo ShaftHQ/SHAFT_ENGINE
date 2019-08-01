@@ -40,7 +40,8 @@ import com.shaft.gui.element.JSWaiter;
 import com.shaft.tools.io.ReportManager;
 
 public class ScreenshotManager {
-    private static final String SCREENSHOT_FOLDERPATH = "allure-results/screenshots/";
+    private static final String SCREENSHOT_FOLDERPATH = System.getProperty("allureResultsFolderPath").trim() + "/"
+	    + "screenshots/";
     private static final String SCREENSHOT_FOLDERNAME = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
     private static String screenshotFileName = "Screenshot";
     private static final String SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT = System
@@ -58,7 +59,7 @@ public class ScreenshotManager {
     private static final Boolean AI_SUPPORTED_ELEMENT_IDENTIFICATION = Boolean
 	    .valueOf(System.getProperty("aiSupportedElementIdentification").trim());
 
-    private static final String WATERMANRK_DEFAULT_PATH = "/images/shaft.png";
+    private static final String WATERMARK_DEFAULT_PATH = "/images/shaft.png";
     private static By targetElementLocator;
 
     private static final int RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION = 1;
@@ -412,7 +413,7 @@ public class ScreenshotManager {
 			AlphaComposite.getInstance(AlphaComposite.SRC_OVER, SCREENSHOT_PARAMS_WATERMARKOPACITY));
 
 		BufferedImage shaftLogo;
-		if (System.getProperty("watermarkImagePath").trim().equals(WATERMANRK_DEFAULT_PATH)) {
+		if (System.getProperty("watermarkImagePath").trim().equals(WATERMARK_DEFAULT_PATH)) {
 		    // read from tool resources
 		    URL resourcesImageURL = ScreenshotManager.class
 			    .getResource(System.getProperty("watermarkImagePath").trim());
