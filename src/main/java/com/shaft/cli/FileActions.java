@@ -1,18 +1,25 @@
 package com.shaft.cli;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URL;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
 import org.apache.commons.io.FileUtils;
@@ -542,4 +549,64 @@ public class FileActions {
 	}
 	return result;
     }
+
+    public static File unpackArchive(URL url, String destinationFolderPath) throws IOException {
+	File targetDir = new File(destinationFolderPath);
+	if (!targetDir.exists()) {
+	    targetDir.mkdirs();
+	}
+	InputStream in = new BufferedInputStream(url.openStream(), 1024);
+	// make sure we get the actual file
+	File zip = File.createTempFile("arc", ".zip", targetDir);
+	OutputStream out = new BufferedOutputStream(new FileOutputStream(zip));
+	copyInputStream(in, out);
+	out.close();
+	File unpacked = unpackArchive(zip, targetDir);
+	FileActions.deleteFile(zip.getAbsolutePath());
+	return unpacked;
+    }
+
+    private static File unpackArchive(File theFile, File targetDir) throws IOException {
+	if (!theFile.exists()) {
+	    throw new IOException(theFile.getAbsolutePath() + " does not exist");
+	}
+	if (!buildDirectory(targetDir)) {
+	    throw new IOException("Could not create directory: " + targetDir);
+	}
+	ZipFile zipFile = new ZipFile(theFile);
+	for (Enumeration<? extends ZipEntry> entries = zipFile.entries(); entries.hasMoreElements();) {
+	    ZipEntry entry = entries.nextElement();
+	    File file = new File(targetDir, File.separator + entry.getName());
+	    if (!buildDirectory(file.getParentFile())) {
+		zipFile.close();
+		throw new IOException("Could not create directory: " + file.getParentFile());
+	    }
+	    if (!entry.isDirectory()) {
+		copyInputStream(zipFile.getInputStream(entry), new BufferedOutputStream(new FileOutputStream(file)));
+	    } else {
+		if (!buildDirectory(file)) {
+		    zipFile.close();
+		    throw new IOException("Could not create directory: " + file);
+		}
+	    }
+	}
+	zipFile.close();
+	return theFile;
+    }
+
+    private static void copyInputStream(InputStream in, OutputStream out) throws IOException {
+	byte[] buffer = new byte[1024];
+	int len = in.read(buffer);
+	while (len >= 0) {
+	    out.write(buffer, 0, len);
+	    len = in.read(buffer);
+	}
+	in.close();
+	out.close();
+    }
+
+    private static boolean buildDirectory(File file) {
+	return file.exists() || file.mkdirs();
+    }
+
 }

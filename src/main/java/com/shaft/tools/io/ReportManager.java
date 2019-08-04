@@ -6,6 +6,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -44,7 +45,7 @@ public class ReportManager {
     private static int failedTestsWithoutOpenIssuesCounter = 0;
 
     private static final String ALLURE_RESULTS_FOLDER_PATH = System.getProperty("allureResultsFolderPath").trim();
-    private static final String ALLURE_EXECUTABLE_PATH = "src/main/resources/allure/bin/allure";
+    private static final String ALLURE_EXECUTABLE_PATH = "target/allure/bin/allure";
 
     public static void setOpenIssuesForFailedTestsCounter(int openIssuesForFailedTestsCounter) {
 	ReportManager.openIssuesForFailedTestsCounter = openIssuesForFailedTestsCounter;
@@ -458,7 +459,6 @@ public class ReportManager {
 	    String targetOperatingSystem = System.getProperty("targetOperatingSystem");
 	    String commandToCreateAllureReport = "";
 	    List<String> commandsToOpenAllureReport = null;
-	    String allureReportFileExtension;
 
 	    if (targetOperatingSystem.equals("Windows-64")) {
 		commandToCreateAllureReport = ALLURE_EXECUTABLE_PATH + ".bat" + " generate \""
@@ -474,26 +474,29 @@ public class ReportManager {
 	    commandsToOpenAllureReport = Arrays.asList("#!/bin/bash",
 		    "parent_path=$( cd \"$(dirname \"${BASH_SOURCE[0]}\")\" ; pwd -P )",
 		    "cd \"$parent_path/allure/bin/\"", "bash allure open \"$parent_path/allure-report\"", "exit");
-	    allureReportFileExtension = ".sh";
-	    FileActions.writeToFile("generatedReport/", "open_allure_report" + allureReportFileExtension,
-		    commandsToOpenAllureReport);
+	    FileActions.writeToFile("generatedReport/", "open_allure_report.sh", commandsToOpenAllureReport);
 
-	    if (!targetOperatingSystem.equals("Windows-64")) {
-		// make file executable on unix-based shells
-		(new TerminalActions()).performTerminalCommand(
-			"chmod +x generatedReport/open_allure_report" + allureReportFileExtension);
-	    }
 	    // create windows batch file
 	    commandsToOpenAllureReport = Arrays.asList("@echo off", "set path=allure\\bin;%path%",
 		    "allure open allure-report", "pause", "exit");
-	    allureReportFileExtension = ".bat";
-	    FileActions.writeToFile("generatedReport/", "open_allure_report" + allureReportFileExtension,
-		    commandsToOpenAllureReport);
+	    FileActions.writeToFile("generatedReport/", "open_allure_report.bat", commandsToOpenAllureReport);
+
+	    // extract allure from jar file to src/main/resources directory
+	    URL allureFolder = ReportManager.class.getResource("/allure/allureBinary.zip");
+	    try {
+		FileActions.unpackArchive(allureFolder, "target/allure/");
+
+		if (!targetOperatingSystem.equals("Windows-64")) {
+		    // make file executable on unix-based shells
+		    (new TerminalActions()).performTerminalCommand("chmod u+x " + ALLURE_EXECUTABLE_PATH);
+		}
+	    } catch (IOException e) {
+		ReportManager.log(e);
+	    }
 
 	    (new TerminalActions()).performTerminalCommand(commandToCreateAllureReport);
 
-	    FileActions.copyFolder(FileActions.getAbsolutePath("src/main/resources/", "allure"),
-		    "generatedReport/allure");
+	    FileActions.copyFolder(FileActions.getAbsolutePath("target/", "allure"), "generatedReport/allure");
 
 	    FileActions.zipFiles("generatedReport/", "generatedReport.zip");
 
