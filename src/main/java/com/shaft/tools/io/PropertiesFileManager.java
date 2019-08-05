@@ -107,8 +107,7 @@ public class PropertiesFileManager {
 	// Note: Will be ignored in case of local execution and SHAFT will identify the
 	// correct OS version automatically
 	System.setProperty("targetBrowserName", "GoogleChrome");
-	// MozillaFirefox | MicrosoftInternetExplorer | GoogleChrome | MicrosoftEdge |
-	// Safari
+	// MozillaFirefox | MicrosoftInternetExplorer | GoogleChrome | MicrosoftEdge | Safari | CustomBrowserName
 	System.setProperty("headlessExecution", "false");
 	// true | false, This only works for chrome/Firefox
 	System.setProperty("browserObjectSingleton", "true");
@@ -182,7 +181,12 @@ public class PropertiesFileManager {
 	// true | false
 	System.setProperty("automaticallyGenerateAllureReport", "false");
 	// true | false
-
+	
+	System.setProperty("customDriverName","");
+	//Custom Driver Name ex.: EdgeChromium
+	System.setProperty("customDriverPath","");
+	//Custom Driver Path
+	//
     }
 
     /**
