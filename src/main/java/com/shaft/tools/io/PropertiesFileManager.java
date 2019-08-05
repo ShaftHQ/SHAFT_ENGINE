@@ -196,6 +196,8 @@ public class PropertiesFileManager {
 	// true | false
 	properties.put("debugMode", "false");
 	// true | false
+	properties.put("automaticallyCleanAllureResultsDirectoryBeforeExecution", "false");
+	// true | false
 	properties.put("automaticallyGenerateAllureReport", "false");
 	// true | false
 
