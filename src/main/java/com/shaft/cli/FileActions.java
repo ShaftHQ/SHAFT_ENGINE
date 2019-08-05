@@ -550,19 +550,25 @@ public class FileActions {
 	return result;
     }
 
-    public static File unpackArchive(URL url, String destinationFolderPath) throws IOException {
+    public static File unpackArchive(URL url, String destinationFolderPath) {
 	File targetDir = new File(destinationFolderPath);
 	if (!targetDir.exists()) {
 	    targetDir.mkdirs();
 	}
-	InputStream in = new BufferedInputStream(url.openStream(), 1024);
-	// make sure we get the actual file
-	File zip = File.createTempFile("arc", ".zip", targetDir);
-	OutputStream out = new BufferedOutputStream(new FileOutputStream(zip));
-	copyInputStream(in, out);
-	out.close();
-	File unpacked = unpackArchive(zip, targetDir);
-	FileActions.deleteFile(zip.getAbsolutePath());
+	File unpacked = null;
+	try {
+	    InputStream in = new BufferedInputStream(url.openStream(), 1024);
+	    // make sure we get the actual file
+	    File zip = File.createTempFile("arc", ".zip", targetDir);
+	    OutputStream out = new BufferedOutputStream(new FileOutputStream(zip));
+	    copyInputStream(in, out);
+	    out.close();
+	    unpacked = unpackArchive(zip, targetDir);
+	    FileActions.deleteFile(zip.getAbsolutePath());
+	} catch (IOException e) {
+	    ReportManager.log(e);
+	    failAction("unpackArchive", "file: " + url.toString() + " to directory: " + destinationFolderPath);
+	}
 	return unpacked;
     }
 
