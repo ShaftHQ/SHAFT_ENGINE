@@ -11,7 +11,7 @@ public class SuiteListener implements ISuiteListener {
     @Override
     public void onStart(ISuite suite) {
 	PropertiesFileManager.readPropertyFiles();
-	ReportManager.populateEnvironmentData();
+	ReportManager.prepareAllureReportingEnvironment();
 	ReportManager.logEngineVersion();
 	ReportManager.setTotalNumberOfTests(suite.getAllMethods().size());
 	ReportManager.setDiscreteLogging(Boolean.valueOf(System.getProperty("alwaysLogDiscreetly")));

@@ -29,8 +29,10 @@ public class PropertiesFileManager {
      * 
      */
     public static void readPropertyFiles() {
-	// read properties from any explicit properties files
+	// read base system properties
 	Properties props = System.getProperties();
+
+	// read properties from any explicit properties files
 	for (int i = 0; i < props.size(); i++) {
 	    String propertyKey = ((String) (props.keySet().toArray())[i]).trim();
 	    if (propertyKey.contains("propertiesFolderPath") && !propertyKey.equals("propertiesFolderPath")
@@ -43,9 +45,7 @@ public class PropertiesFileManager {
 	readPropertyFiles(System.getProperty("propertiesFolderPath"));
 
 	// This section set the default properties values for Execution/path/pattern
-	setDefaultExecutionProperties();
-	setPathProperties();
-	setPatternProperties();
+	setDefaultProperties();
 
 	overrideTargetOperatingSystemForLocalExecution();
     }
@@ -94,124 +94,145 @@ public class PropertiesFileManager {
 
     // TODO: add list of supported properties, and add link to hosted docs in the
     // provided sample properties file
+
+    private static void setDefaultProperties() {
+	Properties properties = new Properties();
+	// read default properties
+	properties.putAll(setDefaultExecutionProperties());
+	properties.putAll(setPathProperties());
+	properties.putAll(setPatternProperties());
+
+	// override default properties with current system properties in the properties
+	// object
+	properties.putAll(System.getProperties());
+
+	// set new prioritized properties
+	System.getProperties().putAll(properties);
+    }
+
     /**
      * This method set Engine execution default properties
      */
-    private static void setDefaultExecutionProperties() {
-
-	System.setProperty("executionAddress", "local");
+    private static Properties setDefaultExecutionProperties() {
+	Properties properties = new Properties();
+	properties.put("executionAddress", "local");
 	// Platform
 	// local | seleniumGridHubIP:port
-	System.setProperty("targetOperatingSystem", "Windows-64");
+	properties.put("targetOperatingSystem", "Windows-64");
 	// Windows-64 | Linux-64 | Mac-64
 	// Note: Will be ignored in case of local execution and SHAFT will identify the
 	// correct OS version automatically
-	System.setProperty("targetBrowserName", "GoogleChrome");
-	// MozillaFirefox | MicrosoftInternetExplorer | GoogleChrome | MicrosoftEdge | Safari | CustomBrowserName
-	System.setProperty("headlessExecution", "false");
+
+	properties.put("targetBrowserName", "GoogleChrome");
+	// MozillaFirefox | MicrosoftInternetExplorer | GoogleChrome | MicrosoftEdge |
+	// Safari
+	properties.put("headlessExecution", "false");
+
 	// true | false, This only works for chrome/Firefox
-	System.setProperty("browserObjectSingleton", "true");
+	properties.put("browserObjectSingleton", "true");
 	// true | false, This makes sure that every time you attempt to open a browser,
 	// all other instances will be closed
 	//
 	////////// Platform Flags and Timeouts
-	System.setProperty("browserNavigationTimeout", "30");
+	properties.put("browserNavigationTimeout", "30");
 	// Timeout in seconds to be used if navigating to a new URL (1 minute = 60
 	// seconds)
-	System.setProperty("defaultElementIdentificationTimeout", "5");
+	properties.put("defaultElementIdentificationTimeout", "5");
 	// Accepts integer values that represent the default timeout for finding a
 	// webElement
-	System.setProperty("attemptsBeforeThrowingElementNotFoundException", "5");
+	properties.put("attemptsBeforeThrowingElementNotFoundException", "5");
 	// Accepts integer values that represent the number of attempts before failing
 	// to find a webElement
-	System.setProperty("shellSessionTimeout", "30");
+	properties.put("shellSessionTimeout", "30");
 	// Timeout in seconds to be used if creating any kind of shell session (1 minute
 	// = 60 seconds), should be greater than or equal to the docker timeout in case
 	// of dockerized execution
-	System.setProperty("dockerCommandTimeout", "30");
+	properties.put("dockerCommandTimeout", "30");
 	// Timeout in seconds to be used if executing a command inside a docker (1
 	// minute = 60 seconds)
-	System.setProperty("databaseLoginTimeout", "30");
+	properties.put("databaseLoginTimeout", "30");
 	// Timeout in seconds to be used when attempting to login to a database (1
 	// minute = 60 seconds)
-	System.setProperty("databaseNetworkTimeout", "60");
+	properties.put("databaseNetworkTimeout", "60");
 	// Timeout in seconds to be used when attempting to connect to a database (1
 	// minute = 60 seconds)
-	System.setProperty("databaseQueryTimeout", "60");
+	properties.put("databaseQueryTimeout", "60");
 	// Timeout in seconds to be used when attempting to execute a query on a
 	// database (1 minute = 60 seconds)
-	System.setProperty("autoMaximizeBrowserWindow", "true");
+	properties.put("autoMaximizeBrowserWindow", "true");
 	// true | false
-	System.setProperty("forceCheckForElementVisibility", "true");
+	properties.put("forceCheckForElementVisibility", "true");
 	// true | false
-	System.setProperty("waitImplicitly", "false");
+	properties.put("waitImplicitly", "false");
 	// true | false
 	// Note: Implicit waiting may increase execution time by 20% but it also
 	// increases test stability in flaky environments
 	//
 	////////// Screen-shot/AnimatedGif/Video Parameters
-	System.setProperty("screenshotParams_whenToTakeAScreenshot", "ValidationPointsOnly");
+	properties.put("screenshotParams_whenToTakeAScreenshot", "ValidationPointsOnly");
 	// Always | Never | ValidationPointsOnly | FailuresOnly
-	System.setProperty("screenshotParams_highlightElements", "true");
+	properties.put("screenshotParams_highlightElements", "true");
 	// true | false
-	System.setProperty("screenshotParams_screenshotType", "Regular");
+	properties.put("screenshotParams_screenshotType", "Regular");
 	// Regular | FullPage | Element
-	System.setProperty("screenshotParams_skippedElementsFromScreenshot", "");
+	properties.put("screenshotParams_skippedElementsFromScreenshot", "");
 	// The above element will be skipped in case of persistent elements/menus that
 	// show up multiple times in the full page screenshots
-	System.setProperty("screenshotParams_watermark", "true");
+	properties.put("screenshotParams_watermark", "true");
 	// true | false
-	System.setProperty("screenshotParams_watermarkOpacity", "0.2");
+	properties.put("screenshotParams_watermarkOpacity", "0.2");
 	// a number between 0 and 1.0 where 0 means invisible and 1.0 means 100% visible
-	System.setProperty("createAnimatedGif", "true");
+	properties.put("createAnimatedGif", "true");
 	// true | false
-	System.setProperty("animatedGif_frameDelay", "500");
+	properties.put("animatedGif_frameDelay", "500");
 	// Time in milliseconds to delay the frames of the animated GIF, default is 500
 	// millisecond
-	System.setProperty("recordVideo", "false");
+	properties.put("recordVideo", "false");
 	// This only works for local execution
-	System.setProperty("aiSupportedElementIdentification", "false");
+	properties.put("aiSupportedElementIdentification", "false");
 	// true | false
 	// Note: this is an experimental feature
 	//
 	////////// Logging/Reporting Parameters
-	System.setProperty("alwaysLogDiscreetly", "false");
+	properties.put("alwaysLogDiscreetly", "false");
 	// true | false
-	System.setProperty("debugMode", "false");
+	properties.put("debugMode", "false");
 	// true | false
-	System.setProperty("automaticallyGenerateAllureReport", "false");
+	properties.put("automaticallyCleanAllureResultsDirectoryBeforeExecution", "false");
 	// true | false
-	
+	properties.put("automaticallyGenerateAllureReport", "false");
+	// true | false
 	System.setProperty("customDriverName","");
 	//Custom Driver Name ex.: EdgeChromium
 	System.setProperty("customDriverPath","");
 	//Custom Driver Path
-	//
+
+	return properties;
     }
 
     /**
      * Set Engine Path Properties
      */
-    private static void setPathProperties() {
-
-	System.setProperty("testDataFolderPath", "src/test/resources/TestDataFiles/");
-	System.setProperty("testSuiteFolderPath", "src/test/resources/TestSuites/");
-	System.setProperty("jsonFolderPath", "src/test/resources/TestJsonFiles/");
-	System.setProperty("watermarkImagePath", "src/main/resources/images/shaft.png");
-	System.setProperty("downloadsFolderPath", "target/downloadedFiles/");
-	System.setProperty("allureResultsFolderPath", "allure-results/");
-
+    private static Properties setPathProperties() {
+	Properties properties = new Properties();
+	properties.put("testDataFolderPath", "src/test/resources/TestDataFiles/");
+	properties.put("testSuiteFolderPath", "src/test/resources/TestSuites/");
+	properties.put("jsonFolderPath", "src/test/resources/TestJsonFiles/");
+	properties.put("watermarkImagePath", "/images/shaft.png");
+	properties.put("downloadsFolderPath", "target/downloadedFiles/");
+	properties.put("allureResultsFolderPath", "allure-results/");
+	return properties;
     }
 
     /**
      * Set Engine Pattern Properties
      */
-    private static void setPatternProperties() {
-
-	System.setProperty("testDataColumnNamePrefix", "Data");
-	System.setProperty("allure.link.issue.pattern", "");
-	System.setProperty("allure.link.tms.pattern", "");
-
+    private static Properties setPatternProperties() {
+	Properties properties = new Properties();
+	properties.put("testDataColumnNamePrefix", "Data");
+	properties.put("allure.link.issue.pattern", "");
+	properties.put("allure.link.tms.pattern", "");
+	return properties;
     }
 
 }

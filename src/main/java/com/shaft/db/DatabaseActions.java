@@ -179,7 +179,10 @@ public class DatabaseActions {
 		if (readColumnNames) {
 		    // read column headers
 		    for (int i = 1; i <= columnsCount; i++) {
-			str.append(String.valueOf(resultSet.getMetaData().getColumnName(i)) + "\t");
+			str.append(String.valueOf(resultSet.getMetaData().getColumnName(i)));
+			if (i != columnsCount) {
+			    str.append("\t");
+			}
 		    }
 		    str.append("\n");
 		}
@@ -188,7 +191,10 @@ public class DatabaseActions {
 		for (int i = 1; i <= lastRowID; i++) {
 		    resultSet.absolute(i);
 		    for (int j = 1; j <= columnsCount; j++) {
-			str.append(String.valueOf(resultSet.getString(j)) + "\t");
+			str.append(String.valueOf(resultSet.getString(j)));
+			if (j != columnsCount) {
+			    str.append("\t");
+			}
 		    }
 		    str.append("\n");
 		}
