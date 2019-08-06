@@ -22,6 +22,9 @@ public class Assertions {
 	    .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
     private static int attemptsBeforeThrowingElementNotFoundExceptionInCaseElementShouldntExist = 1;
 
+    private static final String ERROR_INVALID_COMPARISON_OPERATOR = "Assertion Failed; invalid comparison operator used.";
+    private static final String ERROR_UNHANDLED_EXCEPTION = "Assertion Failed; an unhandled exception occured.";
+
     private static Boolean discreetLoggingState = Boolean.valueOf(System.getProperty("alwaysLogDiscreetly"));
 
     public enum AssertionType {
@@ -82,6 +85,12 @@ public class Assertions {
 	Assert.fail(message);
     }
 
+    private static void fail(String message, String expectedValue, String actualValue) {
+	ReportManager.attachAsStep("Validation Test Data", "Expected Value", expectedValue.toString());
+	ReportManager.attachAsStep("Validation Test Data", "Actual Value", actualValue.toString());
+	fail(message);
+    }
+
     private static void fail(String actionName, WebDriver driver, String message) {
 	ScreenshotManager.captureScreenShot(driver, actionName, false);
 	fail(message);
@@ -94,6 +103,12 @@ public class Assertions {
 
     private static void pass(String message) {
 	ReportManager.log(message);
+    }
+
+    private static void pass(String message, String expectedValue, String actualValue) {
+	ReportManager.attachAsStep("Validation Test Data", "Expected Value", expectedValue.toString());
+	ReportManager.attachAsStep("Validation Test Data", "Actual Value", actualValue.toString());
+	pass(message);
     }
 
     private static void pass(String actionName, WebDriver driver, String message) {
@@ -129,31 +144,54 @@ public class Assertions {
 		+ expectedValue + "], actualValue [" + actualValue + "], comparisonType [" + comparisonType
 		+ "], and assertionType [" + assertionType + "].");
 
+	Boolean isExpectedOrActualValueLong = expectedValue.toString().length() >= 500
+		|| actualValue.toString().length() >= 500;
+
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, assertionType)) {
 	case 1:
 	    if (assertionType) {
-		pass("Assertion Passed; actual value [" + actualValue + "] does match expected value [" + expectedValue
-			+ "].");
+		if (!isExpectedOrActualValueLong) {
+		    pass("Assertion Passed; actual value [" + actualValue + "] does match expected value ["
+			    + expectedValue + "].");
+		} else {
+		    pass("Assertion Passed; actual value does match expected value.", String.valueOf(expectedValue),
+			    String.valueOf(actualValue));
+		}
 
 	    } else {
-		pass("Assertion Passed; actual value [" + actualValue + "] does not match expected value ["
-			+ expectedValue + "].");
+		if (!isExpectedOrActualValueLong) {
+		    pass("Assertion Passed; actual value [" + actualValue + "] does not match expected value ["
+			    + expectedValue + "].");
+		} else {
+		    pass("Assertion Passed; actual value does not match expected value.", String.valueOf(expectedValue),
+			    String.valueOf(actualValue));
+		}
 	    }
 	    break;
 	case 0:
 	    if (assertionType) {
-		fail("Assertion Failed; actual value [" + actualValue + "] does not match expected value ["
-			+ expectedValue + "].");
+		if (!isExpectedOrActualValueLong) {
+		    fail("Assertion Failed; actual value [" + actualValue + "] does not match expected value ["
+			    + expectedValue + "].");
+		} else {
+		    fail("Assertion Failed; actual value does not match expected value.", String.valueOf(expectedValue),
+			    String.valueOf(actualValue));
+		}
 	    } else {
-		fail("Assertion Failed; actual value [" + actualValue + "] does match expected value [" + expectedValue
-			+ "].");
+		if (!isExpectedOrActualValueLong) {
+		    fail("Assertion Failed; actual value [" + actualValue + "] does match expected value ["
+			    + expectedValue + "].");
+		} else {
+		    fail("Assertion Failed; actual value does match expected value.", String.valueOf(expectedValue),
+			    String.valueOf(actualValue));
+		}
 	    }
 	    break;
 	case -1:
-	    fail("Assertion Failed; invalid comparison operator used.");
+	    fail(ERROR_INVALID_COMPARISON_OPERATOR);
 	    break;
 	default:
-	    fail("Assertion Failed; an unhandled exception occured.");
+	    fail(ERROR_UNHANDLED_EXCEPTION);
 	    break;
 	}
     }
@@ -199,7 +237,7 @@ public class Assertions {
 		fail("Assertion Failed; actual value is not null.", e);
 	    } catch (Exception e) {
 		ReportManager.log(e);
-		fail("Assertion Failed; an unhandled exception occured.", e);
+		fail(ERROR_UNHANDLED_EXCEPTION, e);
 	    }
 	} else {
 	    try {
@@ -209,7 +247,7 @@ public class Assertions {
 		fail("Assertion Failed; actual value is null.", e);
 	    } catch (Exception e) {
 		ReportManager.log(e);
-		fail("Assertion Failed; an unhandled exception occured.", e);
+		fail(ERROR_UNHANDLED_EXCEPTION, e);
 	    }
 	}
     }
@@ -276,7 +314,7 @@ public class Assertions {
 	    }
 	} catch (Exception e) {
 	    ReportManager.log(e);
-	    fail("Assertion Failed; an unhandled exception occured.", e);
+	    fail(ERROR_UNHANDLED_EXCEPTION, e);
 	}
     }
 
@@ -362,10 +400,10 @@ public class Assertions {
 	    }
 	    break;
 	case -1:
-	    fail("Assertion Failed; invalid comparison operator used.");
+	    fail(ERROR_INVALID_COMPARISON_OPERATOR);
 	    break;
 	default:
-	    fail("Assertion Failed; an unhandled exception occured.");
+	    fail(ERROR_UNHANDLED_EXCEPTION);
 	    break;
 	}
     }
@@ -448,10 +486,10 @@ public class Assertions {
 	    }
 	    break;
 	case -1:
-	    fail("Assertion Failed; invalid comparison operator used.");
+	    fail(ERROR_INVALID_COMPARISON_OPERATOR);
 	    break;
 	default:
-	    fail("Assertion Failed; an unhandled exception occured.");
+	    fail(ERROR_UNHANDLED_EXCEPTION);
 	    break;
 	}
     }
@@ -555,10 +593,10 @@ public class Assertions {
 	    }
 	    break;
 	case -1:
-	    fail("Assertion Failed; invalid comparison operator used.");
+	    fail(ERROR_INVALID_COMPARISON_OPERATOR);
 	    break;
 	default:
-	    fail("Assertion Failed; an unhandled exception occured.");
+	    fail(ERROR_UNHANDLED_EXCEPTION);
 	    break;
 	}
     }
@@ -641,7 +679,7 @@ public class Assertions {
 		    Assert.assertTrue(actualValue.floatValue() == expectedValue.floatValue());
 		    break;
 		default:
-		    fail("Assertion Failed; invalid comparison operator used.");
+		    fail(ERROR_INVALID_COMPARISON_OPERATOR);
 		    break;
 		}
 		pass("Assertion Passed; actual value [" + actualValue + "] is " + comparativeRelationType
@@ -651,7 +689,7 @@ public class Assertions {
 			+ " expected value [" + expectedValue + "].", e);
 	    } catch (Exception e) {
 		ReportManager.log(e);
-		fail("Assertion Failed; an unhandled exception occured.", e);
+		fail(ERROR_UNHANDLED_EXCEPTION, e);
 	    }
 	} else {
 	    try {
@@ -672,7 +710,7 @@ public class Assertions {
 		    Assert.assertFalse(actualValue.floatValue() == expectedValue.floatValue());
 		    break;
 		default:
-		    fail("Assertion Failed; invalid comparison operator used.");
+		    fail(ERROR_INVALID_COMPARISON_OPERATOR);
 		    break;
 		}
 
@@ -683,7 +721,7 @@ public class Assertions {
 			+ " expected value [" + expectedValue + "].", e);
 	    } catch (Exception e) {
 		ReportManager.log(e);
-		fail("Assertion Failed; an unhandled exception occured.", e);
+		fail(ERROR_UNHANDLED_EXCEPTION, e);
 	    }
 	}
     }
@@ -797,7 +835,7 @@ public class Assertions {
 			e);
 	    } catch (Exception e) {
 		ReportManager.log(e);
-		fail("Assertion Failed; an unhandled exception occured.", e);
+		fail(ERROR_UNHANDLED_EXCEPTION, e);
 	    }
 	} else {
 	    if (conditionalStatement == null) {
@@ -811,7 +849,7 @@ public class Assertions {
 			e);
 	    } catch (Exception e) {
 		ReportManager.log(e);
-		fail("Assertion Failed; an unhandled exception occured.", e);
+		fail(ERROR_UNHANDLED_EXCEPTION, e);
 	    }
 	}
 
