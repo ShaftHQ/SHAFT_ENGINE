@@ -8,6 +8,7 @@ import org.testng.annotations.Test;
 
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.BrowserFactory;
+import com.shaft.gui.browser.BrowserFactory.BrowserType;
 import com.shaft.gui.element.ElementActions;
 
 public class tests_element_elementActions {
@@ -57,6 +58,6 @@ public class tests_element_elementActions {
 
     @BeforeClass // Set-up method, to be run once before the first test
     public void beforeClass() {
-	driver = BrowserFactory.getBrowser("GoogleChrome");
+	driver = BrowserFactory.getBrowser(BrowserType.GOOGLE_CHROME);
     }
 }

@@ -11,6 +11,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.URL;
 import java.nio.file.FileSystems;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -39,7 +40,8 @@ import com.shaft.gui.element.JSWaiter;
 import com.shaft.tools.io.ReportManager;
 
 public class ScreenshotManager {
-    private static final String SCREENSHOT_FOLDERPATH = "allure-results/screenshots/";
+    private static final String SCREENSHOT_FOLDERPATH = System.getProperty("allureResultsFolderPath").trim() + "/"
+	    + "screenshots/";
     private static final String SCREENSHOT_FOLDERNAME = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
     private static String screenshotFileName = "Screenshot";
     private static final String SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT = System
@@ -57,6 +59,7 @@ public class ScreenshotManager {
     private static final Boolean AI_SUPPORTED_ELEMENT_IDENTIFICATION = Boolean
 	    .valueOf(System.getProperty("aiSupportedElementIdentification").trim());
 
+    private static final String WATERMARK_DEFAULT_PATH = "/images/shaft.png";
     private static By targetElementLocator;
 
     private static final int RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION = 1;
@@ -409,8 +412,17 @@ public class ScreenshotManager {
 		screenshotGraphics.setComposite(
 			AlphaComposite.getInstance(AlphaComposite.SRC_OVER, SCREENSHOT_PARAMS_WATERMARKOPACITY));
 
-		// overlay SHAFT_Engine logo to the initial image...
-		BufferedImage shaftLogo = ImageIO.read(new File(System.getProperty("watermarkImagePath").trim()));
+		BufferedImage shaftLogo;
+		if (System.getProperty("watermarkImagePath").trim().equals(WATERMARK_DEFAULT_PATH)) {
+		    // read from tool resources
+		    URL resourcesImageURL = ScreenshotManager.class
+			    .getResource(System.getProperty("watermarkImagePath").trim());
+		    // overlay SHAFT_Engine logo to the initial image...
+		    shaftLogo = ImageIO.read(resourcesImageURL);
+		} else {
+		    // read from custom location
+		    shaftLogo = ImageIO.read(new File(System.getProperty("watermarkImagePath").trim()));
+		}
 		shaftLogo = toBufferedImage(
 			shaftLogo.getScaledInstance(screenshot.getWidth() / 8, -1, Image.SCALE_SMOOTH));
 		screenshotGraphics.drawImage(shaftLogo, screenshot.getWidth() - shaftLogo.getWidth(),

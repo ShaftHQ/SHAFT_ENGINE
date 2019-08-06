@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.mohies</groupId>
 	<artifactId>SHAFT_ENGINE</artifactId>
-	<version>2.6.20190731</version>
+	<version>2.6.20190806</version>
 	<name>SHAFT_ENGINE</name>
 	<description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
 
@@ -334,11 +334,11 @@
 							</manifest>
 						</archive>
 						<excludes>
-							<exclude>allure/**</exclude>
-							<exclude>drivers/**</exclude>
-							<exclude>scripts/**</exclude>
+							<!-- <exclude>allure/**</exclude> -->
+							<!-- <exclude>drivers/**</exclude> -->
+							<!-- <exclude>scripts/**</exclude> -->
 							<exclude>test/**</exclude>
-							<exclude>SHADE/**</exclude>
+							<!-- <exclude>SHADE/**</exclude> -->
 							<exclude>test-output/**</exclude>
 							<exclude>allure-results/**</exclude>
 						</excludes>
