@@ -25,6 +25,9 @@ public class Verifications {
 	    .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
     private static int attemptsBeforeThrowingElementNotFoundExceptionInCaseElementShouldntExist = 1;
 
+    private static final String ERROR_INVALID_COMPARISON_OPERATOR = "Verification Failed; invalid comparison operator used.";
+    private static final String ERROR_UNHANDLED_EXCEPTION = "Verification Failed; an unhandled exception occured.";
+
     private static Boolean discreetLoggingState = Boolean.valueOf(System.getProperty("alwaysLogDiscreetly"));
 
     public enum VerificationType {
@@ -116,6 +119,13 @@ public class Verifications {
 	}
     }
 
+    private static void reportVerificationResults(String actionName, String expectedValue, String actualValue,
+	    WebDriver driver, By elementLocator) {
+	ReportManager.attachAsStep("Validation Test Data", "Expected Value", expectedValue.toString());
+	ReportManager.attachAsStep("Validation Test Data", "Actual Value", actualValue.toString());
+	reportVerificationResults(actionName, null, null);
+    }
+
     /**
      * Verifies that two strings are equal if VerificationType is POSITIVE, or not
      * equal if VerificationType is NEGATIVE.
@@ -157,33 +167,57 @@ public class Verifications {
 		+ expectedValue + "], actualValue [" + actualValue + "], comparisonType [" + comparisonType
 		+ "], and verificationType [" + verificationType + "].");
 
+	Boolean isExpectedOrActualValueLong = expectedValue.toString().length() >= 500
+		|| actualValue.toString().length() >= 500;
+
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, verificationType)) {
 	case 1:
 	    if (verificationType) {
-		verificationSuccesses.append("Verification Passed; actual value [" + actualValue
-			+ "] does match expected value [" + expectedValue + "].");
+		if (!isExpectedOrActualValueLong) {
+		    verificationSuccesses.append("Verification Passed; actual value [" + actualValue
+			    + "] does match expected value [" + expectedValue + "].");
+		} else {
+		    verificationSuccesses.append("Verification Passed; actual value does match expected value.");
+		}
 	    } else {
-		verificationSuccesses.append("Verification Passed; actual value [" + actualValue
-			+ "] does not match expected value [" + expectedValue + "].");
+		if (!isExpectedOrActualValueLong) {
+		    verificationSuccesses.append("Verification Passed; actual value [" + actualValue
+			    + "] does not match expected value [" + expectedValue + "].");
+		} else {
+		    verificationSuccesses.append("Verification Passed; actual value does not match expected value.");
+		}
 	    }
 	    break;
 	case 0:
 	    if (verificationType) {
-		verificationFailures.append("Verification Failed; actual value [" + actualValue
-			+ "] does not match expected value [" + expectedValue + "].");
+		if (!isExpectedOrActualValueLong) {
+		    verificationFailures.append("Verification Failed; actual value [" + actualValue
+			    + "] does not match expected value [" + expectedValue + "].");
+		} else {
+		    verificationFailures.append("Verification Failed; actual value does not match expected value.");
+		}
 	    } else {
-		verificationFailures.append("Verification Failed; actual value [" + actualValue
-			+ "] does match expected value [" + expectedValue + "].");
+		if (!isExpectedOrActualValueLong) {
+		    verificationFailures.append("Verification Failed; actual value [" + actualValue
+			    + "] does match expected value [" + expectedValue + "].");
+		} else {
+		    verificationFailures.append("Verification Failed; actual value does match expected value.");
+		}
 	    }
 	    break;
 	case -1:
-	    verificationFailures.append("Verification Failed; invalid comparison operator used.");
+	    verificationFailures.append(ERROR_INVALID_COMPARISON_OPERATOR);
 	    break;
 	default:
-	    verificationFailures.append("Verification Failed; an unhandled exception occured.");
+	    verificationFailures.append(ERROR_UNHANDLED_EXCEPTION);
 	    break;
 	}
-	reportVerificationResults("verifyEquals", null, null);
+
+	if (isExpectedOrActualValueLong) {
+	    reportVerificationResults("verifyEquals", expectedValue.toString(), actualValue.toString(), null, null);
+	} else {
+	    reportVerificationResults("verifyEquals", null, null);
+	}
     }
 
     /**
@@ -221,7 +255,7 @@ public class Verifications {
 		verificationFailures.append("Verification Failed; actual value is not null.");
 	    } catch (Exception e) {
 		ReportManager.log(e);
-		verificationFailures.append("Verification Failed; an unhandled exception occured.");
+		verificationFailures.append(ERROR_UNHANDLED_EXCEPTION);
 	    }
 	} else {
 	    try {
@@ -231,7 +265,7 @@ public class Verifications {
 		verificationFailures.append("Verification Failed; actual value is null.");
 	    } catch (Exception e) {
 		ReportManager.log(e);
-		verificationFailures.append("Verification Failed; an unhandled exception occured.");
+		verificationFailures.append(ERROR_UNHANDLED_EXCEPTION);
 	    }
 	}
 	reportVerificationResults("verifyNull", null, null);
@@ -302,7 +336,7 @@ public class Verifications {
 	    }
 	} catch (Exception e) {
 	    ReportManager.log(e);
-	    verificationFailures.append("Verification Failed; an unhandled exception occured.");
+	    verificationFailures.append(ERROR_UNHANDLED_EXCEPTION);
 	}
 	reportVerificationResults("verifyElementExists", driver, elementLocator);
     }
@@ -397,10 +431,10 @@ public class Verifications {
 	    }
 	    break;
 	case -1:
-	    verificationFailures.append("Verification Failed; invalid comparison operator used.");
+	    verificationFailures.append(ERROR_INVALID_COMPARISON_OPERATOR);
 	    break;
 	default:
-	    verificationFailures.append("Verification Failed; an unhandled exception occured.");
+	    verificationFailures.append(ERROR_UNHANDLED_EXCEPTION);
 	    break;
 	}
 	reportVerificationResults("verifyElementAttribute", driver, elementLocator);
@@ -483,10 +517,10 @@ public class Verifications {
 	    }
 	    break;
 	case -1:
-	    verificationFailures.append("Verification Failed; invalid comparison operator used.");
+	    verificationFailures.append(ERROR_INVALID_COMPARISON_OPERATOR);
 	    break;
 	default:
-	    verificationFailures.append("Verification Failed; an unhandled exception occured.");
+	    verificationFailures.append(ERROR_UNHANDLED_EXCEPTION);
 	    break;
 	}
 	reportVerificationResults("verifyElementCSSProperty", driver, elementLocator);
@@ -587,10 +621,10 @@ public class Verifications {
 	    }
 	    break;
 	case -1:
-	    verificationFailures.append("Verification Failed; invalid comparison operator used.");
+	    verificationFailures.append(ERROR_INVALID_COMPARISON_OPERATOR);
 	    break;
 	default:
-	    verificationFailures.append("Verification Failed; an unhandled exception occured.");
+	    verificationFailures.append(ERROR_UNHANDLED_EXCEPTION);
 	    break;
 	}
 	reportVerificationResults("verifyBrowserAttribute", driver, null);
@@ -669,7 +703,7 @@ public class Verifications {
 		    Assert.assertTrue(actualValue.floatValue() == expectedValue.floatValue());
 		    break;
 		default:
-		    verificationFailures.append("Verification Failed; invalid comparison operator used.");
+		    verificationFailures.append(ERROR_INVALID_COMPARISON_OPERATOR);
 		    break;
 		}
 		verificationSuccesses.append("Verification Passed; actual value [" + actualValue + "] is "
@@ -679,7 +713,7 @@ public class Verifications {
 			+ comparativeRelationType + " expected value [" + expectedValue + "].");
 	    } catch (Exception e) {
 		ReportManager.log(e);
-		verificationFailures.append("Verification Failed; an unhandled exception occured.");
+		verificationFailures.append(ERROR_UNHANDLED_EXCEPTION);
 	    }
 	} else {
 	    try {
@@ -700,7 +734,7 @@ public class Verifications {
 		    Assert.assertFalse(actualValue.floatValue() == expectedValue.floatValue());
 		    break;
 		default:
-		    verificationFailures.append("Verification Failed; invalid comparison operator used.");
+		    verificationFailures.append(ERROR_INVALID_COMPARISON_OPERATOR);
 		    break;
 		}
 
@@ -711,7 +745,7 @@ public class Verifications {
 			+ comparativeRelationType + " expected value [" + expectedValue + "].");
 	    } catch (Exception e) {
 		ReportManager.log(e);
-		verificationFailures.append("Verification Failed; an unhandled exception occured.");
+		verificationFailures.append(ERROR_UNHANDLED_EXCEPTION);
 	    }
 	}
 	reportVerificationResults("verifyComparativeRelation", null, null);
@@ -813,7 +847,7 @@ public class Verifications {
 			"Verification Failed; conditional statement evaluated to false while it was expected to evaluate to true.");
 	    } catch (Exception e) {
 		ReportManager.log(e);
-		verificationFailures.append("Verification Failed; an unhandled exception occured.");
+		verificationFailures.append(ERROR_UNHANDLED_EXCEPTION);
 	    }
 	} else {
 	    if (conditionalStatement == null) {
@@ -829,7 +863,7 @@ public class Verifications {
 			"Verification Failed; conditional statement evaluated to true while it was expected to evaluate to false.");
 	    } catch (Exception e) {
 		ReportManager.log(e);
-		verificationFailures.append("Verification Failed; an unhandled exception occured.");
+		verificationFailures.append(ERROR_UNHANDLED_EXCEPTION);
 	    }
 	}
 	reportVerificationResults("verifyTrue", null, null);

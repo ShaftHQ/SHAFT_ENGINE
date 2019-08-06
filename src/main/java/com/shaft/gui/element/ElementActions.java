@@ -7,8 +7,6 @@ import java.awt.datatransfer.StringSelection;
 import java.awt.datatransfer.UnsupportedFlavorException;
 import java.io.IOException;
 import java.nio.file.FileSystems;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
@@ -920,12 +918,11 @@ public class ElementActions {
 		driver.manage().timeouts().setScriptTimeout(10, TimeUnit.SECONDS);
 		JavascriptExecutor js = (JavascriptExecutor) driver;
 
-		String jQueryLoader = new String(
-			Files.readAllBytes(Paths.get("src/main/resources/scripts/jquery_load_helper.js")));
+		String jQueryLoader = JSHelpers.LOAD_JQUERY.getValue();
+
 		js.executeAsyncScript(jQueryLoader /* , http://localhost:8080/jquery-1.7.2.js */);
 
-		String dragAndDropHelper = new String(
-			Files.readAllBytes(Paths.get("src/main/resources/scripts/drag_and_drop_helper.js")));
+		String dragAndDropHelper = JSHelpers.DRAG_AND_DROP.getValue();
 
 		dragAndDropHelper = dragAndDropHelper + "$(arguments[0]).simulateDragDrop({dropTarget:arguments[1]});";
 
