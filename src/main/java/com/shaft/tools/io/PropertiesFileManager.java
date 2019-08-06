@@ -122,10 +122,12 @@ public class PropertiesFileManager {
 	// Windows-64 | Linux-64 | Mac-64
 	// Note: Will be ignored in case of local execution and SHAFT will identify the
 	// correct OS version automatically
+
 	properties.put("targetBrowserName", "GoogleChrome");
 	// MozillaFirefox | MicrosoftInternetExplorer | GoogleChrome | MicrosoftEdge |
 	// Safari
 	properties.put("headlessExecution", "false");
+
 	// true | false, This only works for chrome/Firefox
 	properties.put("browserObjectSingleton", "true");
 	// true | false, This makes sure that every time you attempt to open a browser,
@@ -200,6 +202,10 @@ public class PropertiesFileManager {
 	// true | false
 	properties.put("automaticallyGenerateAllureReport", "false");
 	// true | false
+	System.setProperty("customDriverName","");
+	//Custom Driver Name
+	System.setProperty("customDriverPath","");
+	//Custom Driver Path
 
 	return properties;
     }
