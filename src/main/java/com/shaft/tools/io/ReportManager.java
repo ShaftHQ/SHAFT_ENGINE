@@ -352,11 +352,13 @@ public class ReportManager {
     public static void prepareAllureReportingEnvironment() {
 	logDiscrete("Preparing Allure Reporting Environment...");
 	Boolean discreteLoggingState = isDiscreteLogging();
-	setDiscreteLogging(true);
-	cleanAllureResultsDirectory();
+	if (System.getProperty("executionAddress").trim().equals("local")) {
+	    setDiscreteLogging(true);
+	    cleanAllureResultsDirectory();
+	    extractAllureBinariesFromJarFile();
+	    writeGenerateReportShellFilesToProjectDirectory();
+	}
 	writeEnvironmentVariablesToAllureResultsDirectory();
-	extractAllureBinariesFromJarFile();
-	writeGenerateReportShellFilesToProjectDirectory();
 	setDiscreteLogging(discreteLoggingState);
     }
 
@@ -551,7 +553,8 @@ public class ReportManager {
     }
 
     public static void generateAllureReportArchive() {
-	if (Boolean.valueOf(System.getProperty("automaticallyGenerateAllureReport").trim())) {
+	if (Boolean.valueOf(System.getProperty("automaticallyGenerateAllureReport").trim())
+		&& System.getProperty("executionAddress").trim().equals("local")) {
 	    logDiscrete("Generating Allure Report Archive...");
 	    Boolean discreteLoggingState = isDiscreteLogging();
 	    setDiscreteLogging(true);
