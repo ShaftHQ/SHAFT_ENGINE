@@ -203,7 +203,7 @@ public class PropertiesFileManager {
 	properties.put("automaticallyGenerateAllureReport", "false");
 	// true | false
 	System.setProperty("customDriverName","");
-	//Custom Driver Name ex.: EdgeChromium
+	//Custom Driver Name
 	System.setProperty("customDriverPath","");
 	//Custom Driver Path
 
