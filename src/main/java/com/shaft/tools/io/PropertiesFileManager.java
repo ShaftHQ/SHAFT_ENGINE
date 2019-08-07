@@ -62,6 +62,11 @@ public class PropertiesFileManager {
 		propertyFile = (File) (propertiesFilesList.toArray())[i];
 		loadPropertiesFileIntoSystemProperties(properties, propertyFile);
 	    }
+	} catch (IllegalArgumentException e) {
+	    // this happens when the user provides a directory that doesn't exist
+	    ReportManager.log(
+		    "Please make sure that the propertiesFolderPath directory you provided in the POM.xml file of your project exists. ["
+			    + propertiesFolderPath + "]");
 	} catch (Exception e) {
 	    ReportManager.log(e);
 	}
@@ -202,10 +207,10 @@ public class PropertiesFileManager {
 	// true | false
 	properties.put("automaticallyGenerateAllureReport", "false");
 	// true | false
-	System.setProperty("customDriverName","");
-	//Custom Driver Name
-	System.setProperty("customDriverPath","");
-	//Custom Driver Path
+	System.setProperty("customDriverName", "");
+	// Custom Driver Name
+	System.setProperty("customDriverPath", "");
+	// Custom Driver Path
 
 	return properties;
     }

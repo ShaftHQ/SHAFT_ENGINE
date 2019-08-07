@@ -57,6 +57,9 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 	    if (invokedTestsCounter == 0) {
 		RecordManager.startRecording();
 	    }
+	} else if (method.isConfigurationMethod()) {
+	    ReportManager.logConfigurationMethodInformation(method.getTestMethod().getTestClass().getName(),
+		    method.getTestMethod().getMethodName());
 	}
 	// implementing the new kill switch at the start of every test method
 	if (BrowserFactory.isKillSwitch()) {
@@ -133,7 +136,7 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 	String methodName = testMethod.getMethodName();
 	if (previouslyOpenedIssues < listOfOpenIssues.size()) {
 	    if (executionStatus) {
-		// flag already opened issue for closure 
+		// flag already opened issue for closure
 		openIssuesForPassedTestsCounter++;
 		ReportManager.setOpenIssuesForPassedTestsCounter(openIssuesForPassedTestsCounter);
 		List<String> newIssue = new ArrayList<>();
