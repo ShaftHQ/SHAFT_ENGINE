@@ -45,9 +45,9 @@ public class ReportManager {
     private static int openIssuesForPassedTestsCounter = 0;
     private static int failedTestsWithoutOpenIssuesCounter = 0;
 
-    private static final String ALLURE_RESULTS_FOLDER_PATH = System.getProperty("allureResultsFolderPath").trim();
-    private static final String ALLURE_EXECUTABLE_PATH = "target/allure/bin/allure";
-    
+    private static String allureResultsFolderPath = "";
+    private static String allureExecutablePath = "target/allure/bin/allure";
+
     private static final String OS_WINDOWS = "Windows-64";
 
     public static void setOpenIssuesForFailedTestsCounter(int openIssuesForFailedTestsCounter) {
@@ -294,7 +294,7 @@ public class ReportManager {
     private static void cleanAllureResultsDirectory() {
 	// clean allure-results directory before execution
 	if (Boolean.valueOf(System.getProperty("automaticallyCleanAllureResultsDirectoryBeforeExecution"))) {
-	    FileActions.deleteFolder(ALLURE_RESULTS_FOLDER_PATH.substring(0, ALLURE_RESULTS_FOLDER_PATH.length() - 1));
+	    FileActions.deleteFolder(allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1));
 	}
     }
 
@@ -319,7 +319,7 @@ public class ReportManager {
 	    FileActions.unpackArchive(allureFolder, "target/allure/");
 	    if (!System.getProperty("targetOperatingSystem").equals(OS_WINDOWS)) {
 		// make allure executable on unix-based shells
-		(new TerminalActions()).performTerminalCommand("chmod u+x " + ALLURE_EXECUTABLE_PATH);
+		(new TerminalActions()).performTerminalCommand("chmod u+x " + allureExecutablePath);
 	    }
 	}
     }
@@ -331,20 +331,20 @@ public class ReportManager {
 		&& System.getProperty("targetOperatingSystem").equals(OS_WINDOWS)) {
 	    // create windows batch file
 	    commandsToServeAllureReport = Arrays.asList("@echo off", "set path=target\\allure\\bin;%path%",
-		    "allure serve " + ALLURE_RESULTS_FOLDER_PATH.substring(0, ALLURE_RESULTS_FOLDER_PATH.length() - 1),
+		    "allure serve " + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1),
 		    "pause", "exit");
 	    FileActions.writeToFile("", "generate_allure_report.bat", commandsToServeAllureReport);
 	} else if (!(new File("generate_allure_report.sh").exists())
 		&& !System.getProperty("targetOperatingSystem").equals(OS_WINDOWS)) {
 	    // create unix-based sh file
-	    commandsToServeAllureReport = Arrays.asList("#!/bin/bash",
-		    "parent_path=$( cd \"$(dirname \"${BASH_SOURCE[0]}\")\" ; pwd -P )",
-		    "cd \"$parent_path/target/allure/bin/\"",
-		    "bash allure serve \"$parent_path/"
-			    + ALLURE_RESULTS_FOLDER_PATH.substring(0, ALLURE_RESULTS_FOLDER_PATH.length() - 1) + "\"",
-		    "exit"
+	    commandsToServeAllureReport = Arrays
+		    .asList("#!/bin/bash", "parent_path=$( cd \"$(dirname \"${BASH_SOURCE[0]}\")\" ; pwd -P )",
+			    "cd \"$parent_path/target/allure/bin/\"",
+			    "bash allure serve \"$parent_path/"
+				    + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1) + "\"",
+			    "exit"
 
-	    );
+		    );
 	    FileActions.writeToFile("", "generate_allure_report.sh", commandsToServeAllureReport);
 	    // make allure executable on unix-based shells
 	    (new TerminalActions()).performTerminalCommand("chmod u+x generate_allure_report.sh");
@@ -354,6 +354,7 @@ public class ReportManager {
     public static void prepareAllureReportingEnvironment() {
 	logDiscrete("Preparing Allure Reporting Environment...");
 	Boolean discreteLoggingState = isDiscreteLogging();
+	allureResultsFolderPath = System.getProperty("allureResultsFolderPath").trim();
 	if (System.getProperty("executionAddress").trim().equals("local")) {
 	    setDiscreteLogging(true);
 	    cleanAllureResultsDirectory();
@@ -379,6 +380,12 @@ public class ReportManager {
 	    createImportantReportEntry("Starting Execution:\t[" + testCasesCounter + " out of " + totalNumberOfTests
 		    + "] test cases in the current suite\nTest Method:\t\t[" + className + "." + testMethodName + "]");
 	}
+    }
+
+    public static void logConfigurationMethodInformation(String className, String testMethodName) {
+	clearTestLog();
+	createImportantReportEntry("Starting Execution of a Configuration (Setup or Teardown) Method\nTest Method:\t\t["
+		+ className + "." + testMethodName + "]");
     }
 
     /**
@@ -537,12 +544,12 @@ public class ReportManager {
 	String commandToCreateAllureReport = "";
 
 	if (targetOperatingSystem.equals(OS_WINDOWS)) {
-	    commandToCreateAllureReport = ALLURE_EXECUTABLE_PATH + ".bat" + " generate \""
-		    + ALLURE_RESULTS_FOLDER_PATH.substring(0, ALLURE_RESULTS_FOLDER_PATH.length() - 1)
+	    commandToCreateAllureReport = allureExecutablePath + ".bat" + " generate \""
+		    + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
 		    + "\" -o \"generatedReport/allure-report\"";
 	} else {
-	    commandToCreateAllureReport = ALLURE_EXECUTABLE_PATH + " generate \""
-		    + ALLURE_RESULTS_FOLDER_PATH.substring(0, ALLURE_RESULTS_FOLDER_PATH.length() - 1)
+	    commandToCreateAllureReport = allureExecutablePath + " generate \""
+		    + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
 		    + "\" -o \"generatedReport/allure-report\"";
 	}
 	(new TerminalActions()).performTerminalCommand(commandToCreateAllureReport);
