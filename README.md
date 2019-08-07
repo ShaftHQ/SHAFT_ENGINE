@@ -1,13 +1,10 @@
 # SHAFT_ENGINE
 <img src="https://drive.google.com/uc?export=download&id=1VHD9VsVHDndMjSV-wTVtCXUPHZ9AryO7" alt="SHAFT_ENGINE" style="display:block; margin-left:auto; margin-right:auto;"/>
 
-*This project is stable but still is in BETA testing phase, and it requires Java 8 and above.*
-
 ### Getting Started:
 
-- Simply create a new Maven project, and model your pom.xml file after the included sampleProjectPOM.xml
-- Download the entire "src/main/resources/" folder and include it in your project
-- Make sure to refer to the latest version of SHAFT_Engine in your pom.xml file [ ![Download](https://api.bintray.com/packages/mohabmohie/SHAFT/SHAFT_Engine/images/download.svg) ](https://bintray.com/mohabmohie/SHAFT/SHAFT_Engine/_latestVersion)
+- This project is released to the public Maven repository [bintray], you can follow this link to view the latest version [ ![Download](https://api.bintray.com/packages/mohabmohie/SHAFT/SHAFT_Engine/images/download.svg) ](https://bintray.com/mohabmohie/SHAFT/SHAFT_Engine/_latestVersion)
+- This project is for contributors who wish to add new features or fix issues with SHAFT_Engine. If you wish to use SHAFT_Engine, please refer to this GitHub project instead: https://github.com/MohabMohie/using_SHAFT_ENGINE/
 - Refer to the published javadocs for detailed information on the available functions/classes/packages https://mohabmohie.github.io/SHAFT_ENGINE/
 
 **SHAFT_ENGINE** is a Test Automation Engine that provides a unified high-level interface to any underlying test automation frameworks (such as Selenium WebDriver and Rest Assured).
@@ -22,8 +19,9 @@
 - TestNG
 - Allure Reporting
 - Rest Assured
-- Cucumber [BDD]
+- Cucumber
 - Apache POI
+- WebDriver Manager
 
 ### SHAFT is the Selenium Hybrid Automation Framework for Testing, SHAFT is:
 - A Test Automation Engine.
@@ -37,6 +35,8 @@
 - Provides human readable GUI reporting.
 - Supports web apps on Chrome, Firefox, Edge, IE, and Safari.
 - Supports testing APIs.
+- Supports testing CLIs.
+- Supports testing Databases.
 - Can support mobile testing.
 - Can support other types of testing/automation.
 - Runs on Linux, Windows, and Mac.
