@@ -47,6 +47,8 @@ public class ReportManager {
 
     private static final String ALLURE_RESULTS_FOLDER_PATH = System.getProperty("allureResultsFolderPath").trim();
     private static final String ALLURE_EXECUTABLE_PATH = "target/allure/bin/allure";
+    
+    private static final String OS_WINDOWS = "Windows-64";
 
     public static void setOpenIssuesForFailedTestsCounter(int openIssuesForFailedTestsCounter) {
 	ReportManager.openIssuesForFailedTestsCounter = openIssuesForFailedTestsCounter;
@@ -315,7 +317,7 @@ public class ReportManager {
 	if (!(new File("target/allure/")).exists()) {
 	    URL allureFolder = ReportManager.class.getResource("/allure/allureBinary.zip");
 	    FileActions.unpackArchive(allureFolder, "target/allure/");
-	    if (!System.getProperty("targetOperatingSystem").equals("Windows-64")) {
+	    if (!System.getProperty("targetOperatingSystem").equals(OS_WINDOWS)) {
 		// make allure executable on unix-based shells
 		(new TerminalActions()).performTerminalCommand("chmod u+x " + ALLURE_EXECUTABLE_PATH);
 	    }
@@ -326,14 +328,14 @@ public class ReportManager {
 	// create generate_allure_report.sh and generate_allure_report.bat
 	List<String> commandsToServeAllureReport;
 	if (!(new File("generate_allure_report.bat").exists())
-		&& System.getProperty("targetOperatingSystem").equals("Windows-64")) {
+		&& System.getProperty("targetOperatingSystem").equals(OS_WINDOWS)) {
 	    // create windows batch file
 	    commandsToServeAllureReport = Arrays.asList("@echo off", "set path=target\\allure\\bin;%path%",
 		    "allure serve " + ALLURE_RESULTS_FOLDER_PATH.substring(0, ALLURE_RESULTS_FOLDER_PATH.length() - 1),
 		    "pause", "exit");
 	    FileActions.writeToFile("", "generate_allure_report.bat", commandsToServeAllureReport);
 	} else if (!(new File("generate_allure_report.sh").exists())
-		&& !System.getProperty("targetOperatingSystem").equals("Windows-64")) {
+		&& !System.getProperty("targetOperatingSystem").equals(OS_WINDOWS)) {
 	    // create unix-based sh file
 	    commandsToServeAllureReport = Arrays.asList("#!/bin/bash",
 		    "parent_path=$( cd \"$(dirname \"${BASH_SOURCE[0]}\")\" ; pwd -P )",
@@ -534,7 +536,7 @@ public class ReportManager {
 	String targetOperatingSystem = System.getProperty("targetOperatingSystem");
 	String commandToCreateAllureReport = "";
 
-	if (targetOperatingSystem.equals("Windows-64")) {
+	if (targetOperatingSystem.equals(OS_WINDOWS)) {
 	    commandToCreateAllureReport = ALLURE_EXECUTABLE_PATH + ".bat" + " generate \""
 		    + ALLURE_RESULTS_FOLDER_PATH.substring(0, ALLURE_RESULTS_FOLDER_PATH.length() - 1)
 		    + "\" -o \"generatedReport/allure-report\"";

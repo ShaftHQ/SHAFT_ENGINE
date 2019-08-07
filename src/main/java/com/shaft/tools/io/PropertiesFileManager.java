@@ -118,7 +118,7 @@ public class PropertiesFileManager {
 	properties.put("executionAddress", "local");
 	// Platform
 	// local | seleniumGridHubIP:port
-	properties.put("targetOperatingSystem", "Windows-64");
+	properties.put("targetOperatingSystem", OS_WINDOWS);
 	// Windows-64 | Linux-64 | Mac-64
 	// Note: Will be ignored in case of local execution and SHAFT will identify the
 	// correct OS version automatically

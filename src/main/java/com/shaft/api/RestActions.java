@@ -37,7 +37,6 @@ import io.restassured.builder.MultiPartSpecBuilder;
 import io.restassured.builder.RequestSpecBuilder;
 import io.restassured.config.EncoderConfig;
 import io.restassured.config.HttpClientConfig;
-//import io.restassured.config.HttpClientConfig;
 import io.restassured.config.RestAssuredConfig;
 import io.restassured.http.ContentType;
 import io.restassured.http.Cookie;
@@ -170,9 +169,6 @@ public class RestActions {
 				.setParam("http.connection.timeout", HTTP_CONNECTION_TIMEOUT * 1000)
 				.setParam("http.socket.timeout", HTTP_SOCKET_TIMEOUT * 1000)
 				.setParam("http.connection-manager.timeout", HTTP_CONNECTION_MANAGER_TIMEOUT * 1000)));
-
-//	builder.setConfig(
-//		(new RestAssuredConfig()).encoderConfig((new EncoderConfig()).defaultContentCharset("UTF-8")));
 
 	// timeouts documentation
 	/**
