@@ -8,12 +8,23 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.io.StringReader;
+import java.io.StringWriter;
 import java.net.URLConnection;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+
+import javax.xml.XMLConstants;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.Source;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.stream.StreamResult;
+import javax.xml.transform.stream.StreamSource;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -449,6 +460,16 @@ public class RestActions {
     }
 
     /**
+     * Extracts the response body and returns it as a plain string
+     * 
+     * @param response the target API response object
+     * @return a string value that represents the response body
+     */
+    public static String getResponseBody(Response response) {
+	return response.getBody().asString();
+    }
+
+    /**
      * Extracts a string value from the response body by parsing the target jsonpath
      * 
      * @param response the full response object returned by 'performRequest()'
@@ -718,6 +739,28 @@ public class RestActions {
 	    }
 	} else {
 	    return false;
+	}
+    }
+
+    public static String formatXML(String input) {
+	return prettyFormatXML(input, "2");
+    }
+
+    private static String prettyFormatXML(String input, String indent) {
+	Source xmlInput = new StreamSource(new StringReader(input));
+	StringWriter stringWriter = new StringWriter();
+	try {
+	    TransformerFactory transformerFactory = TransformerFactory.newInstance();
+	    transformerFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+	    Transformer transformer = transformerFactory.newTransformer();
+	    transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+	    transformer.setOutputProperty(OutputKeys.DOCTYPE_PUBLIC, "yes");
+	    transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", indent);
+	    transformer.transform(xmlInput, new StreamResult(stringWriter));
+	    return stringWriter.toString().trim();
+	} catch (TransformerException e) {
+	    ReportManager.log(e);
+	    return input;
 	}
     }
 }
