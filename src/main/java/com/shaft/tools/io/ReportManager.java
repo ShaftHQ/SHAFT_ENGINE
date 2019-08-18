@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Properties;
 import java.util.stream.Collectors;
 
 import org.apache.tools.ant.filters.StringInputStream;
@@ -21,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Reporter;
 
+import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 
@@ -40,6 +42,7 @@ public class ReportManager {
     private static boolean debugMode = false;
     private static final String TIMESTAMP_FORMAT = "dd-MM-yyyy HH:mm:ss.SSSS aaa";
     private static final Logger slf4jLogger = LoggerFactory.getLogger(ReportManager.class);
+    private static final String SHAFT_ENGINE_VERSION_PROPERTY_NAME = "shaftEngineVersion";
 
     private static int openIssuesForFailedTestsCounter = 0;
     private static int openIssuesForPassedTestsCounter = 0;
@@ -301,14 +304,31 @@ public class ReportManager {
     private static void writeEnvironmentVariablesToAllureResultsDirectory() {
 	// reads all environment variables and then formats and writes them to be read
 	// by the Allure report
-	FileActions.writeToFile(System.getProperty("allureResultsFolderPath"), "environment.properties",
-		Arrays.asList(System.getProperties().toString().trim()
-			.substring(1, System.getProperties().toString().trim().length() - 1).replaceAll(", ", "\n")
-			.replaceAll("=", "\t").split("\n")));
+	Properties props = System.getProperties();
+	StringBuilder propertiesFileBuilder = new StringBuilder();
+	propertiesFileBuilder.append("<environment>");
+	// read properties from any explicit properties files
+	for (int i = 0; i < props.size(); i++) {
+	    String propertyKey = ((String) (props.keySet().toArray())[i]).trim();
+	    String propertyValue = props.getProperty(propertyKey).trim();
 
-	// TODO: exclude the following properties "java.class.path", "sun.java.command",
-	// "sun.boot.class.path" OR find a way to label and only show SHAFT_Engine
-	// properties
+	    // excluding empty values and system properties (all system properties have "."
+	    // in their names
+	    if (!propertyValue.equals("") && !propertyKey.contains(".")) {
+		String parameter = "<parameter>" + "<key>" + propertyKey + "</key>" + "<value>" + propertyValue
+			+ "</value>" + "</parameter>";
+		if (propertyKey.equals(SHAFT_ENGINE_VERSION_PROPERTY_NAME)) {
+		    // there's an open issue, when fixed this will be displayed properly
+		    // https://github.com/allure-framework/allure2/issues/382
+		    propertiesFileBuilder.insert(13, parameter);
+		} else {
+		    propertiesFileBuilder.append(parameter);
+		}
+	    }
+	}
+	propertiesFileBuilder.append("</environment>");
+	FileActions.writeToFile(System.getProperty("allureResultsFolderPath"), "environment.xml",
+		RestActions.formatXML(propertiesFileBuilder.toString()));
     }
 
     private static void extractAllureBinariesFromJarFile() {
@@ -366,7 +386,8 @@ public class ReportManager {
     }
 
     public static void logEngineVersion() {
-	createImportantReportEntry("Detected SHAFT Engine Version: [" + System.getProperty("shaftEngineVersion") + "]");
+	createImportantReportEntry(
+		"Detected SHAFT Engine Version: [" + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "]");
     }
 
     public static void logTestInformation(String className, String testMethodName, String testDescription) {
@@ -510,7 +531,7 @@ public class ReportManager {
 	    createReportEntry(
 		    "Successfully created attachment [" + "SHAFT Engine Logs" + " - " + "Execution log" + "]");
 	    createImportantReportEntry("This test run was powered by SHAFT Engine Version: ["
-		    + System.getProperty("shaftEngineVersion") + "]" + System.lineSeparator()
+		    + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "]" + System.lineSeparator()
 		    + "SHAFT Engine is licensed under the MIT License: [https://github.com/MohabMohie/SHAFT_ENGINE/blob/master/LICENSE].");
 	    createAttachment("SHAFT Engine Logs", "Execution log", new StringInputStream(fullLog.trim()));
 	}

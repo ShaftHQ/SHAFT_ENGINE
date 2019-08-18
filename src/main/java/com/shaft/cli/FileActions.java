@@ -430,6 +430,23 @@ public class FileActions {
 	}
     }
 
+    public static void writeToFile(String fileFolderName, String fileName, String text) {
+	String absoluteFilePath = getAbsolutePath(fileFolderName, fileName);
+	Path filePath = Paths.get(absoluteFilePath);
+
+	try {
+	    byte[] textToBytes = text.getBytes();
+
+	    Path parentDir = filePath.getParent();
+	    if (!parentDir.toFile().exists()) {
+		Files.createDirectories(parentDir);
+	    }
+	    Files.write(filePath, textToBytes);
+	} catch (IOException e) {
+	    ReportManager.log(e);
+	}
+    }
+
     public static String readFromFile(String fileFolderName, String fileName) {
 	String text = "";
 	String absoluteFilePath = getAbsolutePath(fileFolderName, fileName);
