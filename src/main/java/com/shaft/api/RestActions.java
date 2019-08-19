@@ -7,6 +7,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectOutputStream;
 import java.io.StringReader;
 import java.io.StringWriter;
@@ -99,34 +100,22 @@ public class RestActions {
 	if (testData != null) {
 	    message = message + " With the following test data [" + testData + "].";
 	}
-
-	Boolean discreetLogging;
+	Boolean initialLoggingState = ReportManager.isDiscreteLogging();
 	if (isDiscrete) {
-	    discreetLogging = isDiscrete;
-	} else {
-	    discreetLogging = ReportManager.isDiscreteLogging();
-	}
-
-	if (discreetLogging) {
+	    reportResponseBody(response, isDiscrete);
 	    ReportManager.logDiscrete(message);
 	} else {
-	    ReportManager.log(message);
+	    reportResponseBody(response, initialLoggingState);
+	    if (!initialLoggingState) {
+		ReportManager.log(message);
+	    } else {
+		ReportManager.logDiscrete(message);
+	    }
 	}
-
-	if (response != null) {
-	    reportResponseBody(response, discreetLogging);
-	}
-
     }
 
     private static void passAction(String actionName, String testData, Boolean isDiscrete) {
-	if (isDiscrete) {
-	    ReportManager.setDiscreteLogging(true);
-	}
 	passAction(actionName, testData, null, isDiscrete);
-	if (isDiscrete) {
-	    ReportManager.setDiscreteLogging(false);
-	}
     }
 
     private static void failAction(String actionName, String testData, Response response) {
@@ -247,42 +236,61 @@ public class RestActions {
     }
 
     private void reportRequestBody(Object body) {
-	if (ReportManager.isDiscreteLogging()) {
-	    ReportManager.logDiscrete("API Request - REST Body:\n" + body.toString());
-	} else {
-	    if (body.toString() != null && !body.toString().equals("")) {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		ObjectOutputStream oos;
-		try {
-		    oos = new ObjectOutputStream(baos);
-
-		    oos.writeObject(body);
-		    oos.flush();
-		    oos.close();
-
-		    ReportManager.attachAsStep("API Request", "REST Body",
-			    new ByteArrayInputStream(baos.toByteArray()));
-		} catch (IOException e) {
-		    ReportManager.attachAsStep("API Request", "REST Body", body.toString());
-		}
+	if (body.toString() != null && !body.toString().equals("")) {
+	    if (ReportManager.isDiscreteLogging()) {
+		ReportManager.logDiscrete("API Request - REST Body:\n" + parseBodyToJson(body));
+	    } else {
+		ReportManager.attachAsStep("API Request", "REST Body", parseBodyToJson(body));
 	    }
 	}
     }
 
     private static void reportResponseBody(Response response, Boolean isDiscrete) {
-	if (isDiscrete) {
-	    ReportManager.logDiscrete("API Response - REST Body:\n" + response.getBody().asString());
-	} else {
-	    if (response.getBody().asString() != null && !response.getBody().asString().equals("")) {
-		JSONParser parser = new JSONParser();
-		try {
-		    org.json.simple.JSONObject actualJsonObject = (org.json.simple.JSONObject) parser
-			    .parse(response.asString());
-		    ReportManager.attachAsStep("API Response", "REST Body", new GsonBuilder().setPrettyPrinting()
-			    .create().toJson(new JsonParser().parse(actualJsonObject.toJSONString())));
-		} catch (Exception e) {
-		    // response is not parsable to JSON
-		    ReportManager.attachAsStep("API Response", "REST Body", response.getBody().asInputStream());
+	if (response != null) {
+	    if (isDiscrete) {
+		ReportManager.logDiscrete("API Response - REST Body:\n" + parseBodyToJson(response));
+	    } else {
+		ReportManager.attachAsStep("API Response", "REST Body", parseBodyToJson(response));
+	    }
+	}
+    }
+
+    private static InputStream parseBodyToJson(Response response) {
+	return parseBodyToJson(response.getBody());
+    }
+
+    private static InputStream parseBodyToJson(Object body) {
+	JSONParser parser = new JSONParser();
+	try {
+	    org.json.simple.JSONObject actualJsonObject;
+	    if (body.getClass().getName().toLowerCase().contains("restassured")) {
+		// if it's a string response body
+		actualJsonObject = (org.json.simple.JSONObject) parser
+			.parse(((io.restassured.response.ResponseBody<?>) body).asString());
+	    } else if (body.getClass().getName().toLowerCase().contains("jsonobject")) {
+		actualJsonObject = (org.json.simple.JSONObject) parser
+			.parse(((JsonObject) body).toString().replace("\\n", "").replace("\\t", "").replace(" ", ""));
+	    } else {
+		actualJsonObject = (org.json.simple.JSONObject) parser.parse(body.toString());
+	    }
+	    return new ByteArrayInputStream((new GsonBuilder().setPrettyPrinting().create()
+		    .toJson(new JsonParser().parse(actualJsonObject.toJSONString()))).getBytes());
+	} catch (Exception e) {
+	    // response is not parsable to JSON
+	    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+	    ObjectOutputStream oos;
+	    try {
+		oos = new ObjectOutputStream(baos);
+		oos.writeObject(body);
+		oos.flush();
+		oos.close();
+		return new ByteArrayInputStream(baos.toByteArray());
+	    } catch (IOException ioe) {
+		if (body.getClass().getName().toLowerCase().contains("restassured")) {
+		    // if it's a string response body
+		    return ((io.restassured.response.ResponseBody<?>) body).asInputStream();
+		} else {
+		    return new ByteArrayInputStream((body.toString()).getBytes());
 		}
 	    }
 	}
