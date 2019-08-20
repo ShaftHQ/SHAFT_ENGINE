@@ -12,6 +12,7 @@ import java.io.ObjectOutputStream;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.net.URLConnection;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -27,6 +28,7 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 
+import org.apache.commons.io.IOUtils;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -238,7 +240,12 @@ public class RestActions {
     private void reportRequestBody(Object body) {
 	if (body.toString() != null && !body.toString().equals("")) {
 	    if (ReportManager.isDiscreteLogging()) {
-		ReportManager.logDiscrete("API Request - REST Body:\n" + parseBodyToJson(body));
+		try {
+		    ReportManager.logDiscrete("API Request - REST Body:\n"
+			    + IOUtils.toString(parseBodyToJson(body), StandardCharsets.UTF_8));
+		} catch (IOException e) {
+		    ReportManager.logDiscrete("API Request - REST Body:\n" + body);
+		}
 	    } else {
 		ReportManager.attachAsStep("API Request", "REST Body", parseBodyToJson(body));
 	    }
@@ -248,7 +255,12 @@ public class RestActions {
     private static void reportResponseBody(Response response, Boolean isDiscrete) {
 	if (response != null) {
 	    if (isDiscrete) {
-		ReportManager.logDiscrete("API Response - REST Body:\n" + parseBodyToJson(response));
+		try {
+		    ReportManager.logDiscrete("API Response - REST Body:\n"
+			    + IOUtils.toString(parseBodyToJson(response), StandardCharsets.UTF_8));
+		} catch (IOException e) {
+		    ReportManager.logDiscrete("API Response - REST Body:\n" + response.asString());
+		}
 	    } else {
 		ReportManager.attachAsStep("API Response", "REST Body", parseBodyToJson(response));
 	    }
