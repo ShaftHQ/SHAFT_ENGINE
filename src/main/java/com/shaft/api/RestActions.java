@@ -247,12 +247,35 @@ public class RestActions {
 		    ReportManager.logDiscrete("API Request - REST Body:\n" + body);
 		}
 	    } else {
-		ReportManager.attachAsStep("API Request", "REST Body", parseBodyToJson(body));
+		switch (identifyBodyObjectType(body)) {
+		case 1:
+		    // json
+		    ReportManager.attachAsStep("API Request", "JSON Body", parseBodyToJson(body));
+		    break;
+		case 2:
+		    // xml
+		    ReportManager.attachAsStep("API Request ", "XML Body", parseBodyToJson(body));
+		    break;
+		case 3:
+		    // binary... probably
+		    ReportManager.attachAsStep("API Request", "REST Body", parseBodyToJson(body));
+		    break;
+		case 4:
+		    // I don't remember... may be binary
+		    ReportManager.attachAsStep("API Request", "REST Body", parseBodyToJson(body));
+		    break;
+		default:
+		    // unreachable code
+		    break;
+		}
 	    }
 	}
     }
 
     private static void reportResponseBody(Response response, Boolean isDiscrete) {
+	// TODO: handle them as xml attachments, csv attachments, and file attachments
+	// instead of text
+	// attachments
 	if (response != null) {
 	    if (isDiscrete) {
 		try {
@@ -262,7 +285,64 @@ public class RestActions {
 		    ReportManager.logDiscrete("API Response - REST Body:\n" + response.asString());
 		}
 	    } else {
-		ReportManager.attachAsStep("API Response", "REST Body", parseBodyToJson(response));
+		switch (identifyBodyObjectType(response)) {
+		case 1:
+		    // json
+		    ReportManager.attachAsStep("API Response", "JSON Body", parseBodyToJson(response));
+		    break;
+		case 2:
+		    // xml
+		    ReportManager.attachAsStep("API Response", "XML Body", parseBodyToJson(response));
+		    break;
+		case 3:
+		    // binary... probably
+		    ReportManager.attachAsStep("API Response", "REST Body", parseBodyToJson(response));
+		    break;
+		case 4:
+		    // I don't remember... may be binary
+		    ReportManager.attachAsStep("API Response", "REST Body", parseBodyToJson(response));
+		    break;
+		default:
+		    // unreachable code
+		    break;
+		}
+	    }
+	}
+    }
+
+    private static int identifyBodyObjectType(Object body) {
+	JSONParser parser = new JSONParser();
+	try {
+	    org.json.simple.JSONObject actualJsonObject;
+	    if (body.getClass().getName().toLowerCase().contains("restassured")) {
+		// if it's a string response body
+		actualJsonObject = (org.json.simple.JSONObject) parser
+			.parse(((io.restassured.response.ResponseBody<?>) body).asString());
+	    } else if (body.getClass().getName().toLowerCase().contains("jsonobject")) {
+		actualJsonObject = (org.json.simple.JSONObject) parser
+			.parse(((JsonObject) body).toString().replace("\\n", "").replace("\\t", "").replace(" ", ""));
+	    } else {
+		actualJsonObject = (org.json.simple.JSONObject) parser.parse(body.toString());
+	    }
+	    ReportManager.logDiscrete(actualJsonObject.toString()); // useless
+	    return 1; // json
+	} catch (Exception e) {
+	    // response is not parsable to JSON
+	    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+	    ObjectOutputStream oos;
+	    try {
+		oos = new ObjectOutputStream(baos);
+		oos.writeObject(body);
+		oos.flush();
+		oos.close();
+		return 4; // I don't remember... may be binary
+	    } catch (IOException ioe) {
+		if (body.getClass().getName().toLowerCase().contains("restassured")) {
+		    // if it's a string response body
+		    return 2; // xml
+		} else {
+		    return 3; // binary
+		}
 	    }
 	}
     }
