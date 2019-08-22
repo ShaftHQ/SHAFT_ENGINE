@@ -24,7 +24,7 @@
 
 		<selenium.version>4.0.0-alpha-2</selenium.version>
 		<webdrivermanager.version>3.6.2</webdrivermanager.version>
-		<allure-testng.version>2.12.1</allure-testng.version>
+		<allure-testng.version>2.12.1</allure-testng.version> <!-- UPDATE PropertiesFileManager.setPathProperties -->
 		<aspectj.version>1.8.10</aspectj.version> <!-- DO NOT UPDATE -->
 
 		<rest-assured.version>4.0.0</rest-assured.version>
@@ -282,7 +282,6 @@
 							<shaftEngineVersion>${shaft_engine.version}</shaftEngineVersion>
 							<propertiesFolderPath>${propertiesFolderPath}</propertiesFolderPath>
 							<propertiesFolderPath_jenkins>${propertiesFolderPath_jenkins}</propertiesFolderPath_jenkins>
-							<allureVersion>${allure-testng.version}</allureVersion>
 						</systemPropertyVariables>
 						<!-- To continue execution after validation errors are thrown in the 
 							before method -->

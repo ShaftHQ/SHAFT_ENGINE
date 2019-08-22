@@ -103,6 +103,8 @@ public class PropertiesFileManager {
     private static void setDefaultProperties() {
 	Properties properties = new Properties();
 	// read default properties
+
+	// TODO: Refactor to read from bundled properties files
 	properties.putAll(setDefaultExecutionProperties());
 	properties.putAll(setPathProperties());
 	properties.putAll(setPatternProperties());
@@ -164,6 +166,15 @@ public class PropertiesFileManager {
 	properties.put("databaseQueryTimeout", "60");
 	// Timeout in seconds to be used when attempting to execute a query on a
 	// database (1 minute = 60 seconds)
+
+	properties.put("apiSocketTimeout", "60");
+	// Timeout in seconds between two consecutive data packets in seconds
+	properties.put("apiConnectionTimeout", "60");
+	// Timeout in seconds to wait for until a connection is established
+	properties.put("apiConnectionManagerTimeout", "60");
+	// Timeout in seconds to wait for an available connection from the connection
+	// manager/pool (1 minute = 60 seconds)
+
 	properties.put("autoMaximizeBrowserWindow", "true");
 	// true | false
 	properties.put("forceCheckForElementVisibility", "true");
@@ -226,6 +237,7 @@ public class PropertiesFileManager {
 	properties.put("watermarkImagePath", "/images/shaft.png");
 	properties.put("downloadsFolderPath", "target/downloadedFiles/");
 	properties.put("allureResultsFolderPath", "allure-results/");
+	properties.put("allureVersion", "2.12.1");
 	return properties;
     }
 
