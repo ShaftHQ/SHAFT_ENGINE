@@ -2,11 +2,31 @@
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
-	<groupId>com.mohies</groupId>
+	<groupId>io.github.mohabmohie</groupId>
 	<artifactId>SHAFT_ENGINE</artifactId>
-	<version>2.6.20190822</version>
-	<name>SHAFT_ENGINE</name>
+	<version>3.0.20190826</version>
+	<name>${project.groupId}:${project.artifactId}</name>
 	<description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
+	<url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
+	<licenses>
+		<license>
+			<name>MIT License</name>
+			<url>http://www.opensource.org/licenses/mit-license.php</url>
+		</license>
+	</licenses>
+	<developers>
+		<developer>
+			<name>Mohab Mohie</name>
+			<email>Mohab.MohieElDeen@outlook.com</email>
+			<organization>GitHub</organization>
+			<organizationUrl>https://github.com/MohabMohie</organizationUrl>
+		</developer>
+	</developers>
+	<scm>
+		<connection>scm:git:git://github.com/MohabMohie/SHAFT_ENGINE.git</connection>
+		<developerConnection>scm:git:ssh://github.com/MohabMohie/SHAFT_ENGINE.git</developerConnection>
+		<url>http://github.com/MohabMohie/SHAFT_ENGINE/tree/master</url>
+	</scm>
 
 	<properties>
 		<shaft_engine.version>${project.artifactId}-${project.version}</shaft_engine.version>
