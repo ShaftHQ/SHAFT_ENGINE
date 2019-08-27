@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Properties;
 import java.util.stream.Collectors;
 
 import org.apache.tools.ant.filters.StringInputStream;
@@ -21,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Reporter;
 
+import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 
@@ -40,13 +42,16 @@ public class ReportManager {
     private static boolean debugMode = false;
     private static final String TIMESTAMP_FORMAT = "dd-MM-yyyy HH:mm:ss.SSSS aaa";
     private static final Logger slf4jLogger = LoggerFactory.getLogger(ReportManager.class);
+    private static final String SHAFT_ENGINE_VERSION_PROPERTY_NAME = "shaftEngineVersion";
 
     private static int openIssuesForFailedTestsCounter = 0;
     private static int openIssuesForPassedTestsCounter = 0;
     private static int failedTestsWithoutOpenIssuesCounter = 0;
 
-    private static final String ALLURE_RESULTS_FOLDER_PATH = System.getProperty("allureResultsFolderPath").trim();
-    private static final String ALLURE_EXECUTABLE_PATH = "target/allure/bin/allure";
+    private static String allureResultsFolderPath = "";
+    private static String allureExecutablePath = "";
+
+    private static final String OS_WINDOWS = "Windows-64";
 
     public static void setOpenIssuesForFailedTestsCounter(int openIssuesForFailedTestsCounter) {
 	ReportManager.openIssuesForFailedTestsCounter = openIssuesForFailedTestsCounter;
@@ -224,6 +229,12 @@ public class ReportManager {
 	    } else {
 		Allure.addAttachment(attachmentDescription, "text/plain", attachmentContent, ".txt");
 	    }
+	} else if (attachmentType.toLowerCase().contains("csv") || attachmentName.toLowerCase().contains("csv")) {
+	    Allure.addAttachment(attachmentDescription, "text/csv", attachmentContent, ".csv");
+	} else if (attachmentType.toLowerCase().contains("xml") || attachmentName.toLowerCase().contains("xml")) {
+	    Allure.addAttachment(attachmentDescription, "text/xml", attachmentContent, ".xml");
+	} else if (attachmentType.toLowerCase().contains("json") || attachmentName.toLowerCase().contains("json")) {
+	    Allure.addAttachment(attachmentDescription, "text/json", attachmentContent, ".json");
 	} else {
 	    Allure.addAttachment(attachmentDescription, attachmentContent);
 	}
@@ -292,57 +303,86 @@ public class ReportManager {
     private static void cleanAllureResultsDirectory() {
 	// clean allure-results directory before execution
 	if (Boolean.valueOf(System.getProperty("automaticallyCleanAllureResultsDirectoryBeforeExecution"))) {
-	    FileActions.deleteFolder(ALLURE_RESULTS_FOLDER_PATH.substring(0, ALLURE_RESULTS_FOLDER_PATH.length() - 1));
+	    FileActions.deleteFolder(allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1));
 	}
     }
 
     private static void writeEnvironmentVariablesToAllureResultsDirectory() {
 	// reads all environment variables and then formats and writes them to be read
 	// by the Allure report
-	FileActions.writeToFile(System.getProperty("allureResultsFolderPath"), "environment.properties",
-		Arrays.asList(System.getProperties().toString().trim()
-			.substring(1, System.getProperties().toString().trim().length() - 1).replaceAll(", ", "\n")
-			.replaceAll("=", "\t").split("\n")));
+	Properties props = System.getProperties();
+	StringBuilder propertiesFileBuilder = new StringBuilder();
+	propertiesFileBuilder.append("<environment>");
+	// read properties from any explicit properties files
+	for (int i = 0; i < props.size(); i++) {
+	    String propertyKey = ((String) (props.keySet().toArray())[i]).trim();
+	    String propertyValue = props.getProperty(propertyKey).trim();
 
-	// TODO: exclude the following properties "java.class.path", "sun.java.command",
-	// "sun.boot.class.path" OR find a way to label and only show SHAFT_Engine
-	// properties
+	    // excluding empty values and system properties (all system properties have "."
+	    // in their names
+	    if (!propertyValue.equals("") && !propertyKey.contains(".")) {
+		String parameter = "<parameter>" + "<key>" + propertyKey + "</key>" + "<value>" + propertyValue
+			+ "</value>" + "</parameter>";
+		if (propertyKey.equals(SHAFT_ENGINE_VERSION_PROPERTY_NAME)) {
+		    // there's an open issue, when fixed this will be displayed properly
+		    // https://github.com/allure-framework/allure2/issues/382
+		    propertiesFileBuilder.insert(13, parameter);
+		} else {
+		    propertiesFileBuilder.append(parameter);
+		}
+	    }
+	}
+	propertiesFileBuilder.append("</environment>");
+	FileActions.writeToFile(System.getProperty("allureResultsFolderPath"), "environment.xml",
+		RestActions.formatXML(propertiesFileBuilder.toString()));
     }
 
     private static void extractAllureBinariesFromJarFile() {
 	// extract allure from jar file to src/main/resources directory if it doesn't
 	// already exist
-	if (!(new File("target/allure/")).exists()) {
-	    URL allureFolder = ReportManager.class.getResource("/allure/allureBinary.zip");
-	    FileActions.unpackArchive(allureFolder, "target/allure/");
-	    if (!System.getProperty("targetOperatingSystem").equals("Windows-64")) {
+	String allureVersion = System.getProperty("allureVersion");
+	allureExecutablePath = "target/allure/allure-" + allureVersion + "/bin/allure";
+	if (!(new File(allureExecutablePath)).exists()) {
+	    FileActions.deleteFolder("target/allure/");
+	    // download allure binary
+	    URL allureArchive = FileActions.downloadFile(
+		    "http://repo.maven.apache.org/maven2/io/qameta/allure/allure-commandline/" + allureVersion
+			    + "/allure-commandline-" + allureVersion + ".zip",
+		    "target/allureBinary.zip");
+	    FileActions.unpackArchive(allureArchive, "target/allure/");
+	    // extract allure from SHAFT_Engine jar
+	    URL allureSHAFTConfigArchive = ReportManager.class
+		    .getResource("/allure/allureBinary_SHAFTEngineConfigFiles.zip");
+	    FileActions.unpackArchive(allureSHAFTConfigArchive, "target/allure/allure-" + allureVersion + "/");
+
+	    if (!System.getProperty("targetOperatingSystem").equals(OS_WINDOWS)) {
 		// make allure executable on unix-based shells
-		(new TerminalActions()).performTerminalCommand("chmod u+x " + ALLURE_EXECUTABLE_PATH);
+		(new TerminalActions()).performTerminalCommand("chmod u+x " + allureExecutablePath);
 	    }
 	}
     }
 
     private static void writeGenerateReportShellFilesToProjectDirectory() {
-	// create generate_allure_report.sh and generate_allure_report.bat
+	String allureVersion = System.getProperty("allureVersion");
+	// create generate_allure_report.sh or generate_allure_report.bat
 	List<String> commandsToServeAllureReport;
-	if (!(new File("generate_allure_report.bat").exists())
-		&& System.getProperty("targetOperatingSystem").equals("Windows-64")) {
+	if (System.getProperty("targetOperatingSystem").equals(OS_WINDOWS)) {
 	    // create windows batch file
-	    commandsToServeAllureReport = Arrays.asList("@echo off", "set path=target\\allure\\bin;%path%",
-		    "allure serve " + ALLURE_RESULTS_FOLDER_PATH.substring(0, ALLURE_RESULTS_FOLDER_PATH.length() - 1),
+	    commandsToServeAllureReport = Arrays.asList("@echo off",
+		    "set path=target\\allure\\allure-" + allureVersion + "\\bin;%path%",
+		    "allure serve " + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1),
 		    "pause", "exit");
 	    FileActions.writeToFile("", "generate_allure_report.bat", commandsToServeAllureReport);
-	} else if (!(new File("generate_allure_report.sh").exists())
-		&& !System.getProperty("targetOperatingSystem").equals("Windows-64")) {
+	} else if (!System.getProperty("targetOperatingSystem").equals(OS_WINDOWS)) {
 	    // create unix-based sh file
-	    commandsToServeAllureReport = Arrays.asList("#!/bin/bash",
-		    "parent_path=$( cd \"$(dirname \"${BASH_SOURCE[0]}\")\" ; pwd -P )",
-		    "cd \"$parent_path/target/allure/bin/\"",
-		    "bash allure serve \"$parent_path/"
-			    + ALLURE_RESULTS_FOLDER_PATH.substring(0, ALLURE_RESULTS_FOLDER_PATH.length() - 1) + "\"",
-		    "exit"
+	    commandsToServeAllureReport = Arrays
+		    .asList("#!/bin/bash", "parent_path=$( cd \"$(dirname \"${BASH_SOURCE[0]}\")\" ; pwd -P )",
+			    "cd \"$parent_path/target/allure/allure-" + allureVersion + "/bin/\"",
+			    "bash allure serve \"$parent_path/"
+				    + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1) + "\"",
+			    "exit"
 
-	    );
+		    );
 	    FileActions.writeToFile("", "generate_allure_report.sh", commandsToServeAllureReport);
 	    // make allure executable on unix-based shells
 	    (new TerminalActions()).performTerminalCommand("chmod u+x generate_allure_report.sh");
@@ -352,6 +392,7 @@ public class ReportManager {
     public static void prepareAllureReportingEnvironment() {
 	logDiscrete("Preparing Allure Reporting Environment...");
 	Boolean discreteLoggingState = isDiscreteLogging();
+	allureResultsFolderPath = System.getProperty("allureResultsFolderPath").trim();
 	if (System.getProperty("executionAddress").trim().equals("local")) {
 	    setDiscreteLogging(true);
 	    cleanAllureResultsDirectory();
@@ -363,7 +404,8 @@ public class ReportManager {
     }
 
     public static void logEngineVersion() {
-	createImportantReportEntry("Detected SHAFT Engine Version: [" + System.getProperty("shaftEngineVersion") + "]");
+	createImportantReportEntry(
+		"Detected SHAFT Engine Version: [" + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "]");
     }
 
     public static void logTestInformation(String className, String testMethodName, String testDescription) {
@@ -377,6 +419,12 @@ public class ReportManager {
 	    createImportantReportEntry("Starting Execution:\t[" + testCasesCounter + " out of " + totalNumberOfTests
 		    + "] test cases in the current suite\nTest Method:\t\t[" + className + "." + testMethodName + "]");
 	}
+    }
+
+    public static void logConfigurationMethodInformation(String className, String testMethodName) {
+	clearTestLog();
+	createImportantReportEntry("Starting Execution of a Configuration (Setup or Teardown) Method\nTest Method:\t\t["
+		+ className + "." + testMethodName + "]");
     }
 
     /**
@@ -501,7 +549,7 @@ public class ReportManager {
 	    createReportEntry(
 		    "Successfully created attachment [" + "SHAFT Engine Logs" + " - " + "Execution log" + "]");
 	    createImportantReportEntry("This test run was powered by SHAFT Engine Version: ["
-		    + System.getProperty("shaftEngineVersion") + "]" + System.lineSeparator()
+		    + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "]" + System.lineSeparator()
 		    + "SHAFT Engine is licensed under the MIT License: [https://github.com/MohabMohie/SHAFT_ENGINE/blob/master/LICENSE].");
 	    createAttachment("SHAFT Engine Logs", "Execution log", new StringInputStream(fullLog.trim()));
 	}
@@ -518,12 +566,14 @@ public class ReportManager {
 	List<String> commandsToOpenAllureReport = null;
 	// create unix-based sh file
 	commandsToOpenAllureReport = Arrays.asList("#!/bin/bash",
-		"parent_path=$( cd \"$(dirname \"${BASH_SOURCE[0]}\")\" ; pwd -P )", "cd \"$parent_path/allure/bin/\"",
+		"parent_path=$( cd \"$(dirname \"${BASH_SOURCE[0]}\")\" ; pwd -P )",
+		"cd \"$parent_path/allure/allure-" + System.getProperty("allureVersion") + "/bin/\"",
 		"bash allure open \"$parent_path/allure-report\"", "exit");
 	FileActions.writeToFile("generatedReport/", "open_allure_report.sh", commandsToOpenAllureReport);
 
 	// create windows batch file
-	commandsToOpenAllureReport = Arrays.asList("@echo off", "set path=allure\\bin;%path%",
+	commandsToOpenAllureReport = Arrays.asList("@echo off",
+		"set path=allure\\allure-" + System.getProperty("allureVersion") + "\\bin;%path%",
 		"allure open allure-report", "pause", "exit");
 	FileActions.writeToFile("generatedReport/", "open_allure_report.bat", commandsToOpenAllureReport);
 
@@ -534,13 +584,15 @@ public class ReportManager {
 	String targetOperatingSystem = System.getProperty("targetOperatingSystem");
 	String commandToCreateAllureReport = "";
 
-	if (targetOperatingSystem.equals("Windows-64")) {
-	    commandToCreateAllureReport = ALLURE_EXECUTABLE_PATH + ".bat" + " generate \""
-		    + ALLURE_RESULTS_FOLDER_PATH.substring(0, ALLURE_RESULTS_FOLDER_PATH.length() - 1)
+	allureExecutablePath = "target/allure/allure-" + System.getProperty("allureVersion") + "/bin/allure";
+
+	if (targetOperatingSystem.equals(OS_WINDOWS)) {
+	    commandToCreateAllureReport = allureExecutablePath + ".bat" + " generate \""
+		    + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
 		    + "\" -o \"generatedReport/allure-report\"";
 	} else {
-	    commandToCreateAllureReport = ALLURE_EXECUTABLE_PATH + " generate \""
-		    + ALLURE_RESULTS_FOLDER_PATH.substring(0, ALLURE_RESULTS_FOLDER_PATH.length() - 1)
+	    commandToCreateAllureReport = allureExecutablePath + " generate \""
+		    + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
 		    + "\" -o \"generatedReport/allure-report\"";
 	}
 	(new TerminalActions()).performTerminalCommand(commandToCreateAllureReport);

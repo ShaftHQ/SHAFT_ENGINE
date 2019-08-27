@@ -86,8 +86,8 @@ public class Assertions {
     }
 
     private static void fail(String message, String expectedValue, String actualValue) {
-	ReportManager.attachAsStep("Validation Test Data", "Expected Value", expectedValue.toString());
-	ReportManager.attachAsStep("Validation Test Data", "Actual Value", actualValue.toString());
+	ReportManager.attachAsStep("Validation Test Data", "Expected Value", expectedValue);
+	ReportManager.attachAsStep("Validation Test Data", "Actual Value", actualValue);
 	fail(message);
     }
 
@@ -106,8 +106,8 @@ public class Assertions {
     }
 
     private static void pass(String message, String expectedValue, String actualValue) {
-	ReportManager.attachAsStep("Validation Test Data", "Expected Value", expectedValue.toString());
-	ReportManager.attachAsStep("Validation Test Data", "Actual Value", actualValue.toString());
+	ReportManager.attachAsStep("Validation Test Data", "Expected Value", expectedValue);
+	ReportManager.attachAsStep("Validation Test Data", "Actual Value", actualValue);
 	pass(message);
     }
 
