@@ -94,7 +94,7 @@ public class Verifications {
 
 	String verificationFailuresString = verificationFailures.toString().trim();
 	if (!"".equals(verificationFailuresString)) {
-	    ReportManager.setDiscreteLogging(discreetLoggingState); // reset state in case of failure
+	    Boolean initialDiscreteLoggingState = ReportManager.isDiscreteLogging();
 	    if (driver != null) {
 		try {
 		    ScreenshotManager.captureScreenShot(driver, elementLocator, actionName, false);
@@ -104,7 +104,10 @@ public class Verifications {
 		    ScreenshotManager.captureScreenShot(driver, actionName, false);
 		}
 	    }
+	    ReportManager.setDiscreteLogging(false);
 	    ReportManager.log(verificationFailuresString);
+	    ReportManager.setDiscreteLogging(initialDiscreteLoggingState);
+
 	    // Throw a new exception with the failure string, or append to current exception
 	    // message
 	    try {
@@ -116,6 +119,7 @@ public class Verifications {
 	    }
 	    Reporter.getCurrentTestResult().setStatus(ITestResult.FAILURE);
 	    verificationFailures.delete(0, verificationFailures.length());
+//	    ReportManager.setDiscreteLogging(discreetLoggingState); // reset state in case of failure
 	}
     }
 

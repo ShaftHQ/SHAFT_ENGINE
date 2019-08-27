@@ -62,6 +62,11 @@ public class PropertiesFileManager {
 		propertyFile = (File) (propertiesFilesList.toArray())[i];
 		loadPropertiesFileIntoSystemProperties(properties, propertyFile);
 	    }
+	} catch (IllegalArgumentException e) {
+	    // this happens when the user provides a directory that doesn't exist
+	    ReportManager.log(
+		    "Please make sure that the propertiesFolderPath directory you provided in the POM.xml file of your project exists. ["
+			    + propertiesFolderPath + "]");
 	} catch (Exception e) {
 	    ReportManager.log(e);
 	}
@@ -98,6 +103,8 @@ public class PropertiesFileManager {
     private static void setDefaultProperties() {
 	Properties properties = new Properties();
 	// read default properties
+
+	// TODO: Refactor to read from bundled properties files
 	properties.putAll(setDefaultExecutionProperties());
 	properties.putAll(setPathProperties());
 	properties.putAll(setPatternProperties());
@@ -118,7 +125,7 @@ public class PropertiesFileManager {
 	properties.put("executionAddress", "local");
 	// Platform
 	// local | seleniumGridHubIP:port
-	properties.put("targetOperatingSystem", "Windows-64");
+	properties.put("targetOperatingSystem", OS_WINDOWS);
 	// Windows-64 | Linux-64 | Mac-64
 	// Note: Will be ignored in case of local execution and SHAFT will identify the
 	// correct OS version automatically
@@ -159,6 +166,15 @@ public class PropertiesFileManager {
 	properties.put("databaseQueryTimeout", "60");
 	// Timeout in seconds to be used when attempting to execute a query on a
 	// database (1 minute = 60 seconds)
+
+	properties.put("apiSocketTimeout", "60");
+	// Timeout in seconds between two consecutive data packets in seconds
+	properties.put("apiConnectionTimeout", "60");
+	// Timeout in seconds to wait for until a connection is established
+	properties.put("apiConnectionManagerTimeout", "60");
+	// Timeout in seconds to wait for an available connection from the connection
+	// manager/pool (1 minute = 60 seconds)
+
 	properties.put("autoMaximizeBrowserWindow", "true");
 	// true | false
 	properties.put("forceCheckForElementVisibility", "true");
@@ -202,10 +218,10 @@ public class PropertiesFileManager {
 	// true | false
 	properties.put("automaticallyGenerateAllureReport", "false");
 	// true | false
-	System.setProperty("customDriverName","");
-	//Custom Driver Name
-	System.setProperty("customDriverPath","");
-	//Custom Driver Path
+	System.setProperty("customDriverName", "");
+	// Custom Driver Name
+	System.setProperty("customDriverPath", "");
+	// Custom Driver Path
 
 	return properties;
     }
@@ -221,6 +237,7 @@ public class PropertiesFileManager {
 	properties.put("watermarkImagePath", "/images/shaft.png");
 	properties.put("downloadsFolderPath", "target/downloadedFiles/");
 	properties.put("allureResultsFolderPath", "allure-results/");
+	properties.put("allureVersion", "2.12.1");
 	return properties;
     }
 

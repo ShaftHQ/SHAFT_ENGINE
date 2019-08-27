@@ -12,6 +12,7 @@ import java.io.OutputStream;
 import java.net.URL;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -415,9 +416,9 @@ public class FileActions {
 
     public static void writeToFile(String fileFolderName, String fileName, List<String> text) {
 	String absoluteFilePath = getAbsolutePath(fileFolderName, fileName);
-	Path filePath = Paths.get(absoluteFilePath);
-
 	try {
+	    Path filePath = Paths.get(absoluteFilePath);
+
 	    byte[] textToBytes = String.join(System.lineSeparator(), text).getBytes();
 
 	    Path parentDir = filePath.getParent();
@@ -425,7 +426,24 @@ public class FileActions {
 		Files.createDirectories(parentDir);
 	    }
 	    Files.write(filePath, textToBytes);
-	} catch (IOException e) {
+	} catch (InvalidPathException | IOException e) {
+	    ReportManager.log(e);
+	}
+    }
+
+    public static void writeToFile(String fileFolderName, String fileName, String text) {
+	String absoluteFilePath = getAbsolutePath(fileFolderName, fileName);
+	try {
+	    Path filePath = Paths.get(absoluteFilePath);
+
+	    byte[] textToBytes = text.getBytes();
+
+	    Path parentDir = filePath.getParent();
+	    if (!parentDir.toFile().exists()) {
+		Files.createDirectories(parentDir);
+	    }
+	    Files.write(filePath, textToBytes);
+	} catch (InvalidPathException | IOException e) {
 	    ReportManager.log(e);
 	}
     }
@@ -615,4 +633,35 @@ public class FileActions {
 	return file.exists() || file.mkdirs();
     }
 
+    public static URL downloadFile(String targetFileURL, String destinationFilePath) {
+	return downloadFile(targetFileURL, destinationFilePath, 0, 0);
+    }
+
+    public static URL downloadFile(String targetFileURL, String destinationFilePath, int connectionTimeout,
+	    int readTimeout) {
+	if (targetFileURL != null && destinationFilePath != null) {
+	    // force logging
+	    Boolean initialLoggingState = ReportManager.isDiscreteLogging();
+	    ReportManager.setDiscreteLogging(false);
+	    try {
+		ReportManager.log("Downloading a file from this url [" + targetFileURL + "] to this directory ["
+			+ destinationFilePath + "], please wait as downloading may take some time...");
+		FileUtils.copyURLToFile(new URL(targetFileURL), new File(destinationFilePath), connectionTimeout,
+			readTimeout);
+		ReportManager.logDiscrete("Downloading completed successfully.");
+		return new File(destinationFilePath).toURI().toURL();
+	    } catch (IOException e) {
+		ReportManager.log(e);
+		failAction("downloadFile", "Target File URL: [" + targetFileURL + "], and Destination File Path: ["
+			+ destinationFilePath + "]");
+		return null;
+	    } finally {
+		ReportManager.setDiscreteLogging(initialLoggingState);
+	    }
+	} else {
+	    failAction("downloadFile", "Target File URL: [" + targetFileURL + "], and Destination File Path: ["
+		    + destinationFilePath + "]");
+	    return null;
+	}
+    }
 }
