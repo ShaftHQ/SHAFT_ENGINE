@@ -27,6 +27,12 @@ public class Assertions {
 
     private static Boolean discreetLoggingState = Boolean.valueOf(System.getProperty("alwaysLogDiscreetly"));
 
+    private static By aiGeneratedElementLocator = null;
+
+    public static void setAiGeneratedElementLocator(By aiGeneratedElementLocator) {
+	Assertions.aiGeneratedElementLocator = aiGeneratedElementLocator;
+    }
+
     public enum AssertionType {
 	POSITIVE(true), NEGATIVE(false);
 
@@ -286,7 +292,13 @@ public class Assertions {
 		customAttempts = attemptsBeforeThrowingElementNotFoundExceptionInCaseElementShouldntExist;
 	    }
 
-	    switch (ElementActions.getElementsCount(driver, elementLocator, customAttempts)) {
+	    int elementsCount = ElementActions.getElementsCount(driver, elementLocator, customAttempts);
+	    // Override current locator with the aiGeneratedElementLocator
+	    if (ScreenshotManager.getAiSupportedElementIdentification() && aiGeneratedElementLocator != null&& elementLocator != null) {
+		elementLocator = aiGeneratedElementLocator;
+	    }
+
+	    switch (elementsCount) {
 	    case 0:
 		if (assertionType) {
 		    fail("assertElementExists", driver,
