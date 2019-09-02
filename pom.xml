@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>io.github.mohabmohie</groupId>
 	<artifactId>SHAFT_ENGINE</artifactId>
-	<version>3.0.20190826</version>
+	<version>3.1.20190902</version>
 	<name>${project.groupId}:${project.artifactId}</name>
 	<description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
 	<url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
@@ -78,10 +78,12 @@
 		<cucumber.version>4.3.1</cucumber.version>
 		<appium-java-client.version>6.1.0</appium-java-client.version>
 		<cverges-expect4j.version>1.9</cverges-expect4j.version>
+
+		<javacv-platform.version>1.5.1</javacv-platform.version>
 	</properties>
 
 	<dependencies>
-		<!-- TestNG Dependencies -->
+		<!-- TESTNG DEPENDENCIES -->
 		<dependency>
 			<groupId>org.testng</groupId>
 			<artifactId>testng</artifactId>
@@ -89,7 +91,7 @@
 			<!-- <scope>test</scope> -->
 		</dependency>
 
-		<!-- Selenium WebDriver -->
+		<!-- SELENIUM WEBDRIVER -->
 		<dependency>
 			<groupId>org.seleniumhq.selenium</groupId>
 			<artifactId>selenium-java</artifactId>
@@ -106,7 +108,14 @@
 			<version>${selenium.version}</version>
 		</dependency>
 
-		<!-- Webdriver Manager -->
+		<!-- AI POWERED ELEMENT IDENTIFICATION -->
+		<dependency>
+			<groupId>org.bytedeco</groupId>
+			<artifactId>javacv-platform</artifactId>
+			<version>${javacv-platform.version}</version>
+		</dependency>
+
+		<!-- WEBDRIVER MANAGER -->
 		<dependency>
 			<groupId>io.github.bonigarcia</groupId>
 			<artifactId>webdrivermanager</artifactId>
@@ -119,7 +128,7 @@
 			</exclusions>
 		</dependency>
 
-		<!-- Excel file manipulation -->
+		<!-- EXCEL FILE MANIPULATION -->
 		<dependency>
 			<groupId>org.apache.poi</groupId>
 			<artifactId>poi</artifactId>
@@ -131,7 +140,7 @@
 			<version>${apachepoi.version}</version>
 		</dependency>
 
-		<!-- Allure -->
+		<!-- ALLURE REPORTING -->
 		<dependency>
 			<groupId>io.qameta.allure</groupId>
 			<artifactId>allure-testng</artifactId>
@@ -154,7 +163,7 @@
 			<version>${aspectj.version}</version>
 		</dependency>
 
-		<!-- REST Assured -->
+		<!-- REST ASSURED -->
 		<dependency>
 			<groupId>io.rest-assured</groupId>
 			<artifactId>rest-assured</artifactId>
@@ -177,28 +186,7 @@
 			<version>${mime-util.version}</version>
 		</dependency>
 
-		<!-- Cucumber -->
-		<dependency>
-			<groupId>io.cucumber</groupId>
-			<artifactId>cucumber-java</artifactId>
-			<version>${cucumber.version}</version>
-			<!-- <scope>test</scope> -->
-		</dependency>
-		<dependency>
-			<groupId>io.cucumber</groupId>
-			<artifactId>cucumber-testng</artifactId>
-			<version>${cucumber.version}</version>
-			<!-- <scope>test</scope> -->
-		</dependency>
-
-		<!-- Video Recording -->
-		<dependency>
-			<groupId>com.pojosontheweb</groupId>
-			<artifactId>monte-repack</artifactId>
-			<version>${pojosontheweb-monte.version}</version>
-		</dependency>
-
-		<!-- Remote ssh commands -->
+		<!-- REMOTE SSH -->
 		<dependency>
 			<groupId>com.jcraft</groupId>
 			<artifactId>jsch</artifactId>
@@ -210,20 +198,7 @@
 			<version>${cverges-expect4j.version}</version>
 		</dependency>
 
-		<!-- Appium -->
-		<dependency>
-			<groupId>io.appium</groupId>
-			<artifactId>java-client</artifactId>
-			<version>${appium-java-client.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.seleniumhq.selenium</groupId>
-					<artifactId>selenium-java</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
-		<!-- Database Connectors Dependencies -->
+		<!-- DATABASE CONNECTORS -->
 		<dependency>
 			<groupId>mysql</groupId>
 			<artifactId>mysql-connector-java</artifactId>
@@ -245,7 +220,28 @@
 		<!-- <version>${ojdbc8.version}</version> -->
 		<!-- </dependency> -->
 
-		<!-- Transitive logging -->
+		<!-- CUCUMBER -->
+		<dependency>
+			<groupId>io.cucumber</groupId>
+			<artifactId>cucumber-java</artifactId>
+			<version>${cucumber.version}</version>
+			<!-- <scope>test</scope> -->
+		</dependency>
+		<dependency>
+			<groupId>io.cucumber</groupId>
+			<artifactId>cucumber-testng</artifactId>
+			<version>${cucumber.version}</version>
+			<!-- <scope>test</scope> -->
+		</dependency>
+
+		<!-- VIDEO RECORDING -->
+		<dependency>
+			<groupId>com.pojosontheweb</groupId>
+			<artifactId>monte-repack</artifactId>
+			<version>${pojosontheweb-monte.version}</version>
+		</dependency>
+
+		<!-- TRANSITIVE LOGGING -->
 		<dependency>
 			<groupId>log4j</groupId>
 			<artifactId>log4j</artifactId>
@@ -255,6 +251,19 @@
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-simple</artifactId>
 			<version>${org.slf4j.version}</version>
+		</dependency>
+
+		<!-- APPIUM -->
+		<dependency>
+			<groupId>io.appium</groupId>
+			<artifactId>java-client</artifactId>
+			<version>${appium-java-client.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.seleniumhq.selenium</groupId>
+					<artifactId>selenium-java</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 	</dependencies>
 
