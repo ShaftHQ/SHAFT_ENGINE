@@ -282,13 +282,14 @@ public class BrowserFactory {
 	String browserInstanceID = browserName + "_" + System.currentTimeMillis();
 
 	BrowserType browserType = getBrowserTypeFromName(browserName);
-
+	String webdriverManagerLogMessage = "Identifying OS/Browser combination and selecting the correct driver version automatically. Please note that if a new driver executable will be downloaded it may take some time...";
 	switch (browserType) {
 	case MOZILLA_FIREFOX:
 	    if (!customDriverName.equals("") && !customDriverPath.equals("")) {
 		System.setProperty("webdriver.gecko.driver",
 			customDriverPath + customDriverName + setDriversExtecutableFileExtension());
 	    } else {
+		ReportManager.log(webdriverManagerLogMessage);
 		WebDriverManager.firefoxdriver().setup();
 	    }
 	    driver = new FirefoxDriver(ffOptions);
@@ -302,6 +303,7 @@ public class BrowserFactory {
 		System.setProperty("webdriver.ie.driver",
 			customDriverPath + customDriverName + setDriversExtecutableFileExtension());
 	    } else {
+		ReportManager.log(webdriverManagerLogMessage);
 		WebDriverManager.iedriver().setup();
 	    }
 	    driver = new InternetExplorerDriver(ieOptions);
@@ -315,6 +317,7 @@ public class BrowserFactory {
 		System.setProperty("webdriver.chrome.driver",
 			customDriverPath + customDriverName + setDriversExtecutableFileExtension());
 	    } else {
+		ReportManager.log(webdriverManagerLogMessage);
 		WebDriverManager.chromedriver().setup();
 	    }
 	    driver = new ChromeDriver(chOptions);
@@ -327,6 +330,7 @@ public class BrowserFactory {
 		System.setProperty("webdriver.edge.driver",
 			customDriverPath + customDriverName + setDriversExtecutableFileExtension());
 	    } else {
+		ReportManager.log(webdriverManagerLogMessage);
 		WebDriverManager.edgedriver().setup();
 	    }
 	    driver = new EdgeDriver(edOptions);

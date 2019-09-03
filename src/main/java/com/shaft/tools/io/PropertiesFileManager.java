@@ -50,7 +50,7 @@ public class PropertiesFileManager {
 	overrideTargetOperatingSystemForLocalExecution();
     }
 
-    private static void readPropertyFiles(String propertiesFolderPath) {
+    public static void readPropertyFiles(String propertiesFolderPath) {
 	try {
 	    Properties properties = new Properties();
 	    Collection<File> propertiesFilesList;
@@ -205,7 +205,7 @@ public class PropertiesFileManager {
 	// millisecond
 	properties.put("recordVideo", "false");
 	// This only works for local execution
-	properties.put("aiSupportedElementIdentification", "false");
+	properties.put("aiPoweredElementIdentification", "false");
 	// true | false
 	// Note: this is an experimental feature
 	//

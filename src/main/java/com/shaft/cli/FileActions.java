@@ -496,6 +496,16 @@ public class FileActions {
 	return doesFileExit;
     }
 
+    public static boolean doesFileExist(String targetFile) {
+	Boolean doesFileExit = false;
+	try {
+	    doesFileExit = (new File(targetFile)).getAbsoluteFile().exists();
+	} catch (Exception e) {
+	    ReportManager.log(e);
+	}
+	return doesFileExit;
+    }
+
     /**
      * Returns the full (absolute) file/folder path using the project-relative
      * fileFolderName and the fileName

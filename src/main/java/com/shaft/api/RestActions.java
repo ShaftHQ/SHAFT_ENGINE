@@ -273,9 +273,6 @@ public class RestActions {
     }
 
     private static void reportResponseBody(Response response, Boolean isDiscrete) {
-	// TODO: handle them as xml attachments, csv attachments, and file attachments
-	// instead of text
-	// attachments
 	if (response != null) {
 	    if (isDiscrete) {
 		try {
