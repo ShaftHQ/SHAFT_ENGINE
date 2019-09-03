@@ -23,6 +23,7 @@ import javax.imageio.stream.FileImageOutputStream;
 import javax.imageio.stream.ImageOutputStream;
 
 import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptException;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.NoSuchSessionException;
 import org.openqa.selenium.OutputType;
@@ -57,7 +58,17 @@ public class ScreenshotManager {
     private static final Float SCREENSHOT_PARAMS_WATERMARKOPACITY = Float
 	    .valueOf(System.getProperty("screenshotParams_watermarkOpacity").trim());
     private static final Boolean AI_SUPPORTED_ELEMENT_IDENTIFICATION = Boolean
-	    .valueOf(System.getProperty("aiSupportedElementIdentification").trim());
+	    .valueOf(System.getProperty("aiPoweredElementIdentification").trim());
+
+    public static Boolean getAiSupportedElementIdentification() {
+	return AI_SUPPORTED_ELEMENT_IDENTIFICATION;
+    }
+
+    private static By aiGeneratedElementLocator = null;
+
+    public static void setAiGeneratedElementLocator(By aiGeneratedElementLocator) {
+	ScreenshotManager.aiGeneratedElementLocator = aiGeneratedElementLocator;
+    }
 
     private static final String WATERMARK_DEFAULT_PATH = "/images/shaft.png";
     private static By targetElementLocator;
@@ -88,7 +99,11 @@ public class ScreenshotManager {
     private static ImageOutputStream gifOutputStream = null;
     private static GifSequenceWriter gifWriter = null;
 
-    private static final String AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH = "src/test/resources/elementScreenshots/";
+    private static final String AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH = "src/test/resources/DynamicObjectRepository/";
+
+    public static String getAiAidedElementIdentificationFolderpath() {
+	return AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH;
+    }
 
     private ScreenshotManager() {
 	throw new IllegalStateException("Utility class");
@@ -136,6 +151,12 @@ public class ScreenshotManager {
      */
     public static void captureScreenShot(WebDriver driver, By elementLocator, String actionName,
 	    boolean passFailStatus) {
+
+	// Override current locator with the aiGeneratedElementLocator
+	if (AI_SUPPORTED_ELEMENT_IDENTIFICATION && aiGeneratedElementLocator != null && elementLocator != null) {
+	    elementLocator = aiGeneratedElementLocator;
+	}
+
 	globalPassFailStatus = passFailStatus;
 	targetElementLocator = elementLocator;
 
@@ -171,6 +192,12 @@ public class ScreenshotManager {
      */
     private static void internalCaptureScreenShot(WebDriver driver, By elementLocator, String actionName,
 	    String appendedText, boolean takeScreenshot) {
+
+	// Override current locator with the aiGeneratedElementLocator
+	if (AI_SUPPORTED_ELEMENT_IDENTIFICATION && aiGeneratedElementLocator != null && elementLocator != null) {
+	    elementLocator = aiGeneratedElementLocator;
+	}
+
 	FileActions.createFolder(SCREENSHOT_FOLDERPATH);
 
 	if (takeScreenshot) {
@@ -262,13 +289,13 @@ public class ScreenshotManager {
 	case "fullpage":
 	    return takeFullPageScreenshot(driver);
 	case "element":
-	    return takeElementScreenshot(driver, true);
+	    return takeElementScreenshot(driver);
 	default:
 	    return ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
 	}
     }
 
-    private static File takeFullPageScreenshot(WebDriver driver) {
+    public static File takeFullPageScreenshot(WebDriver driver) {
 	try {
 	    if (SCREENSHOT_PARAMS_SKIPPEDELEMENTSFROMSCREENSHOT.length() > 0) {
 		List<WebElement> skippedElementsList = new ArrayList<>();
@@ -293,14 +320,11 @@ public class ScreenshotManager {
 	}
     }
 
-    private static File takeElementScreenshot(WebDriver driver, boolean isBaseFullPage) {
-	// TODO: investigate new selenium element screenshot API >> use selenium api and
-	// compare image size to element size, if element is bigger then use the current
-	// implementation
+    private static File takeElementScreenshot(WebDriver driver) {
 	try {
 	    if (targetElementLocator != null && ElementActions.getElementsCount(driver, targetElementLocator,
 		    RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1) {
-		return ScreenshotUtils.makeElementScreenshot(driver, targetElementLocator, isBaseFullPage);
+		return driver.findElement(targetElementLocator).getScreenshotAs(OutputType.FILE);
 	    } else {
 		return ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
 	    }
@@ -509,18 +533,34 @@ public class ScreenshotManager {
 	}
     }
 
-    // TODO: investigate phase 2 and libraries that can be used for visual element
-    // identification
     public static void storeElementScreenshotForAISupportedElementIdentification(WebDriver driver, By elementLocator) {
+	// Override current locator with the aiGeneratedElementLocator
+	if (AI_SUPPORTED_ELEMENT_IDENTIFICATION && aiGeneratedElementLocator != null && elementLocator != null) {
+	    elementLocator = aiGeneratedElementLocator;
+	}
+
 	if (AI_SUPPORTED_ELEMENT_IDENTIFICATION) {
 	    FileActions.createFolder(AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH);
-	    File element = takeElementScreenshot(driver, false);
-
-	    String elementFileName = elementLocator.toString().replaceAll("[\\W\\s]", "_");
-
-	    FileActions.copyFile(element.getAbsolutePath(),
-		    AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH + elementFileName + ".png");
+	    WebElement targetElement = driver.findElement(elementLocator);
+	    File screenshotFile = null;
+	    try {
+		screenshotFile = targetElement.getScreenshotAs(OutputType.FILE);
+	    } catch (JavascriptException e) {
+		// do nothing
+	    }
+	    if (screenshotFile != null) {
+		String elementFileName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
+		if (!targetElement.getTagName().equalsIgnoreCase("input")) {
+		    FileActions.copyFile(screenshotFile.getAbsolutePath(),
+			    AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH + elementFileName + ".png");
+		} else {
+		    if (!FileActions.doesFileExist(AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH, elementFileName + ".png",
+			    2)) {
+			FileActions.copyFile(screenshotFile.getAbsolutePath(),
+				AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH + elementFileName + ".png");
+		    }
+		}
+	    }
 	}
     }
-
 }

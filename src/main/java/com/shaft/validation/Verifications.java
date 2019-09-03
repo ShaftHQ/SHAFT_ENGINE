@@ -30,6 +30,12 @@ public class Verifications {
 
     private static Boolean discreetLoggingState = Boolean.valueOf(System.getProperty("alwaysLogDiscreetly"));
 
+    private static By aiGeneratedElementLocator = null;
+
+    public static void setAiGeneratedElementLocator(By aiGeneratedElementLocator) {
+	Verifications.aiGeneratedElementLocator = aiGeneratedElementLocator;
+    }
+
     public enum VerificationType {
 	POSITIVE(true), NEGATIVE(false);
 
@@ -312,7 +318,13 @@ public class Verifications {
 		customAttempts = attemptsBeforeThrowingElementNotFoundExceptionInCaseElementShouldntExist;
 	    }
 
-	    switch (ElementActions.getElementsCount(driver, elementLocator, customAttempts)) {
+	    int elementsCount = ElementActions.getElementsCount(driver, elementLocator, customAttempts);
+	    // Override current locator with the aiGeneratedElementLocator
+	    if (ScreenshotManager.getAiSupportedElementIdentification() && aiGeneratedElementLocator != null&& elementLocator != null) {
+		elementLocator = aiGeneratedElementLocator;
+	    }
+
+	    switch (elementsCount) {
 	    case 0:
 		if (verificationType) {
 		    verificationFailures.append("Verification Failed; element does not exist. Locator ["

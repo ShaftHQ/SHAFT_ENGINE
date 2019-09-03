@@ -122,7 +122,7 @@ public class ScreenshotUtils {
     }
 
     /**
-     * 
+     * @deprecated
      * @param driver         the current instance of Selenium webdriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
@@ -132,6 +132,7 @@ public class ScreenshotUtils {
      * @throws IOException if there was a problem writing the screenshot to a file
      *                     object
      */
+    @Deprecated
     protected static File makeElementScreenshot(WebDriver driver, By elementLocator, boolean isBaseFullPage)
 	    throws IOException {
 	WebElement targetElement = driver.findElement(elementLocator);

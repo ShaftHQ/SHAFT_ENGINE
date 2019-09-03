@@ -1,5 +1,6 @@
 package com.shaft.gui.image;
 
+import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.io.File;
@@ -7,15 +8,28 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.util.Arrays;
+import java.util.List;
 
 import javax.imageio.ImageIO;
 
+import org.opencv.core.Core;
+import org.opencv.core.Core.MinMaxLocResult;
+import org.opencv.core.CvType;
+import org.opencv.core.Mat;
+import org.opencv.core.Point;
+import org.opencv.core.Scalar;
+import org.opencv.highgui.HighGui;
+import org.opencv.imgcodecs.Imgcodecs;
+import org.opencv.imgproc.Imgproc;
+import org.openqa.selenium.By;
 import org.testng.Assert;
 
 import com.shaft.cli.FileActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Assertions;
 import com.shaft.validation.Verifications;
+
+import nu.pattern.OpenCV;
 
 public class ImageProcessingActions {
     private ImageProcessingActions() {
@@ -175,4 +189,83 @@ public class ImageProcessingActions {
 		+ "] images failed the threshold of [" + threshhold + "%] matching.");
 
     }
+
+    public static List<Integer> findImageWithinCurrentPage(String referenceImagePath, File currentPageScreenshot,
+	    int matchMethod) {
+
+	if (FileActions.doesFileExist(referenceImagePath)) {
+	    OpenCV.loadLocally();
+	    Mat img = Imgcodecs.imread(currentPageScreenshot.getAbsolutePath(), Imgcodecs.IMREAD_COLOR);
+	    Mat templ = Imgcodecs.imread(referenceImagePath, Imgcodecs.IMREAD_COLOR);
+
+	    // / Create the result matrix
+	    int resultCols = img.cols() - templ.cols() + 1;
+	    int resultRows = img.rows() - templ.rows() + 1;
+
+	    Mat result = new Mat(resultRows, resultCols, CvType.CV_32FC1);
+
+	    // / Do the Matching and Normalize
+	    try {
+		Imgproc.matchTemplate(img, templ, result, matchMethod);
+		Core.normalize(result, result, 0, 1, Core.NORM_MINMAX, -1, new Mat());
+
+		// / Localizing the best match with minMaxLoc
+		MinMaxLocResult mmr = Core.minMaxLoc(result);
+
+		Point matchLoc;
+		if (matchMethod == Imgproc.TM_SQDIFF || matchMethod == Imgproc.TM_SQDIFF_NORMED) {
+		    matchLoc = mmr.minLoc;
+		} else {
+		    matchLoc = mmr.maxLoc;
+		}
+
+		if (Boolean.valueOf(System.getProperty("debugMode"))) {
+		    // debugging
+		    Imgproc.rectangle(img, matchLoc, new Point(matchLoc.x + templ.cols(), matchLoc.y + templ.rows()),
+			    new Scalar(0, 0, 0), 2, 8, 0);
+		    Imgproc.rectangle(result, matchLoc, new Point(matchLoc.x + templ.cols(), matchLoc.y + templ.rows()),
+			    new Scalar(0, 0, 0), 2, 8, 0);
+		    Image tmpImg = HighGui.toBufferedImage(img);
+		    BufferedImage image = (BufferedImage) tmpImg;
+
+		    try {
+			FileActions.createFolder("target/openCV/");
+			File output = new File("target/openCV/" + System.currentTimeMillis() + ".png");
+			ImageIO.write(image, "png", output);
+		    } catch (IOException e) {
+			ReportManager.log(e);
+			return Arrays.asList();
+		    }
+		}
+
+		int x = Integer.parseInt(String.valueOf(matchLoc.x).split("\\.")[0]);
+		int y = Integer.parseInt(String.valueOf(matchLoc.y).split("\\.")[0]);
+		return Arrays.asList(x, y);
+	    } catch (org.opencv.core.CvException e) {
+		ReportManager.log(e);
+		ReportManager.log("Failed to identify the element using AI; openCV core exception.");
+		return Arrays.asList();
+	    }
+	} else {
+	    // no reference screenshot exists
+	    ReportManager.log("Failed to identify the element using AI; No reference element screenshot exists.");
+	    return Arrays.asList();
+	}
+    }
+
+    public static String formatElementLocatorToImagePath(By elementLocator) {
+	StackTraceElement[] callingStack = Thread.currentThread().getStackTrace();
+	String className = "";
+	for (int i = 1; i < callingStack.length; i++) {
+	    if (!callingStack[i].getClassName().contains("com.shaft")) {
+		className = callingStack[i].getClassName();
+		break;
+	    }
+	}
+
+	String elementFileName = className + "_" + elementLocator.toString();
+	return elementFileName.replaceAll("[\\[\\]\\'\\/:]", "").replaceAll("[\\W\\s]", "_").replaceAll("_{2}", "_")
+		.replaceAll("_{2}", "_").replaceAll("contains", "_contains").replaceAll("_$", "");
+    }
+
 }
