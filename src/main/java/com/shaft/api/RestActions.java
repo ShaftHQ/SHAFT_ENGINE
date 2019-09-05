@@ -733,9 +733,9 @@ public class RestActions {
      * @param referenceJsonFilePath the full absolute path to the test data file
      *                              that will be used as a reference for this
      *                              comparison
-     * @param comparisonType        ComparisonType.EQUALS, CONTAINS, MATCHES,
-     *                              EQUALS_STRICT; Note that MATCHES ignores the
-     *                              content ordering inside the JSON
+     * @param comparisonType        ComparisonType.EQUALS, CONTAINS; Note that
+     *                              MATCHES ignores the content ordering inside the
+     *                              JSON
      * @param jsonPathToTargetArray a jsonpath that will be parsed to point to the
      *                              target JSON Array
      * @return a boolean value that is TRUE in case the comparison passed, or FALSE
@@ -770,6 +770,7 @@ public class RestActions {
 	    }
 	    switch (comparisonType) {
 	    case EQUALS:
+		// TODO: handle jsonPathToTargetArray and attempt to parse the actual result
 		comparisonResult = compareJSONEquals(expectedJsonObject, expectedJsonArray, actualJsonObject);
 		break;
 	    case CONTAINS:

@@ -9,6 +9,7 @@ import com.shaft.api.RestActions.ComparisonType;
 import com.shaft.cli.FileActions;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
+import com.shaft.gui.element.JSWaiter;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.support.JavaActions;
@@ -26,12 +27,6 @@ public class Assertions {
     private static final String ERROR_UNHANDLED_EXCEPTION = "Assertion Failed; an unhandled exception occured.";
 
     private static Boolean discreetLoggingState = Boolean.valueOf(System.getProperty("alwaysLogDiscreetly"));
-
-    private static By aiGeneratedElementLocator = null;
-
-    public static void setAiGeneratedElementLocator(By aiGeneratedElementLocator) {
-	Assertions.aiGeneratedElementLocator = aiGeneratedElementLocator;
-    }
 
     public enum AssertionType {
 	POSITIVE(true), NEGATIVE(false);
@@ -293,10 +288,6 @@ public class Assertions {
 	    }
 
 	    int elementsCount = ElementActions.getElementsCount(driver, elementLocator, customAttempts);
-	    // Override current locator with the aiGeneratedElementLocator
-	    if (ScreenshotManager.getAiSupportedElementIdentification() && aiGeneratedElementLocator != null&& elementLocator != null) {
-		elementLocator = aiGeneratedElementLocator;
-	    }
 
 	    switch (elementsCount) {
 	    case 0:
@@ -551,6 +542,7 @@ public class Assertions {
      */
     public static void assertBrowserAttribute(WebDriver driver, String browserAttribute, String expectedValue,
 	    int comparisonType, Boolean assertionType) {
+	JSWaiter.waitForLazyLoading();
 
 	ReportManager.logDiscrete("Assertion [" + "assertBrowserAttribute"
 		+ "] is being performed for target attribute [" + browserAttribute + "].");
