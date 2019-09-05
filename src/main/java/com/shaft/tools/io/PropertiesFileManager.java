@@ -97,14 +97,12 @@ public class PropertiesFileManager {
 	}
     }
 
-    // TODO: add list of supported properties, and add link to hosted docs in the
-    // provided sample properties file
-
     private static void setDefaultProperties() {
 	Properties properties = new Properties();
 	// read default properties
 
-	// TODO: Refactor to read from bundled properties files
+	// TODO: Refactor to bundle default property files into src/main/resources, then
+	// extract them to src/test/resources and read from there.
 	properties.putAll(setDefaultExecutionProperties());
 	properties.putAll(setPathProperties());
 	properties.putAll(setPatternProperties());

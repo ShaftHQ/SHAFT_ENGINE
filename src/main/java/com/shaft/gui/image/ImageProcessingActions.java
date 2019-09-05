@@ -223,8 +223,6 @@ public class ImageProcessingActions {
 		    // debugging
 		    Imgproc.rectangle(img, matchLoc, new Point(matchLoc.x + templ.cols(), matchLoc.y + templ.rows()),
 			    new Scalar(0, 0, 0), 2, 8, 0);
-		    Imgproc.rectangle(result, matchLoc, new Point(matchLoc.x + templ.cols(), matchLoc.y + templ.rows()),
-			    new Scalar(0, 0, 0), 2, 8, 0);
 		    Image tmpImg = HighGui.toBufferedImage(img);
 		    BufferedImage image = (BufferedImage) tmpImg;
 
@@ -238,8 +236,19 @@ public class ImageProcessingActions {
 		    }
 		}
 
-		int x = Integer.parseInt(String.valueOf(matchLoc.x).split("\\.")[0]);
-		int y = Integer.parseInt(String.valueOf(matchLoc.y).split("\\.")[0]);
+		// returning the top left corner resulted in an issue with round edged text
+		// boxes
+		// matchLoc.x
+		// matchLoc.y
+
+		// returning the center of the element resulted in an issue with another element
+		// overlaying it
+		// matchLoc.x + templ.cols() / 2
+		// matchLoc.y + templ.rows() / 2
+
+		// returning the top left corner point plus 1x and 1y
+		int x = Integer.parseInt(String.valueOf(matchLoc.x + 1).split("\\.")[0]);
+		int y = Integer.parseInt(String.valueOf(matchLoc.y + 1).split("\\.")[0]);
 		return Arrays.asList(x, y);
 	    } catch (org.opencv.core.CvException e) {
 		ReportManager.log(e);
