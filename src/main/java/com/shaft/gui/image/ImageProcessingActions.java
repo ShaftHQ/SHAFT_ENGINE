@@ -153,15 +153,20 @@ public class ImageProcessingActions {
 	    // fetch the related reference screenshot file name using the current file
 	    // name/number as index
 	    String relatedReferenceFileName = refrenceFiles[Integer.parseInt(screenshot.getName()) - 1].getName();
-	    ReportManager.attachAsStep("Reference Screenshot", relatedReferenceFileName, new FileInputStream(new File(
-		    refrenceProcessingFolder + FileSystems.getDefault().getSeparator() + screenshot.getName())));
+
+	    List<Object> referenceScreenshotAttachment = Arrays.asList("Reference Screenshot", relatedReferenceFileName,
+		    new FileInputStream(new File(refrenceProcessingFolder + FileSystems.getDefault().getSeparator()
+			    + screenshot.getName())));
 
 	    String relatedTestFileName = testFiles[Integer.parseInt(screenshot.getName()) - 1].getName();
 
-	    ReportManager.attachAsStep("Test Screenshot", relatedTestFileName, new FileInputStream(screenshot));
+	    List<Object> testScreenshotAttachment = Arrays.asList("Test Screenshot", relatedTestFileName,
+		    new FileInputStream(screenshot));
 
-	    ReportManager.log("Test Screenshot [" + relatedTestFileName + "] and related Refrence Image ["
-		    + relatedReferenceFileName + "] match by [" + percentage + "] percent.");
+	    ReportManager.log(
+		    "Test Screenshot [" + relatedTestFileName + "] and related Refrence Image ["
+			    + relatedReferenceFileName + "] match by [" + percentage + "] percent.",
+		    Arrays.asList(referenceScreenshotAttachment, testScreenshotAttachment));
 
 	    Boolean discreetLoggingState = ReportManager.isDiscreteLogging();
 	    try {

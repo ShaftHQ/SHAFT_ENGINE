@@ -67,24 +67,38 @@ public class ElementActions {
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     private static void passAction(WebDriver driver, String actionName) {
-	passAction(driver, null, actionName, null);
+	passAction(driver, null, actionName, null, null);
     }
 
     private static void passAction(WebDriver driver, By elementLocator, String actionName) {
-	passAction(driver, elementLocator, actionName, null);
+	passAction(driver, elementLocator, actionName, null, null);
+    }
+
+    private static void passAction(WebDriver driver, By elementLocator, String actionName, List<Object> screenshot) {
+	passAction(driver, elementLocator, actionName, null, screenshot);
     }
 
     private static void passAction(WebDriver driver, String actionName, String testData) {
-	passAction(driver, null, actionName, testData);
+	passAction(driver, null, actionName, testData, null);
     }
 
     private static void passAction(WebDriver driver, By elementLocator, String actionName, String testData) {
+	passAction(driver, elementLocator, actionName, testData, null);
+    }
+
+    private static void passAction(WebDriver driver, By elementLocator, String actionName, String testData,
+	    List<Object> screenshot) {
 	String message = "Element Action [" + actionName + "] successfully performed.";
 	if (testData != null) {
 	    message = message + " With the following test data [" + testData + "].";
 	}
-	takeScreenshot(driver, elementLocator, actionName, testData, true);
-	ReportManager.log(message);
+	if (screenshot != null) {
+	    // screenshot taken before action (in case of click)
+	    ReportManager.log(message, Arrays.asList(screenshot));
+	} else {
+	    ReportManager.log(message,
+		    Arrays.asList(takeScreenshot(driver, elementLocator, actionName, testData, true)));
+	}
     }
 
     private static void failAction(WebDriver driver, String actionName) {
@@ -96,12 +110,11 @@ public class ElementActions {
 	if (testData != null) {
 	    message = message + " With the following test data [" + testData + "].";
 	}
-	takeScreenshot(driver, null, actionName, testData, false);
-	ReportManager.log(message);
+	ReportManager.log(message, Arrays.asList(takeScreenshot(driver, null, actionName, testData, false)));
 	Assert.fail(message);
     }
 
-    private static void takeScreenshot(WebDriver driver, By elementLocator, String actionName, String testData,
+    private static List<Object> takeScreenshot(WebDriver driver, By elementLocator, String actionName, String testData,
 	    boolean passFailStatus) {
 	if (passFailStatus) {
 	    try {
@@ -109,20 +122,21 @@ public class ElementActions {
 		    // this only happens when switching to default content so there is no need to
 		    // take a screenshot
 		} else if (elementLocator != null) {
-		    ScreenshotManager.captureScreenShot(driver, elementLocator, actionName, true);
+		    return ScreenshotManager.captureScreenShot(driver, elementLocator, actionName, true);
 		} else {
-		    ScreenshotManager.captureScreenShot(driver, actionName, true);
+		    return ScreenshotManager.captureScreenShot(driver, actionName, true);
 		}
 	    } catch (Exception e) {
 		ReportManager.log(e);
 		ReportManager.log(
 			"Failed to take a screenshot of the element as it doesn't exist anymore. Taking a screenshot of the whole page.");
-		ScreenshotManager.captureScreenShot(driver, actionName, true);
+		return ScreenshotManager.captureScreenShot(driver, actionName, true);
 	    }
 	} else {
-	    ScreenshotManager.captureScreenShot(driver, actionName, false);
+	    return ScreenshotManager.captureScreenShot(driver, actionName, false);
 	}
 	lastUsedDriver = driver;
+	return null;
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -820,7 +834,7 @@ public class ElementActions {
 		// else ignore this issue
 	    }
 
-	    takeScreenshot(driver, elementLocator, "click", null, true);
+	    List<Object> screenshot = takeScreenshot(driver, elementLocator, "click", null, true);
 	    // takes screenshot before clicking the element out of view
 
 	    try {
@@ -850,7 +864,7 @@ public class ElementActions {
 
 	    // removed to enhance performance, and replaced with a process to assert after
 	    // every navigation
-	    passAction(driver, elementLocator, "click");
+	    passAction(driver, elementLocator, "click", screenshot);
 	} else {
 	    failAction(driver, "click");
 	}

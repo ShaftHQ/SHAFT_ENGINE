@@ -196,6 +196,18 @@ public class ReportManager {
 	createReportEntry(logText);
     }
 
+    @Step("Action [{actionCounter}]: {logText}")
+    private static void writeStepToReport(String logText, int actionCounter, List<List<Object>> attachments) {
+	createReportEntry(logText);
+	attachments.forEach(attachment -> {
+	    if (attachment != null && attachment.get(2).getClass().toString().toLowerCase().contains("string")) {
+		attach(attachment.get(0).toString(), attachment.get(1).toString(), attachment.get(2).toString());
+	    } else if (attachment != null) {
+		attach(attachment.get(0).toString(), attachment.get(1).toString(), (InputStream) attachment.get(2));
+	    }
+	});
+    }
+
     private static void createAttachment(String attachmentType, String attachmentName, InputStream attachmentContent) {
 	InputStream attachmentContentCopy = null;
 	ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -441,6 +453,21 @@ public class ReportManager {
 	}
     }
 
+    public static void log(String logText, List<List<Object>> attachments) {
+	if (isDiscreteLogging() && !logText.toLowerCase().contains("failed")) {
+	    createLogEntry(logText);
+	    attachments.forEach(attachment -> {
+		if (attachment != null) {
+		    attachAsStep(attachment.get(0).toString(), attachment.get(1).toString(),
+			    (InputStream) attachment.get(2));
+		}
+	    });
+	} else {
+	    writeStepToReport(logText, actionCounter, attachments);
+	    actionCounter++;
+	}
+    }
+
     /**
      *
      * Format an exception message and stack trace, and calls attach to add it as a
@@ -464,10 +491,14 @@ public class ReportManager {
 	}
 	logText = logBuilder.toString();
 	if (t.getMessage() != null) {
-	    ReportManager.log("An Exception Occured with this Message: "
-		    + t.getMessage().replace(System.lineSeparator(), " ").trim() + ".");
+	    ReportManager.log(
+		    "An Exception Occured with this Message: "
+			    + t.getMessage().replace(System.lineSeparator(), " ").trim() + ".",
+		    Arrays.asList(Arrays.asList("Exception Stack Trace", t.getClass().getName(), logText)));
+	} else {
+	    ReportManager.log("An Exception Occured",
+		    Arrays.asList(Arrays.asList("Exception Stack Trace", t.getClass().getName(), logText)));
 	}
-	attachAsStep("Exception Stack Trace", t.getClass().getName(), logText);
 	actionCounter++;
     }
 
@@ -484,18 +515,20 @@ public class ReportManager {
      * @param attachmentContent the content of this attachment
      */
     @Step("Attachment: {attachmentType} - {attachmentName}")
-    public static void attachAsStep(String attachmentType, String attachmentName, InputStream attachmentContent) {
+    private static void attachAsStep(String attachmentType, String attachmentName, InputStream attachmentContent) {
 	createAttachment(attachmentType, attachmentName, attachmentContent);
     }
 
     /**
-     * Adds a new attachment using the input parameters provided. The attachment is
-     * displayed as a step in the execution report. Used for Screenshots.
+     * @deprecated Adds a new attachment using the input parameters provided. The
+     *             attachment is displayed as a step in the execution report. Used
+     *             for Screenshots.
      * 
      * @param attachmentType    the type of this attachment
      * @param attachmentName    the name of this attachment
      * @param attachmentContent the content of this attachment
      */
+    @Deprecated
     @Step("Attachment: {attachmentType} - {attachmentName}")
     public static void attachAsStep(String attachmentType, String attachmentName, String attachmentContent) {
 	if (!attachmentContent.trim().equals("")) {

@@ -1,5 +1,8 @@
 package com.shaft.validation;
 
+import java.util.Arrays;
+import java.util.List;
+
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.testng.Assert;
@@ -78,35 +81,46 @@ public class Verifications {
     }
 
     private static void reportVerificationResults(String actionName, WebDriver driver, By elementLocator) {
+	reportVerificationResults(actionName, driver, elementLocator, null);
+    }
+
+    private static void reportVerificationResults(String actionName, WebDriver driver, By elementLocator,
+	    List<List<Object>> attachments) {
 	String verificationSuccessesString = verificationSuccesses.toString().trim();
 	if (!"".equals(verificationSuccessesString)) {
 	    if (driver != null) {
 		try {
-		    ScreenshotManager.captureScreenShot(driver, elementLocator, actionName, true);
+		    ReportManager.log(verificationSuccessesString, Arrays
+			    .asList(ScreenshotManager.captureScreenShot(driver, elementLocator, actionName, true)));
 		} catch (NullPointerException e) {
 		    // elementLocator is null, meaning that there is no element attached to this
 		    // verification
-		    ScreenshotManager.captureScreenShot(driver, actionName, true);
+		    ReportManager.log(verificationSuccessesString,
+			    Arrays.asList(ScreenshotManager.captureScreenShot(driver, actionName, true)));
 		}
+	    } else {
+		ReportManager.log(verificationSuccessesString, attachments);
 	    }
-	    ReportManager.log(verificationSuccessesString);
 	    verificationSuccesses.delete(0, verificationSuccesses.length());
 	}
 
 	String verificationFailuresString = verificationFailures.toString().trim();
 	if (!"".equals(verificationFailuresString)) {
 	    Boolean initialDiscreteLoggingState = ReportManager.isDiscreteLogging();
+	    ReportManager.setDiscreteLogging(false);
 	    if (driver != null) {
 		try {
-		    ScreenshotManager.captureScreenShot(driver, elementLocator, actionName, false);
+		    ReportManager.log(verificationFailuresString, Arrays
+			    .asList(ScreenshotManager.captureScreenShot(driver, elementLocator, actionName, false)));
 		} catch (NullPointerException e) {
 		    // elementLocator is null, meaning that there is no element attached to this
 		    // verification
-		    ScreenshotManager.captureScreenShot(driver, actionName, false);
+		    ReportManager.log(verificationFailuresString,
+			    Arrays.asList(ScreenshotManager.captureScreenShot(driver, actionName, false)));
 		}
+	    } else {
+		ReportManager.log(verificationFailuresString, attachments);
 	    }
-	    ReportManager.setDiscreteLogging(false);
-	    ReportManager.log(verificationFailuresString);
 	    ReportManager.setDiscreteLogging(initialDiscreteLoggingState);
 
 	    // Throw a new exception with the failure string, or append to current exception
@@ -126,9 +140,13 @@ public class Verifications {
 
     private static void reportVerificationResults(String actionName, String expectedValue, String actualValue,
 	    WebDriver driver, By elementLocator) {
-	ReportManager.attachAsStep("Validation Test Data", "Expected Value", expectedValue.toString());
-	ReportManager.attachAsStep("Validation Test Data", "Actual Value", actualValue.toString());
-	reportVerificationResults(actionName, null, null);
+
+	List<Object> expectedTestDataAttachment = Arrays.asList("Validation Test Data", "Expected Value",
+		expectedValue);
+	List<Object> actualTestDataAttachment = Arrays.asList("Validation Test Data", "Actual Value", actualValue);
+
+	reportVerificationResults(actionName, null, null,
+		Arrays.asList(expectedTestDataAttachment, actualTestDataAttachment));
     }
 
     /**
@@ -182,14 +200,16 @@ public class Verifications {
 		    verificationSuccesses.append("Verification Passed; actual value [" + actualValue
 			    + "] does match expected value [" + expectedValue + "].");
 		} else {
-		    verificationSuccesses.append("Verification Passed; actual value does match expected value.");
+		    verificationSuccesses.append(
+			    "Verification Passed; actual value does match expected value. Kindly check the attachments for more details.");
 		}
 	    } else {
 		if (!isExpectedOrActualValueLong) {
 		    verificationSuccesses.append("Verification Passed; actual value [" + actualValue
 			    + "] does not match expected value [" + expectedValue + "].");
 		} else {
-		    verificationSuccesses.append("Verification Passed; actual value does not match expected value.");
+		    verificationSuccesses.append(
+			    "Verification Passed; actual value does not match expected value. Kindly check the attachments for more details.");
 		}
 	    }
 	    break;
