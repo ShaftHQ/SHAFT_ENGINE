@@ -6,6 +6,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Statement;
+import java.util.Arrays;
 import java.util.concurrent.Executors;
 
 import org.testng.Assert;
@@ -63,9 +64,10 @@ public class DatabaseActions {
 	if (testData != null) {
 	    message = message + " With the following test data [" + testData + "].";
 	}
-	ReportManager.log(message);
 	if (queryResult != null) {
-	    ReportManager.attachAsStep("DB Response", "Query Result", queryResult);
+	    ReportManager.log(message, Arrays.asList(Arrays.asList("DB Response", "Query Result", queryResult)));
+	} else {
+	    ReportManager.log(message);
 	}
     }
 
