@@ -45,9 +45,11 @@ public class FileActions {
 	if (testData != null) {
 	    message = message + " With the following test data [" + testData + "].";
 	}
-	ReportManager.log(message);
 	if ((log != null) && (!log.trim().equals(""))) {
-	    ReportManager.attachAsStep("API Response", "Command Log", log);
+	    ReportManager.log(message, Arrays.asList(Arrays.asList("API Response", "Command Log", log)));
+	} else {
+	    ReportManager.log(message);
+
 	}
 	Assert.fail(message);
     }

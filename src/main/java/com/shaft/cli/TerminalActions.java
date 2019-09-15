@@ -124,9 +124,11 @@ public class TerminalActions {
 		ReportManager.logDiscrete(message);
 		ReportManager.logDiscrete("CLI Response - Terminal Log:\n" + log);
 	    } else {
-		ReportManager.log(message);
 		if ((log != null) && (!log.trim().equals(""))) {
-		    ReportManager.attachAsStep("CLI Response", "Terminal Log", log);
+		    ReportManager.log(message, Arrays.asList(Arrays.asList("CLI Response", "Terminal Log", log)));
+		} else {
+		    ReportManager.log(message);
+
 		}
 	    }
 	}
@@ -141,9 +143,10 @@ public class TerminalActions {
 	if (testData != null) {
 	    message = message + " With the following test data [" + testData + "].";
 	}
-	ReportManager.log(message);
 	if ((log != null) && (!log.trim().equals(""))) {
-	    ReportManager.attachAsStep("API Response", "Command Log", log);
+	    ReportManager.log(message, Arrays.asList(Arrays.asList("API Response", "Command Log", log)));
+	} else {
+	    ReportManager.log(message);
 	}
 	Assert.fail(message);
     }

@@ -37,8 +37,6 @@ import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.validation.Assertions;
-import com.shaft.validation.Verifications;
 
 public class ElementActions {
     private static Duration defaultElementIdentificationTimeout = Duration
@@ -69,24 +67,38 @@ public class ElementActions {
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     private static void passAction(WebDriver driver, String actionName) {
-	passAction(driver, null, actionName, null);
+	passAction(driver, null, actionName, null, null);
     }
 
     private static void passAction(WebDriver driver, By elementLocator, String actionName) {
-	passAction(driver, elementLocator, actionName, null);
+	passAction(driver, elementLocator, actionName, null, null);
+    }
+
+    private static void passAction(WebDriver driver, By elementLocator, String actionName, List<Object> screenshot) {
+	passAction(driver, elementLocator, actionName, null, screenshot);
     }
 
     private static void passAction(WebDriver driver, String actionName, String testData) {
-	passAction(driver, null, actionName, testData);
+	passAction(driver, null, actionName, testData, null);
     }
 
     private static void passAction(WebDriver driver, By elementLocator, String actionName, String testData) {
+	passAction(driver, elementLocator, actionName, testData, null);
+    }
+
+    private static void passAction(WebDriver driver, By elementLocator, String actionName, String testData,
+	    List<Object> screenshot) {
 	String message = "Element Action [" + actionName + "] successfully performed.";
 	if (testData != null) {
 	    message = message + " With the following test data [" + testData + "].";
 	}
-	takeScreenshot(driver, elementLocator, actionName, testData, true);
-	ReportManager.log(message);
+	if (screenshot != null) {
+	    // screenshot taken before action (in case of click)
+	    ReportManager.log(message, Arrays.asList(screenshot));
+	} else {
+	    ReportManager.log(message,
+		    Arrays.asList(takeScreenshot(driver, elementLocator, actionName, testData, true)));
+	}
     }
 
     private static void failAction(WebDriver driver, String actionName) {
@@ -98,12 +110,11 @@ public class ElementActions {
 	if (testData != null) {
 	    message = message + " With the following test data [" + testData + "].";
 	}
-	takeScreenshot(driver, null, actionName, testData, false);
-	ReportManager.log(message);
+	ReportManager.log(message, Arrays.asList(takeScreenshot(driver, null, actionName, testData, false)));
 	Assert.fail(message);
     }
 
-    private static void takeScreenshot(WebDriver driver, By elementLocator, String actionName, String testData,
+    private static List<Object> takeScreenshot(WebDriver driver, By elementLocator, String actionName, String testData,
 	    boolean passFailStatus) {
 	if (passFailStatus) {
 	    try {
@@ -111,20 +122,21 @@ public class ElementActions {
 		    // this only happens when switching to default content so there is no need to
 		    // take a screenshot
 		} else if (elementLocator != null) {
-		    ScreenshotManager.captureScreenShot(driver, elementLocator, actionName, true);
+		    return ScreenshotManager.captureScreenShot(driver, elementLocator, actionName, true);
 		} else {
-		    ScreenshotManager.captureScreenShot(driver, actionName, true);
+		    return ScreenshotManager.captureScreenShot(driver, actionName, true);
 		}
 	    } catch (Exception e) {
 		ReportManager.log(e);
 		ReportManager.log(
 			"Failed to take a screenshot of the element as it doesn't exist anymore. Taking a screenshot of the whole page.");
-		ScreenshotManager.captureScreenShot(driver, actionName, true);
+		return ScreenshotManager.captureScreenShot(driver, actionName, true);
 	    }
 	} else {
-	    ScreenshotManager.captureScreenShot(driver, actionName, false);
+	    return ScreenshotManager.captureScreenShot(driver, actionName, false);
 	}
 	lastUsedDriver = driver;
+	return null;
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -141,7 +153,7 @@ public class ElementActions {
 	    String aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
 	    String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
 	    List<Integer> point = ImageProcessingActions.findImageWithinCurrentPage(referenceImagePath,
-		    ScreenshotManager.takeFullPageScreenshot(driver), Imgproc.TM_CCOEFF);
+		    ScreenshotManager.takeFullPageScreenshot(driver), Imgproc.TM_CCORR_NORMED); // TM_CCOEFF
 	    if (point.size() == 2) {
 		WebElement targetElement = (WebElement) ((JavascriptExecutor) driver).executeScript(
 			"return document.elementFromPoint(arguments[0], arguments[1])", point.get(0), point.get(1));
@@ -170,7 +182,7 @@ public class ElementActions {
 		    // writing for the first time
 		    FileActions.writeToFile(aiFolderPath, aiReferenceFileName, hashedLocatorName + "=" + newXpath);
 		}
-		setNewXpath(newXpath);
+		setAiGeneratedXpath(newXpath);
 		return true;
 	    } else {
 		return false;
@@ -180,11 +192,13 @@ public class ElementActions {
 	}
     }
 
-    private static void setNewXpath(String newXpath) {
-	aiGeneratedElementLocator = By.xpath(newXpath);
+    private static void setAiGeneratedXpath(String newXpath) {
+	if (newXpath == null) {
+	    aiGeneratedElementLocator = null;
+	} else {
+	    aiGeneratedElementLocator = By.xpath(newXpath);
+	}
 	ScreenshotManager.setAiGeneratedElementLocator(aiGeneratedElementLocator);
-	Assertions.setAiGeneratedElementLocator(aiGeneratedElementLocator);
-	Verifications.setAiGeneratedElementLocator(aiGeneratedElementLocator);
     }
 
     private static String suggestNewXpath(WebDriver driver, WebElement targetElement, By deprecatedElementLocator) {
@@ -198,38 +212,36 @@ public class ElementActions {
 	     * $$MaxCount$$
 	     */
 	    String maxCount = String.valueOf(i);
-	    String getIndex = String.valueOf(false);
-	    String getClass = String.valueOf(false);
-	    String getText = String.valueOf(false);
+	    String getId = String.valueOf(true);
+	    String getIndex;
+	    String getName;
+	    String getType;
+	    String getClass;
+	    String getText;
+	    getIndex = getName = getType = getClass = getText = String.valueOf(false);
 
-	    switch (i) {
-	    case 0:
+	    if (i == 0) {
 		maxCount = String.valueOf(1);
-		break;
-	    case 1:
+	    } else if (i == 1 || i == 2) {
+		getName = String.valueOf(true);
+		getType = String.valueOf(true);
 		getText = String.valueOf(true);
-		break;
-	    case 2:
-		getText = String.valueOf(true);
-		break;
-	    case 3:
-		getText = String.valueOf(true);
+	    } else if (i == 3 || i == 4) {
+		getName = String.valueOf(true);
+		getType = String.valueOf(true);
 		getClass = String.valueOf(true);
-		break;
-	    case 4:
 		getText = String.valueOf(true);
-		getClass = String.valueOf(true);
-		break;
-	    default:
-		getText = String.valueOf(true);
-		getClass = String.valueOf(true);
+	    } else {
 		getIndex = String.valueOf(true);
-		break;
+		getName = String.valueOf(true);
+		getType = String.valueOf(true);
+		getText = String.valueOf(true);
+		getClass = String.valueOf(true);
 	    }
 
 	    xpathFindingAlgorithm = xpathFindingAlgorithm.replaceAll("\\$\\$MaxCount\\$\\$", maxCount)
-		    .replaceAll("\\$\\$GetId\\$\\$", "true").replaceAll("\\$\\$GetIndex\\$\\$", getIndex)
-		    .replaceAll("\\$\\$GetName\\$\\$", "true").replaceAll("\\$\\$GetType\\$\\$", "true")
+		    .replaceAll("\\$\\$GetId\\$\\$", getId).replaceAll("\\$\\$GetIndex\\$\\$", getIndex)
+		    .replaceAll("\\$\\$GetName\\$\\$", getName).replaceAll("\\$\\$GetType\\$\\$", getType)
 		    .replaceAll("\\$\\$GetClass\\$\\$", getClass).replaceAll("\\$\\$GetText\\$\\$", getText);
 
 	    try {
@@ -328,57 +340,71 @@ public class ElementActions {
 	    JSWaiter.waitForLazyLoading();
 	}
 
-	if (elementLocator != null) {
+	if (elementLocator != null && !elementLocator.equals(By.tagName("html"))) {
 
 	    // check to see if this element was already identified using AI, and if it's
 	    // still unique, use that locator directly
 	    String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
 	    String previouslyIdentifiedXpath = System.getProperty(hashedLocatorName);
 
+	    // wait for element presence
+	    int matchingElementsCount = 0;
 	    if (previouslyIdentifiedXpath != null) {
-		aiGeneratedElementLocator = By.xpath(previouslyIdentifiedXpath);
-		if (driver.findElements(By.xpath(previouslyIdentifiedXpath)).size() == 1) {
+//		aiGeneratedElementLocator = By.xpath(previouslyIdentifiedXpath);
+		setAiGeneratedXpath(previouslyIdentifiedXpath);
+		matchingElementsCount = waitForElementPresence(driver, aiGeneratedElementLocator, numberOfAttempts);
+	    } else {
+		setAiGeneratedXpath(null);
+		matchingElementsCount = waitForElementPresence(driver, elementLocator, numberOfAttempts);
+	    }
+
+	    if (matchingElementsCount == 1) {
+		if (previouslyIdentifiedXpath != null) {
 		    Boolean initialLoggingState = ReportManager.isDiscreteLogging();
 		    ReportManager.setDiscreteLogging(false);
 		    ReportManager
 			    .log("Element was previously found using AI... Kindly update your element locator from ["
 				    + elementLocator + "] to [" + aiGeneratedElementLocator + "].");
 		    ReportManager.setDiscreteLogging(initialLoggingState);
-		    setNewXpath(previouslyIdentifiedXpath);
 		    elementLocator = aiGeneratedElementLocator;
 		}
-	    }
-
-	    int matchingElementsCount = 0;
-	    int i = 0;
-	    do {
-		try {
-		    (new WebDriverWait(driver, defaultElementIdentificationTimeout))
-			    .until(ExpectedConditions.presenceOfElementLocated(elementLocator));
-
-		    matchingElementsCount = driver.findElements(elementLocator).size();
-		} catch (TimeoutException e) {
-		    // in case of assert element doesn't exist, or if an element really doesn't
-		    // exist this exception will be thrown from the fluent wait command
-
-		    // this is expected and in this case the loop should just continue to iterate
-
-		    // I've included the finElements line inside this try clause because it makes no
-		    // added value to try again to find the element within the same attempt
-		}
-		i++;
-	    } while ((matchingElementsCount == 0) && (i < numberOfAttempts));
-
-	    if (matchingElementsCount == 1) {
 		ScreenshotManager.storeElementScreenshotForAISupportedElementIdentification(driver, elementLocator);
 	    }
 	    if (matchingElementsCount == 0 && attemptToFindElementUsingAI(driver, elementLocator)) {
 		matchingElementsCount = 1;
 	    }
 	    return matchingElementsCount;
-	} else {
+	} else if (elementLocator != null && elementLocator.equals(By.tagName("html"))
+		&& waitForElementPresence(driver, elementLocator, numberOfAttempts) == 1) {
+	    return 1;
+	}
+
+	else {
 	    return 0;
 	}
+    }
+
+    private static int waitForElementPresence(WebDriver driver, By elementLocator, int numberOfAttempts) {
+	int matchingElementsCount = 0;
+	int i = 0;
+	do {
+	    try {
+		(new WebDriverWait(driver, defaultElementIdentificationTimeout))
+			.until(ExpectedConditions.presenceOfElementLocated(elementLocator));
+
+		matchingElementsCount = driver.findElements(elementLocator).size();
+	    } catch (TimeoutException e) {
+		// in case of assert element doesn't exist, or if an element really doesn't
+		// exist this exception will be thrown from the fluent wait command
+
+		// this is expected and in this case the loop should just continue to iterate
+
+		// I've included the finElements line inside this try clause because it makes no
+		// added value to try again to find the element within the same attempt
+	    }
+	    i++;
+	} while ((matchingElementsCount == 0) && (i < numberOfAttempts));
+	return matchingElementsCount;
     }
 
     private static String determineSuccessfulTextLocationStrategy(WebDriver driver, By elementLocator) {
@@ -496,29 +522,38 @@ public class ElementActions {
     }
 
     private static void clearBeforeTyping(WebDriver driver, By elementLocator, String successfulTextLocationStrategy) {
-	// attempt clear using clear
-	driver.findElement(elementLocator).clear();
-	String elementText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator,
-		successfulTextLocationStrategy);
+	try {
+	    // attempt clear using clear
+	    driver.findElement(elementLocator).clear();
 
-	// attempt clear using sendKeys
-	if (!elementText.trim().equals("")) {
-	    driver.findElement(elementLocator).sendKeys("");
-	}
-	elementText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator, successfulTextLocationStrategy);
+	    String elementText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator,
+		    successfulTextLocationStrategy);
 
-	// attempt clear using javascript
-	if (!elementText.trim().equals("")) {
-	    setValueUsingJavaScript(driver, elementLocator, "", true);
-	}
-
-	elementText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator, successfulTextLocationStrategy);
-	// attempt clear using letter by letter backspace
-	if (!elementText.trim().equals("")) {
-	    driver.findElement(elementLocator).sendKeys("");
-	    for (int i = 0; i < elementText.length(); i++) {
-		driver.findElement(elementLocator).sendKeys(Keys.BACK_SPACE);
+	    // attempt clear using sendKeys
+	    if (!elementText.trim().equals("")) {
+		driver.findElement(elementLocator).sendKeys("");
 	    }
+	    elementText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator,
+		    successfulTextLocationStrategy);
+
+	    // attempt clear using javascript
+	    if (!elementText.trim().equals("")) {
+		setValueUsingJavaScript(driver, elementLocator, "", true);
+	    }
+
+	    elementText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator,
+		    successfulTextLocationStrategy);
+	    // attempt clear using letter by letter backspace
+	    if (!elementText.trim().equals("")) {
+		driver.findElement(elementLocator).sendKeys("");
+		for (int i = 0; i < elementText.length(); i++) {
+		    driver.findElement(elementLocator).sendKeys(Keys.BACK_SPACE);
+		}
+
+	    }
+	} catch (org.openqa.selenium.InvalidElementStateException e) {
+	    // this was seen in case of attempting to type in an invalid element (an image)
+	    ReportManager.log(e);
 	}
     }
 
@@ -799,7 +834,7 @@ public class ElementActions {
 		// else ignore this issue
 	    }
 
-	    takeScreenshot(driver, elementLocator, "click", null, true);
+	    List<Object> screenshot = takeScreenshot(driver, elementLocator, "click", null, true);
 	    // takes screenshot before clicking the element out of view
 
 	    try {
@@ -829,7 +864,7 @@ public class ElementActions {
 
 	    // removed to enhance performance, and replaced with a process to assert after
 	    // every navigation
-	    passAction(driver, elementLocator, "click");
+	    passAction(driver, elementLocator, "click", screenshot);
 	} else {
 	    failAction(driver, "click");
 	}

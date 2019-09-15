@@ -15,6 +15,7 @@ import java.net.URL;
 import java.nio.file.FileSystems;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
@@ -118,7 +119,7 @@ public class ScreenshotManager {
      * @param passFailStatus A flag to determine whether the action has passed or
      *                       failed
      */
-    public static void captureScreenShot(WebDriver driver, String actionName, boolean passFailStatus) {
+    public static List<Object> captureScreenShot(WebDriver driver, String actionName, boolean passFailStatus) {
 	globalPassFailStatus = passFailStatus;
 	if (passFailStatus) {
 	    globalPassFailAppendedText = "passed";
@@ -126,7 +127,7 @@ public class ScreenshotManager {
 	    globalPassFailAppendedText = "failed";
 	}
 
-	internalCaptureScreenShot(driver, null, actionName, globalPassFailAppendedText,
+	return internalCaptureScreenShot(driver, null, actionName, globalPassFailAppendedText,
 		(SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always"))
 			|| (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly")
 				&& (actionName.contains("assert") || actionName.contains("verify")))
@@ -149,7 +150,7 @@ public class ScreenshotManager {
      * @param passFailStatus A flag to determine whether the action has passed or
      *                       failed
      */
-    public static void captureScreenShot(WebDriver driver, By elementLocator, String actionName,
+    public static List<Object> captureScreenShot(WebDriver driver, By elementLocator, String actionName,
 	    boolean passFailStatus) {
 
 	// Override current locator with the aiGeneratedElementLocator
@@ -166,7 +167,7 @@ public class ScreenshotManager {
 	    globalPassFailAppendedText = "failed";
 	}
 
-	internalCaptureScreenShot(driver, elementLocator, actionName, globalPassFailAppendedText,
+	return internalCaptureScreenShot(driver, elementLocator, actionName, globalPassFailAppendedText,
 		(SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always"))
 			|| (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly")
 				&& (actionName.contains("assert") || actionName.contains("verify")))
@@ -189,8 +190,9 @@ public class ScreenshotManager {
      * @param takeScreenshot determines whether or not to take a screenshot given
      *                       the screenshotParams_whenToTakeAScreenshot parameter
      *                       from the pom.xml file
+     * @return
      */
-    private static void internalCaptureScreenShot(WebDriver driver, By elementLocator, String actionName,
+    private static List<Object> internalCaptureScreenShot(WebDriver driver, By elementLocator, String actionName,
 	    String appendedText, boolean takeScreenshot) {
 
 	// Override current locator with the aiGeneratedElementLocator
@@ -270,8 +272,8 @@ public class ScreenshotManager {
 		FileActions.copyFile(src.getAbsolutePath(), SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME
 			+ FileSystems.getDefault().getSeparator() + screenshotFileName + ".png");
 
-		addScreenshotToReport(src);
 		appendToAnimatedGif(src);
+		return addScreenshotToReport(src);
 	    } catch (WebDriverException e) {
 		// this happens when a browser session crashes mid-execution, or the docker is
 		// unregistered
@@ -280,6 +282,7 @@ public class ScreenshotManager {
 	} else {
 	    appendToAnimatedGif();
 	}
+	return null;
     }
 
     private static File takeScreenshot(WebDriver driver) {
@@ -334,7 +337,7 @@ public class ScreenshotManager {
 	}
     }
 
-    private static void addScreenshotToReport(File screenshotFile) {
+    private static List<Object> addScreenshotToReport(File screenshotFile) {
 	/**
 	 * Adding Screenshot to the Report.
 	 * 
@@ -346,11 +349,13 @@ public class ScreenshotManager {
 	    ByteArrayOutputStream screenshotOutputStream = new ByteArrayOutputStream();
 	    ImageIO.write(screenshotImage, "png", screenshotOutputStream);
 
-	    ReportManager.attachAsStep("Screenshot", screenshotFileName,
+//	    ReportManager.attachAsStep("Screenshot", screenshotFileName,
+//		    new ByteArrayInputStream(screenshotOutputStream.toByteArray()));
+	    return Arrays.asList("Screenshot", screenshotFileName,
 		    new ByteArrayInputStream(screenshotOutputStream.toByteArray()));
-
 	} catch (IOException e) {
 	    ReportManager.log(e);
+	    return null;
 	}
     }
 

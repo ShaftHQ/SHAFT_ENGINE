@@ -13,6 +13,7 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -97,43 +98,74 @@ public class RestActions {
     //////////////////////////////////// [private] Reporting Actions
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    private static void passAction(String actionName, String testData, Response response, Boolean isDiscrete) {
+    private static void passAction(String actionName, String testData, Object requestBody, Response response,
+	    Boolean isDiscrete, List<List<Object>> attachments) {
 	String message = "Successfully performed action [" + actionName + "].";
 	if (testData != null) {
 	    message = message + " With the following test data [" + testData + "].";
 	}
 	Boolean initialLoggingState = ReportManager.isDiscreteLogging();
+
 	if (isDiscrete) {
+	    // attach body
+	    if (requestBody != null && !requestBody.equals(new JsonObject())) {
+		reportRequestBody(requestBody);
+	    }
 	    reportResponseBody(response, isDiscrete);
 	    ReportManager.logDiscrete(message);
 	} else {
-	    reportResponseBody(response, initialLoggingState);
-	    if (!initialLoggingState) {
-		ReportManager.log(message);
+	    if (attachments != null && requestBody == null && response == null) {
+		// compareJSON
+		ReportManager.log(message, attachments);
 	    } else {
-		ReportManager.logDiscrete(message);
+		// performRequest
+		// attach body
+		List<Object> requestBodyAttachment = null;
+		if (requestBody != null && !requestBody.equals(new JsonObject())) {
+		    requestBodyAttachment = reportRequestBody(requestBody);
+		}
+
+		List<Object> responseBodyAttachment = reportResponseBody(response, initialLoggingState);
+		if (!initialLoggingState) {
+		    ReportManager.log(message, Arrays.asList(requestBodyAttachment, responseBodyAttachment));
+		} else {
+		    ReportManager.logDiscrete(message);
+		}
 	    }
 	}
     }
 
     private static void passAction(String actionName, String testData, Boolean isDiscrete) {
-	passAction(actionName, testData, null, isDiscrete);
+	passAction(actionName, testData, null, null, isDiscrete, null);
     }
 
-    private static void failAction(String actionName, String testData, Response response) {
+    private static void passAction(String actionName, String testData, Boolean isDiscrete,
+	    List<List<Object>> attachments) {
+	passAction(actionName, testData, null, null, isDiscrete, attachments);
+    }
+
+    private static void failAction(String actionName, String testData, Object requestBody, Response response) {
 	String message = "Failed to perform action [" + actionName + "].";
 	if (testData != null) {
 	    message = message + " With the following test data [" + testData + "].";
 	}
-	ReportManager.log(message);
+
+	// attach body
+	List<Object> requestBodyAttachment = null;
+	if (requestBody != null && !requestBody.equals(new JsonObject())) {
+	    requestBodyAttachment = reportRequestBody(requestBody);
+	}
+
 	if (response != null) {
-	    reportResponseBody(response, false);
+	    ReportManager.log(message, Arrays.asList(requestBodyAttachment, reportResponseBody(response, false)));
+	} else {
+	    ReportManager.log(message, Arrays.asList(requestBodyAttachment));
 	}
 	Assert.fail(message);
     }
 
     private static void failAction(String actionName, String testData) {
-	failAction(actionName, testData, null);
+	failAction(actionName, testData, null, null);
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -204,10 +236,10 @@ public class RestActions {
 		    builder.setBody(body);
 		    break;
 		}
-		// attach body
-		if (!body.equals(new JsonObject())) {
-		    reportRequestBody(body);
-		}
+//		// attach body
+//		if (!body.equals(new JsonObject())) {
+//		    reportRequestBody(body);
+//		}
 	    } catch (Exception e) {
 		ReportManager.log(e);
 		failAction("performRequest", "Issue with parsing body content");
@@ -237,91 +269,117 @@ public class RestActions {
 	return builder.build();
     }
 
-    private void reportRequestBody(Object body) {
-	if (body.toString() != null && !body.toString().equals("")) {
+    private static List<Object> reportRequestBody(Object requestBody) {
+	List<Object> requestBodyAttachment = new ArrayList<>();
+	if (requestBody.toString() != null && !requestBody.toString().equals("")) {
 	    if (ReportManager.isDiscreteLogging()) {
 		try {
 		    ReportManager.logDiscrete("API Request - REST Body:\n"
-			    + IOUtils.toString(parseBodyToJson(body), StandardCharsets.UTF_8));
+			    + IOUtils.toString(parseBodyToJson(requestBody), StandardCharsets.UTF_8));
 		} catch (IOException e) {
-		    ReportManager.logDiscrete("API Request - REST Body:\n" + body);
+		    ReportManager.logDiscrete("API Request - REST Body:\n" + requestBody);
 		}
 	    } else {
-		switch (identifyBodyObjectType(body)) {
+		requestBodyAttachment.add("API Request");
+		switch (identifyBodyObjectType(requestBody)) {
 		case 1:
 		    // json
-		    ReportManager.attachAsStep("API Request", "JSON Body", parseBodyToJson(body));
+		    requestBodyAttachment.add("JSON Body");
 		    break;
 		case 2:
 		    // xml
-		    ReportManager.attachAsStep("API Request ", "XML Body", parseBodyToJson(body));
+		    requestBodyAttachment.add("XML Body");
 		    break;
 		case 3:
 		    // binary... probably
-		    ReportManager.attachAsStep("API Request", "REST Body", parseBodyToJson(body));
+		    requestBodyAttachment.add("Body");
 		    break;
 		case 4:
 		    // I don't remember... may be binary
-		    ReportManager.attachAsStep("API Request", "REST Body", parseBodyToJson(body));
+		    requestBodyAttachment.add("Body");
 		    break;
 		default:
 		    // unreachable code
 		    break;
 		}
+		requestBodyAttachment.add(parseBodyToJson(requestBody));
+		return requestBodyAttachment;
 	    }
 	}
+	return null;
     }
 
-    private static void reportResponseBody(Response response, Boolean isDiscrete) {
-	if (response != null) {
+    private static List<Object> reportResponseBody(Response responseBody, Boolean isDiscrete) {
+	List<Object> responseBodyAttachment = new ArrayList<>();
+	if (responseBody != null) {
 	    if (isDiscrete) {
 		try {
 		    ReportManager.logDiscrete("API Response - REST Body:\n"
-			    + IOUtils.toString(parseBodyToJson(response), StandardCharsets.UTF_8));
+			    + IOUtils.toString(parseBodyToJson(responseBody), StandardCharsets.UTF_8));
 		} catch (IOException e) {
-		    ReportManager.logDiscrete("API Response - REST Body:\n" + response.asString());
+		    ReportManager.logDiscrete("API Response - REST Body:\n" + responseBody.asString());
 		}
 	    } else {
-		switch (identifyBodyObjectType(response)) {
+		responseBodyAttachment.add("API Response");
+		switch (identifyBodyObjectType(responseBody)) {
 		case 1:
 		    // json
-		    ReportManager.attachAsStep("API Response", "JSON Body", parseBodyToJson(response));
+		    responseBodyAttachment.add("JSON Body");
 		    break;
 		case 2:
 		    // xml
-		    ReportManager.attachAsStep("API Response", "XML Body", parseBodyToJson(response));
+		    responseBodyAttachment.add("XML Body");
 		    break;
 		case 3:
 		    // binary... probably
-		    ReportManager.attachAsStep("API Response", "REST Body", parseBodyToJson(response));
+		    responseBodyAttachment.add("Body");
 		    break;
 		case 4:
 		    // I don't remember... may be binary
-		    ReportManager.attachAsStep("API Response", "REST Body", parseBodyToJson(response));
+		    responseBodyAttachment.add("Body");
 		    break;
 		default:
 		    // unreachable code
 		    break;
 		}
+		responseBodyAttachment.add(parseBodyToJson(responseBody));
+		return responseBodyAttachment;
 	    }
 	}
+	return null;
     }
 
     private static int identifyBodyObjectType(Object body) {
+	// TODO: refactor to reduce complexity
 	JSONParser parser = new JSONParser();
 	try {
-	    org.json.simple.JSONObject actualJsonObject;
+	    org.json.simple.JSONObject actualJsonObject = null;
+	    org.json.simple.JSONArray actualJsonArray = null;
 	    if (body.getClass().getName().toLowerCase().contains("restassured")) {
-		// if it's a string response body
-		actualJsonObject = (org.json.simple.JSONObject) parser
-			.parse(((io.restassured.response.ResponseBody<?>) body).asString());
+		// if it's a string (OR ARRAY) response body
+		try {
+		    actualJsonObject = (org.json.simple.JSONObject) parser
+			    .parse(((io.restassured.response.ResponseBody<?>) body).asString());
+		} catch (ClassCastException e) {
+		    actualJsonArray = (org.json.simple.JSONArray) parser
+			    .parse(((io.restassured.response.ResponseBody<?>) body).asString());
+		} catch (ParseException e) {
+		    // happens in case of ZIP file.......
+		    return 3;
+		}
 	    } else if (body.getClass().getName().toLowerCase().contains("jsonobject")) {
 		actualJsonObject = (org.json.simple.JSONObject) parser
 			.parse(((JsonObject) body).toString().replace("\\n", "").replace("\\t", "").replace(" ", ""));
+	    } else if (body instanceof org.json.simple.JSONArray) {
+		actualJsonArray = (org.json.simple.JSONArray) body;
 	    } else {
 		actualJsonObject = (org.json.simple.JSONObject) parser.parse(body.toString());
 	    }
-	    ReportManager.logDiscrete(actualJsonObject.toString()); // useless
+	    if (actualJsonObject != null) {
+		actualJsonObject.toString(); // useless
+	    } else if (actualJsonArray != null) {
+		actualJsonArray.toString(); // useless
+	    }
 	    return 1; // json
 	} catch (Exception e) {
 	    // response is not parsable to JSON
@@ -351,19 +409,34 @@ public class RestActions {
     private static InputStream parseBodyToJson(Object body) {
 	JSONParser parser = new JSONParser();
 	try {
-	    org.json.simple.JSONObject actualJsonObject;
+	    org.json.simple.JSONObject actualJsonObject = null;
+	    org.json.simple.JSONArray actualJsonArray = null;
 	    if (body.getClass().getName().toLowerCase().contains("restassured")) {
-		// if it's a string response body
-		actualJsonObject = (org.json.simple.JSONObject) parser
-			.parse(((io.restassured.response.ResponseBody<?>) body).asString());
+		try {
+		    // if it's a string response body
+		    actualJsonObject = (org.json.simple.JSONObject) parser
+			    .parse(((io.restassured.response.ResponseBody<?>) body).asString());
+		} catch (java.lang.ClassCastException e) {
+		    // java.lang.ClassCastException: org.json.simple.JSONArray cannot be cast to
+		    // org.json.simple.JSONObject
+		    actualJsonArray = (org.json.simple.JSONArray) parser
+			    .parse(((io.restassured.response.ResponseBody<?>) body).asString());
+		}
 	    } else if (body.getClass().getName().toLowerCase().contains("jsonobject")) {
 		actualJsonObject = (org.json.simple.JSONObject) parser
 			.parse(((JsonObject) body).toString().replace("\\n", "").replace("\\t", "").replace(" ", ""));
+	    } else if (body instanceof org.json.simple.JSONArray) {
+		actualJsonArray = (org.json.simple.JSONArray) body;
 	    } else {
 		actualJsonObject = (org.json.simple.JSONObject) parser.parse(body.toString());
 	    }
-	    return new ByteArrayInputStream((new GsonBuilder().setPrettyPrinting().create()
-		    .toJson(new JsonParser().parse(actualJsonObject.toJSONString()))).getBytes());
+	    if (actualJsonObject != null) {
+		return new ByteArrayInputStream((new GsonBuilder().setPrettyPrinting().create()
+			.toJson(new JsonParser().parse(actualJsonObject.toJSONString()))).getBytes());
+	    } else {
+		return new ByteArrayInputStream((new GsonBuilder().setPrettyPrinting().create()
+			.toJson(new JsonParser().parse(actualJsonArray.toJSONString()))).getBytes());
+	    }
 	} catch (Exception e) {
 	    // response is not parsable to JSON
 	    ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -472,17 +545,18 @@ public class RestActions {
 	}
     }
 
-    private void assertResponseStatusCode(String request, Response response, String targetStatusCode) {
+    private void assertResponseStatusCode(String request, Object requestBody, Response response,
+	    String targetStatusCode) {
 	try {
 	    Boolean discreetLoggingState = ReportManager.isDiscreteLogging();
 	    ReportManager.setDiscreteLogging(true);
 	    Assertions.assertEquals(targetStatusCode, String.valueOf(response.getStatusCode()), 1, true);
 	    ReportManager.setDiscreteLogging(discreetLoggingState);
 	    passAction("performRequest", request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms",
-		    response, false);
+		    requestBody, response, false, null);
 	} catch (AssertionError e) {
 	    failAction("performRequest", request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms",
-		    response);
+		    requestBody, response);
 	}
     }
 
@@ -506,7 +580,7 @@ public class RestActions {
      *                         parameters with this API call, is nullable, Example:
      *                         Arrays.asList(Arrays.asList("itemId", "123"),
      *                         Arrays.asList("contents", XMLcontents));
-     * @param body             Specify an Object request content that will
+     * @param requestBody      Specify an Object request content that will
      *                         automatically be serialized to JSON or XML and sent
      *                         with the request. If the object is a primitive or
      *                         Number the object will be converted to a String and
@@ -525,11 +599,13 @@ public class RestActions {
      * @return Response; returns the full response object for further manipulation
      */
     public Response performRequest(String requestType, String targetStatusCode, String serviceName, String urlArguments,
-	    List<List<Object>> formParameters, Object body, ContentType contentType, String... credentials) {
+	    List<List<Object>> formParameters, Object requestBody, ContentType contentType, String... credentials) {
 
 	String request = prepareRequestURL(urlArguments, serviceName);
 	prepareRequestHeaderAuthorization(credentials);
-	RequestSpecification specs = prepareRequestSpecs(formParameters, body, contentType);
+
+	RequestSpecification specs = prepareRequestSpecs(formParameters, requestBody, contentType);
+
 	Response response = null;
 	try {
 	    if (requestType.equalsIgnoreCase("post") || requestType.equalsIgnoreCase("patch")
@@ -542,13 +618,14 @@ public class RestActions {
 	    if (response != null) {
 		extractCookiesFromResponse(response);
 		extractHeadersFromResponse(response);
-		assertResponseStatusCode(request, response, targetStatusCode);
+		assertResponseStatusCode(request, requestBody, response, targetStatusCode);
 	    }
 	} catch (Exception e) {
 	    ReportManager.log(e);
 	    if (response != null) {
 		failAction("performRequest",
-			request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", response);
+			request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", requestBody,
+			response);
 	    } else {
 		failAction("performRequest", request);
 	    }
@@ -733,9 +810,9 @@ public class RestActions {
      * @param referenceJsonFilePath the full absolute path to the test data file
      *                              that will be used as a reference for this
      *                              comparison
-     * @param comparisonType        ComparisonType.EQUALS, CONTAINS, MATCHES,
-     *                              EQUALS_STRICT; Note that MATCHES ignores the
-     *                              content ordering inside the JSON
+     * @param comparisonType        ComparisonType.EQUALS, CONTAINS; Note that
+     *                              MATCHES ignores the content ordering inside the
+     *                              JSON
      * @param jsonPathToTargetArray a jsonpath that will be parsed to point to the
      *                              target JSON Array
      * @return a boolean value that is TRUE in case the comparison passed, or FALSE
@@ -753,6 +830,8 @@ public class RestActions {
 	}
 	Boolean comparisonResult;
 	JSONParser parser = new JSONParser();
+	List<Object> expectedJSONAttachment = null;
+
 	try {
 	    org.json.simple.JSONObject actualJsonObject = (org.json.simple.JSONObject) parser
 		    .parse(response.asString());
@@ -760,16 +839,19 @@ public class RestActions {
 	    org.json.simple.JSONArray expectedJsonArray = null;
 	    try {
 		expectedJsonObject = (org.json.simple.JSONObject) parser.parse(new FileReader(referenceJsonFilePath));
-		ReportManager.attachAsStep("File Content", "Expected JSON", new GsonBuilder().setPrettyPrinting()
-			.create().toJson(new JsonParser().parse(expectedJsonObject.toJSONString())));
+		expectedJSONAttachment = Arrays.asList("File Content", "Expected JSON",
+			new GsonBuilder().setPrettyPrinting().create()
+				.toJson(new JsonParser().parse(expectedJsonObject.toJSONString())));
+
 	    } catch (ClassCastException e) {
 		// org.json.simple.JSONArray cannot be cast to org.json.simple.JSONObject
 		expectedJsonArray = (org.json.simple.JSONArray) parser.parse(new FileReader(referenceJsonFilePath));
-		ReportManager.attachAsStep("File Content", "Expected JSON", new GsonBuilder().setPrettyPrinting()
-			.create().toJson(new JsonParser().parse(expectedJsonArray.toJSONString())));
+		expectedJSONAttachment = Arrays.asList("File Content", "Expected JSON", new GsonBuilder()
+			.setPrettyPrinting().create().toJson(new JsonParser().parse(expectedJsonArray.toJSONString())));
 	    }
 	    switch (comparisonType) {
 	    case EQUALS:
+		// TODO: handle jsonPathToTargetArray and attempt to parse the actual result
 		comparisonResult = compareJSONEquals(expectedJsonObject, expectedJsonArray, actualJsonObject);
 		break;
 	    case CONTAINS:
@@ -789,7 +871,8 @@ public class RestActions {
 	    failAction("compareJSON", "Couldn't parse the desired file. [" + referenceJsonFilePath + "].");
 	    comparisonResult = false;
 	}
-	passAction("compareJSON", referenceJsonFilePath, true);
+	passAction("compareJSON", referenceJsonFilePath, true,
+		Arrays.asList(expectedJSONAttachment, reportResponseBody(response, false)));
 	return comparisonResult;
     }
 
