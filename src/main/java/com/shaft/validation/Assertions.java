@@ -1,5 +1,9 @@
 package com.shaft.validation;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.testng.Assert;
@@ -9,6 +13,7 @@ import com.shaft.api.RestActions.ComparisonType;
 import com.shaft.cli.FileActions;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
+import com.shaft.gui.element.JSWaiter;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.support.JavaActions;
@@ -26,12 +31,6 @@ public class Assertions {
     private static final String ERROR_UNHANDLED_EXCEPTION = "Assertion Failed; an unhandled exception occured.";
 
     private static Boolean discreetLoggingState = Boolean.valueOf(System.getProperty("alwaysLogDiscreetly"));
-
-    private static By aiGeneratedElementLocator = null;
-
-    public static void setAiGeneratedElementLocator(By aiGeneratedElementLocator) {
-	Assertions.aiGeneratedElementLocator = aiGeneratedElementLocator;
-    }
 
     public enum AssertionType {
 	POSITIVE(true), NEGATIVE(false);
@@ -91,40 +90,59 @@ public class Assertions {
 	Assert.fail(message);
     }
 
+    private static void fail(String message, List<List<Object>> attachments) {
+	ReportManager.setDiscreteLogging(discreetLoggingState); // reset state in case of failure
+	ReportManager.log(message, attachments);
+	Assert.fail(message);
+    }
+
     private static void fail(String message, String expectedValue, String actualValue) {
-	ReportManager.attachAsStep("Validation Test Data", "Expected Value", expectedValue);
-	ReportManager.attachAsStep("Validation Test Data", "Actual Value", actualValue);
-	fail(message);
+	List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected Value", expectedValue);
+	List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Value", actualValue);
+
+	List<List<Object>> attachments = new ArrayList<>();
+	attachments.add(expectedValueAttachment);
+	attachments.add(actualValueAttachment);
+	fail(message, attachments);
     }
 
     private static void fail(String actionName, WebDriver driver, String message) {
-	ScreenshotManager.captureScreenShot(driver, actionName, false);
-	fail(message);
+	fail(message, Arrays.asList(ScreenshotManager.captureScreenShot(driver, actionName, false)));
     }
 
     private static void fail(String actionName, WebDriver driver, By elementLocator, String message) {
-	ScreenshotManager.captureScreenShot(driver, elementLocator, actionName, false);
-	fail(message);
+	fail(message, Arrays.asList(ScreenshotManager.captureScreenShot(driver, elementLocator, actionName, false)));
     }
 
     private static void pass(String message) {
-	ReportManager.log(message);
+	pass(message, null);
+    }
+
+    private static void pass(String message, List<List<Object>> attachments) {
+	if (attachments != null) {
+	    ReportManager.log(message, attachments);
+	} else {
+	    ReportManager.log(message);
+	}
     }
 
     private static void pass(String message, String expectedValue, String actualValue) {
-	ReportManager.attachAsStep("Validation Test Data", "Expected Value", expectedValue);
-	ReportManager.attachAsStep("Validation Test Data", "Actual Value", actualValue);
-	pass(message);
+	List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected Value", expectedValue);
+	List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Value", actualValue);
+
+	List<List<Object>> attachments = new ArrayList<>();
+	attachments.add(expectedValueAttachment);
+	attachments.add(actualValueAttachment);
+
+	pass(message, attachments);
     }
 
     private static void pass(String actionName, WebDriver driver, String message) {
-	ScreenshotManager.captureScreenShot(driver, actionName, true);
-	pass(message);
+	pass(message, Arrays.asList(ScreenshotManager.captureScreenShot(driver, actionName, true)));
     }
 
     private static void pass(String actionName, WebDriver driver, By elementLocator, String message) {
-	ScreenshotManager.captureScreenShot(driver, elementLocator, actionName, true);
-	pass(message);
+	pass(message, Arrays.asList(ScreenshotManager.captureScreenShot(driver, elementLocator, actionName, true)));
     }
 
     /**
@@ -160,8 +178,8 @@ public class Assertions {
 		    pass("Assertion Passed; actual value [" + actualValue + "] does match expected value ["
 			    + expectedValue + "].");
 		} else {
-		    pass("Assertion Passed; actual value does match expected value.", String.valueOf(expectedValue),
-			    String.valueOf(actualValue));
+		    pass("Assertion Passed; actual value does match expected value. Kindly check the attachments for more details.",
+			    String.valueOf(expectedValue), String.valueOf(actualValue));
 		}
 
 	    } else {
@@ -169,8 +187,8 @@ public class Assertions {
 		    pass("Assertion Passed; actual value [" + actualValue + "] does not match expected value ["
 			    + expectedValue + "].");
 		} else {
-		    pass("Assertion Passed; actual value does not match expected value.", String.valueOf(expectedValue),
-			    String.valueOf(actualValue));
+		    pass("Assertion Passed; actual value does not match expected value. Kindly check the attachments for more details.",
+			    String.valueOf(expectedValue), String.valueOf(actualValue));
 		}
 	    }
 	    break;
@@ -293,10 +311,6 @@ public class Assertions {
 	    }
 
 	    int elementsCount = ElementActions.getElementsCount(driver, elementLocator, customAttempts);
-	    // Override current locator with the aiGeneratedElementLocator
-	    if (ScreenshotManager.getAiSupportedElementIdentification() && aiGeneratedElementLocator != null&& elementLocator != null) {
-		elementLocator = aiGeneratedElementLocator;
-	    }
 
 	    switch (elementsCount) {
 	    case 0:
@@ -551,6 +565,7 @@ public class Assertions {
      */
     public static void assertBrowserAttribute(WebDriver driver, String browserAttribute, String expectedValue,
 	    int comparisonType, Boolean assertionType) {
+	JSWaiter.waitForLazyLoading();
 
 	ReportManager.logDiscrete("Assertion [" + "assertBrowserAttribute"
 		+ "] is being performed for target attribute [" + browserAttribute + "].");

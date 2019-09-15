@@ -111,46 +111,50 @@ public class ReportManager {
 
     public static void logIssue(String issue) {
 	if (issuesLog.trim().equals("")) {
-	    issuesLog = "################################################################################################################################################"
-		    + System.lineSeparator() + "Issues Analysis" + System.lineSeparator()
-		    + "################################################################################################################################################";
+	    issuesLog += issueCounter + ", " + issue.trim();
+	} else {
+	    issuesLog += System.lineSeparator() + issueCounter + ", " + issue.trim();
 	}
-	String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
-	String log = System.lineSeparator() + "[ReportManager] " + issueCounter + ". " + issue.trim() + " @"
-		+ timestamp;
-	issuesLog += log;
 	issueCounter++;
     }
 
-    public static void prepareIssuesLog() {
-	// TODO: refactor
-	// read different log array lists
+    public static String prepareIssuesLog() {
 	if (!listOfNewIssuesForFailedTests.isEmpty()) {
 	    listOfNewIssuesForFailedTests.forEach(issue -> logIssue("Test Method \"" + issue.get(0) + "." + issue.get(1)
 		    + "\" failed. Please investigate and open a new Issue if needed.\n"));
 	}
 	if (!listOfOpenIssuesForPassedTests.isEmpty()) {
-	    listOfOpenIssuesForPassedTests.forEach(issue -> logIssue("Test Method \"" + issue.get(0) + "."
-		    + issue.get(1) + "\" passed. Please validate and close this open issue \"" + issue.get(2) + "\": \""
-		    + issue.get(3) + "\".\n"));
+	    listOfOpenIssuesForPassedTests.forEach(issue -> {
+		if (!issue.get(3).trim().equals("")) {
+		    logIssue("Test Method \"" + issue.get(0) + "." + issue.get(1)
+			    + "\" passed. Please validate and close this open issue \"" + issue.get(2) + "\": \""
+			    + issue.get(3) + "\".\n");
+		} else {
+		    logIssue("Test Method \"" + issue.get(0) + "." + issue.get(1)
+			    + "\" passed. Please validate and close this open issue \"" + issue.get(2) + "\".\n");
+		}
+
+	    });
 	}
 	if (!listOfOpenIssuesForFailedTests.isEmpty()) {
-	    listOfOpenIssuesForFailedTests
-		    .forEach(issue -> logIssue("Test Method \"" + issue.get(0) + "." + issue.get(1)
-			    + "\" failed with open issue \"" + issue.get(2) + "\": \"" + issue.get(3) + "\".\n"));
-
+	    listOfOpenIssuesForFailedTests.forEach(issue -> {
+		if (!issue.get(3).trim().equals("")) {
+		    logIssue("Test Method \"" + issue.get(0) + "." + issue.get(1) + "\" failed with open issue \""
+			    + issue.get(2) + "\": \"" + issue.get(3) + "\".\n");
+		} else {
+		    logIssue("Test Method \"" + issue.get(0) + "." + issue.get(1) + "\" failed with open issue \""
+			    + issue.get(2) + "\".\n");
+		}
+	    });
 	}
-	// display them in the desired order with the proper messages for each issue
-	// type
-	// append the summary at the start instead of at the finish
+
 	if (!issuesLog.trim().equals("")) {
-	    issuesLog += System.lineSeparator()
-		    + "################################################################################################################################################"
-		    + System.lineSeparator() + "Total Issues: " + (issueCounter - 1) + ", New issues for Failed Tests: "
-		    + failedTestsWithoutOpenIssuesCounter + ", Open issues for Passed Tests: "
-		    + openIssuesForPassedTestsCounter + ", Open issues for Failed Tests: "
-		    + openIssuesForFailedTestsCounter + System.lineSeparator()
-		    + "################################################################################################################################################";
+	    return "Issue Summary: Total Issues = " + (issueCounter - 1) + ", New issues for Failed Tests = "
+		    + failedTestsWithoutOpenIssuesCounter + ", Open issues for Passed Tests = "
+		    + openIssuesForPassedTestsCounter + ", Open issues for Failed Tests = "
+		    + openIssuesForFailedTestsCounter + ". Kindly check the attached Issue details.";
+	} else {
+	    return "";
 	}
     }
 
@@ -196,6 +200,20 @@ public class ReportManager {
 	createReportEntry(logText);
     }
 
+    @Step("Action [{actionCounter}]: {logText}")
+    private static void writeStepToReport(String logText, int actionCounter, List<List<Object>> attachments) {
+	createReportEntry(logText);
+	attachments.forEach(attachment -> {
+	    if (attachment != null && attachment.get(2).getClass().toString().toLowerCase().contains("string")
+		    && !attachment.get(2).getClass().toString().contains("StringInputStream")) {
+
+		attach(attachment.get(0).toString(), attachment.get(1).toString(), attachment.get(2).toString());
+	    } else if (attachment != null) {
+		attach(attachment.get(0).toString(), attachment.get(1).toString(), (InputStream) attachment.get(2));
+	    }
+	});
+    }
+
     private static void createAttachment(String attachmentType, String attachmentName, InputStream attachmentContent) {
 	InputStream attachmentContentCopy = null;
 	ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -222,6 +240,12 @@ public class ReportManager {
 	    // attachmentName, "video/mp4", attachmentContent, ".mp4"
 	} else if (attachmentType.toLowerCase().contains("gif")) {
 	    Allure.addAttachment(attachmentDescription, "image/gif", attachmentContent, ".gif");
+	} else if (attachmentType.toLowerCase().contains("csv") || attachmentName.toLowerCase().contains("csv")) {
+	    Allure.addAttachment(attachmentDescription, "text/csv", attachmentContent, ".csv");
+	} else if (attachmentType.toLowerCase().contains("xml") || attachmentName.toLowerCase().contains("xml")) {
+	    Allure.addAttachment(attachmentDescription, "text/xml", attachmentContent, ".xml");
+	} else if (attachmentType.toLowerCase().contains("json") || attachmentName.toLowerCase().contains("json")) {
+	    Allure.addAttachment(attachmentDescription, "text/json", attachmentContent, ".json");
 	} else if (attachmentType.toLowerCase().contains("engine logs")) {
 	    if (attachmentName.equals("Current Method log")) {
 		Allure.addAttachment(attachmentDescription, "text/plain", new StringInputStream(currentTestLog.trim()),
@@ -229,12 +253,6 @@ public class ReportManager {
 	    } else {
 		Allure.addAttachment(attachmentDescription, "text/plain", attachmentContent, ".txt");
 	    }
-	} else if (attachmentType.toLowerCase().contains("csv") || attachmentName.toLowerCase().contains("csv")) {
-	    Allure.addAttachment(attachmentDescription, "text/csv", attachmentContent, ".csv");
-	} else if (attachmentType.toLowerCase().contains("xml") || attachmentName.toLowerCase().contains("xml")) {
-	    Allure.addAttachment(attachmentDescription, "text/xml", attachmentContent, ".xml");
-	} else if (attachmentType.toLowerCase().contains("json") || attachmentName.toLowerCase().contains("json")) {
-	    Allure.addAttachment(attachmentDescription, "text/json", attachmentContent, ".json");
 	} else {
 	    Allure.addAttachment(attachmentDescription, attachmentContent);
 	}
@@ -441,6 +459,21 @@ public class ReportManager {
 	}
     }
 
+    public static void log(String logText, List<List<Object>> attachments) {
+	if (isDiscreteLogging() && !logText.toLowerCase().contains("failed")) {
+	    createLogEntry(logText);
+	    attachments.forEach(attachment -> {
+		if (attachment != null) {
+		    attachAsStep(attachment.get(0).toString(), attachment.get(1).toString(),
+			    (InputStream) attachment.get(2));
+		}
+	    });
+	} else {
+	    writeStepToReport(logText, actionCounter, attachments);
+	    actionCounter++;
+	}
+    }
+
     /**
      *
      * Format an exception message and stack trace, and calls attach to add it as a
@@ -464,10 +497,14 @@ public class ReportManager {
 	}
 	logText = logBuilder.toString();
 	if (t.getMessage() != null) {
-	    ReportManager.log("An Exception Occured with this Message: "
-		    + t.getMessage().replace(System.lineSeparator(), " ").trim() + ".");
+	    ReportManager.log(
+		    "An Exception Occured with this Message: "
+			    + t.getMessage().replace(System.lineSeparator(), " ").trim() + ".",
+		    Arrays.asList(Arrays.asList("Exception Stack Trace", t.getClass().getName(), logText)));
+	} else {
+	    ReportManager.log("An Exception Occured",
+		    Arrays.asList(Arrays.asList("Exception Stack Trace", t.getClass().getName(), logText)));
 	}
-	attachAsStep("Exception Stack Trace", t.getClass().getName(), logText);
 	actionCounter++;
     }
 
@@ -484,18 +521,20 @@ public class ReportManager {
      * @param attachmentContent the content of this attachment
      */
     @Step("Attachment: {attachmentType} - {attachmentName}")
-    public static void attachAsStep(String attachmentType, String attachmentName, InputStream attachmentContent) {
+    private static void attachAsStep(String attachmentType, String attachmentName, InputStream attachmentContent) {
 	createAttachment(attachmentType, attachmentName, attachmentContent);
     }
 
     /**
-     * Adds a new attachment using the input parameters provided. The attachment is
-     * displayed as a step in the execution report. Used for Screenshots.
+     * @deprecated Adds a new attachment using the input parameters provided. The
+     *             attachment is displayed as a step in the execution report. Used
+     *             for Screenshots.
      * 
      * @param attachmentType    the type of this attachment
      * @param attachmentName    the name of this attachment
      * @param attachmentContent the content of this attachment
      */
+    @Deprecated
     @Step("Attachment: {attachmentType} - {attachmentName}")
     public static void attachAsStep(String attachmentType, String attachmentName, String attachmentContent) {
 	if (!attachmentContent.trim().equals("")) {
@@ -556,9 +595,10 @@ public class ReportManager {
     }
 
     public static void attachIssuesLog() {
-	prepareIssuesLog();
+	String issueSummary = prepareIssuesLog();
 	if (!issuesLog.trim().equals("")) {
-	    createAttachment("SHAFT Engine Logs", "Issues log", new StringInputStream(issuesLog.trim()));
+	    log(issueSummary, Arrays.asList(
+		    Arrays.asList("SHAFT Engine Logs", "Issues log CSV", new StringInputStream(issuesLog.trim()))));
 	}
     }
 

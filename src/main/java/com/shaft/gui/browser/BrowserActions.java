@@ -49,9 +49,10 @@ public class BrowserActions {
 	    message = message + " With the following test data [" + testData + "].";
 	}
 	if (driver != null) {
-	    ScreenshotManager.captureScreenShot(driver, actionName, true);
+	    ReportManager.log(message, Arrays.asList(ScreenshotManager.captureScreenShot(driver, actionName, true)));
+	} else {
+	    ReportManager.log(message);
 	}
-	ReportManager.log(message);
     }
 
     private static void failAction(String actionName) {
@@ -68,9 +69,10 @@ public class BrowserActions {
 	    message = message + " With the following test data [" + testData + "].";
 	}
 	if (driver != null) {
-	    ScreenshotManager.captureScreenShot(driver, actionName, false);
+	    ReportManager.log(message, Arrays.asList(ScreenshotManager.captureScreenShot(driver, actionName, false)));
+	} else {
+	    ReportManager.log(message);
 	}
-	ReportManager.log(message);
 	Assert.fail(message);
     }
 
