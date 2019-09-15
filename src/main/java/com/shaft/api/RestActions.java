@@ -363,17 +363,22 @@ public class RestActions {
 		} catch (ClassCastException e) {
 		    actualJsonArray = (org.json.simple.JSONArray) parser
 			    .parse(((io.restassured.response.ResponseBody<?>) body).asString());
+		} catch (ParseException e) {
+		    // happens in case of ZIP file.......
+		    return 3;
 		}
 	    } else if (body.getClass().getName().toLowerCase().contains("jsonobject")) {
 		actualJsonObject = (org.json.simple.JSONObject) parser
 			.parse(((JsonObject) body).toString().replace("\\n", "").replace("\\t", "").replace(" ", ""));
+	    } else if (body instanceof org.json.simple.JSONArray) {
+		actualJsonArray = (org.json.simple.JSONArray) body;
 	    } else {
 		actualJsonObject = (org.json.simple.JSONObject) parser.parse(body.toString());
 	    }
 	    if (actualJsonObject != null) {
-		ReportManager.logDiscrete(actualJsonObject.toString()); // useless
-	    } else {
-		ReportManager.logDiscrete(actualJsonArray.toString()); // useless
+		actualJsonObject.toString(); // useless
+	    } else if (actualJsonArray != null) {
+		actualJsonArray.toString(); // useless
 	    }
 	    return 1; // json
 	} catch (Exception e) {
@@ -404,19 +409,34 @@ public class RestActions {
     private static InputStream parseBodyToJson(Object body) {
 	JSONParser parser = new JSONParser();
 	try {
-	    org.json.simple.JSONObject actualJsonObject;
+	    org.json.simple.JSONObject actualJsonObject = null;
+	    org.json.simple.JSONArray actualJsonArray = null;
 	    if (body.getClass().getName().toLowerCase().contains("restassured")) {
-		// if it's a string response body
-		actualJsonObject = (org.json.simple.JSONObject) parser
-			.parse(((io.restassured.response.ResponseBody<?>) body).asString());
+		try {
+		    // if it's a string response body
+		    actualJsonObject = (org.json.simple.JSONObject) parser
+			    .parse(((io.restassured.response.ResponseBody<?>) body).asString());
+		} catch (java.lang.ClassCastException e) {
+		    // java.lang.ClassCastException: org.json.simple.JSONArray cannot be cast to
+		    // org.json.simple.JSONObject
+		    actualJsonArray = (org.json.simple.JSONArray) parser
+			    .parse(((io.restassured.response.ResponseBody<?>) body).asString());
+		}
 	    } else if (body.getClass().getName().toLowerCase().contains("jsonobject")) {
 		actualJsonObject = (org.json.simple.JSONObject) parser
 			.parse(((JsonObject) body).toString().replace("\\n", "").replace("\\t", "").replace(" ", ""));
+	    } else if (body instanceof org.json.simple.JSONArray) {
+		actualJsonArray = (org.json.simple.JSONArray) body;
 	    } else {
 		actualJsonObject = (org.json.simple.JSONObject) parser.parse(body.toString());
 	    }
-	    return new ByteArrayInputStream((new GsonBuilder().setPrettyPrinting().create()
-		    .toJson(new JsonParser().parse(actualJsonObject.toJSONString()))).getBytes());
+	    if (actualJsonObject != null) {
+		return new ByteArrayInputStream((new GsonBuilder().setPrettyPrinting().create()
+			.toJson(new JsonParser().parse(actualJsonObject.toJSONString()))).getBytes());
+	    } else {
+		return new ByteArrayInputStream((new GsonBuilder().setPrettyPrinting().create()
+			.toJson(new JsonParser().parse(actualJsonArray.toJSONString()))).getBytes());
+	    }
 	} catch (Exception e) {
 	    // response is not parsable to JSON
 	    ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -583,7 +603,9 @@ public class RestActions {
 
 	String request = prepareRequestURL(urlArguments, serviceName);
 	prepareRequestHeaderAuthorization(credentials);
+
 	RequestSpecification specs = prepareRequestSpecs(formParameters, requestBody, contentType);
+
 	Response response = null;
 	try {
 	    if (requestType.equalsIgnoreCase("post") || requestType.equalsIgnoreCase("patch")

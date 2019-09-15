@@ -99,7 +99,11 @@ public class Verifications {
 			    Arrays.asList(ScreenshotManager.captureScreenShot(driver, actionName, true)));
 		}
 	    } else {
-		ReportManager.log(verificationSuccessesString, attachments);
+		if (attachments != null) {
+		    ReportManager.log(verificationSuccessesString, attachments);
+		} else {
+		    ReportManager.log(verificationSuccessesString);
+		}
 	    }
 	    verificationSuccesses.delete(0, verificationSuccesses.length());
 	}
