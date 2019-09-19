@@ -203,15 +203,17 @@ public class ReportManager {
     @Step("Action [{actionCounter}]: {logText}")
     private static void writeStepToReport(String logText, int actionCounter, List<List<Object>> attachments) {
 	createReportEntry(logText);
-	attachments.forEach(attachment -> {
-	    if (attachment != null && attachment.get(2).getClass().toString().toLowerCase().contains("string")
-		    && !attachment.get(2).getClass().toString().contains("StringInputStream")) {
+	if (attachments != null) {
+	    attachments.forEach(attachment -> {
+		if (attachment != null && attachment.get(2).getClass().toString().toLowerCase().contains("string")
+			&& !attachment.get(2).getClass().toString().contains("StringInputStream")) {
 
-		attach(attachment.get(0).toString(), attachment.get(1).toString(), attachment.get(2).toString());
-	    } else if (attachment != null) {
-		attach(attachment.get(0).toString(), attachment.get(1).toString(), (InputStream) attachment.get(2));
-	    }
-	});
+		    attach(attachment.get(0).toString(), attachment.get(1).toString(), attachment.get(2).toString());
+		} else if (attachment != null) {
+		    attach(attachment.get(0).toString(), attachment.get(1).toString(), (InputStream) attachment.get(2));
+		}
+	    });
+	}
     }
 
     private static void createAttachment(String attachmentType, String attachmentName, InputStream attachmentContent) {
@@ -462,12 +464,19 @@ public class ReportManager {
     public static void log(String logText, List<List<Object>> attachments) {
 	if (isDiscreteLogging() && !logText.toLowerCase().contains("failed")) {
 	    createLogEntry(logText);
-	    attachments.forEach(attachment -> {
-		if (attachment != null) {
-		    attachAsStep(attachment.get(0).toString(), attachment.get(1).toString(),
-			    (InputStream) attachment.get(2));
-		}
-	    });
+	    if (attachments != null) {
+		attachments.forEach(attachment -> {
+		    if (attachment != null) {
+			if (attachment.get(2) instanceof java.lang.String) {
+			    attachAsStep(attachment.get(0).toString(), attachment.get(1).toString(),
+				    new ByteArrayInputStream(attachment.get(2).toString().getBytes()));
+			} else {
+			    attachAsStep(attachment.get(0).toString(), attachment.get(1).toString(),
+				    (InputStream) attachment.get(2));
+			}
+		    }
+		});
+	    }
 	} else {
 	    writeStepToReport(logText, actionCounter, attachments);
 	    actionCounter++;

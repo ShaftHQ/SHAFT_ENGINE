@@ -1,13 +1,12 @@
 package com.shaft.validation;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.testng.Assert;
-import org.testng.ITestResult;
-import org.testng.Reporter;
 
 import com.shaft.api.RestActions;
 import com.shaft.api.RestActions.ComparisonType;
@@ -23,6 +22,26 @@ import io.restassured.response.Response;
 
 public class Verifications {
     private static StringBuilder verificationFailures = new StringBuilder();
+    private static List<String> verificationFailuresList = new ArrayList<>();
+
+    public static void resetVerificationFailuresMessage() {
+	Verifications.verificationFailuresList = new ArrayList<>();
+    }
+
+    public static String getVerificationFailuresMessage() {
+	return String.join("\nAND ", verificationFailuresList);
+    }
+
+    private static AssertionError verificationError = null;
+
+    public static AssertionError getVerificationError() {
+	return verificationError;
+    }
+
+    public static void resetVerificationError() {
+	Verifications.verificationError = null;
+    }
+
     private static StringBuilder verificationSuccesses = new StringBuilder();
 
     private static int attemptsBeforeThrowingElementNotFoundException = Integer
@@ -126,19 +145,9 @@ public class Verifications {
 		ReportManager.log(verificationFailuresString, attachments);
 	    }
 	    ReportManager.setDiscreteLogging(initialDiscreteLoggingState);
-
-	    // Throw a new exception with the failure string, or append to current exception
-	    // message
-	    try {
-		String oldMessage = Reporter.getCurrentTestResult().getThrowable().getMessage();
-		Reporter.getCurrentTestResult()
-			.setThrowable(new Throwable(oldMessage + "\nAND " + verificationFailuresString));
-	    } catch (NullPointerException e) {
-		Reporter.getCurrentTestResult().setThrowable(new Throwable(verificationFailuresString));
-	    }
-	    Reporter.getCurrentTestResult().setStatus(ITestResult.FAILURE);
+	    verificationFailuresList.add(verificationFailuresString);
+	    verificationError = new AssertionError(getVerificationFailuresMessage());
 	    verificationFailures.delete(0, verificationFailures.length());
-//	    ReportManager.setDiscreteLogging(discreetLoggingState); // reset state in case of failure
 	}
     }
 

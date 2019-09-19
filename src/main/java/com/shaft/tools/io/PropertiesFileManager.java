@@ -235,7 +235,7 @@ public class PropertiesFileManager {
 	properties.put("watermarkImagePath", "/images/shaft.png");
 	properties.put("downloadsFolderPath", "target/downloadedFiles/");
 	properties.put("allureResultsFolderPath", "allure-results/");
-	properties.put("allureVersion", "2.12.1");
+	properties.put("allureVersion", "2.13.0");
 	return properties;
     }
 
