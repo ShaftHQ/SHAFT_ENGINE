@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-import org.testng.Assert;
 import org.testng.IInvokedMethod;
 import org.testng.IInvokedMethodListener;
 import org.testng.ITestNGMethod;
@@ -18,6 +17,7 @@ import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.validation.Verifications;
 
 import io.qameta.allure.model.Link;
 import io.qameta.allure.util.AnnotationUtils;
@@ -91,11 +91,11 @@ public class InvokedMethodListener implements IInvokedMethodListener {
     }
 
     private void updateTestStatusInCaseOfVerificationFailure(ITestResult testResult) {
-	if (testResult != null && testResult.getStatus() == ITestResult.FAILURE && testResult.getThrowable() != null) {
-	    String failureMessage = testResult.getThrowable().getMessage();
-	    if ((failureMessage != null) && failureMessage.contains("Verification")) {
-		Assert.fail(testResult.getThrowable().getMessage());
-	    }
+	if (testResult != null && Verifications.getVerificationError() != null) {
+	    testResult.setStatus(ITestResult.FAILURE);
+	    testResult.setThrowable(Verifications.getVerificationError());
+	    Verifications.resetVerificationFailuresMessage();
+	    Verifications.resetVerificationError();
 	}
     }
 
