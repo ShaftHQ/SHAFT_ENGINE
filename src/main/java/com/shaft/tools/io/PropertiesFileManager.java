@@ -106,6 +106,7 @@ public class PropertiesFileManager {
 	properties.putAll(setDefaultExecutionProperties());
 	properties.putAll(setPathProperties());
 	properties.putAll(setPatternProperties());
+	properties.putAll(setTestNGProperties());
 
 	// override default properties with current system properties in the properties
 	// object
@@ -247,6 +248,17 @@ public class PropertiesFileManager {
 	properties.put("testDataColumnNamePrefix", "Data");
 	properties.put("allure.link.issue.pattern", "");
 	properties.put("allure.link.tms.pattern", "");
+	return properties;
+    }
+
+    private static Properties setTestNGProperties() {
+	Properties properties = new Properties();
+	properties.put("setPreserveOrder", "true");
+	properties.put("setGroupByInstances", "true");
+	properties.put("setVerbose", "10");
+	properties.put("setParallel", "ParallelMode.NONE");
+	properties.put("setThreadCount", "1");
+	properties.put("setDataProviderThreadCount", "1");
 	return properties;
     }
 
