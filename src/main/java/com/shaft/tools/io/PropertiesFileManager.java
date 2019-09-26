@@ -255,8 +255,8 @@ public class PropertiesFileManager {
 	Properties properties = new Properties();
 	properties.put("setPreserveOrder", "true");
 	properties.put("setGroupByInstances", "true");
-	properties.put("setVerbose", "10");
-	properties.put("setParallel", "ParallelMode.NONE");
+	properties.put("setVerbose", "1");
+	properties.put("setParallel", "NONE");
 	properties.put("setThreadCount", "1");
 	properties.put("setDataProviderThreadCount", "1");
 	return properties;
