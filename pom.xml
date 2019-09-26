@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>io.github.mohabmohie</groupId>
 	<artifactId>SHAFT_ENGINE</artifactId>
-	<version>3.1.20190919</version>
+	<version>3.1.20190926</version>
 	<name>${project.groupId}:${project.artifactId}</name>
 	<description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
 	<url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
@@ -214,6 +214,11 @@
 			<artifactId>postgresql</artifactId>
 			<version>${postgresql.version}</version>
 		</dependency>
+		<dependency>
+			<groupId>com.ibm.db2.jcc</groupId>
+			<artifactId>db2jcc</artifactId>
+			<version>db2jcc4</version>
+		</dependency>
 		<!-- <dependency> -->
 		<!-- <groupId>com.oracle.jdbc</groupId> -->
 		<!-- <artifactId>ojdbc8</artifactId> -->
@@ -422,19 +427,21 @@
 			</plugins>
 		</pluginManagement>
 	</build>
-	<!-- <repositories> -->
-	<!-- <repository> -->
-	<!-- <id>maven.oracle.com</id> -->
-	<!-- <releases> -->
-	<!-- <enabled>true</enabled> -->
-	<!-- </releases> -->
-	<!-- <snapshots> -->
-	<!-- <enabled>false</enabled> -->
-	<!-- </snapshots> -->
-	<!-- <url>https://maven.oracle.com</url> -->
-	<!-- <layout>default</layout> -->
-	<!-- </repository> -->
-	<!-- </repositories> -->
+	<repositories>
+		<repository>
+			<id>redshift</id>
+			<url>http://redshift-maven-repository.s3-website-us-east-1.amazonaws.com/release</url>
+			<!-- <id>maven.oracle.com</id> -->
+			<!-- <releases> -->
+			<!-- <enabled>true</enabled> -->
+			<!-- </releases> -->
+			<!-- <snapshots> -->
+			<!-- <enabled>false</enabled> -->
+			<!-- </snapshots> -->
+			<!-- <url>https://maven.oracle.com</url> -->
+			<!-- <layout>default</layout> -->
+		</repository>
+	</repositories>
 	<!-- <pluginRepositories> -->
 	<!-- <pluginRepository> -->
 	<!-- <id>maven.oracle.com</id> -->
