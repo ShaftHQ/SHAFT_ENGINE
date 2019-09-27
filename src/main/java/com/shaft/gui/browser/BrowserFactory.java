@@ -2,8 +2,10 @@ package com.shaft.gui.browser;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
@@ -242,6 +244,7 @@ public class BrowserFactory {
 	    chOptions.setCapability("platform", getDesiredOperatingSystem());
 	    chOptions.addArguments("--no-sandbox");
 	    chOptions.addArguments("--disable-infobars"); // disable automation info bar
+	    chOptions.addArguments("--disable-logging");
 	    if (HEADLESS_EXECUTION) {
 		// https://developers.google.com/web/updates/2017/04/headless-chrome
 		chOptions.addArguments("--headless");
@@ -458,40 +461,25 @@ public class BrowserFactory {
 
     }
 
-    private static void attachBrowserLogs(String browserName, WebDriver driver) {
-	if (!browserName.contains(BrowserType.MOZILLA_FIREFOX.getValue())) {
-	    // The Selenium log API isn’t supported by geckodriver.
-	    // Confirmed to work with chromeDriver
+    private static void attachWebDriverLogs(WebDriver driver) {
+	List<String> targetLogs = new ArrayList<>();
+	targetLogs.add(LogType.PERFORMANCE);
+	targetLogs.add(LogType.BROWSER);
+	targetLogs.add(LogType.CLIENT);
+	targetLogs.add(LogType.DRIVER);
+	targetLogs.add(LogType.SERVER);
 
-	    StringBuilder logBuilder;
-	    String performanceLogText = "";
-	    String driverLogText = "";
-
+	targetLogs.forEach(targetLog -> {
 	    try {
-		logBuilder = new StringBuilder();
-		for (LogEntry entry : driver.manage().logs().get(LogType.PERFORMANCE)) {
+		StringBuilder logBuilder = new StringBuilder();
+		for (LogEntry entry : driver.manage().logs().get(targetLog)) {
 		    logBuilder.append(entry.toString() + System.lineSeparator());
 		}
-		performanceLogText = logBuilder.toString();
-		ReportManager.attach("Selenium WebDriver Logs", "Performance Logs for [" + browserName + "]",
-			performanceLogText);
+		ReportManager.attach("Selenium WebDriver Logs", targetLog, logBuilder.toString());
 	    } catch (WebDriverException e) {
 		// exception when the defined log type is not found
-		ReportManager.log(e);
 	    }
-
-	    try {
-		logBuilder = new StringBuilder();
-		for (LogEntry entry : driver.manage().logs().get(LogType.DRIVER)) {
-		    logBuilder.append(entry.toString() + System.lineSeparator());
-		}
-		driverLogText = logBuilder.toString();
-		ReportManager.attach("Selenium WebDriver Logs", "Driver Logs for [" + browserName + "]", driverLogText);
-	    } catch (WebDriverException e) {
-		// exception when the defined log type is not found
-		ReportManager.log(e);
-	    }
-	}
+	});
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -591,7 +579,7 @@ public class BrowserFactory {
 	    try {
 		for (Entry<String, Map<String, WebDriver>> entry : drivers.entrySet()) {
 		    for (Entry<String, WebDriver> driverEntry : entry.getValue().entrySet()) {
-			attachBrowserLogs(entry.getKey(), driverEntry.getValue());
+			attachWebDriverLogs(driverEntry.getValue());
 		    }
 		}
 	    } catch (Exception e) {
