@@ -42,6 +42,9 @@ public class JSWaiter {
 	} catch (WebDriverException e) {
 	    ReportManager.log(e);
 	    return true;
+	} catch (NullPointerException e) {
+	    ReportManager.log(e);
+	    return true;
 	} catch (Exception e) {
 	    if (e.getMessage().contains("jQuery is not defined")) {
 		// do nothing
@@ -51,8 +54,7 @@ public class JSWaiter {
 		return false;
 	    } else {
 		ReportManager.log(e);
-		ReportManager.log("Unhandled Exception: " + e.getMessage());
-		return false;
+		return true;
 	    }
 	}
     }
@@ -61,10 +63,14 @@ public class JSWaiter {
     private static void waitForJQueryLoadIfDefined() {
 	Boolean jQueryDefined = (Boolean) jsExec.executeScript("return typeof jQuery != 'undefined'");
 	if (jQueryDefined) {
-	    // Wait for jQuery to load
-	    ExpectedCondition<Boolean> jQueryLoad = driver -> ((Long) ((JavascriptExecutor) jsWaitDriver)
-		    .executeScript("return jQuery.active") == 0);
-
+	    ExpectedCondition<Boolean> jQueryLoad = null;
+	    try {
+		// Wait for jQuery to load
+		jQueryLoad = driver -> ((Long) ((JavascriptExecutor) jsWaitDriver)
+			.executeScript("return jQuery.active") == 0);
+	    } catch (NullPointerException e) {
+		// do nothing
+	    }
 	    // Get JQuery is Ready
 	    boolean jqueryReady = (Boolean) jsExec.executeScript("return jQuery.active==0");
 
@@ -72,8 +78,12 @@ public class JSWaiter {
 		// Wait JQuery until it is Ready!
 		int tryCounter = 0;
 		while ((!jqueryReady) && (tryCounter < 5)) {
-		    // Wait for jQuery to load
-		    (new WebDriverWait(jsWaitDriver, waitDuration)).until(jQueryLoad);
+		    try {
+			// Wait for jQuery to load
+			(new WebDriverWait(jsWaitDriver, waitDuration)).until(jQueryLoad);
+		    } catch (NullPointerException e) {
+			// do nothing
+		    }
 		    sleep(delayBetweenPolls);
 		    tryCounter++;
 		    jqueryReady = (Boolean) jsExec.executeScript("return jQuery.active == 0");
