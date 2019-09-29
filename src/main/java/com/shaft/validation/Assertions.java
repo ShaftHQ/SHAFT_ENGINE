@@ -22,6 +22,8 @@ import io.restassured.response.Response;
 
 //TODO: Assert Element matches reference file
 
+//TODO: Add optional message to be added to the log of the assertion to describe what it does
+
 public class Assertions {
     private static int attemptsBeforeThrowingElementNotFoundException = Integer
 	    .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
@@ -162,16 +164,16 @@ public class Assertions {
      *                       are equal, or 'false' for a negative assertion that the
      *                       objects are not equal
      */
-    public static void assertEquals(Object expectedValue, Object actualValue, int comparisonType,
+    public static void assertEquals(Object expectedValue, Object actualValue, int assertionComparisonType,
 	    Boolean assertionType) {
 	ReportManager.logDiscrete("Assertion [" + "assertEquals" + "] is being performed, with expectedValue ["
-		+ expectedValue + "], actualValue [" + actualValue + "], comparisonType [" + comparisonType
+		+ expectedValue + "], actualValue [" + actualValue + "], comparisonType [" + assertionComparisonType
 		+ "], and assertionType [" + assertionType + "].");
 
 	Boolean isExpectedOrActualValueLong = expectedValue.toString().length() >= 500
 		|| actualValue.toString().length() >= 500;
 
-	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, assertionType)) {
+	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, assertionComparisonType, assertionType)) {
 	case 1:
 	    if (assertionType) {
 		if (!isExpectedOrActualValueLong) {
@@ -381,7 +383,7 @@ public class Assertions {
      *                         expected value
      */
     public static void assertElementAttribute(WebDriver driver, By elementLocator, String elementAttribute,
-	    String expectedValue, int comparisonType, Boolean assertionType) {
+	    String expectedValue, int assertionComparisonType, Boolean assertionType) {
 	ReportManager.logDiscrete("Assertion [" + "assertElementAttribute"
 		+ "] is being performed for target attribute [" + elementAttribute + "].");
 	String actualValue = null;
@@ -404,7 +406,7 @@ public class Assertions {
 	}
 	ReportManager.setDiscreteLogging(discreetLoggingState);
 
-	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, assertionType)) {
+	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, assertionComparisonType, assertionType)) {
 	case 1:
 	    if (assertionType) {
 		pass("assertElementAttribute", driver, elementLocator, "Assertion Passed; actual value of ["
@@ -479,7 +481,7 @@ public class Assertions {
      *                       value
      */
     public static void assertElementCSSProperty(WebDriver driver, By elementLocator, String propertyName,
-	    String expectedValue, int comparisonType, Boolean assertionType) {
+	    String expectedValue, int assertionComparisonType, Boolean assertionType) {
 	ReportManager.logDiscrete("Assertion [" + "assertElementCSSProperty"
 		+ "] is being performed for target CSS Property [" + propertyName + "].");
 
@@ -488,7 +490,7 @@ public class Assertions {
 	String actualValue = ElementActions.getCSSProperty(driver, elementLocator, propertyName);
 	ReportManager.setDiscreteLogging(discreetLoggingState);
 
-	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, assertionType)) {
+	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, assertionComparisonType, assertionType)) {
 	case 1:
 	    if (assertionType) {
 		pass("assertElementCSSProperty", driver, elementLocator,
@@ -564,7 +566,7 @@ public class Assertions {
      *                         expected value
      */
     public static void assertBrowserAttribute(WebDriver driver, String browserAttribute, String expectedValue,
-	    int comparisonType, Boolean assertionType) {
+	    int assertionComparisonType, Boolean assertionType) {
 	JSWaiter.waitForLazyLoading();
 
 	ReportManager.logDiscrete("Assertion [" + "assertBrowserAttribute"
@@ -598,7 +600,7 @@ public class Assertions {
 	}
 	ReportManager.setDiscreteLogging(discreetLoggingState);
 
-	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, assertionType)) {
+	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, assertionComparisonType, assertionType)) {
 	case 1:
 	    if (assertionType) {
 		pass("assertBrowserAttribute", driver, "Assertion Passed; actual value of [" + browserAttribute
