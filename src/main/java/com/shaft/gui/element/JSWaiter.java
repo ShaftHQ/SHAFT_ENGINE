@@ -43,7 +43,6 @@ public class JSWaiter {
 	    ReportManager.log(e);
 	    return true;
 	} catch (NullPointerException e) {
-	    ReportManager.log(e);
 	    return true;
 	} catch (Exception e) {
 	    if (e.getMessage().contains("jQuery is not defined")) {
