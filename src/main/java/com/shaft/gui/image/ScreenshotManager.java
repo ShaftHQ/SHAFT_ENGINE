@@ -42,8 +42,8 @@ import com.shaft.gui.element.JSWaiter;
 import com.shaft.tools.io.ReportManager;
 
 public class ScreenshotManager {
-    private static final String SCREENSHOT_FOLDERPATH = System.getProperty("allureResultsFolderPath").trim() + "/"
-	    + "screenshots/";
+    private static final String SCREENSHOT_FOLDERPATH = System.getProperty("allureResultsFolderPath").trim()
+	    + "/screenshots/";
     private static final String SCREENSHOT_FOLDERNAME = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
     private static String screenshotFileName = "Screenshot";
     private static final String SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT = System
@@ -348,9 +348,6 @@ public class ScreenshotManager {
 	    screenshotImage = overlayShaftEngineLogo(screenshotImage);
 	    ByteArrayOutputStream screenshotOutputStream = new ByteArrayOutputStream();
 	    ImageIO.write(screenshotImage, "png", screenshotOutputStream);
-
-//	    ReportManager.attachAsStep("Screenshot", screenshotFileName,
-//		    new ByteArrayInputStream(screenshotOutputStream.toByteArray()));
 	    return Arrays.asList("Screenshot", screenshotFileName,
 		    new ByteArrayInputStream(screenshotOutputStream.toByteArray()));
 	} catch (IOException e) {

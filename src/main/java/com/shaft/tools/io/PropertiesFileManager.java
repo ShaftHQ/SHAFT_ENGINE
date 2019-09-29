@@ -140,23 +140,29 @@ public class PropertiesFileManager {
 	// all other instances will be closed
 	//
 	////////// Platform Flags and Timeouts
-	properties.put("browserNavigationTimeout", "30");
+	properties.put("browserNavigationTimeout", "60");
 	// Timeout in seconds to be used if navigating to a new URL (1 minute = 60
 	// seconds)
+	properties.put("pageLoadTimeout", "60");
+	// Timeout in seconds to be used to wait for a page to finish loading (1 minute
+	// = 60 seconds)
+	properties.put("scriptExecutionTimeout", "60");
+	// Timeout in seconds to be used to wait for a dynamic script to finish
+	// execution (1 minute = 60 seconds)
 	properties.put("defaultElementIdentificationTimeout", "5");
 	// Accepts integer values that represent the default timeout for finding a
 	// webElement
 	properties.put("attemptsBeforeThrowingElementNotFoundException", "5");
 	// Accepts integer values that represent the number of attempts before failing
 	// to find a webElement
-	properties.put("shellSessionTimeout", "30");
+	properties.put("shellSessionTimeout", "60");
 	// Timeout in seconds to be used if creating any kind of shell session (1 minute
 	// = 60 seconds), should be greater than or equal to the docker timeout in case
 	// of dockerized execution
-	properties.put("dockerCommandTimeout", "30");
+	properties.put("dockerCommandTimeout", "60");
 	// Timeout in seconds to be used if executing a command inside a docker (1
 	// minute = 60 seconds)
-	properties.put("databaseLoginTimeout", "30");
+	properties.put("databaseLoginTimeout", "60");
 	// Timeout in seconds to be used when attempting to login to a database (1
 	// minute = 60 seconds)
 	properties.put("databaseNetworkTimeout", "60");
@@ -182,6 +188,8 @@ public class PropertiesFileManager {
 	// true | false
 	// Note: Implicit waiting may increase execution time by 20% but it also
 	// increases test stability in flaky environments
+	properties.put("implicitWaitTimeout", "120");
+	// Maximum timeout in seconds to fail any action
 	//
 	////////// Screen-shot/AnimatedGif/Video Parameters
 	properties.put("screenshotParams_whenToTakeAScreenshot", "ValidationPointsOnly");

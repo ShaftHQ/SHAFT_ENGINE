@@ -55,8 +55,10 @@ public class BrowserFactory {
     private static final String TARGET_BROWSER_NAME = System.getProperty("targetBrowserName");
     // Default | MozillaFirefox | MicrosoftInternetExplorer | GoogleChrome |
     // MicrosoftEdge | Safari
-    private static final int PAGE_LOAD_TIMEOUT = 30;
-    private static final int IMPLICIT_WAIT_TIMEOUT = 30;
+
+    private static final int PAGE_LOAD_TIMEOUT = Integer.parseInt(System.getProperty("pageLoadTimeout"));
+    private static final int SCRIPT_TIMEOUT = Integer.parseInt(System.getProperty("scriptExecutionTimeout"));
+    private static final int IMPLICIT_WAIT_TIMEOUT = Integer.parseInt(System.getProperty("implicitWaitTimeout"));
     private static final Boolean WAIT_IMPLICITLY = Boolean.valueOf(System.getProperty("waitImplicitly").trim());
     private static final Boolean CREATE_GIF = Boolean.valueOf(System.getProperty("createAnimatedGif").trim());
     private static final Boolean BROWSEROBJECTSINGLETON = Boolean
@@ -242,15 +244,15 @@ public class BrowserFactory {
 	case GOOGLE_CHROME:
 	    chOptions = new ChromeOptions();
 	    chOptions.setCapability("platform", getDesiredOperatingSystem());
-	    chOptions.addArguments("--no-sandbox");
-	    chOptions.addArguments("--disable-infobars"); // disable automation info bar
-	    chOptions.addArguments("--disable-logging");
+	    chOptions.setHeadless(HEADLESS_EXECUTION);
 	    if (HEADLESS_EXECUTION) {
 		// https://developers.google.com/web/updates/2017/04/headless-chrome
-		chOptions.addArguments("--headless");
 		chOptions.addArguments("--disable-gpu"); // Temporarily needed if running on Windows
 	    }
 	    chOptions.setCapability(CapabilityType.LOGGING_PREFS, logPrefs);
+	    chOptions.addArguments("--disable-infobars"); // disable automation info bar
+	    chOptions.addArguments("--disable-logging");
+	    chOptions.addArguments("--no-sandbox");
 	    Map<String, Object> chromePreferences = new HashMap<>();
 	    chromePreferences.put("profile.default_content_settings.popups", 0);
 	    chromePreferences.put("download.prompt_for_download", "false");
@@ -535,6 +537,7 @@ public class BrowserFactory {
 		driver = createNewRemoteDriverInstance(browserName);
 	    }
 	    driver.manage().timeouts().pageLoadTimeout(PAGE_LOAD_TIMEOUT, TimeUnit.SECONDS);
+	    driver.manage().timeouts().setScriptTimeout(SCRIPT_TIMEOUT, TimeUnit.SECONDS);
 	    if (WAIT_IMPLICITLY) {
 		driver.manage().timeouts().implicitlyWait(IMPLICIT_WAIT_TIMEOUT, TimeUnit.SECONDS);
 	    }

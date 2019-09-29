@@ -350,7 +350,6 @@ public class ElementActions {
 	    // wait for element presence
 	    int matchingElementsCount = 0;
 	    if (previouslyIdentifiedXpath != null) {
-//		aiGeneratedElementLocator = By.xpath(previouslyIdentifiedXpath);
 		setAiGeneratedXpath(previouslyIdentifiedXpath);
 		matchingElementsCount = waitForElementPresence(driver, aiGeneratedElementLocator, numberOfAttempts);
 	    } else {
@@ -385,6 +384,7 @@ public class ElementActions {
     }
 
     private static int waitForElementPresence(WebDriver driver, By elementLocator, int numberOfAttempts) {
+	// TODO: Implement fluent wait
 	int matchingElementsCount = 0;
 	int i = 0;
 	do {
@@ -836,7 +836,7 @@ public class ElementActions {
 
 	    List<Object> screenshot = takeScreenshot(driver, elementLocator, "click", null, true);
 	    // takes screenshot before clicking the element out of view
-
+	    String elementText = "";
 	    try {
 		// wait for element to be clickable
 		(new WebDriverWait(driver, defaultElementIdentificationTimeout))
@@ -846,6 +846,7 @@ public class ElementActions {
 	    }
 
 	    try {
+		elementText = driver.findElement(elementLocator).getText();
 		driver.findElement(elementLocator).click();
 	    } catch (Exception e) {
 		try {
@@ -864,7 +865,11 @@ public class ElementActions {
 
 	    // removed to enhance performance, and replaced with a process to assert after
 	    // every navigation
-	    passAction(driver, elementLocator, "click", screenshot);
+	    if (elementText != null && !elementText.equals("")) {
+		passAction(driver, elementLocator, "click", elementText, screenshot);
+	    } else {
+		passAction(driver, elementLocator, "click", screenshot);
+	    }
 	} else {
 	    failAction(driver, "click");
 	}
