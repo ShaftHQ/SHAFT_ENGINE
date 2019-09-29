@@ -20,6 +20,8 @@ import com.shaft.tools.support.JavaActions;
 
 import io.restassured.response.Response;
 
+//TODO: Add optional message to be added to the log of the verification to describe what it does
+
 public class Verifications {
     private static StringBuilder verificationFailures = new StringBuilder();
     private static List<String> verificationFailuresList = new ArrayList<>();
@@ -197,16 +199,16 @@ public class Verifications {
      *                         objects are equal, or 'false' for a negative
      *                         verification that the objects are not equal
      */
-    public static void verifyEquals(Object expectedValue, Object actualValue, int comparisonType,
+    public static void verifyEquals(Object expectedValue, Object actualValue, int verificationComparisonType,
 	    Boolean verificationType) {
 	ReportManager.logDiscrete("Verification [" + "verifyEquals" + "] is being performed, with expectedValue ["
-		+ expectedValue + "], actualValue [" + actualValue + "], comparisonType [" + comparisonType
+		+ expectedValue + "], actualValue [" + actualValue + "], comparisonType [" + verificationComparisonType
 		+ "], and verificationType [" + verificationType + "].");
 
 	Boolean isExpectedOrActualValueLong = expectedValue.toString().length() >= 500
 		|| actualValue.toString().length() >= 500;
 
-	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, verificationType)) {
+	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, verificationComparisonType, verificationType)) {
 	case 1:
 	    if (verificationType) {
 		if (!isExpectedOrActualValueLong) {
@@ -427,7 +429,7 @@ public class Verifications {
      *                         expected value
      */
     public static void verifyElementAttribute(WebDriver driver, By elementLocator, String elementAttribute,
-	    String expectedValue, int comparisonType, Boolean verificationType) {
+	    String expectedValue, int verificationComparisonType, Boolean verificationType) {
 	ReportManager.logDiscrete("Verification [" + "verifyElementAttribute"
 		+ "] is being performed for target attribute [" + elementAttribute + "].");
 
@@ -451,7 +453,7 @@ public class Verifications {
 	}
 	ReportManager.setDiscreteLogging(discreetLoggingState);
 
-	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, verificationType)) {
+	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, verificationComparisonType, verificationType)) {
 	case 1:
 	    if (verificationType) {
 		verificationSuccesses.append("Verification Passed; actual value of [" + elementAttribute
@@ -526,7 +528,7 @@ public class Verifications {
      *                         expected value
      */
     public static void verifyElementCSSProperty(WebDriver driver, By elementLocator, String propertyName,
-	    String expectedValue, int comparisonType, Boolean verificationType) {
+	    String expectedValue, int verificationComparisonType, Boolean verificationType) {
 	ReportManager.logDiscrete("Verification [" + "verifyElementCSSProperty"
 		+ "] is being performed for target CSS Property [" + propertyName + "].");
 
@@ -535,7 +537,7 @@ public class Verifications {
 	String actualValue = ElementActions.getCSSProperty(driver, elementLocator, propertyName);
 	ReportManager.setDiscreteLogging(discreetLoggingState);
 
-	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, verificationType)) {
+	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, verificationComparisonType, verificationType)) {
 	case 1:
 	    if (verificationType) {
 		verificationSuccesses.append("Verification Passed; actual CSS Property value of [" + propertyName
@@ -608,7 +610,7 @@ public class Verifications {
      *                         expected value
      */
     public static void verifyBrowserAttribute(WebDriver driver, String browserAttribute, String expectedValue,
-	    int comparisonType, Boolean verificationType) {
+	    int verificationComparisonType, Boolean verificationType) {
 	JSWaiter.waitForLazyLoading();
 
 	ReportManager.logDiscrete("Verification [" + "verifyBrowserAttribute"
@@ -643,7 +645,7 @@ public class Verifications {
 	}
 	ReportManager.setDiscreteLogging(discreetLoggingState);
 
-	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, verificationType)) {
+	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, verificationComparisonType, verificationType)) {
 	case 1:
 	    if (verificationType) {
 		verificationSuccesses.append("Verification Passed; actual value of [" + browserAttribute
