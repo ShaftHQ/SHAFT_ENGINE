@@ -158,7 +158,7 @@ public class Assertions {
      * 
      * @param expectedValue  the expected value (test data) of this assertion
      * @param actualValue    the actual value (calculated data) of this assertion
-     * @param comparisonType 1 is literalComparison, 2 is regexComparison, 3 is
+     * @param assertionComparisonType 1 is literalComparison, 2 is regexComparison, 3 is
      *                       containsComparison, 4 is caseInsensitiveComparison
      * @param assertionType  either 'true' for a positive assertion that the objects
      *                       are equal, or 'false' for a negative assertion that the
@@ -374,7 +374,7 @@ public class Assertions {
      *                         id, selector, name ...etc)
      * @param elementAttribute the desired attribute of the webElement under test
      * @param expectedValue    the expected value (test data) of this assertion
-     * @param comparisonType   1 is literalComparison, 2 is regexComparison, 3 is
+     * @param assertionComparisonType   1 is literalComparison, 2 is regexComparison, 3 is
      *                         containsComparison, 4 is caseInsensitiveComparison
      * @param assertionType    either 'true' for a positive assertion that the
      *                         element attribute actual value matches the expected
@@ -467,18 +467,21 @@ public class Assertions {
      * {@link Assertions#assertElementCSSProperty(WebDriver, By, String, String, AssertionComparisonType, AssertionType)}
      * instead.
      * 
-     * @param driver         the current instance of Selenium webdriver
-     * @param elementLocator the locator of the webElement under test (By xpath, id,
-     *                       selector, name ...etc)
-     * @param propertyName   the target CSS property of the webElement under test
-     * @param expectedValue  the expected value (test data) of this assertion
-     * @param comparisonType 1 is literalComparison, 2 is regexComparison, 3 is
-     *                       containsComparison, 4 is caseInsensitiveComparison
-     * @param assertionType  either 'true' for a positive assertion that the element
-     *                       CSSProperty actual value matches the expected value, or
-     *                       'false' for a negative assertion that the element
-     *                       CSSProperty actual value doesn't match the expected
-     *                       value
+     * @param driver                  the current instance of Selenium webdriver
+     * @param elementLocator          the locator of the webElement under test (By
+     *                                xpath, id, selector, name ...etc)
+     * @param propertyName            the target CSS property of the webElement
+     *                                under test
+     * @param expectedValue           the expected value (test data) of this
+     *                                assertion
+     * @param assertionComparisonType 1 is literalComparison, 2 is regexComparison,
+     *                                3 is containsComparison, 4 is
+     *                                caseInsensitiveComparison
+     * @param assertionType           either 'true' for a positive assertion that
+     *                                the element CSSProperty actual value matches
+     *                                the expected value, or 'false' for a negative
+     *                                assertion that the element CSSProperty actual
+     *                                value doesn't match the expected value
      */
     public static void assertElementCSSProperty(WebDriver driver, By elementLocator, String propertyName,
 	    String expectedValue, int assertionComparisonType, Boolean assertionType) {
@@ -557,7 +560,7 @@ public class Assertions {
      * @param browserAttribute the desired attribute of the browser window under
      *                         test
      * @param expectedValue    the expected value (test data) of this assertion
-     * @param comparisonType   1 is literalComparison, 2 is regexComparison, 3 is
+     * @param assertionComparisonType   1 is literalComparison, 2 is regexComparison, 3 is
      *                         containsComparison, 4 is caseInsensitiveComparison
      * @param assertionType    either 'true' for a positive assertion that the
      *                         browser attribute actual value matches the expected

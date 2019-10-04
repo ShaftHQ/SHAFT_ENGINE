@@ -821,6 +821,12 @@ public class ElementActions {
 	if (identifyUniqueElement(driver, elementLocator)) {
 	    // Override current locator with the aiGeneratedElementLocator
 	    elementLocator = updateLocatorWithAIGenratedOne(elementLocator);
+	    String elementText = "";
+	    try {
+		elementText = driver.findElement(elementLocator).getText();
+	    } catch (Exception e) {
+		// do nothing
+	    }
 
 	    // adding hover before clicking an element to enable styles to show in the
 	    // execution screenshots and to solve issues clicking on certain elements.
@@ -836,17 +842,15 @@ public class ElementActions {
 
 	    List<Object> screenshot = takeScreenshot(driver, elementLocator, "click", null, true);
 	    // takes screenshot before clicking the element out of view
-	    String elementText = "";
 	    try {
 		// wait for element to be clickable
 		(new WebDriverWait(driver, defaultElementIdentificationTimeout))
 			.until(ExpectedConditions.elementToBeClickable(elementLocator));
 	    } catch (TimeoutException e) {
-		ReportManager.log(e);
+		// ReportManager.log(e);
 	    }
 
 	    try {
-		elementText = driver.findElement(elementLocator).getText();
 		driver.findElement(elementLocator).click();
 	    } catch (Exception e) {
 		try {
