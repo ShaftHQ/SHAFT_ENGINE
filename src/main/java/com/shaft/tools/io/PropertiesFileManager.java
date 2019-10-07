@@ -184,6 +184,10 @@ public class PropertiesFileManager {
 	// true | false
 	properties.put("forceCheckForElementVisibility", "true");
 	// true | false
+	properties.put("forceCheckElementLocatorIsUnique", "true");
+	// true | false
+	// Note: It is recommended to disable this feature if you'll be using
+	// org.openqa.selenium.support.locators.RelativeLocator
 	properties.put("waitImplicitly", "false");
 	// true | false
 	// Note: Implicit waiting may increase execution time by 20% but it also

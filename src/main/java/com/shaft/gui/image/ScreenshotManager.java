@@ -130,7 +130,8 @@ public class ScreenshotManager {
 	return internalCaptureScreenShot(driver, null, actionName, globalPassFailAppendedText,
 		(SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always"))
 			|| (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly")
-				&& (actionName.contains("assert") || actionName.contains("verify")))
+				&& (actionName.toLowerCase().contains("assert")
+					|| actionName.toLowerCase().contains("verify")))
 			|| (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly") && (!passFailStatus))
 			|| !passFailStatus);
 
@@ -170,7 +171,8 @@ public class ScreenshotManager {
 	return internalCaptureScreenShot(driver, elementLocator, actionName, globalPassFailAppendedText,
 		(SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always"))
 			|| (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly")
-				&& (actionName.contains("assert") || actionName.contains("verify")))
+				&& (actionName.toLowerCase().contains("assert")
+					|| actionName.toLowerCase().contains("verify")))
 			|| (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly") && (!passFailStatus))
 			|| !passFailStatus);
 	// Note: Excluded the "Always" case as there will already be another screenshot
