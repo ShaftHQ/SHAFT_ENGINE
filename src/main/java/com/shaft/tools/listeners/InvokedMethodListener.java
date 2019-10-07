@@ -11,6 +11,7 @@ import org.testng.IInvokedMethodListener;
 import org.testng.ITestNGMethod;
 import org.testng.ITestResult;
 import org.testng.SkipException;
+import org.testng.internal.ConfigurationMethod;
 import org.testng.internal.ConstructorOrMethod;
 
 import com.shaft.gui.browser.BrowserFactory;
@@ -57,9 +58,9 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 	    if (invokedTestsCounter == 0) {
 		RecordManager.startRecording();
 	    }
-	} else if (method.isConfigurationMethod()) {
-	    ReportManager.logConfigurationMethodInformation(method.getTestMethod().getTestClass().getName(),
-		    method.getTestMethod().getMethodName());
+	} else if (testMethod instanceof ConfigurationMethod) {
+	    ReportManager.logConfigurationMethodInformation(testMethod.getTestClass().getName(),
+		    testMethod.getMethodName());
 	}
 	// implementing the new kill switch at the start of every test method
 	if (BrowserFactory.isKillSwitch()) {

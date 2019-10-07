@@ -17,6 +17,7 @@ public class AlterSuiteListener implements IAlterSuiteListener {
     public void alter(List<XmlSuite> suites) {
 	PropertiesFileManager.readPropertyFiles();
 	// disable log4j housed inside some transitive dependencies
+	org.apache.log4j.BasicConfigurator.configure();
 	org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.OFF);
 
 	setExecutionProperties(suites);

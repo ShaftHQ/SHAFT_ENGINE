@@ -72,17 +72,20 @@ public class JavaActions {
      */
     public static int compareTwoObjects(Object expectedValue, Object actualValue, int comparisonType,
 	    Boolean validationType) {
+
 	if (validationType) {
 	    try {
 		switch (comparisonType) {
 		case 1:
 		    // case sensitive literal equivalence
-			if (Number.class.equals(expectedValue.getClass()) || Number.class.equals(actualValue.getClass())) {
-			    Assert.assertTrue((String.valueOf(actualValue)).equals(String.valueOf(expectedValue)));
-			}
-			else {
-			    Assert.assertTrue(actualValue.equals(expectedValue));
-			}
+		    if (expectedValue == null) {
+			Assert.assertNull(actualValue);
+		    } else if (Number.class.equals(expectedValue.getClass())
+			    || Number.class.equals(actualValue.getClass())) {
+			Assert.assertTrue((String.valueOf(actualValue)).equals(String.valueOf(expectedValue)));
+		    } else {
+			Assert.assertTrue(actualValue.equals(expectedValue));
+		    }
 		    break;
 		case 2:
 		    // regex comparison
@@ -112,12 +115,11 @@ public class JavaActions {
 		switch (comparisonType) {
 		case 1:
 		    // case sensitive literal equivalence
-			if (Number.class.equals(expectedValue.getClass()) || Number.class.equals(actualValue.getClass())) {
-			    Assert.assertFalse((String.valueOf(actualValue)).equals(String.valueOf(expectedValue)));
-			}
-			else {
-			    Assert.assertFalse(actualValue.equals(expectedValue));
-			}
+		    if (Number.class.equals(expectedValue.getClass()) || Number.class.equals(actualValue.getClass())) {
+			Assert.assertFalse((String.valueOf(actualValue)).equals(String.valueOf(expectedValue)));
+		    } else {
+			Assert.assertFalse(actualValue.equals(expectedValue));
+		    }
 		    break;
 		case 2:
 		    // regex comparison

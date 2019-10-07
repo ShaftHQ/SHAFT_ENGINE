@@ -307,9 +307,11 @@ public class ElementActions {
 		}
 		return true;
 	    default:
-		failAction(driver, "identifyUniqueElement",
-			"multiple elements found matching this locator \"" + elementLocator + "\".");
-		break;
+		if (Boolean.valueOf(System.getProperty("forceCheckElementLocatorIsUnique"))) {
+		    failAction(driver, "identifyUniqueElement",
+			    "multiple elements found matching this locator \"" + elementLocator + "\".");
+		}
+		return true;
 	    }
 	} else {
 	    failAction(driver, "identifyUniqueElement", "element locator is NULL.");
@@ -331,6 +333,7 @@ public class ElementActions {
     }
 
     private static int getMatchingElementsCount(WebDriver driver, By elementLocator, int numberOfAttempts) {
+	//TODO: Refactor to be called only from identifyUniqueElement
 	return getMatchingElementsCount(driver, elementLocator, numberOfAttempts, true);
     }
 
@@ -408,15 +411,29 @@ public class ElementActions {
     }
 
     private static String determineSuccessfulTextLocationStrategy(WebDriver driver, By elementLocator) {
-	String elementText = driver.findElement(elementLocator).getText();
-	String successfulTextLocationStrategy = "text";
-	if (elementText.trim().equals("")) {
-	    elementText = driver.findElement(elementLocator).getAttribute("textContent");
-	    successfulTextLocationStrategy = "textContent";
-	}
-	if (elementText.trim().equals("")) {
+	// TODO: refactor logic to actually compare values
+	String text = driver.findElement(elementLocator).getText().trim();
+	String content = driver.findElement(elementLocator).getAttribute("textContent").trim();
+	String value = driver.findElement(elementLocator).getAttribute("value").trim();
+
+	String successfulTextLocationStrategy;
+	if (!text.equals("") && content.equals("") && value.equals("")) {
+	    successfulTextLocationStrategy = "text";
+	} else if (text.equals("") && !content.equals("") && value.equals("")) {
+	    successfulTextLocationStrategy = "content";
+	} else {
 	    successfulTextLocationStrategy = "value";
 	}
+//
+//	String elementText = driver.findElement(elementLocator).getText();
+//	String successfulTextLocationStrategy = "text";
+//	if (elementText.trim().equals("")) {
+//	    elementText = driver.findElement(elementLocator).getAttribute("textContent");
+//	    successfulTextLocationStrategy = "textContent";
+//	}
+//	if (elementText.trim().equals("")) {
+//	    successfulTextLocationStrategy = "value";
+//	}
 	return successfulTextLocationStrategy;
     }
 
@@ -440,6 +457,7 @@ public class ElementActions {
     }
 
     private static void typeWrapper(WebDriver driver, By elementLocator, String targetText, Boolean isSecureTyping) {
+	//TODO: refactor to minimize element actions
 	if (identifyUniqueElement(driver, elementLocator)) {
 	    // Override current locator with the aiGeneratedElementLocator
 	    elementLocator = updateLocatorWithAIGenratedOne(elementLocator);
@@ -454,15 +472,13 @@ public class ElementActions {
 		    // attempt to clear element then check text size
 		    clearBeforeTyping(driver, elementLocator, successfulTextLocationStrategy);
 		}
-		if ((getMatchingElementsCount(driver, elementLocator,
-			attemptsBeforeThrowingElementNotFoundException) == 1) && (!targetText.equals(""))) {
+		if (identifyUniqueElement(driver, elementLocator) && !targetText.equals("")) {
 		    // Override current locator with the aiGeneratedElementLocator
 		    elementLocator = updateLocatorWithAIGenratedOne(elementLocator);
 
 		    performType(driver, elementLocator, targetText);
 		}
-		if ((getMatchingElementsCount(driver, elementLocator,
-			attemptsBeforeThrowingElementNotFoundException) == 1) && (!targetText.equals(""))) {
+		if (identifyUniqueElement(driver, elementLocator) && !targetText.equals("")) {
 		    // Override current locator with the aiGeneratedElementLocator
 		    elementLocator = updateLocatorWithAIGenratedOne(elementLocator);
 		    // to confirm that the text was written successfully
