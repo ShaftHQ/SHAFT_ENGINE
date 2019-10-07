@@ -662,6 +662,9 @@ public class RestActions {
 	} catch (ClassCastException e) {
 	    ReportManager.log(ERROR_INCORRECT_JSONPATH + "[" + jsonPath + "]");
 	    failAction("getResponseJSONValue", jsonPath);
+	} catch (JsonPathException e) {
+	    ReportManager.log("Failed to parse the JSON document");
+	    failAction("getResponseJSONValue", jsonPath);
 	}
 	if (searchPool != null) {
 	    passAction("getResponseJSONValue", jsonPath, true);
@@ -683,6 +686,9 @@ public class RestActions {
 	} catch (ClassCastException e) {
 	    ReportManager.log(ERROR_INCORRECT_JSONPATH + "[" + jsonPath + "]");
 	    failAction("getResponseJSONValue", jsonPath);
+	} catch (JsonPathException e) {
+	    ReportManager.log("Failed to parse the JSON document");
+	    failAction("getResponseJSONValue", jsonPath);
 	}
 	if (searchPool != null) {
 	    passAction("getResponseJSONValue", jsonPath, true);
@@ -701,8 +707,11 @@ public class RestActions {
 	} catch (ClassCastException e) {
 	    ReportManager.log(ERROR_INCORRECT_JSONPATH + "[" + jsonPath + "]");
 	    failAction("getResponseJSONValueAsList", jsonPath);
-
+	} catch (JsonPathException e) {
+	    ReportManager.log("Failed to parse the JSON document");
+	    failAction("getResponseJSONValueAsList", jsonPath);
 	}
+	
 	if (searchPool != null) {
 	    passAction("getResponseJSONValueAsList", jsonPath, true);
 	    return searchPool;
