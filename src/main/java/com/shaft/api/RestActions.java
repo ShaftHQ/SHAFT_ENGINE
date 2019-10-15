@@ -402,11 +402,11 @@ public class RestActions {
 	}
     }
 
-    private static InputStream parseBodyToJson(Response response) {
+    public static InputStream parseBodyToJson(Response response) {
 	return parseBodyToJson(response.getBody());
     }
 
-    private static InputStream parseBodyToJson(Object body) {
+    public static InputStream parseBodyToJson(Object body) {
 	JSONParser parser = new JSONParser();
 	try {
 	    org.json.simple.JSONObject actualJsonObject = null;
