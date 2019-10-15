@@ -338,9 +338,10 @@ public class ReportManager {
 	    String propertyKey = ((String) (props.keySet().toArray())[i]).trim();
 	    String propertyValue = props.getProperty(propertyKey).trim();
 
-	    // excluding empty values and system properties (all system properties have "."
-	    // in their names
-	    if (!propertyValue.equals("") && !propertyKey.contains(".")) {
+	    // excluding empty values, system properties (all system properties have "." in
+	    // their names), and any git branch issues
+	    if (!propertyValue.equals("") && !propertyKey.contains(".") && !propertyKey.contains(">>>")
+		    && !propertyKey.contains("<<<")) {
 		String parameter = "<parameter>" + "<key>" + propertyKey + "</key>" + "<value>" + propertyValue
 			+ "</value>" + "</parameter>";
 		if (propertyKey.equals(SHAFT_ENGINE_VERSION_PROPERTY_NAME)) {

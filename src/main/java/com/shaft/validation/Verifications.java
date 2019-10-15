@@ -1,5 +1,7 @@
 package com.shaft.validation;
 
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -982,7 +984,24 @@ public class Verifications {
 	}
 	Boolean comparisonResult = RestActions.compareJSON(response, referenceJsonFilePath, comparisonType,
 		jsonPathToTargetArray);
-	if (comparisonResult) {
+
+	// prepare attachments
+	List<Object> expectedValueAttachment = null;
+	try {
+	    expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected Value",
+		    RestActions.parseBodyToJson(new FileReader(referenceJsonFilePath)));
+	} catch (FileNotFoundException e) {
+	    // do nothing because the test would have already failed at the compareJSON
+	    // stage
+	}
+	List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Value",
+		RestActions.parseBodyToJson(response));
+
+	List<List<Object>> attachments = new ArrayList<>();
+	attachments.add(expectedValueAttachment);
+	attachments.add(actualValueAttachment);
+
+	if (Boolean.TRUE.equals(comparisonResult)) {
 	    if (verificationType.getValue()) {
 		// comparison passed and is expected to pass
 		verificationSuccesses.append(
@@ -1007,7 +1026,7 @@ public class Verifications {
 				+ referenceJsonFilePath + "\".");
 	    }
 	}
-	reportVerificationResults("verifyJSONFileContent", null, null);
+	reportVerificationResults("verifyJSONFileContent", null, null, attachments);
     }
 
 }
