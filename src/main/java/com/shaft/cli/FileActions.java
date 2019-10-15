@@ -462,6 +462,19 @@ public class FileActions {
 	}
 	return text;
     }
+    
+    public static String readFromFile(String pathToTargetFile) {
+	String text = "";
+	String absoluteFilePath = getAbsolutePath(pathToTargetFile);
+	Path filePath = Paths.get(absoluteFilePath);
+
+	try {
+	    text = String.join(System.lineSeparator(), Files.readAllLines(filePath));
+	} catch (IOException e) {
+	    ReportManager.log(e);
+	}
+	return text;
+    }
 
     /**
      * Tests whether the file or directory denoted by this abstract pathname exists.

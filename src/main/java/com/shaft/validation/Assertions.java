@@ -1,7 +1,5 @@
 package com.shaft.validation;
 
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -954,14 +952,8 @@ public class Assertions {
 		jsonPathToTargetArray);
 
 	// prepare attachments
-	List<Object> expectedValueAttachment = null;
-	try {
-	    expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected Value",
-		    RestActions.parseBodyToJson(new FileReader(referenceJsonFilePath)));
-	} catch (FileNotFoundException e) {
-	    // do nothing because the test would have already failed at the compareJSON
-	    // stage
-	}
+	List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected Value",
+		RestActions.parseBodyToJson(FileActions.readFromFile(referenceJsonFilePath)));
 	List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Value",
 		RestActions.parseBodyToJson(response));
 
