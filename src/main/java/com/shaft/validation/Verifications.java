@@ -1,13 +1,14 @@
 package com.shaft.validation;
 
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.testng.Assert;
-import org.testng.ITestResult;
-import org.testng.Reporter;
 
 import com.shaft.api.RestActions;
 import com.shaft.api.RestActions.ComparisonType;
@@ -21,8 +22,30 @@ import com.shaft.tools.support.JavaActions;
 
 import io.restassured.response.Response;
 
+//TODO: Add optional message to be added to the log of the verification to describe what it does
+
 public class Verifications {
     private static StringBuilder verificationFailures = new StringBuilder();
+    private static List<String> verificationFailuresList = new ArrayList<>();
+
+    public static void resetVerificationFailuresMessage() {
+	Verifications.verificationFailuresList = new ArrayList<>();
+    }
+
+    public static String getVerificationFailuresMessage() {
+	return String.join("\nAND ", verificationFailuresList);
+    }
+
+    private static AssertionError verificationError = null;
+
+    public static AssertionError getVerificationError() {
+	return verificationError;
+    }
+
+    public static void resetVerificationError() {
+	Verifications.verificationError = null;
+    }
+
     private static StringBuilder verificationSuccesses = new StringBuilder();
 
     private static int attemptsBeforeThrowingElementNotFoundException = Integer
@@ -126,19 +149,9 @@ public class Verifications {
 		ReportManager.log(verificationFailuresString, attachments);
 	    }
 	    ReportManager.setDiscreteLogging(initialDiscreteLoggingState);
-
-	    // Throw a new exception with the failure string, or append to current exception
-	    // message
-	    try {
-		String oldMessage = Reporter.getCurrentTestResult().getThrowable().getMessage();
-		Reporter.getCurrentTestResult()
-			.setThrowable(new Throwable(oldMessage + "\nAND " + verificationFailuresString));
-	    } catch (NullPointerException e) {
-		Reporter.getCurrentTestResult().setThrowable(new Throwable(verificationFailuresString));
-	    }
-	    Reporter.getCurrentTestResult().setStatus(ITestResult.FAILURE);
+	    verificationFailuresList.add(verificationFailuresString);
+	    verificationError = new AssertionError(getVerificationFailuresMessage());
 	    verificationFailures.delete(0, verificationFailures.length());
-//	    ReportManager.setDiscreteLogging(discreetLoggingState); // reset state in case of failure
 	}
     }
 
@@ -179,25 +192,29 @@ public class Verifications {
      * {@link Verifications#verifyEquals(Object , Object , VerificationComparisonType , VerificationType)}
      * instead.
      * 
-     * @param expectedValue    the expected value (test data) of this verification
-     * @param actualValue      the actual value (calculated data) of this
-     *                         verification
-     * @param comparisonType   1 is literalComparison, 2 is regexComparison, 3 is
-     *                         containsComparison, 4 is caseInsensitiveComparison
-     * @param verificationType either 'true' for a positive verification that the
-     *                         objects are equal, or 'false' for a negative
-     *                         verification that the objects are not equal
+     * @param expectedValue              the expected value (test data) of this
+     *                                   verification
+     * @param actualValue                the actual value (calculated data) of this
+     *                                   verification
+     * @param verificationComparisonType 1 is literalComparison, 2 is
+     *                                   regexComparison, 3 is containsComparison, 4
+     *                                   is caseInsensitiveComparison
+     * @param verificationType           either 'true' for a positive verification
+     *                                   that the objects are equal, or 'false' for
+     *                                   a negative verification that the objects
+     *                                   are not equal
      */
-    public static void verifyEquals(Object expectedValue, Object actualValue, int comparisonType,
+    public static void verifyEquals(Object expectedValue, Object actualValue, int verificationComparisonType,
 	    Boolean verificationType) {
 	ReportManager.logDiscrete("Verification [" + "verifyEquals" + "] is being performed, with expectedValue ["
-		+ expectedValue + "], actualValue [" + actualValue + "], comparisonType [" + comparisonType
+		+ expectedValue + "], actualValue [" + actualValue + "], comparisonType [" + verificationComparisonType
 		+ "], and verificationType [" + verificationType + "].");
 
 	Boolean isExpectedOrActualValueLong = expectedValue.toString().length() >= 500
 		|| actualValue.toString().length() >= 500;
 
-	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, verificationType)) {
+	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, verificationComparisonType,
+		verificationType)) {
 	case 1:
 	    if (verificationType) {
 		if (!isExpectedOrActualValueLong) {
@@ -404,21 +421,25 @@ public class Verifications {
      * {@link Verifications#verifyElementAttribute(WebDriver , By , String, String, VerificationComparisonType , VerificationType)}
      * instead.
      * 
-     * @param driver           the current instance of Selenium webdriver
-     * @param elementLocator   the locator of the webElement under test (By xpath,
-     *                         id, selector, name ...etc)
-     * @param elementAttribute the desired attribute of the webElement under test
-     * @param expectedValue    the expected value (test data) of this verification
-     * @param comparisonType   1 is literalComparison, 2 is regexComparison, 3 is
-     *                         containsComparison, 4 is caseInsensitiveComparison
-     * @param verificationType either 'true' for a positive verification that the
-     *                         element attribute actual value matches the expected
-     *                         value, or 'false' for a negative verification that
-     *                         the element attribute actual value doesn't match the
-     *                         expected value
+     * @param driver                     the current instance of Selenium webdriver
+     * @param elementLocator             the locator of the webElement under test
+     *                                   (By xpath, id, selector, name ...etc)
+     * @param elementAttribute           the desired attribute of the webElement
+     *                                   under test
+     * @param expectedValue              the expected value (test data) of this
+     *                                   verification
+     * @param verificationComparisonType 1 is literalComparison, 2 is
+     *                                   regexComparison, 3 is containsComparison, 4
+     *                                   is caseInsensitiveComparison
+     * @param verificationType           either 'true' for a positive verification
+     *                                   that the element attribute actual value
+     *                                   matches the expected value, or 'false' for
+     *                                   a negative verification that the element
+     *                                   attribute actual value doesn't match the
+     *                                   expected value
      */
     public static void verifyElementAttribute(WebDriver driver, By elementLocator, String elementAttribute,
-	    String expectedValue, int comparisonType, Boolean verificationType) {
+	    String expectedValue, int verificationComparisonType, Boolean verificationType) {
 	ReportManager.logDiscrete("Verification [" + "verifyElementAttribute"
 		+ "] is being performed for target attribute [" + elementAttribute + "].");
 
@@ -442,7 +463,8 @@ public class Verifications {
 	}
 	ReportManager.setDiscreteLogging(discreetLoggingState);
 
-	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, verificationType)) {
+	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, verificationComparisonType,
+		verificationType)) {
 	case 1:
 	    if (verificationType) {
 		verificationSuccesses.append("Verification Passed; actual value of [" + elementAttribute
@@ -503,21 +525,25 @@ public class Verifications {
      * {@link Verifications#verifyElementCSSProperty(WebDriver , By , String, String, VerificationComparisonType , VerificationType)}
      * instead.
      * 
-     * @param driver           the current instance of Selenium webdriver
-     * @param elementLocator   the locator of the webElement under test (By xpath,
-     *                         id, selector, name ...etc)
-     * @param propertyName     the target CSS property of the webElement under test
-     * @param expectedValue    the expected value (test data) of this assertion
-     * @param comparisonType   1 is literalComparison, 2 is regexComparison, 3 is
-     *                         containsComparison, 4 is caseInsensitiveComparison
-     * @param verificationType either 'true' for a positive assertion that the
-     *                         element CSSProperty actual value matches the expected
-     *                         value, or 'false' for a negative assertion that the
-     *                         element CSSProperty actual value doesn't match the
-     *                         expected value
+     * @param driver                     the current instance of Selenium webdriver
+     * @param elementLocator             the locator of the webElement under test
+     *                                   (By xpath, id, selector, name ...etc)
+     * @param propertyName               the target CSS property of the webElement
+     *                                   under test
+     * @param expectedValue              the expected value (test data) of this
+     *                                   assertion
+     * @param verificationComparisonType 1 is literalComparison, 2 is
+     *                                   regexComparison, 3 is containsComparison, 4
+     *                                   is caseInsensitiveComparison
+     * @param verificationType           either 'true' for a positive assertion that
+     *                                   the element CSSProperty actual value
+     *                                   matches the expected value, or 'false' for
+     *                                   a negative assertion that the element
+     *                                   CSSProperty actual value doesn't match the
+     *                                   expected value
      */
     public static void verifyElementCSSProperty(WebDriver driver, By elementLocator, String propertyName,
-	    String expectedValue, int comparisonType, Boolean verificationType) {
+	    String expectedValue, int verificationComparisonType, Boolean verificationType) {
 	ReportManager.logDiscrete("Verification [" + "verifyElementCSSProperty"
 		+ "] is being performed for target CSS Property [" + propertyName + "].");
 
@@ -526,7 +552,8 @@ public class Verifications {
 	String actualValue = ElementActions.getCSSProperty(driver, elementLocator, propertyName);
 	ReportManager.setDiscreteLogging(discreetLoggingState);
 
-	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, verificationType)) {
+	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, verificationComparisonType,
+		verificationType)) {
 	case 1:
 	    if (verificationType) {
 		verificationSuccesses.append("Verification Passed; actual CSS Property value of [" + propertyName
@@ -586,20 +613,23 @@ public class Verifications {
      * {@link Verifications#verifyBrowserAttribute(WebDriver , String, String, VerificationComparisonType , VerificationType)}
      * instead.
      * 
-     * @param driver           the current instance of Selenium webdriver
-     * @param browserAttribute the desired attribute of the browser window under
-     *                         test
-     * @param expectedValue    the expected value (test data) of this verification
-     * @param comparisonType   1 is literalComparison, 2 is regexComparison, 3 is
-     *                         containsComparison, 4 is caseInsensitiveComparison
-     * @param verificationType either 'true' for a positive verification that the
-     *                         browser attribute actual value matches the expected
-     *                         value, or 'false' for a negative verification that
-     *                         the browser attribute actual value doesn't match the
-     *                         expected value
+     * @param driver                     the current instance of Selenium webdriver
+     * @param browserAttribute           the desired attribute of the browser window
+     *                                   under test
+     * @param expectedValue              the expected value (test data) of this
+     *                                   verification
+     * @param verificationComparisonType 1 is literalComparison, 2 is
+     *                                   regexComparison, 3 is containsComparison, 4
+     *                                   is caseInsensitiveComparison
+     * @param verificationType           either 'true' for a positive verification
+     *                                   that the browser attribute actual value
+     *                                   matches the expected value, or 'false' for
+     *                                   a negative verification that the browser
+     *                                   attribute actual value doesn't match the
+     *                                   expected value
      */
     public static void verifyBrowserAttribute(WebDriver driver, String browserAttribute, String expectedValue,
-	    int comparisonType, Boolean verificationType) {
+	    int verificationComparisonType, Boolean verificationType) {
 	JSWaiter.waitForLazyLoading();
 
 	ReportManager.logDiscrete("Verification [" + "verifyBrowserAttribute"
@@ -634,7 +664,8 @@ public class Verifications {
 	}
 	ReportManager.setDiscreteLogging(discreetLoggingState);
 
-	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, verificationType)) {
+	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, verificationComparisonType,
+		verificationType)) {
 	case 1:
 	    if (verificationType) {
 		verificationSuccesses.append("Verification Passed; actual value of [" + browserAttribute
@@ -953,7 +984,24 @@ public class Verifications {
 	}
 	Boolean comparisonResult = RestActions.compareJSON(response, referenceJsonFilePath, comparisonType,
 		jsonPathToTargetArray);
-	if (comparisonResult) {
+
+	// prepare attachments
+	List<Object> expectedValueAttachment = null;
+	try {
+	    expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected Value",
+		    RestActions.parseBodyToJson(new FileReader(referenceJsonFilePath)));
+	} catch (FileNotFoundException e) {
+	    // do nothing because the test would have already failed at the compareJSON
+	    // stage
+	}
+	List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Value",
+		RestActions.parseBodyToJson(response));
+
+	List<List<Object>> attachments = new ArrayList<>();
+	attachments.add(expectedValueAttachment);
+	attachments.add(actualValueAttachment);
+
+	if (Boolean.TRUE.equals(comparisonResult)) {
 	    if (verificationType.getValue()) {
 		// comparison passed and is expected to pass
 		verificationSuccesses.append(
@@ -978,7 +1026,7 @@ public class Verifications {
 				+ referenceJsonFilePath + "\".");
 	    }
 	}
-	reportVerificationResults("verifyJSONFileContent", null, null);
+	reportVerificationResults("verifyJSONFileContent", null, null, attachments);
     }
 
 }

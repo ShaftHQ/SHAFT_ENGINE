@@ -2,8 +2,10 @@ package com.shaft.gui.browser;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
@@ -53,8 +55,10 @@ public class BrowserFactory {
     private static final String TARGET_BROWSER_NAME = System.getProperty("targetBrowserName");
     // Default | MozillaFirefox | MicrosoftInternetExplorer | GoogleChrome |
     // MicrosoftEdge | Safari
-    private static final int PAGE_LOAD_TIMEOUT = 30;
-    private static final int IMPLICIT_WAIT_TIMEOUT = 30;
+
+    private static final int PAGE_LOAD_TIMEOUT = Integer.parseInt(System.getProperty("pageLoadTimeout"));
+    private static final int SCRIPT_TIMEOUT = Integer.parseInt(System.getProperty("scriptExecutionTimeout"));
+    private static final int IMPLICIT_WAIT_TIMEOUT = Integer.parseInt(System.getProperty("implicitWaitTimeout"));
     private static final Boolean WAIT_IMPLICITLY = Boolean.valueOf(System.getProperty("waitImplicitly").trim());
     private static final Boolean CREATE_GIF = Boolean.valueOf(System.getProperty("createAnimatedGif").trim());
     private static final Boolean BROWSEROBJECTSINGLETON = Boolean
@@ -240,14 +244,15 @@ public class BrowserFactory {
 	case GOOGLE_CHROME:
 	    chOptions = new ChromeOptions();
 	    chOptions.setCapability("platform", getDesiredOperatingSystem());
-	    chOptions.addArguments("--no-sandbox");
-	    chOptions.addArguments("--disable-infobars"); // disable automation info bar
+	    chOptions.setHeadless(HEADLESS_EXECUTION);
 	    if (HEADLESS_EXECUTION) {
 		// https://developers.google.com/web/updates/2017/04/headless-chrome
-		chOptions.addArguments("--headless");
 		chOptions.addArguments("--disable-gpu"); // Temporarily needed if running on Windows
 	    }
 	    chOptions.setCapability(CapabilityType.LOGGING_PREFS, logPrefs);
+	    chOptions.addArguments("--disable-infobars"); // disable automation info bar
+	    chOptions.addArguments("--disable-logging");
+	    chOptions.addArguments("--no-sandbox");
 	    Map<String, Object> chromePreferences = new HashMap<>();
 	    chromePreferences.put("profile.default_content_settings.popups", 0);
 	    chromePreferences.put("download.prompt_for_download", "false");
@@ -458,40 +463,25 @@ public class BrowserFactory {
 
     }
 
-    private static void attachBrowserLogs(String browserName, WebDriver driver) {
-	if (!browserName.contains(BrowserType.MOZILLA_FIREFOX.getValue())) {
-	    // The Selenium log API isn’t supported by geckodriver.
-	    // Confirmed to work with chromeDriver
+    private static void attachWebDriverLogs(WebDriver driver) {
+	List<String> targetLogs = new ArrayList<>();
+	targetLogs.add(LogType.PERFORMANCE);
+	targetLogs.add(LogType.BROWSER);
+	targetLogs.add(LogType.CLIENT);
+	targetLogs.add(LogType.DRIVER);
+	targetLogs.add(LogType.SERVER);
 
-	    StringBuilder logBuilder;
-	    String performanceLogText = "";
-	    String driverLogText = "";
-
+	targetLogs.forEach(targetLog -> {
 	    try {
-		logBuilder = new StringBuilder();
-		for (LogEntry entry : driver.manage().logs().get(LogType.PERFORMANCE)) {
+		StringBuilder logBuilder = new StringBuilder();
+		for (LogEntry entry : driver.manage().logs().get(targetLog)) {
 		    logBuilder.append(entry.toString() + System.lineSeparator());
 		}
-		performanceLogText = logBuilder.toString();
-		ReportManager.attach("Selenium WebDriver Logs", "Performance Logs for [" + browserName + "]",
-			performanceLogText);
+		ReportManager.attach("Selenium WebDriver Logs", targetLog, logBuilder.toString());
 	    } catch (WebDriverException e) {
 		// exception when the defined log type is not found
-		ReportManager.log(e);
 	    }
-
-	    try {
-		logBuilder = new StringBuilder();
-		for (LogEntry entry : driver.manage().logs().get(LogType.DRIVER)) {
-		    logBuilder.append(entry.toString() + System.lineSeparator());
-		}
-		driverLogText = logBuilder.toString();
-		ReportManager.attach("Selenium WebDriver Logs", "Driver Logs for [" + browserName + "]", driverLogText);
-	    } catch (WebDriverException e) {
-		// exception when the defined log type is not found
-		ReportManager.log(e);
-	    }
-	}
+	});
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -547,6 +537,7 @@ public class BrowserFactory {
 		driver = createNewRemoteDriverInstance(browserName);
 	    }
 	    driver.manage().timeouts().pageLoadTimeout(PAGE_LOAD_TIMEOUT, TimeUnit.SECONDS);
+	    driver.manage().timeouts().setScriptTimeout(SCRIPT_TIMEOUT, TimeUnit.SECONDS);
 	    if (WAIT_IMPLICITLY) {
 		driver.manage().timeouts().implicitlyWait(IMPLICIT_WAIT_TIMEOUT, TimeUnit.SECONDS);
 	    }
@@ -591,7 +582,7 @@ public class BrowserFactory {
 	    try {
 		for (Entry<String, Map<String, WebDriver>> entry : drivers.entrySet()) {
 		    for (Entry<String, WebDriver> driverEntry : entry.getValue().entrySet()) {
-			attachBrowserLogs(entry.getKey(), driverEntry.getValue());
+			attachWebDriverLogs(driverEntry.getValue());
 		    }
 		}
 	    } catch (Exception e) {

@@ -1,5 +1,7 @@
 package com.shaft.validation;
 
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -21,6 +23,10 @@ import com.shaft.tools.support.JavaActions;
 import io.restassured.response.Response;
 
 //TODO: Assert Element matches reference file
+
+//TODO: Add optional message to be added to the log of the assertion to describe what it does
+
+//TODO: Add attachments for JSON assertions in case of pass or fail both the expected and the actual
 
 public class Assertions {
     private static int attemptsBeforeThrowingElementNotFoundException = Integer
@@ -154,24 +160,28 @@ public class Assertions {
      * {@link Assertions#assertEquals(Object , Object , AssertionComparisonType , AssertionType)}
      * instead.
      * 
-     * @param expectedValue  the expected value (test data) of this assertion
-     * @param actualValue    the actual value (calculated data) of this assertion
-     * @param comparisonType 1 is literalComparison, 2 is regexComparison, 3 is
-     *                       containsComparison, 4 is caseInsensitiveComparison
-     * @param assertionType  either 'true' for a positive assertion that the objects
-     *                       are equal, or 'false' for a negative assertion that the
-     *                       objects are not equal
+     * @param expectedValue           the expected value (test data) of this
+     *                                assertion
+     * @param actualValue             the actual value (calculated data) of this
+     *                                assertion
+     * @param assertionComparisonType 1 is literalComparison, 2 is regexComparison,
+     *                                3 is containsComparison, 4 is
+     *                                caseInsensitiveComparison
+     * @param assertionType           either 'true' for a positive assertion that
+     *                                the objects are equal, or 'false' for a
+     *                                negative assertion that the objects are not
+     *                                equal
      */
-    public static void assertEquals(Object expectedValue, Object actualValue, int comparisonType,
+    public static void assertEquals(Object expectedValue, Object actualValue, int assertionComparisonType,
 	    Boolean assertionType) {
 	ReportManager.logDiscrete("Assertion [" + "assertEquals" + "] is being performed, with expectedValue ["
-		+ expectedValue + "], actualValue [" + actualValue + "], comparisonType [" + comparisonType
+		+ expectedValue + "], actualValue [" + actualValue + "], comparisonType [" + assertionComparisonType
 		+ "], and assertionType [" + assertionType + "].");
 
 	Boolean isExpectedOrActualValueLong = expectedValue.toString().length() >= 500
 		|| actualValue.toString().length() >= 500;
 
-	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, assertionType)) {
+	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, assertionComparisonType, assertionType)) {
 	case 1:
 	    if (assertionType) {
 		if (!isExpectedOrActualValueLong) {
@@ -367,21 +377,24 @@ public class Assertions {
      * {@link Assertions#assertElementAttribute(WebDriver , By , String , String , AssertionComparisonType , AssertionType)}
      * instead.
      * 
-     * @param driver           the current instance of Selenium webdriver
-     * @param elementLocator   the locator of the webElement under test (By xpath,
-     *                         id, selector, name ...etc)
-     * @param elementAttribute the desired attribute of the webElement under test
-     * @param expectedValue    the expected value (test data) of this assertion
-     * @param comparisonType   1 is literalComparison, 2 is regexComparison, 3 is
-     *                         containsComparison, 4 is caseInsensitiveComparison
-     * @param assertionType    either 'true' for a positive assertion that the
-     *                         element attribute actual value matches the expected
-     *                         value, or 'false' for a negative assertion that the
-     *                         element attribute actual value doesn't match the
-     *                         expected value
+     * @param driver                  the current instance of Selenium webdriver
+     * @param elementLocator          the locator of the webElement under test (By
+     *                                xpath, id, selector, name ...etc)
+     * @param elementAttribute        the desired attribute of the webElement under
+     *                                test
+     * @param expectedValue           the expected value (test data) of this
+     *                                assertion
+     * @param assertionComparisonType 1 is literalComparison, 2 is regexComparison,
+     *                                3 is containsComparison, 4 is
+     *                                caseInsensitiveComparison
+     * @param assertionType           either 'true' for a positive assertion that
+     *                                the element attribute actual value matches the
+     *                                expected value, or 'false' for a negative
+     *                                assertion that the element attribute actual
+     *                                value doesn't match the expected value
      */
     public static void assertElementAttribute(WebDriver driver, By elementLocator, String elementAttribute,
-	    String expectedValue, int comparisonType, Boolean assertionType) {
+	    String expectedValue, int assertionComparisonType, Boolean assertionType) {
 	ReportManager.logDiscrete("Assertion [" + "assertElementAttribute"
 		+ "] is being performed for target attribute [" + elementAttribute + "].");
 	String actualValue = null;
@@ -404,7 +417,7 @@ public class Assertions {
 	}
 	ReportManager.setDiscreteLogging(discreetLoggingState);
 
-	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, assertionType)) {
+	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, assertionComparisonType, assertionType)) {
 	case 1:
 	    if (assertionType) {
 		pass("assertElementAttribute", driver, elementLocator, "Assertion Passed; actual value of ["
@@ -465,21 +478,24 @@ public class Assertions {
      * {@link Assertions#assertElementCSSProperty(WebDriver, By, String, String, AssertionComparisonType, AssertionType)}
      * instead.
      * 
-     * @param driver         the current instance of Selenium webdriver
-     * @param elementLocator the locator of the webElement under test (By xpath, id,
-     *                       selector, name ...etc)
-     * @param propertyName   the target CSS property of the webElement under test
-     * @param expectedValue  the expected value (test data) of this assertion
-     * @param comparisonType 1 is literalComparison, 2 is regexComparison, 3 is
-     *                       containsComparison, 4 is caseInsensitiveComparison
-     * @param assertionType  either 'true' for a positive assertion that the element
-     *                       CSSProperty actual value matches the expected value, or
-     *                       'false' for a negative assertion that the element
-     *                       CSSProperty actual value doesn't match the expected
-     *                       value
+     * @param driver                  the current instance of Selenium webdriver
+     * @param elementLocator          the locator of the webElement under test (By
+     *                                xpath, id, selector, name ...etc)
+     * @param propertyName            the target CSS property of the webElement
+     *                                under test
+     * @param expectedValue           the expected value (test data) of this
+     *                                assertion
+     * @param assertionComparisonType 1 is literalComparison, 2 is regexComparison,
+     *                                3 is containsComparison, 4 is
+     *                                caseInsensitiveComparison
+     * @param assertionType           either 'true' for a positive assertion that
+     *                                the element CSSProperty actual value matches
+     *                                the expected value, or 'false' for a negative
+     *                                assertion that the element CSSProperty actual
+     *                                value doesn't match the expected value
      */
     public static void assertElementCSSProperty(WebDriver driver, By elementLocator, String propertyName,
-	    String expectedValue, int comparisonType, Boolean assertionType) {
+	    String expectedValue, int assertionComparisonType, Boolean assertionType) {
 	ReportManager.logDiscrete("Assertion [" + "assertElementCSSProperty"
 		+ "] is being performed for target CSS Property [" + propertyName + "].");
 
@@ -488,7 +504,7 @@ public class Assertions {
 	String actualValue = ElementActions.getCSSProperty(driver, elementLocator, propertyName);
 	ReportManager.setDiscreteLogging(discreetLoggingState);
 
-	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, assertionType)) {
+	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, assertionComparisonType, assertionType)) {
 	case 1:
 	    if (assertionType) {
 		pass("assertElementCSSProperty", driver, elementLocator,
@@ -551,20 +567,22 @@ public class Assertions {
      * {@link Assertions#assertBrowserAttribute(WebDriver , String , String , AssertionComparisonType , AssertionType )}
      * instead.
      * 
-     * @param driver           the current instance of Selenium webdriver
-     * @param browserAttribute the desired attribute of the browser window under
-     *                         test
-     * @param expectedValue    the expected value (test data) of this assertion
-     * @param comparisonType   1 is literalComparison, 2 is regexComparison, 3 is
-     *                         containsComparison, 4 is caseInsensitiveComparison
-     * @param assertionType    either 'true' for a positive assertion that the
-     *                         browser attribute actual value matches the expected
-     *                         value, or 'false' for a negative assertion that the
-     *                         browser attribute actual value doesn't match the
-     *                         expected value
+     * @param driver                  the current instance of Selenium webdriver
+     * @param browserAttribute        the desired attribute of the browser window
+     *                                under test
+     * @param expectedValue           the expected value (test data) of this
+     *                                assertion
+     * @param assertionComparisonType 1 is literalComparison, 2 is regexComparison,
+     *                                3 is containsComparison, 4 is
+     *                                caseInsensitiveComparison
+     * @param assertionType           either 'true' for a positive assertion that
+     *                                the browser attribute actual value matches the
+     *                                expected value, or 'false' for a negative
+     *                                assertion that the browser attribute actual
+     *                                value doesn't match the expected value
      */
     public static void assertBrowserAttribute(WebDriver driver, String browserAttribute, String expectedValue,
-	    int comparisonType, Boolean assertionType) {
+	    int assertionComparisonType, Boolean assertionType) {
 	JSWaiter.waitForLazyLoading();
 
 	ReportManager.logDiscrete("Assertion [" + "assertBrowserAttribute"
@@ -598,7 +616,7 @@ public class Assertions {
 	}
 	ReportManager.setDiscreteLogging(discreetLoggingState);
 
-	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, comparisonType, assertionType)) {
+	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, assertionComparisonType, assertionType)) {
 	case 1:
 	    if (assertionType) {
 		pass("assertBrowserAttribute", driver, "Assertion Passed; actual value of [" + browserAttribute
@@ -931,27 +949,45 @@ public class Assertions {
 			    + referenceJsonFilePath + "], jsonPathToTargetArray [" + jsonPathToTargetArray
 			    + "], comparisonType [" + comparisonType + "], and assertionType [" + assertionType + "].");
 	}
+
 	Boolean comparisonResult = RestActions.compareJSON(response, referenceJsonFilePath, comparisonType,
 		jsonPathToTargetArray);
-	if (comparisonResult) {
+
+	// prepare attachments
+	List<Object> expectedValueAttachment = null;
+	try {
+	    expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected Value",
+		    RestActions.parseBodyToJson(new FileReader(referenceJsonFilePath)));
+	} catch (FileNotFoundException e) {
+	    // do nothing because the test would have already failed at the compareJSON
+	    // stage
+	}
+	List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Value",
+		RestActions.parseBodyToJson(response));
+
+	List<List<Object>> attachments = new ArrayList<>();
+	attachments.add(expectedValueAttachment);
+	attachments.add(actualValueAttachment);
+
+	if (Boolean.TRUE.equals(comparisonResult)) {
 	    if (assertionType.getValue()) {
 		// comparison passed and is expected to pass
 		pass("Assertion Passed; the actual API response does match the expected JSON file at this path \""
-			+ referenceJsonFilePath + "\".");
+			+ referenceJsonFilePath + "\".", attachments);
 	    } else {
 		// comparison passed and is expected to fail
 		fail("Assertion Failed; the actual API response does match the expected JSON file at this path \""
-			+ referenceJsonFilePath + "\".");
+			+ referenceJsonFilePath + "\".", attachments);
 	    }
 	} else {
 	    if (assertionType.getValue()) {
 		// comparison failed and is expected to pass
 		fail("Assertion Failed; the actual API response does not match the expected JSON file at this path \""
-			+ referenceJsonFilePath + "\".");
+			+ referenceJsonFilePath + "\".", attachments);
 	    } else {
 		// comparison failed and is expected to fail
 		pass("Assertion Passed; the actual API response does not match the expected JSON file at this path \""
-			+ referenceJsonFilePath + "\".");
+			+ referenceJsonFilePath + "\".", attachments);
 	    }
 	}
     }
