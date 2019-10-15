@@ -13,7 +13,6 @@ public class SuiteListener implements ISuiteListener {
 
     @Override
     public void onStart(ISuite suite) {
-	PropertiesFileManager.readPropertyFiles();
 	// read existing elements that were identified by AI to keep the reference table
 	if (ScreenshotManager.getAiSupportedElementIdentification()
 		&& FileActions.doesFileExist(ScreenshotManager.getAiAidedElementIdentificationFolderpath(),

@@ -6,18 +6,19 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-import org.testng.Assert;
 import org.testng.IInvokedMethod;
 import org.testng.IInvokedMethodListener;
 import org.testng.ITestNGMethod;
 import org.testng.ITestResult;
 import org.testng.SkipException;
+import org.testng.internal.ConfigurationMethod;
 import org.testng.internal.ConstructorOrMethod;
 
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.validation.Verifications;
 
 import io.qameta.allure.model.Link;
 import io.qameta.allure.util.AnnotationUtils;
@@ -57,9 +58,9 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 	    if (invokedTestsCounter == 0) {
 		RecordManager.startRecording();
 	    }
-	} else if (method.isConfigurationMethod()) {
-	    ReportManager.logConfigurationMethodInformation(method.getTestMethod().getTestClass().getName(),
-		    method.getTestMethod().getMethodName());
+	} else if (testMethod instanceof ConfigurationMethod) {
+	    ReportManager.logConfigurationMethodInformation(testMethod.getTestClass().getName(),
+		    testMethod.getMethodName());
 	}
 	// implementing the new kill switch at the start of every test method
 	if (BrowserFactory.isKillSwitch()) {
@@ -91,11 +92,11 @@ public class InvokedMethodListener implements IInvokedMethodListener {
     }
 
     private void updateTestStatusInCaseOfVerificationFailure(ITestResult testResult) {
-	if (testResult != null && testResult.getStatus() == ITestResult.FAILURE && testResult.getThrowable() != null) {
-	    String failureMessage = testResult.getThrowable().getMessage();
-	    if ((failureMessage != null) && failureMessage.contains("Verification")) {
-		Assert.fail(testResult.getThrowable().getMessage());
-	    }
+	if (testResult != null && Verifications.getVerificationError() != null) {
+	    testResult.setStatus(ITestResult.FAILURE);
+	    testResult.setThrowable(Verifications.getVerificationError());
+	    Verifications.resetVerificationFailuresMessage();
+	    Verifications.resetVerificationError();
 	}
     }
 

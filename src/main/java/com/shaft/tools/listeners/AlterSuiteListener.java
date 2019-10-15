@@ -5,18 +5,45 @@ import java.util.List;
 import org.testng.IAlterSuiteListener;
 import org.testng.xml.XmlClass;
 import org.testng.xml.XmlSuite;
+import org.testng.xml.XmlSuite.ParallelMode;
 
 import com.shaft.tools.io.LogsReporter;
+import com.shaft.tools.io.PropertiesFileManager;
+import com.shaft.tools.io.ReportManager;
 
 public class AlterSuiteListener implements IAlterSuiteListener {
 
     @Override
     public void alter(List<XmlSuite> suites) {
+	PropertiesFileManager.readPropertyFiles();
 	// disable log4j housed inside some transitive dependencies
+	org.apache.log4j.BasicConfigurator.configure();
 	org.apache.log4j.Logger.getRootLogger().setLevel(org.apache.log4j.Level.OFF);
 
+	setExecutionProperties(suites);
 	renameDefaultSuiteAndTest(suites);
 	addLogsReporterToFirstTest(suites);
+
+    }
+
+    private void setExecutionProperties(List<XmlSuite> suites) {
+	suites.forEach(suite -> {
+	    suite.setPreserveOrder(Boolean.valueOf(System.getProperty("setPreserveOrder")));
+	    suite.setGroupByInstances(Boolean.valueOf(System.getProperty("setGroupByInstances")));
+	    suite.setVerbose(Integer.parseInt(System.getProperty("setVerbose")));
+	    suite.setParallel(ParallelMode.valueOf(System.getProperty("setParallel")));
+	    suite.setThreadCount(Integer.parseInt(System.getProperty("setThreadCount")));
+	    suite.setDataProviderThreadCount(Integer.parseInt(System.getProperty("setDataProviderThreadCount")));
+
+	    if (Boolean.valueOf(System.getProperty("debugMode"))) {
+		ReportManager.log("getPreserveOrder: " + suite.getPreserveOrder());
+		ReportManager.log("getDataProviderThreadCount: " + suite.getDataProviderThreadCount());
+		ReportManager.log("getThreadCount: " + suite.getThreadCount());
+		ReportManager.log("getVerbose: " + suite.getVerbose());
+		ReportManager.log("getGroupByInstances: " + suite.getGroupByInstances());
+		ReportManager.log("getParallel: " + suite.getParallel());
+	    }
+	});
     }
 
     private void renameDefaultSuiteAndTest(List<XmlSuite> suites) {

@@ -106,6 +106,7 @@ public class PropertiesFileManager {
 	properties.putAll(setDefaultExecutionProperties());
 	properties.putAll(setPathProperties());
 	properties.putAll(setPatternProperties());
+	properties.putAll(setTestNGProperties());
 
 	// override default properties with current system properties in the properties
 	// object
@@ -139,23 +140,29 @@ public class PropertiesFileManager {
 	// all other instances will be closed
 	//
 	////////// Platform Flags and Timeouts
-	properties.put("browserNavigationTimeout", "30");
+	properties.put("browserNavigationTimeout", "60");
 	// Timeout in seconds to be used if navigating to a new URL (1 minute = 60
 	// seconds)
+	properties.put("pageLoadTimeout", "60");
+	// Timeout in seconds to be used to wait for a page to finish loading (1 minute
+	// = 60 seconds)
+	properties.put("scriptExecutionTimeout", "60");
+	// Timeout in seconds to be used to wait for a dynamic script to finish
+	// execution (1 minute = 60 seconds)
 	properties.put("defaultElementIdentificationTimeout", "5");
 	// Accepts integer values that represent the default timeout for finding a
 	// webElement
 	properties.put("attemptsBeforeThrowingElementNotFoundException", "5");
 	// Accepts integer values that represent the number of attempts before failing
 	// to find a webElement
-	properties.put("shellSessionTimeout", "30");
+	properties.put("shellSessionTimeout", "60");
 	// Timeout in seconds to be used if creating any kind of shell session (1 minute
 	// = 60 seconds), should be greater than or equal to the docker timeout in case
 	// of dockerized execution
-	properties.put("dockerCommandTimeout", "30");
+	properties.put("dockerCommandTimeout", "60");
 	// Timeout in seconds to be used if executing a command inside a docker (1
 	// minute = 60 seconds)
-	properties.put("databaseLoginTimeout", "30");
+	properties.put("databaseLoginTimeout", "60");
 	// Timeout in seconds to be used when attempting to login to a database (1
 	// minute = 60 seconds)
 	properties.put("databaseNetworkTimeout", "60");
@@ -177,10 +184,16 @@ public class PropertiesFileManager {
 	// true | false
 	properties.put("forceCheckForElementVisibility", "true");
 	// true | false
+	properties.put("forceCheckElementLocatorIsUnique", "true");
+	// true | false
+	// Note: It is recommended to disable this feature if you'll be using
+	// org.openqa.selenium.support.locators.RelativeLocator
 	properties.put("waitImplicitly", "false");
 	// true | false
 	// Note: Implicit waiting may increase execution time by 20% but it also
 	// increases test stability in flaky environments
+	properties.put("implicitWaitTimeout", "120");
+	// Maximum timeout in seconds to fail any action
 	//
 	////////// Screen-shot/AnimatedGif/Video Parameters
 	properties.put("screenshotParams_whenToTakeAScreenshot", "ValidationPointsOnly");
@@ -235,7 +248,7 @@ public class PropertiesFileManager {
 	properties.put("watermarkImagePath", "/images/shaft.png");
 	properties.put("downloadsFolderPath", "target/downloadedFiles/");
 	properties.put("allureResultsFolderPath", "allure-results/");
-	properties.put("allureVersion", "2.12.1");
+	properties.put("allureVersion", "2.13.0");
 	return properties;
     }
 
@@ -247,6 +260,17 @@ public class PropertiesFileManager {
 	properties.put("testDataColumnNamePrefix", "Data");
 	properties.put("allure.link.issue.pattern", "");
 	properties.put("allure.link.tms.pattern", "");
+	return properties;
+    }
+
+    private static Properties setTestNGProperties() {
+	Properties properties = new Properties();
+	properties.put("setPreserveOrder", "true");
+	properties.put("setGroupByInstances", "true");
+	properties.put("setVerbose", "1");
+	properties.put("setParallel", "NONE");
+	properties.put("setThreadCount", "1");
+	properties.put("setDataProviderThreadCount", "1");
 	return properties;
     }
 

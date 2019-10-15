@@ -23,7 +23,7 @@ public class DatabaseActions {
     private String password;
 
     public enum DatabaseType {
-	MY_SQL, SQL_SERVER, POSTGRE_SQL, ORACLE;
+	MY_SQL, SQL_SERVER, POSTGRE_SQL, ORACLE, IBM_DB2;
     }
 
     /**
@@ -116,6 +116,10 @@ public class DatabaseActions {
 
 	    case ORACLE:
 		connectionString = "jdbc:oracle:thin:@" + dbServerIP + ":" + dbPort + ":" + dbName;
+		break;
+
+	    case IBM_DB2:
+		connectionString = "jdbc:db2://" + dbServerIP + ":" + dbPort + "/" + dbName;
 		break;
 
 	    default:
