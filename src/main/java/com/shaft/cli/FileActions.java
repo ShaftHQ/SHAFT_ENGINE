@@ -417,37 +417,28 @@ public class FileActions {
     }
 
     public static void writeToFile(String fileFolderName, String fileName, List<String> text) {
+	byte[] textToBytes = String.join(System.lineSeparator(), text).getBytes();
+	writeToFile(fileFolderName, fileName, textToBytes);
+    }
+
+    public static void writeToFile(String fileFolderName, String fileName, byte[] content) {
 	String absoluteFilePath = getAbsolutePath(fileFolderName, fileName);
 	try {
 	    Path filePath = Paths.get(absoluteFilePath);
-
-	    byte[] textToBytes = String.join(System.lineSeparator(), text).getBytes();
-
 	    Path parentDir = filePath.getParent();
 	    if (!parentDir.toFile().exists()) {
 		Files.createDirectories(parentDir);
 	    }
-	    Files.write(filePath, textToBytes);
+	    Files.write(filePath, content);
 	} catch (InvalidPathException | IOException e) {
 	    ReportManager.log(e);
+	    failAction("writeToFile", "Folder Name: \"" + fileFolderName + "\", File Name \"" + fileName + "\".");
 	}
     }
 
     public static void writeToFile(String fileFolderName, String fileName, String text) {
-	String absoluteFilePath = getAbsolutePath(fileFolderName, fileName);
-	try {
-	    Path filePath = Paths.get(absoluteFilePath);
-
-	    byte[] textToBytes = text.getBytes();
-
-	    Path parentDir = filePath.getParent();
-	    if (!parentDir.toFile().exists()) {
-		Files.createDirectories(parentDir);
-	    }
-	    Files.write(filePath, textToBytes);
-	} catch (InvalidPathException | IOException e) {
-	    ReportManager.log(e);
-	}
+	byte[] textToBytes = text.getBytes();
+	writeToFile(fileFolderName, fileName, textToBytes);
     }
 
     public static String readFromFile(String fileFolderName, String fileName) {
@@ -462,7 +453,7 @@ public class FileActions {
 	}
 	return text;
     }
-    
+
     public static String readFromFile(String pathToTargetFile) {
 	String text = "";
 	String absoluteFilePath = getAbsolutePath(pathToTargetFile);
