@@ -24,8 +24,6 @@ import io.restassured.response.Response;
 
 //TODO: Add optional message to be added to the log of the assertion to describe what it does
 
-//TODO: Add attachments for JSON assertions in case of pass or fail both the expected and the actual
-
 public class Assertions {
     private static int attemptsBeforeThrowingElementNotFoundException = Integer
 	    .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
@@ -952,9 +950,9 @@ public class Assertions {
 		jsonPathToTargetArray);
 
 	// prepare attachments
-	List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected Value",
+	List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected JSON Value",
 		RestActions.parseBodyToJson(FileActions.readFromFile(referenceJsonFilePath)));
-	List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Value",
+	List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual JSON Value",
 		RestActions.parseBodyToJson(response));
 
 	List<List<Object>> attachments = new ArrayList<>();
