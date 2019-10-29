@@ -340,8 +340,8 @@ public class ReportManager {
 
 	    // excluding empty values, system properties (all system properties have "." in
 	    // their names), and any git branch issues
-	    if (!propertyValue.equals("") && !propertyKey.contains(".") && !propertyKey.contains(">>>")
-		    && !propertyKey.contains("<<<")) {
+	    if (!propertyValue.equals("") && !propertyValue.contains("==") && !propertyKey.contains(".")
+		    && !propertyKey.contains(">>>") && !propertyKey.contains("<<<")) {
 		String parameter = "<parameter>" + "<key>" + propertyKey + "</key>" + "<value>" + propertyValue
 			+ "</value>" + "</parameter>";
 		if (propertyKey.equals(SHAFT_ENGINE_VERSION_PROPERTY_NAME)) {

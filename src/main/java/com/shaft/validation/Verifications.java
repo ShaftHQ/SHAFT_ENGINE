@@ -984,9 +984,9 @@ public class Verifications {
 		jsonPathToTargetArray);
 
 	// prepare attachments
-	List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected Value",
+	List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected JSON Value",
 		RestActions.parseBodyToJson(FileActions.readFromFile(referenceJsonFilePath)));
-	List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Value",
+	List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual JSON Value",
 		RestActions.parseBodyToJson(response));
 
 	List<List<Object>> attachments = new ArrayList<>();

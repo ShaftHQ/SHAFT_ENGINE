@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>io.github.mohabmohie</groupId>
 	<artifactId>SHAFT_ENGINE</artifactId>
-	<version>3.1.20191015</version>
+	<version>3.1.20191021</version>
 	<name>${project.groupId}:${project.artifactId}</name>
 	<description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
 	<url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
@@ -47,7 +47,7 @@
 		<allure-testng.version>2.13.0</allure-testng.version> <!-- UPDATE PropertiesFileManager.setPathProperties -->
 		<aspectj.version>1.8.10</aspectj.version> <!-- DO NOT UPDATE -->
 
-		<rest-assured.version>4.1.1</rest-assured.version>
+		<rest-assured.version>4.1.2</rest-assured.version>
 		<json-simple.version>1.1.1</json-simple.version>
 		<skyscreamer-jsonassert.version>1.5.0</skyscreamer-jsonassert.version>
 		<mime-util.version>2.1.3</mime-util.version>
@@ -427,21 +427,21 @@
 			</plugins>
 		</pluginManagement>
 	</build>
-	<repositories>
-		<repository>
-			<id>redshift</id>
-			<url>http://redshift-maven-repository.s3-website-us-east-1.amazonaws.com/release</url>
-			<!-- <id>maven.oracle.com</id> -->
-			<!-- <releases> -->
-			<!-- <enabled>true</enabled> -->
-			<!-- </releases> -->
-			<!-- <snapshots> -->
-			<!-- <enabled>false</enabled> -->
-			<!-- </snapshots> -->
-			<!-- <url>https://maven.oracle.com</url> -->
-			<!-- <layout>default</layout> -->
-		</repository>
-	</repositories>
+	<!-- <repositories> -->
+	<!-- <repository> -->
+	<!-- <id>redshift</id> -->
+	<!-- <url>http://redshift-maven-repository.s3-website-us-east-1.amazonaws.com/release</url> -->
+	<!-- <id>maven.oracle.com</id> -->
+	<!-- <releases> -->
+	<!-- <enabled>true</enabled> -->
+	<!-- </releases> -->
+	<!-- <snapshots> -->
+	<!-- <enabled>false</enabled> -->
+	<!-- </snapshots> -->
+	<!-- <url>https://maven.oracle.com</url> -->
+	<!-- <layout>default</layout> -->
+	<!-- </repository> -->
+	<!-- </repositories> -->
 	<!-- <pluginRepositories> -->
 	<!-- <pluginRepository> -->
 	<!-- <id>maven.oracle.com</id> -->
