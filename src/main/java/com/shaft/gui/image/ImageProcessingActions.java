@@ -3,6 +3,7 @@ package com.shaft.gui.image;
 import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -16,6 +17,7 @@ import org.opencv.core.Core;
 import org.opencv.core.Core.MinMaxLocResult;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfByte;
 import org.opencv.core.Point;
 import org.opencv.core.Scalar;
 import org.opencv.highgui.HighGui;
@@ -37,7 +39,7 @@ public class ImageProcessingActions {
     }
 
     public static void compareImageFolders(String refrenceFolderPath, String testFolderPath, double threshhold) {
-
+	// TODO: refactor to minimize File IO actions
 	try {
 	    long fileCounter = 1;
 
@@ -117,6 +119,7 @@ public class ImageProcessingActions {
 
     private static void compareImageFolders(File[] refrenceFiles, File[] testFiles, File[] testProcessingFiles,
 	    File refrenceProcessingFolder, File testProcessingFolder, double threshhold) throws IOException {
+	// TODO: refactor to minimize File IO actions
 	int passedImagesCount = 0;
 	int failedImagesCount = 0;
 
@@ -195,12 +198,43 @@ public class ImageProcessingActions {
 
     }
 
-    public static List<Integer> findImageWithinCurrentPage(String referenceImagePath, File currentPageScreenshot,
+    public static byte[] highlightElementInScreenshot(byte[] targetScreenshot,
+	    org.openqa.selenium.Rectangle elementLocation, java.awt.Color highlightColor) {
+
+	OpenCV.loadLocally();
+	Mat img = Imgcodecs.imdecode(new MatOfByte(targetScreenshot), Imgcodecs.IMREAD_COLOR);
+
+	int outlineThickness = 5;
+
+	Point startPoint = new Point(elementLocation.getX() - outlineThickness,
+		elementLocation.getY() - outlineThickness);
+	Point endPoint = new Point(elementLocation.getX() + elementLocation.getWidth() + outlineThickness,
+		elementLocation.getY() + elementLocation.getHeight() + outlineThickness);
+
+	// BGR color
+	Scalar highlightColorScalar = new Scalar(highlightColor.getBlue(), highlightColor.getGreen(),
+		highlightColor.getRed());
+
+	// Outline
+	Imgproc.rectangle(img, startPoint, endPoint, highlightColorScalar, outlineThickness, 8, 0);
+
+	Image tmpImg = HighGui.toBufferedImage(img);
+	BufferedImage image = (BufferedImage) tmpImg;
+	ByteArrayOutputStream baos = new ByteArrayOutputStream();
+	try {
+	    ImageIO.write(image, "jpg", baos);
+	} catch (IOException e) {
+	    ReportManager.log(e);
+	}
+	return baos.toByteArray();
+    }
+
+    public static List<Integer> findImageWithinCurrentPage(String referenceImagePath, byte[] currentPageScreenshot,
 	    int matchMethod) {
 
 	if (FileActions.doesFileExist(referenceImagePath)) {
 	    OpenCV.loadLocally();
-	    Mat img = Imgcodecs.imread(currentPageScreenshot.getAbsolutePath(), Imgcodecs.IMREAD_COLOR);
+	    Mat img = Imgcodecs.imdecode(new MatOfByte(currentPageScreenshot), Imgcodecs.IMREAD_COLOR);
 	    Mat templ = Imgcodecs.imread(referenceImagePath, Imgcodecs.IMREAD_COLOR);
 
 	    // / Create the result matrix

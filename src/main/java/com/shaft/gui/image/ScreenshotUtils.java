@@ -3,11 +3,12 @@ package com.shaft.gui.image;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 
 import javax.imageio.ImageIO;
 
+import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.OutputType;
@@ -52,7 +53,7 @@ public class ScreenshotUtils {
     }
 
     // The code that does the job
-    protected static File makeFullScreenshot(WebDriver driver, WebElement... skipElements) throws IOException {
+    protected static byte[] makeFullScreenshot(WebDriver driver, WebElement... skipElements) throws IOException {
 
 	// scroll up first to start taking screenshots
 	scrollVerticallyTo(driver, 0);
@@ -74,8 +75,6 @@ public class ScreenshotUtils {
 		.doubleValue();
 
 	int scrollHeight = (int) longScrollHeight;
-
-	File file = File.createTempFile("screenshot", ".png");
 
 	int adaptedCapturedHeight = (int) (((double) capturedHeight) / devicePixelRatio);
 
@@ -117,8 +116,10 @@ public class ScreenshotUtils {
 	}
 	showScroll(driver);
 	showHideElements(driver, false, skipElements);
-	ImageIO.write(resultingImage, "png", file);
-	return file;
+
+	ByteArrayOutputStream baos = new ByteArrayOutputStream();
+	ImageIO.write(resultingImage, "png", baos);
+	return baos.toByteArray();
     }
 
     /**
@@ -133,19 +134,20 @@ public class ScreenshotUtils {
      *                     object
      */
     @Deprecated
-    protected static File makeElementScreenshot(WebDriver driver, By elementLocator, boolean isBaseFullPage)
+    protected static byte[] makeElementScreenshot(WebDriver driver, By elementLocator, boolean isBaseFullPage)
 	    throws IOException {
 	WebElement targetElement = driver.findElement(elementLocator);
 
-	File baseScreenshot = null;
+	byte[] baseScreenshot = null;
 
 	if (isBaseFullPage) {
 	    baseScreenshot = ScreenshotUtils.makeFullScreenshot(driver);
 	} else {
-	    baseScreenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
+	    baseScreenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
 	}
 
-	BufferedImage baseImg = ImageIO.read(baseScreenshot);
+	InputStream inputScreenshot = new ByteArrayInputStream(baseScreenshot);
+	BufferedImage baseImg = ImageIO.read(inputScreenshot);
 
 	// Get the location of element on the page
 	Point point = targetElement.getLocation();
@@ -157,9 +159,9 @@ public class ScreenshotUtils {
 	// Crop the entire page screenshot to get only element screenshot
 	BufferedImage eleScreenshot = baseImg.getSubimage(point.getX(), point.getY(), eleWidth, eleHeight);
 
-	File file = File.createTempFile("screenshot", ".png");
-	ImageIO.write(eleScreenshot, "png", file);
-	return file;
+	ByteArrayOutputStream baos = new ByteArrayOutputStream();
+	ImageIO.write(eleScreenshot, "png", baos);
+	return baos.toByteArray();
     }
 
     private static void scrollVerticallyTo(WebDriver driver, int scroll) {

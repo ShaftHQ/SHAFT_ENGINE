@@ -48,6 +48,46 @@ public class PropertiesFileManager {
 	setDefaultProperties();
 
 	overrideTargetOperatingSystemForLocalExecution();
+
+	manageMaximumPerformanceMode();
+    }
+
+    /**
+     * When Maximum Performance Mode is enabled the following properties will be
+     * overridden:
+     * <p>
+     * <ul>
+     * <li>aiPoweredElementIdentification=>false;
+     * <li>headlessExecution=>true;
+     * <li>autoMaximizeBrowserWindow=>false;
+     * <li>forceCheckForElementVisibility=>false;
+     * <li>forceCheckElementLocatorIsUnique=>false;
+     * <li>screenshotParams_whenToTakeAScreenshot=>FailuresOnly;
+     * <li>screenshotParams_highlightElements=>false;
+     * <li>screenshotParams_screenshotType=>Regular;
+     * <li>screenshotParams_watermark=>false;
+     * <li>createAnimatedGif=>false;
+     * <li>recordVideo=>false;
+     * <li>debugMode"=>"false;
+     * </ul>
+     */
+    private static void manageMaximumPerformanceMode() {
+	if (Boolean.valueOf(System.getProperty("maximumPerformanceMode"))) {
+	    // Beast Mode On
+	    System.setProperty("aiPoweredElementIdentification", "false");
+	    System.setProperty("headlessExecution", "true");
+	    System.setProperty("autoMaximizeBrowserWindow", "false");
+	    System.setProperty("forceCheckForElementVisibility", "false");
+	    System.setProperty("forceCheckElementLocatorIsUnique", "false");
+	    System.setProperty("screenshotParams_whenToTakeAScreenshot", "FailuresOnly");
+	    System.setProperty("screenshotParams_highlightElements", "false");
+	    System.setProperty("screenshotParams_screenshotType", "Regular");
+	    System.setProperty("screenshotParams_watermark", "false");
+	    System.setProperty("createAnimatedGif", "false");
+	    System.setProperty("recordVideo", "false");
+	    System.setProperty("debugMode", "false");
+	}
+
     }
 
     public static void readPropertyFiles(String propertiesFolderPath) {
@@ -121,6 +161,11 @@ public class PropertiesFileManager {
      */
     private static Properties setDefaultExecutionProperties() {
 	Properties properties = new Properties();
+	properties.put("maximumPerformanceMode", "false");
+	// true | false
+	// Note: Enabling maximumPerformanceMode will disable all complementary features
+	// to ensure
+	// the fastest execution possible.
 	properties.put("executionAddress", "local");
 	// Platform
 	// local | seleniumGridHubIP:port
@@ -200,6 +245,10 @@ public class PropertiesFileManager {
 	// Always | Never | ValidationPointsOnly | FailuresOnly
 	properties.put("screenshotParams_highlightElements", "true");
 	// true | false
+	properties.put("screenshotParams_highlightMethod", "AI");
+	// AI | JavaScript
+	// Note: Using AI will result in a 10%++ increase in performance, while using
+	// JavaScript will show you the highlights on-screen during test execution
 	properties.put("screenshotParams_screenshotType", "Regular");
 	// Regular | FullPage | Element
 	properties.put("screenshotParams_skippedElementsFromScreenshot", "");
