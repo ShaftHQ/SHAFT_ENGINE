@@ -322,7 +322,8 @@ public class ReportManager {
 
     private static void cleanAllureResultsDirectory() {
 	// clean allure-results directory before execution
-	if (Boolean.valueOf(System.getProperty("automaticallyCleanAllureResultsDirectoryBeforeExecution"))) {
+	if (Boolean.TRUE.equals(
+		Boolean.valueOf(System.getProperty("automaticallyCleanAllureResultsDirectoryBeforeExecution")))) {
 	    FileActions.deleteFolder(allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1));
 	}
     }
@@ -536,23 +537,6 @@ public class ReportManager {
     }
 
     /**
-     * @deprecated Adds a new attachment using the input parameters provided. The
-     *             attachment is displayed as a step in the execution report. Used
-     *             for Screenshots.
-     * 
-     * @param attachmentType    the type of this attachment
-     * @param attachmentName    the name of this attachment
-     * @param attachmentContent the content of this attachment
-     */
-    @Deprecated
-    @Step("Attachment: {attachmentType} - {attachmentName}")
-    public static void attachAsStep(String attachmentType, String attachmentName, String attachmentContent) {
-	if (!attachmentContent.trim().equals("")) {
-	    createAttachment(attachmentType, attachmentName, new StringInputStream(attachmentContent));
-	}
-    }
-
-    /**
      * Adds a new attachment using the input parameters provided. The attachment is
      * displayed as a step in the execution report. Used for Screenshots.
      * 
@@ -655,7 +639,7 @@ public class ReportManager {
     }
 
     public static void generateAllureReportArchive() {
-	if (Boolean.valueOf(System.getProperty("automaticallyGenerateAllureReport").trim())
+	if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("automaticallyGenerateAllureReport").trim()))
 		&& System.getProperty("executionAddress").trim().equals("local")) {
 	    logDiscrete("Generating Allure Report Archive...");
 	    Boolean discreteLoggingState = isDiscreteLogging();

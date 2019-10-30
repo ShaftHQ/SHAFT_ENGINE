@@ -73,7 +73,7 @@ public class JavaActions {
     public static int compareTwoObjects(Object expectedValue, Object actualValue, int comparisonType,
 	    Boolean validationType) {
 
-	if (validationType) {
+	if (Boolean.TRUE.equals(validationType)) {
 	    try {
 		switch (comparisonType) {
 		case 1:

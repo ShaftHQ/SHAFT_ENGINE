@@ -35,7 +35,7 @@ public class AlterSuiteListener implements IAlterSuiteListener {
 	    suite.setThreadCount(Integer.parseInt(System.getProperty("setThreadCount")));
 	    suite.setDataProviderThreadCount(Integer.parseInt(System.getProperty("setDataProviderThreadCount")));
 
-	    if (Boolean.valueOf(System.getProperty("debugMode"))) {
+	    if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("debugMode")))) {
 		ReportManager.log("getPreserveOrder: " + suite.getPreserveOrder());
 		ReportManager.log("getDataProviderThreadCount: " + suite.getDataProviderThreadCount());
 		ReportManager.log("getThreadCount: " + suite.getThreadCount());

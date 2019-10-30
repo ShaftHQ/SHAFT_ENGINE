@@ -324,7 +324,7 @@ public class DatabaseActions {
 	    ReportManager.log(e);
 	    failAction("getRow", "columnName \"" + columnName + "\", and cellContent \"" + knownCellValue + "\"");
 	}
-	if (foundRow) {
+	if (Boolean.TRUE.equals(foundRow)) {
 	    passAction("getRow", "columnName \"" + columnName + "\", and cellContent \"" + knownCellValue + "\"");
 	} else {
 	    failAction("getRow", "columnName \"" + columnName + "\", and cellContent \"" + knownCellValue + "\"");

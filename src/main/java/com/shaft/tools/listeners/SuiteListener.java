@@ -14,7 +14,7 @@ public class SuiteListener implements ISuiteListener {
     @Override
     public void onStart(ISuite suite) {
 	// read existing elements that were identified by AI to keep the reference table
-	if (ScreenshotManager.getAiSupportedElementIdentification()
+	if (Boolean.TRUE.equals(ScreenshotManager.getAiSupportedElementIdentification())
 		&& FileActions.doesFileExist(ScreenshotManager.getAiAidedElementIdentificationFolderpath(),
 			ElementActions.getAiReferenceFileName(), 1)) {
 	    PropertiesFileManager.readPropertyFiles(ScreenshotManager.getAiAidedElementIdentificationFolderpath());

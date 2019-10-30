@@ -72,7 +72,7 @@ public class PropertiesFileManager {
      * </ul>
      */
     private static void manageMaximumPerformanceMode() {
-	if (Boolean.valueOf(System.getProperty("maximumPerformanceMode"))) {
+	if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("maximumPerformanceMode")))) {
 	    // Beast Mode On
 	    System.setProperty("aiPoweredElementIdentification", "false");
 	    System.setProperty("headlessExecution", "true");

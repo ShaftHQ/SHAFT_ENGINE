@@ -120,7 +120,7 @@ public class TerminalActions {
 
 	Boolean discreetLogging = ReportManager.isDiscreteLogging();
 	if (actionName.toLowerCase().contains("performterminalcommand")) {
-	    if (discreetLogging) {
+	    if (Boolean.TRUE.equals(discreetLogging)) {
 		ReportManager.logDiscrete(message);
 		ReportManager.logDiscrete("CLI Response - Terminal Log:\n" + log);
 	    } else {

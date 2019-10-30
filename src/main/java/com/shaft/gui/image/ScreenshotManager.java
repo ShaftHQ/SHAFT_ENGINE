@@ -159,7 +159,8 @@ public class ScreenshotManager {
 	    boolean passFailStatus) {
 
 	// Override current locator with the aiGeneratedElementLocator
-	if (AI_SUPPORTED_ELEMENT_IDENTIFICATION && aiGeneratedElementLocator != null && elementLocator != null) {
+	if (Boolean.TRUE.equals(AI_SUPPORTED_ELEMENT_IDENTIFICATION) && aiGeneratedElementLocator != null
+		&& elementLocator != null) {
 	    elementLocator = aiGeneratedElementLocator;
 	}
 
@@ -202,7 +203,8 @@ public class ScreenshotManager {
 	    String appendedText, boolean takeScreenshot) {
 
 	// Override current locator with the aiGeneratedElementLocator
-	if (AI_SUPPORTED_ELEMENT_IDENTIFICATION && aiGeneratedElementLocator != null && elementLocator != null) {
+	if (Boolean.TRUE.equals(AI_SUPPORTED_ELEMENT_IDENTIFICATION) && aiGeneratedElementLocator != null
+		&& elementLocator != null) {
 	    elementLocator = aiGeneratedElementLocator;
 	}
 
@@ -228,7 +230,7 @@ public class ScreenshotManager {
 		 * If an elementLocator was passed, store regularElementStyle and highlight that
 		 * element before taking the screenshot
 		 */
-		if (SCREENSHOT_PARAMS_HIGHLIGHTELEMENTS && elementLocator != null
+		if (Boolean.TRUE.equals(SCREENSHOT_PARAMS_HIGHLIGHTELEMENTS) && elementLocator != null
 			&& (ElementActions.getElementsCount(driver, elementLocator,
 				RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1)) {
 
@@ -420,7 +422,7 @@ public class ScreenshotManager {
 
     public static void startAnimatedGif(WebDriver driver) {
 	// TODO: refactor performance to reduce severe drop when enabling this option
-	if (CREATE_GIF) {
+	if (Boolean.TRUE.equals(CREATE_GIF)) {
 	    gifDriver = driver;
 	    try {
 		testCaseName = Reporter.getCurrentTestResult().getMethod().getMethodName();
@@ -433,8 +435,6 @@ public class ScreenshotManager {
 		BufferedImage firstImage = ImageIO.read(new ByteArrayInputStream(src));
 
 		// create a new BufferedOutputStream
-//		FileActions.copyFile(src.getAbsolutePath(), gifFilePath);
-//		FileUtils.writeByteArrayToFile(new File("gifFilePath"), src);
 		FileActions.writeToFile(SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME, gifFileName, src);
 		gifOutputStream = new FileImageOutputStream(new File(gifRelativePathWithFileName));
 
@@ -464,7 +464,7 @@ public class ScreenshotManager {
     }
 
     private static BufferedImage overlayShaftEngineLogo(BufferedImage screenshot) {
-	if (SCREENSHOT_PARAMS_WATERMARK) {
+	if (Boolean.TRUE.equals(SCREENSHOT_PARAMS_WATERMARK)) {
 	    try {
 		// create graphics object
 		Graphics2D screenshotGraphics = screenshot.createGraphics();
@@ -516,7 +516,7 @@ public class ScreenshotManager {
 
     private static void appendToAnimatedGif(byte[]... screenshot) {
 	// ensure that animatedGif is started, else force start it
-	if (CREATE_GIF) {
+	if (Boolean.TRUE.equals(CREATE_GIF)) {
 	    if (gifDriver == null || gifWriter == null) {
 		BrowserFactory.startAnimatedGif();
 	    } else {
@@ -551,7 +551,7 @@ public class ScreenshotManager {
 
     public static void attachAnimatedGif() {
 	// stop and attach
-	if (CREATE_GIF && gifDriver != null && !gifRelativePathWithFileName.equals("")) {
+	if (Boolean.TRUE.equals(CREATE_GIF) && gifDriver != null && !gifRelativePathWithFileName.equals("")) {
 	    try {
 		appendToAnimatedGif();
 	    } catch (Exception e) {
@@ -574,11 +574,12 @@ public class ScreenshotManager {
 
     public static void storeElementScreenshotForAISupportedElementIdentification(WebDriver driver, By elementLocator) {
 	// Override current locator with the aiGeneratedElementLocator
-	if (AI_SUPPORTED_ELEMENT_IDENTIFICATION && aiGeneratedElementLocator != null && elementLocator != null) {
+	if (Boolean.TRUE.equals(AI_SUPPORTED_ELEMENT_IDENTIFICATION) && aiGeneratedElementLocator != null
+		&& elementLocator != null) {
 	    elementLocator = aiGeneratedElementLocator;
 	}
 
-	if (AI_SUPPORTED_ELEMENT_IDENTIFICATION) {
+	if (Boolean.TRUE.equals(AI_SUPPORTED_ELEMENT_IDENTIFICATION)) {
 	    FileActions.createFolder(AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH);
 	    WebElement targetElement = driver.findElement(elementLocator);
 	    File screenshotFile = null;

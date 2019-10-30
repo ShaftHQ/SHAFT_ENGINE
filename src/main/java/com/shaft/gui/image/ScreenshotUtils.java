@@ -35,7 +35,7 @@ public class ScreenshotUtils {
 
     private static void showHideElements(WebDriver driver, Boolean hide, WebElement... skipElements) {
 	String display;
-	if (hide) {
+	if (Boolean.TRUE.equals(hide)) {
 	    display = "none";
 	} else {
 	    display = "block";
