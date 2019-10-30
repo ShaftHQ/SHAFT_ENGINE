@@ -61,7 +61,7 @@ public class JSWaiter {
     // Wait for JQuery Load
     private static void waitForJQueryLoadIfDefined() {
 	Boolean jQueryDefined = (Boolean) jsExec.executeScript("return typeof jQuery != 'undefined'");
-	if (jQueryDefined) {
+	if (Boolean.TRUE.equals(jQueryDefined)) {
 	    ExpectedCondition<Boolean> jQueryLoad = null;
 	    try {
 		// Wait for jQuery to load
@@ -149,11 +149,11 @@ public class JSWaiter {
     private static void waitForAngularIfDefined() {
 	try {
 	    Boolean angularDefined = !((Boolean) jsExec.executeScript("return window.angular === undefined"));
-	    if (angularDefined) {
+	    if (Boolean.TRUE.equals(angularDefined)) {
 		Boolean angularInjectorDefined = !((Boolean) jsExec
 			.executeScript("return angular.element(document).injector() === undefined"));
 
-		if (angularInjectorDefined) {
+		if (Boolean.TRUE.equals(angularInjectorDefined)) {
 		    waitForAngularLoad();
 		}
 	    }

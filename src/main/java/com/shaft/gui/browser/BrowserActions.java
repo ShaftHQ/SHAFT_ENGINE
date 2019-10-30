@@ -129,7 +129,7 @@ public class BrowserActions {
     private static Dimension attemptMazimizeUsingToolkitAndJavascript(WebDriver driver, int width, int height) {
 	try {
 	    Toolkit toolkit = Toolkit.getDefaultToolkit();
-	    if (!HEADLESS_EXECUTION) {
+	    if (Boolean.FALSE.equals(HEADLESS_EXECUTION)) {
 		width = (int) toolkit.getScreenSize().getWidth();
 		height = (int) toolkit.getScreenSize().getHeight();
 	    }

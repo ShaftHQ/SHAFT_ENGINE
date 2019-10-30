@@ -144,7 +144,7 @@ public class ElementActions {
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     private static Boolean attemptToFindElementUsingAI(WebDriver driver, By elementLocator) {
-	if (ScreenshotManager.getAiSupportedElementIdentification()) {
+	if (Boolean.TRUE.equals(ScreenshotManager.getAiSupportedElementIdentification())) {
 	    aiGeneratedElementLocator = null; // reset static container
 
 	    String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
@@ -275,8 +275,8 @@ public class ElementActions {
 
     private static By updateLocatorWithAIGenratedOne(By elementLocator) {
 	// Override current locator with the aiGeneratedElementLocator
-	if (ScreenshotManager.getAiSupportedElementIdentification() && aiGeneratedElementLocator != null
-		&& elementLocator != null) {
+	if (Boolean.TRUE.equals(ScreenshotManager.getAiSupportedElementIdentification())
+		&& aiGeneratedElementLocator != null && elementLocator != null) {
 	    return aiGeneratedElementLocator;
 	}
 	return elementLocator;
@@ -307,7 +307,7 @@ public class ElementActions {
 		}
 		return true;
 	    default:
-		if (Boolean.valueOf(System.getProperty("forceCheckElementLocatorIsUnique"))) {
+		if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckElementLocatorIsUnique")))) {
 		    failAction(driver, "identifyUniqueElement",
 			    "multiple elements found matching this locator \"" + elementLocator + "\".");
 		}
@@ -333,7 +333,7 @@ public class ElementActions {
     }
 
     private static int getMatchingElementsCount(WebDriver driver, By elementLocator, int numberOfAttempts) {
-	//TODO: Refactor to be called only from identifyUniqueElement
+	// TODO: Refactor to be called only from identifyUniqueElement
 	return getMatchingElementsCount(driver, elementLocator, numberOfAttempts, true);
     }
 
@@ -372,7 +372,8 @@ public class ElementActions {
 		}
 		ScreenshotManager.storeElementScreenshotForAISupportedElementIdentification(driver, elementLocator);
 	    }
-	    if (matchingElementsCount == 0 && attemptToFindElementUsingAI(driver, elementLocator)) {
+	    if (matchingElementsCount == 0
+		    && Boolean.TRUE.equals(attemptToFindElementUsingAI(driver, elementLocator))) {
 		matchingElementsCount = 1;
 	    }
 	    return matchingElementsCount;
@@ -457,7 +458,7 @@ public class ElementActions {
     }
 
     private static void typeWrapper(WebDriver driver, By elementLocator, String targetText, Boolean isSecureTyping) {
-	//TODO: refactor to minimize element actions
+	// TODO: refactor to minimize element actions
 	if (identifyUniqueElement(driver, elementLocator)) {
 	    // Override current locator with the aiGeneratedElementLocator
 	    elementLocator = updateLocatorWithAIGenratedOne(elementLocator);
@@ -497,7 +498,7 @@ public class ElementActions {
 	    Boolean isSecureTyping, String successfulTextLocationStrategy) {
 	if (targetText.equals(
 		readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator, successfulTextLocationStrategy))) {
-	    if (isSecureTyping) {
+	    if (Boolean.TRUE.equals(isSecureTyping)) {
 		passAction(driver, elementLocator, "type", targetText.replaceAll(".", "*"));
 	    } else {
 		passAction(driver, elementLocator, "type", targetText);
@@ -517,7 +518,7 @@ public class ElementActions {
 	setValueUsingJavaScript(driver, elementLocator, targetText, true);
 	if (targetText.equals(
 		readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator, successfulTextLocationStrategy))) {
-	    if (isSecureTyping) {
+	    if (Boolean.TRUE.equals(isSecureTyping)) {
 		passAction(driver, elementLocator, "type", targetText.replaceAll(".", "*"));
 	    } else {
 		passAction(driver, elementLocator, "type", targetText);

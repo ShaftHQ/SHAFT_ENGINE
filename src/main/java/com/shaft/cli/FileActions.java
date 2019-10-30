@@ -489,7 +489,7 @@ public class FileActions {
 		ReportManager.log(e);
 	    }
 
-	    if (!doesFileExit) {
+	    if (Boolean.FALSE.equals(doesFileExit)) {
 		try {
 		    Thread.sleep(500);
 		} catch (Exception e1) {

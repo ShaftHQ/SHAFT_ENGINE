@@ -206,10 +206,10 @@ public class ImageProcessingActions {
 
 	int outlineThickness = 5;
 
-	Point startPoint = new Point(elementLocation.getX() - outlineThickness,
-		elementLocation.getY() - outlineThickness);
-	Point endPoint = new Point(elementLocation.getX() + elementLocation.getWidth() + outlineThickness,
-		elementLocation.getY() + elementLocation.getHeight() + outlineThickness);
+	Point startPoint = new Point((double) elementLocation.getX() - outlineThickness,
+		(double) elementLocation.getY() - outlineThickness);
+	Point endPoint = new Point((double) elementLocation.getX() + elementLocation.getWidth() + outlineThickness,
+		(double) elementLocation.getY() + elementLocation.getHeight() + outlineThickness);
 
 	// BGR color
 	Scalar highlightColorScalar = new Scalar(highlightColor.getBlue(), highlightColor.getGreen(),
@@ -258,7 +258,7 @@ public class ImageProcessingActions {
 		    matchLoc = mmr.maxLoc;
 		}
 
-		if (Boolean.valueOf(System.getProperty("debugMode"))) {
+		if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("debugMode")))) {
 		    // debugging
 		    Imgproc.rectangle(img, matchLoc, new Point(matchLoc.x + templ.cols(), matchLoc.y + templ.rows()),
 			    new Scalar(0, 0, 0), 2, 8, 0);

@@ -192,7 +192,7 @@ public class BrowserFactory {
 	    break;
 	}
 
-	if (!isCompatibleBrowser) {
+	if (Boolean.FALSE.equals(isCompatibleBrowser)) {
 	    failAction("checkBrowserOSCrossCompatibility", "Unsupported Browser Type [" + browserName
 		    + "] for this Operating System [" + targetOperatingSystem + "].");
 	}
@@ -225,7 +225,7 @@ public class BrowserFactory {
 	    ffOptions.setCapability("platform", getDesiredOperatingSystem());
 	    ffOptions.setCapability("nativeEvents", true);
 	    ffOptions.setCapability(CapabilityType.LOGGING_PREFS, logPrefs);
-	    if (HEADLESS_EXECUTION) {
+	    if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
 		// https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Headless_mode
 		ffOptions.addArguments("-headless");
 	    }
@@ -245,7 +245,7 @@ public class BrowserFactory {
 	    chOptions = new ChromeOptions();
 	    chOptions.setCapability("platform", getDesiredOperatingSystem());
 	    chOptions.setHeadless(HEADLESS_EXECUTION);
-	    if (HEADLESS_EXECUTION) {
+	    if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
 		// https://developers.google.com/web/updates/2017/04/headless-chrome
 		chOptions.addArguments("--disable-gpu"); // Temporarily needed if running on Windows
 	    }
@@ -280,7 +280,7 @@ public class BrowserFactory {
 
     private static WebDriver createNewLocalDriverInstance(String browserName) {
 	String initialLog = "Attempting to run locally on: [" + targetOperatingSystem + "], [" + browserName + "]";
-	if (HEADLESS_EXECUTION) {
+	if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
 	    initialLog = initialLog + ", Headless Execution";
 	}
 	ReportManager.log(initialLog + ".");
@@ -365,7 +365,7 @@ public class BrowserFactory {
     private static WebDriver createNewRemoteDriverInstance(String browserName) {
 	String initialLog = "Attempting to run remotely on: [" + targetOperatingSystem + "], [" + browserName + "], ["
 		+ TARGET_HUB_URL + "]";
-	if (HEADLESS_EXECUTION) {
+	if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
 	    initialLog = initialLog + ", Headless Execution";
 	}
 	ReportManager.log(initialLog + ".");
@@ -525,7 +525,7 @@ public class BrowserFactory {
 	    setDriverOptions(browserName);
 	    // set driver options with respect to the target browser name
 
-	    if (BROWSEROBJECTSINGLETON) {
+	    if (Boolean.TRUE.equals(BROWSEROBJECTSINGLETON)) {
 		closeAllDrivers();
 	    }
 
@@ -538,12 +538,12 @@ public class BrowserFactory {
 	    }
 	    driver.manage().timeouts().pageLoadTimeout(PAGE_LOAD_TIMEOUT, TimeUnit.SECONDS);
 	    driver.manage().timeouts().setScriptTimeout(SCRIPT_TIMEOUT, TimeUnit.SECONDS);
-	    if (WAIT_IMPLICITLY) {
+	    if (Boolean.TRUE.equals(WAIT_IMPLICITLY)) {
 		driver.manage().timeouts().implicitlyWait(IMPLICIT_WAIT_TIMEOUT, TimeUnit.SECONDS);
 	    }
 
 	    JSWaiter.setDriver(driver);
-	    if (AUTO_MAXIMIZE) {
+	    if (Boolean.TRUE.equals(AUTO_MAXIMIZE)) {
 		BrowserActions.maximizeWindow(driver); // Automatically maximize driver window after opening it
 	    }
 	    startAnimatedGif();
@@ -596,13 +596,13 @@ public class BrowserFactory {
     }
 
     public static void startAnimatedGif() {
-	if (CREATE_GIF && (driver != null)) {
+	if (Boolean.TRUE.equals(CREATE_GIF) && (driver != null)) {
 	    ScreenshotManager.startAnimatedGif(driver);
 	}
     }
 
     public static void attachAnimatedGif() {
-	if (CREATE_GIF && (driver != null)) {
+	if (Boolean.TRUE.equals(CREATE_GIF) && (driver != null)) {
 	    ScreenshotManager.attachAnimatedGif();
 	}
     }

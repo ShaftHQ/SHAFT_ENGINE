@@ -106,7 +106,7 @@ public class RestActions {
 	}
 	Boolean initialLoggingState = ReportManager.isDiscreteLogging();
 
-	if (isDiscrete) {
+	if (Boolean.TRUE.equals(isDiscrete)) {
 	    // attach body
 	    if (requestBody != null && !requestBody.equals(new JsonObject())) {
 		reportRequestBody(requestBody);
@@ -126,7 +126,7 @@ public class RestActions {
 		}
 
 		List<Object> responseBodyAttachment = reportResponseBody(response, initialLoggingState);
-		if (!initialLoggingState) {
+		if (Boolean.FALSE.equals(initialLoggingState)) {
 		    ReportManager.log(message, Arrays.asList(requestBodyAttachment, responseBodyAttachment));
 		} else {
 		    ReportManager.logDiscrete(message);
@@ -312,7 +312,7 @@ public class RestActions {
     private static List<Object> reportResponseBody(Response responseBody, Boolean isDiscrete) {
 	List<Object> responseBodyAttachment = new ArrayList<>();
 	if (responseBody != null) {
-	    if (isDiscrete) {
+	    if (Boolean.TRUE.equals(isDiscrete)) {
 		try {
 		    ReportManager.logDiscrete("API Response - REST Body:\n"
 			    + IOUtils.toString(parseBodyToJson(responseBody), StandardCharsets.UTF_8));
@@ -711,7 +711,7 @@ public class RestActions {
 	    ReportManager.log("Failed to parse the JSON document");
 	    failAction("getResponseJSONValueAsList", jsonPath);
 	}
-	
+
 	if (searchPool != null) {
 	    passAction("getResponseJSONValueAsList", jsonPath, true);
 	    return searchPool;
@@ -919,7 +919,7 @@ public class RestActions {
 	    // if expected is an object and actual is also an object
 	    Boolean initialComparison = JSONCompare.compareJSON(expectedJsonObject.toJSONString(),
 		    actualJsonObject.toJSONString(), JSONCompareMode.LENIENT).passed();
-	    if (!initialComparison) {
+	    if (Boolean.FALSE.equals(initialComparison)) {
 		// secondary comparison using java contains
 		// not tested
 		return actualJsonObject.toString().contains(expectedJsonObject.toString());

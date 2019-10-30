@@ -179,8 +179,8 @@ public class Assertions {
 
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, assertionComparisonType, assertionType)) {
 	case 1:
-	    if (assertionType) {
-		if (!isExpectedOrActualValueLong) {
+	    if (Boolean.TRUE.equals(assertionType)) {
+		if (Boolean.FALSE.equals(isExpectedOrActualValueLong)) {
 		    pass("Assertion Passed; actual value [" + actualValue + "] does match expected value ["
 			    + expectedValue + "].");
 		} else {
@@ -189,7 +189,7 @@ public class Assertions {
 		}
 
 	    } else {
-		if (!isExpectedOrActualValueLong) {
+		if (Boolean.FALSE.equals(isExpectedOrActualValueLong)) {
 		    pass("Assertion Passed; actual value [" + actualValue + "] does not match expected value ["
 			    + expectedValue + "].");
 		} else {
@@ -199,8 +199,8 @@ public class Assertions {
 	    }
 	    break;
 	case 0:
-	    if (assertionType) {
-		if (!isExpectedOrActualValueLong) {
+	    if (Boolean.TRUE.equals(assertionType)) {
+		if (Boolean.FALSE.equals(isExpectedOrActualValueLong)) {
 		    fail("Assertion Failed; actual value [" + actualValue + "] does not match expected value ["
 			    + expectedValue + "].");
 		} else {
@@ -208,7 +208,7 @@ public class Assertions {
 			    String.valueOf(actualValue));
 		}
 	    } else {
-		if (!isExpectedOrActualValueLong) {
+		if (Boolean.FALSE.equals(isExpectedOrActualValueLong)) {
 		    fail("Assertion Failed; actual value [" + actualValue + "] does match expected value ["
 			    + expectedValue + "].");
 		} else {
@@ -259,7 +259,7 @@ public class Assertions {
     public static void assertNull(Object object, Boolean assertionType) {
 	ReportManager.logDiscrete("Assertion [" + "assertNull" + "] is being performed.");
 
-	if (assertionType) {
+	if (Boolean.TRUE.equals(assertionType)) {
 	    try {
 		Assert.assertNull(object);
 		pass("Assertion Passed; actual value is null.");
@@ -312,7 +312,7 @@ public class Assertions {
 	ReportManager.logDiscrete("Assertion [" + "assertElementExists" + "] is being performed.");
 	try {
 	    int customAttempts = attemptsBeforeThrowingElementNotFoundException;
-	    if (!assertionType) {
+	    if (Boolean.FALSE.equals(assertionType)) {
 		customAttempts = attemptsBeforeThrowingElementNotFoundExceptionInCaseElementShouldntExist;
 	    }
 
@@ -320,7 +320,7 @@ public class Assertions {
 
 	    switch (elementsCount) {
 	    case 0:
-		if (assertionType) {
+		if (Boolean.TRUE.equals(assertionType)) {
 		    fail("assertElementExists", driver,
 			    "Assertion Failed; element does not exist. Locator [" + elementLocator.toString() + "].");
 		} else {
@@ -329,7 +329,7 @@ public class Assertions {
 		}
 		break;
 	    case 1:
-		if (assertionType) {
+		if (Boolean.TRUE.equals(assertionType)) {
 		    pass("assertElementExists", driver, elementLocator,
 			    "Assertion Passed; element exists and is unique. Locator [" + elementLocator.toString()
 				    + "].");
@@ -415,7 +415,7 @@ public class Assertions {
 
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, assertionComparisonType, assertionType)) {
 	case 1:
-	    if (assertionType) {
+	    if (Boolean.TRUE.equals(assertionType)) {
 		pass("assertElementAttribute", driver, elementLocator, "Assertion Passed; actual value of ["
 			+ elementAttribute + "] does match expected value [" + expectedValue + "].");
 	    } else {
@@ -425,7 +425,7 @@ public class Assertions {
 	    }
 	    break;
 	case 0:
-	    if (assertionType) {
+	    if (Boolean.TRUE.equals(assertionType)) {
 		fail("assertElementAttribute", driver, elementLocator,
 			"Assertion Failed; actual value of [" + elementAttribute + "] equals [" + actualValue
 				+ "] which does not match expected value [" + expectedValue + "].");
@@ -502,7 +502,7 @@ public class Assertions {
 
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, assertionComparisonType, assertionType)) {
 	case 1:
-	    if (assertionType) {
+	    if (Boolean.TRUE.equals(assertionType)) {
 		pass("assertElementCSSProperty", driver, elementLocator,
 			"Assertion Passed; actual CSS Property value of [" + propertyName
 				+ "] does match expected value [" + expectedValue + "].");
@@ -513,7 +513,7 @@ public class Assertions {
 	    }
 	    break;
 	case 0:
-	    if (assertionType) {
+	    if (Boolean.TRUE.equals(assertionType)) {
 		fail("assertElementCSSProperty", driver, elementLocator,
 			"Assertion Failed; actual CSS Property value of [" + propertyName + "] equals [" + actualValue
 				+ "] which does not match expected value [" + expectedValue + "].");
@@ -614,7 +614,7 @@ public class Assertions {
 
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, assertionComparisonType, assertionType)) {
 	case 1:
-	    if (assertionType) {
+	    if (Boolean.TRUE.equals(assertionType)) {
 		pass("assertBrowserAttribute", driver, "Assertion Passed; actual value of [" + browserAttribute
 			+ "] does match expected value [" + expectedValue + "].");
 	    } else {
@@ -624,7 +624,7 @@ public class Assertions {
 	    }
 	    break;
 	case 0:
-	    if (assertionType) {
+	    if (Boolean.TRUE.equals(assertionType)) {
 		fail("assertBrowserAttribute", driver,
 			"Assertion Failed; actual value of [" + browserAttribute + "] equals [" + actualValue
 				+ "] which does not match expected value [" + expectedValue + "].");
@@ -701,7 +701,7 @@ public class Assertions {
 			+ expectedValue + "], comparativeRelationType [" + comparativeRelationType + "], actualValue ["
 			+ actualValue + "], and assertionType [" + assertionType + "].");
 
-	if (assertionType) {
+	if (Boolean.TRUE.equals(assertionType)) {
 	    try {
 		switch (comparativeRelationType) {
 		case ">":
@@ -814,7 +814,7 @@ public class Assertions {
 	ReportManager.logDiscrete("Assertion [" + "assertFileExists" + "] is being performed for target directory ["
 		+ fileFolderName + "], and target file [" + fileName + "].");
 	if (FileActions.doesFileExist(fileFolderName, fileName, numberOfRetries)) {
-	    if (assertionType) {
+	    if (Boolean.TRUE.equals(assertionType)) {
 		pass("Assertion Passed; target file [" + fileName + "] exists under the target path ["
 			+ FileActions.getAbsolutePath(fileFolderName, fileName) + "].");
 	    } else {
@@ -823,7 +823,7 @@ public class Assertions {
 	    }
 
 	} else {
-	    if (assertionType) {
+	    if (Boolean.TRUE.equals(assertionType)) {
 		fail("Assertion Failed; target file [" + fileName + "] doesn't exist under the target path ["
 			+ FileActions.getAbsolutePath(fileFolderName, fileName) + "], tried for ["
 			+ numberOfRetries * 500 + "] milliseconds.");

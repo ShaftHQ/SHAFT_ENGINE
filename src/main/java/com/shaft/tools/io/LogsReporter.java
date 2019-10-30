@@ -24,7 +24,7 @@ public class LogsReporter {
     }
 
     public void attachBrowserLogs() {
-	if (!BrowserFactory.isBrowsersListEmpty()) {
+	if (Boolean.FALSE.equals(BrowserFactory.isBrowsersListEmpty())) {
 	    BrowserFactory.attachBrowserLogs();
 	    BrowserFactory.closeAllDrivers();
 	} else {
@@ -33,7 +33,7 @@ public class LogsReporter {
     }
 
     public void attachExecutionVideoRecording() {
-	if (RecordManager.getRecordVideo()) {
+	if (Boolean.TRUE.equals(RecordManager.getRecordVideo())) {
 	    RecordManager.stopRecording();
 	    RecordManager.attachRecording();
 	} else {
