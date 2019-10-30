@@ -10,6 +10,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -422,7 +423,7 @@ public class ScreenshotManager {
 
     public static void startAnimatedGif(WebDriver driver) {
 	// TODO: refactor performance to reduce severe drop when enabling this option
-	if (Boolean.TRUE.equals(CREATE_GIF)) {
+	if (Boolean.TRUE.equals(CREATE_GIF) && driver != null) {
 	    gifDriver = driver;
 	    try {
 		testCaseName = Reporter.getCurrentTestResult().getMethod().getMethodName();
@@ -454,11 +455,13 @@ public class ScreenshotManager {
 		initialImageGraphics.dispose();
 		// write out first image to the sequence...
 		gifWriter.writeToSequence(overlayShaftEngineLogo(firstImage));
-	    } catch (IOException | WebDriverException e) {
-		ReportManager.log(e);
 	    } catch (NullPointerException e) {
 		// this happens in case the start animated Gif is triggered in a none-test
 		// method
+	    } catch (NoSuchSessionException e) {
+		// this happens when the window is already closed
+	    } catch (IOException | WebDriverException e) {
+		ReportManager.log(e);
 	    }
 	}
     }
@@ -533,7 +536,10 @@ public class ScreenshotManager {
 		} catch (NoSuchSessionException e) {
 		    // this happens when attempting to append to a non existing gif, expected
 		    // solution is to recreate the gif
-		    BrowserFactory.startAnimatedGif();
+		    // BrowserFactory.startAnimatedGif();
+
+		    // removed the old solution, the new fix is to ignore this exception, this will
+		    // leave the gif intact and will attach it even after failing to append to it
 		} catch (WebDriverException e) {
 		    if (e.getMessage().contains("was terminated due to BROWSER_TIMEOUT")) {
 			// this happens when attempting to append to a gif from an already terminated
@@ -566,6 +572,9 @@ public class ScreenshotManager {
 		gifDriver = null;
 		ReportManager.attach("Animated Gif", testCaseName, new FileInputStream(gifRelativePathWithFileName));
 		gifRelativePathWithFileName = "";
+	    } catch (FileNotFoundException e) {
+		// this happens when the gif fails to start, maybe the browser window was
+		// already closed
 	    } catch (IOException | NullPointerException | IllegalStateException e) {
 		ReportManager.log(e);
 	    }
