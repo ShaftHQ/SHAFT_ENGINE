@@ -333,7 +333,6 @@ public class ElementActions {
     }
 
     private static int getMatchingElementsCount(WebDriver driver, By elementLocator, int numberOfAttempts) {
-	// TODO: Refactor to be called only from identifyUniqueElement
 	return getMatchingElementsCount(driver, elementLocator, numberOfAttempts, true);
     }
 
@@ -775,7 +774,7 @@ public class ElementActions {
      *                       xpath, id, selector, name ...etc)
      */
     public static void switchToIframe(WebDriver driver, By elementLocator) {
-	if (getMatchingElementsCount(driver, elementLocator, attemptsBeforeThrowingElementNotFoundException) == 1) {
+	if (identifyUniqueElement(driver, elementLocator)) {
 	    // Override current locator with the aiGeneratedElementLocator
 	    elementLocator = updateLocatorWithAIGenratedOne(elementLocator);
 
@@ -1185,8 +1184,8 @@ public class ElementActions {
      *                                  ...etc)
      */
     public static void dragAndDrop(WebDriver driver, By sourceElementLocator, By destinationElementLocator) {
-	if (identifyUniqueElement(driver, sourceElementLocator) && getMatchingElementsCount(driver,
-		destinationElementLocator, attemptsBeforeThrowingElementNotFoundException) == 1) {
+	if (identifyUniqueElement(driver, sourceElementLocator)
+		&& identifyUniqueElement(driver, destinationElementLocator)) {
 	    // Override current locator with the aiGeneratedElementLocator
 	    sourceElementLocator = updateLocatorWithAIGenratedOne(sourceElementLocator);
 	    destinationElementLocator = updateLocatorWithAIGenratedOne(destinationElementLocator);
@@ -1511,7 +1510,14 @@ public class ElementActions {
 	// Override current locator with the aiGeneratedElementLocator
 	elementLocator = updateLocatorWithAIGenratedOne(elementLocator);
 
-	if (foundElementsCount <= 1 && elementLocator != null) {
+	boolean expectedCondition = false;
+	if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckElementLocatorIsUnique")))) {
+	    expectedCondition = foundElementsCount <= 1;
+	} else {
+	    expectedCondition = foundElementsCount >= 0;
+	}
+
+	if (expectedCondition && elementLocator != null) {
 	    try {
 		if (stateOfPresence) {
 		    passAction(driver, elementLocator, "waitForElementToBePresent",
