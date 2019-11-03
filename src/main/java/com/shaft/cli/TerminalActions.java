@@ -3,6 +3,7 @@ package com.shaft.cli;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -108,51 +109,57 @@ public class TerminalActions {
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     private void passAction(String actionName, String testData, String log) {
-	String message = "Successfully performed action [" + actionName + "].";
-	if (testData != null) {
-	    message = message + " With the following test data [" + testData + "].";
-	}
+	reportActionResult(actionName, testData, log, true);
+    }
 
-	if (actionName.toLowerCase().contains("createsshsession")) {
-	    ReportManager.logDiscrete(message);
-	    ReportManager.logDiscrete("CLI Response - Terminal Log:\n" + log);
-	}
+    private void passAction(String testData, String log) {
+	String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+	passAction(actionName, testData, log);
+    }
 
-	Boolean discreetLogging = ReportManager.isDiscreteLogging();
-	if (actionName.toLowerCase().contains("performterminalcommand")) {
-	    if (Boolean.TRUE.equals(discreetLogging)) {
-		ReportManager.logDiscrete(message);
-		ReportManager.logDiscrete("CLI Response - Terminal Log:\n" + log);
-	    } else {
-		if ((log != null) && (!log.trim().equals(""))) {
-		    ReportManager.log(message, Arrays.asList(Arrays.asList("CLI Response", "Terminal Log", log)));
-		} else {
-		    ReportManager.log(message);
-
-		}
-	    }
+    private void failAction(String actionName, String testData, String log, Exception... rootCauseException) {
+	String message = reportActionResult(actionName, testData, log, false);
+	if (rootCauseException != null) {
+	    Assert.fail(message, rootCauseException[0]);
+	} else {
+	    Assert.fail(message);
 	}
     }
 
-    private void passAction(String actionName, String testData) {
-	passAction(actionName, testData, null);
+    private void failAction(String testData, Exception... rootCauseException) {
+	String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+	failAction(actionName, testData, null, rootCauseException);
     }
 
-    private void failAction(String actionName, String testData, String log) {
-	String message = "Failed to perform action [" + actionName + "].";
-	if (testData != null) {
+    private static String reportActionResult(String actionName, String testData, String log, Boolean passFailStatus) {
+	String message = "";
+	if (Boolean.TRUE.equals(passFailStatus)) {
+	    message = "Terminal Action [" + actionName + "] successfully performed.";
+	} else {
+	    message = "Terminal Action [" + actionName + "] failed.";
+	}
+
+	List<List<Object>> attachments = new ArrayList<>();
+	if (testData != null && !testData.isEmpty() && testData.length() >= 500) {
+	    List<Object> actualValueAttachment = Arrays.asList("Terminal Action Test Data - " + actionName,
+		    "Actual Value", testData);
+	    attachments.add(actualValueAttachment);
+	} else if (testData != null && !testData.isEmpty()) {
 	    message = message + " With the following test data [" + testData + "].";
 	}
-	if ((log != null) && (!log.trim().equals(""))) {
-	    ReportManager.log(message, Arrays.asList(Arrays.asList("API Response", "Command Log", log)));
+
+	if (log != null && !log.trim().equals("")) {
+	    attachments.add(Arrays.asList(Arrays.asList("Terminal Action Actual Result", "Command Log", log)));
+	}
+
+	if (!attachments.equals(new ArrayList<>())) {
+	    ReportManager.log(message, attachments);
 	} else {
 	    ReportManager.log(message);
-	}
-	Assert.fail(message);
-    }
 
-    private void failAction(String actionName, String testData) {
-	failAction(actionName, testData, null);
+	}
+
+	return message;
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -171,15 +178,11 @@ public class TerminalActions {
 	    jsch.addIdentity(FileActions.getAbsolutePath(sshKeyFileFolderName, sshKeyFileName));
 	    session = jsch.getSession(sshUsername, sshHostName, sshPortNumber);
 	    session.setConfig(config);
-
 	    session.connect();
-	    Boolean discreetLoggingState = ReportManager.isDiscreteLogging();
-	    ReportManager.setDiscreteLogging(true);
-	    passAction("createSSHsession", testData);
-	    ReportManager.setDiscreteLogging(discreetLoggingState);
-	} catch (JSchException e) {
-	    ReportManager.log(e);
-	    failAction("createSSHsession", testData);
+	    ReportManager.logDiscrete("Successfully created SSH Session.");
+	} catch (JSchException rootCauseException) {
+	    ReportManager.log(rootCauseException);
+	    failAction(testData, rootCauseException);
 	}
 	return session;
     }
@@ -212,106 +215,134 @@ public class TerminalActions {
 	return command.toString();
     }
 
+    private List<Object> executeCommand(Session remoteSession, ChannelExec remoteChannelExecutor, String command,
+	    Process localProcess, BufferedReader reader, BufferedReader errorReader) {
+	try {
+	    if (isRemoteTerminal()) {
+		int sessionTimeout = Integer.parseInt(System.getProperty("shellSessionTimeout")) * 1000;
+		// remote execution
+		ReportManager.logDiscrete(
+			"Attempting to perform the following command remotely. Command: [" + command + "]");
+		remoteSession = createSSHsession();
+		if (remoteSession != null) {
+		    remoteSession.setTimeout(sessionTimeout);
+
+		    remoteChannelExecutor = (ChannelExec) remoteSession.openChannel("exec");
+		    remoteChannelExecutor.setCommand(command);
+		    remoteChannelExecutor.connect();
+		    reader = new BufferedReader(new InputStreamReader(remoteChannelExecutor.getInputStream()));
+		    errorReader = new BufferedReader(new InputStreamReader(remoteChannelExecutor.getErrStream()));
+		}
+	    } else {
+		// local execution
+		ReportManager
+			.logDiscrete("Attempting to perform the following command locally. Command: [" + command + "]");
+		localProcess = Runtime.getRuntime().exec(command);
+		localProcess.waitFor();
+		reader = new BufferedReader(new InputStreamReader(localProcess.getInputStream()));
+		errorReader = new BufferedReader(new InputStreamReader(localProcess.getErrorStream()));
+	    }
+	} catch (InterruptedException rootCauseException) {
+	    ReportManager.log(rootCauseException);
+	    failAction(command, rootCauseException);
+	    Thread.currentThread().interrupt();
+	} catch (IOException | NullPointerException | JSchException rootCauseException) {
+	    ReportManager.log(rootCauseException);
+	    failAction(command, rootCauseException);
+	}
+	return Arrays.asList(remoteSession, remoteChannelExecutor, localProcess, reader, errorReader);
+    }
+
+    private String captureTerminalLogs(BufferedReader reader, BufferedReader errorReader, String command) {
+	StringBuilder logBuilder = new StringBuilder();
+	try {
+	    String logLine = "";
+	    if (reader != null) {
+		while ((logLine = reader.readLine()) != null) {
+		    if (logBuilder.length() == 0) {
+			logBuilder.append(logLine);
+		    } else {
+			logBuilder.append(System.lineSeparator() + logLine);
+		    }
+		}
+		reader.close();
+	    }
+	    if (errorReader != null) {
+		while ((logLine = errorReader.readLine()) != null) {
+		    if (logBuilder.length() == 0) {
+			logBuilder.append(logLine);
+		    } else {
+			logBuilder.append(System.lineSeparator() + logLine);
+		    }
+		}
+		errorReader.close();
+	    }
+	} catch (IOException rootCauseException) {
+	    ReportManager.log(rootCauseException);
+	    failAction(command, rootCauseException);
+	}
+	return logBuilder.toString();
+    }
+
+    private int getExitStatus(Session remoteSession, ChannelExec remoteChannelExecutor, Process localProcess) {
+	int exitStatus = 0;
+	if (remoteSession != null && remoteChannelExecutor != null) {
+	    exitStatus = remoteChannelExecutor.getExitStatus();
+	    remoteSession.disconnect();
+	} else if (localProcess != null) {
+	    exitStatus = localProcess.exitValue();
+	    localProcess.destroy();
+	}
+	return exitStatus;
+    }
+
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //////////////////////////////////// [Public] Core Terminal Actions
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public String performTerminalCommands(List<String> commands) {
-	StringBuilder logBuilder = new StringBuilder();
 	String log = "";
-	int sessionTimeout = Integer.parseInt(System.getProperty("shellSessionTimeout")) * 1000;
 
 	// Build long command and refactor for dockerized execution if needed
 	String command = buildLongCommand(commands);
 
-	// Attempt to execute long command
-	try {
-	    // Declare Buffered Readers to track terminal session output
-	    BufferedReader reader;
-	    BufferedReader errorReader;
+	// Declare Buffered Readers to track terminal session output
+	BufferedReader reader = null;
+	BufferedReader errorReader = null;
 
-	    // Declare Variables which will need to be destroyed at the end of the sessions
-	    Session session = null;
-	    ChannelExec channelExec = null;
-	    Process p = null;
+	// Declare Variables which will need to be destroyed at the end of the sessions
+	Session remoteSession = null;
+	ChannelExec remoteChannelExecutor = null;
+	Process localProcess = null;
 
-	    // Perform command
-	    if (isRemoteTerminal()) {
-		// remote execution
-		ReportManager.logDiscrete(
-			"Attempting to perform the following command remotely. Command: [" + command + "]");
-		session = createSSHsession();
-		session.setTimeout(sessionTimeout);
-		channelExec = (ChannelExec) session.openChannel("exec");
-		channelExec.setCommand(command);
-		channelExec.connect();
-		reader = new BufferedReader(new InputStreamReader(channelExec.getInputStream()));
-		errorReader = new BufferedReader(new InputStreamReader(channelExec.getErrStream()));
-	    } else {
-		// local execution
-		ReportManager
-			.logDiscrete("Attempting to perform the following command locally. Command: [" + command + "]");
-		p = Runtime.getRuntime().exec(command);
-		p.waitFor();
-		reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
-		errorReader = new BufferedReader(new InputStreamReader(p.getErrorStream()));
-	    }
+	// Perform command
+	List<Object> teminalSession = executeCommand(remoteSession, remoteChannelExecutor, command, localProcess,
+		reader, errorReader);
 
-	    // Capture logs and close readers
-	    String logLine = "";
-	    while ((logLine = reader.readLine()) != null) {
-		if (logBuilder.length() == 0) {
-		    logBuilder.append(logLine);
-		} else {
-		    logBuilder.append(System.lineSeparator() + logLine);
-		}
-	    }
-	    while ((logLine = errorReader.readLine()) != null) {
-		if (logBuilder.length() == 0) {
-		    logBuilder.append(logLine);
-		} else {
-		    logBuilder.append(System.lineSeparator() + logLine);
-		}
-	    }
-	    log = logBuilder.toString();
-	    reader.close();
-	    errorReader.close();
+	// Capture logs and close readers
+	reader = (BufferedReader) teminalSession.get(3);
+	errorReader = (BufferedReader) teminalSession.get(4);
+	log = captureTerminalLogs(reader, errorReader, command);
 
-	    // Retrieve the exit status of the executed command and destroy open sessions
-	    int exitStatus = 0;
-	    if (session != null && channelExec != null) {
-		exitStatus = channelExec.getExitStatus();
-		session.disconnect();
-	    } else if (p != null) {
-		exitStatus = p.exitValue();
-		p.destroy();
-	    }
-
-	    // Report Command exit status
-	    ReportManager.logDiscrete("Command Executed with exit status: [" + exitStatus + "]");
-	    if (exitStatus > 0) {
-		// Remote script exec error!
-	    }
-	} catch (IOException | NullPointerException | JSchException | InterruptedException e) {
-	    if (e.getMessage().contains("Cannot run program \"cd\": error=2, No such file or directory")) {
-		ReportManager.log("Failed to perform command [" + command
-			+ "] because you cannot use 'cd' with a local terminal. Try to do your action directly instead.");
-	    } else if (e.getMessage().contains("Connection refused (Connection refused)")) {
-		ReportManager.log("Failed to connect to remote machine [" + sshUsername + "@" + sshHostName + ":"
-			+ sshPortNumber + "] using this key ["
-			+ FileActions.getAbsolutePath(sshKeyFileFolderName, sshKeyFileName)
-			+ "]. Please confirm that this data is correct.");
-	    } else if (e.getMessage().contains("session is down")) {
-		ReportManager.log("Failed to perform command [" + command + "] session timed out after "
-			+ sessionTimeout + " milliseconds.");
-	    } else {
-		ReportManager.log(e);
-	    }
-	    failAction("performTerminalCommands", command, log);
-	    return log;
+	// Retrieve the exit status of the executed command and destroy open sessions
+	remoteSession = (Session) teminalSession.get(0);
+	remoteChannelExecutor = (ChannelExec) teminalSession.get(1);
+	localProcess = (Process) teminalSession.get(2);
+	int exitStatus = getExitStatus(remoteSession, remoteChannelExecutor, localProcess);
+	if (exitStatus > 0) {
+	    // Remote script exec error!
 	}
 
-	passAction("performTerminalCommands", command, log);
+	// Prepare final log message
+	StringBuilder reportMessage = new StringBuilder();
+	reportMessage.append("Host Name: \"" + sshHostName + "\"");
+	reportMessage.append("| SSH Port Number: \"" + sshPortNumber + "\"");
+	reportMessage.append("| SSH Username: \"" + sshUsername + "\"");
+	reportMessage.append("| Key File: \"" + sshKeyFileFolderName + sshKeyFileName + "\"");
+	reportMessage.append("| Command: \"" + command + "\"");
+	reportMessage.append("| Exis Status: \"" + exitStatus + "\"");
+
+	passAction(reportMessage.toString(), log);
 	return log;
     }
 

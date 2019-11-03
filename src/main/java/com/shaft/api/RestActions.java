@@ -715,10 +715,11 @@ public class RestActions {
 		boolean responseStatus = evaluateResponseStatusCode(request, requestBody, response, targetStatusCode);
 
 		StringBuilder reportMessage = new StringBuilder();
-		reportMessage.append("Request Type: \"" + requestType + "\" | " + "Target Status Code: \""
-			+ targetStatusCode + "\" | " + "Service URL: \"" + serviceURI + serviceName + "\" | "
-			+ "Content Type: \"" + contentType + "\" | " + "Response Time: \""
-			+ response.timeIn(TimeUnit.MILLISECONDS) + "ms\"");
+		reportMessage.append("Request Type: \"" + requestType + "\"");
+		reportMessage.append("| Target Status Code: \"" + targetStatusCode + "\"");
+		reportMessage.append("| Service URL: \"" + serviceURI + serviceName + "\"");
+		reportMessage.append("| Content Type: \"" + contentType + "\"");
+		reportMessage.append("| Response Time: \"" + response.timeIn(TimeUnit.MILLISECONDS) + "ms\"");
 
 		if (urlArguments != null) {
 		    reportMessage.append(" | URL Arguments: \"" + urlArguments + "\"");
@@ -729,8 +730,6 @@ public class RestActions {
 		}
 
 		if (Boolean.TRUE.equals(responseStatus)) {
-		    // TODO: provide all request information for the report
-		    // add commas instead of line separators
 		    passAction(reportMessage.toString().trim(), requestBody, response, false);
 		} else {
 		    failAction(reportMessage.toString().trim(), requestBody, response);
