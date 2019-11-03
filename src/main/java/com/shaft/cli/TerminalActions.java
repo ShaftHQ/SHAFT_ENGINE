@@ -149,7 +149,7 @@ public class TerminalActions {
 	}
 
 	if (log != null && !log.trim().equals("")) {
-	    attachments.add(Arrays.asList(Arrays.asList("Terminal Action Actual Result", "Command Log", log)));
+	    attachments.add(Arrays.asList("Terminal Action Actual Result", "Command Log", log));
 	}
 
 	if (!attachments.equals(new ArrayList<>())) {

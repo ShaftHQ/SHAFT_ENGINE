@@ -11,7 +11,7 @@ public class Test_checksum {
     public void readLocalFileChecksum() {
 	String targetFileFolderPath = "";
 	String targetFileName = "generate_allure_report.sh";
-	String expectedHash = "2733fa2fba748e2ed7493de06cc441b0abf44b6a01d7cf06604a20d40eaf609a";
+	String expectedHash = "5f389bb767ff94e5f39fd6d588fb4b8c4a46b7c69f8a129fc1c7be6c59f43f74";
 
 	TerminalActions terminalSession = new TerminalActions();
 	String actualHash = FileActions.getFileChecksum(terminalSession, targetFileFolderPath, targetFileName);
