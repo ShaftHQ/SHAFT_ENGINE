@@ -156,7 +156,6 @@ public class TerminalActions {
 	    ReportManager.log(message, attachments);
 	} else {
 	    ReportManager.log(message);
-
 	}
 
 	return message;
