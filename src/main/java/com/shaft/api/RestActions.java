@@ -776,7 +776,7 @@ public class RestActions {
 	} catch (ClassCastException rootCauseException) {
 	    ReportManager.log(ERROR_INCORRECT_JSONPATH + "[" + jsonPath + "]");
 	    failAction(jsonPath, rootCauseException);
-	} catch (JsonPathException rootCauseException) {
+	} catch (JsonPathException | IllegalArgumentException rootCauseException) {
 	    ReportManager.log(ERROR_FAILED_TO_PARSE_JSON);
 	    failAction(jsonPath, rootCauseException);
 	}
@@ -800,7 +800,7 @@ public class RestActions {
 	} catch (ClassCastException rootCauseException) {
 	    ReportManager.log(ERROR_INCORRECT_JSONPATH + "[" + jsonPath + "]");
 	    failAction(jsonPath, rootCauseException);
-	} catch (JsonPathException rootCauseException) {
+	} catch (JsonPathException | IllegalArgumentException rootCauseException) {
 	    ReportManager.log(ERROR_FAILED_TO_PARSE_JSON);
 	    failAction(jsonPath, rootCauseException);
 	}
@@ -821,7 +821,7 @@ public class RestActions {
 	} catch (ClassCastException rootCauseException) {
 	    ReportManager.log(ERROR_INCORRECT_JSONPATH + "[" + jsonPath + "]");
 	    failAction(jsonPath, rootCauseException);
-	} catch (JsonPathException rootCauseException) {
+	} catch (JsonPathException | IllegalArgumentException rootCauseException) {
 	    ReportManager.log(ERROR_FAILED_TO_PARSE_JSON);
 	    failAction(jsonPath, rootCauseException);
 	}
