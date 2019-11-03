@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Enumeration;
@@ -32,6 +33,9 @@ import com.google.common.hash.Hashing;
 import com.shaft.tools.io.ReportManager;
 
 public class FileActions {
+
+    private static final String ERROR_CANNOT_CREATE_DIRECTORY = "Could not create directory: ";
+
     private FileActions() {
 	throw new IllegalStateException("Utility class");
     }
@@ -40,22 +44,45 @@ public class FileActions {
     //////////////////////////////////// [private] Reporting Actions
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    private static void failAction(String actionName, String testData, String log) {
-	String message = "Failed to perform action [" + actionName + "].";
-	if (testData != null) {
+    private static void failAction(String testData, Exception... rootCauseException) {
+	String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+	String message = reportActionResult(actionName, testData, null, false);
+	if (rootCauseException != null) {
+	    Assert.fail(message, rootCauseException[0]);
+	} else {
+	    Assert.fail(message);
+	}
+    }
+
+    private static String reportActionResult(String actionName, String testData, String log, Boolean passFailStatus) {
+	String message = "";
+	if (Boolean.TRUE.equals(passFailStatus)) {
+	    message = "File Action [" + actionName + "] successfully performed.";
+	} else {
+	    message = "File Action [" + actionName + "] failed.";
+	}
+
+	List<List<Object>> attachments = new ArrayList<>();
+	if (testData != null && !testData.isEmpty() && testData.length() >= 500) {
+	    List<Object> actualValueAttachment = Arrays.asList("File Action Test Data - " + actionName, "Actual Value",
+		    testData);
+	    attachments.add(actualValueAttachment);
+	} else if (testData != null && !testData.isEmpty()) {
 	    message = message + " With the following test data [" + testData + "].";
 	}
-	if ((log != null) && (!log.trim().equals(""))) {
-	    ReportManager.log(message, Arrays.asList(Arrays.asList("API Response", "Command Log", log)));
+
+	if (log != null && !log.trim().equals("")) {
+	    attachments.add(Arrays.asList(Arrays.asList("File Action Actual Result", "Command Log", log)));
+	}
+
+	if (!attachments.equals(new ArrayList<>())) {
+	    ReportManager.log(message, attachments);
 	} else {
 	    ReportManager.log(message);
 
 	}
-	Assert.fail(message);
-    }
 
-    private static void failAction(String actionName, String testData) {
-	failAction(actionName, testData, null);
+	return message;
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -258,9 +285,9 @@ public class FileActions {
 	    Collection<File> filesList = FileUtils.listFiles(new File(targetDirectory), TrueFileFilter.TRUE,
 		    TrueFileFilter.TRUE);
 	    filesList.forEach(file -> files.append(file.getName() + System.lineSeparator()));
-	} catch (IllegalArgumentException e) {
-	    ReportManager.log(e);
-	    failAction("listFilesInDirectory", "Failed to list files in this directory: \"" + targetDirectory + "\"");
+	} catch (IllegalArgumentException rootCauseException) {
+	    ReportManager.log(rootCauseException);
+	    failAction("Failed to list files in this directory: \"" + targetDirectory + "\"", rootCauseException);
 	}
 	return files.toString().trim();
     }
@@ -317,9 +344,9 @@ public class FileActions {
 	try {
 	    fileBytes = Files.readAllBytes(Paths.get(targetFilePath));
 	    sha256 = Hashing.sha256().hashBytes(fileBytes).toString();
-	} catch (IOException e) {
-	    ReportManager.log(e);
-	    failAction("getFileChecksum", "Failed to read file \"" + targetFilePath + "\"");
+	} catch (IOException rootCauseException) {
+	    ReportManager.log(rootCauseException);
+	    failAction("Failed to read file \"" + targetFilePath + "\"", rootCauseException);
 	}
 	ReportManager.logDiscrete(
 		"Successfully calculated SHA-256: \"" + sha256 + "\" from this file \"" + targetFilePath + "\"");
@@ -430,9 +457,9 @@ public class FileActions {
 		Files.createDirectories(parentDir);
 	    }
 	    Files.write(filePath, content);
-	} catch (InvalidPathException | IOException e) {
-	    ReportManager.log(e);
-	    failAction("writeToFile", "Folder Name: \"" + fileFolderName + "\", File Name \"" + fileName + "\".");
+	} catch (InvalidPathException | IOException rootCauseException) {
+	    ReportManager.log(rootCauseException);
+	    failAction("Folder Name: \"" + fileFolderName + "\", File Name \"" + fileName + "\".", rootCauseException);
 	}
     }
 
@@ -590,8 +617,7 @@ public class FileActions {
 	    targetDir.mkdirs();
 	}
 	File unpacked = null;
-	try {
-	    InputStream in = new BufferedInputStream(url.openStream(), 1024);
+	try (InputStream in = new BufferedInputStream(url.openStream(), 1024)) {
 	    // make sure we get the actual file
 	    File zip = File.createTempFile("arc", ".zip", targetDir);
 	    OutputStream out = new BufferedOutputStream(new FileOutputStream(zip));
@@ -599,9 +625,9 @@ public class FileActions {
 	    out.close();
 	    unpacked = unpackArchive(zip, targetDir);
 	    FileActions.deleteFile(zip.getAbsolutePath());
-	} catch (IOException e) {
-	    ReportManager.log(e);
-	    failAction("unpackArchive", "file: " + url.toString() + " to directory: " + destinationFolderPath);
+	} catch (IOException rootCauseException) {
+	    ReportManager.log(rootCauseException);
+	    failAction("file: " + url.toString() + " to directory: " + destinationFolderPath, rootCauseException);
 	}
 	return unpacked;
     }
@@ -611,26 +637,28 @@ public class FileActions {
 	    throw new IOException(theFile.getAbsolutePath() + " does not exist");
 	}
 	if (!buildDirectory(targetDir)) {
-	    throw new IOException("Could not create directory: " + targetDir);
+	    throw new IOException(ERROR_CANNOT_CREATE_DIRECTORY + targetDir);
 	}
-	ZipFile zipFile = new ZipFile(theFile);
-	for (Enumeration<? extends ZipEntry> entries = zipFile.entries(); entries.hasMoreElements();) {
-	    ZipEntry entry = entries.nextElement();
-	    File file = new File(targetDir, File.separator + entry.getName());
-	    if (!buildDirectory(file.getParentFile())) {
-		zipFile.close();
-		throw new IOException("Could not create directory: " + file.getParentFile());
-	    }
-	    if (!entry.isDirectory()) {
-		copyInputStream(zipFile.getInputStream(entry), new BufferedOutputStream(new FileOutputStream(file)));
-	    } else {
-		if (!buildDirectory(file)) {
-		    zipFile.close();
-		    throw new IOException("Could not create directory: " + file);
+
+	try (ZipFile zipFile = new ZipFile(theFile)) {
+	    for (Enumeration<? extends ZipEntry> entries = zipFile.entries(); entries.hasMoreElements();) {
+		ZipEntry entry = entries.nextElement();
+		File file = new File(targetDir, File.separator + entry.getName());
+		if (!buildDirectory(file.getParentFile())) {
+		    throw new IOException(ERROR_CANNOT_CREATE_DIRECTORY + file.getParentFile());
+		}
+		if (!entry.isDirectory()) {
+		    copyInputStream(zipFile.getInputStream(entry),
+			    new BufferedOutputStream(new FileOutputStream(file)));
+		} else {
+		    if (!buildDirectory(file)) {
+			throw new IOException(ERROR_CANNOT_CREATE_DIRECTORY + file);
+		    }
 		}
 	    }
+	} catch (IOException e) {
+	    throw new IOException(e);
 	}
-	zipFile.close();
 	return theFile;
     }
 
@@ -666,17 +694,17 @@ public class FileActions {
 			readTimeout);
 		ReportManager.logDiscrete("Downloading completed successfully.");
 		return new File(destinationFilePath).toURI().toURL();
-	    } catch (IOException e) {
-		ReportManager.log(e);
-		failAction("downloadFile", "Target File URL: [" + targetFileURL + "], and Destination File Path: ["
-			+ destinationFilePath + "]");
+	    } catch (IOException rootCauseException) {
+		ReportManager.log(rootCauseException);
+		failAction("Target File URL: [" + targetFileURL + "], and Destination File Path: ["
+			+ destinationFilePath + "]", rootCauseException);
 		return null;
 	    } finally {
 		ReportManager.setDiscreteLogging(initialLoggingState);
 	    }
 	} else {
-	    failAction("downloadFile", "Target File URL: [" + targetFileURL + "], and Destination File Path: ["
-		    + destinationFilePath + "]");
+	    failAction("Target File URL: [" + targetFileURL + "], and Destination File Path: [" + destinationFilePath
+		    + "]");
 	    return null;
 	}
     }
