@@ -95,11 +95,18 @@ public class FileActions {
 	    attachments.add(Arrays.asList("File Action Actual Result", "Command Log", log));
 	}
 
-	if (!attachments.equals(new ArrayList<>())) {
-	    ReportManager.log(message, attachments);
+	// Minimize File Action log steps and move them to discrete logs if called
+	// within SHAFT_Engine itself
+	StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+	StackTraceElement parentMethod = stackTrace[4];
+	if (parentMethod.getClassName().contains("com.shaft")) {
+	    ReportManager.logDiscrete(message);
 	} else {
-	    ReportManager.log(message);
-
+	    if (!attachments.equals(new ArrayList<>())) {
+		ReportManager.log(message, attachments);
+	    } else {
+		ReportManager.log(message);
+	    }
 	}
 
 	return message;
