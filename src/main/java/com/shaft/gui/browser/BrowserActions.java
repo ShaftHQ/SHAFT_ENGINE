@@ -88,12 +88,10 @@ public class BrowserActions {
 	    message = message + " With the following test data [" + testData + "].";
 	}
 
-	if (driver != null && attachments.equals(new ArrayList<>())) {
-	    ReportManager.log(message, Arrays.asList(ScreenshotManager.captureScreenShot(driver, actionName, true)));
-	} else if (driver != null && !attachments.equals(new ArrayList<>())) {
+	if (driver != null) {
 	    attachments.add(ScreenshotManager.captureScreenShot(driver, actionName, true));
 	    ReportManager.log(message, attachments);
-	} else if (driver == null && !attachments.equals(new ArrayList<>())) {
+	} else if (!attachments.equals(new ArrayList<>())) {
 	    ReportManager.log(message, attachments);
 	} else {
 	    ReportManager.log(message);
