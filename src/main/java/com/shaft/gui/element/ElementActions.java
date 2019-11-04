@@ -117,7 +117,7 @@ public class ElementActions {
 	    Exception... rootCauseException) {
 	String message = reportActionResult(driver, actionName, testData, elementLocator, null, false);
 
-	if (rootCauseException != null) {
+	if (rootCauseException != null && rootCauseException.length >= 1) {
 	    Assert.fail(message, rootCauseException[0]);
 	} else {
 	    Assert.fail(message);
@@ -144,11 +144,11 @@ public class ElementActions {
 
 	if (screenshot != null && screenshot != new ArrayList<>()) {
 	    // screenshot taken before action (in case of click)
-	    attachments.add(Arrays.asList(screenshot));
+	    attachments.add(screenshot);
 	} else {
 	    List<Object> newScreenshot = takeScreenshot(driver, elementLocator, actionName, testData, passFailStatus);
 	    if (newScreenshot != null && newScreenshot != new ArrayList<>()) {
-		attachments.add(Arrays.asList(newScreenshot));
+		attachments.add(newScreenshot);
 	    }
 	}
 
@@ -459,15 +459,21 @@ public class ElementActions {
 	// TODO: refactor logic to actually compare values
 	String text = driver.findElement(elementLocator).getText().trim();
 	String content = driver.findElement(elementLocator).getAttribute("textContent").trim();
-	String value = driver.findElement(elementLocator).getAttribute("value").trim();
+	String value = driver.findElement(elementLocator).getAttribute("value");
+
+	if (value != null) {
+	    value = value.trim();
+	}
 
 	String successfulTextLocationStrategy;
-	if (!text.equals("") && content.equals("") && value.equals("")) {
+	if (!text.equals("") && content.equals("") && value != null && value.equals("")) {
 	    successfulTextLocationStrategy = "text";
-	} else if (text.equals("") && !content.equals("") && value.equals("")) {
+	} else if (text.equals("") && !content.equals("") && value != null && value.equals("")) {
 	    successfulTextLocationStrategy = "content";
-	} else {
+	} else if (value != null){
 	    successfulTextLocationStrategy = "value";
+	} else {
+	    successfulTextLocationStrategy = "text";
 	}
 	return successfulTextLocationStrategy;
     }
@@ -912,7 +918,7 @@ public class ElementActions {
 	    // removed to enhance performance, and replaced with a process to assert after
 	    // every navigation
 	    if (elementText != null && !elementText.equals("")) {
-		passAction(driver, elementLocator, elementText, screenshot);
+		passAction(driver, elementLocator, elementText.replaceAll("\n", " "), screenshot);
 	    } else {
 		passAction(driver, elementLocator, screenshot);
 	    }
