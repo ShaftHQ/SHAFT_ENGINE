@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
@@ -88,6 +90,18 @@ public class PropertiesFileManager {
 	    System.setProperty("debugMode", "false");
 	}
 
+    }
+
+    public static Map<String, String> getAppiumDesiredCapabilities() {
+	Map<String, String> appiumDesiredCapabilities = new HashMap<>();
+
+	Properties props = System.getProperties();
+	props.forEach((key, value) -> {
+	    if (String.valueOf(key).toLowerCase().contains("appium_")) {
+		appiumDesiredCapabilities.put(String.valueOf(key), String.valueOf(value));
+	    }
+	});
+	return appiumDesiredCapabilities;
     }
 
     public static void readPropertyFiles(String propertiesFolderPath) {

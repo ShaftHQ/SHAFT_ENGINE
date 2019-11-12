@@ -1,6 +1,6 @@
-package com.shaft.gui.element;
+package com.shaft.tools.support;
 
-enum JSHelpers {
+public enum JSHelpers {
     LOAD_JQUERY("/** dynamically load jQuery */\n" + "(function(jqueryUrl, callback) {\n"
 	    + "    if (typeof jqueryUrl != 'string') {\n"
 	    + "        jqueryUrl = 'https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js';\n" + "    }\n"
@@ -14,7 +14,7 @@ enum JSHelpers {
 	    + "        });\n" + "        script.src = jqueryUrl;\n" + "        head.appendChild(script);\n" + "    }\n"
 	    + "    else {\n" + "        callback();\n" + "    }\n"
 	    + "})(arguments[0], arguments[arguments.length - 1]);"),
-    DRAG_AND_DROP("(function( $ ) {\n" + "        $.fn.simulateDragDrop = function(options) {\n"
+    ELEMENT_DRAG_AND_DROP("(function( $ ) {\n" + "        $.fn.simulateDragDrop = function(options) {\n"
 	    + "                return this.each(function() {\n"
 	    + "                        new $.simulateDragDrop(this, options);\n" + "                });\n"
 	    + "        };\n" + "        $.simulateDragDrop = function(elem, options) {\n"
@@ -70,7 +70,7 @@ enum JSHelpers {
 	    + "                        }else if( elem.fireEvent ) {\n"
 	    + "                                elem.fireEvent(\"on\"+type, event);\n" + "                        }\n"
 	    + "                }\n" + "        });\n" + "})(jQuery);"),
-    GET_XPATH("function getXPath(element) {\n" + "    var xpath = '';\n" + "    var count = 0;\n"
+    ELEMENT_GET_XPATH("function getXPath(element) {\n" + "    var xpath = '';\n" + "    var count = 0;\n"
 	    + "    while (element) {\n" + "\n" + "        /** Getting the Element's Index\n" + "         **/\n"
 	    + "        var pathIndex = \"\";\n" + "        if ($$GetIndex$$) {\n" + "            try {\n"
 	    + "                var index = 0;\n"
@@ -161,15 +161,19 @@ enum JSHelpers {
 	    + "    window.lastelem.style.outline = currentoutlineStyle;\n"
 	    + "    window.lastelem.style.backgroundColor = currentbackgroundColorStyle;\n"
 	    + "    return getXPath(window.lastelem);\n" + "}"),
-    SCROLL_TO_ELEMENT_OUTSIDE_VIEWPORT(
-	    "(function(){'use strict';var api;api=function(x,y){var elm,scrollX,scrollY,newX,newY;scrollX=window.pageXOffset;scrollY=window.pageYOffset;window.scrollTo(x,y);newX=x-window.pageXOffset;newY=y-window.pageYOffset;elm=this.elementFromPoint(newX,newY);window.scrollTo(scrollX,scrollY);return elm;};this.document.elementFromAbsolutePoint=api;}).call(this);return document.elementFromAbsolutePoint(arguments[0], arguments[1]);");
+    ELEMENT_SCROLL_TO_VIEWPORT(
+	    "(function(){'use strict';var api;api=function(x,y){var elm,scrollX,scrollY,newX,newY;scrollX=window.pageXOffset;scrollY=window.pageYOffset;window.scrollTo(x,y);newX=x-window.pageXOffset;newY=y-window.pageYOffset;elm=this.elementFromPoint(newX,newY);window.scrollTo(scrollX,scrollY);return elm;};this.document.elementFromAbsolutePoint=api;}).call(this);return document.elementFromAbsolutePoint(arguments[0], arguments[1]);"),
+    WINDOW_FOCUS("window.focus();"), WINDOW_RESET_LOCATION("window.moveTo(0,0);"),
+    WINDOW_RESIZE("window.resizeTo($WIDTH,$HEIGHT);"), NAVIGATION_STOP("return window.stop;"),
+    DOCUMENT_READYSTATE("return document.readyState");
+
     private String value;
 
     JSHelpers(String type) {
 	this.value = type;
     }
 
-    protected String getValue() {
+    public String getValue() {
 	return value;
     }
 }

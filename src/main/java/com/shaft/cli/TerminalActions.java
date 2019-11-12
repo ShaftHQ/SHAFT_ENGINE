@@ -173,8 +173,9 @@ public class TerminalActions {
 	    Properties config = new Properties();
 	    config.put("StrictHostKeyChecking", "no");
 	    JSch jsch = new JSch();
-
-	    jsch.addIdentity(FileActions.getAbsolutePath(sshKeyFileFolderName, sshKeyFileName));
+	    if (sshKeyFileName != null && !sshKeyFileName.equals("")) {
+		jsch.addIdentity(FileActions.getAbsolutePath(sshKeyFileFolderName, sshKeyFileName));
+	    }
 	    session = jsch.getSession(sshUsername, sshHostName, sshPortNumber);
 	    session.setConfig(config);
 	    session.connect();
@@ -337,7 +338,9 @@ public class TerminalActions {
 	reportMessage.append("Host Name: \"" + sshHostName + "\"");
 	reportMessage.append("| SSH Port Number: \"" + sshPortNumber + "\"");
 	reportMessage.append("| SSH Username: \"" + sshUsername + "\"");
-	reportMessage.append("| Key File: \"" + sshKeyFileFolderName + sshKeyFileName + "\"");
+	if (sshKeyFileName != null && !sshKeyFileName.equals("")) {
+	    reportMessage.append("| Key File: \"" + sshKeyFileFolderName + sshKeyFileName + "\"");
+	}
 	reportMessage.append("| Command: \"" + command + "\"");
 	reportMessage.append("| Exis Status: \"" + exitStatus + "\"");
 

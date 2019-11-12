@@ -1,6 +1,6 @@
 package com.shaft.gui.element;
 
-import java.time.Duration;
+//import java.time.Duration;
 
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
@@ -9,13 +9,15 @@ import org.openqa.selenium.support.ui.ExpectedCondition;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.support.JSHelpers;
 
 public class JSWaiter {
-
     private static WebDriver jsWaitDriver;
     private static JavascriptExecutor jsExec;
-    private static Duration waitDuration = Duration.ofSeconds(15);
+//    private static final Duration WAIT_DURATION = Duration.ofSeconds(15);
+    private static final int WAIT_DURATION_INTEGER = 15;
     private static int delayBetweenPolls = 20; // milliseconds
+    private static final String TARGET_DOCUMENT_READY_STATE = "complete";
 
     private JSWaiter() {
 	throw new IllegalStateException("Utility class");
@@ -79,7 +81,7 @@ public class JSWaiter {
 		while ((!jqueryReady) && (tryCounter < 5)) {
 		    try {
 			// Wait for jQuery to load
-			(new WebDriverWait(jsWaitDriver, waitDuration)).until(jQueryLoad);
+			(new WebDriverWait(jsWaitDriver, WAIT_DURATION_INTEGER)).until(jQueryLoad);
 		    } catch (NullPointerException e) {
 			// do nothing
 		    }
@@ -109,7 +111,7 @@ public class JSWaiter {
 	    int tryCounter = 0;
 	    while ((!angularReady) && (tryCounter < 5)) {
 		// Wait for Angular to load
-		(new WebDriverWait(jsWaitDriver, waitDuration)).until(angularLoad);
+		(new WebDriverWait(jsWaitDriver, WAIT_DURATION_INTEGER)).until(angularLoad);
 		// More Wait for stability (Optional)
 		sleep(delayBetweenPolls);
 		tryCounter++;
@@ -124,11 +126,12 @@ public class JSWaiter {
 
 	// Wait for Javascript to load
 	ExpectedCondition<Boolean> jsLoad = driver -> ((JavascriptExecutor) jsWaitDriver)
-		.executeScript("return document.readyState").toString().trim().equalsIgnoreCase("complete");
+		.executeScript(JSHelpers.DOCUMENT_READYSTATE.getValue()).toString().trim()
+		.equalsIgnoreCase(TARGET_DOCUMENT_READY_STATE);
 
 	// Get JS is Ready
-	boolean jsReady = (Boolean) jsExec.executeScript("return document.readyState").toString().trim()
-		.equalsIgnoreCase("complete");
+	boolean jsReady = (Boolean) jsExec.executeScript(JSHelpers.DOCUMENT_READYSTATE.getValue()).toString().trim()
+		.equalsIgnoreCase(TARGET_DOCUMENT_READY_STATE);
 
 	// Wait Javascript until it is Ready!
 	if (!jsReady) {
@@ -136,12 +139,12 @@ public class JSWaiter {
 	    int tryCounter = 0;
 	    while ((!jsReady) && (tryCounter < 5)) {
 		// Wait for Javascript to load
-		(new WebDriverWait(jsWaitDriver, waitDuration)).until(jsLoad);
+		(new WebDriverWait(jsWaitDriver, WAIT_DURATION_INTEGER)).until(jsLoad);
 		// More Wait for stability (Optional)
 		sleep(delayBetweenPolls);
 		tryCounter++;
-		jsReady = (Boolean) jsExec.executeScript("return document.readyState").toString().trim()
-			.equalsIgnoreCase("complete");
+		jsReady = (Boolean) jsExec.executeScript(JSHelpers.DOCUMENT_READYSTATE.getValue()).toString().trim()
+			.equalsIgnoreCase(TARGET_DOCUMENT_READY_STATE);
 	    }
 	}
     }
