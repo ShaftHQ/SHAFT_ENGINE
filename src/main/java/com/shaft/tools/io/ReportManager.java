@@ -17,7 +17,6 @@ import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
-import org.apache.tools.ant.filters.StringInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Reporter;
@@ -252,8 +251,8 @@ public class ReportManager {
 	    Allure.addAttachment(attachmentDescription, "text/json", attachmentContent, ".json");
 	} else if (attachmentType.toLowerCase().contains("engine logs")) {
 	    if (attachmentName.equals("Current Method log")) {
-		Allure.addAttachment(attachmentDescription, "text/plain", new StringInputStream(currentTestLog.trim()),
-			".txt");
+		Allure.addAttachment(attachmentDescription, "text/plain",
+			new ByteArrayInputStream(currentTestLog.trim().getBytes()), ".txt");
 	    } else {
 		Allure.addAttachment(attachmentDescription, "text/plain", attachmentContent, ".txt");
 	    }
@@ -560,7 +559,7 @@ public class ReportManager {
      */
     public static void attach(String attachmentType, String attachmentName, String attachmentContent) {
 	if (!attachmentContent.trim().equals("")) {
-	    createAttachment(attachmentType, attachmentName, new StringInputStream(attachmentContent));
+	    createAttachment(attachmentType, attachmentName, new ByteArrayInputStream(attachmentContent.getBytes()));
 
 	}
     }
@@ -574,7 +573,8 @@ public class ReportManager {
 	String trimmed = currentTestLog.trim();
 	if (!currentTestLog.trim().equals("") && (!(String.valueOf(trimmed.charAt(0)).equals("#")
 		&& String.valueOf(trimmed.charAt(trimmed.length() - 1)).equals("#")))) {
-	    createAttachment("SHAFT Engine Logs", "Current Method log", new StringInputStream(currentTestLog));
+	    createAttachment("SHAFT Engine Logs", "Current Method log",
+		    new ByteArrayInputStream(currentTestLog.getBytes()));
 	}
 	clearTestLog();
     }
@@ -586,15 +586,15 @@ public class ReportManager {
 	    createImportantReportEntry("This test run was powered by SHAFT Engine Version: ["
 		    + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "]" + System.lineSeparator()
 		    + "SHAFT Engine is licensed under the MIT License: [https://github.com/MohabMohie/SHAFT_ENGINE/blob/master/LICENSE].");
-	    createAttachment("SHAFT Engine Logs", "Execution log", new StringInputStream(fullLog.trim()));
+	    createAttachment("SHAFT Engine Logs", "Execution log", new ByteArrayInputStream(fullLog.trim().getBytes()));
 	}
     }
 
     public static void attachIssuesLog() {
 	String issueSummary = prepareIssuesLog();
 	if (!issuesLog.trim().equals("")) {
-	    log(issueSummary, Arrays.asList(
-		    Arrays.asList("SHAFT Engine Logs", "Issues log CSV", new StringInputStream(issuesLog.trim()))));
+	    log(issueSummary, Arrays.asList(Arrays.asList("SHAFT Engine Logs", "Issues log CSV",
+		    new ByteArrayInputStream(issuesLog.trim().getBytes()))));
 	}
     }
 

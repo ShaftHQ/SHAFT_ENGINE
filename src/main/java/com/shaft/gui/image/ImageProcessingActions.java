@@ -22,6 +22,7 @@ import org.opencv.core.Point;
 import org.opencv.core.Scalar;
 import org.opencv.highgui.HighGui;
 import org.opencv.imgcodecs.Imgcodecs;
+
 import org.opencv.imgproc.Imgproc;
 import org.openqa.selenium.By;
 import org.testng.Assert;
@@ -34,6 +35,9 @@ import com.shaft.validation.Verifications;
 import nu.pattern.OpenCV;
 
 public class ImageProcessingActions {
+    private static final String DIRECTORY_PROCESSING = "/processingDirectory/";
+    private static final String DIRECTORY_FAILED = "/failedImagesDirectory/";
+
     private ImageProcessingActions() {
 	throw new IllegalStateException("Utility class");
     }
@@ -47,9 +51,9 @@ public class ImageProcessingActions {
 	    File testFolder = new File(testFolderPath);
 
 	    // cleaning processing folders
-	    FileActions.deleteFolder(refrenceFolder.getAbsolutePath() + "/processingDirectory/");
-	    FileActions.deleteFolder(testFolder.getAbsolutePath() + "/processingDirectory/");
-	    FileActions.deleteFolder(testFolder.getAbsolutePath() + "/failedImagesDirectory/");
+	    FileActions.deleteFolder(refrenceFolder.getAbsolutePath() + DIRECTORY_PROCESSING);
+	    FileActions.deleteFolder(testFolder.getAbsolutePath() + DIRECTORY_PROCESSING);
+	    FileActions.deleteFolder(testFolder.getAbsolutePath() + DIRECTORY_FAILED);
 
 	    // preparing objects for files
 	    File[] refrenceFiles = refrenceFolder.listFiles();
@@ -68,7 +72,7 @@ public class ImageProcessingActions {
 		// copy and rename reference screenshots to a processing directory
 		for (File refrenceScreenshot : refrenceFiles) {
 		    FileActions.copyFile(refrenceScreenshot.getAbsolutePath(),
-			    refrenceScreenshot.getParent() + "/processingDirectory/" + fileCounter);
+			    refrenceScreenshot.getParent() + DIRECTORY_PROCESSING + fileCounter);
 		    fileCounter++;
 		}
 
@@ -78,13 +82,13 @@ public class ImageProcessingActions {
 		fileCounter = 1;
 		for (File testScreenshot : testFiles) {
 		    FileActions.copyFile(testScreenshot.getAbsolutePath(),
-			    testScreenshot.getParent() + "/processingDirectory/" + fileCounter);
+			    testScreenshot.getParent() + DIRECTORY_PROCESSING + fileCounter);
 		    fileCounter++;
 		}
 
 		// point to the two new processing directories
-		File refrenceProcessingFolder = new File(refrenceFolderPath + "/processingDirectory/");
-		File testProcessingFolder = new File(testFolderPath + "/processingDirectory/");
+		File refrenceProcessingFolder = new File(refrenceFolderPath + DIRECTORY_PROCESSING);
+		File testProcessingFolder = new File(testFolderPath + DIRECTORY_PROCESSING);
 
 		// preparing objects for files
 		File[] testProcessingFiles = testProcessingFolder.listFiles();
@@ -97,8 +101,8 @@ public class ImageProcessingActions {
 			testProcessingFolder, threshhold);
 
 		// cleaning processing folders
-		FileActions.deleteFolder(refrenceFolder.getAbsolutePath() + "/processingDirectory/");
-		FileActions.deleteFolder(testFolder.getAbsolutePath() + "/processingDirectory/");
+		FileActions.deleteFolder(refrenceFolder.getAbsolutePath() + DIRECTORY_PROCESSING);
+		FileActions.deleteFolder(testFolder.getAbsolutePath() + DIRECTORY_PROCESSING);
 
 	    } else {
 		// fail because the number of screenshots don't match
@@ -181,12 +185,11 @@ public class ImageProcessingActions {
 	    } catch (AssertionError e) {
 		ReportManager.setDiscreteLogging(discreetLoggingState);
 		// copying image to failed images directory
-		FileActions.copyFile(screenshot.getAbsolutePath(), testProcessingFolder.getParent()
-			+ "/failedImagesDirectory/" + relatedTestFileName + "_testImage");
+		FileActions.copyFile(screenshot.getAbsolutePath(),
+			testProcessingFolder.getParent() + DIRECTORY_FAILED + relatedTestFileName + "_testImage");
 		FileActions.copyFile(
 			refrenceProcessingFolder + FileSystems.getDefault().getSeparator() + screenshot.getName(),
-			testProcessingFolder.getParent() + "/failedImagesDirectory/" + relatedTestFileName
-				+ "_refrenceImage");
+			testProcessingFolder.getParent() + DIRECTORY_FAILED + relatedTestFileName + "_refrenceImage");
 		failedImagesCount++;
 	    }
 
@@ -201,7 +204,7 @@ public class ImageProcessingActions {
     public static byte[] highlightElementInScreenshot(byte[] targetScreenshot,
 	    org.openqa.selenium.Rectangle elementLocation, java.awt.Color highlightColor) {
 
-	OpenCV.loadLocally();
+	OpenCV.loadShared();
 	Mat img = Imgcodecs.imdecode(new MatOfByte(targetScreenshot), Imgcodecs.IMREAD_COLOR);
 
 	int outlineThickness = 5;
@@ -233,7 +236,7 @@ public class ImageProcessingActions {
 	    int matchMethod) {
 
 	if (FileActions.doesFileExist(referenceImagePath)) {
-	    OpenCV.loadLocally();
+	    OpenCV.loadShared();
 	    Mat img = Imgcodecs.imdecode(new MatOfByte(currentPageScreenshot), Imgcodecs.IMREAD_COLOR);
 	    Mat templ = Imgcodecs.imread(referenceImagePath, Imgcodecs.IMREAD_COLOR);
 

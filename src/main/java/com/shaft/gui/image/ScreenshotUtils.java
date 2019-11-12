@@ -4,15 +4,12 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 
 import javax.imageio.ImageIO;
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
-import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.OutputType;
-import org.openqa.selenium.Point;
 import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
@@ -119,48 +116,6 @@ public class ScreenshotUtils {
 
 	ByteArrayOutputStream baos = new ByteArrayOutputStream();
 	ImageIO.write(resultingImage, "png", baos);
-	return baos.toByteArray();
-    }
-
-    /**
-     * @deprecated
-     * @param driver         the current instance of Selenium webdriver
-     * @param elementLocator the locator of the webElement under test (By xpath, id,
-     *                       selector, name ...etc)
-     * @param isBaseFullPage true means crop from fullPageScreenshot, and false
-     *                       means crop from regularScreenshot
-     * @return a file object that holds the screenshot
-     * @throws IOException if there was a problem writing the screenshot to a file
-     *                     object
-     */
-    @Deprecated
-    protected static byte[] makeElementScreenshot(WebDriver driver, By elementLocator, boolean isBaseFullPage)
-	    throws IOException {
-	WebElement targetElement = driver.findElement(elementLocator);
-
-	byte[] baseScreenshot = null;
-
-	if (isBaseFullPage) {
-	    baseScreenshot = ScreenshotUtils.makeFullScreenshot(driver);
-	} else {
-	    baseScreenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
-	}
-
-	InputStream inputScreenshot = new ByteArrayInputStream(baseScreenshot);
-	BufferedImage baseImg = ImageIO.read(inputScreenshot);
-
-	// Get the location of element on the page
-	Point point = targetElement.getLocation();
-
-	// Get width and height of the element
-	int eleWidth = targetElement.getSize().getWidth();
-	int eleHeight = targetElement.getSize().getHeight();
-
-	// Crop the entire page screenshot to get only element screenshot
-	BufferedImage eleScreenshot = baseImg.getSubimage(point.getX(), point.getY(), eleWidth, eleHeight);
-
-	ByteArrayOutputStream baos = new ByteArrayOutputStream();
-	ImageIO.write(eleScreenshot, "png", baos);
 	return baos.toByteArray();
     }
 

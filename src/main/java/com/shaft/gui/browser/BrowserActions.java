@@ -2,7 +2,7 @@ package com.shaft.gui.browser;
 
 import java.awt.HeadlessException;
 import java.awt.Toolkit;
-import java.time.Duration;
+//import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -22,11 +22,14 @@ import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.JSWaiter;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.support.JSHelpers;
 
 public class BrowserActions {
     private static final Boolean HEADLESS_EXECUTION = Boolean.valueOf(System.getProperty("headlessExecution").trim());
-    private static final Duration NAVIGATION_TIMEOUT = Duration
-	    .ofSeconds(Integer.parseInt(System.getProperty("browserNavigationTimeout").trim()));
+//    private static final Duration NAVIGATION_TIMEOUT = Duration
+//	    .ofSeconds(Integer.parseInt(System.getProperty("browserNavigationTimeout").trim()));
+    private static final int NAVIGATION_TIMEOUT_INTEGER = Integer
+	    .parseInt(System.getProperty("browserNavigationTimeout").trim());
 
     private BrowserActions() {
 	throw new IllegalStateException("Utility class");
@@ -121,7 +124,7 @@ public class BrowserActions {
 	    // redirection contains a random token that cannot be predefined, also as a
 	    // precaution against the failure in case the user tries to navigate back to the
 	    // source url which already redirected him
-	    (new WebDriverWait(driver, NAVIGATION_TIMEOUT))
+	    (new WebDriverWait(driver, NAVIGATION_TIMEOUT_INTEGER))
 		    .until(ExpectedConditions.urlContains(targetUrlAfterRedirection));
 	} catch (WebDriverException rootCauseException) {
 	    ReportManager.log(rootCauseException);
@@ -161,9 +164,10 @@ public class BrowserActions {
 	    ReportManager.logDiscrete("Window size after Toolkit: " + driver.manage().window().getSize().toString());
 	    return driver.manage().window().getSize();
 	} catch (HeadlessException e) {
-	    ((JavascriptExecutor) driver).executeScript("window.focus();");
-	    ((JavascriptExecutor) driver).executeScript("window.moveTo(0,0);");
-	    ((JavascriptExecutor) driver).executeScript("window.resizeTo(" + width + ", " + height + ");");
+	    ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_FOCUS.getValue());
+	    ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_RESET_LOCATION.getValue());
+	    ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_RESIZE.getValue()
+		    .replace("$WIDTH", String.valueOf(width)).replace("$HEIGHT", String.valueOf(height)));
 
 	    ReportManager.logDiscrete(
 		    "Window size after JavascriptExecutor: " + driver.manage().window().getSize().toString());
@@ -384,7 +388,7 @@ public class BrowserActions {
 	    initialURL = driver.getCurrentUrl();
 	    driver.navigate().back();
 	    JSWaiter.waitForLazyLoading();
-	    (new WebDriverWait(driver, NAVIGATION_TIMEOUT))
+	    (new WebDriverWait(driver, NAVIGATION_TIMEOUT_INTEGER))
 		    .until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
 	    newURL = driver.getCurrentUrl();
 	    if (!initialURL.equals(newURL)) {
@@ -406,7 +410,7 @@ public class BrowserActions {
 	    initialURL = driver.getCurrentUrl();
 	    driver.navigate().forward();
 	    JSWaiter.waitForLazyLoading();
-	    (new WebDriverWait(driver, NAVIGATION_TIMEOUT))
+	    (new WebDriverWait(driver, NAVIGATION_TIMEOUT_INTEGER))
 		    .until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
 	    newURL = driver.getCurrentUrl();
 	    if (!initialURL.equals(newURL)) {
@@ -535,9 +539,10 @@ public class BrowserActions {
 
 	if ((initialWindowSize.height == currentWindowSize.height)
 		&& (initialWindowSize.width == currentWindowSize.width)) {
-	    ((JavascriptExecutor) driver).executeScript("window.focus();");
-	    ((JavascriptExecutor) driver).executeScript("window.moveTo(0,0);");
-	    ((JavascriptExecutor) driver).executeScript("window.resizeTo(" + width + ", " + height + ");");
+	    ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_FOCUS.getValue());
+	    ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_RESET_LOCATION.getValue());
+	    ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_RESIZE.getValue()
+		    .replace("$WIDTH", String.valueOf(width)).replace("$HEIGHT", String.valueOf(height)));
 
 	    currentWindowSize = driver.manage().window().getSize();
 	    ReportManager.logDiscrete("Window size after JavascriptExecutor: " + currentWindowSize.toString());
@@ -567,9 +572,10 @@ public class BrowserActions {
 		.equals(String.valueOf(driver.manage().window().getSize().width));
 
 	if (heightNotChanged && widthNotChanged) {
-	    ((JavascriptExecutor) driver).executeScript("window.focus();");
-	    ((JavascriptExecutor) driver).executeScript("window.moveTo(0,0);");
-	    ((JavascriptExecutor) driver).executeScript("window.resizeTo(" + width + ", " + height + ");");
+	    ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_FOCUS.getValue());
+	    ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_RESET_LOCATION.getValue());
+	    ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_RESIZE.getValue()
+		    .replace("$WIDTH", String.valueOf(width)).replace("$HEIGHT", String.valueOf(height)));
 	}
 
 	if (heightNotChanged && widthNotChanged) {
