@@ -16,6 +16,8 @@ public class PropertiesFileManager {
     private static final String OS_WINDOWS = "Windows-64";
     private static final String OS_LINUX = "Linux-64";
     private static final String OS_MAC = "Mac-64";
+    private static final String DEFAULT_PROPERTIES_FOLDER_PATH = "/properties/";
+    private static final String CUSTOM_PROPERTIES_FOLDER_PROPERTY_NAME = "propertiesFolderPath";
 
     private PropertiesFileManager() {
 	throw new IllegalStateException("Utility class");
@@ -37,17 +39,18 @@ public class PropertiesFileManager {
 	// read properties from any explicit properties files
 	for (int i = 0; i < props.size(); i++) {
 	    String propertyKey = ((String) (props.keySet().toArray())[i]).trim();
-	    if (propertyKey.contains("propertiesFolderPath") && !propertyKey.equals("propertiesFolderPath")
+	    if (propertyKey.contains(CUSTOM_PROPERTIES_FOLDER_PROPERTY_NAME)
+		    && !propertyKey.equals(CUSTOM_PROPERTIES_FOLDER_PROPERTY_NAME)
 		    && !props.getProperty(propertyKey).trim().equals("")) {
 		readPropertyFiles(props.getProperty(propertyKey));
 	    }
 	}
 
 	// read properties form the base properties file
-	readPropertyFiles(System.getProperty("propertiesFolderPath"));
+	readPropertyFiles(System.getProperty(CUSTOM_PROPERTIES_FOLDER_PROPERTY_NAME));
 
 	// This section set the default properties values for Execution/path/pattern
-	setDefaultProperties();
+	setDefaultExecutionPropertiesFromResources();
 
 	overrideTargetOperatingSystemForLocalExecution();
 
@@ -76,18 +79,18 @@ public class PropertiesFileManager {
     private static void manageMaximumPerformanceMode() {
 	if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("maximumPerformanceMode")))) {
 	    // Beast Mode On
-	    System.setProperty("aiPoweredElementIdentification", "false");
-	    System.setProperty("headlessExecution", "true");
-	    System.setProperty("autoMaximizeBrowserWindow", "false");
-	    System.setProperty("forceCheckForElementVisibility", "false");
-	    System.setProperty("forceCheckElementLocatorIsUnique", "false");
+	    System.setProperty("aiPoweredElementIdentification", String.valueOf(false));
+	    System.setProperty("headlessExecution", String.valueOf(true));
+	    System.setProperty("autoMaximizeBrowserWindow", String.valueOf(false));
+	    System.setProperty("forceCheckForElementVisibility", String.valueOf(false));
+	    System.setProperty("forceCheckElementLocatorIsUnique", String.valueOf(false));
 	    System.setProperty("screenshotParams_whenToTakeAScreenshot", "FailuresOnly");
-	    System.setProperty("screenshotParams_highlightElements", "false");
+	    System.setProperty("screenshotParams_highlightElements", String.valueOf(false));
 	    System.setProperty("screenshotParams_screenshotType", "Regular");
-	    System.setProperty("screenshotParams_watermark", "false");
-	    System.setProperty("createAnimatedGif", "false");
-	    System.setProperty("recordVideo", "false");
-	    System.setProperty("debugMode", "false");
+	    System.setProperty("screenshotParams_watermark", String.valueOf(false));
+	    System.setProperty("createAnimatedGif", String.valueOf(false));
+	    System.setProperty("recordVideo", String.valueOf(false));
+	    System.setProperty("debugMode", String.valueOf(false));
 	}
 
     }
@@ -140,201 +143,22 @@ public class PropertiesFileManager {
     }
 
     private static void overrideTargetOperatingSystemForLocalExecution() {
+	String targetOperatingSystemPropertyName = "targetOperatingSystem";
 	if (System.getProperty("executionAddress").trim().equals("local")) {
 	    if (SystemUtils.IS_OS_WINDOWS) {
-		System.setProperty("targetOperatingSystem", OS_WINDOWS);
+		System.setProperty(targetOperatingSystemPropertyName, OS_WINDOWS);
 	    } else if (SystemUtils.IS_OS_LINUX) {
-		System.setProperty("targetOperatingSystem", OS_LINUX);
+		System.setProperty(targetOperatingSystemPropertyName, OS_LINUX);
 	    } else if (SystemUtils.IS_OS_MAC) {
-		System.setProperty("targetOperatingSystem", OS_MAC);
+		System.setProperty(targetOperatingSystemPropertyName, OS_MAC);
 	    }
 	}
     }
 
-    private static void setDefaultProperties() {
-	Properties properties = new Properties();
-	// read default properties
-
-	// TODO: Refactor to bundle default property files into src/main/resources, then
-	// extract them to src/test/resources and read from there.
-	properties.putAll(setDefaultExecutionProperties());
-	properties.putAll(setPathProperties());
-	properties.putAll(setPatternProperties());
-	properties.putAll(setTestNGProperties());
-
-	// override default properties with current system properties in the properties
-	// object
-	properties.putAll(System.getProperties());
-
-	// set new prioritized properties
-	System.getProperties().putAll(properties);
-    }
-
-    /**
-     * This method set Engine execution default properties
-     */
-    private static Properties setDefaultExecutionProperties() {
-	Properties properties = new Properties();
-	properties.put("maximumPerformanceMode", "false");
-	// true | false
-	// Note: Enabling maximumPerformanceMode will disable all complementary features
-	// to ensure
-	// the fastest execution possible.
-	properties.put("executionAddress", "local");
-	// Platform
-	// local | seleniumGridHubIP:port
-	properties.put("targetOperatingSystem", OS_WINDOWS);
-	// Windows-64 | Linux-64 | Mac-64
-	// Note: Will be ignored in case of local execution and SHAFT will identify the
-	// correct OS version automatically
-
-	properties.put("targetBrowserName", "GoogleChrome");
-	// MozillaFirefox | MicrosoftInternetExplorer | GoogleChrome | MicrosoftEdge |
-	// Safari
-	properties.put("headlessExecution", "false");
-
-	// true | false, This only works for chrome/Firefox
-	properties.put("browserObjectSingleton", "true");
-	// true | false, This makes sure that every time you attempt to open a browser,
-	// all other instances will be closed
-	//
-	////////// Platform Flags and Timeouts
-	properties.put("browserNavigationTimeout", "60");
-	// Timeout in seconds to be used if navigating to a new URL (1 minute = 60
-	// seconds)
-	properties.put("pageLoadTimeout", "60");
-	// Timeout in seconds to be used to wait for a page to finish loading (1 minute
-	// = 60 seconds)
-	properties.put("scriptExecutionTimeout", "60");
-	// Timeout in seconds to be used to wait for a dynamic script to finish
-	// execution (1 minute = 60 seconds)
-	properties.put("defaultElementIdentificationTimeout", "5");
-	// Accepts integer values that represent the default timeout for finding a
-	// webElement
-	properties.put("attemptsBeforeThrowingElementNotFoundException", "5");
-	// Accepts integer values that represent the number of attempts before failing
-	// to find a webElement
-	properties.put("shellSessionTimeout", "60");
-	// Timeout in seconds to be used if creating any kind of shell session (1 minute
-	// = 60 seconds), should be greater than or equal to the docker timeout in case
-	// of dockerized execution
-	properties.put("dockerCommandTimeout", "60");
-	// Timeout in seconds to be used if executing a command inside a docker (1
-	// minute = 60 seconds)
-	properties.put("databaseLoginTimeout", "60");
-	// Timeout in seconds to be used when attempting to login to a database (1
-	// minute = 60 seconds)
-	properties.put("databaseNetworkTimeout", "60");
-	// Timeout in seconds to be used when attempting to connect to a database (1
-	// minute = 60 seconds)
-	properties.put("databaseQueryTimeout", "60");
-	// Timeout in seconds to be used when attempting to execute a query on a
-	// database (1 minute = 60 seconds)
-
-	properties.put("apiSocketTimeout", "60");
-	// Timeout in seconds between two consecutive data packets in seconds
-	properties.put("apiConnectionTimeout", "60");
-	// Timeout in seconds to wait for until a connection is established
-	properties.put("apiConnectionManagerTimeout", "60");
-	// Timeout in seconds to wait for an available connection from the connection
-	// manager/pool (1 minute = 60 seconds)
-
-	properties.put("autoMaximizeBrowserWindow", "true");
-	// true | false
-	properties.put("forceCheckForElementVisibility", "true");
-	// true | false
-	properties.put("forceCheckElementLocatorIsUnique", "true");
-	// true | false
-	// Note: It is recommended to disable this feature if you'll be using
-	// org.openqa.selenium.support.locators.RelativeLocator
-	properties.put("waitImplicitly", "false");
-	// true | false
-	// Note: Implicit waiting may increase execution time by 20% but it also
-	// increases test stability in flaky environments
-	properties.put("implicitWaitTimeout", "120");
-	// Maximum timeout in seconds to fail any action
-	//
-	////////// Screen-shot/AnimatedGif/Video Parameters
-	properties.put("screenshotParams_whenToTakeAScreenshot", "ValidationPointsOnly");
-	// Always | Never | ValidationPointsOnly | FailuresOnly
-	properties.put("screenshotParams_highlightElements", "true");
-	// true | false
-	properties.put("screenshotParams_highlightMethod", "AI");
-	// AI | JavaScript
-	// Note: Using AI will result in a 10%++ increase in performance, while using
-	// JavaScript will show you the highlights on-screen during test execution
-	properties.put("screenshotParams_screenshotType", "Regular");
-	// Regular | FullPage | Element
-	properties.put("screenshotParams_skippedElementsFromScreenshot", "");
-	// The above element will be skipped in case of persistent elements/menus that
-	// show up multiple times in the full page screenshots
-	properties.put("screenshotParams_watermark", "true");
-	// true | false
-	properties.put("screenshotParams_watermarkOpacity", "0.2");
-	// a number between 0 and 1.0 where 0 means invisible and 1.0 means 100% visible
-	properties.put("createAnimatedGif", "true");
-	// true | false
-	properties.put("animatedGif_frameDelay", "500");
-	// Time in milliseconds to delay the frames of the animated GIF, default is 500
-	// millisecond
-	properties.put("recordVideo", "false");
-	// This only works for local execution
-	properties.put("aiPoweredElementIdentification", "false");
-	// true | false
-	// Note: this is an experimental feature
-	//
-	////////// Logging/Reporting Parameters
-	properties.put("alwaysLogDiscreetly", "false");
-	// true | false
-	properties.put("debugMode", "false");
-	// true | false
-	properties.put("automaticallyCleanAllureResultsDirectoryBeforeExecution", "false");
-	// true | false
-	properties.put("automaticallyGenerateAllureReport", "false");
-	// true | false
-	System.setProperty("customDriverName", "");
-	// Custom Driver Name
-	System.setProperty("customDriverPath", "");
-	// Custom Driver Path
-
-	return properties;
-    }
-
-    /**
-     * Set Engine Path Properties
-     */
-    private static Properties setPathProperties() {
-	Properties properties = new Properties();
-	properties.put("testDataFolderPath", "src/test/resources/TestDataFiles/");
-	properties.put("testSuiteFolderPath", "src/test/resources/TestSuites/");
-	properties.put("jsonFolderPath", "src/test/resources/TestJsonFiles/");
-	properties.put("watermarkImagePath", "/images/shaft.png");
-	properties.put("downloadsFolderPath", "target/downloadedFiles/");
-	properties.put("allureResultsFolderPath", "allure-results/");
-	properties.put("allureVersion", "2.13.0");
-	return properties;
-    }
-
-    /**
-     * Set Engine Pattern Properties
-     */
-    private static Properties setPatternProperties() {
-	Properties properties = new Properties();
-	properties.put("testDataColumnNamePrefix", "Data");
-	properties.put("allure.link.issue.pattern", "");
-	properties.put("allure.link.tms.pattern", "");
-	return properties;
-    }
-
-    private static Properties setTestNGProperties() {
-	Properties properties = new Properties();
-	properties.put("setPreserveOrder", "true");
-	properties.put("setGroupByInstances", "true");
-	properties.put("setVerbose", "1");
-	properties.put("setParallel", "NONE");
-	properties.put("setThreadCount", "1");
-	properties.put("setDataProviderThreadCount", "1");
-	return properties;
+    // TODO: create directory under ser/test/resources and write the default
+    // property files
+    private static void setDefaultExecutionPropertiesFromResources() {
+	readPropertyFiles(PropertiesFileManager.class.getResource(DEFAULT_PROPERTIES_FOLDER_PATH).getFile());
     }
 
 }

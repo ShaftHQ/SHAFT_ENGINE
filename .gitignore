@@ -7,3 +7,5 @@
 /generatedReport.zip
 /generatedReport/
 /generate_allure_report.sh
+/allure-results.zip
+/generate_allure_report.bat

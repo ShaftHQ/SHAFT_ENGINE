@@ -209,8 +209,6 @@ public class ScreenshotManager {
 	    elementLocator = aiGeneratedElementLocator;
 	}
 
-	FileActions.createFolder(SCREENSHOT_FOLDERPATH);
-
 	if (takeScreenshot) {
 	    /**
 	     * Force screenshot link to be shown in the results as a link not text
@@ -290,14 +288,6 @@ public class ScreenshotManager {
 		    }
 		    src = ImageProcessingActions.highlightElementInScreenshot(src, elementLocation, color);
 		}
-
-		/**
-		 * Copy the screenshot to desired path, and append the appropriate filename.
-		 * 
-		 */
-//		FileActions.copyFile(src.getAbsolutePath(), SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME
-//			+ FileSystems.getDefault().getSeparator() + screenshotFileName + ".png");
-
 		appendToAnimatedGif(src);
 		return addScreenshotToReport(src);
 	    } catch (WebDriverException e) {
@@ -421,7 +411,7 @@ public class ScreenshotManager {
 
     }
 
-    public static void startAnimatedGif(WebDriver driver) {
+    public static void startAnimatedGif(WebDriver driver, byte[]... screenshot) {
 	// TODO: refactor performance to reduce severe drop when enabling this option
 	if (Boolean.TRUE.equals(CREATE_GIF) && driver != null) {
 	    gifDriver = driver;
@@ -430,13 +420,19 @@ public class ScreenshotManager {
 		String gifFileName = FileSystems.getDefault().getSeparator() + System.currentTimeMillis() + "_"
 			+ testCaseName + ".gif";
 		gifRelativePathWithFileName = SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME + gifFileName;
-		byte[] src = ((TakesScreenshot) gifDriver).getScreenshotAs(OutputType.BYTES); // takes first screenshot
+
+		byte[] src = null;
+		if (screenshot.length == 1) {
+		    src = screenshot[0];
+		} else {
+		    src = ((TakesScreenshot) gifDriver).getScreenshotAs(OutputType.BYTES); // takes first screenshot
+		}
 
 		// grab the output image type from the first image in the sequence
 		BufferedImage firstImage = ImageIO.read(new ByteArrayInputStream(src));
 
 		// create a new BufferedOutputStream
-		FileActions.writeToFile(SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME, gifFileName, src);
+		FileActions.createFile(SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME, gifFileName);
 		gifOutputStream = new FileImageOutputStream(new File(gifRelativePathWithFileName));
 
 		// create a gif sequence with the type of the first image, 500 milliseconds
@@ -521,7 +517,7 @@ public class ScreenshotManager {
 	// ensure that animatedGif is started, else force start it
 	if (Boolean.TRUE.equals(CREATE_GIF)) {
 	    if (gifDriver == null || gifWriter == null) {
-		BrowserFactory.startAnimatedGif();
+		BrowserFactory.startAnimatedGif(screenshot);
 	    } else {
 		try {
 		    BufferedImage image;
@@ -536,8 +532,6 @@ public class ScreenshotManager {
 		} catch (NoSuchSessionException e) {
 		    // this happens when attempting to append to a non existing gif, expected
 		    // solution is to recreate the gif
-		    // BrowserFactory.startAnimatedGif();
-
 		    // removed the old solution, the new fix is to ignore this exception, this will
 		    // leave the gif intact and will attach it even after failing to append to it
 		} catch (WebDriverException e) {

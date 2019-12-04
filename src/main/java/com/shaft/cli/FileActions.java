@@ -660,6 +660,17 @@ public class FileActions {
 	}
     }
 
+    public static void createFile(String folderPath, String fileName) {
+	try {
+	    FileUtils.forceMkdir(new File(folderPath));
+	    FileUtils.touch(new File(folderPath + fileName));
+	    passAction("Target Folder: \"" + folderPath + "\", Target File: \"" + fileName + "\"");
+	} catch (IOException e) {
+	    ReportManager.log(e);
+	    failAction(e);
+	}
+    }
+
     public static boolean zipFiles(String srcFolder, String destZipFile) {
 	boolean result = false;
 	try {
