@@ -11,7 +11,6 @@ import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
-import org.openqa.selenium.NoSuchSessionException;
 import org.openqa.selenium.Platform;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
@@ -36,17 +35,15 @@ import org.openqa.selenium.safari.SafariDriver;
 import org.openqa.selenium.safari.SafariOptions;
 import org.testng.Assert;
 
+import com.google.common.collect.ImmutableMap;
 import com.shaft.cli.FileActions;
 import com.shaft.gui.element.JSWaiter;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.PropertiesFileManager;
 import com.shaft.tools.io.ReportManager;
 
+import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.MobileElement;
-import io.appium.java_client.android.AndroidDriver;
-import io.appium.java_client.ios.IOSDriver;
-import io.appium.java_client.windows.WindowsDriver;
-import io.appium.java_client.windows.WindowsElement;
 import io.github.bonigarcia.wdm.WebDriverManager;
 
 public class BrowserFactory {
@@ -278,6 +275,7 @@ public class BrowserFactory {
 	    ieOptions.setCapability("platform", getDesiredOperatingSystem());
 	    ieOptions.setCapability(CapabilityType.LOGGING_PREFS, logPrefs);
 	    break;
+	case APPIUM_CHROME:
 	case GOOGLE_CHROME:
 	    chOptions = new ChromeOptions();
 	    chOptions.setCapability("platform", getDesiredOperatingSystem());
@@ -295,7 +293,6 @@ public class BrowserFactory {
 	    chromePreferences.put("download.prompt_for_download", "false");
 	    chromePreferences.put("download.default_directory", downloadsFolderPath);
 	    chOptions.setExperimentalOption("prefs", chromePreferences);
-
 	    break;
 	case MICROSOFT_EDGE:
 	    edOptions = new EdgeOptions();
@@ -418,8 +415,13 @@ public class BrowserFactory {
     }
 
     private static WebDriver createNewRemoteDriverInstance(String browserName) {
+	BrowserType browserType;
+
 	if (isMobileNativeExecution()) {
 	    targetOperatingSystem = TARGET_PLATFORM_NAME;
+	    browserType = BrowserType.APPIUM_NATIVE;
+	} else {
+	    browserType = getBrowserTypeFromName(browserName);
 	}
 	StringBuilder initialLog = new StringBuilder();
 	initialLog.append("Attempting to run remotely on: [" + targetOperatingSystem + "]");
@@ -435,7 +437,6 @@ public class BrowserFactory {
 	}
 	ReportManager.log(initialLog.toString() + ".");
 
-	BrowserType browserType = getBrowserTypeFromName(browserName);
 	DesiredCapabilities mobileDesiredCapabilities = new DesiredCapabilities();
 	if (isMobileExecution()) {
 	    mobileDesiredCapabilities = setAppiumDesiredCapabilitiesList();
@@ -445,74 +446,51 @@ public class BrowserFactory {
 	    switch (browserType) {
 	    case MOZILLA_FIREFOX:
 		driver = new RemoteWebDriver(new URL(TARGET_HUB_URL), ffOptions);
-		drivers.put(browserName, new HashMap<String, WebDriver>());
-		drivers.get(browserName).put(targetOperatingSystem, driver);
-		ReportManager.log("Successfully Opened Mozilla Firefox.");
 		break;
 	    case MICROSOFT_IE:
 		driver = new RemoteWebDriver(new URL(TARGET_HUB_URL), ieOptions);
-		drivers.put(browserName, new HashMap<String, WebDriver>());
-		drivers.get(browserName).put(targetOperatingSystem, driver);
-		ReportManager.log("Successfully Opened Microsoft Internet Explorer.");
 		break;
 	    case GOOGLE_CHROME:
 		driver = new RemoteWebDriver(new URL(TARGET_HUB_URL), chOptions);
-		drivers.put(browserName, new HashMap<String, WebDriver>());
-		drivers.get(browserName).put(targetOperatingSystem, driver);
-		ReportManager.log("Successfully Opened Google Chrome.");
 		break;
 	    case MICROSOFT_EDGE:
 		driver = new RemoteWebDriver(new URL(TARGET_HUB_URL), edOptions);
-		drivers.put(browserName, new HashMap<String, WebDriver>());
-		drivers.get(browserName).put(targetOperatingSystem, driver);
-		ReportManager.log("Successfully Opened Microsoft Edge.");
 		break;
 	    case APPLE_SAFARI:
 		if (!isMobileExecution()) {
 		    driver = new RemoteWebDriver(new URL(TARGET_HUB_URL), sfOptions);
-		    drivers.put(browserName, new HashMap<String, WebDriver>());
-		    drivers.get(browserName).put(targetOperatingSystem, driver);
 		} else {
-		    driver = new IOSDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities);
+		    driver = new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities);
 		}
-		ReportManager.log("Successfully Opened Safari.");
 		break;
 	    case APPIUM_CHROME:
-		driver = new AndroidDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities);
+		ReportManager.log(WEBDRIVERMANAGER_MESSAGE);
+		WebDriverManager.chromedriver().version(System.getProperty("MobileBrowserVersion")).setup();
+		mobileDesiredCapabilities.setCapability("chromedriverExecutable",
+			WebDriverManager.chromedriver().getBinaryPath());
+		mobileDesiredCapabilities.setCapability("appium:chromeOptions", ImmutableMap.of("w3c", false));
+		driver = new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities);
 		break;
 	    case APPIUM_CHROMIUM:
-		driver = new AndroidDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities);
+		WebDriverManager.chromedriver().version(System.getProperty("MobileBrowserVersion")).setup();
+		mobileDesiredCapabilities.setCapability("chromedriverExecutable",
+			WebDriverManager.chromedriver().getBinaryPath());
+		driver = new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities);
 		break;
 	    case APPIUM_BROWSER:
-		driver = new AndroidDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities);
+		driver = new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities);
 		// will break in case of firefoxOS
 		break;
 	    case APPIUM_NATIVE:
-		switch (getOperatingSystemFromName(TARGET_PLATFORM_NAME)) {
-		case ANDROID:
-		    driver = new AndroidDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities);
-		    break;
-		case IOS:
-		    driver = new IOSDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities);
-		    break;
-		case FIREFOXOS:
-		    // TODO: handle new case
-		    break;
-		case WINDOWS:
-		    driver = new WindowsDriver<WindowsElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities);
-		    break;
-		case LINUX:
-		    // TODO: handle new case
-		    break;
-		case MACOS:
-		    // TODO: handle new case
-		    break;
-		}
+		driver = new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities);
 		break;
 	    default:
 		failAction("Unsupported Browser Type [" + browserName + "].");
 		break;
 	    }
+	    ReportManager.log("Successfully Opened [" + browserName + "].");
+	    drivers.put(browserName, new HashMap<String, WebDriver>());
+	    drivers.get(browserName).put(targetOperatingSystem, driver);
 	    ((RemoteWebDriver) driver).setFileDetector(new LocalFileDetector());
 	} catch (UnreachableBrowserException e) {
 	    killSwitch = true;
@@ -560,8 +538,8 @@ public class BrowserFactory {
 	    } else {
 		driverEntry.getValue().close();
 	    }
-	} catch (NoSuchSessionException e) {
-	    // browser was already closed by the .close() method
+	} catch (WebDriverException e) {
+	    // browser was already closed
 	} catch (Exception e) {
 	    ReportManager.log(e);
 	}
@@ -598,21 +576,36 @@ public class BrowserFactory {
 		desiredCapabilities.setCapability(capabilityName.split("appium_")[1], value);
 	    }
 	});
-
 	return desiredCapabilities;
     }
 
-    private static boolean isMobileExecution() {
-	return !TARGET_PLATFORM_NAME.equals("");
+    public static boolean isMobileExecution() {
+	if (!EXECUTION_ADDRESS.equals("local") && TARGET_PLATFORM_NAME != null) {
+	    if (!TARGET_PLATFORM_NAME.equals("")) {
+		return true;
+	    }
+	}
+	return false;
     }
 
-    @SuppressWarnings("unused")
-    private static boolean isMobileWebExecution() {
-	return !TARGET_PLATFORM_NAME.equals("") && !TARGET_PLATFORM_BROWSER_NAME.equals("");
+    public static boolean isMobileWebExecution() {
+	if (!EXECUTION_ADDRESS.equals("local") && TARGET_PLATFORM_NAME != null
+		&& TARGET_PLATFORM_BROWSER_NAME != null) {
+	    if (!TARGET_PLATFORM_NAME.equals("") && !TARGET_PLATFORM_BROWSER_NAME.equals("")) {
+		return true;
+	    }
+	}
+	return false;
     }
 
-    private static boolean isMobileNativeExecution() {
-	return !TARGET_PLATFORM_NAME.equals("") && TARGET_PLATFORM_BROWSER_NAME.equals("");
+    public static boolean isMobileNativeExecution() {
+	if (!EXECUTION_ADDRESS.equals("local") && TARGET_PLATFORM_NAME != null) {
+	    if (!TARGET_PLATFORM_NAME.equals("")
+		    && (TARGET_PLATFORM_BROWSER_NAME == null || TARGET_PLATFORM_BROWSER_NAME.equals(""))) {
+		return true;
+	    }
+	}
+	return false;
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -647,7 +640,7 @@ public class BrowserFactory {
      * @return a singleton browser instance
      */
     public static WebDriver getBrowser(String browserName) {
-	if (isMobileExecution()) {
+	if (isMobileWebExecution()) {
 	    browserName = System.getProperty("appium_browserName");
 	}
 	try {
@@ -682,7 +675,7 @@ public class BrowserFactory {
 		}
 
 		JSWaiter.setDriver(driver);
-		if (Boolean.TRUE.equals(AUTO_MAXIMIZE)) {
+		if (Boolean.TRUE.equals(AUTO_MAXIMIZE) && !isMobileWebExecution()) {
 		    BrowserActions.maximizeWindow(driver); // Automatically maximize driver window after opening it
 		}
 	    }
@@ -735,9 +728,9 @@ public class BrowserFactory {
 	return drivers.entrySet().isEmpty();
     }
 
-    public static void startAnimatedGif() {
+    public static void startAnimatedGif(byte[]... screenshot) {
 	if (Boolean.TRUE.equals(CREATE_GIF) && (driver != null)) {
-	    ScreenshotManager.startAnimatedGif(driver);
+	    ScreenshotManager.startAnimatedGif(driver, screenshot);
 	}
     }
 

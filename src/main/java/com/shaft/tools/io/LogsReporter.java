@@ -1,5 +1,8 @@
 package com.shaft.tools.io;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
 import org.testng.annotations.AfterSuite;
 
 import com.shaft.gui.browser.BrowserFactory;
@@ -19,8 +22,9 @@ public class LogsReporter {
     }
 
     public void attachFullLogs() {
-	ReportManager.attachIssuesLog();
-	ReportManager.attachFullLog();
+	String executionEndTimestamp = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
+	ReportManager.attachIssuesLog(executionEndTimestamp);
+	ReportManager.attachFullLog(executionEndTimestamp);
     }
 
     public void attachBrowserLogs() {

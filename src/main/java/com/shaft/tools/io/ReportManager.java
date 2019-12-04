@@ -344,6 +344,11 @@ public class ReportManager {
 	    // their names), and any git branch issues
 	    if (!propertyValue.equals("") && !propertyValue.contains("==") && !propertyKey.contains(".")
 		    && !propertyKey.contains(">>>") && !propertyKey.contains("<<<")) {
+
+		if (propertyValue.contains("&")) {
+		    propertyValue = propertyValue.replace("&", "&amp;");
+		}
+
 		String parameter = "<parameter>" + "<key>" + propertyKey + "</key>" + "<value>" + propertyValue
 			+ "</value>" + "</parameter>";
 		if (propertyKey.equals(SHAFT_ENGINE_VERSION_PROPERTY_NAME)) {
@@ -416,7 +421,8 @@ public class ReportManager {
 	logDiscrete("Preparing Allure Reporting Environment...");
 	Boolean discreteLoggingState = isDiscreteLogging();
 	allureResultsFolderPath = System.getProperty("allureResultsFolderPath").trim();
-	if (System.getProperty("executionAddress").trim().equals("local")) {
+	if (System.getProperty("executionAddress").trim().equals("local")
+		|| !System.getProperty("appium_platformName").trim().equals("")) {
 	    setDiscreteLogging(true);
 	    cleanAllureResultsDirectory();
 	    extractAllureBinariesFromJarFile();
@@ -579,22 +585,24 @@ public class ReportManager {
 	clearTestLog();
     }
 
-    public static void attachFullLog() {
+    public static void attachFullLog(String executionEndTimestamp) {
 	if (!fullLog.trim().equals("")) {
 	    createReportEntry(
 		    "Successfully created attachment [" + "SHAFT Engine Logs" + " - " + "Execution log" + "]");
 	    createImportantReportEntry("This test run was powered by SHAFT Engine Version: ["
 		    + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "]" + System.lineSeparator()
 		    + "SHAFT Engine is licensed under the MIT License: [https://github.com/MohabMohie/SHAFT_ENGINE/blob/master/LICENSE].");
-	    createAttachment("SHAFT Engine Logs", "Execution log", new ByteArrayInputStream(fullLog.trim().getBytes()));
+	    createAttachment("SHAFT Engine Logs", "Execution log - " + executionEndTimestamp,
+		    new ByteArrayInputStream(fullLog.trim().getBytes()));
 	}
     }
 
-    public static void attachIssuesLog() {
+    public static void attachIssuesLog(String executionEndTimestamp) {
 	String issueSummary = prepareIssuesLog();
 	if (!issuesLog.trim().equals("")) {
-	    log(issueSummary, Arrays.asList(Arrays.asList("SHAFT Engine Logs", "Issues log CSV",
-		    new ByteArrayInputStream(issuesLog.trim().getBytes()))));
+	    log(issueSummary,
+		    Arrays.asList(Arrays.asList("SHAFT Engine Logs", "Issues log CSV - " + executionEndTimestamp,
+			    new ByteArrayInputStream(issuesLog.trim().getBytes()))));
 	}
     }
 

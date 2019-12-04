@@ -11,6 +11,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.opencv.imgproc.Imgproc;
@@ -40,6 +41,8 @@ import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.support.JSHelpers;
+
+import io.appium.java_client.AppiumDriver;
 
 public class ElementActions {
     private static final Duration DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT = Duration
@@ -91,12 +94,12 @@ public class ElementActions {
 	passAction(driver, null, actionName, null, null);
     }
 
-    private static void passAction(WebDriver driver, By elementLocator) {
+    static void passAction(WebDriver driver, By elementLocator) {
 	String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
 	passAction(driver, elementLocator, actionName, null, null);
     }
 
-    private static void passAction(WebDriver driver, By elementLocator, List<Object> screenshot) {
+    static void passAction(WebDriver driver, By elementLocator, List<Object> screenshot) {
 	String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
 	passAction(driver, elementLocator, actionName, null, screenshot);
     }
@@ -106,12 +109,12 @@ public class ElementActions {
 	passAction(driver, null, actionName, testData, null);
     }
 
-    private static void passAction(WebDriver driver, By elementLocator, String testData) {
+    static void passAction(WebDriver driver, By elementLocator, String testData) {
 	String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
 	passAction(driver, elementLocator, actionName, testData, null);
     }
 
-    private static void passAction(WebDriver driver, By elementLocator, String testData, List<Object> screenshot) {
+    static void passAction(WebDriver driver, By elementLocator, String testData, List<Object> screenshot) {
 	String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
 	passAction(driver, elementLocator, actionName, testData, screenshot);
     }
@@ -121,13 +124,12 @@ public class ElementActions {
 	reportActionResult(driver, actionName, testData, elementLocator, screenshot, true);
     }
 
-    private static void failAction(WebDriver driver, By elementLocator, Exception... rootCauseException) {
+    static void failAction(WebDriver driver, By elementLocator, Exception... rootCauseException) {
 	String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
 	failAction(driver, actionName, null, elementLocator, rootCauseException);
     }
 
-    private static void failAction(WebDriver driver, String testData, By elementLocator,
-	    Exception... rootCauseException) {
+    static void failAction(WebDriver driver, String testData, By elementLocator, Exception... rootCauseException) {
 	String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
 	failAction(driver, actionName, testData, elementLocator, rootCauseException);
     }
@@ -179,7 +181,7 @@ public class ElementActions {
 	return message;
     }
 
-    private static List<Object> takeScreenshot(WebDriver driver, By elementLocator, String actionName, String testData,
+    static List<Object> takeScreenshot(WebDriver driver, By elementLocator, String actionName, String testData,
 	    boolean passFailStatus) {
 	if (passFailStatus) {
 	    try {
@@ -334,11 +336,11 @@ public class ElementActions {
 	}
     }
 
-    private static boolean identifyUniqueElement(WebDriver driver, By elementLocator) {
+    static boolean identifyUniqueElement(WebDriver driver, By elementLocator) {
 	return identifyUniqueElement(driver, elementLocator, attemptsBeforeThrowingElementNotFoundException, true);
     }
 
-    private static By updateLocatorWithAIGenratedOne(By elementLocator) {
+    static By updateLocatorWithAIGenratedOne(By elementLocator) {
 	// Override current locator with the aiGeneratedElementLocator
 	if (Boolean.TRUE.equals(ScreenshotManager.getAiSupportedElementIdentification())
 		&& aiGeneratedElementLocator != null && elementLocator != null) {
@@ -462,9 +464,12 @@ public class ElementActions {
 
     private static TextDetectionStrategy determineSuccessfulTextLocationStrategy(WebDriver driver, By elementLocator) {
 	String text = driver.findElement(elementLocator).getText().trim();
-	String content = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.CONTENT.getValue())
-		.trim();
-	String value = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.VALUE.getValue());
+	String content = "";
+	String value = "";
+	if (!BrowserFactory.isMobileNativeExecution()) {
+	    content = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.CONTENT.getValue()).trim();
+	    value = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.VALUE.getValue());
+	}
 
 	if (value != null) {
 	    value = value.trim();
@@ -475,7 +480,7 @@ public class ElementActions {
 	    successfulTextLocationStrategy = TextDetectionStrategy.TEXT;
 	} else if (text.equals("") && !content.equals("") && value != null && value.equals("")) {
 	    successfulTextLocationStrategy = TextDetectionStrategy.CONTENT;
-	} else if (value != null) {
+	} else if (value != null && !value.equals("")) {
 	    successfulTextLocationStrategy = TextDetectionStrategy.VALUE;
 	} else {
 	    successfulTextLocationStrategy = TextDetectionStrategy.TEXT;
@@ -520,15 +525,16 @@ public class ElementActions {
 	}
     }
 
-    private static String confirmTypingWasSuccessful(WebDriver driver, By elementLocator, String targetText,
+    private static String confirmTypingWasSuccessful(WebDriver driver, By elementLocator, String expectedText,
 	    TextDetectionStrategy successfulTextLocationStrategy) {
-	if (targetText.equals(
-		readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator, successfulTextLocationStrategy))) {
-	    return targetText;
+	String actualText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator,
+		successfulTextLocationStrategy);
+	if (expectedText.equals(actualText) || expectedText.replaceAll(".", "•").equals(actualText)) {
+	    return expectedText;
 	} else {
 	    // attempt once to type using javascript then confirm typing was successful
 	    // again
-	    return attemptTypeUsingJavascript(driver, elementLocator, targetText, successfulTextLocationStrategy);
+	    return attemptTypeUsingJavascript(driver, elementLocator, expectedText, successfulTextLocationStrategy);
 
 	}
     }
@@ -777,6 +783,102 @@ public class ElementActions {
     }
 
     /**
+     * Switches focus to another window
+     * 
+     * @param driver       the current instance of Selenium webdriver
+     * @param nameOrHandle The name of the window or the handle as returned by
+     *                     ElementActions.getWindowHandle(WebDriver driver)
+     */
+    public static void switchToWindow(WebDriver driver, String nameOrHandle) {
+	if (driver.getWindowHandles().contains(nameOrHandle)) {
+	    driver.switchTo().window(nameOrHandle);
+	    ElementActions.passAction(driver, nameOrHandle);
+	} else {
+	    ElementActions.failAction(driver, nameOrHandle, null);
+	}
+    }
+
+    /**
+     * Returns the unique handle for currently active window. This can be used to
+     * switch to this window at a later time.
+     * 
+     * @param driver the current instance of Selenium webdriver
+     * @return window handle
+     */
+    public static String getWindowHandle(WebDriver driver) {
+	String nameOrHandle = driver.getWindowHandle();
+	ElementActions.passAction(driver, nameOrHandle);
+	return nameOrHandle;
+    }
+
+    /**
+     * Returns a list of unique handles for all the currently open windows. This can
+     * be used to switch to any of these windows at a later time.
+     * 
+     * @param driver the current instance of Selenium webdriver
+     * @return list of window handles
+     */
+    public static List<String> getWindowHandles(WebDriver driver) {
+	List<String> windowHandles = new ArrayList<>();
+	windowHandles.addAll(driver.getWindowHandles());
+	ElementActions.passAction(driver, String.valueOf(windowHandles));
+	return windowHandles;
+
+    }
+
+    /**
+     * Returns the handle for currently active context. This can be used to switch
+     * to this context at a later time.
+     * 
+     * @param driver the current instance of Appium Driver
+     * @return The current context handle
+     */
+    public static String getContext(WebDriver driver) {
+	String context = "";
+	if (driver instanceof AppiumDriver<?>) {
+	    context = ((AppiumDriver<?>) driver).getContext();
+	    ElementActions.passAction(driver);
+	} else {
+	    ElementActions.failAction(driver, null);
+	}
+	return context;
+    }
+
+    /**
+     * Returns a list of unique handles for all the currently open contexts. This
+     * can be used to switch to any of these contexts at a later time.
+     * 
+     * @param driver the current instance of Appium Driver
+     * @return list of context handles
+     */
+    public static List<String> getContextHandles(WebDriver driver) {
+	List<String> windowHandles = new ArrayList<>();
+	if (driver instanceof AppiumDriver<?>) {
+	    windowHandles.addAll(((AppiumDriver<?>) driver).getContextHandles());
+	    ElementActions.passAction(driver);
+	} else {
+	    ElementActions.failAction(driver, null);
+	}
+	return windowHandles;
+    }
+
+    /**
+     * Switches focus to another context
+     * 
+     * @param driver  the current instance of Appium Driver
+     * @param context The name of the context or the handle as returned by
+     *                ElementActions.getContext(WebDriver driver)
+     */
+    public static void setContext(WebDriver driver, String context) {
+	if (driver instanceof AppiumDriver<?>) {
+	    ((AppiumDriver<?>) driver).context(context);
+	    ElementActions.passAction(driver, context);
+	} else {
+	    ElementActions.failAction(driver, context, null);
+	}
+    }
+
+    /**
      * Switches focus to a certain iFrame, is mainly used in coordination with
      * {@link #switchToDefaultContent(WebDriver)} to navigate inside any iFrame
      * layer and go back to the main page
@@ -784,6 +886,7 @@ public class ElementActions {
      * @param driver         the current instance of Selenium webdriver
      * @param elementLocator the locator of the iFrame webElement under test (By
      *                       xpath, id, selector, name ...etc)
+     * @return a self-reference to be used to chain element actions
      */
     public static void switchToIframe(WebDriver driver, By elementLocator) {
 	if (identifyUniqueElement(driver, elementLocator)) {
@@ -837,8 +940,43 @@ public class ElementActions {
     }
 
     /**
-     * Attempts to Click on a certain web element using selenium webdriver, or using
-     * javascript
+     * Double-clicks on an element using Selenium WebDriver's Actions Library
+     * 
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     */
+    public static void doubleClick(WebDriver driver, By elementLocator) {
+	if (ElementActions.identifyUniqueElement(driver, elementLocator)) {
+	    // Override current locator with the aiGeneratedElementLocator
+	    elementLocator = ElementActions.updateLocatorWithAIGenratedOne(elementLocator);
+	    String elementText = "";
+	    try {
+		elementText = driver.findElement(elementLocator).getText();
+	    } catch (Exception e) {
+		// do nothing
+	    }
+	    List<Object> screenshot = ElementActions.takeScreenshot(driver, elementLocator, "doubleClick", null, true);
+	    // takes screenshot before clicking the element out of view
+
+	    try {
+		(new Actions(driver)).moveToElement(driver.findElement(elementLocator)).doubleClick().perform();
+	    } catch (Exception e) {
+		ElementActions.failAction(driver, elementLocator, e);
+	    }
+
+	    if (elementText != null && !elementText.equals("")) {
+		ElementActions.passAction(driver, elementLocator, elementText.replaceAll("\n", " "), screenshot);
+	    } else {
+		ElementActions.passAction(driver, elementLocator, screenshot);
+	    }
+	} else {
+	    ElementActions.failAction(driver, elementLocator);
+	}
+    }
+
+    /**
+     * Clicks on a certain element using Selenium WebDriver, or JavaScript
      * 
      * @param driver         the current instance of Selenium webdriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
@@ -972,11 +1110,11 @@ public class ElementActions {
 	String actualResult = typeWrapper(driver, elementLocator, text);
 
 	if (actualResult != null && actualResult.equals(text)) {
-	    passAction(driver, elementLocator, text.replaceAll(".", "*"));
+	    passAction(driver, elementLocator, text.replaceAll(".", "•"));
 	} else if (actualResult == null) {
 	    failAction(driver, elementLocator);
 	} else {
-	    failAction(driver, "Expected to type: \"" + text.replaceAll(".", "*") + "\", but ended up with: \""
+	    failAction(driver, "Expected to type: \"" + text.replaceAll(".", "•") + "\", but ended up with: \""
 		    + actualResult + "\"", elementLocator);
 	}
 
@@ -1335,10 +1473,11 @@ public class ElementActions {
 	    elementLocator = updateLocatorWithAIGenratedOne(elementLocator);
 
 	    String elementText = driver.findElement(elementLocator).getText();
-	    if (elementText.trim().equals("")) {
+
+	    if (elementText.trim().equals("") && !BrowserFactory.isMobileNativeExecution()) {
 		elementText = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.CONTENT.getValue());
 	    }
-	    if (elementText.trim().equals("")) {
+	    if (elementText.trim().equals("") && !BrowserFactory.isMobileNativeExecution()) {
 		elementText = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.VALUE.getValue());
 	    }
 	    passAction(driver, elementLocator, elementText);
@@ -1435,10 +1574,14 @@ public class ElementActions {
 	if (identifyUniqueElement(driver, elementLocator)) {
 	    // Override current locator with the aiGeneratedElementLocator
 	    elementLocator = updateLocatorWithAIGenratedOne(elementLocator);
-
-	    String elementAttribute = driver.findElement(elementLocator).getAttribute(attributeName);
-	    passAction(driver, elementLocator, elementAttribute);
-	    return elementAttribute;
+	    try {
+		String elementAttribute = driver.findElement(elementLocator).getAttribute(attributeName);
+		passAction(driver, elementLocator, elementAttribute);
+		return elementAttribute;
+	    } catch (org.openqa.selenium.UnsupportedCommandException rootCauseException) {
+		failAction(driver, elementLocator, rootCauseException);
+		return null;
+	    }
 	} else {
 	    failAction(driver, elementLocator);
 	    return null;
@@ -1708,5 +1851,39 @@ public class ElementActions {
 	} else {
 	    failAction(driver, elementLocator);
 	}
+    }
+
+    /**
+     * This is a generic method to enable the execution of any of the native mobile
+     * commands found herein: http://appium.io/docs/en/commands/mobile-command/
+     * <p>
+     * Note: This method does no validation on the output of the executed JavaScript
+     * 
+     * @param driver     the current instance of Selenium webdriver, which should
+     *                   wrap around a native mobile object
+     * @param command    the desired mobile command to be executed. e.g., "mobile:
+     *                   scroll"
+     * @param parameters a map of the key, value parameters for this command. e.g.,
+     *                   ImmutableMap.of("direction", "down")
+     */
+    public static void executeNativeMobileCommand(WebDriver driver, String command, Map<String, String> parameters) {
+	try {
+	    ((JavascriptExecutor) driver).executeScript(command, parameters);
+	} catch (Exception rootCauseException) {
+	    failAction(driver, null, rootCauseException);
+	}
+    }
+
+    /**
+     * This is a convenience method to be able to call Touch Actions for
+     * touch-enabled devices from within the regular Element Actions Class.
+     * <p>
+     * Sample use would look like this:
+     * ElementActions.performTouchAction().tap(driver, loginButton);
+     * 
+     * @return a Touch object capable of performing actions on touch-enabled devices
+     */
+    public static Touch performTouchAction(WebDriver driver) {
+	return new Touch(driver);
     }
 }

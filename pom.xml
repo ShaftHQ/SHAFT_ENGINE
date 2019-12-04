@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>io.github.mohabmohie</groupId>
 	<artifactId>SHAFT_ENGINE</artifactId>
-	<version>4.0.20191112</version>
+	<version>4.0.20191204</version>
 	<name>${project.groupId}:${project.artifactId}</name>
 	<description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
 	<url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
@@ -47,7 +47,7 @@
 		<appium-java-client.version>7.2.0</appium-java-client.version>
 
 		<webdrivermanager.version>3.7.1</webdrivermanager.version>
-		<allure-testng.version>2.13.0</allure-testng.version> <!-- UPDATE PropertiesFileManager.setPathProperties -->
+		<allure-testng.version>2.13.0</allure-testng.version> <!-- UPDATE path.properties -->
 		<aspectj.version>1.8.10</aspectj.version> <!-- DO NOT UPDATE -->
 
 		<rest-assured.version>4.1.2</rest-assured.version>
@@ -66,7 +66,8 @@
 
 		<apachepoi.version>4.1.0</apachepoi.version>
 		<org.slf4j.version>1.7.26</org.slf4j.version>
-		<log4j.version>1.2.17</log4j.version> <!-- DO NOT UPDATE -->
+		<org.slf4j.simpleLogger.defaultLogLevel>off</org.slf4j.simpleLogger.defaultLogLevel>
+		<!-- http://www.slf4j.org/apidocs/org/slf4j/simple/SimpleLogger.html -->
 
 		<maven-resources-plugin.version>3.1.0</maven-resources-plugin.version>
 		<maven-compiler-plugin.version>3.8.0</maven-compiler-plugin.version>
@@ -90,7 +91,6 @@
 			<groupId>org.testng</groupId>
 			<artifactId>testng</artifactId>
 			<version>${testng.version}</version>
-			<!-- <scope>test</scope> -->
 		</dependency>
 
 		<!-- SELENIUM WEBDRIVER -->
@@ -98,6 +98,7 @@
 			<groupId>org.seleniumhq.selenium</groupId>
 			<artifactId>selenium-java</artifactId>
 			<version>${appium-selenium.version}</version>
+			<!-- <version>${selenium.version}</version> -->
 		</dependency>
 
 		<!-- APPIUM -->
@@ -121,6 +122,10 @@
 				<exclusion>
 					<groupId>org.slf4j</groupId>
 					<artifactId>slf4j-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>commons-logging</groupId>
+					<artifactId>commons-logging</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
@@ -162,13 +167,13 @@
 			<groupId>io.qameta.allure</groupId>
 			<artifactId>allure-testng</artifactId>
 			<version>${allure-testng.version}</version>
-			<!-- <scope>test</scope> -->
+			<exclusions>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-api</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
-		<!-- <dependency> -->
-		<!-- <groupId>io.qameta.allure</groupId> -->
-		<!-- <artifactId>allure-cucumber4-jvm</artifactId> -->
-		<!-- <version>${allure.version}</version> -->
-		<!-- </dependency> -->
 		<dependency>
 			<groupId>io.qameta.allure</groupId>
 			<artifactId>allure-rest-assured</artifactId> <!-- for testing reasons -->
@@ -195,12 +200,25 @@
 			<groupId>org.skyscreamer</groupId>
 			<artifactId>jsonassert</artifactId>
 			<version>${skyscreamer-jsonassert.version}</version>
-			<!-- <scope>test</scope> -->
 		</dependency>
 		<dependency>
 			<groupId>eu.medsea.mimeutil</groupId>
 			<artifactId>mime-util</artifactId>
 			<version>${mime-util.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-log4j12</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>log4j</groupId>
+					<artifactId>log4j</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!-- REMOTE SSH -->
@@ -213,6 +231,12 @@
 			<groupId>com.github.cverges</groupId>
 			<artifactId>expect4j</artifactId>
 			<version>${cverges-expect4j.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.slf4j</groupId>
+					<artifactId>slf4j-api</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!-- DATABASE CONNECTORS -->
@@ -265,11 +289,6 @@
 
 		<!-- TRANSITIVE LOGGING -->
 		<dependency>
-			<groupId>log4j</groupId>
-			<artifactId>log4j</artifactId>
-			<version>${log4j.version}</version>
-		</dependency>
-		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-simple</artifactId>
 			<version>${org.slf4j.version}</version>
@@ -280,16 +299,6 @@
 		<pluginManagement>
 			<!--Plugins -->
 			<plugins>
-				<!-- <plugin> -->
-				<!-- <groupId>org.apache.maven.plugins</groupId> -->
-				<!-- <artifactId>maven-resources-plugin</artifactId> -->
-				<!-- <version>${maven-resources-plugin.version}</version> -->
-				<!-- <configuration> -->
-				<!-- <encoding>${encoding.type}</encoding> -->
-				<!-- <inputEncoding>${encoding.type}</inputEncoding> -->
-				<!-- <outputEncoding>${encoding.type}</outputEncoding> -->
-				<!-- </configuration> -->
-				<!-- </plugin> -->
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-compiler-plugin</artifactId>
@@ -297,6 +306,7 @@
 					<configuration>
 						<source>${jdk.version}</source>
 						<target>${jdk.version}</target>
+						<!-- <release>13</release> -->
 						<encoding>${encoding.type}</encoding>
 						<inputEncoding>${encoding.type}</inputEncoding>
 						<outputEncoding>${encoding.type}</outputEncoding>
@@ -317,6 +327,7 @@
 						<failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
 						<failIfNoTests>false</failIfNoTests>
 						<systemPropertyVariables>
+							<org.slf4j.simpleLogger.defaultLogLevel>${org.slf4j.simpleLogger.defaultLogLevel}</org.slf4j.simpleLogger.defaultLogLevel>
 							<shaftEngineVersion>${shaft_engine.version}</shaftEngineVersion>
 							<propertiesFolderPath>${propertiesFolderPath}</propertiesFolderPath>
 							<propertiesFolderPath_jenkins>${propertiesFolderPath_jenkins}</propertiesFolderPath_jenkins>
