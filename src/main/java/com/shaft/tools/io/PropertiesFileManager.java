@@ -155,7 +155,7 @@ public class PropertiesFileManager {
 	}
     }
 
-    // TODO: create directory under ser/test/resources and write the default
+    // TODO: create directory under src/test/resources and write the default
     // property files
     private static void setDefaultExecutionPropertiesFromResources() {
 	readPropertyFiles(PropertiesFileManager.class.getResource(DEFAULT_PROPERTIES_FOLDER_PATH).getFile());
