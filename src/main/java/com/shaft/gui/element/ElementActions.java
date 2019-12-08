@@ -886,7 +886,6 @@ public class ElementActions {
      * @param driver         the current instance of Selenium webdriver
      * @param elementLocator the locator of the iFrame webElement under test (By
      *                       xpath, id, selector, name ...etc)
-     * @return a self-reference to be used to chain element actions
      */
     public static void switchToIframe(WebDriver driver, By elementLocator) {
 	if (identifyUniqueElement(driver, elementLocator)) {
@@ -1881,6 +1880,8 @@ public class ElementActions {
      * Sample use would look like this:
      * ElementActions.performTouchAction().tap(driver, loginButton);
      * 
+     * @param driver the current instance of Selenium webdriver, which should wrap
+     *               around a native mobile object
      * @return a Touch object capable of performing actions on touch-enabled devices
      */
     public static Touch performTouchAction(WebDriver driver) {

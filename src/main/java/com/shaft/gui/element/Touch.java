@@ -33,7 +33,6 @@ public class Touch {
     /**
      * Taps an element once on a touch-enabled screen
      * 
-     * @param driver         the current instance of Selenium webdriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      * @return a self-reference to be used to chain touch actions
@@ -78,7 +77,6 @@ public class Touch {
     /**
      * Double-Taps an element on a touch-enabled screen
      * 
-     * @param driver         the current instance of Selenium webdriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      * @return a self-reference to be used to chain touch actions
@@ -125,7 +123,6 @@ public class Touch {
      * Performs a long-tap on an element to trigger the context menu on a
      * touch-enabled screen
      * 
-     * @param driver         the current instance of Selenium webdriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      * @return a self-reference to be used to chain touch actions
@@ -171,7 +168,6 @@ public class Touch {
      * Swipes the sourceElement onto the destinationElement on a touch-enabled
      * screen
      * 
-     * @param driver                    the current instance of Selenium webdriver
      * @param sourceElementLocator      the locator of the webElement that needs to
      *                                  be swiped (By xpath, id, selector, name
      *                                  ...etc)
@@ -224,7 +220,6 @@ public class Touch {
      * determined by the positive/negative nature of the offset. Swiping destination
      * is determined by the value of the offset.
      * 
-     * @param driver         the current instance of Selenium webdriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      * @param xOffset        the horizontal offset by which the element should be
@@ -274,10 +269,29 @@ public class Touch {
 	return this;
     }
 
+    /**
+     * Attempts to scroll the element into view in case of native mobile elements.
+     * 
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param swipeDirection SwipeDirection.DOWN, UP, RIGHT, or LEFT
+     * @return a self-reference to be used to chain touch actions
+     */
     public Touch swipeElementIntoView(By elementLocator, SwipeDirection swipeDirection) {
 	return swipeElementIntoView(elementLocator, swipeDirection, DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT);
     }
 
+    /**
+     * Attempts to scroll the element into view in case of native mobile elements.
+     * 
+     * @param elementLocator                 the locator of the webElement under
+     *                                       test (By xpath, id, selector, name
+     *                                       ...etc)
+     * @param swipeDirection                 SwipeDirection.DOWN, UP, RIGHT, or LEFT
+     * @param attemptsToScrollAndFindElement number of attempts to scroll and find
+     *                                       the element
+     * @return a self-reference to be used to chain touch actions
+     */
     public Touch swipeElementIntoView(By elementLocator, SwipeDirection swipeDirection,
 	    int attemptsToScrollAndFindElement) {
 	elementLocator = ElementActions.updateLocatorWithAIGenratedOne(elementLocator);

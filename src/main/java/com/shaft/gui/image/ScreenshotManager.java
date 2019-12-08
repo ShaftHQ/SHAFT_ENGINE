@@ -123,6 +123,7 @@ public class ScreenshotManager {
      * @param actionName     the name of the triggering action
      * @param passFailStatus A flag to determine whether the action has passed or
      *                       failed
+     * @return a screenshot object
      */
     public static List<Object> captureScreenShot(WebDriver driver, String actionName, boolean passFailStatus) {
 	globalPassFailStatus = passFailStatus;
@@ -155,6 +156,7 @@ public class ScreenshotManager {
      * @param actionName     the name of the triggering action
      * @param passFailStatus A flag to determine whether the action has passed or
      *                       failed
+     * @return a screenshot object
      */
     public static List<Object> captureScreenShot(WebDriver driver, By elementLocator, String actionName,
 	    boolean passFailStatus) {

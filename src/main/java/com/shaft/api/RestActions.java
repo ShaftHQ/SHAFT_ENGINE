@@ -607,8 +607,8 @@ public class RestActions {
      * 
      * <p>
      * This method will be removed soon. Use
-     * {@link RestActions#performRequest(RequestType , String , String , String ,
-     * List<List<Object>> , Object , ContentType , String...)} instead.
+     * {@link RestActions#performRequest(RequestType, String, String, String, List, Object, ContentType, String...)}
+     * instead.
      * 
      * @param requestType      POST/PATCH/GET/DELETE
      * @param targetStatusCode default success code is 200

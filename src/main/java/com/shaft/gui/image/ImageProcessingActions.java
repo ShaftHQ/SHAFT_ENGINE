@@ -204,7 +204,7 @@ public class ImageProcessingActions {
     public static byte[] highlightElementInScreenshot(byte[] targetScreenshot,
 	    org.openqa.selenium.Rectangle elementLocation, java.awt.Color highlightColor) {
 
-	OpenCV.loadShared();
+	OpenCV.loadLocally();
 	Mat img = Imgcodecs.imdecode(new MatOfByte(targetScreenshot), Imgcodecs.IMREAD_COLOR);
 
 	int outlineThickness = 5;
