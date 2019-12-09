@@ -1,7 +1,5 @@
 package com.shaft.validation;
 
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -25,8 +23,6 @@ import io.restassured.response.Response;
 //TODO: Assert Element matches reference file
 
 //TODO: Add optional message to be added to the log of the assertion to describe what it does
-
-//TODO: Add attachments for JSON assertions in case of pass or fail both the expected and the actual
 
 public class Assertions {
     private static int attemptsBeforeThrowingElementNotFoundException = Integer
@@ -183,8 +179,8 @@ public class Assertions {
 
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, assertionComparisonType, assertionType)) {
 	case 1:
-	    if (assertionType) {
-		if (!isExpectedOrActualValueLong) {
+	    if (Boolean.TRUE.equals(assertionType)) {
+		if (Boolean.FALSE.equals(isExpectedOrActualValueLong)) {
 		    pass("Assertion Passed; actual value [" + actualValue + "] does match expected value ["
 			    + expectedValue + "].");
 		} else {
@@ -193,7 +189,7 @@ public class Assertions {
 		}
 
 	    } else {
-		if (!isExpectedOrActualValueLong) {
+		if (Boolean.FALSE.equals(isExpectedOrActualValueLong)) {
 		    pass("Assertion Passed; actual value [" + actualValue + "] does not match expected value ["
 			    + expectedValue + "].");
 		} else {
@@ -203,8 +199,8 @@ public class Assertions {
 	    }
 	    break;
 	case 0:
-	    if (assertionType) {
-		if (!isExpectedOrActualValueLong) {
+	    if (Boolean.TRUE.equals(assertionType)) {
+		if (Boolean.FALSE.equals(isExpectedOrActualValueLong)) {
 		    fail("Assertion Failed; actual value [" + actualValue + "] does not match expected value ["
 			    + expectedValue + "].");
 		} else {
@@ -212,7 +208,7 @@ public class Assertions {
 			    String.valueOf(actualValue));
 		}
 	    } else {
-		if (!isExpectedOrActualValueLong) {
+		if (Boolean.FALSE.equals(isExpectedOrActualValueLong)) {
 		    fail("Assertion Failed; actual value [" + actualValue + "] does match expected value ["
 			    + expectedValue + "].");
 		} else {
@@ -263,7 +259,7 @@ public class Assertions {
     public static void assertNull(Object object, Boolean assertionType) {
 	ReportManager.logDiscrete("Assertion [" + "assertNull" + "] is being performed.");
 
-	if (assertionType) {
+	if (Boolean.TRUE.equals(assertionType)) {
 	    try {
 		Assert.assertNull(object);
 		pass("Assertion Passed; actual value is null.");
@@ -316,7 +312,7 @@ public class Assertions {
 	ReportManager.logDiscrete("Assertion [" + "assertElementExists" + "] is being performed.");
 	try {
 	    int customAttempts = attemptsBeforeThrowingElementNotFoundException;
-	    if (!assertionType) {
+	    if (Boolean.FALSE.equals(assertionType)) {
 		customAttempts = attemptsBeforeThrowingElementNotFoundExceptionInCaseElementShouldntExist;
 	    }
 
@@ -324,7 +320,7 @@ public class Assertions {
 
 	    switch (elementsCount) {
 	    case 0:
-		if (assertionType) {
+		if (Boolean.TRUE.equals(assertionType)) {
 		    fail("assertElementExists", driver,
 			    "Assertion Failed; element does not exist. Locator [" + elementLocator.toString() + "].");
 		} else {
@@ -333,7 +329,7 @@ public class Assertions {
 		}
 		break;
 	    case 1:
-		if (assertionType) {
+		if (Boolean.TRUE.equals(assertionType)) {
 		    pass("assertElementExists", driver, elementLocator,
 			    "Assertion Passed; element exists and is unique. Locator [" + elementLocator.toString()
 				    + "].");
@@ -419,7 +415,7 @@ public class Assertions {
 
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, assertionComparisonType, assertionType)) {
 	case 1:
-	    if (assertionType) {
+	    if (Boolean.TRUE.equals(assertionType)) {
 		pass("assertElementAttribute", driver, elementLocator, "Assertion Passed; actual value of ["
 			+ elementAttribute + "] does match expected value [" + expectedValue + "].");
 	    } else {
@@ -429,7 +425,7 @@ public class Assertions {
 	    }
 	    break;
 	case 0:
-	    if (assertionType) {
+	    if (Boolean.TRUE.equals(assertionType)) {
 		fail("assertElementAttribute", driver, elementLocator,
 			"Assertion Failed; actual value of [" + elementAttribute + "] equals [" + actualValue
 				+ "] which does not match expected value [" + expectedValue + "].");
@@ -506,7 +502,7 @@ public class Assertions {
 
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, assertionComparisonType, assertionType)) {
 	case 1:
-	    if (assertionType) {
+	    if (Boolean.TRUE.equals(assertionType)) {
 		pass("assertElementCSSProperty", driver, elementLocator,
 			"Assertion Passed; actual CSS Property value of [" + propertyName
 				+ "] does match expected value [" + expectedValue + "].");
@@ -517,7 +513,7 @@ public class Assertions {
 	    }
 	    break;
 	case 0:
-	    if (assertionType) {
+	    if (Boolean.TRUE.equals(assertionType)) {
 		fail("assertElementCSSProperty", driver, elementLocator,
 			"Assertion Failed; actual CSS Property value of [" + propertyName + "] equals [" + actualValue
 				+ "] which does not match expected value [" + expectedValue + "].");
@@ -618,7 +614,7 @@ public class Assertions {
 
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, assertionComparisonType, assertionType)) {
 	case 1:
-	    if (assertionType) {
+	    if (Boolean.TRUE.equals(assertionType)) {
 		pass("assertBrowserAttribute", driver, "Assertion Passed; actual value of [" + browserAttribute
 			+ "] does match expected value [" + expectedValue + "].");
 	    } else {
@@ -628,7 +624,7 @@ public class Assertions {
 	    }
 	    break;
 	case 0:
-	    if (assertionType) {
+	    if (Boolean.TRUE.equals(assertionType)) {
 		fail("assertBrowserAttribute", driver,
 			"Assertion Failed; actual value of [" + browserAttribute + "] equals [" + actualValue
 				+ "] which does not match expected value [" + expectedValue + "].");
@@ -705,7 +701,7 @@ public class Assertions {
 			+ expectedValue + "], comparativeRelationType [" + comparativeRelationType + "], actualValue ["
 			+ actualValue + "], and assertionType [" + assertionType + "].");
 
-	if (assertionType) {
+	if (Boolean.TRUE.equals(assertionType)) {
 	    try {
 		switch (comparativeRelationType) {
 		case ">":
@@ -818,7 +814,7 @@ public class Assertions {
 	ReportManager.logDiscrete("Assertion [" + "assertFileExists" + "] is being performed for target directory ["
 		+ fileFolderName + "], and target file [" + fileName + "].");
 	if (FileActions.doesFileExist(fileFolderName, fileName, numberOfRetries)) {
-	    if (assertionType) {
+	    if (Boolean.TRUE.equals(assertionType)) {
 		pass("Assertion Passed; target file [" + fileName + "] exists under the target path ["
 			+ FileActions.getAbsolutePath(fileFolderName, fileName) + "].");
 	    } else {
@@ -827,7 +823,7 @@ public class Assertions {
 	    }
 
 	} else {
-	    if (assertionType) {
+	    if (Boolean.TRUE.equals(assertionType)) {
 		fail("Assertion Failed; target file [" + fileName + "] doesn't exist under the target path ["
 			+ FileActions.getAbsolutePath(fileFolderName, fileName) + "], tried for ["
 			+ numberOfRetries * 500 + "] milliseconds.");
@@ -954,15 +950,9 @@ public class Assertions {
 		jsonPathToTargetArray);
 
 	// prepare attachments
-	List<Object> expectedValueAttachment = null;
-	try {
-	    expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected Value",
-		    RestActions.parseBodyToJson(new FileReader(referenceJsonFilePath)));
-	} catch (FileNotFoundException e) {
-	    // do nothing because the test would have already failed at the compareJSON
-	    // stage
-	}
-	List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Value",
+	List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected JSON Value",
+		RestActions.parseBodyToJson(FileActions.readFromFile(referenceJsonFilePath)));
+	List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual JSON Value",
 		RestActions.parseBodyToJson(response));
 
 	List<List<Object>> attachments = new ArrayList<>();

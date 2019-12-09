@@ -2,7 +2,8 @@ package com.shaft.gui.browser;
 
 import java.awt.HeadlessException;
 import java.awt.Toolkit;
-import java.time.Duration;
+//import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -21,11 +22,14 @@ import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.JSWaiter;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.support.JSHelpers;
 
 public class BrowserActions {
     private static final Boolean HEADLESS_EXECUTION = Boolean.valueOf(System.getProperty("headlessExecution").trim());
-    private static final Duration NAVIGATION_TIMEOUT = Duration
-	    .ofSeconds(Integer.parseInt(System.getProperty("browserNavigationTimeout").trim()));
+//    private static final Duration NAVIGATION_TIMEOUT = Duration
+//	    .ofSeconds(Integer.parseInt(System.getProperty("browserNavigationTimeout").trim()));
+    private static final int NAVIGATION_TIMEOUT_INTEGER = Integer
+	    .parseInt(System.getProperty("browserNavigationTimeout").trim());
 
     private BrowserActions() {
 	throw new IllegalStateException("Utility class");
@@ -35,45 +39,67 @@ public class BrowserActions {
     //////////////////////////////////// [private] Reporting Actions
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    private static void passAction(String actionName) {
-	passAction(null, actionName, null);
+    private static void passAction(String testData) {
+	String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+	passAction(null, actionName, testData);
     }
 
-    private static void passAction(WebDriver driver, String actionName) {
-	passAction(driver, actionName, null);
+    private static void passAction(WebDriver driver, String testData) {
+	String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+	passAction(driver, actionName, testData);
     }
 
     private static void passAction(WebDriver driver, String actionName, String testData) {
-	String message = "Browser Action [" + actionName + "] successfully performed.";
-	if (testData != null) {
+	reportActionResult(driver, actionName, testData, true);
+    }
+
+    private static void failAction(Exception... rootCauseException) {
+	String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+	failAction(null, actionName, "", rootCauseException);
+    }
+
+    private static void failAction(WebDriver driver, String testData, Exception... rootCauseException) {
+	String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+	failAction(driver, actionName, testData, rootCauseException);
+    }
+
+    private static void failAction(WebDriver driver, String actionName, String testData,
+	    Exception... rootCauseException) {
+	String message = reportActionResult(driver, actionName, testData, false);
+	if (rootCauseException != null) {
+	    Assert.fail(message, rootCauseException[0]);
+	} else {
+	    Assert.fail(message);
+	}
+    }
+
+    private static String reportActionResult(WebDriver driver, String actionName, String testData,
+	    Boolean passFailStatus) {
+	String message = "";
+	if (Boolean.TRUE.equals(passFailStatus)) {
+	    message = "Browser Action [" + actionName + "] successfully performed.";
+	} else {
+	    message = "Browser Action [" + actionName + "] failed.";
+	}
+
+	List<List<Object>> attachments = new ArrayList<>();
+	if (testData != null && !testData.isEmpty() && testData.length() >= 500) {
+	    List<Object> actualValueAttachment = Arrays.asList("Browser Action Test Data - " + actionName,
+		    "Actual Value", testData);
+	    attachments.add(actualValueAttachment);
+	} else if (testData != null && !testData.isEmpty()) {
 	    message = message + " With the following test data [" + testData + "].";
 	}
+
 	if (driver != null) {
-	    ReportManager.log(message, Arrays.asList(ScreenshotManager.captureScreenShot(driver, actionName, true)));
+	    attachments.add(ScreenshotManager.captureScreenShot(driver, actionName, true));
+	    ReportManager.log(message, attachments);
+	} else if (!attachments.equals(new ArrayList<>())) {
+	    ReportManager.log(message, attachments);
 	} else {
 	    ReportManager.log(message);
 	}
-    }
-
-    private static void failAction(String actionName) {
-	failAction(null, actionName, null);
-    }
-
-    private static void failAction(WebDriver driver, String actionName) {
-	failAction(driver, actionName, null);
-    }
-
-    private static void failAction(WebDriver driver, String actionName, String testData) {
-	String message = "[" + actionName + "] failed.";
-	if (testData != null) {
-	    message = message + " With the following test data [" + testData + "].";
-	}
-	if (driver != null) {
-	    ReportManager.log(message, Arrays.asList(ScreenshotManager.captureScreenShot(driver, actionName, false)));
-	} else {
-	    ReportManager.log(message);
-	}
-	Assert.fail(message);
+	return message;
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -86,8 +112,7 @@ public class BrowserActions {
 		"<head></head><body></body>");
 	navigationErrorMessages.forEach(errorMessage -> {
 	    if (driver.getPageSource().contains(errorMessage)) {
-		failAction(driver, "navigateToURL",
-			"Error message: \"" + errorMessage + "\", Target URL: \"" + targetUrl + "\"");
+		failAction(driver, "Error message: \"" + errorMessage + "\", Target URL: \"" + targetUrl + "\"");
 	    }
 	});
     }
@@ -99,11 +124,11 @@ public class BrowserActions {
 	    // redirection contains a random token that cannot be predefined, also as a
 	    // precaution against the failure in case the user tries to navigate back to the
 	    // source url which already redirected him
-	    (new WebDriverWait(driver, NAVIGATION_TIMEOUT))
+	    (new WebDriverWait(driver, NAVIGATION_TIMEOUT_INTEGER))
 		    .until(ExpectedConditions.urlContains(targetUrlAfterRedirection));
-	} catch (WebDriverException e) {
-	    ReportManager.log(e);
-	    failAction(driver, "navigateToURL", targetUrl);
+	} catch (WebDriverException rootCauseException) {
+	    ReportManager.log(rootCauseException);
+	    failAction(driver, targetUrl, rootCauseException);
 	}
     }
 
@@ -129,7 +154,7 @@ public class BrowserActions {
     private static Dimension attemptMazimizeUsingToolkitAndJavascript(WebDriver driver, int width, int height) {
 	try {
 	    Toolkit toolkit = Toolkit.getDefaultToolkit();
-	    if (!HEADLESS_EXECUTION) {
+	    if (Boolean.FALSE.equals(HEADLESS_EXECUTION)) {
 		width = (int) toolkit.getScreenSize().getWidth();
 		height = (int) toolkit.getScreenSize().getHeight();
 	    }
@@ -139,9 +164,10 @@ public class BrowserActions {
 	    ReportManager.logDiscrete("Window size after Toolkit: " + driver.manage().window().getSize().toString());
 	    return driver.manage().window().getSize();
 	} catch (HeadlessException e) {
-	    ((JavascriptExecutor) driver).executeScript("window.focus();");
-	    ((JavascriptExecutor) driver).executeScript("window.moveTo(0,0);");
-	    ((JavascriptExecutor) driver).executeScript("window.resizeTo(" + width + ", " + height + ");");
+	    ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_FOCUS.getValue());
+	    ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_RESET_LOCATION.getValue());
+	    ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_RESIZE.getValue()
+		    .replace("$WIDTH", String.valueOf(width)).replace("$HEIGHT", String.valueOf(height)));
 
 	    ReportManager.logDiscrete(
 		    "Window size after JavascriptExecutor: " + driver.manage().window().getSize().toString());
@@ -174,10 +200,10 @@ public class BrowserActions {
 	String currentURL = "";
 	try {
 	    currentURL = driver.getCurrentUrl();
-	    passAction(driver, "getCurrentURL", currentURL);
-	} catch (Exception e) {
-	    ReportManager.log(e);
-	    failAction(driver, "getCurrentURL", currentURL);
+	    passAction(driver, currentURL);
+	} catch (Exception rootCauseException) {
+	    ReportManager.log(rootCauseException);
+	    failAction(driver, currentURL, rootCauseException);
 	}
 	return currentURL;
     }
@@ -193,10 +219,10 @@ public class BrowserActions {
 	String currentWindowTitle = "";
 	try {
 	    currentWindowTitle = driver.getTitle();
-	    passAction(driver, "getCurrentWindowTitle", currentWindowTitle);
-	} catch (Exception e) {
-	    ReportManager.log(e);
-	    failAction(driver, "getCurrentWindowTitle", currentWindowTitle);
+	    passAction(driver, currentWindowTitle);
+	} catch (Exception rootCauseException) {
+	    ReportManager.log(rootCauseException);
+	    failAction(driver, currentWindowTitle, rootCauseException);
 	}
 	return currentWindowTitle;
     }
@@ -212,10 +238,10 @@ public class BrowserActions {
 	String pageSource = "";
 	try {
 	    pageSource = driver.getPageSource();
-	    passAction(driver, "getPageSource", pageSource);
-	} catch (Exception e) {
-	    ReportManager.log(e);
-	    failAction(driver, "getPageSource", pageSource);
+	    passAction(driver, pageSource);
+	} catch (Exception rootCauseException) {
+	    ReportManager.log(rootCauseException);
+	    failAction(driver, pageSource, rootCauseException);
 	}
 	return pageSource;
     }
@@ -231,10 +257,10 @@ public class BrowserActions {
 	String windowHandle = "";
 	try {
 	    windowHandle = driver.getWindowHandle();
-	    passAction(driver, "getWindowHandle", windowHandle);
-	} catch (Exception e) {
-	    ReportManager.log(e);
-	    failAction(driver, "getWindowHandle", windowHandle);
+	    passAction(driver, windowHandle);
+	} catch (Exception rootCauseException) {
+	    ReportManager.log(rootCauseException);
+	    failAction(driver, windowHandle, rootCauseException);
 	}
 	return windowHandle;
     }
@@ -250,10 +276,10 @@ public class BrowserActions {
 	String windowPosition = "";
 	try {
 	    windowPosition = driver.manage().window().getPosition().toString();
-	    passAction(driver, "getWindowPosition", windowPosition);
-	} catch (Exception e) {
-	    ReportManager.log(e);
-	    failAction(driver, "getWindowPosition", windowPosition);
+	    passAction(driver, windowPosition);
+	} catch (Exception rootCauseException) {
+	    ReportManager.log(rootCauseException);
+	    failAction(driver, windowPosition, rootCauseException);
 	}
 	return windowPosition;
     }
@@ -269,10 +295,10 @@ public class BrowserActions {
 	String windowSize = "";
 	try {
 	    windowSize = driver.manage().window().getSize().toString();
-	    passAction(driver, "getWindowSize", windowSize);
-	} catch (Exception e) {
-	    ReportManager.log(e);
-	    failAction(driver, "getWindowSize", windowSize);
+	    passAction(driver, windowSize);
+	} catch (Exception rootCauseException) {
+	    ReportManager.log(rootCauseException);
+	    failAction(driver, windowSize, rootCauseException);
 	}
 	return windowSize;
     }
@@ -330,9 +356,9 @@ public class BrowserActions {
 		if ((ElementActions.getElementsCount(driver, By.tagName("html")) == 1)
 			&& (!driver.getPageSource().equalsIgnoreCase(initialSource))) {
 		    confirmThatWebsiteIsNotDown(driver, targetUrl);
-		    passAction(driver, "navigateToURL", targetUrl);
+		    passAction(driver, targetUrl);
 		} else {
-		    failAction(driver, "navigateToURL", targetUrl);
+		    failAction(driver, targetUrl);
 		}
 	    } else {
 		// already on the same page
@@ -340,12 +366,12 @@ public class BrowserActions {
 		JSWaiter.waitForLazyLoading();
 		if (ElementActions.getElementsCount(driver, By.tagName("html")) == 1) {
 		    confirmThatWebsiteIsNotDown(driver, targetUrl);
-		    passAction(driver, "navigateToURL", targetUrl);
+		    passAction(driver, targetUrl);
 		}
 	    }
-	} catch (Exception e) {
-	    ReportManager.log(e);
-	    failAction(driver, "navigateToURL", targetUrl);
+	} catch (Exception rootCauseException) {
+	    ReportManager.log(rootCauseException);
+	    failAction(driver, targetUrl, rootCauseException);
 	}
     }
 
@@ -357,40 +383,44 @@ public class BrowserActions {
     public static void navigateBack(WebDriver driver) {
 	JSWaiter.waitForLazyLoading();
 	String initialURL = "";
+	String newURL = "";
 	try {
 	    initialURL = driver.getCurrentUrl();
 	    driver.navigate().back();
 	    JSWaiter.waitForLazyLoading();
-	    (new WebDriverWait(driver, NAVIGATION_TIMEOUT))
+	    (new WebDriverWait(driver, NAVIGATION_TIMEOUT_INTEGER))
 		    .until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
-	    if (!initialURL.equals(driver.getCurrentUrl())) {
-		passAction(driver, "navigateBack");
+	    newURL = driver.getCurrentUrl();
+	    if (!initialURL.equals(newURL)) {
+		passAction(driver, newURL);
 	    } else {
-		failAction(driver, "navigateBack");
+		failAction(driver, newURL);
 	    }
-	} catch (Exception e) {
-	    ReportManager.log(e);
-	    failAction(driver, "navigateBack");
+	} catch (Exception rootCauseException) {
+	    ReportManager.log(rootCauseException);
+	    failAction(driver, newURL, rootCauseException);
 	}
     }
 
     public static void navigateForward(WebDriver driver) {
 	JSWaiter.waitForLazyLoading();
 	String initialURL = "";
+	String newURL = "";
 	try {
 	    initialURL = driver.getCurrentUrl();
 	    driver.navigate().forward();
 	    JSWaiter.waitForLazyLoading();
-	    (new WebDriverWait(driver, NAVIGATION_TIMEOUT))
+	    (new WebDriverWait(driver, NAVIGATION_TIMEOUT_INTEGER))
 		    .until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
-	    if (!initialURL.equals(driver.getCurrentUrl())) {
-		passAction(driver, "navigateForward");
+	    newURL = driver.getCurrentUrl();
+	    if (!initialURL.equals(newURL)) {
+		passAction(driver, newURL);
 	    } else {
-		failAction(driver, "navigateForward");
+		failAction(driver, newURL);
 	    }
-	} catch (Exception e) {
-	    ReportManager.log(e);
-	    failAction(driver, "navigateForward");
+	} catch (Exception rootCauseException) {
+	    ReportManager.log(rootCauseException);
+	    failAction(driver, newURL, rootCauseException);
 	}
     }
 
@@ -402,7 +432,7 @@ public class BrowserActions {
     public static void refreshCurrentPage(WebDriver driver) {
 	JSWaiter.waitForLazyLoading();
 	driver.navigate().refresh();
-	passAction(driver, "refreshCurrentPage");
+	passAction(driver, driver.getPageSource());
 	// removed all exception handling as there was no comments on when and why this
 	// exception happens
     }
@@ -415,14 +445,15 @@ public class BrowserActions {
     public static void closeCurrentWindow(WebDriver driver) {
 	JSWaiter.waitForLazyLoading();
 	try {
+	    String lastPageSource = driver.getPageSource();
 	    driver.close();
 	    driver.quit();
-	    passAction("closeCurrentWindow");
+	    passAction(lastPageSource);
 	} catch (NoSuchSessionException e) {
 	    // browser was already closed by the .close() method
-	} catch (Exception e) {
-	    ReportManager.log(e);
-	    failAction("closeCurrentWindow");
+	} catch (Exception rootCauseException) {
+	    ReportManager.log(rootCauseException);
+	    failAction(rootCauseException);
 	}
     }
 
@@ -481,7 +512,7 @@ public class BrowserActions {
 	    ReportManager.logDiscrete("skipping window maximization due to unknown error, marking step as passed.");
 	}
 
-	passAction(driver, "maximizeWindow", "New screen size is now: " + currentWindowSize.toString());
+	passAction(driver, "New screen size is now: " + currentWindowSize.toString());
     }
 
     /**
@@ -499,7 +530,7 @@ public class BrowserActions {
 	ReportManager.logDiscrete("Initial window size: " + initialWindowSize.toString());
 
 	driver.manage().window().setPosition(new Point(0, 0));
-	driver.manage().window().setSize(new Dimension(width + 1, height + 1));
+	driver.manage().window().setSize(new Dimension(width, height));
 	// apparently we need to add +1 here to ensure that the new window size matches
 	// the expected window size
 
@@ -508,9 +539,10 @@ public class BrowserActions {
 
 	if ((initialWindowSize.height == currentWindowSize.height)
 		&& (initialWindowSize.width == currentWindowSize.width)) {
-	    ((JavascriptExecutor) driver).executeScript("window.focus();");
-	    ((JavascriptExecutor) driver).executeScript("window.moveTo(0,0);");
-	    ((JavascriptExecutor) driver).executeScript("window.resizeTo(" + width + 1 + ", " + height + 1 + ");");
+	    ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_FOCUS.getValue());
+	    ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_RESET_LOCATION.getValue());
+	    ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_RESIZE.getValue()
+		    .replace("$WIDTH", String.valueOf(width)).replace("$HEIGHT", String.valueOf(height)));
 
 	    currentWindowSize = driver.manage().window().getSize();
 	    ReportManager.logDiscrete("Window size after JavascriptExecutor: " + currentWindowSize.toString());
@@ -521,7 +553,7 @@ public class BrowserActions {
 	    ReportManager.logDiscrete("skipping window resizing due to unknown error, marking step as passed.");
 	}
 
-	passAction(driver, "setWindowSize", "New screen size is now: " + currentWindowSize.toString());
+	passAction(driver, "New screen size is now: " + currentWindowSize.toString());
     }
 
     public static void fullScreenWindow(WebDriver driver) {
@@ -540,15 +572,16 @@ public class BrowserActions {
 		.equals(String.valueOf(driver.manage().window().getSize().width));
 
 	if (heightNotChanged && widthNotChanged) {
-	    ((JavascriptExecutor) driver).executeScript("window.focus();");
-	    ((JavascriptExecutor) driver).executeScript("window.moveTo(0,0);");
-	    ((JavascriptExecutor) driver).executeScript("window.resizeTo(" + width + ", " + height + ");");
+	    ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_FOCUS.getValue());
+	    ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_RESET_LOCATION.getValue());
+	    ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_RESIZE.getValue()
+		    .replace("$WIDTH", String.valueOf(width)).replace("$HEIGHT", String.valueOf(height)));
 	}
 
 	if (heightNotChanged && widthNotChanged) {
 	    ReportManager.logDiscrete(
 		    "skipping switching window to full screen due to unknown error, marking step as passed.");
 	}
-	passAction(driver, "fullScreenWindow");
+	passAction(driver, driver.getPageSource());
     }
 }

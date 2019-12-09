@@ -28,6 +28,7 @@ public class Test_google {
 
     @Test(priority = 1, description = "TC002 - Search for Query and Assert that the number of results is displayed")
     public void searchForQueryandAssertResultsNumDisplayed() {
+	searchObject = new GoogleSearch(driver); // initialize a new instance of the page
 	// temp steps for debugging changes to the type function
 	searchObject.searchForQuery(testDataReader.getCellData("Search Query 2")); // Perform search for the query that
 										   // is
@@ -39,7 +40,9 @@ public class Test_google {
 	// resultsObject.verifyResultsStatsDoesNotExist(); // expected to fail
     }
 
-    //@Test(priority = 2, description = "TC003 - Clicks the next button thrice to make sure that the framework can scroll element into view before clicking it", enabled = true)
+    // @Test(priority = 2, description = "TC003 - Clicks the next button thrice to
+    // make sure that the framework can scroll element into view before clicking
+    // it", enabled = true)
     public void clickNextThrice() {
 	resultsObject = new GoogleSearchResults(driver); // initialize a new instance of the page
 	resultsObject.clickNext(); // Clicks the next button to make sure that the framework can scroll element
@@ -52,7 +55,7 @@ public class Test_google {
 				   // into
 				   // view before clicking it
 
-	//resultsObject.assert10ResultsPerPage();
+	// resultsObject.assert10ResultsPerPage();
     }
 
     @BeforeClass // Set-up method, to be run once before the first test

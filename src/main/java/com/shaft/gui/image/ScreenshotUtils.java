@@ -3,15 +3,13 @@ package com.shaft.gui.image;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.IOException;
 
 import javax.imageio.ImageIO;
 
-import org.openqa.selenium.By;
+import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.OutputType;
-import org.openqa.selenium.Point;
 import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
@@ -34,7 +32,7 @@ public class ScreenshotUtils {
 
     private static void showHideElements(WebDriver driver, Boolean hide, WebElement... skipElements) {
 	String display;
-	if (hide) {
+	if (Boolean.TRUE.equals(hide)) {
 	    display = "none";
 	} else {
 	    display = "block";
@@ -52,7 +50,7 @@ public class ScreenshotUtils {
     }
 
     // The code that does the job
-    protected static File makeFullScreenshot(WebDriver driver, WebElement... skipElements) throws IOException {
+    protected static byte[] makeFullScreenshot(WebDriver driver, WebElement... skipElements) throws IOException {
 
 	// scroll up first to start taking screenshots
 	scrollVerticallyTo(driver, 0);
@@ -74,8 +72,6 @@ public class ScreenshotUtils {
 		.doubleValue();
 
 	int scrollHeight = (int) longScrollHeight;
-
-	File file = File.createTempFile("screenshot", ".png");
 
 	int adaptedCapturedHeight = (int) (((double) capturedHeight) / devicePixelRatio);
 
@@ -117,49 +113,10 @@ public class ScreenshotUtils {
 	}
 	showScroll(driver);
 	showHideElements(driver, false, skipElements);
-	ImageIO.write(resultingImage, "png", file);
-	return file;
-    }
 
-    /**
-     * @deprecated
-     * @param driver         the current instance of Selenium webdriver
-     * @param elementLocator the locator of the webElement under test (By xpath, id,
-     *                       selector, name ...etc)
-     * @param isBaseFullPage true means crop from fullPageScreenshot, and false
-     *                       means crop from regularScreenshot
-     * @return a file object that holds the screenshot
-     * @throws IOException if there was a problem writing the screenshot to a file
-     *                     object
-     */
-    @Deprecated
-    protected static File makeElementScreenshot(WebDriver driver, By elementLocator, boolean isBaseFullPage)
-	    throws IOException {
-	WebElement targetElement = driver.findElement(elementLocator);
-
-	File baseScreenshot = null;
-
-	if (isBaseFullPage) {
-	    baseScreenshot = ScreenshotUtils.makeFullScreenshot(driver);
-	} else {
-	    baseScreenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
-	}
-
-	BufferedImage baseImg = ImageIO.read(baseScreenshot);
-
-	// Get the location of element on the page
-	Point point = targetElement.getLocation();
-
-	// Get width and height of the element
-	int eleWidth = targetElement.getSize().getWidth();
-	int eleHeight = targetElement.getSize().getHeight();
-
-	// Crop the entire page screenshot to get only element screenshot
-	BufferedImage eleScreenshot = baseImg.getSubimage(point.getX(), point.getY(), eleWidth, eleHeight);
-
-	File file = File.createTempFile("screenshot", ".png");
-	ImageIO.write(eleScreenshot, "png", file);
-	return file;
+	ByteArrayOutputStream baos = new ByteArrayOutputStream();
+	ImageIO.write(resultingImage, "png", baos);
+	return baos.toByteArray();
     }
 
     private static void scrollVerticallyTo(WebDriver driver, int scroll) {

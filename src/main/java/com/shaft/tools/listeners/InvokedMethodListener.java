@@ -136,7 +136,7 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 	String className = testMethod.getTestClass().getName();
 	String methodName = testMethod.getMethodName();
 	if (previouslyOpenedIssues < listOfOpenIssues.size()) {
-	    if (executionStatus) {
+	    if (Boolean.TRUE.equals(executionStatus)) {
 		// flag already opened issue for closure
 		openIssuesForPassedTestsCounter++;
 		ReportManager.setOpenIssuesForPassedTestsCounter(openIssuesForPassedTestsCounter);
@@ -160,7 +160,7 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 		ReportManager.setListOfOpenIssuesForFailedTests(listOfOpenIssuesForFailedTests);
 	    }
 	} else {
-	    if (!executionStatus) {
+	    if (Boolean.FALSE.equals(executionStatus)) {
 		// log new issue
 		newIssuesForFailedTestsCounter++;
 		ReportManager.setFailedTestsWithoutOpenIssuesCounter(newIssuesForFailedTestsCounter);
