@@ -3,6 +3,7 @@ package com.shaft.gui.image;
 import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -16,10 +17,12 @@ import org.opencv.core.Core;
 import org.opencv.core.Core.MinMaxLocResult;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfByte;
 import org.opencv.core.Point;
 import org.opencv.core.Scalar;
 import org.opencv.highgui.HighGui;
 import org.opencv.imgcodecs.Imgcodecs;
+
 import org.opencv.imgproc.Imgproc;
 import org.openqa.selenium.By;
 import org.testng.Assert;
@@ -32,12 +35,15 @@ import com.shaft.validation.Verifications;
 import nu.pattern.OpenCV;
 
 public class ImageProcessingActions {
+    private static final String DIRECTORY_PROCESSING = "/processingDirectory/";
+    private static final String DIRECTORY_FAILED = "/failedImagesDirectory/";
+
     private ImageProcessingActions() {
 	throw new IllegalStateException("Utility class");
     }
 
     public static void compareImageFolders(String refrenceFolderPath, String testFolderPath, double threshhold) {
-
+	// TODO: refactor to minimize File IO actions
 	try {
 	    long fileCounter = 1;
 
@@ -45,9 +51,9 @@ public class ImageProcessingActions {
 	    File testFolder = new File(testFolderPath);
 
 	    // cleaning processing folders
-	    FileActions.deleteFolder(refrenceFolder.getAbsolutePath() + "/processingDirectory/");
-	    FileActions.deleteFolder(testFolder.getAbsolutePath() + "/processingDirectory/");
-	    FileActions.deleteFolder(testFolder.getAbsolutePath() + "/failedImagesDirectory/");
+	    FileActions.deleteFolder(refrenceFolder.getAbsolutePath() + DIRECTORY_PROCESSING);
+	    FileActions.deleteFolder(testFolder.getAbsolutePath() + DIRECTORY_PROCESSING);
+	    FileActions.deleteFolder(testFolder.getAbsolutePath() + DIRECTORY_FAILED);
 
 	    // preparing objects for files
 	    File[] refrenceFiles = refrenceFolder.listFiles();
@@ -66,7 +72,7 @@ public class ImageProcessingActions {
 		// copy and rename reference screenshots to a processing directory
 		for (File refrenceScreenshot : refrenceFiles) {
 		    FileActions.copyFile(refrenceScreenshot.getAbsolutePath(),
-			    refrenceScreenshot.getParent() + "/processingDirectory/" + fileCounter);
+			    refrenceScreenshot.getParent() + DIRECTORY_PROCESSING + fileCounter);
 		    fileCounter++;
 		}
 
@@ -76,13 +82,13 @@ public class ImageProcessingActions {
 		fileCounter = 1;
 		for (File testScreenshot : testFiles) {
 		    FileActions.copyFile(testScreenshot.getAbsolutePath(),
-			    testScreenshot.getParent() + "/processingDirectory/" + fileCounter);
+			    testScreenshot.getParent() + DIRECTORY_PROCESSING + fileCounter);
 		    fileCounter++;
 		}
 
 		// point to the two new processing directories
-		File refrenceProcessingFolder = new File(refrenceFolderPath + "/processingDirectory/");
-		File testProcessingFolder = new File(testFolderPath + "/processingDirectory/");
+		File refrenceProcessingFolder = new File(refrenceFolderPath + DIRECTORY_PROCESSING);
+		File testProcessingFolder = new File(testFolderPath + DIRECTORY_PROCESSING);
 
 		// preparing objects for files
 		File[] testProcessingFiles = testProcessingFolder.listFiles();
@@ -95,8 +101,8 @@ public class ImageProcessingActions {
 			testProcessingFolder, threshhold);
 
 		// cleaning processing folders
-		FileActions.deleteFolder(refrenceFolder.getAbsolutePath() + "/processingDirectory/");
-		FileActions.deleteFolder(testFolder.getAbsolutePath() + "/processingDirectory/");
+		FileActions.deleteFolder(refrenceFolder.getAbsolutePath() + DIRECTORY_PROCESSING);
+		FileActions.deleteFolder(testFolder.getAbsolutePath() + DIRECTORY_PROCESSING);
 
 	    } else {
 		// fail because the number of screenshots don't match
@@ -117,6 +123,7 @@ public class ImageProcessingActions {
 
     private static void compareImageFolders(File[] refrenceFiles, File[] testFiles, File[] testProcessingFiles,
 	    File refrenceProcessingFolder, File testProcessingFolder, double threshhold) throws IOException {
+	// TODO: refactor to minimize File IO actions
 	int passedImagesCount = 0;
 	int failedImagesCount = 0;
 
@@ -178,12 +185,11 @@ public class ImageProcessingActions {
 	    } catch (AssertionError e) {
 		ReportManager.setDiscreteLogging(discreetLoggingState);
 		// copying image to failed images directory
-		FileActions.copyFile(screenshot.getAbsolutePath(), testProcessingFolder.getParent()
-			+ "/failedImagesDirectory/" + relatedTestFileName + "_testImage");
+		FileActions.copyFile(screenshot.getAbsolutePath(),
+			testProcessingFolder.getParent() + DIRECTORY_FAILED + relatedTestFileName + "_testImage");
 		FileActions.copyFile(
 			refrenceProcessingFolder + FileSystems.getDefault().getSeparator() + screenshot.getName(),
-			testProcessingFolder.getParent() + "/failedImagesDirectory/" + relatedTestFileName
-				+ "_refrenceImage");
+			testProcessingFolder.getParent() + DIRECTORY_FAILED + relatedTestFileName + "_refrenceImage");
 		failedImagesCount++;
 	    }
 
@@ -195,12 +201,43 @@ public class ImageProcessingActions {
 
     }
 
-    public static List<Integer> findImageWithinCurrentPage(String referenceImagePath, File currentPageScreenshot,
+    public static byte[] highlightElementInScreenshot(byte[] targetScreenshot,
+	    org.openqa.selenium.Rectangle elementLocation, java.awt.Color highlightColor) {
+
+	OpenCV.loadLocally();
+	Mat img = Imgcodecs.imdecode(new MatOfByte(targetScreenshot), Imgcodecs.IMREAD_COLOR);
+
+	int outlineThickness = 5;
+
+	Point startPoint = new Point((double) elementLocation.getX() - outlineThickness,
+		(double) elementLocation.getY() - outlineThickness);
+	Point endPoint = new Point((double) elementLocation.getX() + elementLocation.getWidth() + outlineThickness,
+		(double) elementLocation.getY() + elementLocation.getHeight() + outlineThickness);
+
+	// BGR color
+	Scalar highlightColorScalar = new Scalar(highlightColor.getBlue(), highlightColor.getGreen(),
+		highlightColor.getRed());
+
+	// Outline
+	Imgproc.rectangle(img, startPoint, endPoint, highlightColorScalar, outlineThickness, 8, 0);
+
+	Image tmpImg = HighGui.toBufferedImage(img);
+	BufferedImage image = (BufferedImage) tmpImg;
+	ByteArrayOutputStream baos = new ByteArrayOutputStream();
+	try {
+	    ImageIO.write(image, "jpg", baos);
+	} catch (IOException e) {
+	    ReportManager.log(e);
+	}
+	return baos.toByteArray();
+    }
+
+    public static List<Integer> findImageWithinCurrentPage(String referenceImagePath, byte[] currentPageScreenshot,
 	    int matchMethod) {
 
 	if (FileActions.doesFileExist(referenceImagePath)) {
-	    OpenCV.loadLocally();
-	    Mat img = Imgcodecs.imread(currentPageScreenshot.getAbsolutePath(), Imgcodecs.IMREAD_COLOR);
+	    OpenCV.loadShared();
+	    Mat img = Imgcodecs.imdecode(new MatOfByte(currentPageScreenshot), Imgcodecs.IMREAD_COLOR);
 	    Mat templ = Imgcodecs.imread(referenceImagePath, Imgcodecs.IMREAD_COLOR);
 
 	    // / Create the result matrix
@@ -224,7 +261,7 @@ public class ImageProcessingActions {
 		    matchLoc = mmr.maxLoc;
 		}
 
-		if (Boolean.valueOf(System.getProperty("debugMode"))) {
+		if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("debugMode")))) {
 		    // debugging
 		    Imgproc.rectangle(img, matchLoc, new Point(matchLoc.x + templ.cols(), matchLoc.y + templ.rows()),
 			    new Scalar(0, 0, 0), 2, 8, 0);

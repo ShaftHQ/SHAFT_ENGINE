@@ -136,7 +136,7 @@ public class Validations {
 	    isExpectedOrActualValueLong = expectedValue.length() >= 500 || actualValue.length() >= 500;
 	}
 
-	if (isExpectedOrActualValueLong) {
+	if (Boolean.TRUE.equals(isExpectedOrActualValueLong)) {
 	    List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected Value",
 		    expectedValue);
 	    List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Value", actualValue);
@@ -297,6 +297,7 @@ public class Validations {
 	    }
 	}
     }
+
     public static void assertElementAttribute(WebDriver driver, By elementLocator, String elementAttribute,
 	    String expectedValue, String... optionalCustomLogMessage) {
 	assertElementAttribute(driver, elementLocator, elementAttribute, expectedValue, ValidationComparisonType.EQUALS,
@@ -380,7 +381,5 @@ public class Validations {
 	    }
 	}
     }
-    
-    
-    
+
 }

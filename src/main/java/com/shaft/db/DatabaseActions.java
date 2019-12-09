@@ -6,12 +6,13 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.Executors;
 
 import org.testng.Assert;
 
-import com.mysql.jdbc.exceptions.jdbc4.MySQLSyntaxErrorException;
 import com.shaft.tools.io.ReportManager;
 
 public class DatabaseActions {
@@ -49,9 +50,8 @@ public class DatabaseActions {
 	    this.username = username;
 	    this.password = password;
 	} else {
-	    failAction("createDatabaseActionsObject",
-		    "Database Type: \"" + databaseType + "\", IP: \"" + ip + "\", Port: \"" + port + "\", Name: \""
-			    + name + "\", Username: \"" + username + "\", Password: \"" + password + "\"");
+	    failAction("Database Type: \"" + databaseType + "\", IP: \"" + ip + "\", Port: \"" + port + "\", Name: \""
+		    + name + "\", Username: \"" + username + "\", Password: \"" + password + "\"");
 	}
     }
 
@@ -60,36 +60,71 @@ public class DatabaseActions {
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     private static void passAction(String actionName, String testData, String queryResult) {
-	String message = "Successfully performed action [" + actionName + "].";
-	if (testData != null) {
-	    message = message + " With the following test data [" + testData + "].";
-	}
-	if (queryResult != null) {
-	    ReportManager.log(message, Arrays.asList(Arrays.asList("DB Response", "Query Result", queryResult)));
-	} else {
-	    ReportManager.log(message);
-	}
+	reportActionResult(actionName, testData, queryResult, true);
     }
 
-    private static void passAction(String actionName, String testData) {
+    private static void passAction(String testData, String queryResult) {
+	String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+	passAction(actionName, testData, queryResult);
+    }
+
+    private static void passAction(String testData) {
+	String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
 	passAction(actionName, testData, null);
     }
 
-    private static void passAction(String actionName) {
+    private static void passAction() {
+	String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
 	passAction(actionName, null, null);
     }
 
-    private static void failAction(String actionName, String testData) {
-	String message = "Failed to perform action [" + actionName + "].";
-	if (testData != null) {
-	    message = message + " With the following test data [" + testData + "].";
+    private static void failAction(String actionName, String testData, Exception... rootCauseException) {
+	String message = reportActionResult(actionName, testData, null, false);
+	if (rootCauseException != null) {
+	    Assert.fail(message, rootCauseException[0]);
+	} else {
+	    Assert.fail(message);
 	}
-	ReportManager.log(message);
-	Assert.fail(message);
     }
 
-    private static void failAction(String actionName) {
-	failAction(actionName, null);
+    private static void failAction(String testData, Exception... rootCauseException) {
+	String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+	failAction(actionName, testData, rootCauseException);
+    }
+
+    private static void failAction(Exception... rootCauseException) {
+	String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+	failAction(actionName, null, rootCauseException);
+    }
+
+    private static String reportActionResult(String actionName, String testData, String queryResult,
+	    Boolean passFailStatus) {
+	String message = "";
+	if (Boolean.TRUE.equals(passFailStatus)) {
+	    message = "Database Action [" + actionName + "] successfully performed.";
+	} else {
+	    message = "Database Action [" + actionName + "] failed.";
+	}
+
+	List<List<Object>> attachments = new ArrayList<>();
+	if (testData != null && !testData.isEmpty() && testData.length() >= 500) {
+	    List<Object> actualValueAttachment = Arrays.asList("Database Action Test Data - " + actionName,
+		    "Actual Value", testData);
+	    attachments.add(actualValueAttachment);
+	} else if (testData != null && !testData.isEmpty()) {
+	    message = message + " With the following test data [" + testData + "].";
+	}
+
+	if (queryResult != null && !queryResult.trim().equals("")) {
+	    attachments.add(Arrays.asList("Database Action Actual Result", "Query Result", queryResult));
+	}
+
+	if (!attachments.equals(new ArrayList<>())) {
+	    ReportManager.log(message, attachments);
+	} else {
+	    ReportManager.log(message);
+	}
+	return message;
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -124,7 +159,7 @@ public class DatabaseActions {
 
 	    default:
 		ReportManager.log("Database not supported");
-		failAction("createConnection", dbType.toString());
+		failAction(dbType.toString());
 		break;
 	    }
 	    DriverManager.setLoginTimeout(Integer.parseInt(System.getProperty("databaseLoginTimeout")));
@@ -135,15 +170,15 @@ public class DatabaseActions {
 		connection.setNetworkTimeout(Executors.newFixedThreadPool(1),
 			Integer.parseInt(System.getProperty("databaseNetworkTimeout")) * 60000);
 	    }
-	} catch (SQLException e) {
-	    ReportManager.log(e);
-	    failAction("createConnection", connectionString);
+	} catch (SQLException rootCauseException) {
+	    ReportManager.log(rootCauseException);
+	    failAction(connectionString, rootCauseException);
 	}
 
 	if (connection != null) {
 	    ReportManager.logDiscrete("Connection created successfully");
 	} else {
-	    failAction("createConnection", "Failed to create a connection with this string [" + connectionString
+	    failAction("Failed to create a connection with this string [" + connectionString
 		    + "] due to an unhandled exception.");
 	}
 	return connection;
@@ -155,24 +190,55 @@ public class DatabaseActions {
 	    statement = connection.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY);
 	    // https://www.tutorialspoint.com/jdbc/jdbc-result-sets.htm
 	    statement.setQueryTimeout(Integer.parseInt(System.getProperty("databaseQueryTimeout")));
-	} catch (SQLFeatureNotSupportedException e) {
-	    if (!e.getMessage().contains("org.postgresql.jdbc4.Jdbc4Statement.setQueryTimeout")) {
-		ReportManager.log(e);
-		failAction("createStatement", connection.toString());
+	} catch (SQLFeatureNotSupportedException rootCauseException) {
+	    if (!rootCauseException.getMessage().contains("org.postgresql.jdbc4.Jdbc4Statement.setQueryTimeout")) {
+		ReportManager.log(rootCauseException);
+		failAction(connection.toString(), rootCauseException);
 	    }
-	} catch (SQLException e) {
-	    ReportManager.log(e);
-	    failAction("createStatement", connection.toString());
+	} catch (SQLException rootCauseException) {
+	    ReportManager.log(rootCauseException);
+	    failAction(connection.toString(), rootCauseException);
 	}
 
 	if (statement != null) {
 	    ReportManager.logDiscrete("Statement created successfully");
 	} else {
-	    failAction("createStatement", "Failed to create a statement with this string [" + connection.toString()
+	    failAction("Failed to create a statement with this string [" + connection.toString()
 		    + "] due to an unhandled exception.");
 	}
 
 	return statement;
+    }
+
+    private static StringBuilder readColumnHeaders(ResultSet resultSet, boolean readColumnNames, int columnsCount)
+	    throws SQLException {
+	StringBuilder str = new StringBuilder();
+	if (readColumnNames) {
+	    for (int i = 1; i <= columnsCount; i++) {
+		str.append(String.valueOf(resultSet.getMetaData().getColumnName(i)));
+		if (i != columnsCount) {
+		    str.append("\t");
+		}
+	    }
+	    str.append("\n");
+	}
+	return str;
+    }
+
+    private static StringBuilder readColumnData(ResultSet resultSet, int columnsCount, int lastRowID)
+	    throws SQLException {
+	StringBuilder str = new StringBuilder();
+	for (int i = 1; i <= lastRowID; i++) {
+	    resultSet.absolute(i);
+	    for (int j = 1; j <= columnsCount; j++) {
+		str.append(String.valueOf(resultSet.getString(j)));
+		if (j != columnsCount) {
+		    str.append("\t");
+		}
+	    }
+	    str.append("\n");
+	}
+	return str;
     }
 
     private static String getResultStringValue(ResultSet resultSet, boolean readColumnNames) {
@@ -182,34 +248,30 @@ public class DatabaseActions {
 	    if (resultSet.last()) {
 		int columnsCount = resultSet.getMetaData().getColumnCount();
 		int lastRowID = resultSet.getRow();
-		if (readColumnNames) {
-		    // read column headers
-		    for (int i = 1; i <= columnsCount; i++) {
-			str.append(String.valueOf(resultSet.getMetaData().getColumnName(i)));
-			if (i != columnsCount) {
-			    str.append("\t");
-			}
-		    }
-		    str.append("\n");
-		}
+
+		// read column headers
+		str.append(readColumnHeaders(resultSet, readColumnNames, columnsCount));
 
 		// read table data
-		for (int i = 1; i <= lastRowID; i++) {
-		    resultSet.absolute(i);
-		    for (int j = 1; j <= columnsCount; j++) {
-			str.append(String.valueOf(resultSet.getString(j)));
-			if (j != columnsCount) {
-			    str.append("\t");
-			}
-		    }
-		    str.append("\n");
-		}
+		str.append(readColumnData(resultSet, columnsCount, lastRowID));
 	    }
-	} catch (SQLException | NullPointerException e) {
-	    ReportManager.log(e);
-	    failAction("getResultStringValue");
+	} catch (SQLException | NullPointerException rootCauseException) {
+	    ReportManager.log(rootCauseException);
+	    failAction(rootCauseException);
 	}
 	return str.toString().trim();
+    }
+
+    private String getReportMessage(String queryType, String query) {
+	StringBuilder reportMessage = new StringBuilder();
+	reportMessage.append("Database Type: \"" + dbType + "\"");
+	reportMessage.append("| Server: \"" + dbServerIP + ":" + dbPort + "\"");
+	reportMessage.append("| Name: \"" + dbName + "\"");
+	reportMessage.append("| Username: \"" + username + "\"");
+	reportMessage.append("| Password: \"" + password.replaceAll(".", "*") + "\"");
+	reportMessage.append("| Query Type: \"" + queryType + "\"");
+	reportMessage.append("| Query: \"" + query + "\"");
+	return reportMessage.toString();
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -229,19 +291,15 @@ public class DatabaseActions {
 	ResultSet resultSet = null;
 	try {
 	    resultSet = createStatement(createConnection()).executeQuery(sql);
-	} catch (MySQLSyntaxErrorException e) {
-	    ReportManager.log(e);
-	    failAction("executeSelectQuery", "this query has a syntax error [" + sql + "]");
-	} catch (SQLException | NullPointerException e) {
-	    ReportManager.log(e);
-	    failAction("executeSelectQuery", sql);
+	} catch (SQLException | NullPointerException rootCauseException) {
+	    ReportManager.log(rootCauseException);
+	    failAction(getReportMessage("SELECT", sql), rootCauseException);
 	}
 
 	if (resultSet != null) {
-	    passAction("executeSelectQuery", sql, getResultStringValue(resultSet, true));
+	    passAction(getReportMessage("SELECT", sql), getResultStringValue(resultSet, true));
 	} else {
-	    failAction("executeSelectQuery",
-		    "Null or no resultSet was returned from executing this query [" + sql + "]");
+	    failAction("Null or no resultSet was returned from executing this query [" + sql + "]");
 	}
 
 	return resultSet;
@@ -261,13 +319,10 @@ public class DatabaseActions {
 	int updatedRows = 0;
 	try {
 	    updatedRows = createStatement(createConnection()).executeUpdate(sql);
-	    passAction("executeUpdateQuery", sql);
-	} catch (MySQLSyntaxErrorException e) {
-	    ReportManager.log(e);
-	    failAction("executeSelectQuery", "this query has a syntax error [" + sql + "]");
-	} catch (SQLException e) {
-	    ReportManager.log(e);
-	    failAction("executeUpdateQuery", sql);
+	    passAction(sql);
+	} catch (SQLException | NullPointerException rootCauseException) {
+	    ReportManager.log(rootCauseException);
+	    failAction(getReportMessage("UPDATE", sql), rootCauseException);
 	}
 	return updatedRows;
     }
@@ -281,7 +336,7 @@ public class DatabaseActions {
      */
     public static String getResult(ResultSet resultSet) {
 	String resultSetString = getResultStringValue(resultSet, false);
-	passAction("getResult");
+	passAction();
 	return resultSetString;
     }
 
@@ -298,6 +353,7 @@ public class DatabaseActions {
      * @return a string value which represents the data of the target row
      */
     public static String getRow(ResultSet resultSet, String columnName, String knownCellValue) {
+	String reportMessage = "Column Name: \"" + columnName + "\" | Cell Content: \"" + knownCellValue + "\"";
 	StringBuilder str = new StringBuilder();
 	Boolean foundRow = false;
 
@@ -320,14 +376,14 @@ public class DatabaseActions {
 		    }
 		}
 	    }
-	} catch (SQLException | NullPointerException e) {
-	    ReportManager.log(e);
-	    failAction("getRow", "columnName \"" + columnName + "\", and cellContent \"" + knownCellValue + "\"");
+	} catch (SQLException | NullPointerException rootCauseException) {
+	    ReportManager.log(rootCauseException);
+	    failAction(reportMessage, rootCauseException);
 	}
-	if (foundRow) {
-	    passAction("getRow", "columnName \"" + columnName + "\", and cellContent \"" + knownCellValue + "\"");
+	if (Boolean.TRUE.equals(foundRow)) {
+	    passAction(reportMessage);
 	} else {
-	    failAction("getRow", "columnName \"" + columnName + "\", and cellContent \"" + knownCellValue + "\"");
+	    failAction(reportMessage);
 	}
 	return str.toString().trim();
     }
@@ -354,11 +410,11 @@ public class DatabaseActions {
 		    str.append(String.valueOf(resultSet.getString(targetColumnID)) + "\n");
 		}
 	    }
-	} catch (SQLException | NullPointerException e) {
-	    ReportManager.log(e);
-	    failAction("getColumn");
+	} catch (SQLException | NullPointerException rootCauseException) {
+	    ReportManager.log(rootCauseException);
+	    failAction(rootCauseException);
 	}
-	passAction("getColumn", columnName);
+	passAction(columnName);
 	return str.toString().trim();
     }
 
@@ -378,11 +434,11 @@ public class DatabaseActions {
 		rowCount = resultSet.getRow();
 		resultSet.beforeFirst(); // reset pointer
 	    }
-	} catch (SQLException e) {
-	    ReportManager.log(e);
-	    failAction("getRowCount");
+	} catch (SQLException rootCauseException) {
+	    ReportManager.log(rootCauseException);
+	    failAction(rootCauseException);
 	}
-	passAction("getRowCount");
+	passAction();
 	return rowCount;
     }
 

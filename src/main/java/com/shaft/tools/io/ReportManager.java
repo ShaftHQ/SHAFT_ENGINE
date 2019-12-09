@@ -17,7 +17,6 @@ import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
-import org.apache.tools.ant.filters.StringInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Reporter;
@@ -207,8 +206,10 @@ public class ReportManager {
 	    attachments.forEach(attachment -> {
 		if (attachment != null && attachment.get(2).getClass().toString().toLowerCase().contains("string")
 			&& !attachment.get(2).getClass().toString().contains("StringInputStream")) {
-
-		    attach(attachment.get(0).toString(), attachment.get(1).toString(), attachment.get(2).toString());
+		    if (!attachment.get(2).toString().isEmpty()) {
+			attach(attachment.get(0).toString(), attachment.get(1).toString(),
+				attachment.get(2).toString());
+		    }
 		} else if (attachment != null) {
 		    attach(attachment.get(0).toString(), attachment.get(1).toString(), (InputStream) attachment.get(2));
 		}
@@ -250,8 +251,8 @@ public class ReportManager {
 	    Allure.addAttachment(attachmentDescription, "text/json", attachmentContent, ".json");
 	} else if (attachmentType.toLowerCase().contains("engine logs")) {
 	    if (attachmentName.equals("Current Method log")) {
-		Allure.addAttachment(attachmentDescription, "text/plain", new StringInputStream(currentTestLog.trim()),
-			".txt");
+		Allure.addAttachment(attachmentDescription, "text/plain",
+			new ByteArrayInputStream(currentTestLog.trim().getBytes()), ".txt");
 	    } else {
 		Allure.addAttachment(attachmentDescription, "text/plain", attachmentContent, ".txt");
 	    }
@@ -322,7 +323,8 @@ public class ReportManager {
 
     private static void cleanAllureResultsDirectory() {
 	// clean allure-results directory before execution
-	if (Boolean.valueOf(System.getProperty("automaticallyCleanAllureResultsDirectoryBeforeExecution"))) {
+	if (Boolean.TRUE.equals(
+		Boolean.valueOf(System.getProperty("automaticallyCleanAllureResultsDirectoryBeforeExecution")))) {
 	    FileActions.deleteFolder(allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1));
 	}
     }
@@ -340,8 +342,13 @@ public class ReportManager {
 
 	    // excluding empty values, system properties (all system properties have "." in
 	    // their names), and any git branch issues
-	    if (!propertyValue.equals("") && !propertyKey.contains(".") && !propertyKey.contains(">>>")
-		    && !propertyKey.contains("<<<")) {
+	    if (!propertyValue.equals("") && !propertyValue.contains("==") && !propertyKey.contains(".")
+		    && !propertyKey.contains(">>>") && !propertyKey.contains("<<<")) {
+
+		if (propertyValue.contains("&")) {
+		    propertyValue = propertyValue.replace("&", "&amp;");
+		}
+
 		String parameter = "<parameter>" + "<key>" + propertyKey + "</key>" + "<value>" + propertyValue
 			+ "</value>" + "</parameter>";
 		if (propertyKey.equals(SHAFT_ENGINE_VERSION_PROPERTY_NAME)) {
@@ -414,7 +421,8 @@ public class ReportManager {
 	logDiscrete("Preparing Allure Reporting Environment...");
 	Boolean discreteLoggingState = isDiscreteLogging();
 	allureResultsFolderPath = System.getProperty("allureResultsFolderPath").trim();
-	if (System.getProperty("executionAddress").trim().equals("local")) {
+	if (System.getProperty("executionAddress").trim().equals("local")
+		|| !System.getProperty("appium_platformName").trim().equals("")) {
 	    setDiscreteLogging(true);
 	    cleanAllureResultsDirectory();
 	    extractAllureBinariesFromJarFile();
@@ -536,23 +544,6 @@ public class ReportManager {
     }
 
     /**
-     * @deprecated Adds a new attachment using the input parameters provided. The
-     *             attachment is displayed as a step in the execution report. Used
-     *             for Screenshots.
-     * 
-     * @param attachmentType    the type of this attachment
-     * @param attachmentName    the name of this attachment
-     * @param attachmentContent the content of this attachment
-     */
-    @Deprecated
-    @Step("Attachment: {attachmentType} - {attachmentName}")
-    public static void attachAsStep(String attachmentType, String attachmentName, String attachmentContent) {
-	if (!attachmentContent.trim().equals("")) {
-	    createAttachment(attachmentType, attachmentName, new StringInputStream(attachmentContent));
-	}
-    }
-
-    /**
      * Adds a new attachment using the input parameters provided. The attachment is
      * displayed as a step in the execution report. Used for Screenshots.
      * 
@@ -574,7 +565,7 @@ public class ReportManager {
      */
     public static void attach(String attachmentType, String attachmentName, String attachmentContent) {
 	if (!attachmentContent.trim().equals("")) {
-	    createAttachment(attachmentType, attachmentName, new StringInputStream(attachmentContent));
+	    createAttachment(attachmentType, attachmentName, new ByteArrayInputStream(attachmentContent.getBytes()));
 
 	}
     }
@@ -588,27 +579,30 @@ public class ReportManager {
 	String trimmed = currentTestLog.trim();
 	if (!currentTestLog.trim().equals("") && (!(String.valueOf(trimmed.charAt(0)).equals("#")
 		&& String.valueOf(trimmed.charAt(trimmed.length() - 1)).equals("#")))) {
-	    createAttachment("SHAFT Engine Logs", "Current Method log", new StringInputStream(currentTestLog));
+	    createAttachment("SHAFT Engine Logs", "Current Method log",
+		    new ByteArrayInputStream(currentTestLog.getBytes()));
 	}
 	clearTestLog();
     }
 
-    public static void attachFullLog() {
+    public static void attachFullLog(String executionEndTimestamp) {
 	if (!fullLog.trim().equals("")) {
 	    createReportEntry(
 		    "Successfully created attachment [" + "SHAFT Engine Logs" + " - " + "Execution log" + "]");
 	    createImportantReportEntry("This test run was powered by SHAFT Engine Version: ["
 		    + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "]" + System.lineSeparator()
 		    + "SHAFT Engine is licensed under the MIT License: [https://github.com/MohabMohie/SHAFT_ENGINE/blob/master/LICENSE].");
-	    createAttachment("SHAFT Engine Logs", "Execution log", new StringInputStream(fullLog.trim()));
+	    createAttachment("SHAFT Engine Logs", "Execution log - " + executionEndTimestamp,
+		    new ByteArrayInputStream(fullLog.trim().getBytes()));
 	}
     }
 
-    public static void attachIssuesLog() {
+    public static void attachIssuesLog(String executionEndTimestamp) {
 	String issueSummary = prepareIssuesLog();
 	if (!issuesLog.trim().equals("")) {
-	    log(issueSummary, Arrays.asList(
-		    Arrays.asList("SHAFT Engine Logs", "Issues log CSV", new StringInputStream(issuesLog.trim()))));
+	    log(issueSummary,
+		    Arrays.asList(Arrays.asList("SHAFT Engine Logs", "Issues log CSV - " + executionEndTimestamp,
+			    new ByteArrayInputStream(issuesLog.trim().getBytes()))));
 	}
     }
 
@@ -655,7 +649,7 @@ public class ReportManager {
     }
 
     public static void generateAllureReportArchive() {
-	if (Boolean.valueOf(System.getProperty("automaticallyGenerateAllureReport").trim())
+	if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("automaticallyGenerateAllureReport").trim()))
 		&& System.getProperty("executionAddress").trim().equals("local")) {
 	    logDiscrete("Generating Allure Report Archive...");
 	    Boolean discreteLoggingState = isDiscreteLogging();

@@ -1,7 +1,5 @@
 package com.shaft.validation;
 
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -216,8 +214,8 @@ public class Verifications {
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, verificationComparisonType,
 		verificationType)) {
 	case 1:
-	    if (verificationType) {
-		if (!isExpectedOrActualValueLong) {
+	    if (Boolean.TRUE.equals(verificationType)) {
+		if (Boolean.FALSE.equals(isExpectedOrActualValueLong)) {
 		    verificationSuccesses.append("Verification Passed; actual value [" + actualValue
 			    + "] does match expected value [" + expectedValue + "].");
 		} else {
@@ -225,7 +223,7 @@ public class Verifications {
 			    "Verification Passed; actual value does match expected value. Kindly check the attachments for more details.");
 		}
 	    } else {
-		if (!isExpectedOrActualValueLong) {
+		if (Boolean.FALSE.equals(isExpectedOrActualValueLong)) {
 		    verificationSuccesses.append("Verification Passed; actual value [" + actualValue
 			    + "] does not match expected value [" + expectedValue + "].");
 		} else {
@@ -235,15 +233,15 @@ public class Verifications {
 	    }
 	    break;
 	case 0:
-	    if (verificationType) {
-		if (!isExpectedOrActualValueLong) {
+	    if (Boolean.TRUE.equals(verificationType)) {
+		if (Boolean.FALSE.equals(isExpectedOrActualValueLong)) {
 		    verificationFailures.append("Verification Failed; actual value [" + actualValue
 			    + "] does not match expected value [" + expectedValue + "].");
 		} else {
 		    verificationFailures.append("Verification Failed; actual value does not match expected value.");
 		}
 	    } else {
-		if (!isExpectedOrActualValueLong) {
+		if (Boolean.FALSE.equals(isExpectedOrActualValueLong)) {
 		    verificationFailures.append("Verification Failed; actual value [" + actualValue
 			    + "] does match expected value [" + expectedValue + "].");
 		} else {
@@ -259,7 +257,7 @@ public class Verifications {
 	    break;
 	}
 
-	if (isExpectedOrActualValueLong) {
+	if (Boolean.TRUE.equals(isExpectedOrActualValueLong)) {
 	    reportVerificationResults("verifyEquals", expectedValue.toString(), actualValue.toString(), null, null);
 	} else {
 	    reportVerificationResults("verifyEquals", null, null);
@@ -293,7 +291,7 @@ public class Verifications {
     public static void verifyNull(Object object, Boolean verificationType) {
 	ReportManager.logDiscrete("Verification [" + "verifyNull" + "] is being performed.");
 
-	if (verificationType) {
+	if (Boolean.TRUE.equals(verificationType)) {
 	    try {
 		Assert.assertNull(object);
 		verificationSuccesses.append("Verification Passed; actual value is null.");
@@ -350,7 +348,7 @@ public class Verifications {
 	ReportManager.logDiscrete("Verification [" + "verifyElementExists" + "] is being performed.");
 	try {
 	    int customAttempts = attemptsBeforeThrowingElementNotFoundException;
-	    if (!verificationType) {
+	    if (Boolean.FALSE.equals(verificationType)) {
 		customAttempts = attemptsBeforeThrowingElementNotFoundExceptionInCaseElementShouldntExist;
 	    }
 
@@ -358,7 +356,7 @@ public class Verifications {
 
 	    switch (elementsCount) {
 	    case 0:
-		if (verificationType) {
+		if (Boolean.TRUE.equals(verificationType)) {
 		    verificationFailures.append("Verification Failed; element does not exist. Locator ["
 			    + elementLocator.toString() + "].");
 		} else {
@@ -368,7 +366,7 @@ public class Verifications {
 		elementLocator = null; // workaround to force take a screenshot of the whole page
 		break;
 	    case 1:
-		if (verificationType) {
+		if (Boolean.TRUE.equals(verificationType)) {
 		    verificationSuccesses.append("Verification Passed; element exists and is unique. Locator ["
 			    + elementLocator.toString() + "].");
 		} else {
@@ -466,7 +464,7 @@ public class Verifications {
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, verificationComparisonType,
 		verificationType)) {
 	case 1:
-	    if (verificationType) {
+	    if (Boolean.TRUE.equals(verificationType)) {
 		verificationSuccesses.append("Verification Passed; actual value of [" + elementAttribute
 			+ "] does match expected value [" + expectedValue + "].");
 	    } else {
@@ -475,7 +473,7 @@ public class Verifications {
 	    }
 	    break;
 	case 0:
-	    if (verificationType) {
+	    if (Boolean.TRUE.equals(verificationType)) {
 		verificationFailures.append("Verification Failed; actual value of [" + elementAttribute + "] equals ["
 			+ actualValue + "] which does not match expected value [" + expectedValue + "].");
 	    } else {
@@ -555,7 +553,7 @@ public class Verifications {
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, verificationComparisonType,
 		verificationType)) {
 	case 1:
-	    if (verificationType) {
+	    if (Boolean.TRUE.equals(verificationType)) {
 		verificationSuccesses.append("Verification Passed; actual CSS Property value of [" + propertyName
 			+ "] does match expected value [" + expectedValue + "].");
 	    } else {
@@ -565,7 +563,7 @@ public class Verifications {
 	    }
 	    break;
 	case 0:
-	    if (verificationType) {
+	    if (Boolean.TRUE.equals(verificationType)) {
 		verificationFailures
 			.append("Verification Failed; actual CSS Property value of [" + propertyName + "] equals ["
 				+ actualValue + "] which does not match expected value [" + expectedValue + "].");
@@ -667,7 +665,7 @@ public class Verifications {
 	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, verificationComparisonType,
 		verificationType)) {
 	case 1:
-	    if (verificationType) {
+	    if (Boolean.TRUE.equals(verificationType)) {
 		verificationSuccesses.append("Verification Passed; actual value of [" + browserAttribute
 			+ "] does match expected value [" + expectedValue + "].");
 	    } else {
@@ -676,7 +674,7 @@ public class Verifications {
 	    }
 	    break;
 	case 0:
-	    if (verificationType) {
+	    if (Boolean.TRUE.equals(verificationType)) {
 		verificationFailures.append("Verification Failed; actual value [" + actualValue
 			+ "] does not match expected value [" + expectedValue + "].");
 	    } else {
@@ -748,7 +746,7 @@ public class Verifications {
 			+ expectedValue + "], comparativeRelationType [" + comparativeRelationType + "], actualValue ["
 			+ actualValue + "], and verificationType [" + verificationType + "].");
 
-	if (verificationType) {
+	if (Boolean.TRUE.equals(verificationType)) {
 	    try {
 		switch (comparativeRelationType) {
 		case ">":
@@ -860,7 +858,7 @@ public class Verifications {
 	ReportManager.logDiscrete("Verification [" + "verifyFileExists" + "] is being performed for target directory ["
 		+ fileFolderName + "], and target file [" + fileName + "].");
 	if (FileActions.doesFileExist(fileFolderName, fileName, numberOfRetries)) {
-	    if (verificationType) {
+	    if (Boolean.TRUE.equals(verificationType)) {
 		verificationSuccesses
 			.append("Verification Passed; target file [" + fileName + "] exists under the target path ["
 				+ FileActions.getAbsolutePath(fileFolderName, fileName) + "].");
@@ -871,7 +869,7 @@ public class Verifications {
 	    }
 
 	} else {
-	    if (verificationType) {
+	    if (Boolean.TRUE.equals(verificationType)) {
 		verificationFailures.append(
 			"Verification Failed; target file [" + fileName + "] doesn't exist under the target path ["
 				+ FileActions.getAbsolutePath(fileFolderName, fileName) + "], tried for ["
@@ -986,15 +984,9 @@ public class Verifications {
 		jsonPathToTargetArray);
 
 	// prepare attachments
-	List<Object> expectedValueAttachment = null;
-	try {
-	    expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected Value",
-		    RestActions.parseBodyToJson(new FileReader(referenceJsonFilePath)));
-	} catch (FileNotFoundException e) {
-	    // do nothing because the test would have already failed at the compareJSON
-	    // stage
-	}
-	List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Value",
+	List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected JSON Value",
+		RestActions.parseBodyToJson(FileActions.readFromFile(referenceJsonFilePath)));
+	List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual JSON Value",
 		RestActions.parseBodyToJson(response));
 
 	List<List<Object>> attachments = new ArrayList<>();

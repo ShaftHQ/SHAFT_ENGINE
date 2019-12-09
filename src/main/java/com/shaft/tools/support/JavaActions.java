@@ -54,6 +54,66 @@ public class JavaActions {
 	return Base64.getEncoder().encodeToString(text.getBytes());
     }
 
+    private static int compareTowObjectsPositively(Object expectedValue, Object actualValue, int comparisonType) {
+	switch (comparisonType) {
+	case 1:
+	    // case sensitive literal equivalence
+	    if (expectedValue == null) {
+		Assert.assertNull(actualValue);
+	    } else if (Number.class.equals(expectedValue.getClass()) || Number.class.equals(actualValue.getClass())) {
+		Assert.assertTrue((String.valueOf(actualValue)).equals(String.valueOf(expectedValue)));
+	    } else {
+		Assert.assertTrue(actualValue.equals(expectedValue));
+	    }
+	    break;
+	case 2:
+	    // regex comparison
+	    Assert.assertTrue((String.valueOf(actualValue)).matches(String.valueOf(expectedValue)));
+	    break;
+	case 3:
+	    // contains
+	    Assert.assertTrue((String.valueOf(actualValue)).contains(String.valueOf(expectedValue)));
+	    break;
+	case 4:
+	    // case insensitive equivalence
+	    Assert.assertTrue((String.valueOf(actualValue)).equalsIgnoreCase(String.valueOf(expectedValue)));
+	    break;
+	default:
+	    // unhandled case
+	    return -1;
+	}
+	return 1;
+    }
+
+    private static int compareTowObjectsNegatively(Object expectedValue, Object actualValue, int comparisonType) {
+	switch (comparisonType) {
+	case 1:
+	    // case sensitive literal equivalence
+	    if (Number.class.equals(expectedValue.getClass()) || Number.class.equals(actualValue.getClass())) {
+		Assert.assertFalse((String.valueOf(actualValue)).equals(String.valueOf(expectedValue)));
+	    } else {
+		Assert.assertFalse(actualValue.equals(expectedValue));
+	    }
+	    break;
+	case 2:
+	    // regex comparison
+	    Assert.assertFalse((String.valueOf(actualValue)).matches(String.valueOf(expectedValue)));
+	    break;
+	case 3:
+	    // contains
+	    Assert.assertFalse((String.valueOf(actualValue)).contains(String.valueOf(expectedValue)));
+	    break;
+	case 4:
+	    // case insensitive equivalence
+	    Assert.assertFalse((String.valueOf(actualValue)).equalsIgnoreCase(String.valueOf(expectedValue)));
+	    break;
+	default:
+	    // unhandled case
+	    return -1;
+	}
+	return 1;
+    }
+
     /**
      * Compares two objects (that can be cast to a string value) based on the
      * selected comparisonType and ValidationType, then returns the result in an
@@ -73,37 +133,9 @@ public class JavaActions {
     public static int compareTwoObjects(Object expectedValue, Object actualValue, int comparisonType,
 	    Boolean validationType) {
 
-	if (validationType) {
+	if (Boolean.TRUE.equals(validationType)) {
 	    try {
-		switch (comparisonType) {
-		case 1:
-		    // case sensitive literal equivalence
-		    if (expectedValue == null) {
-			Assert.assertNull(actualValue);
-		    } else if (Number.class.equals(expectedValue.getClass())
-			    || Number.class.equals(actualValue.getClass())) {
-			Assert.assertTrue((String.valueOf(actualValue)).equals(String.valueOf(expectedValue)));
-		    } else {
-			Assert.assertTrue(actualValue.equals(expectedValue));
-		    }
-		    break;
-		case 2:
-		    // regex comparison
-		    Assert.assertTrue((String.valueOf(actualValue)).matches(String.valueOf(expectedValue)));
-		    break;
-		case 3:
-		    // contains
-		    Assert.assertTrue((String.valueOf(actualValue)).contains(String.valueOf(expectedValue)));
-		    break;
-		case 4:
-		    // case insensitive equivalence
-		    Assert.assertTrue((String.valueOf(actualValue)).equalsIgnoreCase(String.valueOf(expectedValue)));
-		    break;
-		default:
-		    // unhandled case
-		    return -1;
-		}
-		return 1;
+		return compareTowObjectsPositively(expectedValue, actualValue, comparisonType);
 	    } catch (AssertionError e) {
 		return 0;
 	    } catch (Exception e) {
@@ -112,32 +144,7 @@ public class JavaActions {
 	    }
 	} else {
 	    try {
-		switch (comparisonType) {
-		case 1:
-		    // case sensitive literal equivalence
-		    if (Number.class.equals(expectedValue.getClass()) || Number.class.equals(actualValue.getClass())) {
-			Assert.assertFalse((String.valueOf(actualValue)).equals(String.valueOf(expectedValue)));
-		    } else {
-			Assert.assertFalse(actualValue.equals(expectedValue));
-		    }
-		    break;
-		case 2:
-		    // regex comparison
-		    Assert.assertFalse((String.valueOf(actualValue)).matches(String.valueOf(expectedValue)));
-		    break;
-		case 3:
-		    // contains
-		    Assert.assertFalse((String.valueOf(actualValue)).contains(String.valueOf(expectedValue)));
-		    break;
-		case 4:
-		    // case insensitive equivalence
-		    Assert.assertFalse((String.valueOf(actualValue)).equalsIgnoreCase(String.valueOf(expectedValue)));
-		    break;
-		default:
-		    // unhandled case
-		    return -1;
-		}
-		return 1;
+		return compareTowObjectsNegatively(expectedValue, actualValue, comparisonType);
 	    } catch (AssertionError e) {
 		return 0;
 	    } catch (Exception e) {

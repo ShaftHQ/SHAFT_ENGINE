@@ -1,5 +1,8 @@
 package com.shaft.tools.io;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
 import org.testng.annotations.AfterSuite;
 
 import com.shaft.gui.browser.BrowserFactory;
@@ -19,12 +22,13 @@ public class LogsReporter {
     }
 
     public void attachFullLogs() {
-	ReportManager.attachIssuesLog();
-	ReportManager.attachFullLog();
+	String executionEndTimestamp = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
+	ReportManager.attachIssuesLog(executionEndTimestamp);
+	ReportManager.attachFullLog(executionEndTimestamp);
     }
 
     public void attachBrowserLogs() {
-	if (!BrowserFactory.isBrowsersListEmpty()) {
+	if (Boolean.FALSE.equals(BrowserFactory.isBrowsersListEmpty())) {
 	    BrowserFactory.attachBrowserLogs();
 	    BrowserFactory.closeAllDrivers();
 	} else {
@@ -33,7 +37,7 @@ public class LogsReporter {
     }
 
     public void attachExecutionVideoRecording() {
-	if (RecordManager.getRecordVideo()) {
+	if (Boolean.TRUE.equals(RecordManager.getRecordVideo())) {
 	    RecordManager.stopRecording();
 	    RecordManager.attachRecording();
 	} else {
