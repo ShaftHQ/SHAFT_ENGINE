@@ -1,4 +1,4 @@
-package unitTests;
+package com.shaft.validation;
 
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -12,13 +12,32 @@ import com.shaft.validation.Validations;
 import com.shaft.validation.Validations.ValidationComparisonType;
 import com.shaft.validation.Validations.ValidationType;
 
-public class tests_newValidationsClass {
+class NewValidationsTests {
     WebDriver driver;
+
+    @Test
+    public void forceFail() {
+	try {
+	    Validations.assertFail();
+	} catch (AssertionError e) {
+	    // pass
+	}
+    }
+
+    @Test
+    public void forceFail2() {
+	try {
+	    Validations.assertFail("Custom Message");
+	} catch (AssertionError e) {
+	    // pass
+	}
+    }
 
     @Test
     public void f1() {
 	String longString = "1dassssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss1dassssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss1dassssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss1dassssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss1dassssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss1dassssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss";
-	Validations.assertEquals(longString, longString, "Checking valid user data");
+	Validations.assertEquals(longString, longString, ValidationComparisonType.EQUALS, ValidationType.POSITIVE,
+		"Checking valid user data");
     }
 
     @Test
@@ -39,7 +58,8 @@ public class tests_newValidationsClass {
 
     @Test
     public void f3_1() {
-	Validations.assertEquals(null, null);
+	Validations.assertEquals(null, null, ValidationComparisonType.EQUALS, ValidationType.POSITIVE,
+		"Checking valid user data");
     }
 
     @Test
@@ -55,7 +75,8 @@ public class tests_newValidationsClass {
     @Test
     public void f6() throws Exception {
 	try {
-	    Validations.assertNull("NULL", "Making sure that null string is not equal to null object");
+	    Validations.assertNull("NULL", ValidationType.POSITIVE,
+		    "Making sure that null string is not equal to null object");
 	    throw new Exception("Expected to fail but passed.");
 	} catch (AssertionError e) {
 	    // pass
@@ -75,7 +96,8 @@ public class tests_newValidationsClass {
     @Test
     public void f6_2() throws Exception {
 	try {
-	    Validations.assertNull("not null");
+	    Validations.assertNull("not null", ValidationType.POSITIVE,
+		    "Making sure that null string is not equal to null object");
 	    throw new Exception("Expected to fail but passed.");
 	} catch (AssertionError e) {
 	    // pass
@@ -89,7 +111,8 @@ public class tests_newValidationsClass {
 
     @Test(groups = { "browserBasedTests" })
     public void f8() {
-	Validations.assertElementExists(driver, By.tagName("h1"));
+	Validations.assertElementExists(driver, By.tagName("h1"), ValidationType.POSITIVE);
+
     }
 
     @Test(groups = { "browserBasedTests" })
@@ -141,7 +164,7 @@ public class tests_newValidationsClass {
     @Test(groups = { "browserBasedTests" })
     public void f14() {
 	Validations.assertElementAttribute(driver, By.tagName("h1"), "text", "Welcome to the-internet",
-		"Asserting that the header text is correct");
+		ValidationComparisonType.EQUALS, ValidationType.POSITIVE, "Asserting that the header text is correct");
     }
 
     @Test(groups = { "browserBasedTests" })

@@ -8,6 +8,7 @@ import org.testng.annotations.Test;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.validation.Assertions;
+import com.shaft.validation.Assertions.AssertionType;
 
 public class Test_fullPageScreenshotWithHeader {
     WebDriver driver;
@@ -17,10 +18,10 @@ public class Test_fullPageScreenshotWithHeader {
 	BrowserActions.navigateToURL(driver, "https://www.w3schools.com/howto/howto_js_sticky_header.asp");
 
 	// element screenshot
-	Assertions.assertElementExists(driver, By.xpath("//div[@id='main']/h2"), true);
+	Assertions.assertElementExists(driver, By.xpath("//div[@id='main']/h2"), AssertionType.POSITIVE);
 
 	// element screenshot when element is larger than visible area
-	Assertions.assertElementExists(driver, By.xpath("//div[@id='main']"), true);
+	Assertions.assertElementExists(driver, By.xpath("//div[@id='main']"), AssertionType.POSITIVE);
 
     }
 

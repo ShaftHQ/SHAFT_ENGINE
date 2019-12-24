@@ -7,6 +7,8 @@ import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Assertions;
 import com.shaft.validation.Verifications;
+import com.shaft.validation.Assertions.AssertionComparisonType;
+import com.shaft.validation.Assertions.AssertionType;
 
 public class GoogleSearch {
     WebDriver driver;
@@ -27,11 +29,13 @@ public class GoogleSearch {
 
     public void searchForQuery(String searchQuery) {
 	ElementActions.type(driver, searchBox_textField, "351");
-	Assertions.assertEquals(1, 1, 1, true);
-	Assertions.assertEquals(1, 111, 1, false);
+	Assertions.assertEquals(1, 1);
+	Assertions.assertEquals(1, 111, AssertionComparisonType.EQUALS, AssertionType.NEGATIVE);
 
-	Assertions.assertElementAttribute(driver, searchBox_textField, "text", "351", 1, true);
-	Assertions.assertElementAttribute(driver, searchBox_textField, "text", "1", 1, false);
+	Assertions.assertElementAttribute(driver, searchBox_textField, "text", "351", AssertionComparisonType.EQUALS,
+		AssertionType.POSITIVE);
+	Assertions.assertElementAttribute(driver, searchBox_textField, "text", "1", AssertionComparisonType.EQUALS,
+		AssertionType.NEGATIVE);
 
 	ElementActions.type(driver, searchBox_textField, searchQuery);
 	ElementActions.keyPress(driver, searchBox_textField, "Enter");
@@ -62,7 +66,7 @@ public class GoogleSearch {
     }
 
     public void assertPageIsOpen() {
-	Assertions.assertElementExists(driver, googleLogo_image, true);
+	Assertions.assertElementExists(driver, googleLogo_image, AssertionType.POSITIVE);
     }
 
     public void verifyPageTitle(String expectedValue) {

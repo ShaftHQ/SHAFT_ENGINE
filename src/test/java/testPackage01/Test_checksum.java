@@ -16,7 +16,7 @@ public class Test_checksum {
 	TerminalActions terminalSession = new TerminalActions();
 	String actualHash = FileActions.getFileChecksum(terminalSession, targetFileFolderPath, targetFileName);
 
-	Assertions.assertEquals(expectedHash, actualHash, 1, true);
+	Assertions.assertEquals(expectedHash, actualHash);
     }
 
     @Test
@@ -35,7 +35,7 @@ public class Test_checksum {
 		sshKeyFileFolderName, sshKeyFileName);
 	String actualHash = FileActions.getFileChecksum(terminalSession, targetFileFolderPath, targetFileName);
 
-	Assertions.assertEquals(expectedHash, actualHash, 1, true);
+	Assertions.assertEquals(expectedHash, actualHash);
     }
 
     @Test
@@ -58,6 +58,6 @@ public class Test_checksum {
 	String actualHash = FileActions.getFileChecksum(terminalSession, targetFileFolderPath, targetFileName,
 		pathToTempDirectoryOnRemoteMachine);
 
-	Assertions.assertEquals(expectedHash, actualHash, 1, true);
+	Assertions.assertEquals(expectedHash, actualHash);
     }
 }

@@ -297,50 +297,9 @@ public class Touch {
 	elementLocator = ElementActions.updateLocatorWithAIGenratedOne(elementLocator);
 	try {
 	    if (driver instanceof AppiumDriver<?>) {
-		Boolean isElementFound = false;
-		int attemptsToFindElement = 0;
-		do {
-		    // appium native device
-		    if (!driver.findElements(elementLocator).isEmpty()
-			    && ElementActions.identifyUniqueElement(driver, elementLocator)) {
-			// element is already on screen
-			isElementFound = true;
-			ReportManager.logDiscrete("Element is already onscreen.");
-		    } else {
-			// for the animated GIF:
-			ElementActions.takeScreenshot(driver, elementLocator, "swipeElementIntoView", null, true);
-
-			Dimension screenSize = driver.manage().window().getSize();
-			Point startingPoint = new Point(0, 0);
-			Point endingPoint = new Point(0, 0);
-
-			switch (swipeDirection) {
-			case DOWN:
-			    startingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight() * 80 / 100);
-			    endingPoint = new Point(screenSize.getWidth() / 2, 0);
-			    break;
-			case UP:
-			    startingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight() * 20 / 100);
-			    endingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight());
-			    break;
-			case RIGHT:
-			    startingPoint = new Point(screenSize.getWidth() * 80 / 100, screenSize.getHeight() / 2);
-			    endingPoint = new Point(0, screenSize.getHeight() / 2);
-			    break;
-			case LEFT:
-			    startingPoint = new Point(screenSize.getWidth() * 20 / 100, screenSize.getHeight() / 2);
-			    endingPoint = new Point(screenSize.getWidth(), screenSize.getHeight() / 2);
-			    break;
-			}
-			(new TouchAction<>((AppiumDriver<?>) driver)).press(PointOption.point(startingPoint))
-				.moveTo(PointOption.point(endingPoint)).release().perform();
-			attemptsToFindElement++;
-		    }
-		} while (Boolean.FALSE.equals(isElementFound)
-			|| attemptsToFindElement >= attemptsToScrollAndFindElement);
-		// TODO: devise a way to break the loop when no further scrolling options are
-		// available. do not use visual comparison which is the easy but costly way to
-		// do it.
+		// appium native application
+		attemptToSwipeElementIntoViewInNativeApp(elementLocator, swipeDirection,
+			attemptsToScrollAndFindElement);
 	    } else {
 		// regular touch screen device
 		if (ElementActions.identifyUniqueElement(driver, elementLocator)) {
@@ -355,6 +314,53 @@ public class Touch {
 	    ElementActions.failAction(driver, elementLocator, e);
 	}
 	return this;
+    }
+
+    private void attemptToSwipeElementIntoViewInNativeApp(By elementLocator, SwipeDirection swipeDirection,
+	    int attemptsToScrollAndFindElement) {
+	Boolean isElementFound = false;
+	int attemptsToFindElement = 0;
+	do {
+	    // appium native device
+	    if (!driver.findElements(elementLocator).isEmpty()
+		    && ElementActions.identifyUniqueElement(driver, elementLocator)) {
+		// element is already on screen
+		isElementFound = true;
+		ReportManager.logDiscrete("Element is already onscreen.");
+	    } else {
+		// for the animated GIF:
+		ElementActions.takeScreenshot(driver, elementLocator, "swipeElementIntoView", null, true);
+
+		Dimension screenSize = driver.manage().window().getSize();
+		Point startingPoint = new Point(0, 0);
+		Point endingPoint = new Point(0, 0);
+
+		switch (swipeDirection) {
+		case DOWN:
+		    startingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight() * 80 / 100);
+		    endingPoint = new Point(screenSize.getWidth() / 2, 0);
+		    break;
+		case UP:
+		    startingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight() * 20 / 100);
+		    endingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight());
+		    break;
+		case RIGHT:
+		    startingPoint = new Point(screenSize.getWidth() * 80 / 100, screenSize.getHeight() / 2);
+		    endingPoint = new Point(0, screenSize.getHeight() / 2);
+		    break;
+		case LEFT:
+		    startingPoint = new Point(screenSize.getWidth() * 20 / 100, screenSize.getHeight() / 2);
+		    endingPoint = new Point(screenSize.getWidth(), screenSize.getHeight() / 2);
+		    break;
+		}
+		(new TouchAction<>((AppiumDriver<?>) driver)).press(PointOption.point(startingPoint))
+			.moveTo(PointOption.point(endingPoint)).release().perform();
+		attemptsToFindElement++;
+	    }
+	} while (Boolean.FALSE.equals(isElementFound) || attemptsToFindElement >= attemptsToScrollAndFindElement);
+	// TODO: devise a way to break the loop when no further scrolling options are
+	// available. do not use visual comparison which is the easy but costly way to
+	// do it.
     }
 
 }

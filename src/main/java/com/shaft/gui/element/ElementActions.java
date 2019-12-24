@@ -370,6 +370,7 @@ public class ElementActions {
 			((Locatable) driver.findElement(elementLocator)).getCoordinates().inViewPort();
 		    } catch (org.openqa.selenium.UnsupportedCommandException getElementLocationOnceScrolledIntoView) {
 			// appium -> do nothing
+			// TODO: scroll to elemnt using touchActions
 		    }
 
 		    // check for visibility
@@ -1020,12 +1021,13 @@ public class ElementActions {
 
 	    try {
 		driver.findElement(elementLocator).click();
-	    } catch (Exception e) {
+	    } catch (Exception exception1) {
 		try {
 		    ((JavascriptExecutor) driver).executeScript("arguments[arguments.length - 1].click();",
 			    driver.findElement(elementLocator));
 		} catch (Exception rootCauseException) {
-		    ReportManager.log(e);
+		    rootCauseException.initCause(exception1);
+		    ReportManager.log(exception1);
 		    ReportManager.log(rootCauseException);
 		    failAction(driver, elementLocator, rootCauseException);
 		}
@@ -1137,13 +1139,14 @@ public class ElementActions {
 	    passAction(driver, elementLocator, absoluteFilePath);
 	    try {
 		driver.findElement(elementLocator).sendKeys(absoluteFilePath);
-	    } catch (ElementNotInteractableException e) {
+	    } catch (ElementNotInteractableException exception1) {
 		((JavascriptExecutor) driver).executeScript(
 			"arguments[0].setAttribute('style', 'display:block !important;');",
 			driver.findElement(elementLocator));
 		try {
 		    driver.findElement(elementLocator).sendKeys(absoluteFilePath);
 		} catch (WebDriverException rootCauseException) {
+		    rootCauseException.initCause(exception1);
 		    ReportManager.log(rootCauseException);
 		    // happened for the first time on MacOSX due to incorrect file path separator
 		    failAction(driver, absoluteFilePath, elementLocator, rootCauseException);
@@ -1198,13 +1201,21 @@ public class ElementActions {
 	    // Override current locator with the aiGeneratedElementLocator
 	    elementLocator = updateLocatorWithAIGenratedOne(elementLocator);
 
-	    try {
-		(new Select(driver.findElement(elementLocator))).selectByVisibleText(text);
-	    } catch (NoSuchElementException rootCauseException) {
-		ReportManager.log(rootCauseException);
-		failAction(driver, text, elementLocator, rootCauseException);
+	    Boolean isOptionFound = false;
+	    var availableOptionsList = (new Select(driver.findElement(elementLocator))).getOptions();
+	    for (int i = 0; i < availableOptionsList.size(); i++) {
+		String visibleText = availableOptionsList.get(i).getText();
+		String value = availableOptionsList.get(i).getAttribute("value");
+		if (visibleText.trim().equals(text) || value.trim().equals(text)) {
+		    (new Select(driver.findElement(elementLocator))).selectByIndex(i);
+		    passAction(driver, elementLocator, text);
+		    isOptionFound = true;
+		    break;
+		}
 	    }
-	    passAction(driver, elementLocator, text);
+	    if (Boolean.FALSE.equals(isOptionFound)) {
+		failAction(driver, text, elementLocator);
+	    }
 	} else {
 	    failAction(driver, text, elementLocator);
 	}
@@ -1637,10 +1648,7 @@ public class ElementActions {
 	    elementLocator = updateLocatorWithAIGenratedOne(elementLocator);
 
 	    try {
-//		(new WebDriverWait(driver,
-//			Duration.ofSeconds(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT.getSeconds() * numberOfTries))).until(
-//				ExpectedConditions.not(ExpectedConditions.textToBe(elementLocator, initialValue)));
-		(new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER * numberOfTries))
+		(new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER * (long) numberOfTries))
 			.until(ExpectedConditions.not(ExpectedConditions.textToBe(elementLocator, initialValue)));
 	    } catch (Exception rootCauseException) {
 		ReportManager.log(rootCauseException);
@@ -1779,6 +1787,7 @@ public class ElementActions {
      *                       "select all", "unselect"
      */
     public static void clipboardActions(WebDriver driver, By elementLocator, String action) {
+	// TODO: implement enum for list of possible actions
 	if (identifyUniqueElement(driver, elementLocator)) {
 	    // Override current locator with the aiGeneratedElementLocator
 	    elementLocator = updateLocatorWithAIGenratedOne(elementLocator);

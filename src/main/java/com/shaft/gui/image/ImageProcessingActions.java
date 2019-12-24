@@ -31,6 +31,8 @@ import com.shaft.cli.FileActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Assertions;
 import com.shaft.validation.Verifications;
+import com.shaft.validation.Assertions.AssertionType;
+import com.shaft.validation.Assertions.ComparativeRelationType;
 
 import nu.pattern.OpenCV;
 
@@ -179,7 +181,8 @@ public class ImageProcessingActions {
 	    try {
 		// add to pass/fail counter depending on assertion result, without logging
 		ReportManager.setDiscreteLogging(true);
-		Assertions.assertComparativeRelation(threshhold, percentage, ">=", true);
+		Assertions.assertComparativeRelation(threshhold, percentage,
+			ComparativeRelationType.GREATER_THAN_OR_EQUALS, AssertionType.POSITIVE);
 		ReportManager.setDiscreteLogging(discreetLoggingState);
 		passedImagesCount++;
 	    } catch (AssertionError e) {

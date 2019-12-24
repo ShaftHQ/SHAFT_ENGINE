@@ -6,6 +6,8 @@ import org.openqa.selenium.WebDriver;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Assertions;
 import com.shaft.validation.Verifications;
+import com.shaft.validation.Assertions.AssertionComparisonType;
+import com.shaft.validation.Assertions.AssertionType;
 
 public class GoogleSearchResults {
     WebDriver driver;
@@ -18,7 +20,8 @@ public class GoogleSearchResults {
     }
 
     public void assertResultsStatsExistsAndIsNotEmpty() {
-	Assertions.assertElementAttribute(driver, resultsStats_label, "Text", "", 1, false);
+	Assertions.assertElementAttribute(driver, resultsStats_label, "Text", "", AssertionComparisonType.EQUALS,
+		AssertionType.POSITIVE);
     }
 
     public void verifyResultsStatsExists() {
@@ -34,7 +37,7 @@ public class GoogleSearchResults {
     }
 
     public void assert10ResultsPerPage() {
-	Assertions.assertEquals(10, ElementActions.getElementsCount(driver, searchResult_box), 1, true);
+	Assertions.assertEquals(10, ElementActions.getElementsCount(driver, searchResult_box));
     }
 
 }
