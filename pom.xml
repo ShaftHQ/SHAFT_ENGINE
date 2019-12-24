@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>io.github.mohabmohie</groupId>
 	<artifactId>SHAFT_ENGINE</artifactId>
-	<version>4.0.20191208-alpha</version>
+	<version>4.0.20191224-alpha</version>
 	<name>${project.groupId}:${project.artifactId}</name>
 	<description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
 	<url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
@@ -35,6 +35,10 @@
 		<propertiesFolderPath>src/test/resources/Properties/</propertiesFolderPath>
 		<propertiesFolderPath_jenkins></propertiesFolderPath_jenkins>
 
+		<org.slf4j.simpleLogger.defaultLogLevel>info</org.slf4j.simpleLogger.defaultLogLevel>
+		<!-- "trace", "debug", "info", "warn", "error" or "off" -->
+		<!-- http://www.slf4j.org/apidocs/org/slf4j/simple/SimpleLogger.html -->
+
 		<!-- SHAFT Test Run Parameters -->
 		<testSuite.name>unitTestSuite</testSuite.name>
 
@@ -44,7 +48,7 @@
 
 		<!-- <selenium.version>4.0.0-alpha-3</selenium.version> -->
 		<appium-selenium.version>3.141.59</appium-selenium.version>
-		<appium-java-client.version>7.2.0</appium-java-client.version>
+		<appium-java-client.version>7.3.0</appium-java-client.version>
 
 		<webdrivermanager.version>3.7.1</webdrivermanager.version>
 		<allure-testng.version>2.13.0</allure-testng.version> <!-- UPDATE path.properties -->
@@ -66,8 +70,6 @@
 
 		<apachepoi.version>4.1.0</apachepoi.version>
 		<org.slf4j.version>1.7.26</org.slf4j.version>
-		<org.slf4j.simpleLogger.defaultLogLevel>off</org.slf4j.simpleLogger.defaultLogLevel>
-		<!-- http://www.slf4j.org/apidocs/org/slf4j/simple/SimpleLogger.html -->
 
 		<maven-resources-plugin.version>3.1.0</maven-resources-plugin.version>
 		<maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
@@ -185,16 +187,16 @@
 			<groupId>io.rest-assured</groupId>
 			<artifactId>rest-assured</artifactId>
 			<version>${rest-assured.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>com.sun.xml.bind</groupId>
-					<artifactId>jaxb-osgi</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>javax.xml.bind</groupId>
-					<artifactId>jaxb-api</artifactId>
-				</exclusion>
-			</exclusions>
+			<!-- <exclusions> -->
+			<!-- <exclusion> -->
+			<!-- <groupId>com.sun.xml.bind</groupId> -->
+			<!-- <artifactId>jaxb-osgi</artifactId> -->
+			<!-- </exclusion> -->
+			<!-- <exclusion> -->
+			<!-- <groupId>javax.xml.bind</groupId> -->
+			<!-- <artifactId>jaxb-api</artifactId> -->
+			<!-- </exclusion> -->
+			<!-- </exclusions> -->
 		</dependency>
 		<dependency>
 			<groupId>com.googlecode.json-simple</groupId>

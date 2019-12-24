@@ -41,8 +41,12 @@ public class ReportManager {
     private static boolean debugMode = false;
     private static final String TIMESTAMP_FORMAT = "dd-MM-yyyy HH:mm:ss.SSSS aaa";
     private static final Logger slf4jLogger = LoggerFactory.getLogger(ReportManager.class);
-    private static final String SHAFT_ENGINE_VERSION_PROPERTY_NAME = "shaftEngineVersion";
 
+    private static final String SHAFT_ENGINE_VERSION_PROPERTY_NAME = "shaftEngineVersion";
+    private static final String TARGET_OS_PROPERTY_NAME = "targetOperatingSystem";
+    private static final String ALLURE_VERSION_PROPERTY_NAME = "allureVersion";
+    private static final String REPORT_MANAGER_PREFIX = "[ReportManager] ";
+    private static final String SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE = "SHAFT Engine Logs";
     private static int openIssuesForFailedTestsCounter = 0;
     private static int openIssuesForPassedTestsCounter = 0;
     private static int failedTestsWithoutOpenIssuesCounter = 0;
@@ -93,7 +97,7 @@ public class ReportManager {
 
     private static void createLogEntry(String logText) {
 	String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
-	String log = "[ReportManager] " + logText.trim() + " @" + timestamp;
+	String log = REPORT_MANAGER_PREFIX + logText.trim() + " @" + timestamp;
 	appendToLog(log);
 	appendToLog(System.lineSeparator());
     }
@@ -166,7 +170,7 @@ public class ReportManager {
 
     private static void createReportEntry(String logText) {
 	String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
-	String log = "[ReportManager] " + logText.trim() + " @" + timestamp;
+	String log = REPORT_MANAGER_PREFIX + logText.trim() + " @" + timestamp;
 	Reporter.log(log, true);
 	appendToLog(log);
 	appendToLog(System.lineSeparator());
@@ -236,6 +240,34 @@ public class ReportManager {
 
 	String attachmentDescription = "Attachment: " + attachmentType + " - " + attachmentName;
 
+	attachBasedOnFileType(attachmentType, attachmentName, attachmentContent, attachmentDescription);
+
+	if (!(attachmentType.equals(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE) && attachmentName.equals("Execution log"))) {
+	    createReportEntry("Successfully created attachment [" + attachmentType + " - " + attachmentName + "]");
+	}
+
+	if (debugMode && !attachmentType.contains(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE)
+		&& !attachmentType.equalsIgnoreCase("Selenium WebDriver Logs")
+		&& !attachmentType.toLowerCase().contains("screenshot")
+		&& !attachmentType.toLowerCase().contains("recording") && !attachmentType.toLowerCase().contains("gif")
+		&& !attachmentType.toLowerCase().contains("engine logs")) {
+	    String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
+
+	    String theString = "";
+	    BufferedReader br = new BufferedReader(
+		    new InputStreamReader(attachmentContentCopy, StandardCharsets.UTF_8));
+	    theString = br.lines().collect(Collectors.joining(System.lineSeparator()));
+	    if (!theString.isEmpty()) {
+		String logEntry = REPORT_MANAGER_PREFIX + "Debugging Attachment Entry" + " @" + timestamp
+			+ System.lineSeparator() + theString + System.lineSeparator();
+		slf4jLogger.info(logEntry);
+		appendToLog(logEntry);
+	    }
+	}
+    }
+
+    private static void attachBasedOnFileType(String attachmentType, String attachmentName,
+	    InputStream attachmentContent, String attachmentDescription) {
 	if (attachmentType.toLowerCase().contains("screenshot")) {
 	    Allure.addAttachment(attachmentDescription, "image/png", attachmentContent, ".png");
 	} else if (attachmentType.toLowerCase().contains("recording")) {
@@ -258,29 +290,6 @@ public class ReportManager {
 	    }
 	} else {
 	    Allure.addAttachment(attachmentDescription, attachmentContent);
-	}
-
-	if (!(attachmentType.equals("SHAFT Engine Logs") && attachmentName.equals("Execution log"))) {
-	    createReportEntry("Successfully created attachment [" + attachmentType + " - " + attachmentName + "]");
-	}
-
-	if (debugMode && !attachmentType.contains("SHAFT Engine Logs")
-		&& !attachmentType.equalsIgnoreCase("Selenium WebDriver Logs")
-		&& !attachmentType.toLowerCase().contains("screenshot")
-		&& !attachmentType.toLowerCase().contains("recording") && !attachmentType.toLowerCase().contains("gif")
-		&& !attachmentType.toLowerCase().contains("engine logs")) {
-	    String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
-
-	    String theString = "";
-	    BufferedReader br = new BufferedReader(
-		    new InputStreamReader(attachmentContentCopy, StandardCharsets.UTF_8));
-	    theString = br.lines().collect(Collectors.joining(System.lineSeparator()));
-	    if (!theString.isEmpty()) {
-		String logEntry = "[ReportManager] " + "Debugging Attachment Entry" + " @" + timestamp
-			+ System.lineSeparator() + theString + System.lineSeparator();
-		slf4jLogger.info(logEntry);
-		appendToLog(logEntry);
-	    }
 	}
     }
 
@@ -342,8 +351,8 @@ public class ReportManager {
 
 	    // excluding empty values, system properties (all system properties have "." in
 	    // their names), and any git branch issues
-	    if (!propertyValue.equals("") && !propertyValue.contains("==") && !propertyKey.contains(".")
-		    && !propertyKey.contains(">>>") && !propertyKey.contains("<<<")) {
+	    if (!propertyValue.equals("") && !propertyValue.contains("==") && !propertyKey.contains(">>>")
+		    && !propertyKey.contains("<<<")) {
 
 		if (propertyValue.contains("&")) {
 		    propertyValue = propertyValue.replace("&", "&amp;");
@@ -368,7 +377,9 @@ public class ReportManager {
     private static void extractAllureBinariesFromJarFile() {
 	// extract allure from jar file to src/main/resources directory if it doesn't
 	// already exist
-	String allureVersion = System.getProperty("allureVersion");
+	String allureVersion = System.getProperty(ALLURE_VERSION_PROPERTY_NAME);
+	// TODO: download allure to the local maven repository so that it can be shared
+	// accross the local projects
 	allureExecutablePath = "target/allure/allure-" + allureVersion + "/bin/allure";
 	if (!(new File(allureExecutablePath)).exists()) {
 	    FileActions.deleteFolder("target/allure/");
@@ -383,7 +394,7 @@ public class ReportManager {
 		    .getResource("/allure/allureBinary_SHAFTEngineConfigFiles.zip");
 	    FileActions.unpackArchive(allureSHAFTConfigArchive, "target/allure/allure-" + allureVersion + "/");
 
-	    if (!System.getProperty("targetOperatingSystem").equals(OS_WINDOWS)) {
+	    if (!System.getProperty(TARGET_OS_PROPERTY_NAME).equals(OS_WINDOWS)) {
 		// make allure executable on unix-based shells
 		(new TerminalActions()).performTerminalCommand("chmod u+x " + allureExecutablePath);
 	    }
@@ -391,17 +402,17 @@ public class ReportManager {
     }
 
     private static void writeGenerateReportShellFilesToProjectDirectory() {
-	String allureVersion = System.getProperty("allureVersion");
+	String allureVersion = System.getProperty(ALLURE_VERSION_PROPERTY_NAME);
 	// create generate_allure_report.sh or generate_allure_report.bat
 	List<String> commandsToServeAllureReport;
-	if (System.getProperty("targetOperatingSystem").equals(OS_WINDOWS)) {
+	if (System.getProperty(TARGET_OS_PROPERTY_NAME).equals(OS_WINDOWS)) {
 	    // create windows batch file
 	    commandsToServeAllureReport = Arrays.asList("@echo off",
 		    "set path=target\\allure\\allure-" + allureVersion + "\\bin;%path%",
 		    "allure serve " + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1),
 		    "pause", "exit");
 	    FileActions.writeToFile("", "generate_allure_report.bat", commandsToServeAllureReport);
-	} else if (!System.getProperty("targetOperatingSystem").equals(OS_WINDOWS)) {
+	} else if (!System.getProperty(TARGET_OS_PROPERTY_NAME).equals(OS_WINDOWS)) {
 	    // create unix-based sh file
 	    commandsToServeAllureReport = Arrays
 		    .asList("#!/bin/bash", "parent_path=$( cd \"$(dirname \"${BASH_SOURCE[0]}\")\" ; pwd -P )",
@@ -528,6 +539,7 @@ public class ReportManager {
 
     public static void logDiscrete(String logText) {
 	createLogEntry(logText);
+	slf4jLogger.info(logText);
     }
 
     /**
@@ -579,7 +591,7 @@ public class ReportManager {
 	String trimmed = currentTestLog.trim();
 	if (!currentTestLog.trim().equals("") && (!(String.valueOf(trimmed.charAt(0)).equals("#")
 		&& String.valueOf(trimmed.charAt(trimmed.length() - 1)).equals("#")))) {
-	    createAttachment("SHAFT Engine Logs", "Current Method log",
+	    createAttachment(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE, "Current Method log",
 		    new ByteArrayInputStream(currentTestLog.getBytes()));
 	}
 	clearTestLog();
@@ -587,12 +599,12 @@ public class ReportManager {
 
     public static void attachFullLog(String executionEndTimestamp) {
 	if (!fullLog.trim().equals("")) {
-	    createReportEntry(
-		    "Successfully created attachment [" + "SHAFT Engine Logs" + " - " + "Execution log" + "]");
+	    createReportEntry("Successfully created attachment [" + SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE + " - "
+		    + "Execution log" + "]");
 	    createImportantReportEntry("This test run was powered by SHAFT Engine Version: ["
 		    + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "]" + System.lineSeparator()
 		    + "SHAFT Engine is licensed under the MIT License: [https://github.com/MohabMohie/SHAFT_ENGINE/blob/master/LICENSE].");
-	    createAttachment("SHAFT Engine Logs", "Execution log - " + executionEndTimestamp,
+	    createAttachment(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE, "Execution log - " + executionEndTimestamp,
 		    new ByteArrayInputStream(fullLog.trim().getBytes()));
 	}
     }
@@ -601,7 +613,8 @@ public class ReportManager {
 	String issueSummary = prepareIssuesLog();
 	if (!issuesLog.trim().equals("")) {
 	    log(issueSummary,
-		    Arrays.asList(Arrays.asList("SHAFT Engine Logs", "Issues log CSV - " + executionEndTimestamp,
+		    Arrays.asList(Arrays.asList(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE,
+			    "Issues log CSV - " + executionEndTimestamp,
 			    new ByteArrayInputStream(issuesLog.trim().getBytes()))));
 	}
     }
@@ -611,13 +624,13 @@ public class ReportManager {
 	// create unix-based sh file
 	commandsToOpenAllureReport = Arrays.asList("#!/bin/bash",
 		"parent_path=$( cd \"$(dirname \"${BASH_SOURCE[0]}\")\" ; pwd -P )",
-		"cd \"$parent_path/allure/allure-" + System.getProperty("allureVersion") + "/bin/\"",
+		"cd \"$parent_path/allure/allure-" + System.getProperty(ALLURE_VERSION_PROPERTY_NAME) + "/bin/\"",
 		"bash allure open \"$parent_path/allure-report\"", "exit");
 	FileActions.writeToFile("generatedReport/", "open_allure_report.sh", commandsToOpenAllureReport);
 
 	// create windows batch file
 	commandsToOpenAllureReport = Arrays.asList("@echo off",
-		"set path=allure\\allure-" + System.getProperty("allureVersion") + "\\bin;%path%",
+		"set path=allure\\allure-" + System.getProperty(ALLURE_VERSION_PROPERTY_NAME) + "\\bin;%path%",
 		"allure open allure-report", "pause", "exit");
 	FileActions.writeToFile("generatedReport/", "open_allure_report.bat", commandsToOpenAllureReport);
 
@@ -625,10 +638,11 @@ public class ReportManager {
 
     private static void writeAllureReportToGeneratedDirectory() {
 	// add correct file extension based on target OS
-	String targetOperatingSystem = System.getProperty("targetOperatingSystem");
+	String targetOperatingSystem = System.getProperty(TARGET_OS_PROPERTY_NAME);
 	String commandToCreateAllureReport = "";
 
-	allureExecutablePath = "target/allure/allure-" + System.getProperty("allureVersion") + "/bin/allure";
+	allureExecutablePath = "target/allure/allure-" + System.getProperty(ALLURE_VERSION_PROPERTY_NAME)
+		+ "/bin/allure";
 
 	if (targetOperatingSystem.equals(OS_WINDOWS)) {
 	    commandToCreateAllureReport = allureExecutablePath + ".bat" + " generate \""

@@ -7,8 +7,8 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 import org.apache.poi.EmptyFileException;
-import org.apache.poi.hssf.usermodel.HSSFDateUtil;
 import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.xssf.usermodel.XSSFCell;
 import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
@@ -214,7 +214,7 @@ public class ExcelFileManager {
 		if (cellValue.contains(".0")) {
 		    cellValue = cellValue.split("\\.")[0];
 		}
-		if (HSSFDateUtil.isCellDateFormatted(cell)) {
+		if (DateUtil.isCellDateFormatted(cell)) {
 		    DateFormat df = new SimpleDateFormat("dd/MM/yy");
 		    Date date = cell.getDateCellValue();
 		    cellValue = df.format(date);

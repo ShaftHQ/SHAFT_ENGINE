@@ -11,6 +11,7 @@ import com.shaft.gui.element.ElementActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Assertions;
 import com.shaft.validation.Assertions.AssertionType;
+import com.shaft.validation.Assertions.ComparativeRelationType;
 import com.shaft.validation.Verifications;
 import com.shaft.validation.Assertions.AssertionComparisonType;
 
@@ -19,7 +20,7 @@ public class tests_validations_assertions {
     @Test(description = "Assert that assertEquals works as expected when the two values are equal.")
     public void assertEquals_true_expectedToPass() {
 	Verifications.verifyEquals(1, 1, 1, true);
-	Assertions.assertEquals(1, 1, 1, true);
+	Assertions.assertEquals(1, 1);
     }
 
     @Test
@@ -35,8 +36,7 @@ public class tests_validations_assertions {
 		1, true);
 	Assertions.assertEquals(
 		"jLvZpYHnzi7J2LioTBKIRg22r9Fz2qKoPbhnPk8vVo2IKvtdbZWVzWBvQ9fPhDO9Mg290JmiviQBiBTd9IEqoqvZFSCrL2J8wOIDhJLt0lg8hYGGDgkaPWhwMtjJN0jgxLikgXK8i5TAhlrCU8sVFTbGYtCdcA104FEZBR8UtaFUYyp1bjNOYBlH9BOk5k3CKPplDYMLCxsDNqbTCSSzEGAA88DbImhBiKRlC6amHQj3GS6BsYmBRpMj2YUmtJhstEH8flwdX7VWU4QT9Ym1IU4HTslNjsnmoagkqit9D2mtaWuPhZPaslBT7P0liynOCOxe9FFcGKydmAz3UV1PhcKOA7TZy8F5xKd2R3mcyYzeFT5pec7lDfMBrwXTeSoGs8FZtWMmQJYlKLqFRhJxzaJhsTWIj0HENyyrdBPDqy4scf0pp4HrWtn5GVTWxjmEzxuGEx9g9H9ImIphLXpCBIrpT5Jm8jhhxjm9GUtaFGPrVALKAKJk1",
-		"jLvZpYHnzi7J2LioTBKIRg22r9Fz2qKoPbhnPk8vVo2IKvtdbZWVzWBvQ9fPhDO9Mg290JmiviQBiBTd9IEqoqvZFSCrL2J8wOIDhJLt0lg8hYGGDgkaPWhwMtjJN0jgxLikgXK8i5TAhlrCU8sVFTbGYtCdcA104FEZBR8UtaFUYyp1bjNOYBlH9BOk5k3CKPplDYMLCxsDNqbTCSSzEGAA88DbImhBiKRlC6amHQj3GS6BsYmBRpMj2YUmtJhstEH8flwdX7VWU4QT9Ym1IU4HTslNjsnmoagkqit9D2mtaWuPhZPaslBT7P0liynOCOxe9FFcGKydmAz3UV1PhcKOA7TZy8F5xKd2R3mcyYzeFT5pec7lDfMBrwXTeSoGs8FZtWMmQJYlKLqFRhJxzaJhsTWIj0HENyyrdBPDqy4scf0pp4HrWtn5GVTWxjmEzxuGEx9g9H9ImIphLXpCBIrpT5Jm8jhhxjm9GUtaFGPrVALKAKJk1",
-		1, true);
+		"jLvZpYHnzi7J2LioTBKIRg22r9Fz2qKoPbhnPk8vVo2IKvtdbZWVzWBvQ9fPhDO9Mg290JmiviQBiBTd9IEqoqvZFSCrL2J8wOIDhJLt0lg8hYGGDgkaPWhwMtjJN0jgxLikgXK8i5TAhlrCU8sVFTbGYtCdcA104FEZBR8UtaFUYyp1bjNOYBlH9BOk5k3CKPplDYMLCxsDNqbTCSSzEGAA88DbImhBiKRlC6amHQj3GS6BsYmBRpMj2YUmtJhstEH8flwdX7VWU4QT9Ym1IU4HTslNjsnmoagkqit9D2mtaWuPhZPaslBT7P0liynOCOxe9FFcGKydmAz3UV1PhcKOA7TZy8F5xKd2R3mcyYzeFT5pec7lDfMBrwXTeSoGs8FZtWMmQJYlKLqFRhJxzaJhsTWIj0HENyyrdBPDqy4scf0pp4HrWtn5GVTWxjmEzxuGEx9g9H9ImIphLXpCBIrpT5Jm8jhhxjm9GUtaFGPrVALKAKJk1");
     }
 
     @Test
@@ -45,15 +45,14 @@ public class tests_validations_assertions {
 	ReportManager.setDiscreteLogging(true);
 	Assertions.assertEquals(
 		"1LH5pROcDBjjQk0t0mCr0lXuzQu9lcGj28kY8R1H81X67eVAQJgWQhILiRWVPUgZ6uCtK5cnBkF55Jr9vYngjGO1Iyf0Mktv6lruDlL9T8MAUPcUZJGHZtji6nIeadujDSNmWMj5d6C8zlFqw0CRqBU0hO5adIasHgBSNoLotAjce3NGXoDwAlp3rYreeV16VIyZXROQY",
-		"LH5pROcDBjjQk0t0mCr0lXuzQu9lcGj28kY8R1H81X67eVAQJgWQhILiRWVPUgZ6uCtK5cnBkF55Jr9vYngjGO1Iyf0Mktv6lruDlL9T8MAUPcUZJGHZtji6nIeadujDSNmWMj5d6C8zlFqw0CRqBU0hO5adIasHgBSNoLotAjce3NGXoDwAlp3rYreeV16VIyZXROQY",
-		1, true);
+		"LH5pROcDBjjQk0t0mCr0lXuzQu9lcGj28kY8R1H81X67eVAQJgWQhILiRWVPUgZ6uCtK5cnBkF55Jr9vYngjGO1Iyf0Mktv6lruDlL9T8MAUPcUZJGHZtji6nIeadujDSNmWMj5d6C8zlFqw0CRqBU0hO5adIasHgBSNoLotAjce3NGXoDwAlp3rYreeV16VIyZXROQY");
 	ReportManager.setDiscreteLogging(discreetLoggingState);
     }
 
     @Test
     public void assertEquals_true_expectedToFail() {
 	try {
-	    Assertions.assertEquals(1, 2, 1, true);
+	    Assertions.assertEquals(1, 2);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
@@ -61,13 +60,13 @@ public class tests_validations_assertions {
 
     @Test
     public void assertEquals_false_expectedToPass() {
-	Assertions.assertEquals(1, 2, 1, false);
+	Assertions.assertEquals(1, 2, AssertionComparisonType.EQUALS, AssertionType.NEGATIVE);
     }
 
     @Test
     public void assertEquals_false_expectedToFail() {
 	try {
-	    Assertions.assertEquals(1, 1, 1, false);
+	    Assertions.assertEquals(1, 1, AssertionComparisonType.EQUALS, AssertionType.NEGATIVE);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
@@ -75,13 +74,13 @@ public class tests_validations_assertions {
 
     @Test
     public void assertNull_true_expectedToPass() {
-	Assertions.assertNull(null, true);
+	Assertions.assertNull(null, AssertionType.POSITIVE);
     }
 
     @Test
     public void assertNull_true_expectedToFail() {
 	try {
-	    Assertions.assertNull(1, true);
+	    Assertions.assertNull(1, AssertionType.POSITIVE);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
@@ -89,13 +88,13 @@ public class tests_validations_assertions {
 
     @Test
     public void assertNull_false_expectedToPass() {
-	Assertions.assertNull(1, false);
+	Assertions.assertNull(1, AssertionType.NEGATIVE);
     }
 
     @Test
     public void assertNull_false_expectedToFail() {
 	try {
-	    Assertions.assertNull(null, false);
+	    Assertions.assertNull(null, AssertionType.NEGATIVE);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
@@ -103,18 +102,21 @@ public class tests_validations_assertions {
 
     @Test
     public void assertComparativeRelation_greaterThanOrEquals_true_greaterThan_expectedToPass() {
-	Assertions.assertComparativeRelation(1, 2, ">=", true);
+	Assertions.assertComparativeRelation(1, 2, ComparativeRelationType.GREATER_THAN_OR_EQUALS,
+		AssertionType.POSITIVE);
     }
 
     @Test
     public void assertComparativeRelation_greaterThanOrEquals_true_equals_expectedToPass() {
-	Assertions.assertComparativeRelation(1, 1, ">=", true);
+	Assertions.assertComparativeRelation(1, 1, ComparativeRelationType.GREATER_THAN_OR_EQUALS,
+		AssertionType.POSITIVE);
     }
 
     @Test
     public void assertComparativeRelation_greaterThanOrEquals_true_greaterThan_expectedToFail() {
 	try {
-	    Assertions.assertComparativeRelation(2, 1, ">=", true);
+	    Assertions.assertComparativeRelation(2, 1, ComparativeRelationType.GREATER_THAN_OR_EQUALS,
+		    AssertionType.POSITIVE);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
@@ -123,7 +125,8 @@ public class tests_validations_assertions {
     @Test
     public void assertComparativeRelation_greaterThanOrEquals_true_equals_expectedToFail() {
 	try {
-	    Assertions.assertComparativeRelation(1, 0, ">=", true);
+	    Assertions.assertComparativeRelation(1, 0, ComparativeRelationType.GREATER_THAN_OR_EQUALS,
+		    AssertionType.POSITIVE);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
@@ -131,18 +134,21 @@ public class tests_validations_assertions {
 
     @Test
     public void assertComparativeRelation_greaterThanOrEquals_false_greaterThan_expectedToPass() {
-	Assertions.assertComparativeRelation(2, 1, ">=", false);
+	Assertions.assertComparativeRelation(2, 1, ComparativeRelationType.GREATER_THAN_OR_EQUALS,
+		AssertionType.NEGATIVE);
     }
 
     @Test
     public void assertComparativeRelation_greaterThanOrEquals_false_equals_expectedToPass() {
-	Assertions.assertComparativeRelation(2, 1, ">=", false);
+	Assertions.assertComparativeRelation(2, 1, ComparativeRelationType.GREATER_THAN_OR_EQUALS,
+		AssertionType.NEGATIVE);
     }
 
     @Test
     public void assertComparativeRelation_greaterThanOrEquals_false_greaterThan_expectedToFail() {
 	try {
-	    Assertions.assertComparativeRelation(1, 2, ">=", false);
+	    Assertions.assertComparativeRelation(1, 2, ComparativeRelationType.GREATER_THAN_OR_EQUALS,
+		    AssertionType.NEGATIVE);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
@@ -151,7 +157,8 @@ public class tests_validations_assertions {
     @Test
     public void assertComparativeRelation_greaterThanOrEquals_false_equals_expectedToFail() {
 	try {
-	    Assertions.assertComparativeRelation(1, 1, ">=", false);
+	    Assertions.assertComparativeRelation(1, 1, ComparativeRelationType.GREATER_THAN_OR_EQUALS,
+		    AssertionType.NEGATIVE);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
@@ -162,7 +169,7 @@ public class tests_validations_assertions {
 	WebDriver driver = BrowserFactory.getBrowser("GoogleChrome");
 	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 
-	Assertions.assertElementExists(driver, By.id("hplogo"), true);
+	Assertions.assertElementExists(driver, By.id("hplogo"), AssertionType.POSITIVE);
     }
 
     @Test
@@ -170,7 +177,7 @@ public class tests_validations_assertions {
 	WebDriver driver = BrowserFactory.getBrowser("GoogleChrome");
 	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 	try {
-	    Assertions.assertElementExists(driver, By.id("fakeElement"), true);
+	    Assertions.assertElementExists(driver, By.id("fakeElement"), AssertionType.POSITIVE);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
@@ -181,7 +188,7 @@ public class tests_validations_assertions {
 	WebDriver driver = BrowserFactory.getBrowser("GoogleChrome");
 	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 
-	Assertions.assertElementExists(driver, By.id("fakeElement"), false);
+	Assertions.assertElementExists(driver, By.id("fakeElement"), AssertionType.NEGATIVE);
     }
 
     @Test
@@ -189,7 +196,7 @@ public class tests_validations_assertions {
 	WebDriver driver = BrowserFactory.getBrowser("GoogleChrome");
 	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 	try {
-	    Assertions.assertElementExists(driver, By.id("hplogo"), false);
+	    Assertions.assertElementExists(driver, By.id("hplogo"), AssertionType.NEGATIVE);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
@@ -200,7 +207,7 @@ public class tests_validations_assertions {
 	WebDriver driver = BrowserFactory.getBrowser("GoogleChrome");
 	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 	try {
-	    Assertions.assertElementExists(driver, By.xpath("//div"), true);
+	    Assertions.assertElementExists(driver, By.xpath("//div"), AssertionType.POSITIVE);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
@@ -211,7 +218,7 @@ public class tests_validations_assertions {
 	WebDriver driver = BrowserFactory.getBrowser("GoogleChrome");
 	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 	try {
-	    Assertions.assertElementExists(driver, By.xpath("//div"), false);
+	    Assertions.assertElementExists(driver, By.xpath("//div"), AssertionType.NEGATIVE);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
@@ -223,7 +230,8 @@ public class tests_validations_assertions {
 	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 
 	ElementActions.type(driver, By.name("q"), "Automation!@#$%^&*()_+{}[]\\';/.,");
-	Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation!@#$%^&*()_+{}[]\\';/.,", 1, true);
+	Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation!@#$%^&*()_+{}[]\\';/.,",
+		AssertionComparisonType.EQUALS, AssertionType.POSITIVE);
     }
 
     @Test
@@ -233,7 +241,8 @@ public class tests_validations_assertions {
 
 	ElementActions.type(driver, By.name("q"), "Automation!@#$%^&*()_+{}[]\\';/.,");
 	try {
-	    Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation", 1, true);
+	    Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation",
+		    AssertionComparisonType.EQUALS, AssertionType.POSITIVE);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
@@ -245,7 +254,8 @@ public class tests_validations_assertions {
 	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 
 	ElementActions.type(driver, By.name("q"), "Automation123");
-	Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation.*", 2, true);
+	Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation.*", AssertionComparisonType.MATCHES,
+		AssertionType.POSITIVE);
     }
 
     @Test
@@ -255,7 +265,8 @@ public class tests_validations_assertions {
 
 	ElementActions.type(driver, By.name("q"), "Automation123");
 	try {
-	    Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation", 2, true);
+	    Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation",
+		    AssertionComparisonType.MATCHES, AssertionType.POSITIVE);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
@@ -267,7 +278,8 @@ public class tests_validations_assertions {
 	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 
 	ElementActions.type(driver, By.name("q"), "Automation123");
-	Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation", 3, true);
+	Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation", AssertionComparisonType.CONTAINS,
+		AssertionType.POSITIVE);
     }
 
     @Test
@@ -277,7 +289,8 @@ public class tests_validations_assertions {
 
 	ElementActions.type(driver, By.name("q"), "Automation123");
 	try {
-	    Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation1234", 3, true);
+	    Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation1234",
+		    AssertionComparisonType.CONTAINS, AssertionType.POSITIVE);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
@@ -289,7 +302,8 @@ public class tests_validations_assertions {
 	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 
 	ElementActions.type(driver, By.name("q"), "AUTOMATION");
-	Assertions.assertElementAttribute(driver, By.name("q"), "text", "AutomaTion", 4, true);
+	Assertions.assertElementAttribute(driver, By.name("q"), "text", "AutomaTion",
+		AssertionComparisonType.CASE_INSENSITIVE, AssertionType.POSITIVE);
     }
 
     @Test
@@ -299,20 +313,8 @@ public class tests_validations_assertions {
 
 	ElementActions.type(driver, By.name("q"), "AUTOMATION");
 	try {
-	    Assertions.assertElementAttribute(driver, By.name("q"), "text", "AutomaTion123", 4, true);
-	} catch (AssertionError e) {
-	    Assert.assertTrue(true);
-	}
-    }
-
-    @Test
-    public void assertElementAttribute_true_invalidComparison_expectedToFail() {
-	WebDriver driver = BrowserFactory.getBrowser("GoogleChrome");
-	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
-
-	ElementActions.type(driver, By.name("q"), "AUTOMATION");
-	try {
-	    Assertions.assertElementAttribute(driver, By.name("q"), "text", "AutomaTion123", 5, true);
+	    Assertions.assertElementAttribute(driver, By.name("q"), "text", "AutomaTion123",
+		    AssertionComparisonType.CASE_INSENSITIVE, AssertionType.POSITIVE);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
@@ -324,7 +326,8 @@ public class tests_validations_assertions {
 	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 
 	ElementActions.type(driver, By.name("q"), "Automation!@#$%^&*()_+{}[]\\';/.,");
-	Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation", 1, false);
+	Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation", AssertionComparisonType.EQUALS,
+		AssertionType.NEGATIVE);
     }
 
     @Test
@@ -334,8 +337,8 @@ public class tests_validations_assertions {
 
 	ElementActions.type(driver, By.name("q"), "Automation!@#$%^&*()_+{}[]\\';/.,");
 	try {
-	    Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation!@#$%^&*()_+{}[]\\\\';/.,", 1,
-		    false);
+	    Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation!@#$%^&*()_+{}[]\\\\';/.,",
+		    AssertionComparisonType.EQUALS, AssertionType.NEGATIVE);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
@@ -347,7 +350,8 @@ public class tests_validations_assertions {
 	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 
 	ElementActions.type(driver, By.name("q"), "Automation123");
-	Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation", 2, false);
+	Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation", AssertionComparisonType.MATCHES,
+		AssertionType.NEGATIVE);
     }
 
     @Test
@@ -357,7 +361,8 @@ public class tests_validations_assertions {
 
 	ElementActions.type(driver, By.name("q"), "Automation123");
 	try {
-	    Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation.*", 2, false);
+	    Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation.*",
+		    AssertionComparisonType.MATCHES, AssertionType.NEGATIVE);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
@@ -369,7 +374,8 @@ public class tests_validations_assertions {
 	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 
 	ElementActions.type(driver, By.name("q"), "Automation123");
-	Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation1234", 3, false);
+	Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation1234",
+		AssertionComparisonType.CONTAINS, AssertionType.NEGATIVE);
     }
 
     @Test
@@ -379,7 +385,8 @@ public class tests_validations_assertions {
 
 	ElementActions.type(driver, By.name("q"), "Automation123");
 	try {
-	    Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation", 3, false);
+	    Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation",
+		    AssertionComparisonType.CONTAINS, AssertionType.NEGATIVE);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
@@ -391,7 +398,8 @@ public class tests_validations_assertions {
 	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 
 	ElementActions.type(driver, By.name("q"), "AUTOMATION");
-	Assertions.assertElementAttribute(driver, By.name("q"), "text", "AutomaTion123", 4, false);
+	Assertions.assertElementAttribute(driver, By.name("q"), "text", "AutomaTion123",
+		AssertionComparisonType.CASE_INSENSITIVE, AssertionType.NEGATIVE);
     }
 
     @Test
@@ -401,20 +409,8 @@ public class tests_validations_assertions {
 
 	ElementActions.type(driver, By.name("q"), "AUTOMATION");
 	try {
-	    Assertions.assertElementAttribute(driver, By.name("q"), "text", "AutomaTion", 4, false);
-	} catch (AssertionError e) {
-	    Assert.assertTrue(true);
-	}
-    }
-
-    @Test
-    public void assertElementAttribute_false_invalidComparison_expectedToFail() {
-	WebDriver driver = BrowserFactory.getBrowser("GoogleChrome");
-	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
-
-	ElementActions.type(driver, By.name("q"), "AUTOMATION");
-	try {
-	    Assertions.assertElementAttribute(driver, By.name("q"), "text", "AutomaTion123", 5, true);
+	    Assertions.assertElementAttribute(driver, By.name("q"), "text", "AutomaTion",
+		    AssertionComparisonType.CASE_INSENSITIVE, AssertionType.NEGATIVE);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
@@ -422,13 +418,15 @@ public class tests_validations_assertions {
 
     @Test
     public void assertFileExists_true_expectedToPass() {
-	Assertions.assertFileExists("/src/main/java/com/shaft/element/", "ElementActions.java", 1, true);
+	Assertions.assertFileExists("/src/main/java/com/shaft/element/", "ElementActions.java", 1,
+		AssertionType.POSITIVE);
     }
 
     @Test
     public void assertFileExists_true_expectedToFail() {
 	try {
-	    Assertions.assertFileExists("/src/main/java/com/shaft/element/", "ElementActions.java_fail", 1, true);
+	    Assertions.assertFileExists("/src/main/java/com/shaft/element/", "ElementActions.java_fail", 1,
+		    AssertionType.POSITIVE);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
@@ -436,13 +434,15 @@ public class tests_validations_assertions {
 
     @Test
     public void assertFileExists_false_expectedToPass() {
-	Assertions.assertFileExists("/src/main/java/com/shaft/element/", "ElementActions.java_fail", 1, false);
+	Assertions.assertFileExists("/src/main/java/com/shaft/element/", "ElementActions.java_fail", 1,
+		AssertionType.NEGATIVE);
     }
 
     @Test
     public void assertFileExists_false_expectedToFail() {
 	try {
-	    Assertions.assertFileExists("/src/main/java/com/shaft/element/", "ElementActions.java", 1, false);
+	    Assertions.assertFileExists("/src/main/java/com/shaft/element/", "ElementActions.java", 1,
+		    AssertionType.NEGATIVE);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}

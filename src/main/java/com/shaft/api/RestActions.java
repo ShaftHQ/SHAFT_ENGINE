@@ -88,8 +88,12 @@ public class RestActions {
 	EQUALS, CONTAINS;
     }
 
+    public enum ParametersType {
+	FORM, QUERY;
+    }
+
     public enum RequestType {
-	POST, GET, PATCH, DELETE
+	POST, GET, PATCH, DELETE, PUT
     }
 
     public RestActions(String serviceURI) {
@@ -126,7 +130,7 @@ public class RestActions {
     private static void failAction(String actionName, String testData, Object requestBody, Response response,
 	    Throwable... rootCauseException) {
 	String message = reportActionResult(actionName, testData, requestBody, response, false, null, false);
-	if (rootCauseException != null) {
+	if (rootCauseException != null && rootCauseException.length > 0) {
 	    Assert.fail(message, rootCauseException[0]);
 	} else {
 	    Assert.fail(message);
@@ -199,16 +203,8 @@ public class RestActions {
 	}
     }
 
-    private void prepareRequestHeaderAuthorization(String[] credentials) {
-	if (headerAuthorization.equals("") && credentials.length == 2) {
-	    headerAuthorization = "Basic " + JavaActions.convertBase64(credentials[0] + ":" + credentials[1]);
-
-	    sessionHeaders.put("Authorization", headerAuthorization);
-	}
-    }
-
-    private RequestSpecification prepareRequestSpecs(List<List<Object>> formParameters, Object body,
-	    ContentType contentType) {
+    private RequestSpecification prepareRequestSpecs(List<List<Object>> parameters, ParametersType parametersType,
+	    Object body, ContentType contentType) {
 	RequestSpecBuilder builder = new RequestSpecBuilder();
 
 	// set the default content type as part of the specs
@@ -244,8 +240,8 @@ public class RestActions {
 
 	if (body != null && contentType != null && !body.toString().equals("")) {
 	    prepareRequestBody(builder, body, contentType);
-	} else if (formParameters != null && !formParameters.isEmpty() && !formParameters.get(0).get(0).equals("")) {
-	    prepareRequestBody(builder, formParameters);
+	} else if (parameters != null && !parameters.isEmpty() && !parameters.get(0).get(0).equals("")) {
+	    prepareRequestBody(builder, parameters, parametersType);
 	}
 	return builder.build();
     }
@@ -270,8 +266,9 @@ public class RestActions {
 	}
     }
 
-    private void prepareRequestBody(RequestSpecBuilder builder, List<List<Object>> formParameters) {
-	formParameters.forEach(param -> {
+    private void prepareRequestBody(RequestSpecBuilder builder, List<List<Object>> parameters,
+	    ParametersType parametersType) {
+	parameters.forEach(param -> {
 	    if (param.get(1).getClass().equals(File.class)) {
 		MultiPartSpecBuilder multispec = new MultiPartSpecBuilder(param.get(1));
 		multispec.controlName(param.get(0).toString());
@@ -287,7 +284,11 @@ public class RestActions {
 		// override the default content type as part of the specs
 		builder.setContentType("multipart/form-data");
 	    } else {
-		builder.addFormParam(param.get(0).toString(), param.get(1));
+		if (parametersType.equals(ParametersType.FORM)) {
+		    builder.addFormParam(param.get(0).toString(), param.get(1));
+		} else {
+		    builder.addQueryParam(param.get(0).toString(), param.get(1));
+		}
 	    }
 	});
     }
@@ -435,45 +436,8 @@ public class RestActions {
     }
 
     public static InputStream parseBodyToJson(Object body) {
-	JSONParser parser = new JSONParser();
 	try {
-	    org.json.simple.JSONObject actualJsonObject = null;
-	    org.json.simple.JSONArray actualJsonArray = null;
-	    if (body.getClass().getName().toLowerCase().contains("restassured")) {
-		try {
-		    // if it's a string response body
-		    String bodyString = ((io.restassured.response.ResponseBody<?>) body).asString();
-		    if (!bodyString.isEmpty()) {
-			actualJsonObject = (org.json.simple.JSONObject) parser.parse(bodyString);
-		    }
-		} catch (java.lang.ClassCastException e) {
-		    // java.lang.ClassCastException: org.json.simple.JSONArray cannot be cast to
-		    // org.json.simple.JSONObject
-		    String bodyString = ((io.restassured.response.ResponseBody<?>) body).asString();
-		    if (!bodyString.isEmpty()) {
-			actualJsonArray = (org.json.simple.JSONArray) parser.parse(bodyString);
-		    }
-		}
-	    } else if (body instanceof org.json.simple.JSONObject) {
-		actualJsonObject = (org.json.simple.JSONObject) body;
-	    } else if (body instanceof org.json.simple.JSONArray) {
-		actualJsonArray = (org.json.simple.JSONArray) body;
-	    } else if (body.getClass().getName().toLowerCase().contains("jsonobject")) {
-		actualJsonObject = (org.json.simple.JSONObject) parser
-			.parse(((JsonObject) body).toString().replace("\\n", "").replace("\\t", "").replace(" ", ""));
-	    } else {
-		actualJsonObject = (org.json.simple.JSONObject) parser.parse(body.toString());
-	    }
-	    if (actualJsonObject != null) {
-		return new ByteArrayInputStream((new GsonBuilder().setPrettyPrinting().create()
-			.toJson(new JsonParser().parse(actualJsonObject.toJSONString()))).getBytes());
-	    } else if (actualJsonArray != null) {
-		return new ByteArrayInputStream((new GsonBuilder().setPrettyPrinting().create()
-			.toJson(new JsonParser().parse(actualJsonArray.toJSONString()))).getBytes());
-	    } else {
-		// in case of an empty body
-		return new ByteArrayInputStream(("").getBytes());
-	    }
+	    return parseJsonBody(body);
 	} catch (Exception e) {
 	    // response is not parsable to JSON
 	    ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -495,6 +459,47 @@ public class RestActions {
 	}
     }
 
+    private static InputStream parseJsonBody(Object body) throws ParseException {
+	JSONParser parser = new JSONParser();
+	org.json.simple.JSONObject actualJsonObject = null;
+	org.json.simple.JSONArray actualJsonArray = null;
+	if (body.getClass().getName().toLowerCase().contains("restassured")) {
+	    try {
+		// if it's a string response body
+		String bodyString = ((io.restassured.response.ResponseBody<?>) body).asString();
+		if (!bodyString.isEmpty()) {
+		    actualJsonObject = (org.json.simple.JSONObject) parser.parse(bodyString);
+		}
+	    } catch (java.lang.ClassCastException e) {
+		// java.lang.ClassCastException: org.json.simple.JSONArray cannot be cast to
+		// org.json.simple.JSONObject
+		String bodyString = ((io.restassured.response.ResponseBody<?>) body).asString();
+		if (!bodyString.isEmpty()) {
+		    actualJsonArray = (org.json.simple.JSONArray) parser.parse(bodyString);
+		}
+	    }
+	} else if (body instanceof org.json.simple.JSONObject) {
+	    actualJsonObject = (org.json.simple.JSONObject) body;
+	} else if (body instanceof org.json.simple.JSONArray) {
+	    actualJsonArray = (org.json.simple.JSONArray) body;
+	} else if (body.getClass().getName().toLowerCase().contains("jsonobject")) {
+	    actualJsonObject = (org.json.simple.JSONObject) parser
+		    .parse(((JsonObject) body).toString().replace("\\n", "").replace("\\t", "").replace(" ", ""));
+	} else {
+	    actualJsonObject = (org.json.simple.JSONObject) parser.parse(body.toString());
+	}
+	if (actualJsonObject != null) {
+	    return new ByteArrayInputStream((new GsonBuilder().setPrettyPrinting().create()
+		    .toJson(new JsonParser().parse(actualJsonObject.toJSONString()))).getBytes());
+	} else if (actualJsonArray != null) {
+	    return new ByteArrayInputStream((new GsonBuilder().setPrettyPrinting().create()
+		    .toJson(new JsonParser().parse(actualJsonArray.toJSONString()))).getBytes());
+	} else {
+	    // in case of an empty body
+	    return new ByteArrayInputStream(("").getBytes());
+	}
+    }
+
     private Response sendRequest(RequestType requestType, String request, RequestSpecification specs) {
 	if (sessionCookies.size() == 0 && sessionHeaders.size() > 0) {
 	    switch (requestType) {
@@ -502,6 +507,8 @@ public class RestActions {
 		return given().headers(sessionHeaders).spec(specs).when().post(request).andReturn();
 	    case PATCH:
 		return given().headers(sessionHeaders).spec(specs).when().patch(request).andReturn();
+	    case PUT:
+		return given().headers(sessionHeaders).spec(specs).when().put(request).andReturn();
 	    case GET:
 		return given().headers(sessionHeaders).spec(specs).when().get(request).andReturn();
 	    case DELETE:
@@ -515,6 +522,8 @@ public class RestActions {
 		return given().spec(specs).when().post(request).andReturn();
 	    case PATCH:
 		return given().spec(specs).when().patch(request).andReturn();
+	    case PUT:
+		return given().spec(specs).when().put(request).andReturn();
 	    case GET:
 		return given().spec(specs).when().get(request).andReturn();
 	    case DELETE:
@@ -529,6 +538,9 @@ public class RestActions {
 			.andReturn();
 	    case PATCH:
 		return given().headers(sessionHeaders).cookies(sessionCookies).spec(specs).when().patch(request)
+			.andReturn();
+	    case PUT:
+		return given().headers(sessionHeaders).cookies(sessionCookies).spec(specs).when().put(request)
 			.andReturn();
 	    case GET:
 		return given().headers(sessionHeaders).cookies(sessionCookies).spec(specs).when().get(request)
@@ -582,12 +594,12 @@ public class RestActions {
 	}
     }
 
-    private boolean evaluateResponseStatusCode(String request, Object requestBody, Response response,
-	    String targetStatusCode) {
+    private boolean evaluateResponseStatusCode(Response response, int targetStatusCode) {
 	try {
 	    Boolean discreetLoggingState = ReportManager.isDiscreteLogging();
 	    ReportManager.setDiscreteLogging(true);
-	    Assertions.assertEquals(targetStatusCode, String.valueOf(response.getStatusCode()), 1, true);
+	    Assertions.assertEquals(targetStatusCode, response.getStatusCode(),
+		    "Evaluating the actual response status code against the expected one...");
 	    ReportManager.setDiscreteLogging(discreetLoggingState);
 	    return true;
 	} catch (AssertionError rootCauseException) {
@@ -595,68 +607,6 @@ public class RestActions {
 	}
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////// [Public] Core REST Actions
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    /**
-     * Attempts to perform POST/PATCH/GET/DELETE request to a REST API, then checks
-     * the response status code, if it matches the target code the step is passed
-     * and the response is returned. Otherwise the action fails and NULL is
-     * returned.
-     * 
-     * <p>
-     * This method will be removed soon. Use
-     * {@link RestActions#performRequest(RequestType, String, String, String, List, Object, ContentType, String...)}
-     * instead.
-     * 
-     * @param requestType      POST/PATCH/GET/DELETE
-     * @param targetStatusCode default success code is 200
-     * @param serviceName      /servicePATH/serviceNAME
-     * @param urlArguments     '&amp;' separated arguments without a preceding '?',
-     *                         is nullable, Example:
-     *                         "username=test&amp;password=test"
-     * @param formParameters   a list of key/value pairs that will be sent as
-     *                         parameters with this API call, is nullable, Example:
-     *                         Arrays.asList(Arrays.asList("itemId", "123"),
-     *                         Arrays.asList("contents", XMLcontents));
-     * @param requestBody      Specify an Object request content that will
-     *                         automatically be serialized to JSON or XML and sent
-     *                         with the request. If the object is a primitive or
-     *                         Number the object will be converted to a String and
-     *                         put in the request body. This works for the POST, PUT
-     *                         and PATCH methods only. Trying to do this for the
-     *                         other http methods will cause an exception to be
-     *                         thrown, is nullable in case there is no body for that
-     *                         request
-     * @param contentType      Enumeration of common IANA content-types. This may be
-     *                         used to specify a request or response content-type
-     *                         more easily than specifying the full string each
-     *                         time. Example: ContentType.ANY
-     * @param credentials      an optional array of strings that holds the username,
-     *                         password that will be used for the
-     *                         headerAuthorization of this request
-     * @return Response; returns the full response object for further manipulation
-     */
-    public Response performRequest(String requestType, String targetStatusCode, String serviceName, String urlArguments,
-	    List<List<Object>> formParameters, Object requestBody, ContentType contentType, String... credentials) {
-	RequestType requestTypeEnum = null;
-	if (RequestType.GET.toString().equalsIgnoreCase(requestType.trim())) {
-	    requestTypeEnum = RequestType.GET;
-	} else if (RequestType.POST.toString().equalsIgnoreCase(requestType.trim())) {
-	    requestTypeEnum = RequestType.POST;
-	} else if (RequestType.PATCH.toString().equalsIgnoreCase(requestType.trim())) {
-	    requestTypeEnum = RequestType.PATCH;
-	} else if (RequestType.DELETE.toString().equalsIgnoreCase(requestType.trim())) {
-	    requestTypeEnum = RequestType.DELETE;
-	} else {
-	    failAction("Invalid Request Type: \"" + requestType + "\".");
-	}
-
-	return performRequest(requestTypeEnum, targetStatusCode, serviceName, urlArguments, formParameters, requestBody,
-		contentType, credentials);
-    }
-
     /**
      * Attempts to perform POST/PATCH/GET/DELETE request to a REST API, then checks
      * the response status code, if it matches the target code the step is passed
@@ -691,49 +641,39 @@ public class RestActions {
      *                         headerAuthorization of this request
      * @return Response; returns the full response object for further manipulation
      */
-    public Response performRequest(RequestType requestType, String targetStatusCode, String serviceName,
-	    String urlArguments, List<List<Object>> formParameters, Object requestBody, ContentType contentType,
-	    String... credentials) {
+    private Response performRequest(Object[] params) {
+
+	RequestType requestType = (RequestType) params[0];
+	int targetStatusCode = (int) params[1];
+	String serviceName = (String) params[2];
+	String urlArguments = (String) params[3];
+	@SuppressWarnings("unchecked")
+	List<List<Object>> parameters = (List<List<Object>>) params[4];
+	ParametersType parametersType = (ParametersType) params[5];
+	Object requestBody = params[6];
+	ContentType contentType = (ContentType) params[7];
 
 	String request = prepareRequestURL(urlArguments, serviceName);
-	prepareRequestHeaderAuthorization(credentials);
 
-	RequestSpecification specs = prepareRequestSpecs(formParameters, requestBody, contentType);
+	RequestSpecification specs = prepareRequestSpecs(parameters, parametersType, requestBody, contentType);
 
 	Response response = null;
 	try {
 	    if (requestType.equals(RequestType.POST) || requestType.equals(RequestType.PATCH)
-		    || requestType.equals(RequestType.GET) || requestType.equals(RequestType.DELETE)) {
+		    || requestType.equals(RequestType.PUT) || requestType.equals(RequestType.GET)
+		    || requestType.equals(RequestType.DELETE)) {
 		response = sendRequest(requestType, request, specs);
 	    } else {
 		failAction(request);
 	    }
 
-	    if (response != null) {
-		extractCookiesFromResponse(response);
-		extractHeadersFromResponse(response);
-		boolean responseStatus = evaluateResponseStatusCode(request, requestBody, response, targetStatusCode);
-
-		StringBuilder reportMessage = new StringBuilder();
-		reportMessage.append("Request Type: \"" + requestType + "\"");
-		reportMessage.append("| Target Status Code: \"" + targetStatusCode + "\"");
-		reportMessage.append("| Service URL: \"" + serviceURI + serviceName + "\"");
-		reportMessage.append("| Content Type: \"" + contentType + "\"");
-		reportMessage.append("| Response Time: \"" + response.timeIn(TimeUnit.MILLISECONDS) + "ms\"");
-
-		if (urlArguments != null) {
-		    reportMessage.append(" | URL Arguments: \"" + urlArguments + "\"");
-		}
-
-		if (credentials != null && credentials.length > 0) {
-		    reportMessage.append(" | Credentials: \"" + Arrays.asList(credentials).toString() + "\"");
-		}
-
-		if (Boolean.TRUE.equals(responseStatus)) {
-		    passAction(reportMessage.toString().trim(), requestBody, response, false);
-		} else {
-		    failAction(reportMessage.toString().trim(), requestBody, response);
-		}
+	    boolean responseStatus = evaluateResponseStatusCode(response, targetStatusCode);
+	    String reportMessage = prepareReportMessage(response, targetStatusCode, requestType, serviceName,
+		    contentType, urlArguments);
+	    if (!reportMessage.equals("") && Boolean.TRUE.equals(responseStatus)) {
+		passAction(reportMessage, requestBody, response, false);
+	    } else {
+		failAction(reportMessage, requestBody, response);
 	    }
 	} catch (Exception rootCauseException) {
 	    ReportManager.log(rootCauseException);
@@ -745,6 +685,154 @@ public class RestActions {
 	    }
 	}
 	return response;
+    }
+
+    private String prepareReportMessage(Response response, int targetStatusCode, RequestType requestType,
+	    String serviceName, ContentType contentType, String urlArguments) {
+	if (response != null) {
+	    extractCookiesFromResponse(response);
+	    extractHeadersFromResponse(response);
+
+	    StringBuilder reportMessage = new StringBuilder();
+	    reportMessage.append("Request Type: \"" + requestType + "\"");
+	    reportMessage.append(" | Target Status Code: \"" + targetStatusCode + "\"");
+	    reportMessage.append(" | Service URL: \"" + serviceURI + serviceName + "\"");
+	    reportMessage.append(" | Content Type: \"" + contentType + "\"");
+	    reportMessage.append(" | Response Time: \"" + response.timeIn(TimeUnit.MILLISECONDS) + "ms\"");
+
+	    if (urlArguments != null) {
+		reportMessage.append(" | URL Arguments: \"" + urlArguments + "\"");
+	    }
+
+	    return reportMessage.toString().trim();
+	}
+	return "";
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////// [Public] Core REST Actions
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /**
+     * @deprecated Attempts to perform POST/PATCH/GET/DELETE request to a REST API,
+     *             then checks the response status code, if it matches the target
+     *             code the step is passed and the response is returned. Otherwise
+     *             the action fails and NULL is returned.
+     * 
+     *             <p>
+     *             This method will be removed soon. Use
+     *             {@link RestActions#performRequest(RequestType, String, String, String, List, Object, ContentType, String...)}
+     *             instead.
+     * 
+     * @param requestType      POST/PATCH/GET/DELETE
+     * @param targetStatusCode default success code is 200
+     * @param serviceName      /servicePATH/serviceNAME
+     * @param urlArguments     '&amp;' separated arguments without a preceding '?',
+     *                         is nullable, Example:
+     *                         "username=test&amp;password=test"
+     * @param formParameters   a list of key/value pairs that will be sent as
+     *                         parameters with this API call, is nullable, Example:
+     *                         Arrays.asList(Arrays.asList("itemId", "123"),
+     *                         Arrays.asList("contents", XMLcontents));
+     * @param requestBody      Specify an Object request content that will
+     *                         automatically be serialized to JSON or XML and sent
+     *                         with the request. If the object is a primitive or
+     *                         Number the object will be converted to a String and
+     *                         put in the request body. This works for the POST, PUT
+     *                         and PATCH methods only. Trying to do this for the
+     *                         other http methods will cause an exception to be
+     *                         thrown, is nullable in case there is no body for that
+     *                         request
+     * @param contentType      Enumeration of common IANA content-types. This may be
+     *                         used to specify a request or response content-type
+     *                         more easily than specifying the full string each
+     *                         time. Example: ContentType.ANY
+     * @param credentials      an optional array of strings that holds the username,
+     *                         password that will be used for the
+     *                         headerAuthorization of this request
+     * @return Response; returns the full response object for further manipulation
+     */
+    @Deprecated
+    public Response performRequest(String requestType, String targetStatusCode, String serviceName, String urlArguments,
+	    List<List<Object>> parameters, Object requestBody, ContentType contentType, String... credentials) {
+	RequestType requestTypeEnum = null;
+	if (RequestType.GET.toString().equalsIgnoreCase(requestType.trim())) {
+	    requestTypeEnum = RequestType.GET;
+	} else if (RequestType.POST.toString().equalsIgnoreCase(requestType.trim())) {
+	    requestTypeEnum = RequestType.POST;
+	} else if (RequestType.PATCH.toString().equalsIgnoreCase(requestType.trim())) {
+	    requestTypeEnum = RequestType.PATCH;
+	} else if (RequestType.DELETE.toString().equalsIgnoreCase(requestType.trim())) {
+	    requestTypeEnum = RequestType.DELETE;
+	} else if (RequestType.PUT.toString().equalsIgnoreCase(requestType.trim())) {
+	    requestTypeEnum = RequestType.PUT;
+	} else {
+	    failAction("Invalid Request Type: \"" + requestType + "\".");
+	}
+
+	try {
+	    Integer.valueOf(targetStatusCode);
+	} catch (Exception e) {
+	    failAction("Invalid Target Status Code: \"" + targetStatusCode + "\".", e);
+	}
+
+	if (headerAuthorization.equals("") && credentials.length == 2) {
+	    headerAuthorization = "Basic " + JavaActions.convertBase64(credentials[0] + ":" + credentials[1]);
+	    addHeaderVariable("Authorization", headerAuthorization);
+	}
+
+	return performRequest(new Object[] { requestTypeEnum, Integer.valueOf(targetStatusCode), serviceName,
+		urlArguments, parameters, ParametersType.FORM, requestBody, contentType });
+    }
+
+    /**
+     * Append a header variable to the current session to be used in all the
+     * following requests. Note: This feature is commonly used for authentication
+     * tokens.
+     * 
+     * @param key   the name of the header variable that you want to add
+     * @param value the value that will be put inside the key
+     * @return self-reference to be used for chaining actions
+     */
+    public RestActions addHeaderVariable(String key, String value) {
+	sessionHeaders.put(key, value);
+	return this;
+    }
+
+    public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName) {
+	return performRequest(
+		new Object[] { requestType, targetStatusCode, serviceName, null, null, null, null, ContentType.ANY });
+    }
+
+    public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName,
+	    String urlArguments) {
+	return performRequest(new Object[] { requestType, targetStatusCode, serviceName, urlArguments, null, null, null,
+		ContentType.ANY });
+    }
+
+    public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName,
+	    ContentType contentType) {
+	return performRequest(
+		new Object[] { requestType, targetStatusCode, serviceName, null, null, null, null, contentType });
+    }
+
+    public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName,
+	    ContentType contentType, String urlArguments) {
+	return performRequest(new Object[] { requestType, targetStatusCode, serviceName, urlArguments, null, null, null,
+		contentType });
+    }
+
+    public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName,
+	    List<List<Object>> parameters, ParametersType parametersType, ContentType contentType) {
+	return performRequest(new Object[] { requestType, targetStatusCode, serviceName, null, parameters,
+		parametersType, null, contentType });
+
+    }
+
+    public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName,
+	    Object requestBody, ContentType contentType) {
+	return performRequest(
+		new Object[] { requestType, targetStatusCode, serviceName, null, null, requestBody, contentType });
     }
 
     /**

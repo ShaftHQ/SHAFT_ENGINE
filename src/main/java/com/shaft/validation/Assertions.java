@@ -12,11 +12,12 @@ import com.shaft.api.RestActions;
 import com.shaft.api.RestActions.ComparisonType;
 import com.shaft.cli.FileActions;
 import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.JSWaiter;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.support.JavaActions;
+import com.shaft.validation.Validations.ValidationComparisonType;
+import com.shaft.validation.Validations.ValidationType;
 
 import io.restassured.response.Response;
 
@@ -25,10 +26,6 @@ import io.restassured.response.Response;
 //TODO: Add optional message to be added to the log of the assertion to describe what it does
 
 public class Assertions {
-    private static int attemptsBeforeThrowingElementNotFoundException = Integer
-	    .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
-    private static int attemptsBeforeThrowingElementNotFoundExceptionInCaseElementShouldntExist = 1;
-
     private static final String ERROR_INVALID_COMPARISON_OPERATOR = "Assertion Failed; invalid comparison operator used.";
     private static final String ERROR_UNHANDLED_EXCEPTION = "Assertion Failed; an unhandled exception occured.";
 
@@ -98,22 +95,8 @@ public class Assertions {
 	Assert.fail(message);
     }
 
-    private static void fail(String message, String expectedValue, String actualValue) {
-	List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected Value", expectedValue);
-	List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Value", actualValue);
-
-	List<List<Object>> attachments = new ArrayList<>();
-	attachments.add(expectedValueAttachment);
-	attachments.add(actualValueAttachment);
-	fail(message, attachments);
-    }
-
     private static void fail(String actionName, WebDriver driver, String message) {
 	fail(message, Arrays.asList(ScreenshotManager.captureScreenShot(driver, actionName, false)));
-    }
-
-    private static void fail(String actionName, WebDriver driver, By elementLocator, String message) {
-	fail(message, Arrays.asList(ScreenshotManager.captureScreenShot(driver, elementLocator, actionName, false)));
     }
 
     private static void pass(String message) {
@@ -128,102 +111,48 @@ public class Assertions {
 	}
     }
 
-    private static void pass(String message, String expectedValue, String actualValue) {
-	List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected Value", expectedValue);
-	List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Value", actualValue);
-
-	List<List<Object>> attachments = new ArrayList<>();
-	attachments.add(expectedValueAttachment);
-	attachments.add(actualValueAttachment);
-
-	pass(message, attachments);
-    }
-
     private static void pass(String actionName, WebDriver driver, String message) {
 	pass(message, Arrays.asList(ScreenshotManager.captureScreenShot(driver, actionName, true)));
     }
 
-    private static void pass(String actionName, WebDriver driver, By elementLocator, String message) {
-	pass(message, Arrays.asList(ScreenshotManager.captureScreenShot(driver, elementLocator, actionName, true)));
+    /**
+     * Force fail the current test.
+     */
+    public static void assertFail() {
+	Validations.assertFail();
     }
 
     /**
-     * Asserts that two objects are equal if AssertionType is true, or not equal if
-     * AssertionType is false.
+     * Force fail the current test.
      * 
-     * <p>
-     * This method will be removed soon. Use
-     * {@link Assertions#assertEquals(Object , Object , AssertionComparisonType , AssertionType)}
-     * instead.
-     * 
-     * @param expectedValue           the expected value (test data) of this
-     *                                assertion
-     * @param actualValue             the actual value (calculated data) of this
-     *                                assertion
-     * @param assertionComparisonType 1 is literalComparison, 2 is regexComparison,
-     *                                3 is containsComparison, 4 is
-     *                                caseInsensitiveComparison
-     * @param assertionType           either 'true' for a positive assertion that
-     *                                the objects are equal, or 'false' for a
-     *                                negative assertion that the objects are not
-     *                                equal
+     * @param customLogMessage a custom message that will appended to this step in
+     *                         the execution report
      */
-    public static void assertEquals(Object expectedValue, Object actualValue, int assertionComparisonType,
-	    Boolean assertionType) {
-	ReportManager.logDiscrete("Assertion [" + "assertEquals" + "] is being performed, with expectedValue ["
-		+ expectedValue + "], actualValue [" + actualValue + "], comparisonType [" + assertionComparisonType
-		+ "], and assertionType [" + assertionType + "].");
+    public static void assertFail(String customLogMessage) {
+	Validations.assertFail(customLogMessage);
+    }
 
-	Boolean isExpectedOrActualValueLong = expectedValue.toString().length() >= 500
-		|| actualValue.toString().length() >= 500;
+    /**
+     * Asserts that two objects are equal.
+     * 
+     * @param expectedValue the expected value (test data) of this assertion
+     * @param actualValue   the actual value (calculated data) of this assertion
+     */
+    public static void assertEquals(Object expectedValue, Object actualValue) {
+	Validations.assertEquals(expectedValue, actualValue, ValidationComparisonType.EQUALS, ValidationType.POSITIVE);
+    }
 
-	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, assertionComparisonType, assertionType)) {
-	case 1:
-	    if (Boolean.TRUE.equals(assertionType)) {
-		if (Boolean.FALSE.equals(isExpectedOrActualValueLong)) {
-		    pass("Assertion Passed; actual value [" + actualValue + "] does match expected value ["
-			    + expectedValue + "].");
-		} else {
-		    pass("Assertion Passed; actual value does match expected value. Kindly check the attachments for more details.",
-			    String.valueOf(expectedValue), String.valueOf(actualValue));
-		}
-
-	    } else {
-		if (Boolean.FALSE.equals(isExpectedOrActualValueLong)) {
-		    pass("Assertion Passed; actual value [" + actualValue + "] does not match expected value ["
-			    + expectedValue + "].");
-		} else {
-		    pass("Assertion Passed; actual value does not match expected value. Kindly check the attachments for more details.",
-			    String.valueOf(expectedValue), String.valueOf(actualValue));
-		}
-	    }
-	    break;
-	case 0:
-	    if (Boolean.TRUE.equals(assertionType)) {
-		if (Boolean.FALSE.equals(isExpectedOrActualValueLong)) {
-		    fail("Assertion Failed; actual value [" + actualValue + "] does not match expected value ["
-			    + expectedValue + "].");
-		} else {
-		    fail("Assertion Failed; actual value does not match expected value.", String.valueOf(expectedValue),
-			    String.valueOf(actualValue));
-		}
-	    } else {
-		if (Boolean.FALSE.equals(isExpectedOrActualValueLong)) {
-		    fail("Assertion Failed; actual value [" + actualValue + "] does match expected value ["
-			    + expectedValue + "].");
-		} else {
-		    fail("Assertion Failed; actual value does match expected value.", String.valueOf(expectedValue),
-			    String.valueOf(actualValue));
-		}
-	    }
-	    break;
-	case -1:
-	    fail(ERROR_INVALID_COMPARISON_OPERATOR);
-	    break;
-	default:
-	    fail(ERROR_UNHANDLED_EXCEPTION);
-	    break;
-	}
+    /**
+     * Asserts that two objects are equal.
+     * 
+     * @param expectedValue    the expected value (test data) of this assertion
+     * @param actualValue      the actual value (calculated data) of this assertion
+     * @param customLogMessage a custom message that will appended to this step in
+     *                         the execution report
+     */
+    public static void assertEquals(Object expectedValue, Object actualValue, String customLogMessage) {
+	Validations.assertEquals(expectedValue, actualValue, ValidationComparisonType.EQUALS, ValidationType.POSITIVE,
+		customLogMessage);
     }
 
     /**
@@ -240,119 +169,110 @@ public class Assertions {
      */
     public static void assertEquals(Object expectedValue, Object actualValue,
 	    AssertionComparisonType assertionComparisonType, AssertionType assertionType) {
-	assertEquals(expectedValue, actualValue, assertionComparisonType.getValue(), assertionType.getValue());
+
+	Validations.assertEquals(expectedValue, actualValue,
+		ValidationComparisonType.valueOf(assertionComparisonType.toString()),
+		ValidationType.valueOf(assertionType.toString()));
+
     }
 
     /**
-     * Asserts that object is null if AssertionType is true, or is not null if
-     * AssertionType is false.
+     * Asserts that two objects are equal if AssertionType is POSITIVE, or not equal
+     * if AssertionType is NEGATIVE.
      * 
-     * <p>
-     * This method will be removed soon. Use
-     * {@link Assertions#assertNull(Object , AssertionType)} instead.
-     * 
-     * @param object        the object under test
-     * @param assertionType either 'true' for a positive assertion that the object
-     *                      refers to null, or 'false' for a negative assertion that
-     *                      the object doesn't refer to null
+     * @param expectedValue           the expected value (test data) of this
+     *                                assertion
+     * @param actualValue             the actual value (calculated data) of this
+     *                                assertion
+     * @param assertionComparisonType AssertionComparisonType.LITERAL, CONTAINS,
+     *                                REGEX, CASE_INSENSITIVE
+     * @param assertionType           AssertionType.POSITIVE, NEGATIVE
+     * @param customLogMessage        a custom message that will appended to this
+     *                                step in the execution report
      */
-    public static void assertNull(Object object, Boolean assertionType) {
-	ReportManager.logDiscrete("Assertion [" + "assertNull" + "] is being performed.");
+    public static void assertEquals(Object expectedValue, Object actualValue,
+	    AssertionComparisonType assertionComparisonType, AssertionType assertionType, String customLogMessage) {
 
-	if (Boolean.TRUE.equals(assertionType)) {
-	    try {
-		Assert.assertNull(object);
-		pass("Assertion Passed; actual value is null.");
-	    } catch (AssertionError e) {
-		fail("Assertion Failed; actual value is not null.", e);
-	    } catch (Exception e) {
-		ReportManager.log(e);
-		fail(ERROR_UNHANDLED_EXCEPTION, e);
-	    }
-	} else {
-	    try {
-		Assert.assertNotNull(object);
-		pass("Assertion Passed; actual value is not null.");
-	    } catch (AssertionError e) {
-		fail("Assertion Failed; actual value is null.", e);
-	    } catch (Exception e) {
-		ReportManager.log(e);
-		fail(ERROR_UNHANDLED_EXCEPTION, e);
-	    }
-	}
+	Validations.assertEquals(expectedValue, actualValue,
+		ValidationComparisonType.valueOf(assertionComparisonType.toString()),
+		ValidationType.valueOf(assertionType.toString()), customLogMessage);
+
     }
 
     /**
-     * Asserts that object is null if AssertionType is POSITIVE, or is not null if
-     * AssertionType is NEGATIVE.
+     * Asserts that the object is null.
+     * 
+     * @param object the object under test
+     */
+    public static void assertNull(Object object) {
+	Validations.assertNull(object, ValidationType.POSITIVE);
+    }
+
+    /**
+     * Asserts that the object is null.
+     * 
+     * @param object           the object under test
+     * @param customLogMessage a custom message that will appended to this step in
+     *                         the execution report
+     */
+    public static void assertNull(Object object, String customLogMessage) {
+	Validations.assertNull(object, ValidationType.POSITIVE, customLogMessage);
+    }
+
+    /**
+     * Asserts that the object is null if AssertionType is POSITIVE, or is not null
+     * if AssertionType is NEGATIVE.
      * 
      * @param object        the object under test
      * @param assertionType AssertionType.POSITIVE, NEGATIVE
      */
     public static void assertNull(Object object, AssertionType assertionType) {
-	assertNull(object, assertionType.getValue());
+	Validations.assertNull(object, ValidationType.valueOf(assertionType.toString()));
     }
 
     /**
-     * Asserts that webElement found using the provided driver and locator exists if
-     * AssertionType is true, or does not exist if AssertionType is false.
+     * Asserts that the object is null if AssertionType is POSITIVE, or is not null
+     * if AssertionType is NEGATIVE.
      * 
-     * <p>
-     * This method will be removed soon. Use
-     * {@link Assertions#assertElementExists(WebDriver, By, AssertionType)} instead.
+     * @param object           the object under test
+     * @param assertionType    AssertionType.POSITIVE, NEGATIVE
+     * @param customLogMessage a custom message that will appended to this step in
+     *                         the execution report
+     */
+    public static void assertNull(Object object, AssertionType assertionType, String customLogMessage) {
+	Validations.assertNull(object, ValidationType.valueOf(assertionType.toString()), customLogMessage);
+    }
+
+    /**
+     * Asserts that the webElement found using the provided driver and locator
+     * exists.
      * 
      * @param driver         the current instance of Selenium webdriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
-     * @param assertionType  either 'true' for a positive assertion that the element
-     *                       exists, or 'false' for a negative assertion that the
-     *                       element doesn't exist
      */
-    public static void assertElementExists(WebDriver driver, By elementLocator, Boolean assertionType) {
-	ReportManager.logDiscrete("Assertion [" + "assertElementExists" + "] is being performed.");
-	try {
-	    int customAttempts = attemptsBeforeThrowingElementNotFoundException;
-	    if (Boolean.FALSE.equals(assertionType)) {
-		customAttempts = attemptsBeforeThrowingElementNotFoundExceptionInCaseElementShouldntExist;
-	    }
-
-	    int elementsCount = ElementActions.getElementsCount(driver, elementLocator, customAttempts);
-
-	    switch (elementsCount) {
-	    case 0:
-		if (Boolean.TRUE.equals(assertionType)) {
-		    fail("assertElementExists", driver,
-			    "Assertion Failed; element does not exist. Locator [" + elementLocator.toString() + "].");
-		} else {
-		    pass("assertElementExists", driver,
-			    "Assertion Passed; element does not exist. Locator [" + elementLocator.toString() + "].");
-		}
-		break;
-	    case 1:
-		if (Boolean.TRUE.equals(assertionType)) {
-		    pass("assertElementExists", driver, elementLocator,
-			    "Assertion Passed; element exists and is unique. Locator [" + elementLocator.toString()
-				    + "].");
-		} else {
-		    fail("assertElementExists", driver, elementLocator,
-			    "Assertion Failed; element exists and is unique. Locator [" + elementLocator.toString()
-				    + "].");
-		}
-		break;
-	    default:
-		fail("assertElementExists", driver,
-			"Assertion Failed; element is not unique. Locator [" + elementLocator.toString() + "].");
-		break;
-	    }
-	} catch (Exception e) {
-	    ReportManager.log(e);
-	    fail(ERROR_UNHANDLED_EXCEPTION, e);
-	}
+    public static void assertElementExists(WebDriver driver, By elementLocator) {
+	Validations.assertElementExists(driver, elementLocator, ValidationType.POSITIVE);
     }
 
     /**
-     * Asserts that webElement found using the provided driver and locator exists if
-     * AssertionType is POSITIVE, or does not exist if AssertionType is NEGATIVE.
+     * Asserts that the webElement found using the provided driver and locator
+     * exists.
+     * 
+     * @param driver           the current instance of Selenium webdriver
+     * @param elementLocator   the locator of the webElement under test (By xpath,
+     *                         id, selector, name ...etc)
+     * @param customLogMessage a custom message that will appended to this step in
+     *                         the execution report
+     */
+    public static void assertElementExists(WebDriver driver, By elementLocator, String customLogMessage) {
+	Validations.assertElementExists(driver, elementLocator, ValidationType.POSITIVE, customLogMessage);
+    }
+
+    /**
+     * Asserts that the webElement found using the provided driver and locator
+     * exists if AssertionType is POSITIVE, or does not exist if AssertionType is
+     * NEGATIVE.
      * 
      * @param driver         the current instance of Selenium webdriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
@@ -360,87 +280,57 @@ public class Assertions {
      * @param assertionType  AssertionType.POSITIVE, NEGATIVE
      */
     public static void assertElementExists(WebDriver driver, By elementLocator, AssertionType assertionType) {
-	assertElementExists(driver, elementLocator, assertionType.getValue());
+	Validations.assertElementExists(driver, elementLocator, ValidationType.valueOf(assertionType.toString()));
     }
 
     /**
-     * Asserts webElement attribute equals expectedValue if AssertionType is true,
-     * or does not equal expectedValue if AssertionType is false. Supports Text,
-     * TagName, Size, Other Attributes
+     * Asserts that the webElement found using the provided driver and locator
+     * exists if AssertionType is POSITIVE, or does not exist if AssertionType is
+     * NEGATIVE.
      * 
-     * <p>
-     * This method will be removed soon. Use
-     * {@link Assertions#assertElementAttribute(WebDriver , By , String , String , AssertionComparisonType , AssertionType)}
-     * instead.
+     * @param driver           the current instance of Selenium webdriver
+     * @param elementLocator   the locator of the webElement under test (By xpath,
+     *                         id, selector, name ...etc)
+     * @param assertionType    AssertionType.POSITIVE, NEGATIVE
+     * @param customLogMessage a custom message that will appended to this step in
+     *                         the execution report
+     */
+    public static void assertElementExists(WebDriver driver, By elementLocator, AssertionType assertionType,
+	    String customLogMessage) {
+	Validations.assertElementExists(driver, elementLocator, ValidationType.valueOf(assertionType.toString()),
+		customLogMessage);
+    }
+
+    /**
+     * Asserts webElement attribute equals expectedValue.
      * 
-     * @param driver                  the current instance of Selenium webdriver
-     * @param elementLocator          the locator of the webElement under test (By
-     *                                xpath, id, selector, name ...etc)
-     * @param elementAttribute        the desired attribute of the webElement under
-     *                                test
-     * @param expectedValue           the expected value (test data) of this
-     *                                assertion
-     * @param assertionComparisonType 1 is literalComparison, 2 is regexComparison,
-     *                                3 is containsComparison, 4 is
-     *                                caseInsensitiveComparison
-     * @param assertionType           either 'true' for a positive assertion that
-     *                                the element attribute actual value matches the
-     *                                expected value, or 'false' for a negative
-     *                                assertion that the element attribute actual
-     *                                value doesn't match the expected value
+     * @param driver           the current instance of Selenium webdriver
+     * @param elementLocator   the locator of the webElement under test (By xpath,
+     *                         id, selector, name ...etc)
+     * @param elementAttribute the desired attribute of the webElement under test
+     * @param expectedValue    the expected value (test data) of this assertion
      */
     public static void assertElementAttribute(WebDriver driver, By elementLocator, String elementAttribute,
-	    String expectedValue, int assertionComparisonType, Boolean assertionType) {
-	ReportManager.logDiscrete("Assertion [" + "assertElementAttribute"
-		+ "] is being performed for target attribute [" + elementAttribute + "].");
-	String actualValue = null;
+	    String expectedValue) {
+	Validations.assertElementAttribute(driver, elementLocator, elementAttribute, expectedValue,
+		ValidationComparisonType.EQUALS, ValidationType.POSITIVE);
+    }
 
-	discreetLoggingState = ReportManager.isDiscreteLogging();
-	ReportManager.setDiscreteLogging(true);
-	switch (elementAttribute.toLowerCase()) {
-	case "text":
-	    actualValue = ElementActions.getText(driver, elementLocator);
-	    break;
-	case "tagname":
-	    actualValue = ElementActions.getTagName(driver, elementLocator);
-	    break;
-	case "size":
-	    actualValue = ElementActions.getSize(driver, elementLocator);
-	    break;
-	default:
-	    actualValue = ElementActions.getAttribute(driver, elementLocator, elementAttribute);
-	    break;
-	}
-	ReportManager.setDiscreteLogging(discreetLoggingState);
-
-	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, assertionComparisonType, assertionType)) {
-	case 1:
-	    if (Boolean.TRUE.equals(assertionType)) {
-		pass("assertElementAttribute", driver, elementLocator, "Assertion Passed; actual value of ["
-			+ elementAttribute + "] does match expected value [" + expectedValue + "].");
-	    } else {
-		pass("assertElementAttribute", driver, elementLocator,
-			"Assertion Passed; actual value of [" + elementAttribute + "] equals [" + actualValue
-				+ "] which does not match expected value [" + expectedValue + "].");
-	    }
-	    break;
-	case 0:
-	    if (Boolean.TRUE.equals(assertionType)) {
-		fail("assertElementAttribute", driver, elementLocator,
-			"Assertion Failed; actual value of [" + elementAttribute + "] equals [" + actualValue
-				+ "] which does not match expected value [" + expectedValue + "].");
-	    } else {
-		fail("assertElementAttribute", driver, elementLocator, "Assertion Failed; actual value of ["
-			+ elementAttribute + "] does match expected value [" + expectedValue + "].");
-	    }
-	    break;
-	case -1:
-	    fail(ERROR_INVALID_COMPARISON_OPERATOR);
-	    break;
-	default:
-	    fail(ERROR_UNHANDLED_EXCEPTION);
-	    break;
-	}
+    /**
+     * Asserts webElement attribute equals expectedValue.
+     * 
+     * @param driver           the current instance of Selenium webdriver
+     * @param elementLocator   the locator of the webElement under test (By xpath,
+     *                         id, selector, name ...etc)
+     * @param elementAttribute the desired attribute of the webElement under test
+     * @param expectedValue    the expected value (test data) of this assertion
+     * @param customLogMessage a custom message that will appended to this step in
+     *                         the execution report
+     */
+    public static void assertElementAttribute(WebDriver driver, By elementLocator, String elementAttribute,
+	    String expectedValue, String customLogMessage) {
+	Validations.assertElementAttribute(driver, elementLocator, elementAttribute, expectedValue,
+		ValidationComparisonType.EQUALS, ValidationType.POSITIVE, customLogMessage);
     }
 
     /**
@@ -461,75 +351,68 @@ public class Assertions {
      */
     public static void assertElementAttribute(WebDriver driver, By elementLocator, String elementAttribute,
 	    String expectedValue, AssertionComparisonType assertionComparisonType, AssertionType assertionType) {
-	assertElementAttribute(driver, elementLocator, elementAttribute, expectedValue,
-		assertionComparisonType.getValue(), assertionType.getValue());
+	Validations.assertElementAttribute(driver, elementLocator, elementAttribute, expectedValue,
+		ValidationComparisonType.valueOf(assertionComparisonType.toString()),
+		ValidationType.valueOf(assertionType.toString()));
     }
 
     /**
-     * Asserts webElement CSSProperty equals expectedValue if AssertionType is true,
-     * or does not equal expectedValue if AssertionType is false.
-     * 
-     * <p>
-     * This method will be removed soon. Use
-     * {@link Assertions#assertElementCSSProperty(WebDriver, By, String, String, AssertionComparisonType, AssertionType)}
-     * instead.
+     * Asserts webElement attribute equals expectedValue if AssertionType is
+     * POSITIVE, or does not equal expectedValue if AssertionType is NEGATIVE.
+     * Supports Text, TagName, Size, Other Attributes
      * 
      * @param driver                  the current instance of Selenium webdriver
      * @param elementLocator          the locator of the webElement under test (By
      *                                xpath, id, selector, name ...etc)
-     * @param propertyName            the target CSS property of the webElement
-     *                                under test
+     * @param elementAttribute        the desired attribute of the webElement under
+     *                                test
      * @param expectedValue           the expected value (test data) of this
      *                                assertion
-     * @param assertionComparisonType 1 is literalComparison, 2 is regexComparison,
-     *                                3 is containsComparison, 4 is
-     *                                caseInsensitiveComparison
-     * @param assertionType           either 'true' for a positive assertion that
-     *                                the element CSSProperty actual value matches
-     *                                the expected value, or 'false' for a negative
-     *                                assertion that the element CSSProperty actual
-     *                                value doesn't match the expected value
+     * @param assertionComparisonType AssertionComparisonType.LITERAL, CONTAINS,
+     *                                REGEX, CASE_INSENSITIVE
+     * @param assertionType           AssertionType.POSITIVE, NEGATIVE
+     * @param customLogMessage        a custom message that will appended to this
+     *                                step in the execution report
+     */
+    public static void assertElementAttribute(WebDriver driver, By elementLocator, String elementAttribute,
+	    String expectedValue, AssertionComparisonType assertionComparisonType, AssertionType assertionType,
+	    String customLogMessage) {
+	Validations.assertElementAttribute(driver, elementLocator, elementAttribute, expectedValue,
+		ValidationComparisonType.valueOf(assertionComparisonType.toString()),
+		ValidationType.valueOf(assertionType.toString()), customLogMessage);
+    }
+
+    /**
+     * Asserts webElement CSSProperty equals expectedValue.
+     * 
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param propertyName   the target CSS property of the webElement under test
+     * @param expectedValue  the expected value (test data) of this assertion
      */
     public static void assertElementCSSProperty(WebDriver driver, By elementLocator, String propertyName,
-	    String expectedValue, int assertionComparisonType, Boolean assertionType) {
-	ReportManager.logDiscrete("Assertion [" + "assertElementCSSProperty"
-		+ "] is being performed for target CSS Property [" + propertyName + "].");
+	    String expectedValue) {
+	Validations.assertElementCSSProperty(driver, elementLocator, propertyName, expectedValue,
+		ValidationComparisonType.EQUALS, ValidationType.POSITIVE);
 
-	discreetLoggingState = ReportManager.isDiscreteLogging();
-	ReportManager.setDiscreteLogging(true);
-	String actualValue = ElementActions.getCSSProperty(driver, elementLocator, propertyName);
-	ReportManager.setDiscreteLogging(discreetLoggingState);
+    }
 
-	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, assertionComparisonType, assertionType)) {
-	case 1:
-	    if (Boolean.TRUE.equals(assertionType)) {
-		pass("assertElementCSSProperty", driver, elementLocator,
-			"Assertion Passed; actual CSS Property value of [" + propertyName
-				+ "] does match expected value [" + expectedValue + "].");
-	    } else {
-		pass("assertElementCSSProperty", driver, elementLocator,
-			"Assertion Passed; actual CSS Property value of [" + propertyName + "] equals [" + actualValue
-				+ "] which does not match expected value [" + expectedValue + "].");
-	    }
-	    break;
-	case 0:
-	    if (Boolean.TRUE.equals(assertionType)) {
-		fail("assertElementCSSProperty", driver, elementLocator,
-			"Assertion Failed; actual CSS Property value of [" + propertyName + "] equals [" + actualValue
-				+ "] which does not match expected value [" + expectedValue + "].");
-	    } else {
-		fail("assertElementCSSProperty", driver, elementLocator,
-			"Assertion Failed; actual CSS Property value of [" + propertyName
-				+ "] does match expected value [" + expectedValue + "].");
-	    }
-	    break;
-	case -1:
-	    fail(ERROR_INVALID_COMPARISON_OPERATOR);
-	    break;
-	default:
-	    fail(ERROR_UNHANDLED_EXCEPTION);
-	    break;
-	}
+    /**
+     * Asserts webElement CSSProperty equals expectedValue.
+     * 
+     * @param driver           the current instance of Selenium webdriver
+     * @param elementLocator   the locator of the webElement under test (By xpath,
+     *                         id, selector, name ...etc)
+     * @param propertyName     the target CSS property of the webElement under test
+     * @param expectedValue    the expected value (test data) of this assertion
+     * @param customLogMessage a custom message that will appended to this step in
+     *                         the execution report
+     */
+    public static void assertElementCSSProperty(WebDriver driver, By elementLocator, String propertyName,
+	    String expectedValue, String customLogMessage) {
+	Validations.assertElementCSSProperty(driver, elementLocator, propertyName, expectedValue,
+		ValidationComparisonType.EQUALS, ValidationType.POSITIVE, customLogMessage);
     }
 
     /**
@@ -549,15 +432,44 @@ public class Assertions {
      */
     public static void assertElementCSSProperty(WebDriver driver, By elementLocator, String propertyName,
 	    String expectedValue, AssertionComparisonType assertionComparisonType, AssertionType assertionType) {
-	assertElementCSSProperty(driver, elementLocator, propertyName, expectedValue,
-		assertionComparisonType.getValue(), assertionType.getValue());
+	Validations.assertElementCSSProperty(driver, elementLocator, propertyName, expectedValue,
+		ValidationComparisonType.valueOf(assertionComparisonType.toString()),
+		ValidationType.valueOf(assertionType.toString()));
     }
 
     /**
-     * Asserts browser attribute equals expectedValue if AssertionType is true, or
-     * does not equal expectedValue if AssertionType is false. Supports CurrentUrl,
-     * PageSource, Title, WindowHandle, WindowPosition, WindowSize
+     * Asserts webElement CSSProperty equals expectedValue if AssertionType is
+     * POSITIVE, or does not equal expectedValue if AssertionType is NEGATIVE.
      * 
+     * @param driver                  the current instance of Selenium webdriver
+     * @param elementLocator          the locator of the webElement under test (By
+     *                                xpath, id, selector, name ...etc)
+     * @param propertyName            the target CSS property of the webElement
+     *                                under test
+     * @param expectedValue           the expected value (test data) of this
+     *                                assertion
+     * @param assertionComparisonType AssertionComparisonType.LITERAL, CONTAINS,
+     *                                REGEX, CASE_INSENSITIVE
+     * @param assertionType           AssertionType.POSITIVE, NEGATIVE
+     * @param customLogMessage        a custom message that will appended to this
+     *                                step in the execution report
+     */
+    public static void assertElementCSSProperty(WebDriver driver, By elementLocator, String propertyName,
+	    String expectedValue, AssertionComparisonType assertionComparisonType, AssertionType assertionType,
+	    String customLogMessage) {
+	Validations.assertElementCSSProperty(driver, elementLocator, propertyName, expectedValue,
+		ValidationComparisonType.valueOf(assertionComparisonType.toString()),
+		ValidationType.valueOf(assertionType.toString()), customLogMessage);
+    }
+
+    // TODO: implement the below methods in the Validations class
+
+    /**
+     * Asserts browser attribute equals expectedValue if AssertionType is POSITIVE,
+     * or does not equal expectedValue if AssertionType is NEGATIVE. Supports
+     * CurrentUrl, PageSource, Title, WindowHandle, WindowPosition, WindowSize
+     * 
+     * *
      * <p>
      * This method will be removed soon. Use
      * {@link Assertions#assertBrowserAttribute(WebDriver , String , String , AssertionComparisonType , AssertionType )}
@@ -568,17 +480,12 @@ public class Assertions {
      *                                under test
      * @param expectedValue           the expected value (test data) of this
      *                                assertion
-     * @param assertionComparisonType 1 is literalComparison, 2 is regexComparison,
-     *                                3 is containsComparison, 4 is
-     *                                caseInsensitiveComparison
-     * @param assertionType           either 'true' for a positive assertion that
-     *                                the browser attribute actual value matches the
-     *                                expected value, or 'false' for a negative
-     *                                assertion that the browser attribute actual
-     *                                value doesn't match the expected value
+     * @param assertionComparisonType AssertionComparisonType.LITERAL, CONTAINS,
+     *                                REGEX, CASE_INSENSITIVE
+     * @param assertionType           AssertionType.POSITIVE, NEGATIVE
      */
     public static void assertBrowserAttribute(WebDriver driver, String browserAttribute, String expectedValue,
-	    int assertionComparisonType, Boolean assertionType) {
+	    AssertionComparisonType assertionComparisonType, AssertionType assertionType) {
 	JSWaiter.waitForLazyLoading();
 
 	ReportManager.logDiscrete("Assertion [" + "assertBrowserAttribute"
@@ -612,9 +519,10 @@ public class Assertions {
 	}
 	ReportManager.setDiscreteLogging(discreetLoggingState);
 
-	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, assertionComparisonType, assertionType)) {
+	switch (JavaActions.compareTwoObjects(expectedValue, actualValue, assertionComparisonType.getValue(),
+		assertionType.getValue())) {
 	case 1:
-	    if (Boolean.TRUE.equals(assertionType)) {
+	    if (Boolean.TRUE.equals(assertionType.getValue())) {
 		pass("assertBrowserAttribute", driver, "Assertion Passed; actual value of [" + browserAttribute
 			+ "] does match expected value [" + expectedValue + "].");
 	    } else {
@@ -624,7 +532,7 @@ public class Assertions {
 	    }
 	    break;
 	case 0:
-	    if (Boolean.TRUE.equals(assertionType)) {
+	    if (Boolean.TRUE.equals(assertionType.getValue())) {
 		fail("assertBrowserAttribute", driver,
 			"Assertion Failed; actual value of [" + browserAttribute + "] equals [" + actualValue
 				+ "] which does not match expected value [" + expectedValue + "].");
@@ -639,131 +547,6 @@ public class Assertions {
 	default:
 	    fail(ERROR_UNHANDLED_EXCEPTION);
 	    break;
-	}
-    }
-
-    /**
-     * Asserts browser attribute equals expectedValue if AssertionType is POSITIVE,
-     * or does not equal expectedValue if AssertionType is NEGATIVE. Supports
-     * CurrentUrl, PageSource, Title, WindowHandle, WindowPosition, WindowSize
-     * 
-     * *
-     * <p>
-     * This method will be removed soon. Use
-     * {@link Assertions#assertBrowserAttribute(WebDriver , String , String , AssertionComparisonType , AssertionType )}
-     * instead.
-     * 
-     * @param driver                  the current instance of Selenium webdriver
-     * @param browserAttribute        the desired attribute of the browser window
-     *                                under test
-     * @param expectedValue           the expected value (test data) of this
-     *                                assertion
-     * @param assertionComparisonType AssertionComparisonType.LITERAL, CONTAINS,
-     *                                REGEX, CASE_INSENSITIVE
-     * @param assertionType           AssertionType.POSITIVE, NEGATIVE
-     */
-    public static void assertBrowserAttribute(WebDriver driver, String browserAttribute, String expectedValue,
-	    AssertionComparisonType assertionComparisonType, AssertionType assertionType) {
-	assertBrowserAttribute(driver, browserAttribute, expectedValue, assertionComparisonType.getValue(),
-		assertionType.getValue());
-    }
-
-    /**
-     * Asserts that the expectedValue is related to the actualValue using the
-     * desired comparativeRelationType if AssertionType is true, or not related if
-     * AssertionType is false.
-     * 
-     * <p>
-     * This method will be removed soon. Use
-     * {@link Assertions#assertComparativeRelation(Number, Number, ComparativeRelationType, AssertionType)}
-     * instead.
-     * 
-     * @param expectedValue           the expected value (test data) of this
-     *                                assertion
-     * @param actualValue             the actual value (calculated data) of this
-     *                                assertion
-     * @param comparativeRelationType accepts standard java Equality, Relational,
-     *                                and Conditional Operators, except [not equal
-     *                                to]:
-     *                                https://docs.oracle.com/javase/tutorial/java/nutsandbolts/op2.html
-     * @param assertionType           either 'true' for a positive assertion that
-     *                                the expectedValue is related to the
-     *                                actualValue using the desired
-     *                                comparativeRelationType, or 'false' for a
-     *                                negative assertion that the expectedValue is
-     *                                not related to the actualValue using the
-     *                                desired comparativeRelationType
-     */
-    public static void assertComparativeRelation(Number expectedValue, Number actualValue,
-	    String comparativeRelationType, Boolean assertionType) {
-	ReportManager
-		.logDiscrete("Assertion [" + "assertComparativeRelation" + "] is being performed, with expectedValue ["
-			+ expectedValue + "], comparativeRelationType [" + comparativeRelationType + "], actualValue ["
-			+ actualValue + "], and assertionType [" + assertionType + "].");
-
-	if (Boolean.TRUE.equals(assertionType)) {
-	    try {
-		switch (comparativeRelationType) {
-		case ">":
-		    Assert.assertTrue(actualValue.floatValue() > expectedValue.floatValue());
-		    break;
-		case ">=":
-		    Assert.assertTrue(actualValue.floatValue() >= expectedValue.floatValue());
-		    break;
-		case "<":
-		    Assert.assertTrue(actualValue.floatValue() < expectedValue.floatValue());
-		    break;
-		case "<=":
-		    Assert.assertTrue(actualValue.floatValue() <= expectedValue.floatValue());
-		    break;
-		case "==":
-		    Assert.assertTrue(actualValue.floatValue() == expectedValue.floatValue());
-		    break;
-		default:
-		    fail(ERROR_INVALID_COMPARISON_OPERATOR);
-		    break;
-		}
-		pass("Assertion Passed; actual value [" + actualValue + "] is " + comparativeRelationType
-			+ " expected value [" + expectedValue + "].");
-	    } catch (AssertionError e) {
-		fail("Assertion Failed; actual value [" + actualValue + "] is not " + comparativeRelationType
-			+ " expected value [" + expectedValue + "].", e);
-	    } catch (Exception e) {
-		ReportManager.log(e);
-		fail(ERROR_UNHANDLED_EXCEPTION, e);
-	    }
-	} else {
-	    try {
-		switch (comparativeRelationType) {
-		case ">":
-		    Assert.assertFalse(actualValue.floatValue() > expectedValue.floatValue());
-		    break;
-		case ">=":
-		    Assert.assertFalse(actualValue.floatValue() >= expectedValue.floatValue());
-		    break;
-		case "<":
-		    Assert.assertFalse(actualValue.floatValue() < expectedValue.floatValue());
-		    break;
-		case "<=":
-		    Assert.assertFalse(actualValue.floatValue() <= expectedValue.floatValue());
-		    break;
-		case "==":
-		    Assert.assertFalse(actualValue.floatValue() == expectedValue.floatValue());
-		    break;
-		default:
-		    fail(ERROR_INVALID_COMPARISON_OPERATOR);
-		    break;
-		}
-
-		pass("Assertion Passed; actual value [" + actualValue + "] is not " + comparativeRelationType
-			+ " expected value [" + expectedValue + "].");
-	    } catch (AssertionError e) {
-		fail("Assertion Failed; actual value [" + actualValue + "] is " + comparativeRelationType
-			+ " expected value [" + expectedValue + "].", e);
-	    } catch (Exception e) {
-		ReportManager.log(e);
-		fail(ERROR_UNHANDLED_EXCEPTION, e);
-	    }
 	}
     }
 
@@ -785,52 +568,73 @@ public class Assertions {
      */
     public static void assertComparativeRelation(Number expectedValue, Number actualValue,
 	    ComparativeRelationType comparativeRelationType, AssertionType assertionType) {
-	assertComparativeRelation(expectedValue, actualValue, comparativeRelationType.getValue(),
-		assertionType.getValue());
-    }
+	ReportManager.logDiscrete("Assertion [" + "assertComparativeRelation"
+		+ "] is being performed, with expectedValue [" + expectedValue + "], comparativeRelationType ["
+		+ comparativeRelationType.getValue() + "], actualValue [" + actualValue + "], and assertionType ["
+		+ assertionType.getValue() + "].");
 
-    /**
-     * Asserts that a certain file exists if AssertionType is true, or doesn't exist
-     * if AssertionType is false.
-     * 
-     * <p>
-     * This method will be removed soon. Use
-     * {@link Assertions#assertFileExists(String , String , int , AssertionType )}
-     * instead.
-     * 
-     * @param fileFolderName  The location of the folder that contains the target
-     *                        file, relative to the project's root folder, ending
-     *                        with a /
-     * @param fileName        The name of the target file (including its extension
-     *                        if any)
-     * @param numberOfRetries number of times to try to find the file, given that
-     *                        each retry is separated by a 500 millisecond wait time
-     * @param assertionType   either 'true' for a positive assertion that the file
-     *                        exists, or 'false' for a negative assertion that the
-     *                        file doesn't exist
-     */
-    public static void assertFileExists(String fileFolderName, String fileName, int numberOfRetries,
-	    Boolean assertionType) {
-	ReportManager.logDiscrete("Assertion [" + "assertFileExists" + "] is being performed for target directory ["
-		+ fileFolderName + "], and target file [" + fileName + "].");
-	if (FileActions.doesFileExist(fileFolderName, fileName, numberOfRetries)) {
-	    if (Boolean.TRUE.equals(assertionType)) {
-		pass("Assertion Passed; target file [" + fileName + "] exists under the target path ["
-			+ FileActions.getAbsolutePath(fileFolderName, fileName) + "].");
-	    } else {
-		fail("Assertion Failed; target file [" + fileName + "] exists under the target path ["
-			+ FileActions.getAbsolutePath(fileFolderName, fileName) + "].");
+	if (Boolean.TRUE.equals(assertionType.getValue())) {
+	    try {
+		switch (comparativeRelationType.getValue()) {
+		case ">":
+		    Assert.assertTrue(actualValue.floatValue() > expectedValue.floatValue());
+		    break;
+		case ">=":
+		    Assert.assertTrue(actualValue.floatValue() >= expectedValue.floatValue());
+		    break;
+		case "<":
+		    Assert.assertTrue(actualValue.floatValue() < expectedValue.floatValue());
+		    break;
+		case "<=":
+		    Assert.assertTrue(actualValue.floatValue() <= expectedValue.floatValue());
+		    break;
+		case "==":
+		    Assert.assertTrue(actualValue.floatValue() == expectedValue.floatValue());
+		    break;
+		default:
+		    fail(ERROR_INVALID_COMPARISON_OPERATOR);
+		    break;
+		}
+		pass("Assertion Passed; actual value [" + actualValue + "] is " + comparativeRelationType.getValue()
+			+ " expected value [" + expectedValue + "].");
+	    } catch (AssertionError e) {
+		fail("Assertion Failed; actual value [" + actualValue + "] is not " + comparativeRelationType.getValue()
+			+ " expected value [" + expectedValue + "].", e);
+	    } catch (Exception e) {
+		ReportManager.log(e);
+		fail(ERROR_UNHANDLED_EXCEPTION, e);
 	    }
-
 	} else {
-	    if (Boolean.TRUE.equals(assertionType)) {
-		fail("Assertion Failed; target file [" + fileName + "] doesn't exist under the target path ["
-			+ FileActions.getAbsolutePath(fileFolderName, fileName) + "], tried for ["
-			+ numberOfRetries * 500 + "] milliseconds.");
-	    } else {
-		pass("Assertion Passed; target file [" + fileName + "] doesn't exist under the target path ["
-			+ FileActions.getAbsolutePath(fileFolderName, fileName) + "], tried for ["
-			+ numberOfRetries * 500 + "] milliseconds.");
+	    try {
+		switch (comparativeRelationType.getValue()) {
+		case ">":
+		    Assert.assertFalse(actualValue.floatValue() > expectedValue.floatValue());
+		    break;
+		case ">=":
+		    Assert.assertFalse(actualValue.floatValue() >= expectedValue.floatValue());
+		    break;
+		case "<":
+		    Assert.assertFalse(actualValue.floatValue() < expectedValue.floatValue());
+		    break;
+		case "<=":
+		    Assert.assertFalse(actualValue.floatValue() <= expectedValue.floatValue());
+		    break;
+		case "==":
+		    Assert.assertFalse(actualValue.floatValue() == expectedValue.floatValue());
+		    break;
+		default:
+		    fail(ERROR_INVALID_COMPARISON_OPERATOR);
+		    break;
+		}
+
+		pass("Assertion Passed; actual value [" + actualValue + "] is not " + comparativeRelationType.getValue()
+			+ " expected value [" + expectedValue + "].");
+	    } catch (AssertionError e) {
+		fail("Assertion Failed; actual value [" + actualValue + "] is " + comparativeRelationType.getValue()
+			+ " expected value [" + expectedValue + "].", e);
+	    } catch (Exception e) {
+		ReportManager.log(e);
+		fail(ERROR_UNHANDLED_EXCEPTION, e);
 	    }
 	}
     }
@@ -850,7 +654,29 @@ public class Assertions {
      */
     public static void assertFileExists(String fileFolderName, String fileName, int numberOfRetries,
 	    AssertionType assertionType) {
-	assertFileExists(fileFolderName, fileName, numberOfRetries, assertionType.getValue());
+
+	ReportManager.logDiscrete("Assertion [" + "assertFileExists" + "] is being performed for target directory ["
+		+ fileFolderName + "], and target file [" + fileName + "].");
+	if (FileActions.doesFileExist(fileFolderName, fileName, numberOfRetries)) {
+	    if (Boolean.TRUE.equals(assertionType.getValue())) {
+		pass("Assertion Passed; target file [" + fileName + "] exists under the target path ["
+			+ FileActions.getAbsolutePath(fileFolderName, fileName) + "].");
+	    } else {
+		fail("Assertion Failed; target file [" + fileName + "] exists under the target path ["
+			+ FileActions.getAbsolutePath(fileFolderName, fileName) + "].");
+	    }
+
+	} else {
+	    if (Boolean.TRUE.equals(assertionType.getValue())) {
+		fail("Assertion Failed; target file [" + fileName + "] doesn't exist under the target path ["
+			+ FileActions.getAbsolutePath(fileFolderName, fileName) + "], tried for ["
+			+ numberOfRetries * 500 + "] milliseconds.");
+	    } else {
+		pass("Assertion Passed; target file [" + fileName + "] doesn't exist under the target path ["
+			+ FileActions.getAbsolutePath(fileFolderName, fileName) + "], tried for ["
+			+ numberOfRetries * 500 + "] milliseconds.");
+	    }
+	}
     }
 
     /**

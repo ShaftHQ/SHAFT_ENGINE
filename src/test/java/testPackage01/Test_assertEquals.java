@@ -9,6 +9,8 @@ import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Assertions;
+import com.shaft.validation.Assertions.AssertionComparisonType;
+import com.shaft.validation.Assertions.AssertionType;
 import com.shaft.validation.Verifications;
 
 public class Test_assertEquals {
@@ -21,7 +23,8 @@ public class Test_assertEquals {
 	ElementActions.type(driver, By.id("lst-ib"),
 		"INC_004010050:Another SCHEDULER with the same name [Duplicate Job Name] already exists.");
 	Assertions.assertElementAttribute(driver, By.id("lst-ib"), "text",
-		"INC_004010050:Another SCHEDULER with the same name \\[Duplicate Job Name\\] already exists.", 2, true);
+		"INC_004010050:Another SCHEDULER with the same name \\[Duplicate Job Name\\] already exists.",
+		AssertionComparisonType.MATCHES, AssertionType.POSITIVE);
     }
 
     // @Test
@@ -32,7 +35,7 @@ public class Test_assertEquals {
 	String actualValue = ElementActions.getText(driver, By.id("lst-ib"));
 	Assertions.assertEquals(
 		"INC_004010050:Another SCHEDULER with the same name \\[Duplicate Job Name\\] already exists.",
-		actualValue, 2, true);
+		actualValue, AssertionComparisonType.MATCHES, AssertionType.POSITIVE);
 
     }
 

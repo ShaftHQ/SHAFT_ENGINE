@@ -54,7 +54,7 @@ public class JavaActions {
 	return Base64.getEncoder().encodeToString(text.getBytes());
     }
 
-    private static int compareTowObjectsPositively(Object expectedValue, Object actualValue, int comparisonType) {
+    private static int compareTwoObjectsPositively(Object expectedValue, Object actualValue, int comparisonType) {
 	switch (comparisonType) {
 	case 1:
 	    // case sensitive literal equivalence
@@ -85,7 +85,7 @@ public class JavaActions {
 	return 1;
     }
 
-    private static int compareTowObjectsNegatively(Object expectedValue, Object actualValue, int comparisonType) {
+    private static int compareTwoObjectsNegatively(Object expectedValue, Object actualValue, int comparisonType) {
 	switch (comparisonType) {
 	case 1:
 	    // case sensitive literal equivalence
@@ -135,7 +135,7 @@ public class JavaActions {
 
 	if (Boolean.TRUE.equals(validationType)) {
 	    try {
-		return compareTowObjectsPositively(expectedValue, actualValue, comparisonType);
+		return compareTwoObjectsPositively(expectedValue, actualValue, comparisonType);
 	    } catch (AssertionError e) {
 		return 0;
 	    } catch (Exception e) {
@@ -144,7 +144,7 @@ public class JavaActions {
 	    }
 	} else {
 	    try {
-		return compareTowObjectsNegatively(expectedValue, actualValue, comparisonType);
+		return compareTwoObjectsNegatively(expectedValue, actualValue, comparisonType);
 	    } catch (AssertionError e) {
 		return 0;
 	    } catch (Exception e) {

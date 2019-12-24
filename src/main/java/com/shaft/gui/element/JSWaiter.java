@@ -1,7 +1,5 @@
 package com.shaft.gui.element;
 
-//import java.time.Duration;
-
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
@@ -14,7 +12,6 @@ import com.shaft.tools.support.JSHelpers;
 public class JSWaiter {
     private static WebDriver jsWaitDriver;
     private static JavascriptExecutor jsExec;
-//    private static final Duration WAIT_DURATION = Duration.ofSeconds(15);
     private static final int WAIT_DURATION_INTEGER = 15;
     private static int delayBetweenPolls = 20; // milliseconds
     private static final String TARGET_DOCUMENT_READY_STATE = "complete";

@@ -2,7 +2,6 @@ package com.shaft.gui.browser;
 
 import java.awt.HeadlessException;
 import java.awt.Toolkit;
-//import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -26,8 +25,6 @@ import com.shaft.tools.support.JSHelpers;
 
 public class BrowserActions {
     private static final Boolean HEADLESS_EXECUTION = Boolean.valueOf(System.getProperty("headlessExecution").trim());
-//    private static final Duration NAVIGATION_TIMEOUT = Duration
-//	    .ofSeconds(Integer.parseInt(System.getProperty("browserNavigationTimeout").trim()));
     private static final int NAVIGATION_TIMEOUT_INTEGER = Integer
 	    .parseInt(System.getProperty("browserNavigationTimeout").trim());
 
@@ -110,6 +107,7 @@ public class BrowserActions {
 	List<String> navigationErrorMessages = Arrays.asList("This site can’t be reached", "Unable to connect",
 		"Safari Can’t Connect to the Server", "This page can't be displayed", "Invalid URL",
 		"<head></head><body></body>");
+	//TODO: get page loop outside the foreach loop
 	navigationErrorMessages.forEach(errorMessage -> {
 	    if (driver.getPageSource().contains(errorMessage)) {
 		failAction(driver, "Error message: \"" + errorMessage + "\", Target URL: \"" + targetUrl + "\"");

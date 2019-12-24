@@ -290,7 +290,7 @@ public class ScreenshotManager {
 		    }
 		    src = ImageProcessingActions.highlightElementInScreenshot(src, elementLocation, color);
 		}
-		appendToAnimatedGif(src);
+		startOrAppendToAnimatedGif(src);
 		return addScreenshotToReport(src);
 	    } catch (WebDriverException e) {
 		// this happens when a browser session crashes mid-execution, or the docker is
@@ -298,7 +298,7 @@ public class ScreenshotManager {
 		ReportManager.log(e);
 	    }
 	} else {
-	    appendToAnimatedGif();
+	    startOrAppendToAnimatedGif();
 	}
 	return null;
     }
@@ -453,11 +453,10 @@ public class ScreenshotManager {
 		initialImageGraphics.dispose();
 		// write out first image to the sequence...
 		gifWriter.writeToSequence(overlayShaftEngineLogo(firstImage));
-	    } catch (NullPointerException e) {
+	    } catch (NullPointerException | NoSuchSessionException e) {
 		// this happens in case the start animated Gif is triggered in a none-test
 		// method
-	    } catch (NoSuchSessionException e) {
-		// this happens when the window is already closed
+		// or this happens when the window is already closed
 	    } catch (IOException | WebDriverException e) {
 		ReportManager.log(e);
 	    }
@@ -475,16 +474,17 @@ public class ScreenshotManager {
 		screenshotGraphics.setComposite(
 			AlphaComposite.getInstance(AlphaComposite.SRC_OVER, SCREENSHOT_PARAMS_WATERMARKOPACITY));
 
+		String watermarkImagePath = "watermarkImagePath";
 		BufferedImage shaftLogo;
-		if (System.getProperty("watermarkImagePath").trim().equals(WATERMARK_DEFAULT_PATH)) {
+		if (System.getProperty(watermarkImagePath).trim().equals(WATERMARK_DEFAULT_PATH)) {
 		    // read from tool resources
 		    URL resourcesImageURL = ScreenshotManager.class
-			    .getResource(System.getProperty("watermarkImagePath").trim());
+			    .getResource(System.getProperty(watermarkImagePath).trim());
 		    // overlay SHAFT_Engine logo to the initial image...
 		    shaftLogo = ImageIO.read(resourcesImageURL);
 		} else {
 		    // read from custom location
-		    shaftLogo = ImageIO.read(new File(System.getProperty("watermarkImagePath").trim()));
+		    shaftLogo = ImageIO.read(new File(System.getProperty(watermarkImagePath).trim()));
 		}
 		shaftLogo = toBufferedImage(
 			shaftLogo.getScaledInstance(screenshot.getWidth() / 8, -1, Image.SCALE_SMOOTH));
@@ -515,39 +515,43 @@ public class ScreenshotManager {
 	return bimage;
     }
 
-    private static void appendToAnimatedGif(byte[]... screenshot) {
+    private static void startOrAppendToAnimatedGif(byte[]... screenshot) {
 	// ensure that animatedGif is started, else force start it
 	if (Boolean.TRUE.equals(CREATE_GIF)) {
 	    if (gifDriver == null || gifWriter == null) {
 		BrowserFactory.startAnimatedGif(screenshot);
 	    } else {
-		try {
-		    BufferedImage image;
-		    if (screenshot.length == 1) {
-			image = ImageIO.read(new ByteArrayInputStream(screenshot[0]));
-		    } else {
-			image = ImageIO.read(new ByteArrayInputStream(
-				((TakesScreenshot) gifDriver).getScreenshotAs(OutputType.BYTES)));
-		    }
-		    gifWriter.writeToSequence(overlayShaftEngineLogo(image));
-
-		} catch (NoSuchSessionException e) {
-		    // this happens when attempting to append to a non existing gif, expected
-		    // solution is to recreate the gif
-		    // removed the old solution, the new fix is to ignore this exception, this will
-		    // leave the gif intact and will attach it even after failing to append to it
-		} catch (WebDriverException e) {
-		    if (e.getMessage().contains("was terminated due to BROWSER_TIMEOUT")) {
-			// this happens when attempting to append to a gif from an already terminated
-			// browser session
-			BrowserFactory.startAnimatedGif();
-		    } else {
-			ReportManager.log(e);
-		    }
-		} catch (IOException | IllegalStateException | IllegalArgumentException | NullPointerException e) {
-		    ReportManager.log(e);
-		}
+		appentToAnimatedGif(screenshot);
 	    }
+	}
+    }
+
+    private static void appentToAnimatedGif(byte[]... screenshot) {
+	try {
+	    BufferedImage image;
+	    if (screenshot.length == 1) {
+		image = ImageIO.read(new ByteArrayInputStream(screenshot[0]));
+	    } else {
+		image = ImageIO.read(
+			new ByteArrayInputStream(((TakesScreenshot) gifDriver).getScreenshotAs(OutputType.BYTES)));
+	    }
+	    gifWriter.writeToSequence(overlayShaftEngineLogo(image));
+
+	} catch (NoSuchSessionException e) {
+	    // this happens when attempting to append to a non existing gif, expected
+	    // solution is to recreate the gif
+	    // removed the old solution, the new fix is to ignore this exception, this will
+	    // leave the gif intact and will attach it even after failing to append to it
+	} catch (WebDriverException e) {
+	    if (e.getMessage().contains("was terminated due to BROWSER_TIMEOUT")) {
+		// this happens when attempting to append to a gif from an already terminated
+		// browser session
+		BrowserFactory.startAnimatedGif();
+	    } else {
+		ReportManager.log(e);
+	    }
+	} catch (IOException | IllegalStateException | IllegalArgumentException | NullPointerException e) {
+	    ReportManager.log(e);
 	}
     }
 
@@ -555,7 +559,7 @@ public class ScreenshotManager {
 	// stop and attach
 	if (Boolean.TRUE.equals(CREATE_GIF) && gifDriver != null && !gifRelativePathWithFileName.equals("")) {
 	    try {
-		appendToAnimatedGif();
+		startOrAppendToAnimatedGif();
 	    } catch (Exception e) {
 		ReportManager.log(e);
 	    }
