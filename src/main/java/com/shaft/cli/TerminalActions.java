@@ -335,14 +335,18 @@ public class TerminalActions {
 
 	// Prepare final log message
 	StringBuilder reportMessage = new StringBuilder();
-	reportMessage.append("Host Name: \"" + sshHostName + "\"");
-	reportMessage.append("| SSH Port Number: \"" + sshPortNumber + "\"");
-	reportMessage.append("| SSH Username: \"" + sshUsername + "\"");
-	if (sshKeyFileName != null && !sshKeyFileName.equals("")) {
-	    reportMessage.append("| Key File: \"" + sshKeyFileFolderName + sshKeyFileName + "\"");
+	if (!sshHostName.equals("")) {
+	    reportMessage.append("Host Name: \"" + sshHostName + "\"");
+	    reportMessage.append(" | SSH Port Number: \"" + sshPortNumber + "\"");
+	    reportMessage.append(" | SSH Username: \"" + sshUsername + "\"");
+	} else {
+	    reportMessage.append("Host Name: \"" + "localHost" + "\"");
 	}
-	reportMessage.append("| Command: \"" + command + "\"");
-	reportMessage.append("| Exis Status: \"" + exitStatus + "\"");
+	if (sshKeyFileName != null && !sshKeyFileName.equals("")) {
+	    reportMessage.append(" | Key File: \"" + sshKeyFileFolderName + sshKeyFileName + "\"");
+	}
+	reportMessage.append(" | Command: \"" + command + "\"");
+	reportMessage.append(" | Exit Status: \"" + exitStatus + "\"");
 
 	passAction(reportMessage.toString(), log);
 	return log;
