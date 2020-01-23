@@ -123,6 +123,9 @@ class Validations {
 
 	// get validation method name
 	String validationMethodName = (new Throwable()).getStackTrace()[2].getMethodName();
+	if (validationMethodName.equals("reportAssertionResultForElementPropertyOrAttribute")) {
+	    validationMethodName = (new Throwable()).getStackTrace()[4].getMethodName();
+	}
 	validationMethodName = validationMethodName.substring(0, 1).toUpperCase() + validationMethodName.substring(1);
 	if (validationMethodName.equals("AssertFail")) {
 	    validationState = ValidationState.PASSED;

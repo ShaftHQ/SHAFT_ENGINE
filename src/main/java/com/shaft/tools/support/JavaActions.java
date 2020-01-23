@@ -60,10 +60,13 @@ public class JavaActions {
 	    // case sensitive literal equivalence
 	    if (expectedValue == null) {
 		Assert.assertNull(actualValue);
-	    } else if (Number.class.equals(expectedValue.getClass()) || Number.class.equals(actualValue.getClass())) {
+	    } else if (Number.class.equals(expectedValue.getClass())
+		    || (actualValue != null && Number.class.equals(actualValue.getClass()))) {
 		Assert.assertTrue((String.valueOf(actualValue)).equals(String.valueOf(expectedValue)));
-	    } else {
+	    } else if (actualValue != null) {
 		Assert.assertTrue(actualValue.equals(expectedValue));
+	    } else {
+		Assert.assertTrue(expectedValue.equals(actualValue));
 	    }
 	    break;
 	case 2:
@@ -89,10 +92,15 @@ public class JavaActions {
 	switch (comparisonType) {
 	case 1:
 	    // case sensitive literal equivalence
-	    if (Number.class.equals(expectedValue.getClass()) || Number.class.equals(actualValue.getClass())) {
+	    if (expectedValue == null) {
+		Assert.assertNotNull(actualValue);
+	    } else if (Number.class.equals(expectedValue.getClass())
+		    || (actualValue != null && Number.class.equals(actualValue.getClass()))) {
 		Assert.assertFalse((String.valueOf(actualValue)).equals(String.valueOf(expectedValue)));
-	    } else {
+	    } else if (actualValue != null) {
 		Assert.assertFalse(actualValue.equals(expectedValue));
+	    } else {
+		Assert.assertFalse(expectedValue.equals(actualValue));
 	    }
 	    break;
 	case 2:
