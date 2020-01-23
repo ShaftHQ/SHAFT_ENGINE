@@ -15,4 +15,4 @@ jobs:
         java-version: 13
     - name: Build with Maven
       #run: mvn -B package --file pom.xml -DskipTests
-      run: clean javadoc:javadoc install -DskipTests
+      run: mvn clean javadoc:javadoc install -DskipTests
