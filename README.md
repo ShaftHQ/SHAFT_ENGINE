@@ -3,7 +3,7 @@
 
 ### Getting Started:
 
-- Continuous Integration Status ![Continuous Integration Status](https://github.com/mohabmohie/SHAFT_ENGINE/workflows/Java%20CI/badge.svg)
+- Continuous Integration Status [![Continuous Integration Status](https://github.com/mohabmohie/SHAFT_ENGINE/workflows/Java%20CI/badge.svg)](https://github.com/MohabMohie/SHAFT_ENGINE/actions)
 - Latest In-house release [ ![BinTray](https://api.bintray.com/packages/mohabmohie/SHAFT/SHAFT_Engine/images/download.svg) ](https://bintray.com/mohabmohie/SHAFT/SHAFT_Engine/_latestVersion)
 - Latest Central Maven Repository release [![Maven Central](https://img.shields.io/maven-central/v/io.github.mohabmohie/SHAFT_ENGINE.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22io.github.mohabmohie%22%20AND%20a:%22SHAFT_ENGINE%22)
 - This project is for contributors who wish to add new features or fix issues with SHAFT_Engine. If you wish to use SHAFT_Engine, please refer to this GitHub project instead: https://github.com/MohabMohie/using_SHAFT_ENGINE/
