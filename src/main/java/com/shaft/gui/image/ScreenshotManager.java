@@ -241,6 +241,7 @@ public class ScreenshotManager {
 			regularElementStyle = highlightElementAndReturnDefaultStyle(element, js,
 				setHighlightedElementStyle());
 		    } else {
+			// TODO: AI rect isn't in the proper location on Windows
 			// default to using AI
 			elementLocation = driver.findElement(elementLocator).getRect();
 		    }

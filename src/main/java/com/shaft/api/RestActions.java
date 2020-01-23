@@ -1044,30 +1044,45 @@ public class RestActions {
 	List<Object> expectedJSONAttachment = null;
 
 	try {
-	    org.json.simple.JSONObject actualJsonObject = (org.json.simple.JSONObject) parser
-		    .parse(response.asString());
+	    // parse actual JSON into Object or Array
+	    org.json.simple.JSONObject actualJsonObject = null;
+	    org.json.simple.JSONArray actualJsonArray = null;
+
+	    var actualObject = parser.parse(response.asString());
+	    if (actualObject instanceof org.json.simple.JSONObject) {
+		actualJsonObject = (org.json.simple.JSONObject) parser.parse(response.asString());
+	    } else {
+		// actualObject is an array org.json.simple.JSONArray
+		actualJsonArray = (org.json.simple.JSONArray) parser.parse(response.asString());
+	    }
+
+	    // parse expected JSON into Object or Array
 	    org.json.simple.JSONObject expectedJsonObject = null;
 	    org.json.simple.JSONArray expectedJsonArray = null;
-	    try {
+
+	    var expectedObject = parser.parse(new FileReader(referenceJsonFilePath));
+	    if (expectedObject instanceof org.json.simple.JSONObject) {
 		expectedJsonObject = (org.json.simple.JSONObject) parser.parse(new FileReader(referenceJsonFilePath));
 		expectedJSONAttachment = Arrays.asList("File Content", "Expected JSON",
 			new GsonBuilder().setPrettyPrinting().create()
 				.toJson(new JsonParser().parse(expectedJsonObject.toJSONString())));
-
-	    } catch (ClassCastException e) {
-		// org.json.simple.JSONArray cannot be cast to org.json.simple.JSONObject
+	    } else {
+		// expectedObject is an array org.json.simple.JSONArray
 		expectedJsonArray = (org.json.simple.JSONArray) parser.parse(new FileReader(referenceJsonFilePath));
 		expectedJSONAttachment = Arrays.asList("File Content", "Expected JSON", new GsonBuilder()
 			.setPrettyPrinting().create().toJson(new JsonParser().parse(expectedJsonArray.toJSONString())));
 	    }
+
+	    // handle different combinations of expected and actual (object vs array)
 	    switch (comparisonType) {
 	    case EQUALS:
 		// TODO: handle jsonPathToTargetArray and attempt to parse the actual result
-		comparisonResult = compareJSONEquals(expectedJsonObject, expectedJsonArray, actualJsonObject);
+		comparisonResult = compareJSONEquals(expectedJsonObject, expectedJsonArray, actualJsonObject,
+			actualJsonArray);
 		break;
 	    case CONTAINS:
 		comparisonResult = compareJSONContains(response, expectedJsonObject, expectedJsonArray,
-			actualJsonObject, jsonPathToTargetArray);
+			actualJsonObject, actualJsonArray, jsonPathToTargetArray);
 		break;
 	    default:
 		comparisonResult = false;
@@ -1087,26 +1102,27 @@ public class RestActions {
     }
 
     private static boolean compareJSONEquals(org.json.simple.JSONObject expectedJsonObject,
-	    org.json.simple.JSONArray expectedJsonArray, org.json.simple.JSONObject actualJsonObject) {
-	if (expectedJsonObject != null) {
+	    org.json.simple.JSONArray expectedJsonArray, org.json.simple.JSONObject actualJsonObject,
+	    org.json.simple.JSONArray actualJsonArray) {
+	if (expectedJsonObject != null && actualJsonObject != null) {
 	    // if expected is an object and actual is also an object
 	    return actualJsonObject.toString().equals(expectedJsonObject.toString());
 	} else {
 	    // if expected is an array and actual response is also an array
-	    // not tested
-	    return actualJsonObject.toString().equals(expectedJsonArray.toString());
+	    return actualJsonArray.toString().equals(expectedJsonArray.toString());
 	}
     }
 
     @SuppressWarnings("unchecked")
     private static boolean compareJSONContains(Response response, org.json.simple.JSONObject expectedJsonObject,
 	    org.json.simple.JSONArray expectedJsonArray, org.json.simple.JSONObject actualJsonObject,
-	    String jsonPathToTargetArray) throws JSONException, ParseException {
+	    org.json.simple.JSONArray actualJsonArray, String jsonPathToTargetArray)
+	    throws JSONException, ParseException {
 	JSONParser parser = new JSONParser();
 	if (!jsonPathToTargetArray.equals("") && (expectedJsonArray != null)) {
 	    // if expected is an array and the user provided the path to extract it from the
 	    // response
-	    org.json.simple.JSONArray actualJsonArray = (org.json.simple.JSONArray) parser
+	    actualJsonArray = (org.json.simple.JSONArray) parser
 		    .parse((new Gson()).toJsonTree(getResponseJSONValueAsList(response, jsonPathToTargetArray))
 			    .getAsJsonArray().toString());
 	    return actualJsonArray.containsAll(expectedJsonArray);
