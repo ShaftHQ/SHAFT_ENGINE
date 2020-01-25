@@ -81,13 +81,14 @@ public class PropertiesFileManager {
 	    // Beast Mode On
 	    System.setProperty("aiPoweredElementIdentification", String.valueOf(false));
 	    System.setProperty("headlessExecution", String.valueOf(true));
-	    System.setProperty("autoMaximizeBrowserWindow", String.valueOf(false));
+	    System.setProperty("autoMaximizeBrowserWindow", String.valueOf(true));
 	    System.setProperty("forceCheckForElementVisibility", String.valueOf(false));
 	    System.setProperty("forceCheckElementLocatorIsUnique", String.valueOf(false));
-	    System.setProperty("screenshotParams_whenToTakeAScreenshot", "FailuresOnly");
-	    System.setProperty("screenshotParams_highlightElements", String.valueOf(false));
+	    System.setProperty("screenshotParams_whenToTakeAScreenshot", "ValidationPointsOnly");
+	    System.setProperty("screenshotParams_highlightElements", String.valueOf(true));
+	    System.setProperty("screenshotParams_highlightMethod", "AI");
 	    System.setProperty("screenshotParams_screenshotType", "Regular");
-	    System.setProperty("screenshotParams_watermark", String.valueOf(false));
+	    System.setProperty("screenshotParams_watermark", String.valueOf(true));
 	    System.setProperty("createAnimatedGif", String.valueOf(false));
 	    System.setProperty("recordVideo", String.valueOf(false));
 	    System.setProperty("debugMode", String.valueOf(false));
