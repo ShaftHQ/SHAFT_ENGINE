@@ -9,7 +9,6 @@ import java.util.List;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.NoSuchSessionException;
 import org.openqa.selenium.Point;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
@@ -18,7 +17,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import org.testng.Assert;
 
 import com.shaft.gui.element.ElementActions;
-import com.shaft.gui.element.JSWaiter;
+import com.shaft.gui.element.JavaScriptWaitManager;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.support.JSHelpers;
@@ -63,7 +62,7 @@ public class BrowserActions {
     private static void failAction(WebDriver driver, String actionName, String testData,
 	    Exception... rootCauseException) {
 	String message = reportActionResult(driver, actionName, testData, false);
-	if (rootCauseException != null) {
+	if (rootCauseException != null && rootCauseException.length >= 1) {
 	    Assert.fail(message, rootCauseException[0]);
 	} else {
 	    Assert.fail(message);
@@ -107,7 +106,7 @@ public class BrowserActions {
 	List<String> navigationErrorMessages = Arrays.asList("This site can’t be reached", "Unable to connect",
 		"Safari Can’t Connect to the Server", "This page can't be displayed", "Invalid URL",
 		"<head></head><body></body>");
-	//TODO: get page loop outside the foreach loop
+	// TODO: get page loop outside the foreach loop
 	navigationErrorMessages.forEach(errorMessage -> {
 	    if (driver.getPageSource().contains(errorMessage)) {
 		failAction(driver, "Error message: \"" + errorMessage + "\", Target URL: \"" + targetUrl + "\"");
@@ -194,7 +193,7 @@ public class BrowserActions {
      * @return the URL that's currently open in the current page
      */
     public static String getCurrentURL(WebDriver driver) {
-	JSWaiter.waitForLazyLoading();
+	JavaScriptWaitManager.waitForLazyLoading();
 	String currentURL = "";
 	try {
 	    currentURL = driver.getCurrentUrl();
@@ -213,7 +212,7 @@ public class BrowserActions {
      * @return the title of the current window
      */
     public static String getCurrentWindowTitle(WebDriver driver) {
-	JSWaiter.waitForLazyLoading();
+	JavaScriptWaitManager.waitForLazyLoading();
 	String currentWindowTitle = "";
 	try {
 	    currentWindowTitle = driver.getTitle();
@@ -232,7 +231,7 @@ public class BrowserActions {
      * @return the source of the current page
      */
     public static String getPageSource(WebDriver driver) {
-	JSWaiter.waitForLazyLoading();
+	JavaScriptWaitManager.waitForLazyLoading();
 	String pageSource = "";
 	try {
 	    pageSource = driver.getPageSource();
@@ -251,7 +250,7 @@ public class BrowserActions {
      * @return the window handle for the current window
      */
     public static String getWindowHandle(WebDriver driver) {
-	JSWaiter.waitForLazyLoading();
+	JavaScriptWaitManager.waitForLazyLoading();
 	String windowHandle = "";
 	try {
 	    windowHandle = driver.getWindowHandle();
@@ -270,7 +269,7 @@ public class BrowserActions {
      * @return the position of the current window
      */
     public static String getWindowPosition(WebDriver driver) {
-	JSWaiter.waitForLazyLoading();
+	JavaScriptWaitManager.waitForLazyLoading();
 	String windowPosition = "";
 	try {
 	    windowPosition = driver.manage().window().getPosition().toString();
@@ -289,7 +288,7 @@ public class BrowserActions {
      * @return the size of the current window
      */
     public static String getWindowSize(WebDriver driver) {
-	JSWaiter.waitForLazyLoading();
+	JavaScriptWaitManager.waitForLazyLoading();
 	String windowSize = "";
 	try {
 	    windowSize = driver.manage().window().getSize().toString();
@@ -327,6 +326,8 @@ public class BrowserActions {
      *                                  navigation
      */
     public static void navigateToURL(WebDriver driver, String targetUrl, String targetUrlAfterRedirection) {
+	ReportManager.logDiscrete(
+		"Target URL: [" + targetUrl + "], and after redirection if any: [" + targetUrlAfterRedirection + "]");
 	// force stop any current navigation
 	try {
 	    ((JavascriptExecutor) driver).executeScript("return window.stop;");
@@ -342,15 +343,21 @@ public class BrowserActions {
 	     */
 	}
 	try {
-	    JSWaiter.waitForLazyLoading();
+	    JavaScriptWaitManager.waitForLazyLoading();
 
 	    String initialURL = "";
 	    String initialSource = driver.getPageSource();
 	    initialURL = driver.getCurrentUrl();
+	    // remove trailing slash which may cause comparing the current and target urls
+	    // to fail
+	    if (initialURL.substring(initialURL.length() - 1, initialURL.length()).equals("/")) {
+		initialURL = initialURL.substring(0, initialURL.length() - 1);
+	    }
+	    ReportManager.logDiscrete("Initial URL: [" + initialURL + "]");
 	    if (!initialURL.equals(targetUrl)) {
 		// navigate to new url
 		navigateToNewURL(driver, targetUrl, targetUrlAfterRedirection);
-		JSWaiter.waitForLazyLoading();
+		JavaScriptWaitManager.waitForLazyLoading();
 		if ((ElementActions.getElementsCount(driver, By.tagName("html")) == 1)
 			&& (!driver.getPageSource().equalsIgnoreCase(initialSource))) {
 		    confirmThatWebsiteIsNotDown(driver, targetUrl);
@@ -361,7 +368,7 @@ public class BrowserActions {
 	    } else {
 		// already on the same page
 		driver.navigate().refresh();
-		JSWaiter.waitForLazyLoading();
+		JavaScriptWaitManager.waitForLazyLoading();
 		if (ElementActions.getElementsCount(driver, By.tagName("html")) == 1) {
 		    confirmThatWebsiteIsNotDown(driver, targetUrl);
 		    passAction(driver, targetUrl);
@@ -379,13 +386,13 @@ public class BrowserActions {
      * @param driver the current instance of Selenium webdriver
      */
     public static void navigateBack(WebDriver driver) {
-	JSWaiter.waitForLazyLoading();
+	JavaScriptWaitManager.waitForLazyLoading();
 	String initialURL = "";
 	String newURL = "";
 	try {
 	    initialURL = driver.getCurrentUrl();
 	    driver.navigate().back();
-	    JSWaiter.waitForLazyLoading();
+	    JavaScriptWaitManager.waitForLazyLoading();
 	    (new WebDriverWait(driver, NAVIGATION_TIMEOUT_INTEGER))
 		    .until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
 	    newURL = driver.getCurrentUrl();
@@ -401,13 +408,13 @@ public class BrowserActions {
     }
 
     public static void navigateForward(WebDriver driver) {
-	JSWaiter.waitForLazyLoading();
+	JavaScriptWaitManager.waitForLazyLoading();
 	String initialURL = "";
 	String newURL = "";
 	try {
 	    initialURL = driver.getCurrentUrl();
 	    driver.navigate().forward();
-	    JSWaiter.waitForLazyLoading();
+	    JavaScriptWaitManager.waitForLazyLoading();
 	    (new WebDriverWait(driver, NAVIGATION_TIMEOUT_INTEGER))
 		    .until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
 	    newURL = driver.getCurrentUrl();
@@ -428,7 +435,7 @@ public class BrowserActions {
      * @param driver the current instance of Selenium webdriver
      */
     public static void refreshCurrentPage(WebDriver driver) {
-	JSWaiter.waitForLazyLoading();
+	JavaScriptWaitManager.waitForLazyLoading();
 	driver.navigate().refresh();
 	passAction(driver, driver.getPageSource());
 	// removed all exception handling as there was no comments on when and why this
@@ -440,18 +447,22 @@ public class BrowserActions {
      * 
      * @param driver the current instance of Selenium webdriver
      */
-    public static void closeCurrentWindow(WebDriver driver) {
-	JSWaiter.waitForLazyLoading();
+    public static synchronized void closeCurrentWindow(WebDriver driver) {
+	JavaScriptWaitManager.waitForLazyLoading();
 	try {
-	    String lastPageSource = driver.getPageSource();
-	    driver.close();
-	    driver.quit();
+	    String lastPageSource = null;
+	    // TODO: handle session timeout while attempting to close empty window
+	    lastPageSource = driver.getPageSource();
+	    BrowserFactory.closeDriver(driver.hashCode());
 	    passAction(lastPageSource);
-	} catch (NoSuchSessionException e) {
-	    // browser was already closed by the .close() method
 	} catch (Exception rootCauseException) {
 	    ReportManager.log(rootCauseException);
-	    failAction(rootCauseException);
+	    if (rootCauseException instanceof WebDriverException && rootCauseException.getMessage() != null
+		    && rootCauseException.getMessage().contains("was terminated due to TIMEOUT")) {
+		passAction(null);
+	    } else {
+		failAction(rootCauseException);
+	    }
 	}
     }
 

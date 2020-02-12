@@ -130,7 +130,7 @@ public class RestActions {
     private static void failAction(String actionName, String testData, Object requestBody, Response response,
 	    Throwable... rootCauseException) {
 	String message = reportActionResult(actionName, testData, requestBody, response, false, null, false);
-	if (rootCauseException != null && rootCauseException.length > 0) {
+	if (rootCauseException != null && rootCauseException.length >= 1) {
 	    Assert.fail(message, rootCauseException[0]);
 	} else {
 	    Assert.fail(message);

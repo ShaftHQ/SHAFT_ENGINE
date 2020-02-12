@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Reporter;
@@ -45,6 +46,9 @@ public class ReportManager {
     private static final String SHAFT_ENGINE_VERSION_PROPERTY_NAME = "shaftEngineVersion";
     private static final String TARGET_OS_PROPERTY_NAME = "targetOperatingSystem";
     private static final String ALLURE_VERSION_PROPERTY_NAME = "allureVersion";
+    private static String allureExtractionLocation = System.getProperty("user.home") + File.separator + ".m2"
+	    + File.separator + "repository" + File.separator + "allure" + File.separator;
+
     private static final String REPORT_MANAGER_PREFIX = "[ReportManager] ";
     private static final String SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE = "SHAFT Engine Logs";
     private static int openIssuesForFailedTestsCounter = 0;
@@ -55,6 +59,9 @@ public class ReportManager {
     private static String allureExecutablePath = "";
 
     private static final String OS_WINDOWS = "Windows-64";
+
+    // TODO: refactor to regular class that can be instanciated within the test and
+    // used in a thread-safe way
 
     public static void setOpenIssuesForFailedTestsCounter(int openIssuesForFailedTestsCounter) {
 	ReportManager.openIssuesForFailedTestsCounter = openIssuesForFailedTestsCounter;
@@ -266,7 +273,7 @@ public class ReportManager {
 	}
     }
 
-    private static void attachBasedOnFileType(String attachmentType, String attachmentName,
+    private static synchronized void attachBasedOnFileType(String attachmentType, String attachmentName,
 	    InputStream attachmentContent, String attachmentDescription) {
 	if (attachmentType.toLowerCase().contains("screenshot")) {
 	    Allure.addAttachment(attachmentDescription, "image/png", attachmentContent, ".png");
@@ -374,25 +381,24 @@ public class ReportManager {
 		RestActions.formatXML(propertiesFileBuilder.toString()));
     }
 
-    private static void extractAllureBinariesFromJarFile() {
+    private static void downloadAndExtractAllureBinaries() {
 	// extract allure from jar file to src/main/resources directory if it doesn't
 	// already exist
 	String allureVersion = System.getProperty(ALLURE_VERSION_PROPERTY_NAME);
-	// TODO: download allure to the local maven repository so that it can be shared
-	// accross the local projects
-	allureExecutablePath = "target/allure/allure-" + allureVersion + "/bin/allure";
+	allureExecutablePath = allureExtractionLocation + "allure-" + allureVersion + "/bin/allure";
 	if (!(new File(allureExecutablePath)).exists()) {
-	    FileActions.deleteFolder("target/allure/");
+	    FileActions.deleteFolder(allureExtractionLocation);
 	    // download allure binary
 	    URL allureArchive = FileActions.downloadFile(
 		    "https://repo.maven.apache.org/maven2/io/qameta/allure/allure-commandline/" + allureVersion
 			    + "/allure-commandline-" + allureVersion + ".zip",
 		    "target/allureBinary.zip");
-	    FileActions.unpackArchive(allureArchive, "target/allure/");
+	    FileActions.unpackArchive(allureArchive, allureExtractionLocation);
 	    // extract allure from SHAFT_Engine jar
 	    URL allureSHAFTConfigArchive = ReportManager.class
 		    .getResource("/allure/allureBinary_SHAFTEngineConfigFiles.zip");
-	    FileActions.unpackArchive(allureSHAFTConfigArchive, "target/allure/allure-" + allureVersion + "/");
+	    FileActions.unpackArchive(allureSHAFTConfigArchive,
+		    allureExtractionLocation + "allure-" + allureVersion + "/");
 
 	    if (!System.getProperty(TARGET_OS_PROPERTY_NAME).equals(OS_WINDOWS)) {
 		// make allure executable on unix-based shells
@@ -405,18 +411,18 @@ public class ReportManager {
 	String allureVersion = System.getProperty(ALLURE_VERSION_PROPERTY_NAME);
 	// create generate_allure_report.sh or generate_allure_report.bat
 	List<String> commandsToServeAllureReport;
-	if (System.getProperty(TARGET_OS_PROPERTY_NAME).equals(OS_WINDOWS)) {
+	if (SystemUtils.IS_OS_WINDOWS) {
 	    // create windows batch file
 	    commandsToServeAllureReport = Arrays.asList("@echo off",
-		    "set path=target\\allure\\allure-" + allureVersion + "\\bin;%path%",
+		    "set path=" + allureExtractionLocation + "allure-" + allureVersion + "\\bin;%path%",
 		    "allure serve " + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1),
 		    "pause", "exit");
 	    FileActions.writeToFile("", "generate_allure_report.bat", commandsToServeAllureReport);
-	} else if (!System.getProperty(TARGET_OS_PROPERTY_NAME).equals(OS_WINDOWS)) {
+	} else {
 	    // create unix-based sh file
 	    commandsToServeAllureReport = Arrays
 		    .asList("#!/bin/bash", "parent_path=$( cd \"$(dirname \"${BASH_SOURCE[0]}\")\" ; pwd -P )",
-			    "cd \"$parent_path/target/allure/allure-" + allureVersion + "/bin/\"",
+			    "cd \"" + allureExtractionLocation + "allure-" + allureVersion + "/bin/\"",
 			    "bash allure serve \"$parent_path/"
 				    + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1) + "\"",
 			    "exit"
@@ -436,7 +442,7 @@ public class ReportManager {
 		|| !System.getProperty("appium_platformName").trim().equals("")) {
 	    setDiscreteLogging(true);
 	    cleanAllureResultsDirectory();
-	    extractAllureBinariesFromJarFile();
+	    downloadAndExtractAllureBinaries();
 	    writeGenerateReportShellFilesToProjectDirectory();
 	}
 	writeEnvironmentVariablesToAllureResultsDirectory();
@@ -516,8 +522,6 @@ public class ReportManager {
 	String logText = "";
 	StackTraceElement[] trace = t.getStackTrace();
 
-	// enhance to include exception type
-
 	logBuilder.append(
 		t.getClass().getName() + ":" + System.lineSeparator() + t.getMessage() + System.lineSeparator());
 
@@ -526,9 +530,7 @@ public class ReportManager {
 	}
 	logText = logBuilder.toString();
 	if (t.getMessage() != null) {
-	    ReportManager.log(
-		    "An Exception Occured with this Message: "
-			    + t.getMessage().replace(System.lineSeparator(), " ").trim() + ".",
+	    ReportManager.log("An Exception Occured with this Message: " + t.getMessage().split("\n")[0].trim() + ".",
 		    Arrays.asList(Arrays.asList("Exception Stack Trace", t.getClass().getName(), logText)));
 	} else {
 	    ReportManager.log("An Exception Occured",
@@ -641,7 +643,7 @@ public class ReportManager {
 	String targetOperatingSystem = System.getProperty(TARGET_OS_PROPERTY_NAME);
 	String commandToCreateAllureReport = "";
 
-	allureExecutablePath = "target/allure/allure-" + System.getProperty(ALLURE_VERSION_PROPERTY_NAME)
+	allureExecutablePath = allureExtractionLocation + "allure-" + System.getProperty(ALLURE_VERSION_PROPERTY_NAME)
 		+ "/bin/allure";
 
 	if (targetOperatingSystem.equals(OS_WINDOWS)) {

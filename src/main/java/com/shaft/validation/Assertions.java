@@ -12,7 +12,7 @@ import com.shaft.api.RestActions;
 import com.shaft.api.RestActions.ComparisonType;
 import com.shaft.cli.FileActions;
 import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.element.JSWaiter;
+import com.shaft.gui.element.JavaScriptWaitManager;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.support.JavaActions;
@@ -486,7 +486,7 @@ public class Assertions {
      */
     public static void assertBrowserAttribute(WebDriver driver, String browserAttribute, String expectedValue,
 	    AssertionComparisonType assertionComparisonType, AssertionType assertionType) {
-	JSWaiter.waitForLazyLoading();
+	JavaScriptWaitManager.waitForLazyLoading();
 
 	ReportManager.logDiscrete("Assertion [" + "assertBrowserAttribute"
 		+ "] is being performed for target attribute [" + browserAttribute + "].");

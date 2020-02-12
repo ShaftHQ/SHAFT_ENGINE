@@ -14,9 +14,9 @@ import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 
-public class ScreenshotUtils {
+public class ScreenshotUtilities {
 
-    private ScreenshotUtils() {
+    private ScreenshotUtilities() {
 	throw new IllegalStateException("Utility class");
     }
 

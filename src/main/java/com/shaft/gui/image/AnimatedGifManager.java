@@ -1,27 +1,23 @@
 package com.shaft.gui.image;
 
-//
-
-//GifSequenceWriter.java
-//
-//Created by Elliot Kroo on 2009-04-25.
-//
-//This work is licensed under the Creative Commons Attribution 3.0 Unported
-//License. To view a copy of this license, visit
-//http://creativecommons.org/licenses/by/3.0/ or send a letter to Creative
-//Commons, 171 Second Street, Suite 300, San Francisco, California, 94105, USA.
-
-import javax.imageio.*;
-import javax.imageio.metadata.*;
-import javax.imageio.stream.*;
-import java.awt.image.*;
-import java.io.*;
+import java.awt.image.RenderedImage;
+import java.io.IOException;
 import java.util.Iterator;
 
-public class GifSequenceWriter {
-    private ImageWriter gifWriter;
-    private ImageWriteParam imageWriteParam;
-    private IIOMetadata imageMetaData;
+import javax.imageio.IIOException;
+import javax.imageio.IIOImage;
+import javax.imageio.ImageIO;
+import javax.imageio.ImageTypeSpecifier;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.metadata.IIOMetadata;
+import javax.imageio.metadata.IIOMetadataNode;
+import javax.imageio.stream.ImageOutputStream;
+
+public class AnimatedGifManager {
+    private static ThreadLocal<ImageWriter> gifWriter = new ThreadLocal<ImageWriter>();
+    private static ThreadLocal<ImageWriteParam> imageWriteParam = new ThreadLocal<ImageWriteParam>();
+    private static ThreadLocal<IIOMetadata> imageMetaData = new ThreadLocal<IIOMetadata>();
 
     /**
      * Creates a new GifSequenceWriter
@@ -33,18 +29,23 @@ public class GifSequenceWriter {
      * @throws IOException if no gif ImageWriters are found
      *
      */
-    protected GifSequenceWriter(ImageOutputStream outputStream, int imageType, int timeBetweenFramesMS,
+    protected AnimatedGifManager(ImageOutputStream outputStream, int imageType, int timeBetweenFramesMS,
+	    boolean loopContinuously) throws IOException {
+	initialize(outputStream, imageType, timeBetweenFramesMS, loopContinuously);
+    }
+
+    private synchronized void initialize(ImageOutputStream outputStream, int imageType, int timeBetweenFramesMS,
 	    boolean loopContinuously) throws IOException {
 	// my method to create a writer
-	gifWriter = getWriter();
-	imageWriteParam = gifWriter.getDefaultWriteParam();
+	gifWriter.set(getWriter());
+	imageWriteParam.set(gifWriter.get().getDefaultWriteParam());
 	ImageTypeSpecifier imageTypeSpecifier = ImageTypeSpecifier.createFromBufferedImageType(imageType);
 
-	imageMetaData = gifWriter.getDefaultImageMetadata(imageTypeSpecifier, imageWriteParam);
+	imageMetaData.set(gifWriter.get().getDefaultImageMetadata(imageTypeSpecifier, imageWriteParam.get()));
 
-	String metaFormatName = imageMetaData.getNativeMetadataFormatName();
+	String metaFormatName = imageMetaData.get().getNativeMetadataFormatName();
 
-	IIOMetadataNode root = (IIOMetadataNode) imageMetaData.getAsTree(metaFormatName);
+	IIOMetadataNode root = (IIOMetadataNode) imageMetaData.get().getAsTree(metaFormatName);
 
 	IIOMetadataNode graphicsControlExtensionNode = getNode(root, "GraphicControlExtension");
 
@@ -69,15 +70,15 @@ public class GifSequenceWriter {
 	child.setUserObject(new byte[] { 0x1, (byte) (loop & 0xFF), (byte) ((loop >> 8) & 0xFF) });
 	appEntensionsNode.appendChild(child);
 
-	imageMetaData.setFromTree(metaFormatName, root);
+	imageMetaData.get().setFromTree(metaFormatName, root);
 
-	gifWriter.setOutput(outputStream);
+	gifWriter.get().setOutput(outputStream);
 
-	gifWriter.prepareWriteSequence(null);
+	gifWriter.get().prepareWriteSequence(null);
     }
 
     protected void writeToSequence(RenderedImage img) throws IOException {
-	gifWriter.writeToSequence(new IIOImage(img, null, imageMetaData), imageWriteParam);
+	gifWriter.get().writeToSequence(new IIOImage(img, null, imageMetaData.get()), imageWriteParam.get());
     }
 
     /**
@@ -87,7 +88,7 @@ public class GifSequenceWriter {
      * @throws IOException if an error occurs during writing.
      */
     protected void close() throws IOException {
-	gifWriter.endWriteSequence();
+	gifWriter.get().endWriteSequence();
     }
 
     /**

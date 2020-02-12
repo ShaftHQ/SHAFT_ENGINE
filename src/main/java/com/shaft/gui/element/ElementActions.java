@@ -410,7 +410,7 @@ public class ElementActions {
     private static int getMatchingElementsCount(WebDriver driver, By elementLocator, int numberOfAttempts,
 	    boolean waitForLazyLoading) {
 	if (waitForLazyLoading) {
-	    JSWaiter.waitForLazyLoading();
+	    JavaScriptWaitManager.waitForLazyLoading();
 	}
 
 	int matchingElementsCount = 0;

@@ -13,7 +13,7 @@ import com.shaft.api.RestActions.ComparisonType;
 import com.shaft.cli.FileActions;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
-import com.shaft.gui.element.JSWaiter;
+import com.shaft.gui.element.JavaScriptWaitManager;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.support.JavaActions;
@@ -628,7 +628,7 @@ public class Verifications {
      */
     public static void verifyBrowserAttribute(WebDriver driver, String browserAttribute, String expectedValue,
 	    int verificationComparisonType, Boolean verificationType) {
-	JSWaiter.waitForLazyLoading();
+	JavaScriptWaitManager.waitForLazyLoading();
 
 	ReportManager.logDiscrete("Verification [" + "verifyBrowserAttribute"
 		+ "] is being performed for target attribute [" + browserAttribute + "].");
