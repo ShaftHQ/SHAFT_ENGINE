@@ -227,7 +227,7 @@ public class BrowserFactory {
 	}
 
 	if (Boolean.FALSE.equals(isCompatibleBrowser)) {
-	    failAction("Unsupported Browser Type [" + browserName + "] for this Operating System ["
+	    failAction("Unsupported Browser Type [" + browserType + "] for this Operating System ["
 		    + targetOperatingSystem + "].");
 	}
 

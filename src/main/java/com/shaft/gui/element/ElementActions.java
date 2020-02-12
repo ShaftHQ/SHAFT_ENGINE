@@ -519,7 +519,11 @@ public class ElementActions {
 	    if (!targetText.equals("")) {
 		performType(driver, elementLocator, targetText);
 	    }
-	    return confirmTypingWasSuccessful(driver, elementLocator, targetText, successfulTextLocationStrategy);
+	    if (Boolean.valueOf(System.getProperty("forceCheckTextWasTypedCorrectly"))) {
+		return confirmTypingWasSuccessful(driver, elementLocator, targetText, successfulTextLocationStrategy);
+	    } else {
+		return targetText;
+	    }
 	} else {
 	    ReportManager.log("Failed to identify Target element with locator [" + elementLocator + "].");
 	    return null;
@@ -1262,18 +1266,18 @@ public class ElementActions {
      * @param driver         the current instance of Selenium webdriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
-     * @param key            the key that should be pressed
+     * @param keys           the key that should be pressed
      */
-    public static void keyPress(WebDriver driver, By elementLocator, Keys key) {
+    public static void keyPress(WebDriver driver, By elementLocator, Keys keys) {
 	if (identifyUniqueElement(driver, elementLocator)) {
 	    // Override current locator with the aiGeneratedElementLocator
 	    elementLocator = updateLocatorWithAIGenratedOne(elementLocator);
 
-	    driver.findElement(elementLocator).sendKeys(key);
+	    driver.findElement(elementLocator).sendKeys(keys);
 	} else {
-	    failAction(driver, key.name(), elementLocator);
+	    failAction(driver, keys.name(), elementLocator);
 	}
-	passAction(driver, elementLocator, key.name());
+	passAction(driver, elementLocator, keys.name());
     }
 
     /**
