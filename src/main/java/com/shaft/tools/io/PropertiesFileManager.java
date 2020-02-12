@@ -32,7 +32,7 @@ public class PropertiesFileManager {
      * properties files THEN Base properties files (lowest priority)
      * 
      */
-    public static void readPropertyFiles() {
+    public static synchronized void readPropertyFiles() {
 	// read base system properties
 	Properties props = System.getProperties();
 
@@ -96,7 +96,7 @@ public class PropertiesFileManager {
 
     }
 
-    public static Map<String, String> getAppiumDesiredCapabilities() {
+    public static synchronized Map<String, String> getAppiumDesiredCapabilities() {
 	Map<String, String> appiumDesiredCapabilities = new HashMap<>();
 
 	Properties props = System.getProperties();
@@ -108,7 +108,7 @@ public class PropertiesFileManager {
 	return appiumDesiredCapabilities;
     }
 
-    public static void readPropertyFiles(String propertiesFolderPath) {
+    public static synchronized void readPropertyFiles(String propertiesFolderPath) {
 	try {
 	    Properties properties = new Properties();
 	    Collection<File> propertiesFilesList;

@@ -1,6 +1,7 @@
 package com.shaft.gui.element;
 
 import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.NoSuchSessionException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.support.ui.ExpectedCondition;
@@ -9,21 +10,21 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.support.JSHelpers;
 
-public class JSWaiter {
-    private static WebDriver jsWaitDriver;
+public class JavaScriptWaitManager {
+    private static ThreadLocal<WebDriver> jsWaitDriver = new ThreadLocal<WebDriver>();
     private static JavascriptExecutor jsExec;
     private static final int WAIT_DURATION_INTEGER = 15;
     private static int delayBetweenPolls = 20; // milliseconds
     private static final String TARGET_DOCUMENT_READY_STATE = "complete";
 
-    private JSWaiter() {
+    private JavaScriptWaitManager() {
 	throw new IllegalStateException("Utility class");
     }
 
     // Get the driver
     public static void setDriver(WebDriver driver) {
-	jsWaitDriver = driver;
-	jsExec = (JavascriptExecutor) jsWaitDriver;
+	jsWaitDriver.set(driver);
+	jsExec = (JavascriptExecutor) jsWaitDriver.get();
     }
 
     /**
@@ -34,20 +35,23 @@ public class JSWaiter {
      */
     public static boolean waitForLazyLoading() {
 	try {
-	    waitForJQueryLoadIfDefined();
-	    waitForAngularIfDefined();
 	    waitForJSLoadIfDefined();
+	    waitForAngularIfDefined();
+	    waitForJQueryLoadIfDefined();
+	    return true;
+	} catch (NoSuchSessionException | NullPointerException e) {
+	    // do nothing
 	    return true;
 	} catch (WebDriverException e) {
-	    ReportManager.log(e);
-	    return true;
-	} catch (NullPointerException e) {
-	    return true;
-	} catch (Exception e) {
 	    if (e.getMessage().contains("jQuery is not defined")) {
 		// do nothing
 		return true;
-	    } else if (e.getMessage().contains("Error communicating with the remote browser. It may have died.")) {
+	    } else {
+		ReportManager.log(e);
+		return true;
+	    }
+	} catch (Exception e) {
+	    if (e.getMessage().contains("Error communicating with the remote browser. It may have died.")) {
 		ReportManager.log(e);
 		return false;
 	    } else {
@@ -64,7 +68,7 @@ public class JSWaiter {
 	    ExpectedCondition<Boolean> jQueryLoad = null;
 	    try {
 		// Wait for jQuery to load
-		jQueryLoad = driver -> ((Long) ((JavascriptExecutor) jsWaitDriver)
+		jQueryLoad = driver -> ((Long) ((JavascriptExecutor) jsWaitDriver.get())
 			.executeScript("return jQuery.active") == 0);
 	    } catch (NullPointerException e) {
 		// do nothing
@@ -78,7 +82,7 @@ public class JSWaiter {
 		while ((!jqueryReady) && (tryCounter < 5)) {
 		    try {
 			// Wait for jQuery to load
-			(new WebDriverWait(jsWaitDriver, WAIT_DURATION_INTEGER)).until(jQueryLoad);
+			(new WebDriverWait(jsWaitDriver.get(), WAIT_DURATION_INTEGER)).until(jQueryLoad);
 		    } catch (NullPointerException e) {
 			// do nothing
 		    }
@@ -92,7 +96,7 @@ public class JSWaiter {
 
     // Wait for Angular Load
     private static void waitForAngularLoad() {
-	JavascriptExecutor jsExec = (JavascriptExecutor) jsWaitDriver;
+	JavascriptExecutor jsExec = (JavascriptExecutor) jsWaitDriver.get();
 
 	String angularReadyScript = "return angular.element(document).injector().get('$http').pendingRequests.length === 0";
 
@@ -108,7 +112,7 @@ public class JSWaiter {
 	    int tryCounter = 0;
 	    while ((!angularReady) && (tryCounter < 5)) {
 		// Wait for Angular to load
-		(new WebDriverWait(jsWaitDriver, WAIT_DURATION_INTEGER)).until(angularLoad);
+		(new WebDriverWait(jsWaitDriver.get(), WAIT_DURATION_INTEGER)).until(angularLoad);
 		// More Wait for stability (Optional)
 		sleep(delayBetweenPolls);
 		tryCounter++;
@@ -119,10 +123,10 @@ public class JSWaiter {
 
     // Wait Until JS Ready
     private static void waitForJSLoadIfDefined() {
-	JavascriptExecutor jsExec = (JavascriptExecutor) jsWaitDriver;
+	JavascriptExecutor jsExec = (JavascriptExecutor) jsWaitDriver.get();
 
 	// Wait for Javascript to load
-	ExpectedCondition<Boolean> jsLoad = driver -> ((JavascriptExecutor) jsWaitDriver)
+	ExpectedCondition<Boolean> jsLoad = driver -> ((JavascriptExecutor) jsWaitDriver.get())
 		.executeScript(JSHelpers.DOCUMENT_READYSTATE.getValue()).toString().trim()
 		.equalsIgnoreCase(TARGET_DOCUMENT_READY_STATE);
 
@@ -136,7 +140,7 @@ public class JSWaiter {
 	    int tryCounter = 0;
 	    while ((!jsReady) && (tryCounter < 5)) {
 		// Wait for Javascript to load
-		(new WebDriverWait(jsWaitDriver, WAIT_DURATION_INTEGER)).until(jsLoad);
+		(new WebDriverWait(jsWaitDriver.get(), WAIT_DURATION_INTEGER)).until(jsLoad);
 		// More Wait for stability (Optional)
 		sleep(delayBetweenPolls);
 		tryCounter++;

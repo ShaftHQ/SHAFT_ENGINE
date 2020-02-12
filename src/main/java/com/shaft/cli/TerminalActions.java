@@ -119,7 +119,7 @@ public class TerminalActions {
 
     private void failAction(String actionName, String testData, String log, Exception... rootCauseException) {
 	String message = reportActionResult(actionName, testData, log, false);
-	if (rootCauseException != null) {
+	if (rootCauseException != null && rootCauseException.length >= 1) {
 	    Assert.fail(message, rootCauseException[0]);
 	} else {
 	    Assert.fail(message);

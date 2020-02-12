@@ -29,7 +29,6 @@ public class LogsReporter {
 
     public void attachBrowserLogs() {
 	if (Boolean.FALSE.equals(BrowserFactory.isBrowsersListEmpty())) {
-	    BrowserFactory.attachBrowserLogs();
 	    BrowserFactory.closeAllDrivers();
 	} else {
 	    ReportManager.logDiscrete("There were no Web Browsers used for this test run.");

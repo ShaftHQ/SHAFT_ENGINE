@@ -67,7 +67,7 @@ public class FileActions {
 
     private static void failAction(String actionName, String testData, Exception... rootCauseException) {
 	String message = reportActionResult(actionName, testData, null, false);
-	if (rootCauseException != null) {
+	if (rootCauseException != null && rootCauseException.length >= 1) {
 	    Assert.fail(message, rootCauseException[0]);
 	} else {
 	    Assert.fail(message);

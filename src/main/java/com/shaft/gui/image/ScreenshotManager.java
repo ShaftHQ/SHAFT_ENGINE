@@ -41,7 +41,7 @@ import org.testng.Reporter;
 import com.shaft.cli.FileActions;
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.ElementActions;
-import com.shaft.gui.element.JSWaiter;
+import com.shaft.gui.element.JavaScriptWaitManager;
 import com.shaft.tools.io.ReportManager;
 
 public class ScreenshotManager {
@@ -99,11 +99,11 @@ public class ScreenshotManager {
      */
     private static String globalPassFailAppendedText = "";
 
-    private static WebDriver gifDriver = null;
+    private static ThreadLocal<WebDriver> gifDriver = new ThreadLocal<WebDriver>();
     private static String testCaseName = "";
     private static String gifRelativePathWithFileName = "";
-    private static ImageOutputStream gifOutputStream = null;
-    private static GifSequenceWriter gifWriter = null;
+    private static ThreadLocal<ImageOutputStream> gifOutputStream = new ThreadLocal<ImageOutputStream>();
+    private static ThreadLocal<AnimatedGifManager> gifWriter = new ThreadLocal<AnimatedGifManager>();
 
     private static final String AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH = "src/test/resources/DynamicObjectRepository/";
 
@@ -202,8 +202,8 @@ public class ScreenshotManager {
      *                       from the pom.xml file
      * @return
      */
-    private static List<Object> internalCaptureScreenShot(WebDriver driver, By elementLocator, String actionName,
-	    String appendedText, boolean takeScreenshot) {
+    private static synchronized List<Object> internalCaptureScreenShot(WebDriver driver, By elementLocator,
+	    String actionName, String appendedText, boolean takeScreenshot) {
 
 	// Override current locator with the aiGeneratedElementLocator
 	if (Boolean.TRUE.equals(AI_SUPPORTED_ELEMENT_IDENTIFICATION) && aiGeneratedElementLocator != null
@@ -332,9 +332,9 @@ public class ScreenshotManager {
 		WebElement[] skippedElementsArray = new WebElement[skippedElementsList.size()];
 		skippedElementsArray = skippedElementsList.toArray(skippedElementsArray);
 
-		return ScreenshotUtils.makeFullScreenshot(driver, skippedElementsArray);
+		return ScreenshotUtilities.makeFullScreenshot(driver, skippedElementsArray);
 	    } else {
-		return ScreenshotUtils.makeFullScreenshot(driver);
+		return ScreenshotUtilities.makeFullScreenshot(driver);
 	    }
 	} catch (Exception e) {
 	    ReportManager.log(e);
@@ -388,7 +388,7 @@ public class ScreenshotManager {
 	}
 
 	try {
-	    JSWaiter.waitForLazyLoading();
+	    JavaScriptWaitManager.waitForLazyLoading();
 	} catch (Exception e) {
 	    ReportManager.log(e);
 	}
@@ -414,10 +414,10 @@ public class ScreenshotManager {
 
     }
 
-    public static void startAnimatedGif(WebDriver driver, byte[]... screenshot) {
+    public static synchronized void startAnimatedGif(WebDriver driver, byte[]... screenshot) {
 	// TODO: refactor performance to reduce severe drop when enabling this option
 	if (Boolean.TRUE.equals(CREATE_GIF) && driver != null) {
-	    gifDriver = driver;
+	    gifDriver.set(driver);
 	    try {
 		testCaseName = Reporter.getCurrentTestResult().getMethod().getMethodName();
 		String gifFileName = FileSystems.getDefault().getSeparator() + System.currentTimeMillis() + "_"
@@ -428,7 +428,8 @@ public class ScreenshotManager {
 		if (screenshot.length == 1) {
 		    src = screenshot[0];
 		} else {
-		    src = ((TakesScreenshot) gifDriver).getScreenshotAs(OutputType.BYTES); // takes first screenshot
+		    src = ((TakesScreenshot) gifDriver.get()).getScreenshotAs(OutputType.BYTES);
+		    // takes first screenshot
 		}
 
 		// grab the output image type from the first image in the sequence
@@ -436,11 +437,12 @@ public class ScreenshotManager {
 
 		// create a new BufferedOutputStream
 		FileActions.createFile(SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME, gifFileName);
-		gifOutputStream = new FileImageOutputStream(new File(gifRelativePathWithFileName));
+		gifOutputStream.set(new FileImageOutputStream(new File(gifRelativePathWithFileName)));
 
 		// create a gif sequence with the type of the first image, 500 milliseconds
 		// between frames, which loops infinitely
-		gifWriter = new GifSequenceWriter(gifOutputStream, firstImage.getType(), GIF_FRAME_DELAY, true);
+		gifWriter.set(
+			new AnimatedGifManager(gifOutputStream.get(), firstImage.getType(), GIF_FRAME_DELAY, true));
 
 		// draw initial blank image to set the size of the GIF...
 		BufferedImage initialImage = new BufferedImage(firstImage.getWidth(), firstImage.getHeight(),
@@ -450,10 +452,10 @@ public class ScreenshotManager {
 		initialImageGraphics.clearRect(0, 0, firstImage.getWidth(), firstImage.getHeight());
 
 		// write out initialImage to the sequence...
-		gifWriter.writeToSequence(overlayShaftEngineLogo(initialImage));
+		gifWriter.get().writeToSequence(overlayShaftEngineLogo(initialImage));
 		initialImageGraphics.dispose();
 		// write out first image to the sequence...
-		gifWriter.writeToSequence(overlayShaftEngineLogo(firstImage));
+		gifWriter.get().writeToSequence(overlayShaftEngineLogo(firstImage));
 	    } catch (NullPointerException | NoSuchSessionException e) {
 		// this happens in case the start animated Gif is triggered in a none-test
 		// method
@@ -516,10 +518,10 @@ public class ScreenshotManager {
 	return bimage;
     }
 
-    private static void startOrAppendToAnimatedGif(byte[]... screenshot) {
+    private static synchronized void startOrAppendToAnimatedGif(byte[]... screenshot) {
 	// ensure that animatedGif is started, else force start it
 	if (Boolean.TRUE.equals(CREATE_GIF)) {
-	    if (gifDriver == null || gifWriter == null) {
+	    if (gifDriver.get() == null || gifWriter.get() == null) {
 		BrowserFactory.startAnimatedGif(screenshot);
 	    } else {
 		appentToAnimatedGif(screenshot);
@@ -527,16 +529,16 @@ public class ScreenshotManager {
 	}
     }
 
-    private static void appentToAnimatedGif(byte[]... screenshot) {
+    private static synchronized void appentToAnimatedGif(byte[]... screenshot) {
 	try {
 	    BufferedImage image;
 	    if (screenshot.length == 1) {
 		image = ImageIO.read(new ByteArrayInputStream(screenshot[0]));
 	    } else {
-		image = ImageIO.read(
-			new ByteArrayInputStream(((TakesScreenshot) gifDriver).getScreenshotAs(OutputType.BYTES)));
+		image = ImageIO.read(new ByteArrayInputStream(
+			((TakesScreenshot) gifDriver.get()).getScreenshotAs(OutputType.BYTES)));
 	    }
-	    gifWriter.writeToSequence(overlayShaftEngineLogo(image));
+	    gifWriter.get().writeToSequence(overlayShaftEngineLogo(image));
 
 	} catch (NoSuchSessionException e) {
 	    // this happens when attempting to append to a non existing gif, expected
@@ -556,23 +558,27 @@ public class ScreenshotManager {
 	}
     }
 
-    public static void attachAnimatedGif() {
+    public static synchronized void attachAnimatedGif() {
 	// stop and attach
-	if (Boolean.TRUE.equals(CREATE_GIF) && gifDriver != null && !gifRelativePathWithFileName.equals("")) {
+	if (Boolean.TRUE.equals(CREATE_GIF) && gifDriver.get() != null && !gifRelativePathWithFileName.equals("")) {
 	    try {
 		startOrAppendToAnimatedGif();
 	    } catch (Exception e) {
 		ReportManager.log(e);
 	    }
 	    try {
-		gifWriter.close();
-		gifOutputStream.close();
-
-		gifOutputStream = null;
-		gifWriter = null;
-		gifDriver = null;
 		ReportManager.attach("Animated Gif", testCaseName, new FileInputStream(gifRelativePathWithFileName));
 		gifRelativePathWithFileName = "";
+		if (gifWriter.get() != null) {
+		    gifWriter.get().close();
+		}
+		if (gifOutputStream.get() != null) {
+		    gifOutputStream.get().close();
+		}
+
+		gifOutputStream = new ThreadLocal<ImageOutputStream>();
+		gifWriter = new ThreadLocal<AnimatedGifManager>();
+		gifDriver = new ThreadLocal<WebDriver>();
 	    } catch (FileNotFoundException e) {
 		// this happens when the gif fails to start, maybe the browser window was
 		// already closed

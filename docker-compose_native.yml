@@ -1,0 +1,54 @@
+# This file can be used to quickly setup a selenium grid with one hub and two nodes
+# https://github.com/SeleniumHQ/docker-selenium
+# docker-compose -f docker-compose_native.yml up --scale chrome=4
+# add '-d' option for detached execution
+# docker-compose -f docker-compose_native.yml down --remove-orphans
+# http://localhost:4444/grid/console
+version: '3.7'
+services:
+   selenium-hub:
+      image: selenium/hub
+      ports:
+      - 4444:4444
+      environment:
+         GRID_MAX_SESSION: 16
+         GRID_BROWSER_TIMEOUT: 300
+         GRID_TIMEOUT: 300
+   chrome:
+      image: selenium/node-chrome
+      depends_on:
+      - selenium-hub
+      build:
+         context: .
+         shm_size: 2gb
+      shm_size: 2gb
+      volumes:
+      - /dev/shm:/dev/shm
+      environment:
+         HUB_PORT_4444_TCP_ADDR: selenium-hub
+         HUB_PORT_4444_TCP_PORT: 4444
+         SCREEN_WIDTH: 1920
+         SCREEN_HEIGHT: 1080
+# set false for headless execution
+         START_XVFB: "false"
+         NODE_MAX_SESSION: 1
+         NODE_MAX_INSTANCES: 1
+   firefox:
+      image: selenium/node-firefox
+      depends_on:
+      - selenium-hub
+      build:
+         context: .
+         shm_size: 2gb
+      shm_size: 2gb
+      volumes:
+      - /dev/shm:/dev/shm
+      environment:
+         HUB_PORT_4444_TCP_ADDR: selenium-hub
+         HUB_PORT_4444_TCP_PORT: 4444
+         SCREEN_WIDTH: 1920
+         SCREEN_HEIGHT: 1080
+# set false for headless execution
+         START_XVFB: "false"
+         NODE_MAX_SESSION: 1
+         NODE_MAX_INSTANCES: 1

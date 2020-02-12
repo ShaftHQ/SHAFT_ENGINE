@@ -3,28 +3,28 @@ package unitTests;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.testng.Assert;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.BrowserFactory;
-import com.shaft.gui.browser.BrowserFactory.BrowserType;
 import com.shaft.gui.element.ElementActions;
 
 public class tests_element_elementActions {
-    WebDriver driver;
+    private static ThreadLocal<WebDriver> driver = new ThreadLocal<WebDriver>();
 
     @Test
     public void waitForElementToBePresent_true_expectedToPass() {
-	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
-	ElementActions.waitForElementToBePresent(driver, By.id("hplogo"), 1, true);
+	BrowserActions.navigateToURL(driver.get(), "https://www.google.com/ncr", "www.google.com");
+	ElementActions.waitForElementToBePresent(driver.get(), By.id("hplogo"), 1, true);
     }
 
     @Test
     public void waitForElementToBePresent_true_expectedToFail() {
-	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
+	BrowserActions.navigateToURL(driver.get(), "https://www.google.com/ncr", "www.google.com");
 	try {
-	    ElementActions.waitForElementToBePresent(driver, By.id("bla"), 1, true);
+	    ElementActions.waitForElementToBePresent(driver.get(), By.id("bla"), 1, true);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
@@ -32,15 +32,15 @@ public class tests_element_elementActions {
 
     @Test
     public void waitForElementToBePresent_false_expectedToPass() {
-	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
-	ElementActions.waitForElementToBePresent(driver, By.id("bla"), 1, false);
+	BrowserActions.navigateToURL(driver.get(), "https://www.google.com/ncr", "www.google.com");
+	ElementActions.waitForElementToBePresent(driver.get(), By.id("bla"), 1, false);
     }
 
     @Test
     public void waitForElementToBePresent_false_expectedToFail() {
-	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
+	BrowserActions.navigateToURL(driver.get(), "https://www.google.com/ncr", "www.google.com");
 	try {
-	    ElementActions.waitForElementToBePresent(driver, By.id("hplogo"), 1, false);
+	    ElementActions.waitForElementToBePresent(driver.get(), By.id("hplogo"), 1, false);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
@@ -48,16 +48,21 @@ public class tests_element_elementActions {
 
     @Test
     public void waitForElementToBePresent_moreThanOneElement_expectedToFail() {
-	BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
+	BrowserActions.navigateToURL(driver.get(), "https://www.google.com/ncr", "www.google.com");
 	try {
-	    ElementActions.waitForElementToBePresent(driver, By.xpath("//*"), 1, false);
+	    ElementActions.waitForElementToBePresent(driver.get(), By.xpath("//*"), 1, false);
 	} catch (AssertionError e) {
 	    Assert.assertTrue(true);
 	}
     }
 
-    @BeforeClass // Set-up method, to be run once before the first test
-    public void beforeClass() {
-	driver = BrowserFactory.getBrowser(BrowserType.GOOGLE_CHROME);
+    @BeforeMethod
+    public void beforeMethod() {
+	driver.set(BrowserFactory.getBrowser());
+    }
+
+    @AfterMethod
+    public void AfterMethod() {
+	BrowserActions.closeCurrentWindow(driver.get());
     }
 }
