@@ -40,6 +40,7 @@
 		<!-- http://www.slf4j.org/apidocs/org/slf4j/simple/SimpleLogger.html -->
 
 		<!-- SHAFT Test Run Parameters -->
+		<customListeners.list>com.shaft.tools.listeners.SuiteListener,com.shaft.tools.listeners.InvokedMethodListener,com.shaft.tools.listeners.AlterSuiteListener</customListeners.list>
 		<testSuite.name>unitTestSuite</testSuite.name>
 
 		<!-- Dependencies and Plug-ins Version Numbers Parameters -->
@@ -363,7 +364,7 @@
 						</property>
 						<property>
 							<name>listener</name>
-							<value>com.shaft.tools.listeners.SuiteListener,com.shaft.tools.listeners.InvokedMethodListener,com.shaft.tools.listeners.AlterSuiteListener</value>
+							<value>${customListeners.list}</value>
 						</property>
 					</properties>
 				</configuration>
@@ -466,21 +467,37 @@
 		</plugins>
 		<!-- </pluginManagement> -->
 	</build>
-	<!-- <repositories> -->
-	<!-- <repository> -->
-	<!-- <id>redshift</id> -->
-	<!-- <url>http://redshift-maven-repository.s3-website-us-east-1.amazonaws.com/release</url> -->
-	<!-- <id>maven.oracle.com</id> -->
-	<!-- <releases> -->
-	<!-- <enabled>true</enabled> -->
-	<!-- </releases> -->
-	<!-- <snapshots> -->
-	<!-- <enabled>false</enabled> -->
-	<!-- </snapshots> -->
-	<!-- <url>https://maven.oracle.com</url> -->
-	<!-- <layout>default</layout> -->
-	<!-- </repository> -->
-	<!-- </repositories> -->
+	<repositories>
+		<!-- <repository> -->
+		<!-- <id>redshift</id> -->
+		<!-- <url>http://redshift-maven-repository.s3-website-us-east-1.amazonaws.com/release</url> -->
+		<!-- <id>maven.oracle.com</id> -->
+		<!-- <releases> -->
+		<!-- <enabled>true</enabled> -->
+		<!-- </releases> -->
+		<!-- <snapshots> -->
+		<!-- <enabled>false</enabled> -->
+		<!-- </snapshots> -->
+		<!-- <url>https://maven.oracle.com</url> -->
+		<!-- <layout>default</layout> -->
+		<!-- </repository> -->
+		<repository>
+			<id>bintray-cbeust-maven-testng</id>
+			<name>bintray</name>
+			<url>https://dl.bintray.com/cbeust/maven</url>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+		</repository>
+		<repository>
+			<id>bintray-qameta-maven-allure</id>
+			<name>bintray</name>
+			<url>https://dl.bintray.com/qameta/maven</url>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+		</repository>
+	</repositories>
 	<!-- <pluginRepositories> -->
 	<!-- <pluginRepository> -->
 	<!-- <id>maven.oracle.com</id> -->

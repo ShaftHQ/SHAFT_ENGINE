@@ -10,6 +10,7 @@ import org.testng.IInvokedMethod;
 import org.testng.IInvokedMethodListener;
 import org.testng.ITestNGMethod;
 import org.testng.ITestResult;
+import org.testng.Reporter;
 import org.testng.SkipException;
 import org.testng.internal.ConfigurationMethod;
 import org.testng.internal.ConstructorOrMethod;
@@ -59,6 +60,10 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 		RecordManager.startRecording();
 	    }
 	} else if (testMethod instanceof ConfigurationMethod) {
+	    // org.testng.internal.ConfigurationMethod
+	    // ReportManager.logDiscrete("Current TestNG Method Name: " +
+	    // testMethod.getClass().getName());
+	    // configuration method information is not added to any logger (TestNG.Reporter)
 	    ReportManager.logConfigurationMethodInformation(testMethod.getTestClass().getName(),
 		    testMethod.getMethodName());
 	}
@@ -72,7 +77,10 @@ public class InvokedMethodListener implements IInvokedMethodListener {
     public void afterInvocation(IInvokedMethod method, ITestResult testResult) {
 	if (!method.getTestMethod().getQualifiedName().contains("closureActivities")) {
 	    BrowserFactory.attachAnimatedGif();
-	    ReportManager.attachTestLog();
+	    // configuration method attachment is not added to the report (Allure ->
+	    // threadContext.getCurrent(); -> empty)
+	    ReportManager.attachTestLog(testResult.getMethod().getMethodName(),
+		    createTestLog(Reporter.getOutput(testResult)));
 	}
 
 	// resetting scope and config
@@ -171,5 +179,15 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 		ReportManager.setListOfNewIssuesForFailedTests(listOfNewIssuesForFailedTests);
 	    }
 	}
+    }
+
+    private String createTestLog(List<String> output) {
+	StringBuilder builder = new StringBuilder();
+	for (String each : output) {
+	    builder.append(each).append(System.lineSeparator());
+	}
+	// Removing the last ","
+	return builder.toString().substring(0, builder.length() - 2);
+
     }
 }

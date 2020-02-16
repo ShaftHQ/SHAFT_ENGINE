@@ -33,7 +33,7 @@ public class ReportManager {
 
     private static String fullLog = "";
     private static String issuesLog = "";
-    private static String currentTestLog = "";
+//    private static String currentTestLog = "";
     private static int actionCounter = 1;
     private static int issueCounter = 1;
     private static boolean discreteLogging = false;
@@ -105,8 +105,10 @@ public class ReportManager {
     private static void createLogEntry(String logText) {
 	String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
 	String log = REPORT_MANAGER_PREFIX + logText.trim() + " @" + timestamp;
-	appendToLog(log);
-	appendToLog(System.lineSeparator());
+	slf4jLogger.info(log);
+	Reporter.log(log, false);
+//	appendToFullLog(log);
+//	appendToFullLog(System.lineSeparator());
     }
 
     /**
@@ -114,9 +116,9 @@ public class ReportManager {
      * 
      * @param log the log entry that needs to be appended to the full log
      */
-    private static void appendToLog(String log) {
+    private static void appendToFullLog(String log) {
 	fullLog += log;
-	currentTestLog += log;
+//	currentTestLog += log;
     }
 
     public static void logIssue(String issue) {
@@ -168,22 +170,29 @@ public class ReportManager {
 	}
     }
 
-    /**
-     * Clears the current test log to prepare for a new test
-     */
-    private static void clearTestLog() {
-	currentTestLog = "";
-    }
+//    /**
+//     * Clears the current test log to prepare for a new test
+//     */
+//    private static void clearTestLog() {
+//	currentTestLog = "";
+//    }
 
-    private static void createReportEntry(String logText) {
+    private static void createReportEntry(String logText, Boolean addToFullLog) {
 	String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
 	String log = REPORT_MANAGER_PREFIX + logText.trim() + " @" + timestamp;
 	Reporter.log(log, true);
-	appendToLog(log);
-	appendToLog(System.lineSeparator());
+	if (addToFullLog) {
+	    appendToFullLog(log);
+	    appendToFullLog(System.lineSeparator());
+	}
     }
 
-    protected static void createImportantReportEntry(String logText) {
+    protected static void logClosureActivitiesInitialization() {
+	String closureActivities = "Test Closure Activities";
+	createImportantReportEntry(closureActivities, true);
+    }
+
+    private static void createImportantReportEntry(String logText, Boolean addToFullLog) {
 	Boolean initialLoggingStatus = discreteLogging;
 	setDiscreteLogging(false); // force log even if discrete logging was turned on
 	String log = System.lineSeparator()
@@ -192,8 +201,10 @@ public class ReportManager {
 		+ "################################################################################################################################################";
 
 	Reporter.log(log, true);
-	appendToLog(log);
-	appendToLog(System.lineSeparator());
+	if (Boolean.TRUE.equals(addToFullLog)) {
+	    appendToFullLog(log);
+	    appendToFullLog(System.lineSeparator());
+	}
 	setDiscreteLogging(initialLoggingStatus);
     }
 
@@ -207,12 +218,12 @@ public class ReportManager {
      */
     @Step("Action [{actionCounter}]: {logText}")
     private static void writeStepToReport(String logText, int actionCounter) {
-	createReportEntry(logText);
+	createReportEntry(logText, false);
     }
 
     @Step("Action [{actionCounter}]: {logText}")
     private static void writeStepToReport(String logText, int actionCounter, List<List<Object>> attachments) {
-	createReportEntry(logText);
+	createReportEntry(logText, false);
 	if (attachments != null) {
 	    attachments.forEach(attachment -> {
 		if (attachment != null && attachment.get(2).getClass().toString().toLowerCase().contains("string")
@@ -239,7 +250,9 @@ public class ReportManager {
 	    }
 	    baos.flush();
 	} catch (IOException e) {
-	    slf4jLogger.info("Error while creating Attachment", e);
+	    String error = "Error while creating Attachment";
+	    slf4jLogger.info(error, e);
+	    Reporter.log(error, false);
 	}
 
 	attachmentContent = new ByteArrayInputStream(baos.toByteArray());
@@ -250,7 +263,8 @@ public class ReportManager {
 	attachBasedOnFileType(attachmentType, attachmentName, attachmentContent, attachmentDescription);
 
 	if (!(attachmentType.equals(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE) && attachmentName.equals("Execution log"))) {
-	    createReportEntry("Successfully created attachment [" + attachmentType + " - " + attachmentName + "]");
+	    createReportEntry("Successfully created attachment [" + attachmentType + " - " + attachmentName + "]",
+		    false);
 	}
 
 	if (debugMode && !attachmentType.contains(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE)
@@ -268,7 +282,7 @@ public class ReportManager {
 		String logEntry = REPORT_MANAGER_PREFIX + "Debugging Attachment Entry" + " @" + timestamp
 			+ System.lineSeparator() + theString + System.lineSeparator();
 		slf4jLogger.info(logEntry);
-		appendToLog(logEntry);
+//		appendToFullLog(logEntry);
 	    }
 	}
     }
@@ -289,12 +303,12 @@ public class ReportManager {
 	} else if (attachmentType.toLowerCase().contains("json") || attachmentName.toLowerCase().contains("json")) {
 	    Allure.addAttachment(attachmentDescription, "text/json", attachmentContent, ".json");
 	} else if (attachmentType.toLowerCase().contains("engine logs")) {
-	    if (attachmentName.equals("Current Method log")) {
-		Allure.addAttachment(attachmentDescription, "text/plain",
-			new ByteArrayInputStream(currentTestLog.trim().getBytes()), ".txt");
-	    } else {
-		Allure.addAttachment(attachmentDescription, "text/plain", attachmentContent, ".txt");
-	    }
+//	    if (attachmentName.equals("Current Method log")) {
+//		Allure.addAttachment(attachmentDescription, "text/plain",
+//			new ByteArrayInputStream(currentTestLog.trim().getBytes()), ".txt");
+//	    } else {
+	    Allure.addAttachment(attachmentDescription, "text/plain", attachmentContent, ".txt");
+//	    }
 	} else {
 	    Allure.addAttachment(attachmentDescription, attachmentContent);
 	}
@@ -450,27 +464,31 @@ public class ReportManager {
     }
 
     public static void logEngineVersion() {
-	createImportantReportEntry(
-		"Detected SHAFT Engine Version: [" + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "]");
+	String engineVersion = "Detected SHAFT Engine Version: ["
+		+ System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "]";
+	createImportantReportEntry(engineVersion, true);
     }
 
-    public static void logTestInformation(String className, String testMethodName, String testDescription) {
-	clearTestLog();
+    public static synchronized void logTestInformation(String className, String testMethodName,
+	    String testDescription) {
+//	clearTestLog();
 	testCasesCounter++;
 	if (!testDescription.equals("")) {
 	    createImportantReportEntry("Starting Execution:\t[" + testCasesCounter + " out of " + totalNumberOfTests
 		    + "] test cases in the current suite\nTest Method:\t\t[" + className + "." + testMethodName
-		    + "]\nTest Description:\t[" + testDescription + "]");
+		    + "]\nTest Description:\t[" + testDescription + "]", false);
 	} else {
 	    createImportantReportEntry("Starting Execution:\t[" + testCasesCounter + " out of " + totalNumberOfTests
-		    + "] test cases in the current suite\nTest Method:\t\t[" + className + "." + testMethodName + "]");
+		    + "] test cases in the current suite\nTest Method:\t\t[" + className + "." + testMethodName + "]",
+		    false);
 	}
     }
 
     public static void logConfigurationMethodInformation(String className, String testMethodName) {
-	clearTestLog();
+	// In TestNG Reporter, this log entry is logged at the end of the previous test
+	// (or null for the first test)
 	createImportantReportEntry("Starting Execution of a Configuration (Setup or Teardown) Method\nTest Method:\t\t["
-		+ className + "." + testMethodName + "]");
+		+ className + "." + testMethodName + "]", false);
     }
 
     /**
@@ -541,7 +559,6 @@ public class ReportManager {
 
     public static void logDiscrete(String logText) {
 	createLogEntry(logText);
-	slf4jLogger.info(logText);
     }
 
     /**
@@ -589,24 +606,25 @@ public class ReportManager {
      * execution report.
      * 
      */
-    public static void attachTestLog() {
-	String trimmed = currentTestLog.trim();
-	if (!currentTestLog.trim().equals("") && (!(String.valueOf(trimmed.charAt(0)).equals("#")
-		&& String.valueOf(trimmed.charAt(trimmed.length() - 1)).equals("#")))) {
-	    createAttachment(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE, "Current Method log",
-		    new ByteArrayInputStream(currentTestLog.getBytes()));
+    public static void attachTestLog(String currentMethodName, String testLog) {
+	appendToFullLog(testLog);
+	appendToFullLog(System.lineSeparator());
+	if (!testLog.isBlank()) {
+	    createAttachment(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE, "Current Method log: " + currentMethodName,
+		    new ByteArrayInputStream(testLog.getBytes()));
 	}
-	clearTestLog();
     }
 
     public static void attachFullLog(String executionEndTimestamp) {
 	if (!fullLog.trim().equals("")) {
-	    createReportEntry("Successfully created attachment [" + SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE + " - "
-		    + "Execution log" + "]");
-	    createImportantReportEntry("This test run was powered by SHAFT Engine Version: ["
+	    String fullLogCreated = "Successfully created attachment [" + SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE + " - "
+		    + "Execution log" + "]";
+	    createReportEntry(fullLogCreated, true);
+	    String copyrights = "This test run was powered by SHAFT Engine Version: ["
 		    + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "]" + System.lineSeparator()
-		    + "SHAFT Engine is licensed under the MIT License: [https://github.com/MohabMohie/SHAFT_ENGINE/blob/master/LICENSE].");
-	    createAttachment(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE, "Execution log - " + executionEndTimestamp,
+		    + "SHAFT Engine is licensed under the MIT License: [https://github.com/MohabMohie/SHAFT_ENGINE/blob/master/LICENSE].";
+	    createImportantReportEntry(copyrights, true);
+	    createAttachment(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE, "Execution log: " + executionEndTimestamp,
 		    new ByteArrayInputStream(fullLog.trim().getBytes()));
 	}
     }
@@ -615,9 +633,9 @@ public class ReportManager {
 	String issueSummary = prepareIssuesLog();
 	if (!issuesLog.trim().equals("")) {
 	    log(issueSummary,
-		    Arrays.asList(Arrays.asList(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE,
-			    "Issues log CSV - " + executionEndTimestamp,
-			    new ByteArrayInputStream(issuesLog.trim().getBytes()))));
+		    Arrays.asList(
+			    Arrays.asList(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE, "Issues log CSV: " + executionEndTimestamp,
+				    new ByteArrayInputStream(issuesLog.trim().getBytes()))));
 	}
     }
 
