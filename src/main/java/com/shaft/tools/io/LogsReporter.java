@@ -18,7 +18,7 @@ public class LogsReporter {
     }
 
     private void initializeClosureActivities() {
-	ReportManager.createImportantReportEntry("Test Closure Activities");
+	ReportManager.logClosureActivitiesInitialization();
     }
 
     public void attachFullLogs() {
