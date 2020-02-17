@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: org.apache.servicemix.bundles:org.apache.servicemix.bundles.oro:2.0.8_6">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/org/apache/servicemix/bundles/org.apache.servicemix.bundles.oro/2.0.8_6/org.apache.servicemix.bundles.oro-2.0.8_6.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/org/apache/servicemix/bundles/org.apache.servicemix.bundles.oro/2.0.8_6/org.apache.servicemix.bundles.oro-2.0.8_6-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/org/apache/servicemix/bundles/org.apache.servicemix.bundles.oro/2.0.8_6/org.apache.servicemix.bundles.oro-2.0.8_6-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

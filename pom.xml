@@ -1,507 +1,499 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-	<modelVersion>4.0.0</modelVersion>
-	<groupId>io.github.mohabmohie</groupId>
-	<artifactId>SHAFT_ENGINE</artifactId>
-	<version>4.0.20200212-beta</version>
-	<name>${project.groupId}:${project.artifactId}</name>
-	<description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
-	<url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
-	<licenses>
-		<license>
-			<name>MIT License</name>
-			<url>http://www.opensource.org/licenses/mit-license.php</url>
-		</license>
-	</licenses>
-	<developers>
-		<developer>
-			<name>Mohab Mohie</name>
-			<email>Mohab.MohieElDeen@outlook.com</email>
-			<organization>GitHub</organization>
-			<organizationUrl>https://github.com/MohabMohie</organizationUrl>
-		</developer>
-	</developers>
-	<scm>
-		<connection>scm:git:git://github.com/MohabMohie/SHAFT_ENGINE.git</connection>
-		<developerConnection>scm:git:ssh://github.com/MohabMohie/SHAFT_ENGINE.git</developerConnection>
-		<url>http://github.com/MohabMohie/SHAFT_ENGINE/tree/master</url>
-	</scm>
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>io.github.mohabmohie</groupId>
+    <artifactId>SHAFT_ENGINE</artifactId>
+    <version>4.0.20200217-beta</version>
+    <name>${project.groupId}:${project.artifactId}</name>
+    <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
+    <url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>http://www.opensource.org/licenses/mit-license.php</url>
+        </license>
+    </licenses>
+    <developers>
+        <developer>
+            <name>Mohab Mohie</name>
+            <email>Mohab.MohieElDeen@outlook.com</email>
+            <organization>GitHub</organization>
+            <organizationUrl>https://github.com/MohabMohie</organizationUrl>
+        </developer>
+    </developers>
+    <scm>
+        <connection>scm:git:git://github.com/MohabMohie/SHAFT_ENGINE.git</connection>
+        <developerConnection>scm:git:ssh://github.com/MohabMohie/SHAFT_ENGINE.git</developerConnection>
+        <url>http://github.com/MohabMohie/SHAFT_ENGINE/tree/master</url>
+    </scm>
 
-	<properties>
-		<shaft_engine.version>${project.artifactId}-${project.version}</shaft_engine.version>
-		<!-- SHAFT_Engine Properties and other property files are read from the 
-			below location -->
-		<propertiesFolderPath>src/test/resources/Properties/</propertiesFolderPath>
-		<propertiesFolderPath_jenkins></propertiesFolderPath_jenkins>
+    <properties>
+        <shaft_engine.version>${project.artifactId}-${project.version}</shaft_engine.version>
+        <!-- SHAFT_Engine Properties and other property files are read from the
+            below location -->
+        <propertiesFolderPath>src/test/resources/Properties/</propertiesFolderPath>
+        <propertiesFolderPath_jenkins></propertiesFolderPath_jenkins>
 
-		<org.slf4j.simpleLogger.defaultLogLevel>info</org.slf4j.simpleLogger.defaultLogLevel>
-		<!-- "trace", "debug", "info", "warn", "error" or "off" -->
-		<!-- http://www.slf4j.org/apidocs/org/slf4j/simple/SimpleLogger.html -->
+        <org.slf4j.simpleLogger.defaultLogLevel>info</org.slf4j.simpleLogger.defaultLogLevel>
+        <!-- "trace", "debug", "info", "warn", "error" or "off" -->
+        <!-- http://www.slf4j.org/apidocs/org/slf4j/simple/SimpleLogger.html -->
 
-		<!-- SHAFT Test Run Parameters -->
-		<customListeners.list>com.shaft.tools.listeners.SuiteListener,com.shaft.tools.listeners.InvokedMethodListener,com.shaft.tools.listeners.AlterSuiteListener</customListeners.list>
-		<testSuite.name>unitTestSuite</testSuite.name>
+        <!-- SHAFT Test Run Parameters -->
+        <customListeners.list>
+            com.shaft.tools.listeners.SuiteListener,com.shaft.tools.listeners.InvokedMethodListener,com.shaft.tools.listeners.AlterSuiteListener
+        </customListeners.list>
+        <testSuite.name>unitTestSuite</testSuite.name>
 
-		<!-- Dependencies and Plug-ins Version Numbers Parameters -->
-		<encoding.type>UTF-8</encoding.type>
-		<jdk.version>13</jdk.version>
+        <!-- Dependencies and Plug-ins Version Numbers Parameters -->
+        <encoding.type>UTF-8</encoding.type>
+        <jdk.version>13</jdk.version>
 
-		<!-- <selenium.version>4.0.0-alpha-3</selenium.version> -->
-		<appium-selenium.version>3.141.59</appium-selenium.version>
-		<appium-java-client.version>7.3.0</appium-java-client.version>
+        <!-- <selenium.version>4.0.0-alpha-3</selenium.version> -->
+        <appium-selenium.version>3.141.59</appium-selenium.version>
+        <appium-java-client.version>7.3.0</appium-java-client.version>
 
-		<webdrivermanager.version>3.8.1</webdrivermanager.version>
-		<allure-testng.version>2.13.1</allure-testng.version> <!-- UPDATE path.properties -->
-		<aspectj.version>1.9.5</aspectj.version> <!-- 1.8.10 DO NOT UPDATE -->
+        <webdrivermanager.version>3.8.1</webdrivermanager.version>
+        <allure-testng.version>2.13.1</allure-testng.version> <!-- UPDATE path.properties -->
+        <aspectj.version>1.9.5</aspectj.version> <!-- 1.8.10 DO NOT UPDATE -->
 
-		<rest-assured.version>4.2.0</rest-assured.version>
-		<json-simple.version>1.1.1</json-simple.version>
-		<skyscreamer-jsonassert.version>1.5.0</skyscreamer-jsonassert.version>
-		<mime-util.version>2.1.3</mime-util.version>
+        <rest-assured.version>4.2.0</rest-assured.version>
+        <json-simple.version>1.1.1</json-simple.version>
+        <skyscreamer-jsonassert.version>1.5.0</skyscreamer-jsonassert.version>
+        <mime-util.version>2.1.3</mime-util.version>
 
-		<testng.version>7.0.0</testng.version>
+        <testng.version>7.0.0</testng.version>
 
-		<mysql-connector-java.version>5.1.6</mysql-connector-java.version>
-		<mssql-jdbc.version>7.2.2.jre8</mssql-jdbc.version>
-		<postgresql.version>9.1-901-1.jdbc4</postgresql.version>
-		<!-- <ojdbc8.version>19.3.0.0</ojdbc8.version> -->
+        <mysql-connector-java.version>5.1.6</mysql-connector-java.version>
+        <mssql-jdbc.version>7.2.2.jre8</mssql-jdbc.version>
+        <postgresql.version>9.1-901-1.jdbc4</postgresql.version>
+        <!-- <ojdbc8.version>19.3.0.0</ojdbc8.version> -->
 
-		<pojosontheweb-monte.version>1.0.1</pojosontheweb-monte.version>
+        <pojosontheweb-monte.version>1.0.1</pojosontheweb-monte.version>
 
-		<apachepoi.version>4.1.0</apachepoi.version>
-		<org.slf4j.version>1.7.26</org.slf4j.version>
+        <apachepoi.version>4.1.0</apachepoi.version>
+        <org.slf4j.version>1.7.26</org.slf4j.version>
 
-		<maven-resources-plugin.version>3.1.0</maven-resources-plugin.version>
-		<maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
-		<maven-surefire-plugin.version>3.0.0-M4</maven-surefire-plugin.version> <!-- 2.20 DO NOT UPDATE -->
-		<maven-shade-plugin.version>3.2.1</maven-shade-plugin.version>
-		<maven-jar-plugin.version>3.2.0</maven-jar-plugin.version>
-		<maven-javadoc-plugin.version>3.1.1</maven-javadoc-plugin.version>
-		<maven-source-plugin.version>3.2.1</maven-source-plugin.version>
+        <maven-resources-plugin.version>3.1.0</maven-resources-plugin.version>
+        <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
+        <maven-surefire-plugin.version>3.0.0-M4</maven-surefire-plugin.version> <!-- 2.20 DO NOT UPDATE -->
+        <maven-shade-plugin.version>3.2.1</maven-shade-plugin.version>
+        <maven-jar-plugin.version>3.2.0</maven-jar-plugin.version>
+        <maven-javadoc-plugin.version>3.1.1</maven-javadoc-plugin.version>
+        <maven-source-plugin.version>3.2.1</maven-source-plugin.version>
 
-		<jcraft-jsch.version>0.1.55</jcraft-jsch.version>
+        <jcraft-jsch.version>0.1.55</jcraft-jsch.version>
 
-		<cucumber.version>4.3.1</cucumber.version>
-		<cverges-expect4j.version>1.9</cverges-expect4j.version>
+        <cucumber.version>4.3.1</cucumber.version>
+        <cverges-expect4j.version>1.9</cverges-expect4j.version>
 
-		<openpnp-opencv.version>3.4.2-1</openpnp-opencv.version>
-	</properties>
+        <openpnp-opencv.version>3.4.2-1</openpnp-opencv.version>
+    </properties>
 
-	<dependencies>
-		<!-- TESTNG DEPENDENCIES -->
-		<dependency>
-			<groupId>org.testng</groupId>
-			<artifactId>testng</artifactId>
-			<version>${testng.version}</version>
-		</dependency>
+    <dependencies>
+        <!-- TESTNG DEPENDENCIES -->
+        <dependency>
+            <groupId>org.testng</groupId>
+            <artifactId>testng</artifactId>
+            <version>${testng.version}</version>
+        </dependency>
 
-		<!-- SELENIUM WEBDRIVER -->
-		<dependency>
-			<groupId>org.seleniumhq.selenium</groupId>
-			<artifactId>selenium-java</artifactId>
-			<version>${appium-selenium.version}</version>
-			<!-- <version>${selenium.version}</version> -->
-		</dependency>
+        <!-- SELENIUM WEBDRIVER -->
+        <dependency>
+            <groupId>org.seleniumhq.selenium</groupId>
+            <artifactId>selenium-java</artifactId>
+            <version>${appium-selenium.version}</version>
+            <!-- <version>${selenium.version}</version> -->
+        </dependency>
 
-		<!-- APPIUM -->
-		<dependency>
-			<groupId>io.appium</groupId>
-			<artifactId>java-client</artifactId>
-			<version>${appium-java-client.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.seleniumhq.selenium</groupId>
-					<artifactId>selenium-java</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.seleniumhq.selenium</groupId>
-					<artifactId>selenium-support</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.seleniumhq.selenium</groupId>
-					<artifactId>selenium-api</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.slf4j</groupId>
-					<artifactId>slf4j-api</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>commons-logging</groupId>
-					<artifactId>commons-logging</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
+        <!-- APPIUM -->
+        <dependency>
+            <groupId>io.appium</groupId>
+            <artifactId>java-client</artifactId>
+            <version>${appium-java-client.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.seleniumhq.selenium</groupId>
+                    <artifactId>selenium-java</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.seleniumhq.selenium</groupId>
+                    <artifactId>selenium-support</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.seleniumhq.selenium</groupId>
+                    <artifactId>selenium-api</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
 
-		<!-- AI POWERED ELEMENT IDENTIFICATION -->
-		<dependency>
-			<groupId>org.openpnp</groupId>
-			<artifactId>opencv</artifactId>
-			<version>${openpnp-opencv.version}</version>
-		</dependency>
+        <!-- AI POWERED ELEMENT IDENTIFICATION -->
+        <dependency>
+            <groupId>org.openpnp</groupId>
+            <artifactId>opencv</artifactId>
+            <version>${openpnp-opencv.version}</version>
+        </dependency>
 
-		<!-- WEBDRIVER MANAGER -->
-		<dependency>
-			<groupId>io.github.bonigarcia</groupId>
-			<artifactId>webdrivermanager</artifactId>
-			<version>${webdrivermanager.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.slf4j</groupId>
-					<artifactId>slf4j-api</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
+        <!-- WEBDRIVER MANAGER -->
+        <dependency>
+            <groupId>io.github.bonigarcia</groupId>
+            <artifactId>webdrivermanager</artifactId>
+            <version>${webdrivermanager.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
 
-		<!-- EXCEL FILE MANIPULATION -->
-		<dependency>
-			<groupId>org.apache.poi</groupId>
-			<artifactId>poi</artifactId>
-			<version>${apachepoi.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.poi</groupId>
-			<artifactId>poi-ooxml</artifactId>
-			<version>${apachepoi.version}</version>
-		</dependency>
+        <!-- EXCEL FILE MANIPULATION -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi</artifactId>
+            <version>${apachepoi.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>${apachepoi.version}</version>
+        </dependency>
 
-		<!-- ALLURE REPORTING -->
-		<dependency>
-			<groupId>io.qameta.allure</groupId>
-			<artifactId>allure-testng</artifactId>
-			<version>${allure-testng.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.slf4j</groupId>
-					<artifactId>slf4j-api</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-		<dependency>
-			<groupId>org.aspectj</groupId>
-			<artifactId>aspectjweaver</artifactId>
-			<version>${aspectj.version}</version>
-		</dependency>
+        <!-- ALLURE REPORTING -->
+        <dependency>
+            <groupId>io.qameta.allure</groupId>
+            <artifactId>allure-testng</artifactId>
+            <version>${allure-testng.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.aspectj</groupId>
+            <artifactId>aspectjweaver</artifactId>
+            <version>${aspectj.version}</version>
+        </dependency>
 
-		<!-- REST ASSURED -->
-		<dependency>
-			<groupId>io.rest-assured</groupId>
-			<artifactId>rest-assured</artifactId>
-			<version>${rest-assured.version}</version>
-			<!-- <exclusions> -->
-			<!-- <exclusion> -->
-			<!-- <groupId>com.sun.xml.bind</groupId> -->
-			<!-- <artifactId>jaxb-osgi</artifactId> -->
-			<!-- </exclusion> -->
-			<!-- <exclusion> -->
-			<!-- <groupId>javax.xml.bind</groupId> -->
-			<!-- <artifactId>jaxb-api</artifactId> -->
-			<!-- </exclusion> -->
-			<!-- </exclusions> -->
-		</dependency>
-		<dependency>
-			<groupId>com.googlecode.json-simple</groupId>
-			<artifactId>json-simple</artifactId>
-			<version>${json-simple.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.skyscreamer</groupId>
-			<artifactId>jsonassert</artifactId>
-			<version>${skyscreamer-jsonassert.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>eu.medsea.mimeutil</groupId>
-			<artifactId>mime-util</artifactId>
-			<version>${mime-util.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.slf4j</groupId>
-					<artifactId>slf4j-api</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.slf4j</groupId>
-					<artifactId>slf4j-log4j12</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>log4j</groupId>
-					<artifactId>log4j</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
+        <!-- REST ASSURED -->
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>rest-assured</artifactId>
+            <version>${rest-assured.version}</version>
+            <!-- <exclusions> -->
+            <!-- <exclusion> -->
+            <!-- <groupId>com.sun.xml.bind</groupId> -->
+            <!-- <artifactId>jaxb-osgi</artifactId> -->
+            <!-- </exclusion> -->
+            <!-- <exclusion> -->
+            <!-- <groupId>javax.xml.bind</groupId> -->
+            <!-- <artifactId>jaxb-api</artifactId> -->
+            <!-- </exclusion> -->
+            <!-- </exclusions> -->
+        </dependency>
+        <dependency>
+            <groupId>com.googlecode.json-simple</groupId>
+            <artifactId>json-simple</artifactId>
+            <version>${json-simple.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.skyscreamer</groupId>
+            <artifactId>jsonassert</artifactId>
+            <version>${skyscreamer-jsonassert.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>eu.medsea.mimeutil</groupId>
+            <artifactId>mime-util</artifactId>
+            <version>${mime-util.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-log4j12</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>log4j</groupId>
+                    <artifactId>log4j</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
 
-		<!-- REMOTE SSH -->
-		<dependency>
-			<groupId>com.jcraft</groupId>
-			<artifactId>jsch</artifactId>
-			<version>${jcraft-jsch.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.github.cverges</groupId>
-			<artifactId>expect4j</artifactId>
-			<version>${cverges-expect4j.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.slf4j</groupId>
-					<artifactId>slf4j-api</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
+        <!-- REMOTE SSH -->
+        <dependency>
+            <groupId>com.jcraft</groupId>
+            <artifactId>jsch</artifactId>
+            <version>${jcraft-jsch.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.cverges</groupId>
+            <artifactId>expect4j</artifactId>
+            <version>${cverges-expect4j.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
 
-		<!-- DATABASE CONNECTORS -->
-		<dependency>
-			<groupId>mysql</groupId>
-			<artifactId>mysql-connector-java</artifactId>
-			<version>${mysql-connector-java.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.microsoft.sqlserver</groupId>
-			<artifactId>mssql-jdbc</artifactId>
-			<version>${mssql-jdbc.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>postgresql</groupId>
-			<artifactId>postgresql</artifactId>
-			<version>${postgresql.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.ibm.db2.jcc</groupId>
-			<artifactId>db2jcc</artifactId>
-			<version>db2jcc4</version>
-		</dependency>
-		<!-- <dependency> -->
-		<!-- <groupId>com.oracle.jdbc</groupId> -->
-		<!-- <artifactId>ojdbc8</artifactId> -->
-		<!-- <version>${ojdbc8.version}</version> -->
-		<!-- </dependency> -->
+        <!-- DATABASE CONNECTORS -->
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>${mysql-connector-java.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.microsoft.sqlserver</groupId>
+            <artifactId>mssql-jdbc</artifactId>
+            <version>${mssql-jdbc.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>${postgresql.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.ibm.db2.jcc</groupId>
+            <artifactId>db2jcc</artifactId>
+            <version>db2jcc4</version>
+        </dependency>
+        <!-- <dependency> -->
+        <!-- <groupId>com.oracle.jdbc</groupId> -->
+        <!-- <artifactId>ojdbc8</artifactId> -->
+        <!-- <version>${ojdbc8.version}</version> -->
+        <!-- </dependency> -->
 
-		<!-- CUCUMBER -->
-		<dependency>
-			<groupId>io.cucumber</groupId>
-			<artifactId>cucumber-java</artifactId>
-			<version>${cucumber.version}</version>
-			<!-- <scope>test</scope> -->
-		</dependency>
-		<dependency>
-			<groupId>io.cucumber</groupId>
-			<artifactId>cucumber-testng</artifactId>
-			<version>${cucumber.version}</version>
-			<!-- <scope>test</scope> -->
-		</dependency>
+        <!-- CUCUMBER -->
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-java</artifactId>
+            <version>${cucumber.version}</version>
+            <!-- <scope>test</scope> -->
+        </dependency>
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-testng</artifactId>
+            <version>${cucumber.version}</version>
+            <!-- <scope>test</scope> -->
+        </dependency>
 
-		<!-- VIDEO RECORDING -->
-		<dependency>
-			<groupId>com.pojosontheweb</groupId>
-			<artifactId>monte-repack</artifactId>
-			<version>${pojosontheweb-monte.version}</version>
-		</dependency>
+        <!-- VIDEO RECORDING -->
+        <dependency>
+            <groupId>com.pojosontheweb</groupId>
+            <artifactId>monte-repack</artifactId>
+            <version>${pojosontheweb-monte.version}</version>
+        </dependency>
 
-		<!-- TRANSITIVE LOGGING -->
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-simple</artifactId>
-			<version>${org.slf4j.version}</version>
-		</dependency>
-	</dependencies>
+        <!-- TRANSITIVE LOGGING -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>${org.slf4j.version}</version>
+        </dependency>
+    </dependencies>
 
-	<build>
-		<!-- <pluginManagement> -->
-		<!--Plugins -->
-		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<version>${maven-compiler-plugin.version}</version>
-				<configuration>
-					<source>${jdk.version}</source>
-					<target>${jdk.version}</target>
-					<!-- <release>${jdk.version}</release> -->
-					<encoding>${encoding.type}</encoding>
-					<inputEncoding>${encoding.type}</inputEncoding>
-					<outputEncoding>${encoding.type}</outputEncoding>
-					<maxmem>10240m</maxmem>
-					<meminitial>10240m</meminitial>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<version>${maven-surefire-plugin.version}</version>
-				<configuration>
-					<!-- <reuseForks>false</reuseForks> -->
-					<!-- <forkCount>2C</forkCount> -->
-					<!-- <threadCount>10</threadCount> -->
-					<!-- <threadCount>1</threadCount> -->
-					<!-- <perCoreThreadCount>false</perCoreThreadCount> -->
-					<failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
-					<failIfNoTests>false</failIfNoTests>
-					<systemPropertyVariables>
-						<org.slf4j.simpleLogger.defaultLogLevel>${org.slf4j.simpleLogger.defaultLogLevel}</org.slf4j.simpleLogger.defaultLogLevel>
-						<shaftEngineVersion>${shaft_engine.version}</shaftEngineVersion>
-						<propertiesFolderPath>${propertiesFolderPath}</propertiesFolderPath>
-						<propertiesFolderPath_jenkins>${propertiesFolderPath_jenkins}</propertiesFolderPath_jenkins>
-					</systemPropertyVariables>
-					<!-- To continue execution after validation errors are thrown in the 
-						before method -->
-					<configfailurepolicy>continue</configfailurepolicy>
-					<!-- <suiteXmlFiles> -->
-					<!-- <suiteXmlFile>src\test\resources\TestSuites\${testSuite.name}.xml</suiteXmlFile> -->
-					<!-- </suiteXmlFiles> -->
-					<encoding>${encoding.type}</encoding>
-					<inputEncoding>${encoding.type}</inputEncoding>
-					<outputEncoding>${encoding.type}</outputEncoding>
-					<argLine>
-						-javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"
-					</argLine>
-					<!-- <argLine> -->
-					<!-- -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar" -->
-					<!-- -Dcucumber.options="-plugin -->
-					<!-- io.qameta.allure.cucumber4jvm.AllureCucumber4Jvm" -->
-					<!-- </argLine> -->
-					<properties>
-						<property>
-							<name>usedefaultlisteners</name>
-							<value>false</value>
-						</property>
-						<property>
-							<name>listener</name>
-							<value>${customListeners.list}</value>
-						</property>
-					</properties>
-				</configuration>
-				<dependencies>
-					<dependency>
-						<groupId>org.aspectj</groupId>
-						<artifactId>aspectjweaver</artifactId>
-						<version>${aspectj.version}</version>
-					</dependency>
-				</dependencies>
-			</plugin>
-
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<version>${maven-jar-plugin.version}</version>
-				<configuration>
-					<encoding>${encoding.type}</encoding>
-					<inputEncoding>${encoding.type}</inputEncoding>
-					<outputEncoding>${encoding.type}</outputEncoding>
-					<archive>
-						<manifest>
-							<!-- <addDefaultImplementationEntries>true</addDefaultImplementationEntries> -->
-							<!-- <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries> -->
-							<addClasspath>true</addClasspath>
-							<!-- <classpathLayoutType>repository</classpathLayoutType> -->
-						</manifest>
-					</archive>
-					<excludes>
-						<!-- <exclude>allure/**</exclude> -->
-						<!-- <exclude>drivers/**</exclude> -->
-						<!-- <exclude>scripts/**</exclude> -->
-						<exclude>test/**</exclude>
-						<!-- <exclude>SHADE/**</exclude> -->
-						<exclude>test-output/**</exclude>
-						<exclude>allure-results/**</exclude>
-					</excludes>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-javadoc-plugin</artifactId>
-				<version>${maven-javadoc-plugin.version}</version>
-				<configuration>
-					<sourcepath>${project.basedir}/src/main/java;${project.basedir}/target/generated-sources/annotations</sourcepath>
-					<encoding>${encoding.type}</encoding>
-					<inputEncoding>${encoding.type}</inputEncoding>
-					<outputEncoding>${encoding.type}</outputEncoding>
-					<failOnError>false</failOnError>
-				</configuration>
-				<executions>
-					<execution>
-						<id>attach-javadocs</id>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-source-plugin</artifactId>
-				<version>${maven-source-plugin.version}</version>
-				<executions>
-					<execution>
-						<id>attach-sources</id>
-						<phase>verify</phase>
-						<goals>
-							<goal>jar-no-fork</goal>
-						</goals>
-					</execution>
-				</executions>
-				<configuration>
-					<encoding>${encoding.type}</encoding>
-					<inputEncoding>${encoding.type}</inputEncoding>
-					<outputEncoding>${encoding.type}</outputEncoding>
-					<archive>
-						<manifest>
-							<!-- <addDefaultImplementationEntries>true</addDefaultImplementationEntries> -->
-							<!-- <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries> -->
-							<addClasspath>true</addClasspath>
-							<!-- <classpathLayoutType>repository</classpathLayoutType> -->
-						</manifest>
-					</archive>
-					<includes>
-						<include>com/**</include>
-					</includes>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-resources-plugin</artifactId>
-				<version>${maven-resources-plugin.version}</version>
-				<configuration>
-					<encoding>${encoding.type}</encoding>
-					<inputEncoding>${encoding.type}</inputEncoding>
-					<outputEncoding>${encoding.type}</outputEncoding>
-				</configuration>
-			</plugin>
-		</plugins>
-		<!-- </pluginManagement> -->
-	</build>
-	<repositories>
-		<!-- <repository> -->
-		<!-- <id>redshift</id> -->
-		<!-- <url>http://redshift-maven-repository.s3-website-us-east-1.amazonaws.com/release</url> -->
-		<!-- <id>maven.oracle.com</id> -->
-		<!-- <releases> -->
-		<!-- <enabled>true</enabled> -->
-		<!-- </releases> -->
-		<!-- <snapshots> -->
-		<!-- <enabled>false</enabled> -->
-		<!-- </snapshots> -->
-		<!-- <url>https://maven.oracle.com</url> -->
-		<!-- <layout>default</layout> -->
-		<!-- </repository> -->
-		<repository>
-			<id>bintray-cbeust-maven-testng</id>
-			<name>bintray</name>
-			<url>https://dl.bintray.com/cbeust/maven</url>
-			<snapshots>
-				<enabled>false</enabled>
-			</snapshots>
-		</repository>
-		<repository>
-			<id>bintray-qameta-maven-allure</id>
-			<name>bintray</name>
-			<url>https://dl.bintray.com/qameta/maven</url>
-			<snapshots>
-				<enabled>false</enabled>
-			</snapshots>
-		</repository>
-	</repositories>
-	<!-- <pluginRepositories> -->
-	<!-- <pluginRepository> -->
-	<!-- <id>maven.oracle.com</id> -->
-	<!-- <url>https://maven.oracle.com</url> -->
-	<!-- </pluginRepository> -->
-	<!-- </pluginRepositories> -->
+    <build>
+        <!-- <pluginManagement> -->
+        <!--Plugins -->
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven-compiler-plugin.version}</version>
+                <configuration>
+                    <source>${jdk.version}</source>
+                    <target>${jdk.version}</target>
+                    <!-- <release>${jdk.version}</release> -->
+                    <encoding>${encoding.type}</encoding>
+                    <maxmem>10240m</maxmem>
+                    <meminitial>10240m</meminitial>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${maven-surefire-plugin.version}</version>
+                <configuration>
+                    <!-- <reuseForks>false</reuseForks> -->
+                    <!-- <forkCount>2C</forkCount> -->
+                    <!-- <threadCount>10</threadCount> -->
+                    <!-- <threadCount>1</threadCount> -->
+                    <!-- <perCoreThreadCount>false</perCoreThreadCount> -->
+                    <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
+                    <failIfNoTests>false</failIfNoTests>
+                    <systemPropertyVariables>
+                        <org.slf4j.simpleLogger.defaultLogLevel>${org.slf4j.simpleLogger.defaultLogLevel}
+                        </org.slf4j.simpleLogger.defaultLogLevel>
+                        <shaftEngineVersion>${shaft_engine.version}</shaftEngineVersion>
+                        <propertiesFolderPath>${propertiesFolderPath}</propertiesFolderPath>
+                        <propertiesFolderPath_jenkins>${propertiesFolderPath_jenkins}</propertiesFolderPath_jenkins>
+                    </systemPropertyVariables>
+                    <!-- To continue execution after validation errors are thrown in the
+                        before method -->
+                    <!--					<configfailurepolicy>continue</configfailurepolicy>-->
+                    <!-- <suiteXmlFiles> -->
+                    <!-- <suiteXmlFile>src\test\resources\TestSuites\${testSuite.name}.xml</suiteXmlFile> -->
+                    <!-- </suiteXmlFiles> -->
+                    <encoding>${encoding.type}</encoding>
+                    <argLine>
+                        -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"
+                    </argLine>
+                    <!-- <argLine> -->
+                    <!-- -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar" -->
+                    <!-- -Dcucumber.options="-plugin -->
+                    <!-- io.qameta.allure.cucumber4jvm.AllureCucumber4Jvm" -->
+                    <!-- </argLine> -->
+                    <properties>
+                        <property>
+                            <name>usedefaultlisteners</name>
+                            <value>false</value>
+                        </property>
+                        <property>
+                            <name>listener</name>
+                            <value>${customListeners.list}</value>
+                        </property>
+                    </properties>
+                </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.aspectj</groupId>
+                        <artifactId>aspectjweaver</artifactId>
+                        <version>${aspectj.version}</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>${maven-jar-plugin.version}</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <!-- <addDefaultImplementationEntries>true</addDefaultImplementationEntries> -->
+                            <!-- <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries> -->
+                            <addClasspath>true</addClasspath>
+                            <!-- <classpathLayoutType>repository</classpathLayoutType> -->
+                        </manifest>
+                    </archive>
+                    <excludes>
+                        <!-- <exclude>allure/**</exclude> -->
+                        <!-- <exclude>drivers/**</exclude> -->
+                        <!-- <exclude>scripts/**</exclude> -->
+                        <exclude>test/**</exclude>
+                        <!-- <exclude>SHADE/**</exclude> -->
+                        <exclude>test-output/**</exclude>
+                        <exclude>allure-results/**</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>${maven-javadoc-plugin.version}</version>
+                <configuration>
+                    <sourcepath>
+                        ${project.basedir}/src/main/java;${project.basedir}/target/generated-sources/annotations
+                    </sourcepath>
+                    <encoding>${encoding.type}</encoding>
+                    <failOnError>false</failOnError>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>${maven-source-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <!-- <addDefaultImplementationEntries>true</addDefaultImplementationEntries> -->
+                            <!-- <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries> -->
+                            <addClasspath>true</addClasspath>
+                            <!-- <classpathLayoutType>repository</classpathLayoutType> -->
+                        </manifest>
+                    </archive>
+                    <includes>
+                        <include>com/**</include>
+                    </includes>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>${maven-resources-plugin.version}</version>
+                <configuration>
+                    <encoding>${encoding.type}</encoding>
+                    <!-- Resources -->
+                    <outputDirectory>target/resources</outputDirectory>
+                </configuration>
+            </plugin>
+        </plugins>
+        <!-- </pluginManagement> -->
+    </build>
+    <repositories>
+        <!-- <repository> -->
+        <!-- <id>redshift</id> -->
+        <!-- <url>http://redshift-maven-repository.s3-website-us-east-1.amazonaws.com/release</url> -->
+        <!-- <id>maven.oracle.com</id> -->
+        <!-- <releases> -->
+        <!-- <enabled>true</enabled> -->
+        <!-- </releases> -->
+        <!-- <snapshots> -->
+        <!-- <enabled>false</enabled> -->
+        <!-- </snapshots> -->
+        <!-- <url>https://maven.oracle.com</url> -->
+        <!-- <layout>default</layout> -->
+        <!-- </repository> -->
+        <repository>
+            <id>bintray-cbeust-maven-testng</id>
+            <name>bintray</name>
+            <url>https://dl.bintray.com/cbeust/maven</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>bintray-qameta-maven-allure</id>
+            <name>bintray</name>
+            <url>https://dl.bintray.com/qameta/maven</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
+    <!-- <pluginRepositories> -->
+    <!-- <pluginRepository> -->
+    <!-- <id>maven.oracle.com</id> -->
+    <!-- <url>https://maven.oracle.com</url> -->
+    <!-- </pluginRepository> -->
+    <!-- </pluginRepositories> -->
 </project>
