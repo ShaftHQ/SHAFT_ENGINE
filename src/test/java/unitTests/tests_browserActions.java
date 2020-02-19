@@ -2,6 +2,7 @@ package unitTests;
 
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.BrowserFactory;
+import com.shaft.validation.Assertions;
 import org.openqa.selenium.WebDriver;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -24,6 +25,7 @@ public class tests_browserActions {
     public void navigateBack() {
         BrowserActions.navigateToURL(driver.get(), "https://www.google.com/ncr", "https://www.google.com");
         BrowserActions.navigateBack(driver.get());
+        Assertions.assertBrowserAttribute(driver.get(), "CurrentUrl", "https://duckduckgo.com", Assertions.AssertionComparisonType.CONTAINS, Assertions.AssertionType.POSITIVE, "Confirming that navigating back was successful");
     }
 
     @Test
