@@ -8,6 +8,8 @@
 - Latest Central Maven Repository release [![Maven Central](https://img.shields.io/maven-central/v/io.github.mohabmohie/SHAFT_ENGINE.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22io.github.mohabmohie%22%20AND%20a:%22SHAFT_ENGINE%22)
 - This project is for contributors who wish to add new features or fix issues with SHAFT_Engine. If you wish to use SHAFT_Engine, please refer to this GitHub project instead: https://github.com/MohabMohie/using_SHAFT_ENGINE/
 - Refer to the published javadocs for detailed information on the available functions/classes/packages https://mohabmohie.github.io/SHAFT_ENGINE/
+- If you wish to use this project with IntelliJ please apply these settings:
+Run/Debug Configurations > Edit Configurations... > Templates > TestNG > Configuration > Listeners > Add all SHAFT_Engine Listeners [AlterSuite, InvokedMethod, Suite]
 
 **SHAFT_ENGINE** is a Test Automation Engine that provides a unified high-level interface to any underlying test automation frameworks (such as Selenium WebDriver and Rest Assured).
 - Provides an easily understandable and user friendly syntax for writing simple, robust, maintainable, and extendable tests.

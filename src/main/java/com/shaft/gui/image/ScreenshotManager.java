@@ -43,7 +43,7 @@ public class ScreenshotManager {
             .valueOf(System.getProperty("screenshotParams_watermarkOpacity").trim());
     private static final Boolean AI_SUPPORTED_ELEMENT_IDENTIFICATION = Boolean
             .valueOf(System.getProperty("aiPoweredElementIdentification").trim());
-    private static final String WATERMARK_DEFAULT_PATH = "/images/shaft.png";
+    private static final String WATERMARK_DEFAULT_PATH = "/target/images/shaft.png";
     private static final int RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION = 1;
     private static final Boolean CREATE_GIF = Boolean.valueOf(System.getProperty("createAnimatedGif").trim());
     private static final int GIF_FRAME_DELAY = Integer.parseInt(System.getProperty("animatedGif_frameDelay").trim());
@@ -183,12 +183,12 @@ public class ScreenshotManager {
         }
 
         if (takeScreenshot) {
-            /**
+            /*
              * Force screenshot link to be shown in the results as a link not text
              */
             System.setProperty("org.uncommons.reportng.escape-output", "false");
 
-            /**
+            /*
              * Declare regularElementStyle, the WebElemnt, and Javascript Executor to
              * highlight and unhighlight the WebElement
              */
@@ -198,7 +198,7 @@ public class ScreenshotManager {
             Rectangle elementLocation = null;
 
             try {
-                /**
+                /*
                  * If an elementLocator was passed, store regularElementStyle and highlight that
                  * element before taking the screenshot
                  */
@@ -223,19 +223,19 @@ public class ScreenshotManager {
                 ReportManager.log(e);
             }
 
-            /**
+            /*
              * Take the screenshot and store it as a file
              */
             byte[] src;
 
-            /**
+            /*
              * Attempt to take a full page screenshot, take a regular screenshot upon
              * failure
              */
             try {
                 src = takeScreenshot(driver);
 
-                /**
+                /*
                  * Declare screenshot file name
                  */
                 testCaseName = Reporter.getCurrentTestResult().getMethod().getMethodName();
@@ -244,7 +244,7 @@ public class ScreenshotManager {
                     screenshotFileName = screenshotFileName + "_" + appendedText;
                 }
 
-                /**
+                /*
                  * If an elementLocator was passed, unhighlight that element after taking the
                  * screenshot
                  *
@@ -328,7 +328,7 @@ public class ScreenshotManager {
     }
 
     private static List<Object> addScreenshotToReport(byte[] screenshotFile) {
-        /**
+        /*
          * Adding Screenshot to the Report.
          *
          */
@@ -495,12 +495,12 @@ public class ScreenshotManager {
             if (gifDriver.get() == null || gifWriter.get() == null) {
                 BrowserFactory.startAnimatedGif(screenshot);
             } else {
-                appentToAnimatedGif(screenshot);
+                appendToAnimatedGif(screenshot);
             }
         }
     }
 
-    private static synchronized void appentToAnimatedGif(byte[]... screenshot) {
+    private static synchronized void appendToAnimatedGif(byte[]... screenshot) {
         try {
             BufferedImage image;
             if (screenshot.length == 1) {
@@ -547,9 +547,9 @@ public class ScreenshotManager {
                     gifOutputStream.get().close();
                 }
 
-                gifOutputStream = new ThreadLocal<ImageOutputStream>();
-                gifWriter = new ThreadLocal<AnimatedGifManager>();
-                gifDriver = new ThreadLocal<WebDriver>();
+                gifOutputStream = new ThreadLocal<>();
+                gifWriter = new ThreadLocal<>();
+                gifDriver = new ThreadLocal<>();
             } catch (FileNotFoundException e) {
                 // this happens when the gif fails to start, maybe the browser window was
                 // already closed
