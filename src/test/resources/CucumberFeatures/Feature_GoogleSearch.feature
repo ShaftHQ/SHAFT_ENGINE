@@ -22,7 +22,6 @@ Feature: Basic Google Search Feature
 
   Scenario: TC001 - Navigate to URL and Verify page title, perform search and try-out framework features
     Given Test data file "testSuite01/TestData.xlsx" is ready
-    And Target browser is launched
     When I navigate to Google search page URL
     Then I validate that the correct page has been opened
     And I validate that page title is equal to expected title from test data

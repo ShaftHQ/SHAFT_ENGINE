@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: com.github.cverges:expect4j:1.9">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/github/cverges/expect4j/1.9/expect4j-1.9.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/com/github/cverges/expect4j/1.9/expect4j-1.9-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/github/cverges/expect4j/1.9/expect4j-1.9-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>
