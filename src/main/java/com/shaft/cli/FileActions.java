@@ -1,6 +1,7 @@
 package com.shaft.cli;
 
 import com.google.common.hash.Hashing;
+import com.shaft.tools.io.PropertiesFileManager;
 import com.shaft.tools.io.ReportManager;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
@@ -100,6 +101,9 @@ public class FileActions {
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     private static boolean isTargetOSUnixBased() {
+        if (System.getProperty("executionAddress") == null) {
+            PropertiesFileManager.readPropertyFiles();
+        }
         if (System.getProperty("executionAddress").trim().equals("local")) {
             // local execution
             if (SystemUtils.IS_OS_WINDOWS) {

@@ -38,32 +38,30 @@ import java.util.logging.Level;
 
 public class BrowserFactory {
 
-    private static final Boolean AUTO_MAXIMIZE = Boolean
-            .valueOf(System.getProperty("autoMaximizeBrowserWindow").trim());
-    private static final Boolean HEADLESS_EXECUTION = Boolean.valueOf(System.getProperty("headlessExecution").trim());
-    private static final String EXECUTION_ADDRESS = System.getProperty("executionAddress").trim();
+    private static final Map<String, Map<String, WebDriver>> drivers = new HashMap<>();
+    private static Boolean AUTO_MAXIMIZE;
+    private static Boolean HEADLESS_EXECUTION;
+    private static String EXECUTION_ADDRESS;
     // local OR hub ip:port
-    private static final String TARGET_HUB_URL = "http://" + EXECUTION_ADDRESS + "/wd/hub";
+    private static String TARGET_HUB_URL;
     // Windows-64 | Linux-64 | Mac-64
-    private static final String TARGET_BROWSER_NAME = System.getProperty("targetBrowserName");
+    private static String TARGET_BROWSER_NAME;
     // Default | MozillaFirefox | MicrosoftInternetExplorer | GoogleChrome |
     // MicrosoftEdge | Safari
-    private static final String TARGET_PLATFORM_NAME = System.getProperty("appium_platformName");
-    private static final String TARGET_PLATFORM_BROWSER_NAME = System.getProperty("appium_browserName");
-    private static final String WEBDRIVERMANAGER_MESSAGE = "Identifying OS/Browser combination and selecting the correct driver version automatically. Please note that if a new driver executable will be downloaded it may take some time...";
-    private static final int PAGE_LOAD_TIMEOUT = Integer.parseInt(System.getProperty("pageLoadTimeout"));
-    private static final int SCRIPT_TIMEOUT = Integer.parseInt(System.getProperty("scriptExecutionTimeout"));
-    private static final int IMPLICIT_WAIT_TIMEOUT = Integer.parseInt(System.getProperty("implicitWaitTimeout"));
-    private static final Boolean WAIT_IMPLICITLY = Boolean.valueOf(System.getProperty("waitImplicitly").trim());
-    private static final Boolean CREATE_GIF = Boolean.valueOf(System.getProperty("createAnimatedGif").trim());
-    private static final Boolean BROWSEROBJECTSINGLETON = Boolean
-            .valueOf(System.getProperty("browserObjectSingleton").trim());
-    private static final String customDriverPath = System.getProperty("customDriverPath");
-    private static final String customDriverName = System.getProperty("customDriverName");
-    private static final Map<String, Map<String, WebDriver>> drivers = new HashMap<>();
-    private static String targetOperatingSystem = System.getProperty("targetOperatingSystem");
+    private static String TARGET_PLATFORM_NAME;
+    private static String TARGET_PLATFORM_BROWSER_NAME;
+    private static String WEBDRIVERMANAGER_MESSAGE = "Identifying OS/Browser combination and selecting the correct driver version automatically. Please note that if a new driver executable will be downloaded it may take some time...";
+    private static int PAGE_LOAD_TIMEOUT;
+    private static int SCRIPT_TIMEOUT;
+    private static int IMPLICIT_WAIT_TIMEOUT;
+    private static Boolean WAIT_IMPLICITLY;
+    private static Boolean CREATE_GIF;
+    private static Boolean BROWSEROBJECTSINGLETON;
+    private static String customDriverPath;
+    private static String customDriverName;
+    private static String targetOperatingSystem;
     // browser, <os,driver>
-    private static ThreadLocal<WebDriver> driver = new ThreadLocal<WebDriver>();
+    private static ThreadLocal<WebDriver> driver = new ThreadLocal<>();
 
     // logging preferences object
     private static LoggingPreferences logPrefs;
@@ -572,6 +570,12 @@ public class BrowserFactory {
      * @return a singleton browser instance
      */
     public static synchronized WebDriver getBrowser(String browserName) {
+        initializeSystemProperties(System.getProperty("targetBrowserName") == null);
+
+        if (browserName == null) {
+            browserName = TARGET_BROWSER_NAME;
+        }
+
         if (isMobileWebExecution()) {
             browserName = System.getProperty("appium_browserName");
         }
@@ -619,6 +623,35 @@ public class BrowserFactory {
             Assert.fail("Unhandled Exception with Browser Type [" + browserName + "].", e);
         }
         return driver.get();
+    }
+
+    private static void initializeSystemProperties(Boolean readPropertyFilesBeforeInitializing) {
+        if (readPropertyFilesBeforeInitializing) {
+            PropertiesFileManager.readPropertyFiles();
+        }
+        AUTO_MAXIMIZE = Boolean
+                .valueOf(System.getProperty("autoMaximizeBrowserWindow").trim());
+        HEADLESS_EXECUTION = Boolean.valueOf(System.getProperty("headlessExecution").trim());
+        EXECUTION_ADDRESS = System.getProperty("executionAddress").trim();
+        // local OR hub ip:port
+        TARGET_HUB_URL = "http://" + EXECUTION_ADDRESS + "/wd/hub";
+        // Windows-64 | Linux-64 | Mac-64
+        TARGET_BROWSER_NAME = System.getProperty("targetBrowserName");
+        // Default | MozillaFirefox | MicrosoftInternetExplorer | GoogleChrome |
+        // MicrosoftEdge | Safari
+        TARGET_PLATFORM_NAME = System.getProperty("appium_platformName");
+        TARGET_PLATFORM_BROWSER_NAME = System.getProperty("appium_browserName");
+        WEBDRIVERMANAGER_MESSAGE = "Identifying OS/Browser combination and selecting the correct driver version automatically. Please note that if a new driver executable will be downloaded it may take some time...";
+        PAGE_LOAD_TIMEOUT = Integer.parseInt(System.getProperty("pageLoadTimeout"));
+        SCRIPT_TIMEOUT = Integer.parseInt(System.getProperty("scriptExecutionTimeout"));
+        IMPLICIT_WAIT_TIMEOUT = Integer.parseInt(System.getProperty("implicitWaitTimeout"));
+        WAIT_IMPLICITLY = Boolean.valueOf(System.getProperty("waitImplicitly").trim());
+        CREATE_GIF = Boolean.valueOf(System.getProperty("createAnimatedGif").trim());
+        BROWSEROBJECTSINGLETON = Boolean
+                .valueOf(System.getProperty("browserObjectSingleton").trim());
+        customDriverPath = System.getProperty("customDriverPath");
+        customDriverName = System.getProperty("customDriverName");
+        targetOperatingSystem = System.getProperty("targetOperatingSystem");
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

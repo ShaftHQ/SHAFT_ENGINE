@@ -1,10 +1,9 @@
 package unitTests;
 
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
-
 import com.shaft.tools.io.ExcelFileManager;
 import com.shaft.tools.io.ReportManager;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 public class tests_io_excelFileManager {
 
@@ -13,13 +12,13 @@ public class tests_io_excelFileManager {
 
     @Test
     public void getCellData_rowName_expectedToPass() {
-	ReportManager.log(testDataReader.getCellData("testRowValue"));
+        ReportManager.log(testDataReader.getCellData("testRowValue"));
     }
 
     @BeforeClass // Set-up method, to be run once before the first test
     public void beforeClass() {
-	System.setProperty("testDataFilePath", "src/test/resources/TestDataFiles/testSuite01/TestData.xlsx");
-	testDataReader = new ExcelFileManager(System.getProperty("testDataFilePath"));
-	// driver = BrowserFactory.getBrowser(testDataReader);
+        System.setProperty("testDataFilePath", "src/test/resources/TestDataFiles/testSuite01/TestData.xlsx");
+        testDataReader = new ExcelFileManager(System.getProperty("testDataFilePath"));
+        // driver = BrowserFactory.getBrowser(testDataReader);
     }
 }

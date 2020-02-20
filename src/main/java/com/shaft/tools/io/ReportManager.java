@@ -583,9 +583,13 @@ public class ReportManager {
         }
     }
 
+
     /**
      * Returns the log of the current test, and attaches it in the end of the test
      * execution report.
+     *
+     * @param currentMethodName name of the current test method to be used in the attachment name
+     * @param testLog           content of the text log to be used as the attachment value
      */
     public static void attachTestLog(String currentMethodName, String testLog) {
         appendToFullLog(testLog);

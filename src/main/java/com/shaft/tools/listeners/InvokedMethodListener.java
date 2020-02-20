@@ -18,18 +18,18 @@ import java.util.Optional;
 import java.util.Set;
 
 public class InvokedMethodListener implements IInvokedMethodListener {
-    private int invokedTestsCounter = 0; // TODO: remove this variable
-    private int testSize = 0;
     private final List<List<String>> listOfOpenIssues = new ArrayList<>();
-    // link name, link url
-    private int openIssuesForFailedTestsCounter = 0;
-    private int openIssuesForPassedTestsCounter = 0;
-    private int newIssuesForFailedTestsCounter = 0;
     private final List<List<String>> listOfOpenIssuesForFailedTests = new ArrayList<>();
     // class name, method name, link name, link url
     private final List<List<String>> listOfOpenIssuesForPassedTests = new ArrayList<>();
     // class name, method name, link name, link url
     private final List<List<String>> listOfNewIssuesForFailedTests = new ArrayList<>();
+    private int invokedTestsCounter = 0; // TODO: remove this variable
+    private int testSize = 0;
+    // link name, link url
+    private int openIssuesForFailedTestsCounter = 0;
+    private int openIssuesForPassedTestsCounter = 0;
+    private int newIssuesForFailedTestsCounter = 0;
     // class name, method name
 
     @Override
@@ -179,8 +179,13 @@ public class InvokedMethodListener implements IInvokedMethodListener {
         for (String each : output) {
             builder.append(each).append(System.lineSeparator());
         }
-        // Removing the last ","
-        return builder.toString().substring(0, builder.length() - 2);
+        String testLog = builder.toString();
+        if (testLog.length() >= 2) {
+            // Removing the last ","
+            return testLog.substring(0, builder.length() - 2);
+        } else {
+            return testLog;
+        }
 
     }
 }

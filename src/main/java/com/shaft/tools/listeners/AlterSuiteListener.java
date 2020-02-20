@@ -14,6 +14,7 @@ public class AlterSuiteListener implements IAlterSuiteListener {
 
     @Override
     public void alter(List<XmlSuite> suites) {
+        addListeners(suites);
         PropertiesFileManager.readPropertyFiles();
         setExecutionProperties(suites);
         renameDefaultSuiteAndTest(suites);
@@ -65,5 +66,13 @@ public class AlterSuiteListener implements IAlterSuiteListener {
         // alter first test and add the afterSuiteMethod
         XmlClass logsReporter = new XmlClass(LogsReporter.class.getName());
         suites.get(0).getTests().get(0).getClasses().add(logsReporter);
+    }
+
+    private void addListeners(List<XmlSuite> suites) {
+        suites.forEach(suite -> {
+            suite.addListener("com.shaft.tools.listeners.InvokedMethodListener");
+            suite.addListener("com.shaft.tools.listeners.SuiteListener");
+        });
+
     }
 }
