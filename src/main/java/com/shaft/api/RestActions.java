@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.shaft.tools.io.PropertiesFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.support.JavaActions;
 import com.shaft.validation.Assertions;
@@ -51,12 +52,11 @@ public class RestActions {
     private static final String ERROR_INCORRECT_JSONPATH = "Incorrect jsonPath ";
     private static final String ERROR_INCORRECT_XMLPATH = "Incorrect xmlPath ";
     private static final String ERROR_FAILED_TO_PARSE_JSON = "Failed to parse the JSON document";
-    private static final int HTTP_SOCKET_TIMEOUT = Integer.parseInt(System.getProperty("apiSocketTimeout"));
+    private static int HTTP_SOCKET_TIMEOUT;
     // timeout between two consecutive data packets in seconds
-    private static final int HTTP_CONNECTION_TIMEOUT = Integer.parseInt(System.getProperty("apiConnectionTimeout"));
+    private static int HTTP_CONNECTION_TIMEOUT;
     // timeout until a connection is established in seconds
-    private static final int HTTP_CONNECTION_MANAGER_TIMEOUT = Integer
-            .parseInt(System.getProperty("apiConnectionManagerTimeout"));
+    private static int HTTP_CONNECTION_MANAGER_TIMEOUT;
     private final Map<String, String> sessionHeaders;
     private final String serviceURI;
     private String headerAuthorization;
@@ -64,6 +64,7 @@ public class RestActions {
     // timeout to wait for an available connection from the connection manager/pool
 
     public RestActions(String serviceURI) {
+        initializeSystemProperties(System.getProperty("apiConnectionTimeout") == null);
         headerAuthorization = "";
         sessionCookies = new HashMap<>();
         sessionHeaders = new HashMap<>();
@@ -85,14 +86,14 @@ public class RestActions {
         passAction(actionName, testData, null, null, isDiscrete, expectedFileBodyAttachment);
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////// [private] Reporting Actions
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
     private static void passAction(String testData, Object requestBody, Response response, Boolean isDiscrete) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         passAction(actionName, testData, requestBody, response, isDiscrete, null);
     }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////// [private] Reporting Actions
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     private static void failAction(String actionName, String testData, Object requestBody, Response response,
                                    Throwable... rootCauseException) {
@@ -296,13 +297,13 @@ public class RestActions {
         }
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////// [private] Preparation and Support Actions
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
     public static InputStream parseBodyToJson(Response response) {
         return parseBodyToJson(response.getBody());
     }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////// [private] Preparation and Support Actions
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     public static InputStream parseBodyToJson(Object body) {
         try {
@@ -686,10 +687,6 @@ public class RestActions {
         return prettyFormatXML(input, "2");
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////// [Public] Core REST Actions
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
     private static String prettyFormatXML(String input, String indent) {
         Source xmlInput = new StreamSource(new StringReader(input));
         StringWriter stringWriter = new StringWriter();
@@ -706,6 +703,23 @@ public class RestActions {
             ReportManager.log(e);
             return input;
         }
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////// [Public] Core REST Actions
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    private void initializeSystemProperties(boolean readPropertyFilesBeforeInitializing) {
+        if (readPropertyFilesBeforeInitializing) {
+            PropertiesFileManager.readPropertyFiles();
+        }
+        HTTP_SOCKET_TIMEOUT = Integer.parseInt(System.getProperty("apiSocketTimeout"));
+        // timeout between two consecutive data packets in seconds
+        HTTP_CONNECTION_TIMEOUT = Integer.parseInt(System.getProperty("apiConnectionTimeout"));
+        // timeout until a connection is established in seconds
+        HTTP_CONNECTION_MANAGER_TIMEOUT = Integer
+                .parseInt(System.getProperty("apiConnectionManagerTimeout"));
+
     }
 
     private String prepareRequestURL(String urlArguments, String serviceName) {

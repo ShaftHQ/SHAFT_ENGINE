@@ -62,18 +62,19 @@
     <orderEntry type="library" name="Maven: org.springframework:spring-core:5.1.8.RELEASE" level="project" />
     <orderEntry type="library" name="Maven: org.springframework:spring-jcl:5.1.8.RELEASE" level="project" />
     <orderEntry type="library" name="Maven: org.springframework:spring-expression:5.1.8.RELEASE" level="project" />
-    <orderEntry type="library" name="Maven: org.openpnp:opencv:3.4.2-1" level="project" />
+    <orderEntry type="library" name="Maven: org.openpnp:opencv:3.4.2-2" level="project" />
     <orderEntry type="library" name="Maven: io.github.bonigarcia:webdrivermanager:3.8.1" level="project" />
     <orderEntry type="library" name="Maven: org.rauschig:jarchivelib:1.0.0" level="project" />
     <orderEntry type="library" name="Maven: org.jsoup:jsoup:1.11.3" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.poi:poi:4.1.0" level="project" />
-    <orderEntry type="library" name="Maven: commons-codec:commons-codec:1.12" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.commons:commons-collections4:4.3" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.poi:poi:4.1.2" level="project" />
+    <orderEntry type="library" name="Maven: commons-codec:commons-codec:1.13" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.commons:commons-collections4:4.4" level="project" />
     <orderEntry type="library" name="Maven: org.apache.commons:commons-math3:3.6.1" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.poi:poi-ooxml:4.1.0" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.poi:poi-ooxml-schemas:4.1.0" level="project" />
+    <orderEntry type="library" name="Maven: com.zaxxer:SparseBitSet:1.2" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.poi:poi-ooxml:4.1.2" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.poi:poi-ooxml-schemas:4.1.2" level="project" />
     <orderEntry type="library" name="Maven: org.apache.xmlbeans:xmlbeans:3.1.0" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.commons:commons-compress:1.18" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.commons:commons-compress:1.19" level="project" />
     <orderEntry type="library" name="Maven: com.github.virtuald:curvesapi:1.06" level="project" />
     <orderEntry type="library" name="Maven: io.qameta.allure:allure-testng:2.13.1" level="project" />
     <orderEntry type="library" name="Maven: io.qameta.allure:allure-java-commons:2.13.1" level="project" />
@@ -115,15 +116,17 @@
     <orderEntry type="library" name="Maven: com.microsoft.sqlserver:mssql-jdbc:7.2.2.jre8" level="project" />
     <orderEntry type="library" name="Maven: postgresql:postgresql:9.1-901-1.jdbc4" level="project" />
     <orderEntry type="library" name="Maven: com.ibm.db2.jcc:db2jcc:db2jcc4" level="project" />
-    <orderEntry type="library" name="Maven: io.cucumber:cucumber-java:4.3.1" level="project" />
-    <orderEntry type="library" name="Maven: io.cucumber:cucumber-core:4.3.1" level="project" />
-    <orderEntry type="library" name="Maven: io.cucumber:cucumber-html:0.2.7" level="project" />
-    <orderEntry type="library" name="Maven: io.cucumber:gherkin:5.1.0" level="project" />
-    <orderEntry type="library" name="Maven: io.cucumber:tag-expressions:1.1.1" level="project" />
-    <orderEntry type="library" name="Maven: io.cucumber:cucumber-expressions:6.2.2" level="project" />
-    <orderEntry type="library" name="Maven: io.cucumber:datatable:1.1.12" level="project" />
-    <orderEntry type="library" name="Maven: io.cucumber:datatable-dependencies:1.1.12" level="project" />
-    <orderEntry type="library" name="Maven: io.cucumber:cucumber-testng:4.3.1" level="project" />
+    <orderEntry type="library" name="Maven: io.cucumber:cucumber-java:5.3.0" level="project" />
+    <orderEntry type="library" name="Maven: io.cucumber:cucumber-core:5.3.0" level="project" />
+    <orderEntry type="library" name="Maven: io.cucumber:cucumber-gherkin:5.3.0" level="project" />
+    <orderEntry type="library" name="Maven: io.cucumber:cucumber-gherkin-vintage:5.3.0" level="project" />
+    <orderEntry type="library" name="Maven: io.cucumber:tag-expressions:2.0.4" level="project" />
+    <orderEntry type="library" name="Maven: io.cucumber:cucumber-expressions:8.3.1" level="project" />
+    <orderEntry type="library" name="Maven: io.cucumber:datatable:3.3.0" level="project" />
+    <orderEntry type="library" name="Maven: io.cucumber:cucumber-plugin:5.3.0" level="project" />
+    <orderEntry type="library" name="Maven: io.cucumber:docstring:5.3.0" level="project" />
+    <orderEntry type="library" name="Maven: org.apiguardian:apiguardian-api:1.1.0" level="project" />
+    <orderEntry type="library" name="Maven: io.cucumber:cucumber-testng:5.3.0" level="project" />
     <orderEntry type="library" name="Maven: com.pojosontheweb:monte-repack:1.0.1" level="project" />
     <orderEntry type="library" name="Maven: javax.media.jai:com.springsource.javax.media.jai.core:1.1.3" level="project" />
     <orderEntry type="library" name="Maven: javax.media.jai:com.springsource.javax.media.jai.codec:1.1.3" level="project" />

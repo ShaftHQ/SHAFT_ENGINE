@@ -335,11 +335,13 @@ public class Assertions {
     /**
      * Asserts that a certain file exists. Attempts to find the file only once.
      *
-     * @param fileFolderName The location of the folder that contains the target
-     *                       file, relative to the project's root folder, ending
-     *                       with a /
-     * @param fileName       The name of the target file (including its extension
-     *                       if any)
+     * @param fileFolderName   The location of the folder that contains the target
+     *                         file, relative to the project's root folder, ending
+     *                         with a /
+     * @param fileName         The name of the target file (including its extension
+     *                         if any)
+     * @param customLogMessage a custom message that will appended to this
+     *                         step in the execution report
      */
     public static void assertFileExists(String fileFolderName, String fileName,
                                         String... customLogMessage) {

@@ -42,9 +42,9 @@ public class ElementActions {
     private static final boolean forceCheckForElementVisibility = Boolean
             .parseBoolean(System.getProperty("forceCheckForElementVisibility").trim());
     private static final String aiReferenceFileName = "aiAidedElementIdentificationReferenceDB.properties";
-    private static By aiGeneratedElementLocator = null;
     // this will only be used for switching back to default content
     static WebDriver lastUsedDriver = null;
+    private static By aiGeneratedElementLocator = null;
 
     private ElementActions() {
         throw new IllegalStateException("Utility class");

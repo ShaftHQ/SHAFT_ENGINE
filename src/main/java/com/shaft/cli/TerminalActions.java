@@ -4,6 +4,7 @@ import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
+import com.shaft.tools.io.PropertiesFileManager;
 import com.shaft.tools.io.ReportManager;
 import org.testng.Assert;
 
@@ -203,6 +204,9 @@ public class TerminalActions {
 
         // refactor long command for dockerized execution
         if (isDockerizedTerminal()) {
+            if (System.getProperty("dockerCommandTimeout") == null) {
+                PropertiesFileManager.readPropertyFiles();
+            }
             command.insert(0, "docker exec -u " + dockerUsername + " -i " + dockerName + " timeout "
                     + Integer.parseInt(System.getProperty("dockerCommandTimeout")) + " sh -c '");
             command.append("'");

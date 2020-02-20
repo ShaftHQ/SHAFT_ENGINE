@@ -24,11 +24,11 @@ public class Verifications {
     private static final String ERROR_INVALID_COMPARISON_OPERATOR = "Verification Failed; invalid comparison operator used.";
     private static final String ERROR_UNHANDLED_EXCEPTION = "Verification Failed; an unhandled exception occured.";
     private static final StringBuilder verificationFailures = new StringBuilder();
-    private static List<String> verificationFailuresList = new ArrayList<>();
     private static final StringBuilder verificationSuccesses = new StringBuilder();
     private static final int attemptsBeforeThrowingElementNotFoundException = Integer
             .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
     private static final int attemptsBeforeThrowingElementNotFoundExceptionInCaseElementShouldntExist = 1;
+    private static List<String> verificationFailuresList = new ArrayList<>();
     private static AssertionError verificationError = null;
     private static Boolean discreetLoggingState = Boolean.valueOf(System.getProperty("alwaysLogDiscreetly"));
 
