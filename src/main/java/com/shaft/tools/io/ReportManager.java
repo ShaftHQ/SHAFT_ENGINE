@@ -679,4 +679,20 @@ public class ReportManager {
             setDiscreteLogging(discreteLoggingState);
         }
     }
+
+    public static String getCallingMethodFullName() {
+        StackTraceElement[] callingStack = Thread.currentThread().getStackTrace();
+        StringBuilder callingMethodFullName = new StringBuilder();
+        for (int i = 1; i < callingStack.length; i++) {
+            if (!callingStack[i].getClassName().contains("com.shaft")) {
+                callingMethodFullName.append(callingStack[i].getClassName());
+                if (!callingStack[i].getMethodName().isEmpty()) {
+                    callingMethodFullName.append(".");
+                    callingMethodFullName.append(callingStack[i].getMethodName());
+                }
+                break;
+            }
+        }
+        return callingMethodFullName.toString();
+    }
 }

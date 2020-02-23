@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.mohabmohie</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>4.0.20200220-beta</version>
+    <version>4.1.20200223-beta</version>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
     <url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
@@ -40,9 +40,7 @@
         <!-- http://www.slf4j.org/apidocs/org/slf4j/simple/SimpleLogger.html -->
 
         <!-- SHAFT Test Run Parameters -->
-        <customListeners.list>
-            com.shaft.tools.listeners.AlterSuiteListener
-        </customListeners.list>
+        <customListeners.list>com.shaft.tools.listeners.AlterSuiteListener</customListeners.list>
         <testSuite.name>unitTestSuite</testSuite.name>
 
         <!-- Dependencies and Plug-ins Version Numbers Parameters -->
@@ -88,6 +86,7 @@
         <cverges-expect4j.version>1.9</cverges-expect4j.version>
 
         <openpnp-opencv.version>3.4.2-2</openpnp-opencv.version>
+        <applitools-eyes.version>4.5.0</applitools-eyes.version>
     </properties>
 
     <dependencies>
@@ -135,11 +134,16 @@
             </exclusions>
         </dependency>
 
-        <!-- AI POWERED ELEMENT IDENTIFICATION -->
+        <!-- AI POWERED ELEMENT IDENTIFICATION / VISUAL VALIDATION -->
         <dependency>
             <groupId>org.openpnp</groupId>
             <artifactId>opencv</artifactId>
             <version>${openpnp-opencv.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.applitools</groupId>
+            <artifactId>eyes-images-java4</artifactId>
+            <version>${applitools-eyes.version}</version>
         </dependency>
 
         <!-- WEBDRIVER MANAGER -->

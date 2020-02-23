@@ -1,6 +1,12 @@
 package com.shaft.gui.image;
 
+import com.applitools.eyes.LogHandler;
+import com.applitools.eyes.MatchLevel;
+import com.applitools.eyes.TestResults;
+import com.applitools.eyes.exceptions.DiffsFoundException;
+import com.applitools.eyes.images.Eyes;
 import com.shaft.cli.FileActions;
+import com.shaft.gui.element.ElementActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Assertions;
 import com.shaft.validation.Assertions.AssertionType;
@@ -14,6 +20,7 @@ import org.opencv.highgui.HighGui;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
 import org.testng.Assert;
 
 import javax.imageio.ImageIO;
@@ -28,6 +35,9 @@ import java.nio.file.FileSystems;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+
+import static com.shaft.gui.browser.BrowserFactory.isMobileNativeExecution;
+import static com.shaft.gui.browser.BrowserFactory.isMobileWebExecution;
 
 public class ImageProcessingActions {
     private static final String DIRECTORY_PROCESSING = "/processingDirectory/";
@@ -232,7 +242,11 @@ public class ImageProcessingActions {
                                                            int matchMethod) {
 
         if (FileActions.doesFileExist(referenceImagePath)) {
-            OpenCV.loadShared();
+            try {
+                OpenCV.loadShared();
+            } catch (java.lang.RuntimeException | java.lang.ExceptionInInitializerError e) {
+                OpenCV.loadLocally();
+            }
             Mat img = Imgcodecs.imdecode(new MatOfByte(currentPageScreenshot), Imgcodecs.IMREAD_COLOR);
             Mat templ = Imgcodecs.imread(referenceImagePath, Imgcodecs.IMREAD_COLOR);
 
@@ -287,6 +301,7 @@ public class ImageProcessingActions {
                 // returning the top left corner point plus 1x and 1y
                 int x = Integer.parseInt(String.valueOf(matchLoc.x + 1).split("\\.")[0]);
                 int y = Integer.parseInt(String.valueOf(matchLoc.y + 1).split("\\.")[0]);
+                ReportManager.logDiscrete("Successfully identified the element using AI; OpenCV.");
                 return Arrays.asList(x, y);
             } catch (org.opencv.core.CvException e) {
                 ReportManager.log(e);
@@ -301,18 +316,121 @@ public class ImageProcessingActions {
     }
 
     public static String formatElementLocatorToImagePath(By elementLocator) {
-        StackTraceElement[] callingStack = Thread.currentThread().getStackTrace();
-        String className = "";
-        for (int i = 1; i < callingStack.length; i++) {
-            if (!callingStack[i].getClassName().contains("com.shaft")) {
-                className = callingStack[i].getClassName();
-                break;
-            }
-        }
-
-        String elementFileName = className + "_" + elementLocator.toString();
+        String elementFileName = ReportManager.getCallingMethodFullName() + "_" + elementLocator.toString();
         return elementFileName.replaceAll("[\\[\\]\\'\\/:]", "").replaceAll("[\\W\\s]", "_").replaceAll("_{2}", "_")
                 .replaceAll("_{2}", "_").replaceAll("contains", "_contains").replaceAll("_$", "");
     }
 
+    public static synchronized Boolean compareAgainstBaseline(WebDriver driver, By elementLocator, byte[] elementScreenshot, VisualValidationEngine visualValidationEngine) {
+        String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
+
+        switch (visualValidationEngine) {
+            case EXACT_OPENCV:
+                String aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
+                String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
+
+                Boolean doesReferenceFileExist = FileActions.doesFileExist(referenceImagePath);
+
+                if (!elementScreenshot.equals(new byte[]{})) {
+                    if (!doesReferenceFileExist || !ImageProcessingActions.findImageWithinCurrentPage(referenceImagePath, elementScreenshot, Imgproc.TM_CCORR_NORMED).equals(Collections.emptyList())) {
+                        //pass: element found and matched || first time element
+                        if (!doesReferenceFileExist) {
+                            ReportManager.logDiscrete("Passing the test and saving a reference image");
+                            FileActions.writeToFile(aiFolderPath, hashedLocatorName + ".png", elementScreenshot);
+                        }
+                        return true;
+                    } else {
+                        //fail: element doesn't match
+                        return false;
+                    }
+                } else {
+                    //TODO: if element locator was not found, attempt to use AI to find it
+                    Boolean initialState = ScreenshotManager.getAiSupportedElementIdentification();
+                    ScreenshotManager.setAiSupportedElementIdentification(true);
+                    if (!doesReferenceFileExist || ElementActions.attemptToFindElementUsingAI(driver, elementLocator)) {
+                        //pass: element found using AI and new locator suggested || first time element
+                        if (!doesReferenceFileExist) {
+                            ReportManager.logDiscrete("Passing the test and saving a reference image");
+                            FileActions.writeToFile(aiFolderPath, hashedLocatorName + ".png", elementScreenshot);
+                        }
+                        ScreenshotManager.setAiSupportedElementIdentification(initialState);
+                        return true;
+                    } else {
+                        //fail: element not found using AI
+                        ScreenshotManager.setAiSupportedElementIdentification(initialState);
+                        return false;
+                    }
+                }
+            default:
+                //all the other cases of Eyes
+                Eyes eyes = new Eyes();
+                // Define global settings
+                eyes.setLogHandler(new LogHandler() {
+                    @Override
+                    public void open() {
+                    }
+
+                    @Override
+                    public void onMessage(boolean b, String s) {
+                        ReportManager.logDiscrete(s);
+                    }
+
+                    @Override
+                    public void close() {
+                    }
+                });
+                eyes.setApiKey(System.getProperty("applitoolsApiKey"));
+                MatchLevel targetMatchLevel = MatchLevel.STRICT;
+                switch (visualValidationEngine) {
+                    // https://help.applitools.com/hc/en-us/articles/360007188591-Match-Levels
+                    case EXACT_EYES:
+                        targetMatchLevel = MatchLevel.EXACT;
+                        break;
+                    case STRICT_EYES:
+                        targetMatchLevel = MatchLevel.STRICT;
+                        break;
+                    case CONTENT_EYES:
+                        targetMatchLevel = MatchLevel.CONTENT;
+                        break;
+                    case LAYOUT_EYES:
+                        targetMatchLevel = MatchLevel.LAYOUT;
+                        break;
+                    default:
+                        break;
+                }
+                eyes.setMatchLevel(targetMatchLevel);
+                // Define the OS and hosting application to identify the baseline.
+                if (isMobileNativeExecution()) {
+                    eyes.setHostOS(System.getProperty("appium_platformName") + "_" + System.getProperty("appium_platformVersion"));
+                    eyes.setHostApp("NativeMobileExecution");
+                } else if (isMobileWebExecution()) {
+                    eyes.setHostOS(System.getProperty("appium_platformName") + "_" + System.getProperty("appium_platformVersion"));
+                    eyes.setHostApp(System.getProperty("appium_browserName"));
+                } else {
+                    eyes.setHostOS(System.getProperty("targetOperatingSystem"));
+                    eyes.setHostApp(System.getProperty("targetBrowserName"));
+                }
+                try {
+                    eyes.open("SHAFT_Engine", ReportManager.getCallingMethodFullName());
+                    eyes.checkImage(elementScreenshot, hashedLocatorName);
+                    TestResults eyesValidationResult = eyes.close();
+                    ReportManager.logDiscrete("Successfully validated the element using AI; Applitools Eyes.");
+                    return eyesValidationResult.isNew() || eyesValidationResult.isPassed();
+                } catch (DiffsFoundException e) {
+                    ReportManager.log(e);
+                    return false;
+                } finally {
+                    eyes.abortIfNotClosed();
+                }
+        }
+    }
+
+
+    public enum VisualValidationEngine {
+        EXACT_OPENCV,
+        EXACT_EYES,
+        STRICT_EYES,
+        CONTENT_EYES,
+        LAYOUT_EYES
+    }
 }

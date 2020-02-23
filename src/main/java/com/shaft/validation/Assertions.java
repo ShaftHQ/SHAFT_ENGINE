@@ -15,11 +15,9 @@ import java.util.List;
 
 //TODO: Assert Element matches reference file
 
-//TODO: Add optional message to be added to the log of the assertion to describe what it does
-
 public class Assertions {
     private static final String ERROR_INVALID_COMPARISON_OPERATOR = "Assertion Failed; invalid comparison operator used.";
-    private static final String ERROR_UNHANDLED_EXCEPTION = "Assertion Failed; an unhandled exception occured.";
+    private static final String ERROR_UNHANDLED_EXCEPTION = "Assertion Failed; an unhandled exception occurred.";
 
     private static final Boolean discreetLoggingState = Boolean.valueOf(System.getProperty("alwaysLogDiscreetly"));
 
@@ -517,6 +515,68 @@ public class Assertions {
         Validations.assertJSONFileContent(response, referenceJsonFilePath, comparisonType, jsonPathToTargetArray, ValidationType.valueOf(assertionType.toString()), customLogMessage);
     }
 
+    /**
+     * Asserts that the current image of the target element matches the expected reference image. Uses OpenCV natively.
+     *
+     * @param driver           the current instance of Selenium webdriver
+     * @param elementLocator   the locator of the webElement under test (By xpath,
+     *                         id, selector, name ...etc)
+     * @param customLogMessage a custom message that will appended to this step in
+     *                         *                         the execution report
+     */
+    public static void assertElementMatches(WebDriver driver, By elementLocator,
+                                            String... customLogMessage) {
+        Validations.assertElementMatches(driver, elementLocator, Validations.VisualValidationEngine.EXACT_OPENCV, ValidationType.POSITIVE, customLogMessage);
+    }
+
+    /**
+     * Asserts that the current image of the target element matches the expected reference image if AssertionType is POSITIVE, or
+     * doesn't match it if AssertionType is NEGATIVE. Uses OpenCV natively.
+     *
+     * @param driver           the current instance of Selenium webdriver
+     * @param elementLocator   the locator of the webElement under test (By xpath,
+     *                         id, selector, name ...etc)
+     * @param assertionType    AssertionType.POSITIVE, NEGATIVE
+     * @param customLogMessage a custom message that will appended to this step in
+     *                         *                         the execution report
+     */
+    public static void assertElementMatches(WebDriver driver, By elementLocator, AssertionType assertionType,
+                                            String... customLogMessage) {
+        Validations.assertElementMatches(driver, elementLocator, Validations.VisualValidationEngine.EXACT_OPENCV, ValidationType.valueOf(assertionType.toString()), customLogMessage);
+    }
+
+    /**
+     * Asserts that the current image of the target element matches the expected reference image using the desired VisualValidationEngine. Supports OpenCV natively, and Applitools Eyes. To use Eyes you need to configure your applitoolsApiKey in the path.properties file
+     *
+     * @param driver                 the current instance of Selenium webdriver
+     * @param elementLocator         the locator of the webElement under test (By xpath,
+     *                               id, selector, name ...etc)
+     * @param visualValidationEngine VisualValidationEngine.EXACT_OPENCV, EXACT_EYES, STRICT_EYES, CONTENT_EYES, LAYOUT_EYES
+     * @param customLogMessage       a custom message that will appended to this step in
+     *                               *                         the execution report
+     */
+    public static void assertElementMatches(WebDriver driver, By elementLocator, VisualValidationEngine visualValidationEngine,
+                                            String... customLogMessage) {
+        Validations.assertElementMatches(driver, elementLocator, Validations.VisualValidationEngine.valueOf(visualValidationEngine.name()), ValidationType.POSITIVE, customLogMessage);
+    }
+
+    /**
+     * Asserts that the current image of the target element matches the expected reference image using the desired VisualValidationEngine if AssertionType is POSITIVE, or
+     * doesn't match it if AssertionType is NEGATIVE. Supports OpenCV natively, and Applitools Eyes. To use Eyes you need to configure your applitoolsApiKey in the path.properties file
+     *
+     * @param driver                 the current instance of Selenium webdriver
+     * @param elementLocator         the locator of the webElement under test (By xpath,
+     *                               id, selector, name ...etc)
+     * @param visualValidationEngine VisualValidationEngine.EXACT_OPENCV, EXACT_EYES, STRICT_EYES, CONTENT_EYES, LAYOUT_EYES
+     * @param assertionType          AssertionType.POSITIVE, NEGATIVE
+     * @param customLogMessage       a custom message that will appended to this step in
+     *                               *                         the execution report
+     */
+    public static void assertElementMatches(WebDriver driver, By elementLocator, VisualValidationEngine visualValidationEngine, AssertionType assertionType,
+                                            String... customLogMessage) {
+        Validations.assertElementMatches(driver, elementLocator, Validations.VisualValidationEngine.valueOf(visualValidationEngine.name()), ValidationType.valueOf(assertionType.toString()), customLogMessage);
+    }
+
     public enum AssertionType {
         POSITIVE(true), NEGATIVE(false);
 
@@ -557,5 +617,13 @@ public class Assertions {
         protected String getValue() {
             return value;
         }
+    }
+
+    public enum VisualValidationEngine {
+        EXACT_OPENCV,
+        EXACT_EYES,
+        STRICT_EYES,
+        CONTENT_EYES,
+        LAYOUT_EYES
     }
 }
