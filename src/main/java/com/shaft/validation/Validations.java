@@ -4,6 +4,7 @@ import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
+import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.support.JavaActions;
@@ -519,6 +520,34 @@ class Validations {
         }
     }
 
+    protected static void assertElementMatches(WebDriver driver, By elementLocator, VisualValidationEngine visualValidationEngine, ValidationType validationType,
+                                               String... optionalCustomLogMessage) {
+        for (String customMessage : optionalCustomLogMessage) {
+            ReportManager.log(customMessage + "...");
+        }
+
+        StringBuilder reportedExpectedResult = new StringBuilder();
+        reportedExpectedResult.append("Element should ");
+        Boolean expectedResult = validationType.getValue();
+        if (!expectedResult) {
+            reportedExpectedResult.append("not ");
+        }
+        reportedExpectedResult.append("match the reference screenshot");
+        byte[] elementScreenshot = ScreenshotManager.takeElementScreenshot(driver, elementLocator);
+
+        List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Element Screenshot",
+                elementScreenshot);
+        List<List<Object>> attachments = new ArrayList<>();
+        attachments.add(actualValueAttachment);
+        Boolean actualResult = ImageProcessingActions.compareAgainstBaseline(driver, elementLocator, elementScreenshot, ImageProcessingActions.VisualValidationEngine.valueOf(visualValidationEngine.name()));
+
+        if (expectedResult.equals(actualResult)) {
+            pass(reportedExpectedResult.toString(), String.valueOf(actualResult).toUpperCase(), visualValidationEngine, validationType, attachments);
+        } else {
+            fail(reportedExpectedResult.toString(), String.valueOf(actualResult).toUpperCase(), visualValidationEngine, validationType, null, attachments);
+        }
+    }
+
     protected static void assertJSONFileContent(Response response, String referenceJsonFilePath,
                                                 RestActions.ComparisonType comparisonType, String jsonPathToTargetArray, ValidationType validationType, String... optionalCustomLogMessage) {
         for (String customMessage : optionalCustomLogMessage) {
@@ -672,6 +701,14 @@ class Validations {
         protected int getValue() {
             return value;
         }
+    }
+
+    protected enum VisualValidationEngine {
+        EXACT_OPENCV,
+        EXACT_EYES,
+        STRICT_EYES,
+        CONTENT_EYES,
+        LAYOUT_EYES
     }
 
     protected enum ComparativeRelationType {
