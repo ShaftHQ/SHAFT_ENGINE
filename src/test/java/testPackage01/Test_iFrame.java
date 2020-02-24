@@ -26,9 +26,9 @@ public class Test_iFrame {
         By iframe_2 = By.xpath("//iframe[@title='iframe example 1']");
         ElementActions.switchToIframe(driver, iframe_1);
         ElementActions.switchToIframe(driver, iframe_2);
-        Verifications.verifyElementExists(driver, goButton, true);
+        Verifications.verifyElementExists(driver, goButton, Verifications.VerificationType.POSITIVE);
         ElementActions.switchToDefaultContent(driver);
-        Verifications.verifyElementExists(driver, elementInMainPage, true);
+        Verifications.verifyElementExists(driver, elementInMainPage, Verifications.VerificationType.POSITIVE);
 
         // attempt to switch out while already out
         ElementActions.switchToDefaultContent(driver);

@@ -9,7 +9,7 @@ import org.testng.annotations.AfterGroups;
 import org.testng.annotations.BeforeGroups;
 import org.testng.annotations.Test;
 
-public class Test_NewValidations {
+public class Test_NewValidationActions {
     WebDriver driver;
 
     @Test
@@ -314,7 +314,7 @@ public class Test_NewValidations {
 
     @Test
     public void f36() {
-        Assertions.assertFileExists("src/test/java/testPackage01/", "Test_NewValidations.java");
+        Assertions.assertFileExists("src/test/java/testPackage01/", "Test_NewValidationActions.java");
     }
 
     @Test

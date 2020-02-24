@@ -41,7 +41,7 @@ public class ScreenshotManager {
             .valueOf(System.getProperty("screenshotParams_watermark").trim());
     private static final Float SCREENSHOT_PARAMS_WATERMARKOPACITY = Float
             .valueOf(System.getProperty("screenshotParams_watermarkOpacity").trim());
-    private static final Boolean AI_SUPPORTED_ELEMENT_IDENTIFICATION = Boolean
+    private static Boolean AI_SUPPORTED_ELEMENT_IDENTIFICATION = Boolean
             .valueOf(System.getProperty("aiPoweredElementIdentification").trim());
     private static final String WATERMARK_DEFAULT_PATH = "/target/images/shaft.png";
     private static final int RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION = 1;
@@ -76,6 +76,10 @@ public class ScreenshotManager {
 
     public static Boolean getAiSupportedElementIdentification() {
         return AI_SUPPORTED_ELEMENT_IDENTIFICATION;
+    }
+
+    public static void setAiSupportedElementIdentification(Boolean isEnabled) {
+        AI_SUPPORTED_ELEMENT_IDENTIFICATION = isEnabled;
     }
 
     public static void setAiGeneratedElementLocator(By aiGeneratedElementLocator) {
@@ -282,7 +286,7 @@ public class ScreenshotManager {
             case "fullpage":
                 return takeFullPageScreenshot(driver);
             case "element":
-                return takeElementScreenshot(driver);
+                return takeElementScreenshot(driver, targetElementLocator, true);
             default:
                 return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
         }
@@ -313,17 +317,29 @@ public class ScreenshotManager {
         }
     }
 
-    private static byte[] takeElementScreenshot(WebDriver driver) {
+    public static byte[] takeElementScreenshot(WebDriver driver, By targetElementLocator) {
+        return takeElementScreenshot(driver, targetElementLocator, false);
+    }
+
+    private static byte[] takeElementScreenshot(WebDriver driver, By targetElementLocator, Boolean returnRegularScreenshotInCaseOfFailure) {
         try {
             if (targetElementLocator != null && ElementActions.getElementsCount(driver, targetElementLocator,
                     RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1) {
                 return driver.findElement(targetElementLocator).getScreenshotAs(OutputType.BYTES);
             } else {
-                return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+                if (returnRegularScreenshotInCaseOfFailure) {
+                    return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+                } else {
+                    return new byte[]{};
+                }
             }
         } catch (Exception e) {
             ReportManager.log(e);
-            return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+            if (returnRegularScreenshotInCaseOfFailure) {
+                return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+            } else {
+                return new byte[]{};
+            }
         }
     }
 

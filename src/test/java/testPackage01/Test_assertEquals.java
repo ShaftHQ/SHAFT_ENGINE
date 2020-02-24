@@ -43,7 +43,7 @@ public class Test_assertEquals {
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr");
         ElementActions.type(driver, By.id("lst-ib"),
                 "© Copyright 2014-2017 Incorta, Inc Version: Rel3.3-dev Build May 29, 2018 15:30");
-        Verifications.verifyElementAttribute(driver, By.id("lst-ib"), "text", "([\\s\\S]*Rel3.3[\\s\\S]*)", 2, true);
+        Verifications.verifyElementAttribute(driver, By.id("lst-ib"), "text", "([\\s\\S]*Rel3.3[\\s\\S]*)", Verifications.VerificationComparisonType.MATCHES, Verifications.VerificationType.POSITIVE);
     }
 
     @BeforeClass // Set-up method, to be run once before the first test

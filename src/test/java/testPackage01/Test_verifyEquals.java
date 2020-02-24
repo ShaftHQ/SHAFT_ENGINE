@@ -19,15 +19,15 @@ public class Test_verifyEquals {
         ElementActions.type(driver, By.name("q"),
                 "INC_004010050:Another SCHEDULER with the same name [Duplicate Job Name] already exists.");
         Verifications.verifyElementAttribute(driver, By.name("q"), "text",
-                "INC_004010050:Another SCHEDULER with the same name \\[Duplicate Job Name\\] already exists.", 2, true);
+                "INC_004010050:Another SCHEDULER with the same name \\[Duplicate Job Name\\] already exists.", Verifications.VerificationComparisonType.MATCHES, Verifications.VerificationType.POSITIVE);
         Verifications.verifyElementAttribute(driver, By.name("q"), "text",
-                "INC_004010050:Another SCHEDULER with the same name \\[Duplicate Job Name\\] already exists.aaaaaa", 2,
-                true);
+                "INC_004010050:Another SCHEDULER with the same name \\[Duplicate Job Name\\] already exists.aaaaaa", Verifications.VerificationComparisonType.MATCHES,
+                Verifications.VerificationType.POSITIVE);
         Verifications.verifyElementAttribute(driver, By.name("q"), "text",
-                "INC_004010050:Another SCHEDULER with the same name \\[Duplicate Job Name\\] already exists.", 2, true);
+                "INC_004010050:Another SCHEDULER with the same name \\[Duplicate Job Name\\] already exists.", Verifications.VerificationComparisonType.MATCHES, Verifications.VerificationType.POSITIVE);
         Verifications.verifyElementAttribute(driver, By.name("q"), "text",
-                "INC_004010050:Another SCHEDULER with the same name \\[Duplicate Job Name\\] already exists.aaaaaa", 2,
-                true);
+                "INC_004010050:Another SCHEDULER with the same name \\[Duplicate Job Name\\] already exists.aaaaaa", Verifications.VerificationComparisonType.MATCHES,
+                Verifications.VerificationType.POSITIVE);
     }
 
     // @Test
@@ -38,7 +38,7 @@ public class Test_verifyEquals {
         String actualValue = ElementActions.getText(driver, By.name("q"));
         Verifications.verifyEquals(
                 "INC_004010050:Another SCHEDULER with the same name \\[Duplicate Job Name\\] already exists.",
-                actualValue, 2, true);
+                actualValue, Verifications.VerificationComparisonType.MATCHES, Verifications.VerificationType.POSITIVE);
 
     }
 
@@ -47,7 +47,7 @@ public class Test_verifyEquals {
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "https://www.google.com");
         ElementActions.type(driver, By.name("q"),
                 "© Copyright 2014-2017 Incorta, Inc Version: Rel3.3-dev Build May 29, 2018 15:30");
-        Verifications.verifyElementAttribute(driver, By.name("q"), "text", "([\\s\\S]*Rel3.3[\\s\\S]*)", 2, true);
+        Verifications.verifyElementAttribute(driver, By.name("q"), "text", "([\\s\\S]*Rel3.3[\\s\\S]*)", Verifications.VerificationComparisonType.MATCHES, Verifications.VerificationType.POSITIVE);
     }
 
     @BeforeClass // Set-up method, to be run once before the first test
