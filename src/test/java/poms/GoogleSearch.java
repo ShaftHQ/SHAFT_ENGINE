@@ -69,8 +69,8 @@ public class GoogleSearch {
     }
 
     public void verifyPageTitle(String expectedValue) {
-        Verifications.verifyBrowserAttribute(driver, "Title", expectedValue, 1, true);
-        Verifications.verifyBrowserAttribute(driver, "Title", "Not Google", 1, false);
+        Verifications.verifyBrowserAttribute(driver, "Title", expectedValue, Verifications.VerificationComparisonType.EQUALS, Verifications.VerificationType.POSITIVE);
+        Verifications.verifyBrowserAttribute(driver, "Title", "Not Google", Verifications.VerificationComparisonType.EQUALS, Verifications.VerificationType.NEGATIVE);
 
     }
 

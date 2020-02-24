@@ -518,17 +518,9 @@ public class ReportManager {
      *          action
      */
     public static void log(Throwable t) {
-        StringBuilder logBuilder = new StringBuilder();
         String logText = "";
-        StackTraceElement[] trace = t.getStackTrace();
 
-        logBuilder.append(
-                t.getClass().getName() + ":" + System.lineSeparator() + t.getMessage() + System.lineSeparator());
-
-        for (int i = 0; i < trace.length; ++i) {
-            logBuilder.append(trace[i].toString() + System.lineSeparator());
-        }
-        logText = logBuilder.toString();
+        logText = formatStackTraceToLogEntry(t);
         if (t.getMessage() != null) {
             ReportManager.log("An Exception Occured with this Message: " + t.getMessage().split("\n")[0].trim() + ".",
                     Arrays.asList(Arrays.asList("Exception Stack Trace", t.getClass().getName(), logText)));
@@ -537,6 +529,19 @@ public class ReportManager {
                     Arrays.asList(Arrays.asList("Exception Stack Trace", t.getClass().getName(), logText)));
         }
         actionCounter++;
+    }
+
+    public static String formatStackTraceToLogEntry(Throwable t) {
+        StringBuilder logBuilder = new StringBuilder();
+        StackTraceElement[] trace = t.getStackTrace();
+
+        logBuilder.append(
+                t.getClass().getName() + ":" + System.lineSeparator() + t.getMessage() + System.lineSeparator());
+
+        for (int i = 0; i < trace.length; ++i) {
+            logBuilder.append(trace[i].toString() + System.lineSeparator());
+        }
+        return logBuilder.toString();
     }
 
     public static void logDiscrete(String logText) {

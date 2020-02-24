@@ -24,7 +24,7 @@ public class GoogleSearchResults {
     }
 
     public void verifyResultsStatsExists() {
-        Verifications.verifyElementExists(driver, resultsStats_label, true);
+        Verifications.verifyElementExists(driver, resultsStats_label, Verifications.VerificationType.POSITIVE);
     }
 
     public void clickNext() {
