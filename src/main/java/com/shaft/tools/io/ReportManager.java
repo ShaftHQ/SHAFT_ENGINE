@@ -518,17 +518,9 @@ public class ReportManager {
      *          action
      */
     public static void log(Throwable t) {
-        StringBuilder logBuilder = new StringBuilder();
         String logText = "";
-        StackTraceElement[] trace = t.getStackTrace();
 
-        logBuilder.append(
-                t.getClass().getName() + ":" + System.lineSeparator() + t.getMessage() + System.lineSeparator());
-
-        for (int i = 0; i < trace.length; ++i) {
-            logBuilder.append(trace[i].toString() + System.lineSeparator());
-        }
-        logText = logBuilder.toString();
+        logText = formatStackTraceToLogEntry(t);
         if (t.getMessage() != null) {
             ReportManager.log("An Exception Occured with this Message: " + t.getMessage().split("\n")[0].trim() + ".",
                     Arrays.asList(Arrays.asList("Exception Stack Trace", t.getClass().getName(), logText)));
@@ -537,6 +529,19 @@ public class ReportManager {
                     Arrays.asList(Arrays.asList("Exception Stack Trace", t.getClass().getName(), logText)));
         }
         actionCounter++;
+    }
+
+    public static String formatStackTraceToLogEntry(Throwable t) {
+        StringBuilder logBuilder = new StringBuilder();
+        StackTraceElement[] trace = t.getStackTrace();
+
+        logBuilder.append(
+                t.getClass().getName() + ":" + System.lineSeparator() + t.getMessage() + System.lineSeparator());
+
+        for (int i = 0; i < trace.length; ++i) {
+            logBuilder.append(trace[i].toString() + System.lineSeparator());
+        }
+        return logBuilder.toString();
     }
 
     public static void logDiscrete(String logText) {
@@ -678,5 +683,21 @@ public class ReportManager {
             createAllureReportArchiveAndCleanGeneratedDirectory();
             setDiscreteLogging(discreteLoggingState);
         }
+    }
+
+    public static String getCallingMethodFullName() {
+        StackTraceElement[] callingStack = Thread.currentThread().getStackTrace();
+        StringBuilder callingMethodFullName = new StringBuilder();
+        for (int i = 1; i < callingStack.length; i++) {
+            if (!callingStack[i].getClassName().contains("com.shaft")) {
+                callingMethodFullName.append(callingStack[i].getClassName());
+                if (!callingStack[i].getMethodName().isEmpty()) {
+                    callingMethodFullName.append(".");
+                    callingMethodFullName.append(callingStack[i].getMethodName());
+                }
+                break;
+            }
+        }
+        return callingMethodFullName.toString();
     }
 }

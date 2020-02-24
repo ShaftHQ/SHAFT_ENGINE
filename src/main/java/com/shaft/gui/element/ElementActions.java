@@ -179,7 +179,7 @@ public class ElementActions {
         return new ArrayList<>();
     }
 
-    private static Boolean attemptToFindElementUsingAI(WebDriver driver, By elementLocator) {
+    public static Boolean attemptToFindElementUsingAI(WebDriver driver, By elementLocator) {
         if (Boolean.TRUE.equals(ScreenshotManager.getAiSupportedElementIdentification())) {
             aiGeneratedElementLocator = null; // reset static container
 
