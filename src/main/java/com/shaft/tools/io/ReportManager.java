@@ -668,7 +668,7 @@ public class ReportManager {
 
     private static void createAllureReportArchiveAndCleanGeneratedDirectory() {
         FileActions.copyFolder(FileActions.getAbsolutePath("target/", "allure"), "generatedReport/allure");
-        FileActions.zipFiles("generatedReport/", "generatedReport.zip");
+        FileActions.zipFiles("generatedReport/", "generatedReport_" + new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date()) + ".zip");
         FileActions.deleteFile("generatedReport/");
     }
 
