@@ -17,78 +17,79 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-class Validations {
-    /*
-     * Variables
-     */
+class ValidationActions {
     private static final int attemptsBeforeThrowingElementNotFoundException = Integer
             .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
     private static final int attemptsBeforeThrowingElementNotFoundExceptionInCaseElementShouldntExist = 1;
+    private static final StringBuilder verificationFailures = new StringBuilder();
+    private static final StringBuilder verificationSuccesses = new StringBuilder();
     private static WebDriver lastUsedDriver = null;
     private static By lastUsedElementLocator = null;
-
     private static Boolean discreetLoggingState = Boolean.valueOf(System.getProperty("alwaysLogDiscreetly"));
+    private static List<String> verificationFailuresList = new ArrayList<>();
+    private static AssertionError verificationError = null;
 
-    // TODO: implement abstracted verifications classes
-
-    /*
-     * Constructor
-     */
-    private Validations() {
+    private ValidationActions() {
         throw new IllegalStateException("Utility class");
     }
 
-    /*
-     * Reporting Methods
-     */
-    private static void pass(String expectedValue, String actualValue,
+    protected static AssertionError getVerificationErrorToForceFail() {
+        return verificationError;
+    }
+
+    protected static void resetVerificationStateAfterFailing() {
+        verificationFailuresList = new ArrayList<>();
+        verificationError = null;
+    }
+
+    private static void pass(ValidationCategory validationCategory, String expectedValue, String actualValue,
                              Object validationComparisonType, ValidationType validationType, List<List<Object>> externalAttachments) {
 
-        reportValidationState(expectedValue, actualValue, validationComparisonType, validationType,
+        reportValidationState(validationCategory, expectedValue, actualValue, validationComparisonType, validationType,
                 ValidationState.PASSED, null, externalAttachments);
     }
 
-    private static void pass(String expectedValue, String actualValue,
+    private static void pass(ValidationCategory validationCategory, String expectedValue, String actualValue,
                              Object validationComparisonType, ValidationType validationType) {
 
-        reportValidationState(expectedValue, actualValue, validationComparisonType, validationType,
+        reportValidationState(validationCategory, expectedValue, actualValue, validationComparisonType, validationType,
                 ValidationState.PASSED, null, null);
     }
 
-    private static void pass(Number expectedValue, Number actualValue,
+    private static void pass(ValidationCategory validationCategory, Number expectedValue, Number actualValue,
                              Object comparativeRelationType, ValidationType validationType) {
-        reportValidationState(String.valueOf(expectedValue), String.valueOf(actualValue), comparativeRelationType, validationType,
+        reportValidationState(validationCategory, String.valueOf(expectedValue), String.valueOf(actualValue), comparativeRelationType, validationType,
                 ValidationState.PASSED, null, null);
     }
 
-    private static void fail(String expectedValue, String actualValue,
+    private static void fail(ValidationCategory validationCategory, String expectedValue, String actualValue,
                              Object validationComparisonType, ValidationType validationType, Throwable failureReason, List<List<Object>> externalAttachments) {
         // reset state in case of failure to force reporting the failure
         ReportManager.setDiscreteLogging(discreetLoggingState);
 
-        reportValidationState(expectedValue, actualValue, validationComparisonType, validationType,
+        reportValidationState(validationCategory, expectedValue, actualValue, validationComparisonType, validationType,
                 ValidationState.FAILED, failureReason, externalAttachments);
     }
 
-    private static void fail(String expectedValue, String actualValue,
+    private static void fail(ValidationCategory validationCategory, String expectedValue, String actualValue,
                              Object validationComparisonType, ValidationType validationType, Throwable failureReason) {
         // reset state in case of failure to force reporting the failure
         ReportManager.setDiscreteLogging(discreetLoggingState);
 
-        reportValidationState(expectedValue, actualValue, validationComparisonType, validationType,
+        reportValidationState(validationCategory, expectedValue, actualValue, validationComparisonType, validationType,
                 ValidationState.FAILED, failureReason, null);
     }
 
-    private static void fail(Number expectedValue, Number actualValue,
+    private static void fail(ValidationCategory validationCategory, Number expectedValue, Number actualValue,
                              Object comparativeRelationType, ValidationType validationType) {
         // reset state in case of failure to force reporting the failure
         ReportManager.setDiscreteLogging(discreetLoggingState);
 
-        reportValidationState(String.valueOf(expectedValue), String.valueOf(actualValue), comparativeRelationType, validationType,
+        reportValidationState(validationCategory, String.valueOf(expectedValue), String.valueOf(actualValue), comparativeRelationType, validationType,
                 ValidationState.FAILED, null, null);
     }
 
-    private static void reportValidationState(String expectedValue, String actualValue,
+    private static void reportValidationState(ValidationCategory validationCategory, String expectedValue, String actualValue,
                                               Object validationComparisonOrComparativeRelationType, ValidationType validationType,
                                               ValidationState validationState, Throwable failureReason, List<List<Object>> externalAttachments) {
 
@@ -101,11 +102,16 @@ class Validations {
 
         // get validation method name
         String validationMethodName = (new Throwable()).getStackTrace()[2].getMethodName();
-        if (validationMethodName.contains("reportAssertionResult")) {
-            validationMethodName = (new Throwable()).getStackTrace()[4].getMethodName();
+        String callingAssertionOrVerificationMethodName = (new Throwable()).getStackTrace()[3].getMethodName();
+
+        if (validationMethodName.contains("reportValidationResult")) {
+            //validationMethodName = (new Throwable()).getStackTrace()[4].getMethodName();
+            callingAssertionOrVerificationMethodName = (new Throwable()).getStackTrace()[5].getMethodName();
         }
+        validationMethodName = callingAssertionOrVerificationMethodName;
+
         validationMethodName = validationMethodName.substring(0, 1).toUpperCase() + validationMethodName.substring(1);
-        if (validationMethodName.equals("AssertFail")) {
+        if (validationMethodName.equals("ValidateFail")) {
             validationState = ValidationState.PASSED;
             message.append(validationMethodName + " " + validationState + "; ");
             message.append("Successfully force failed the test.");
@@ -159,33 +165,63 @@ class Validations {
             lastUsedElementLocator = null;
         }
 
-        // create the log entry with or without attachments
-        if (!attachments.isEmpty()) {
-            ReportManager.log(message.toString(), attachments);
-        } else {
-            ReportManager.log(message.toString());
-        }
+        // handling changes as per validationCategory hard/soft
+        switch (validationCategory) {
+            case HARD_ASSERT:
+                // create the log entry with or without attachments
+                if (!attachments.isEmpty()) {
+                    ReportManager.log(message.toString(), attachments);
+                } else {
+                    ReportManager.log(message.toString());
+                }
 
-        // set test state in case of failure
-        if (!validationState.getValue()) {
-            if (failureReason != null) {
-                Assert.fail(message.toString(), failureReason);
-            } else {
-                Assert.fail(message.toString());
-            }
+                // set test state in case of failure
+                if (!validationState.getValue()) {
+                    if (failureReason != null) {
+                        Assert.fail(message.toString(), failureReason);
+                    } else {
+                        Assert.fail(message.toString());
+                    }
+                }
+                break;
+            case SOFT_ASSERT:
+                // handle failure reason in case of soft assert
+                if (failureReason != null) {
+                    List<Object> failureReasonAttachment = Arrays.asList("Validation Test Data", "Failure Reason",
+                            ReportManager.formatStackTraceToLogEntry(failureReason));
+                    attachments.add(failureReasonAttachment);
+                }
+
+                // create the log entry with or without attachments
+                if (!attachments.isEmpty()) {
+                    ReportManager.log(message.toString(), attachments);
+                } else {
+                    ReportManager.log(message.toString());
+                }
+
+                // set test state in case of failure
+                if (!validationState.getValue()) {
+                    verificationFailuresList.add(message.toString());
+                    verificationError = new AssertionError(String.join("\nAND ", verificationFailuresList));
+                } else {
+                    verificationSuccesses.append(message.toString());
+                }
+                break;
+            default:
+                break;
         }
     }
 
-    protected static void assertFail(String... optionalCustomLogMessage) {
+    protected static void validateFail(ValidationCategory validationCategory, String... optionalCustomLogMessage) {
         for (String customMessage : optionalCustomLogMessage) {
             ReportManager.log(customMessage + "...");
         }
-        fail(null, null, null, null, null);
+        fail(validationCategory, null, null, null, null, null);
     }
 
-    protected static void assertEquals(Object expectedValue, Object actualValue,
-                                       ValidationComparisonType validationComparisonType, ValidationType validationType,
-                                       String... optionalCustomLogMessage) {
+    protected static void validateEquals(ValidationCategory validationCategory, Object expectedValue, Object actualValue,
+                                         ValidationComparisonType validationComparisonType, ValidationType validationType,
+                                         String... optionalCustomLogMessage) {
 
         for (String customMessage : optionalCustomLogMessage) {
             ReportManager.log(customMessage + "...");
@@ -193,15 +229,15 @@ class Validations {
 
         if (JavaActions.compareTwoObjects(expectedValue, actualValue, validationComparisonType.getValue(),
                 validationType.getValue()) == 1) {
-            pass(String.valueOf(expectedValue), String.valueOf(actualValue), validationComparisonType, validationType);
+            pass(validationCategory, String.valueOf(expectedValue), String.valueOf(actualValue), validationComparisonType, validationType);
         } else {
             // failed comparison, invalid operator (not reachable) or exception
-            fail(String.valueOf(expectedValue), String.valueOf(actualValue), validationComparisonType, validationType,
+            fail(validationCategory, String.valueOf(expectedValue), String.valueOf(actualValue), validationComparisonType, validationType,
                     null);
         }
     }
 
-    protected static void assertNull(Object object, ValidationType validationType, String... optionalCustomLogMessage) {
+    protected static void validateNull(ValidationCategory validationCategory, Object object, ValidationType validationType, String... optionalCustomLogMessage) {
 
         for (String customMessage : optionalCustomLogMessage) {
             ReportManager.log(customMessage + "...");
@@ -210,22 +246,22 @@ class Validations {
         if (validationType.getValue()) {
             try {
                 Assert.assertNull(object);
-                pass("NULL", "NULL", ValidationComparisonType.EQUALS, validationType);
+                pass(validationCategory, "NULL", "NULL", ValidationComparisonType.EQUALS, validationType);
             } catch (Exception | AssertionError failureReason) {
-                fail("NULL", String.valueOf(object), ValidationComparisonType.EQUALS, validationType, failureReason);
+                fail(validationCategory, "NULL", String.valueOf(object), ValidationComparisonType.EQUALS, validationType, failureReason);
             }
         } else {
             try {
                 Assert.assertNotNull(object);
-                pass("NULL", String.valueOf(object), ValidationComparisonType.EQUALS, validationType);
+                pass(validationCategory, "NULL", String.valueOf(object), ValidationComparisonType.EQUALS, validationType);
             } catch (Exception | AssertionError failureReason) {
-                fail("NULL", "NULL", ValidationComparisonType.EQUALS, validationType, failureReason);
+                fail(validationCategory, "NULL", "NULL", ValidationComparisonType.EQUALS, validationType, failureReason);
             }
         }
     }
 
-    protected static void assertElementExists(WebDriver driver, By elementLocator, ValidationType validationType,
-                                              String... optionalCustomLogMessage) {
+    protected static void validateElementExists(ValidationCategory validationCategory, WebDriver driver, By elementLocator, ValidationType validationType,
+                                                String... optionalCustomLogMessage) {
 
         for (String customMessage : optionalCustomLogMessage) {
             ReportManager.log(customMessage + "...");
@@ -249,17 +285,17 @@ class Validations {
             // expecting a unique element to be present
             switch (elementsCount) {
                 case 0:
-                    fail(expectedElementStates[0] + locatorSeparator + elementLocator.toString() + "'",
+                    fail(validationCategory, expectedElementStates[0] + locatorSeparator + elementLocator.toString() + "'",
                             actualElementStates[1], ValidationComparisonType.EQUALS, validationType, null);
                     break;
 
                 case 1:
-                    pass(expectedElementStates[0] + locatorSeparator + elementLocator.toString() + "'",
+                    pass(validationCategory, expectedElementStates[0] + locatorSeparator + elementLocator.toString() + "'",
                             actualElementStates[0], ValidationComparisonType.EQUALS, validationType);
                     break;
 
                 default:
-                    fail(expectedElementStates[0] + locatorSeparator + elementLocator.toString() + "'",
+                    fail(validationCategory, expectedElementStates[0] + locatorSeparator + elementLocator.toString() + "'",
                             actualElementStates[2], ValidationComparisonType.EQUALS, validationType, null);
                     break;
             }
@@ -267,30 +303,26 @@ class Validations {
             // not expecting the element to be present
             switch (elementsCount) {
                 case 0:
-                    pass(expectedElementStates[1] + locatorSeparator + elementLocator.toString() + "'",
+                    pass(validationCategory, expectedElementStates[1] + locatorSeparator + elementLocator.toString() + "'",
                             actualElementStates[1], ValidationComparisonType.EQUALS, validationType);
                     break;
 
                 case 1:
-                    fail(expectedElementStates[1] + locatorSeparator + elementLocator.toString() + "'",
+                    fail(validationCategory, expectedElementStates[1] + locatorSeparator + elementLocator.toString() + "'",
                             actualElementStates[0], ValidationComparisonType.EQUALS, validationType, null);
                     break;
 
                 default:
-                    fail(expectedElementStates[1] + locatorSeparator + elementLocator.toString() + "'",
+                    fail(validationCategory, expectedElementStates[1] + locatorSeparator + elementLocator.toString() + "'",
                             actualElementStates[2], ValidationComparisonType.EQUALS, validationType, null);
                     break;
             }
         }
     }
 
-    /*
-     * Core Methods
-     */
-
-    protected static void assertElementAttribute(WebDriver driver, By elementLocator, String elementAttribute,
-                                                 String expectedValue, ValidationComparisonType validationComparisonType, ValidationType validationType,
-                                                 String... optionalCustomLogMessage) {
+    protected static void validateElementAttribute(ValidationCategory validationCategory, WebDriver driver, By elementLocator, String elementAttribute,
+                                                   String expectedValue, ValidationComparisonType validationComparisonType, ValidationType validationType,
+                                                   String... optionalCustomLogMessage) {
 
         for (String customMessage : optionalCustomLogMessage) {
             ReportManager.log(customMessage + "...");
@@ -322,11 +354,11 @@ class Validations {
         } catch (AssertionError e) {
             // force fail due to upstream failure
             if (validationType.getValue()) {
-                fail(expectedAttributeStates[0] + " '" + expectedValue + attributeSeparator + elementAttribute
+                fail(validationCategory, expectedAttributeStates[0] + " '" + expectedValue + attributeSeparator + elementAttribute
                                 + locatorSeparator + elementLocator.toString() + "'",
                         "Failed to read the desired element attribute", validationComparisonType, validationType, e);
             } else {
-                fail(expectedAttributeStates[1] + " '" + expectedValue + attributeSeparator + elementAttribute
+                fail(validationCategory, expectedAttributeStates[1] + " '" + expectedValue + attributeSeparator + elementAttribute
                                 + locatorSeparator + elementLocator.toString() + "'",
                         "Failed to read the desired element attribute", validationComparisonType, validationType, e);
             }
@@ -337,14 +369,14 @@ class Validations {
         int comparisonResult = JavaActions.compareTwoObjects(expectedValue, actualValue,
                 validationComparisonType.getValue(), validationType.getValue());
 
-        reportAssertionResultOfElementAttribute(new Object[]{expectedAttributeStates, attributeSeparator,
+        reportValidationResultOfElementAttribute(new Object[]{expectedAttributeStates, attributeSeparator,
                 locatorSeparator, comparisonResult, elementLocator, elementAttribute, expectedValue, actualValue,
-                validationComparisonType, validationType});
+                validationComparisonType, validationType, validationCategory});
     }
 
-    protected static void assertElementCSSProperty(WebDriver driver, By elementLocator, String propertyName,
-                                                   String expectedValue, ValidationComparisonType validationComparisonType, ValidationType validationType,
-                                                   String... optionalCustomLogMessage) {
+    protected static void validateElementCSSProperty(ValidationCategory validationCategory, WebDriver driver, By elementLocator, String propertyName,
+                                                     String expectedValue, ValidationComparisonType validationComparisonType, ValidationType validationType,
+                                                     String... optionalCustomLogMessage) {
 
         for (String customMessage : optionalCustomLogMessage) {
             ReportManager.log(customMessage + "...");
@@ -364,15 +396,15 @@ class Validations {
         int comparisonResult = JavaActions.compareTwoObjects(expectedValue, actualValue,
                 validationComparisonType.getValue(), validationType.getValue());
 
-        reportAssertionResultOfElementAttribute(new Object[]{expectedAttributeStates, propertySeparator,
+        reportValidationResultOfElementAttribute(new Object[]{expectedAttributeStates, propertySeparator,
                 locatorSeparator, comparisonResult, elementLocator, propertyName, expectedValue, actualValue,
-                validationComparisonType, validationType});
+                validationComparisonType, validationType, validationCategory});
 
     }
 
-    protected static void assertBrowserAttribute(WebDriver driver, String browserAttribute,
-                                                 String expectedValue, ValidationComparisonType validationComparisonType, ValidationType validationType,
-                                                 String... optionalCustomLogMessage) {
+    protected static void validateBrowserAttribute(ValidationCategory validationCategory, WebDriver driver, String browserAttribute,
+                                                   String expectedValue, ValidationComparisonType validationComparisonType, ValidationType validationType,
+                                                   String... optionalCustomLogMessage) {
 
         for (String customMessage : optionalCustomLogMessage) {
             ReportManager.log(customMessage + "...");
@@ -413,11 +445,11 @@ class Validations {
         } catch (AssertionError e) {
             // force fail due to upstream failure
             if (validationType.getValue()) {
-                fail(expectedAttributeStates[0] + " '" + expectedValue + attributeSeparator + browserAttribute
+                fail(validationCategory, expectedAttributeStates[0] + " '" + expectedValue + attributeSeparator + browserAttribute
                                 + attributeClosure,
                         "Failed to read the desired browser attribute", validationComparisonType, validationType, e);
             } else {
-                fail(expectedAttributeStates[1] + " '" + expectedValue + attributeSeparator + browserAttribute
+                fail(validationCategory, expectedAttributeStates[1] + " '" + expectedValue + attributeSeparator + browserAttribute
                                 + attributeClosure,
                         "Failed to read the desired browser attribute", validationComparisonType, validationType, e);
             }
@@ -427,14 +459,14 @@ class Validations {
         int comparisonResult = JavaActions.compareTwoObjects(expectedValue, actualValue,
                 validationComparisonType.getValue(), validationType.getValue());
 
-        reportAssertionResultOfBrowserAttribute(new Object[]{expectedAttributeStates, attributeSeparator,
+        reportValidationResultOfBrowserAttribute(new Object[]{expectedAttributeStates, attributeSeparator,
                 attributeClosure, comparisonResult, null, browserAttribute, expectedValue, actualValue,
-                validationComparisonType, validationType});
+                validationComparisonType, validationType, validationCategory});
     }
 
-    protected static void assertComparativeRelation(Number expectedValue, Number actualValue,
-                                                    ComparativeRelationType comparativeRelationType, ValidationType validationType,
-                                                    String... optionalCustomLogMessage) {
+    protected static void validateComparativeRelation(ValidationCategory validationCategory, Number expectedValue, Number actualValue,
+                                                      ComparativeRelationType comparativeRelationType, ValidationType validationType,
+                                                      String... optionalCustomLogMessage) {
 
         for (String customMessage : optionalCustomLogMessage) {
             ReportManager.log(customMessage + "...");
@@ -464,13 +496,13 @@ class Validations {
         }
 
         if ((ValidationType.POSITIVE.equals(validationType) && comparisonState.equals(true)) || (ValidationType.NEGATIVE.equals(validationType) && comparisonState.equals(false))) {
-            pass(expectedValue, actualValue, comparativeRelationType, validationType);
+            pass(validationCategory, expectedValue, actualValue, comparativeRelationType, validationType);
         } else {
-            fail(expectedValue, actualValue, comparativeRelationType, validationType);
+            fail(validationCategory, expectedValue, actualValue, comparativeRelationType, validationType);
         }
     }
 
-    protected static void assertTrue(Boolean conditionalStatement, ValidationType validationType, String... optionalCustomLogMessage) {
+    protected static void validateTrue(ValidationCategory validationCategory, Boolean conditionalStatement, ValidationType validationType, String... optionalCustomLogMessage) {
         for (String customMessage : optionalCustomLogMessage) {
             ReportManager.log(customMessage + "...");
         }
@@ -481,14 +513,14 @@ class Validations {
         }
 
         if ((expectedValue && conditionalStatement) || (!expectedValue && !conditionalStatement)) {
-            pass(String.valueOf(expectedValue).toUpperCase(), String.valueOf(conditionalStatement).toUpperCase(), null, validationType);
+            pass(validationCategory, String.valueOf(expectedValue).toUpperCase(), String.valueOf(conditionalStatement).toUpperCase(), null, validationType);
         } else {
-            fail(String.valueOf(expectedValue).toUpperCase(), String.valueOf(conditionalStatement).toUpperCase(), null, validationType, null);
+            fail(validationCategory, String.valueOf(expectedValue).toUpperCase(), String.valueOf(conditionalStatement).toUpperCase(), null, validationType, null);
         }
     }
 
-    protected static void assertFileExists(String fileFolderName, String fileName, int numberOfRetries,
-                                           ValidationType validationType, String... optionalCustomLogMessage) {
+    protected static void validateFileExists(ValidationCategory validationCategory, String fileFolderName, String fileName, int numberOfRetries,
+                                             ValidationType validationType, String... optionalCustomLogMessage) {
         for (String customMessage : optionalCustomLogMessage) {
             ReportManager.log(customMessage + "...");
         }
@@ -514,14 +546,14 @@ class Validations {
         }
 
         if ((expectedValue && actualValue) || (!expectedValue && !actualValue)) {
-            pass(reportedExpectedValue, reportedActualValue, null, validationType);
+            pass(validationCategory, reportedExpectedValue, reportedActualValue, null, validationType);
         } else {
-            fail(reportedExpectedValue, reportedActualValue, null, validationType, null);
+            fail(validationCategory, reportedExpectedValue, reportedActualValue, null, validationType, null);
         }
     }
 
-    protected static void assertElementMatches(WebDriver driver, By elementLocator, VisualValidationEngine visualValidationEngine, ValidationType validationType,
-                                               String... optionalCustomLogMessage) {
+    protected static void validateElementMatches(ValidationCategory validationCategory, WebDriver driver, By elementLocator, VisualValidationEngine visualValidationEngine, ValidationType validationType,
+                                                 String... optionalCustomLogMessage) {
         for (String customMessage : optionalCustomLogMessage) {
             ReportManager.log(customMessage + "...");
         }
@@ -542,14 +574,14 @@ class Validations {
         Boolean actualResult = ImageProcessingActions.compareAgainstBaseline(driver, elementLocator, elementScreenshot, ImageProcessingActions.VisualValidationEngine.valueOf(visualValidationEngine.name()));
 
         if (expectedResult.equals(actualResult)) {
-            pass(reportedExpectedResult.toString(), String.valueOf(actualResult).toUpperCase(), visualValidationEngine, validationType, attachments);
+            pass(validationCategory, reportedExpectedResult.toString(), String.valueOf(actualResult).toUpperCase(), visualValidationEngine, validationType, attachments);
         } else {
-            fail(reportedExpectedResult.toString(), String.valueOf(actualResult).toUpperCase(), visualValidationEngine, validationType, null, attachments);
+            fail(validationCategory, reportedExpectedResult.toString(), String.valueOf(actualResult).toUpperCase(), visualValidationEngine, validationType, null, attachments);
         }
     }
 
-    protected static void assertJSONFileContent(Response response, String referenceJsonFilePath,
-                                                RestActions.ComparisonType comparisonType, String jsonPathToTargetArray, ValidationType validationType, String... optionalCustomLogMessage) {
+    protected static void validateJSONFileContent(ValidationCategory validationCategory, Response response, String referenceJsonFilePath,
+                                                  RestActions.ComparisonType comparisonType, String jsonPathToTargetArray, ValidationType validationType, String... optionalCustomLogMessage) {
         for (String customMessage : optionalCustomLogMessage) {
             ReportManager.log(customMessage + "...");
         }
@@ -582,13 +614,13 @@ class Validations {
         attachments.add(actualValueAttachment);
 
         if ((comparisonResult && expectedValue) || (!comparisonResult && !expectedValue)) {
-            pass(reportedExpectedValue.toString(), String.valueOf(comparisonResult).toUpperCase(), comparisonType, validationType, attachments);
+            pass(validationCategory, reportedExpectedValue.toString(), String.valueOf(comparisonResult).toUpperCase(), comparisonType, validationType, attachments);
         } else {
-            fail(reportedExpectedValue.toString(), String.valueOf(comparisonResult).toUpperCase(), comparisonType, validationType, null, attachments);
+            fail(validationCategory, reportedExpectedValue.toString(), String.valueOf(comparisonResult).toUpperCase(), comparisonType, validationType, null, attachments);
         }
     }
 
-    private static void reportAssertionResultOfElementAttribute(Object[] args) {
+    private static void reportValidationResultOfElementAttribute(Object[] args) {
 
         String[] expectedAttributeStates = (String[]) args[0];
         String propertySeparator = (String) args[1];
@@ -600,17 +632,18 @@ class Validations {
         String actualValue = (String) args[7];
         ValidationComparisonType validationComparisonType = (ValidationComparisonType) args[8];
         ValidationType validationType = (ValidationType) args[9];
+        ValidationCategory validationCategory = (ValidationCategory) args[10];
 
         if (validationType.getValue()) {
             // expecting element attribute to have the correct value
             if (comparisonResult == 1) {
                 // match
-                pass(expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
+                pass(validationCategory, expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
                                 + locatorSeparator + elementLocator.toString() + "'", actualValue, validationComparisonType,
                         validationType);
             } else {
                 // no match, or unhandled issue
-                fail(expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
+                fail(validationCategory, expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
                                 + locatorSeparator + elementLocator.toString() + "'", actualValue, validationComparisonType,
                         validationType, null);
             }
@@ -618,19 +651,19 @@ class Validations {
             // expecting element attribute to not have the correct value
             if (comparisonResult == 1) {
                 // match
-                pass(expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
+                pass(validationCategory, expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
                                 + locatorSeparator + elementLocator.toString() + "'", actualValue, validationComparisonType,
                         validationType);
             } else {
                 // no match, or unhandled issue
-                fail(expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
+                fail(validationCategory, expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
                                 + locatorSeparator + elementLocator.toString() + "'", actualValue, validationComparisonType,
                         validationType, null);
             }
         }
     }
 
-    private static void reportAssertionResultOfBrowserAttribute(Object[] args) {
+    private static void reportValidationResultOfBrowserAttribute(Object[] args) {
 
         String[] expectedAttributeStates = (String[]) args[0];
         String propertySeparator = (String) args[1];
@@ -642,17 +675,18 @@ class Validations {
         String actualValue = (String) args[7];
         ValidationComparisonType validationComparisonType = (ValidationComparisonType) args[8];
         ValidationType validationType = (ValidationType) args[9];
+        ValidationCategory validationCategory = (ValidationCategory) args[10];
 
         if (validationType.getValue()) {
             // expecting element attribute to have the correct value
             if (comparisonResult == 1) {
                 // match
-                pass(expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
+                pass(validationCategory, expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
                                 + attributeClosure, actualValue, validationComparisonType,
                         validationType);
             } else {
                 // no match, or unhandled issue
-                fail(expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
+                fail(validationCategory, expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
                                 + attributeClosure, actualValue, validationComparisonType,
                         validationType, null);
             }
@@ -660,21 +694,18 @@ class Validations {
             // expecting element attribute to not have the correct value
             if (comparisonResult == 1) {
                 // match
-                pass(expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
+                pass(validationCategory, expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
                                 + attributeClosure, actualValue, validationComparisonType,
                         validationType);
             } else {
                 // no match, or unhandled issue
-                fail(expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
+                fail(validationCategory, expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
                                 + attributeClosure, actualValue, validationComparisonType,
                         validationType, null);
             }
         }
     }
 
-    /*
-     * Enums
-     */
     protected enum ValidationType {
         POSITIVE(true), NEGATIVE(false);
 
@@ -709,6 +740,11 @@ class Validations {
         STRICT_EYES,
         CONTENT_EYES,
         LAYOUT_EYES
+    }
+
+    protected enum ValidationCategory {
+        HARD_ASSERT,
+        SOFT_ASSERT
     }
 
     protected enum ComparativeRelationType {

@@ -199,7 +199,7 @@ public class ImageProcessingActions {
                 failedImagesCount++;
             }
 
-            Verifications.verifyComparativeRelation(threshhold, percentage, ">=", true);
+            Verifications.verifyComparativeRelation(threshhold, percentage, Verifications.ComparativeRelationType.GREATER_THAN_OR_EQUALS, Verifications.VerificationType.POSITIVE);
         }
 
         ReportManager.log("[" + passedImagesCount + "] images passed, and [" + failedImagesCount

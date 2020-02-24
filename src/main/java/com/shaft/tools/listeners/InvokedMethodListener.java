@@ -93,11 +93,10 @@ public class InvokedMethodListener implements IInvokedMethodListener {
     }
 
     private void updateTestStatusInCaseOfVerificationFailure(ITestResult testResult) {
-        if (testResult != null && Verifications.getVerificationError() != null) {
+        if (testResult != null && Verifications.getVerificationErrorToForceFail() != null) {
             testResult.setStatus(ITestResult.FAILURE);
-            testResult.setThrowable(Verifications.getVerificationError());
-            Verifications.resetVerificationFailuresMessage();
-            Verifications.resetVerificationError();
+            testResult.setThrowable(Verifications.getVerificationErrorToForceFail());
+            Verifications.resetVerificationStateAfterFailing();
         }
     }
 
