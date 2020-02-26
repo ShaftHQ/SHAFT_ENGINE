@@ -520,15 +520,19 @@ public class BrowserFactory {
         return desiredCapabilities;
     }
 
+    public static boolean isWebExecution() {
+        return !isMobileExecution();
+    }
+
     public static boolean isMobileExecution() {
-        if (!EXECUTION_ADDRESS.equals("local") && TARGET_PLATFORM_NAME != null) {
+        if (EXECUTION_ADDRESS != null && !EXECUTION_ADDRESS.equals("local") && TARGET_PLATFORM_NAME != null) {
             return !TARGET_PLATFORM_NAME.equals("");
         }
         return false;
     }
 
     public static boolean isMobileWebExecution() {
-        if (!EXECUTION_ADDRESS.equals("local") && TARGET_PLATFORM_NAME != null
+        if (EXECUTION_ADDRESS != null && !EXECUTION_ADDRESS.equals("local") && TARGET_PLATFORM_NAME != null
                 && TARGET_PLATFORM_BROWSER_NAME != null) {
             return !TARGET_PLATFORM_NAME.equals("") && !TARGET_PLATFORM_BROWSER_NAME.equals("");
         }
@@ -536,7 +540,7 @@ public class BrowserFactory {
     }
 
     public static boolean isMobileNativeExecution() {
-        if (!EXECUTION_ADDRESS.equals("local") && TARGET_PLATFORM_NAME != null) {
+        if (EXECUTION_ADDRESS != null && !EXECUTION_ADDRESS.equals("local") && TARGET_PLATFORM_NAME != null) {
             return !TARGET_PLATFORM_NAME.equals("")
                     && (TARGET_PLATFORM_BROWSER_NAME == null || TARGET_PLATFORM_BROWSER_NAME.equals(""));
         }

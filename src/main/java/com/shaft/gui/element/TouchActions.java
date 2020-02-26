@@ -6,17 +6,16 @@ import io.appium.java_client.TouchAction;
 import io.appium.java_client.touch.offset.ElementOption;
 import io.appium.java_client.touch.offset.PointOption;
 import org.openqa.selenium.*;
-import org.openqa.selenium.interactions.touch.TouchActions;
 
 import java.util.List;
 
-public class Touch {
+public class TouchActions {
     private static final int DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT = 10;
     private final WebDriver driver;
     // TODO: add to appium properties. divide it to execution properties and
     // platform properties
 
-    Touch(WebDriver driver) {
+    TouchActions(WebDriver driver) {
         this.driver = driver;
     }
 
@@ -27,7 +26,7 @@ public class Touch {
      *                       selector, name ...etc)
      * @return a self-reference to be used to chain touch actions
      */
-    public Touch tap(By elementLocator) {
+    public TouchActions tap(By elementLocator) {
         if (ElementActions.identifyUniqueElement(driver, elementLocator)) {
             // Override current locator with the aiGeneratedElementLocator
             elementLocator = ElementActions.updateLocatorWithAIGenratedOne(elementLocator);
@@ -47,7 +46,7 @@ public class Touch {
                             .tap(ElementOption.element(driver.findElement(elementLocator))).perform();
                 } else {
                     // regular touch screen device
-                    (new TouchActions(driver)).singleTap(driver.findElement(elementLocator)).perform();
+                    (new org.openqa.selenium.interactions.touch.TouchActions(driver)).singleTap(driver.findElement(elementLocator)).perform();
                 }
             } catch (Exception e) {
                 ElementActions.failAction(driver, elementLocator, e);
@@ -71,7 +70,7 @@ public class Touch {
      *                       selector, name ...etc)
      * @return a self-reference to be used to chain touch actions
      */
-    public Touch doubleTap(By elementLocator) {
+    public TouchActions doubleTap(By elementLocator) {
         if (ElementActions.identifyUniqueElement(driver, elementLocator)) {
             // Override current locator with the aiGeneratedElementLocator
             elementLocator = ElementActions.updateLocatorWithAIGenratedOne(elementLocator);
@@ -92,7 +91,7 @@ public class Touch {
                             .tap(ElementOption.element(driver.findElement(elementLocator))).perform();
                 } else {
                     // regular touch screen device
-                    (new TouchActions(driver)).doubleTap(driver.findElement(elementLocator)).perform();
+                    (new org.openqa.selenium.interactions.touch.TouchActions(driver)).doubleTap(driver.findElement(elementLocator)).perform();
                 }
             } catch (Exception e) {
                 ElementActions.failAction(driver, elementLocator, e);
@@ -117,7 +116,7 @@ public class Touch {
      *                       selector, name ...etc)
      * @return a self-reference to be used to chain touch actions
      */
-    public Touch longTap(By elementLocator) {
+    public TouchActions longTap(By elementLocator) {
         if (ElementActions.identifyUniqueElement(driver, elementLocator)) {
             // Override current locator with the aiGeneratedElementLocator
             elementLocator = ElementActions.updateLocatorWithAIGenratedOne(elementLocator);
@@ -137,7 +136,7 @@ public class Touch {
                             .longPress(ElementOption.element(driver.findElement(elementLocator))).perform();
                 } else {
                     // regular touch screen device
-                    (new TouchActions(driver)).longPress(driver.findElement(elementLocator)).perform();
+                    (new org.openqa.selenium.interactions.touch.TouchActions(driver)).longPress(driver.findElement(elementLocator)).perform();
                 }
             } catch (Exception e) {
                 ElementActions.failAction(driver, elementLocator, e);
@@ -166,7 +165,7 @@ public class Touch {
      *                                  selector, name ...etc)
      * @return a self-reference to be used to chain touch actions
      */
-    public Touch swipeToElement(By sourceElementLocator, By destinationElementLocator) {
+    public TouchActions swipeToElement(By sourceElementLocator, By destinationElementLocator) {
         if (ElementActions.identifyUniqueElement(driver, sourceElementLocator)
                 && ElementActions.identifyUniqueElement(driver, destinationElementLocator)) {
             // Override current locator with the aiGeneratedElementLocator
@@ -185,7 +184,7 @@ public class Touch {
                             .moveTo(PointOption.point(destinationElement.getLocation())).release().perform();
                 } else {
                     // regular touch screen device
-                    (new TouchActions(driver)).clickAndHold(sourceElement).release(destinationElement).perform();
+                    (new org.openqa.selenium.interactions.touch.TouchActions(driver)).clickAndHold(sourceElement).release(destinationElement).perform();
                 }
             } catch (Exception e) {
                 ElementActions.failAction(driver, sourceElementLocator, e);
@@ -220,7 +219,7 @@ public class Touch {
      *                       "up"
      * @return a self-reference to be used to chain touch actions
      */
-    public Touch swipeByOffset(By elementLocator, int xOffset, int yOffset) {
+    public TouchActions swipeByOffset(By elementLocator, int xOffset, int yOffset) {
         if (ElementActions.identifyUniqueElement(driver, elementLocator)) {
             // Override current locator with the aiGeneratedElementLocator
             elementLocator = ElementActions.updateLocatorWithAIGenratedOne(elementLocator);
@@ -238,7 +237,7 @@ public class Touch {
                             .release().perform();
                 } else {
                     // regular touch screen device
-                    (new TouchActions(driver)).clickAndHold(sourceElement).moveByOffset(xOffset, yOffset).release()
+                    (new org.openqa.selenium.interactions.touch.TouchActions(driver)).clickAndHold(sourceElement).moveByOffset(xOffset, yOffset).release()
                             .perform();
                 }
             } catch (Exception e) {
@@ -267,7 +266,7 @@ public class Touch {
      * @param swipeDirection SwipeDirection.DOWN, UP, RIGHT, or LEFT
      * @return a self-reference to be used to chain touch actions
      */
-    public Touch swipeElementIntoView(By elementLocator, SwipeDirection swipeDirection) {
+    public TouchActions swipeElementIntoView(By elementLocator, SwipeDirection swipeDirection) {
         return swipeElementIntoView(elementLocator, swipeDirection, DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT);
     }
 
@@ -282,8 +281,8 @@ public class Touch {
      *                                       the element
      * @return a self-reference to be used to chain touch actions
      */
-    public Touch swipeElementIntoView(By elementLocator, SwipeDirection swipeDirection,
-                                      int attemptsToScrollAndFindElement) {
+    public TouchActions swipeElementIntoView(By elementLocator, SwipeDirection swipeDirection,
+                                             int attemptsToScrollAndFindElement) {
         elementLocator = ElementActions.updateLocatorWithAIGenratedOne(elementLocator);
         try {
             if (driver instanceof AppiumDriver<?>) {
@@ -294,7 +293,7 @@ public class Touch {
                 // regular touch screen device
                 if (ElementActions.identifyUniqueElement(driver, elementLocator)) {
                     Point elementLocation = driver.findElement(elementLocator).getLocation();
-                    (new TouchActions(driver)).scroll(elementLocation.getX(), elementLocation.getY()).perform();
+                    (new org.openqa.selenium.interactions.touch.TouchActions(driver)).scroll(elementLocation.getX(), elementLocation.getY()).perform();
                 } else {
                     ElementActions.failAction(driver, elementLocator);
                 }

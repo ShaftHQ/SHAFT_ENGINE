@@ -139,7 +139,7 @@ public class ElementActions {
         if (screenshot != null && screenshot != new ArrayList<>()) {
             // screenshot taken before action (in case of click)
             attachments.add(screenshot);
-        } else {
+        } else if (driver != null && elementLocator != null) {
             List<Object> newScreenshot = takeScreenshot(driver, elementLocator, actionName, testData, passFailStatus);
             if (newScreenshot != null && newScreenshot != new ArrayList<>()) {
                 attachments.add(newScreenshot);
@@ -1860,7 +1860,7 @@ public class ElementActions {
     }
 
     /**
-     * This is a convenience method to be able to call Touch Actions for
+     * This is a convenience method to be able to call TouchActions Actions for
      * touch-enabled devices from within the regular Element Actions Class.
      * <p>
      * Sample use would look like this:
@@ -1868,10 +1868,14 @@ public class ElementActions {
      *
      * @param driver the current instance of Selenium webdriver, which should wrap
      *               around a native mobile object
-     * @return a Touch object capable of performing actions on touch-enabled devices
+     * @return a TouchActions object capable of performing actions on touch-enabled devices
      */
-    public static Touch performTouchAction(WebDriver driver) {
-        return new Touch(driver);
+    public static TouchActions performTouchAction(WebDriver driver) {
+        return new TouchActions(driver);
+    }
+
+    public static SikuliActions performSikuliAction() {
+        return new SikuliActions();
     }
 
     public enum TextDetectionStrategy {
