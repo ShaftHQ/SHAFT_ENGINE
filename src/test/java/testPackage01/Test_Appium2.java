@@ -2,7 +2,7 @@ package testPackage01;
 
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.ElementActions;
-import com.shaft.gui.element.Touch.SwipeDirection;
+import com.shaft.gui.element.TouchActions.SwipeDirection;
 import com.shaft.validation.Verifications;
 import com.shaft.validation.Verifications.VerificationType;
 import org.openqa.selenium.By;
