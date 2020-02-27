@@ -1,22 +1,33 @@
 package com.shaft.gui.element;
 
 import com.shaft.gui.browser.BrowserFactory;
+import com.shaft.gui.image.ScreenshotManager;
 import org.apache.commons.io.IOUtils;
 import org.sikuli.basics.Settings;
-import org.sikuli.script.FindFailed;
-import org.sikuli.script.Key;
-import org.sikuli.script.Pattern;
-import org.sikuli.script.Screen;
-import org.testng.Reporter;
+import org.sikuli.script.*;
 
 import javax.imageio.ImageIO;
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
 
 public class SikuliActions {
+    Screen screen;
+    App applicationWindow;
+
+    public SikuliActions() {
+        initializeSikuliEngineForCurrentScreen();
+    }
+
+    public SikuliActions(App applicationWindow) {
+        initializeSikuliEngineForCurrentScreen();
+        this.applicationWindow = applicationWindow;
+    }
+
+    static List<Object> prepareElementScreenshotAttachment(Screen screen, App applicationWindow, Pattern element, String actionName, boolean passFailStatus) {
+        return ScreenshotManager.captureScreenShotUsingSikuliX(screen, applicationWindow, element, actionName, passFailStatus);
+    }
 
     /**
      * Checks if there is any text in an element, clears it, then types the required
@@ -41,19 +52,14 @@ public class SikuliActions {
      * @return a self-reference to be used to chain touch actions
      */
     public SikuliActions type(byte[] targetElement, String text) {
+        Pattern element = null;
         try {
-            String elementText = initializeSikuliEngineForCurrentScreen().wait(prepareElementPattern(targetElement)).getText();
-            if (!elementText.isEmpty()) {
-                //clear
-                for (char character : elementText.toCharArray()) {
-                    initializeSikuliEngineForCurrentScreen().wait(prepareElementPattern(targetElement)).type(prepareElementPattern(targetElement), Key.BACKSPACE);
-                }
-            }
-            initializeSikuliEngineForCurrentScreen().wait(prepareElementPattern(targetElement)).type(text);
+            element = prepareElementPattern(targetElement);
+            clearAndType(element, text);
         } catch (IOException | FindFailed rootCauseException) {
-            ElementActions.failAction(null, formatTextForReport(text), null, rootCauseException);
+            ElementActions.failAction(screen, applicationWindow, element, formatTextForReport(text), rootCauseException);
         }
-        ElementActions.passAction(null, null, formatTextForReport(text), prepareElementAttachment(targetElement));
+        ElementActions.passAction(screen, applicationWindow, element, formatTextForReport(text));
         return this;
     }
 
@@ -78,12 +84,14 @@ public class SikuliActions {
      * @return a self-reference to be used to chain touch actions
      */
     public SikuliActions typeAppend(byte[] targetElement, String text) {
+        Pattern element = null;
         try {
-            initializeSikuliEngineForCurrentScreen().wait(prepareElementPattern(targetElement)).type(text);
+            element = prepareElementPattern(targetElement);
+            screen.wait(element).type(text);
         } catch (IOException | FindFailed rootCauseException) {
-            ElementActions.failAction(null, formatTextForReport(text), null, rootCauseException);
+            ElementActions.failAction(screen, applicationWindow, element, formatTextForReport(text), rootCauseException);
         }
-        ElementActions.passAction(null, null, formatTextForReport(text), prepareElementAttachment(targetElement));
+        ElementActions.passAction(screen, applicationWindow, element, formatTextForReport(text));
         return this;
     }
 
@@ -110,20 +118,26 @@ public class SikuliActions {
      * @return a self-reference to be used to chain touch actions
      */
     public SikuliActions typeSecure(byte[] targetElement, String text) {
+        Pattern element = null;
         try {
-            String elementText = initializeSikuliEngineForCurrentScreen().wait(prepareElementPattern(targetElement)).getText();
-            if (!elementText.isEmpty()) {
-                //clear
-                for (char character : elementText.toCharArray()) {
-                    initializeSikuliEngineForCurrentScreen().wait(prepareElementPattern(targetElement)).type(prepareElementPattern(targetElement), Key.BACKSPACE);
-                }
-            }
-            initializeSikuliEngineForCurrentScreen().wait(prepareElementPattern(targetElement)).type(text);
+            element = prepareElementPattern(targetElement);
+            clearAndType(element, text);
         } catch (IOException | FindFailed rootCauseException) {
-            ElementActions.failAction(null, formatTextForReport(text), null, rootCauseException);
+            ElementActions.failAction(screen, applicationWindow, element, formatTextForReport(text), rootCauseException);
         }
-        ElementActions.passAction(null, null, formatTextForReport(text).replaceAll(".", "•"), prepareElementAttachment(targetElement));
+        ElementActions.passAction(screen, applicationWindow, element, formatTextForReport(text).replaceAll(".", "•"));
         return this;
+    }
+
+    private void clearAndType(Pattern element, String text) throws FindFailed {
+        String elementText = screen.wait(element).getText().replace("\n", "").trim();
+        if (!elementText.isEmpty()) {
+            //clear
+            for (char character : elementText.toCharArray()) {
+                screen.wait(element).type(element, Key.BACKSPACE);
+            }
+        }
+        screen.wait(element).type(text);
     }
 
     /**
@@ -143,22 +157,16 @@ public class SikuliActions {
      * @return a self-reference to be used to chain touch actions
      */
     public SikuliActions click(byte[] targetElement) {
-        String elementText = "";
+        Pattern element = null;
+        String elementText = null;
         try {
-            elementText = initializeSikuliEngineForCurrentScreen().wait(prepareElementPattern(targetElement)).getText().replace("\n", "").trim();
-            initializeSikuliEngineForCurrentScreen().wait(prepareElementPattern(targetElement)).click();
+            element = prepareElementPattern(targetElement);
+            elementText = screen.wait(element).getText();
+            screen.wait(element).click();
         } catch (IOException | FindFailed rootCauseException) {
-            if (!elementText.isEmpty()) {
-                ElementActions.failAction(null, elementText, null, rootCauseException);
-            } else {
-                ElementActions.failAction(null, null, rootCauseException);
-            }
+            ElementActions.failAction(screen, applicationWindow, element, elementText, rootCauseException);
         }
-        if (!elementText.isEmpty()) {
-            ElementActions.passAction(null, null, elementText, prepareElementAttachment(targetElement));
-        } else {
-            ElementActions.passAction(null, null, prepareElementAttachment(targetElement));
-        }
+        ElementActions.passAction(screen, applicationWindow, element, formatTextForReport(elementText));
         return this;
     }
 
@@ -179,21 +187,15 @@ public class SikuliActions {
      * @return the text value of the target element
      */
     public String getText(byte[] targetElement) {
-        String elementText = "";
+        Pattern element = null;
+        String elementText = null;
         try {
-            elementText = initializeSikuliEngineForCurrentScreen().wait(prepareElementPattern(targetElement)).getText().replace("\n", "").trim();
+            element = prepareElementPattern(targetElement);
+            elementText = screen.wait(element).getText().replace("\n", "").trim();
         } catch (IOException | FindFailed rootCauseException) {
-            if (!elementText.isEmpty()) {
-                ElementActions.failAction(null, elementText, null, rootCauseException);
-            } else {
-                ElementActions.failAction(null, null, rootCauseException);
-            }
+            ElementActions.failAction(screen, applicationWindow, element, elementText, rootCauseException);
         }
-        if (!elementText.isEmpty()) {
-            ElementActions.passAction(null, null, elementText, prepareElementAttachment(targetElement));
-        } else {
-            ElementActions.passAction(null, null, prepareElementAttachment(targetElement));
-        }
+        ElementActions.passAction(screen, applicationWindow, element, formatTextForReport(elementText));
         return elementText;
     }
 
@@ -214,22 +216,16 @@ public class SikuliActions {
      * @return a self-reference to be used to chain touch actions
      */
     public SikuliActions hover(byte[] targetElement) {
-        String elementText = "";
+        Pattern element = null;
+        String elementText = null;
         try {
-            elementText = initializeSikuliEngineForCurrentScreen().wait(prepareElementPattern(targetElement)).getText().replace("\n", "").trim();
-            initializeSikuliEngineForCurrentScreen().wait(prepareElementPattern(targetElement)).hover(prepareElementPattern(targetElement));
+            element = prepareElementPattern(targetElement);
+            elementText = screen.wait(element).getText().replace("\n", "").trim();
+            screen.wait(element).hover(element);
         } catch (IOException | FindFailed rootCauseException) {
-            if (!elementText.isEmpty()) {
-                ElementActions.failAction(null, elementText, null, rootCauseException);
-            } else {
-                ElementActions.failAction(null, null, rootCauseException);
-            }
+            ElementActions.failAction(screen, applicationWindow, element, elementText, rootCauseException);
         }
-        if (!elementText.isEmpty()) {
-            ElementActions.passAction(null, null, elementText, prepareElementAttachment(targetElement));
-        } else {
-            ElementActions.passAction(null, null, prepareElementAttachment(targetElement));
-        }
+        ElementActions.passAction(screen, applicationWindow, element, formatTextForReport(elementText));
         return this;
     }
 
@@ -250,22 +246,16 @@ public class SikuliActions {
      * @return a self-reference to be used to chain touch actions
      */
     public SikuliActions doubleClick(byte[] targetElement) {
-        String elementText = "";
+        Pattern element = null;
+        String elementText = null;
         try {
-            elementText = initializeSikuliEngineForCurrentScreen().wait(prepareElementPattern(targetElement)).getText().replace("\n", "").trim();
-            initializeSikuliEngineForCurrentScreen().wait(prepareElementPattern(targetElement)).doubleClick(prepareElementPattern(targetElement));
+            element = prepareElementPattern(targetElement);
+            elementText = screen.wait(element).getText().replace("\n", "").trim();
+            screen.wait(element).doubleClick(element);
         } catch (IOException | FindFailed rootCauseException) {
-            if (!elementText.isEmpty()) {
-                ElementActions.failAction(null, elementText, null, rootCauseException);
-            } else {
-                ElementActions.failAction(null, null, rootCauseException);
-            }
+            ElementActions.failAction(screen, applicationWindow, element, elementText, rootCauseException);
         }
-        if (!elementText.isEmpty()) {
-            ElementActions.passAction(null, null, elementText, prepareElementAttachment(targetElement));
-        } else {
-            ElementActions.passAction(null, null, prepareElementAttachment(targetElement));
-        }
+        ElementActions.passAction(screen, applicationWindow, element, formatTextForReport(elementText));
         return this;
     }
 
@@ -286,22 +276,16 @@ public class SikuliActions {
      * @return a self-reference to be used to chain touch actions
      */
     public SikuliActions rightClick(byte[] targetElement) {
-        String elementText = "";
+        Pattern element = null;
+        String elementText = null;
         try {
-            elementText = initializeSikuliEngineForCurrentScreen().wait(prepareElementPattern(targetElement)).getText().replace("\n", "").trim();
-            initializeSikuliEngineForCurrentScreen().wait(prepareElementPattern(targetElement)).rightClick(prepareElementPattern(targetElement));
+            element = prepareElementPattern(targetElement);
+            elementText = screen.wait(element).getText().replace("\n", "").trim();
+            screen.wait(element).rightClick(element);
         } catch (IOException | FindFailed rootCauseException) {
-            if (!elementText.isEmpty()) {
-                ElementActions.failAction(null, elementText, null, rootCauseException);
-            } else {
-                ElementActions.failAction(null, null, rootCauseException);
-            }
+            ElementActions.failAction(screen, applicationWindow, element, elementText, rootCauseException);
         }
-        if (!elementText.isEmpty()) {
-            ElementActions.passAction(null, null, elementText, prepareElementAttachment(targetElement));
-        } else {
-            ElementActions.passAction(null, null, prepareElementAttachment(targetElement));
-        }
+        ElementActions.passAction(screen, applicationWindow, element, formatTextForReport(elementText));
         return this;
     }
 
@@ -324,22 +308,18 @@ public class SikuliActions {
      * @return a self-reference to be used to chain touch actions
      */
     public SikuliActions dragAndDrop(byte[] draggableElement, byte[] targetElement) {
-        String elementText = "";
+        Pattern draggableElementPattern = null;
+        Pattern targetElementPattern = null;
+        String elementText = null;
         try {
-            elementText = initializeSikuliEngineForCurrentScreen().wait(prepareElementPattern(targetElement)).getText().replace("\n", "").trim();
-            initializeSikuliEngineForCurrentScreen().wait(prepareElementPattern(targetElement)).dragDrop(prepareElementPattern(draggableElement), prepareElementPattern(targetElement));
+            draggableElementPattern = prepareElementPattern(draggableElement);
+            targetElementPattern = prepareElementPattern(targetElement);
+            elementText = screen.wait(draggableElementPattern).getText().replace("\n", "").trim();
+            screen.wait(draggableElementPattern).dragDrop(draggableElementPattern, targetElementPattern);
         } catch (IOException | FindFailed rootCauseException) {
-            if (!elementText.isEmpty()) {
-                ElementActions.failAction(null, elementText, null, rootCauseException);
-            } else {
-                ElementActions.failAction(null, null, rootCauseException);
-            }
+            ElementActions.failAction(screen, applicationWindow, draggableElementPattern, elementText, rootCauseException);
         }
-        if (!elementText.isEmpty()) {
-            ElementActions.passAction(null, null, elementText, prepareElementAttachment(targetElement));
-        } else {
-            ElementActions.passAction(null, null, prepareElementAttachment(targetElement));
-        }
+        ElementActions.passAction(screen, applicationWindow, draggableElementPattern, elementText);
         return this;
     }
 
@@ -353,20 +333,17 @@ public class SikuliActions {
     }
 
     private Pattern prepareElementPattern(byte[] targetElement) throws IOException {
+        if (applicationWindow != null) {
+            applicationWindow.waitForWindow(Integer.parseInt(System.getProperty("browserNavigationTimeout")));
+            applicationWindow.focus();
+        }
         Pattern elementPattern = new Pattern();
         ByteArrayInputStream targetElementImage = new ByteArrayInputStream(targetElement);
         elementPattern.setBImage(ImageIO.read(targetElementImage));
         return elementPattern;
     }
 
-    private List<Object> prepareElementAttachment(byte[] targetElement) {
-        String testCaseName = Reporter.getCurrentTestResult().getMethod().getMethodName();
-        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        String screenshotFileName = System.currentTimeMillis() + "_" + testCaseName + "_" + actionName;
-        return Arrays.asList("Screenshot", screenshotFileName, new ByteArrayInputStream(targetElement));
-    }
-
-    private Screen initializeSikuliEngineForCurrentScreen() {
+    private void initializeSikuliEngineForCurrentScreen() {
         if (BrowserFactory.isWebExecution()) {
             JavaScriptWaitManager.waitForLazyLoading();
         }
@@ -375,12 +352,12 @@ public class SikuliActions {
         Settings.InfoLogs = true;
         Settings.DebugLogs = true;
         Settings.LogTime = true;
-        Screen myScreen = new Screen();
-        myScreen.setAutoWaitTimeout(Double.parseDouble(System.getProperty("defaultElementIdentificationTimeout")));
-        return myScreen;
+        screen = new Screen();
+        screen.setAutoWaitTimeout(Double.parseDouble(System.getProperty("defaultElementIdentificationTimeout")));
     }
 
     private String formatTextForReport(String text) {
         return text.replace("\n", "").trim();
     }
+
 }

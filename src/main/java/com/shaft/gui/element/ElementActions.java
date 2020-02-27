@@ -16,6 +16,9 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.FluentWait;
 import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.WebDriverWait;
+import org.sikuli.script.App;
+import org.sikuli.script.Pattern;
+import org.sikuli.script.Screen;
 import org.testng.Assert;
 
 import java.awt.*;
@@ -92,6 +95,11 @@ public class ElementActions {
         passAction(driver, elementLocator, actionName, testData, screenshot);
     }
 
+    static void passAction(Screen screen, App applicationWindow, Pattern element, String testData) {
+        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+        passAction(null, null, actionName, testData, SikuliActions.prepareElementScreenshotAttachment(screen, applicationWindow, element, actionName, true));
+    }
+
     private static void passAction(WebDriver driver, By elementLocator, String actionName, String testData,
                                    List<Object> screenshot) {
         reportActionResult(driver, actionName, testData, elementLocator, screenshot, true);
@@ -99,17 +107,22 @@ public class ElementActions {
 
     static void failAction(WebDriver driver, By elementLocator, Exception... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        failAction(driver, actionName, null, elementLocator, rootCauseException);
+        failAction(driver, actionName, null, elementLocator, null, rootCauseException);
     }
 
     static void failAction(WebDriver driver, String testData, By elementLocator, Exception... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        failAction(driver, actionName, testData, elementLocator, rootCauseException);
+        failAction(driver, actionName, testData, elementLocator, null, rootCauseException);
     }
 
-    private static void failAction(WebDriver driver, String actionName, String testData, By elementLocator,
+    static void failAction(Screen screen, App applicationWindow, Pattern element, String testData, Exception... rootCauseException) {
+        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+        failAction(null, actionName, testData, null, SikuliActions.prepareElementScreenshotAttachment(screen, applicationWindow, element, actionName, false), rootCauseException);
+    }
+
+    private static void failAction(WebDriver driver, String actionName, String testData, By elementLocator, List<Object> screenshot,
                                    Exception... rootCauseException) {
-        String message = reportActionResult(driver, actionName, testData, elementLocator, null, false);
+        String message = reportActionResult(driver, actionName, testData, elementLocator, screenshot, false);
 
         if (rootCauseException != null && rootCauseException.length >= 1) {
             Assert.fail(message, rootCauseException[0]);
@@ -1876,6 +1889,10 @@ public class ElementActions {
 
     public static SikuliActions performSikuliAction() {
         return new SikuliActions();
+    }
+
+    public static SikuliActions performSikuliAction(App applicationWindow) {
+        return new SikuliActions(applicationWindow);
     }
 
     public enum TextDetectionStrategy {
