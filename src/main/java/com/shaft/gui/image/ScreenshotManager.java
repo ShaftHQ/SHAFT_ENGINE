@@ -1,12 +1,14 @@
 package com.shaft.gui.image;
 
 import com.shaft.cli.FileActions;
-import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.JavaScriptWaitManager;
 import com.shaft.tools.io.ReportManager;
 import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.*;
+import org.sikuli.script.App;
+import org.sikuli.script.Pattern;
+import org.sikuli.script.Screen;
 import org.testng.Reporter;
 
 import javax.imageio.ImageIO;
@@ -15,7 +17,6 @@ import javax.imageio.stream.ImageOutputStream;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
-import java.net.URL;
 import java.nio.file.FileSystems;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -41,13 +42,12 @@ public class ScreenshotManager {
             .valueOf(System.getProperty("screenshotParams_watermark").trim());
     private static final Float SCREENSHOT_PARAMS_WATERMARKOPACITY = Float
             .valueOf(System.getProperty("screenshotParams_watermarkOpacity").trim());
-    private static Boolean AI_SUPPORTED_ELEMENT_IDENTIFICATION = Boolean
-            .valueOf(System.getProperty("aiPoweredElementIdentification").trim());
-    private static final String WATERMARK_DEFAULT_PATH = "/target/images/shaft.png";
     private static final int RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION = 1;
     private static final Boolean CREATE_GIF = Boolean.valueOf(System.getProperty("createAnimatedGif").trim());
     private static final int GIF_FRAME_DELAY = Integer.parseInt(System.getProperty("animatedGif_frameDelay").trim());
     private static final String AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH = "src/test/resources/DynamicObjectRepository/";
+    private static Boolean AI_SUPPORTED_ELEMENT_IDENTIFICATION = Boolean
+            .valueOf(System.getProperty("aiPoweredElementIdentification").trim());
     private static String screenshotFileName = "Screenshot";
     private static By aiGeneratedElementLocator = null;
     private static By targetElementLocator;
@@ -64,11 +64,11 @@ public class ScreenshotManager {
      * for failing
      */
     private static String globalPassFailAppendedText = "";
-    private static ThreadLocal<WebDriver> gifDriver = new ThreadLocal<WebDriver>();
     private static String testCaseName = "";
     private static String gifRelativePathWithFileName = "";
-    private static ThreadLocal<ImageOutputStream> gifOutputStream = new ThreadLocal<ImageOutputStream>();
-    private static ThreadLocal<AnimatedGifManager> gifWriter = new ThreadLocal<AnimatedGifManager>();
+    private static ThreadLocal<ImageOutputStream> gifOutputStream = new ThreadLocal<>();
+    private static ThreadLocal<AnimatedGifManager> gifWriter = new ThreadLocal<>();
+    private final Boolean takeScreenshot;
 
     private ScreenshotManager() {
         throw new IllegalStateException("Utility class");
@@ -186,7 +186,7 @@ public class ScreenshotManager {
             elementLocator = aiGeneratedElementLocator;
         }
 
-        if (takeScreenshot) {
+        if (takeScreenshot || CREATE_GIF) {
             /*
              * Force screenshot link to be shown in the results as a link not text
              */
@@ -206,7 +206,7 @@ public class ScreenshotManager {
                  * If an elementLocator was passed, store regularElementStyle and highlight that
                  * element before taking the screenshot
                  */
-                if (Boolean.TRUE.equals(SCREENSHOT_PARAMS_HIGHLIGHTELEMENTS) && elementLocator != null
+                if (takeScreenshot && Boolean.TRUE.equals(SCREENSHOT_PARAMS_HIGHLIGHTELEMENTS) && elementLocator != null
                         && (ElementActions.getElementsCount(driver, elementLocator,
                         RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1)) {
 
@@ -253,11 +253,11 @@ public class ScreenshotManager {
                  * screenshot
                  *
                  */
-                if (SCREENSHOT_PARAMS_HIGHLIGHTMETHOD.equals("JavaScript") && js != null) {
+                if (takeScreenshot && SCREENSHOT_PARAMS_HIGHLIGHTMETHOD.equals("JavaScript") && js != null) {
                     js.executeScript("arguments[0].setAttribute('style', arguments[1]);", element, regularElementStyle);
                 }
 
-                if (!SCREENSHOT_PARAMS_HIGHLIGHTMETHOD.equals("JavaScript") && elementLocation != null) {
+                if (takeScreenshot && !SCREENSHOT_PARAMS_HIGHLIGHTMETHOD.equals("JavaScript") && elementLocation != null) {
                     Color color = null;
                     if (globalPassFailStatus) {
                         color = new Color(165, 210, 165); // green
@@ -267,14 +267,16 @@ public class ScreenshotManager {
                     src = ImageProcessingActions.highlightElementInScreenshot(src, elementLocation, color);
                 }
                 startOrAppendToAnimatedGif(src);
-                return addScreenshotToReport(src);
+                if (takeScreenshot) {
+                    return addScreenshotToReport(src);
+                } else {
+                    return null;
+                }
             } catch (WebDriverException e) {
                 // this happens when a browser session crashes mid-execution, or the docker is
                 // unregistered
                 ReportManager.log(e);
             }
-        } else {
-            startOrAppendToAnimatedGif();
         }
         return null;
     }
@@ -282,14 +284,91 @@ public class ScreenshotManager {
     private static byte[] takeScreenshot(WebDriver driver) {
         switch (SCREENSHOT_PARAMS_SCREENSHOTTYPE.toLowerCase().trim()) {
             case "regular":
+            default:
                 return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
             case "fullpage":
                 return takeFullPageScreenshot(driver);
             case "element":
                 return takeElementScreenshot(driver, targetElementLocator, true);
-            default:
-                return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
         }
+    }
+
+    public static synchronized List<Object> captureScreenShotUsingSikuliX(Screen screen, App applicationWindow, Pattern element, String actionName,
+                                                                          boolean passFailStatus) {
+
+        globalPassFailStatus = passFailStatus;
+        if (passFailStatus) {
+            globalPassFailAppendedText = "passed";
+        } else {
+            globalPassFailAppendedText = "failed";
+        }
+
+        Boolean takeScreenshot = SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always")
+                || (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly")
+                && (actionName.toLowerCase().contains("assert")
+                || actionName.toLowerCase().contains("verify")))
+                || (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly") && (!passFailStatus))
+                || !passFailStatus;
+
+        if (CREATE_GIF || takeScreenshot) {
+            /*
+             * Force screenshot link to be shown in the results as a link not text
+             */
+            System.setProperty("org.uncommons.reportng.escape-output", "false");
+
+            /*
+             * Take the screenshot and store it as a file
+             */
+            byte[] src = null;
+            try {
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                switch (SCREENSHOT_PARAMS_SCREENSHOTTYPE.toLowerCase().trim()) {
+                    case "element":
+                        if (element != null) {
+                            try {
+                                ImageIO.write(screen.capture(screen.wait(element).getRect()).getImage(), "png", baos);
+                                src = baos.toByteArray();
+                                break;
+                            } catch (org.sikuli.script.FindFailed e) {
+                                //do nothing and fall into the next type of screenshot
+                            }
+                        }
+                    case "regular":
+                        if (applicationWindow != null) {
+                            ImageIO.write(screen.capture(applicationWindow.waitForWindow()).getImage(), "png", baos);
+                            src = baos.toByteArray();
+                            break;
+                        }
+                    case "fullpage":
+                        ImageIO.write(screen.capture().getImage(), "png", baos);
+                        src = baos.toByteArray();
+                        break;
+                    default:
+                        src = null;
+                        break;
+                }
+            } catch (java.io.IOException e) {
+                ReportManager.logDiscrete("Failed to create attachment.");
+                ReportManager.log(e);
+            }
+
+            /*
+             * Declare screenshot file name
+             */
+            testCaseName = Reporter.getCurrentTestResult().getMethod().getMethodName();
+            screenshotFileName = System.currentTimeMillis() + "_" + testCaseName + "_" + actionName;
+            if (!globalPassFailAppendedText.equals("")) {
+                screenshotFileName = screenshotFileName + "_" + globalPassFailAppendedText;
+            }
+
+            startOrAppendToAnimatedGif(src);
+            if (takeScreenshot) {
+                return addScreenshotToReport(src);
+            } else {
+                return null;
+            }
+        }
+        return null;
     }
 
     public static byte[] takeFullPageScreenshot(WebDriver driver) {
@@ -321,7 +400,8 @@ public class ScreenshotManager {
         return takeElementScreenshot(driver, targetElementLocator, false);
     }
 
-    private static byte[] takeElementScreenshot(WebDriver driver, By targetElementLocator, Boolean returnRegularScreenshotInCaseOfFailure) {
+    private static byte[] takeElementScreenshot(WebDriver driver, By targetElementLocator, Boolean
+            returnRegularScreenshotInCaseOfFailure) {
         try {
             if (targetElementLocator != null && ElementActions.getElementsCount(driver, targetElementLocator,
                     RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1) {
@@ -401,26 +481,17 @@ public class ScreenshotManager {
 
     }
 
-    public static synchronized void startAnimatedGif(WebDriver driver, byte[]... screenshot) {
+    private static synchronized void startAnimatedGif(byte[] screenshot) {
         // TODO: refactor performance to reduce severe drop when enabling this option
-        if (Boolean.TRUE.equals(CREATE_GIF) && driver != null) {
-            gifDriver.set(driver);
+        if (Boolean.TRUE.equals(CREATE_GIF) && screenshot != null) {
             try {
                 testCaseName = Reporter.getCurrentTestResult().getMethod().getMethodName();
                 String gifFileName = FileSystems.getDefault().getSeparator() + System.currentTimeMillis() + "_"
                         + testCaseName + ".gif";
                 gifRelativePathWithFileName = SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME + gifFileName;
 
-                byte[] src = null;
-                if (screenshot.length == 1) {
-                    src = screenshot[0];
-                } else {
-                    src = ((TakesScreenshot) gifDriver.get()).getScreenshotAs(OutputType.BYTES);
-                    // takes first screenshot
-                }
-
                 // grab the output image type from the first image in the sequence
-                BufferedImage firstImage = ImageIO.read(new ByteArrayInputStream(src));
+                BufferedImage firstImage = ImageIO.read(new ByteArrayInputStream(screenshot));
 
                 // create a new BufferedOutputStream
                 FileActions.createFile(SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME, gifFileName);
@@ -466,16 +537,8 @@ public class ScreenshotManager {
 
                 String watermarkImagePath = "watermarkImagePath";
                 BufferedImage shaftLogo;
-                if (System.getProperty(watermarkImagePath).trim().equals(WATERMARK_DEFAULT_PATH)) {
-                    // read from tool resources
-                    URL resourcesImageURL = ScreenshotManager.class
-                            .getResource(System.getProperty(watermarkImagePath).trim());
-                    // overlay SHAFT_Engine logo to the initial image...
-                    shaftLogo = ImageIO.read(resourcesImageURL);
-                } else {
-                    // read from custom location
-                    shaftLogo = ImageIO.read(new File(System.getProperty(watermarkImagePath).trim()));
-                }
+                // read from custom location
+                shaftLogo = ImageIO.read(new File(System.getProperty(watermarkImagePath).trim()));
                 shaftLogo = toBufferedImage(
                         shaftLogo.getScaledInstance(screenshot.getWidth() / 8, -1, Image.SCALE_SMOOTH));
                 screenshotGraphics.drawImage(shaftLogo, screenshot.getWidth() - shaftLogo.getWidth(),
@@ -505,67 +568,49 @@ public class ScreenshotManager {
         return bimage;
     }
 
-    private static synchronized void startOrAppendToAnimatedGif(byte[]... screenshot) {
+    private static synchronized void startOrAppendToAnimatedGif(byte[] screenshot) {
         // ensure that animatedGif is started, else force start it
         if (Boolean.TRUE.equals(CREATE_GIF)) {
-            if (gifDriver.get() == null || gifWriter.get() == null) {
-                BrowserFactory.startAnimatedGif(screenshot);
+            if (gifRelativePathWithFileName.equals("")) {
+                startAnimatedGif(screenshot);
             } else {
                 appendToAnimatedGif(screenshot);
             }
         }
     }
 
-    private static synchronized void appendToAnimatedGif(byte[]... screenshot) {
+    private static synchronized void appendToAnimatedGif(byte[] screenshot) {
         try {
             BufferedImage image;
-            if (screenshot.length == 1) {
-                image = ImageIO.read(new ByteArrayInputStream(screenshot[0]));
-            } else {
-                image = ImageIO.read(new ByteArrayInputStream(
-                        ((TakesScreenshot) gifDriver.get()).getScreenshotAs(OutputType.BYTES)));
+            if (screenshot != null) {
+                image = ImageIO.read(new ByteArrayInputStream(screenshot));
+                gifWriter.get().writeToSequence(overlayShaftEngineLogo(image));
             }
-            gifWriter.get().writeToSequence(overlayShaftEngineLogo(image));
-
         } catch (NoSuchSessionException e) {
             // this happens when attempting to append to a non existing gif, expected
             // solution is to recreate the gif
             // removed the old solution, the new fix is to ignore this exception, this will
             // leave the gif intact and will attach it even after failing to append to it
-        } catch (WebDriverException e) {
-            if (e.getMessage().contains("was terminated due to BROWSER_TIMEOUT")) {
-                // this happens when attempting to append to a gif from an already terminated
-                // browser session
-                BrowserFactory.startAnimatedGif();
-            } else {
-                ReportManager.log(e);
-            }
-        } catch (IOException | IllegalStateException | IllegalArgumentException | NullPointerException e) {
+        } catch (WebDriverException | IOException | IllegalStateException | IllegalArgumentException | NullPointerException e) {
             ReportManager.log(e);
         }
     }
 
     public static synchronized void attachAnimatedGif() {
         // stop and attach
-        if (Boolean.TRUE.equals(CREATE_GIF) && gifDriver.get() != null && !gifRelativePathWithFileName.equals("")) {
-            try {
-                startOrAppendToAnimatedGif();
-            } catch (Exception e) {
-                ReportManager.log(e);
-            }
+        if (Boolean.TRUE.equals(CREATE_GIF) && !gifRelativePathWithFileName.equals("")) {
             try {
                 ReportManager.attach("Animated Gif", testCaseName, new FileInputStream(gifRelativePathWithFileName));
-                gifRelativePathWithFileName = "";
-                if (gifWriter.get() != null) {
+                if (!gifWriter.equals(new ThreadLocal<>())) {
                     gifWriter.get().close();
                 }
-                if (gifOutputStream.get() != null) {
+                if (!gifOutputStream.equals(new ThreadLocal<>())) {
                     gifOutputStream.get().close();
                 }
 
                 gifOutputStream = new ThreadLocal<>();
                 gifWriter = new ThreadLocal<>();
-                gifDriver = new ThreadLocal<>();
+                gifRelativePathWithFileName = "";
             } catch (FileNotFoundException e) {
                 // this happens when the gif fails to start, maybe the browser window was
                 // already closed
@@ -575,7 +620,8 @@ public class ScreenshotManager {
         }
     }
 
-    public static void storeElementScreenshotForAISupportedElementIdentification(WebDriver driver, By elementLocator) {
+    public static void storeElementScreenshotForAISupportedElementIdentification(WebDriver driver, By
+            elementLocator) {
         // Override current locator with the aiGeneratedElementLocator
         if (Boolean.TRUE.equals(AI_SUPPORTED_ELEMENT_IDENTIFICATION) && aiGeneratedElementLocator != null
                 && elementLocator != null) {

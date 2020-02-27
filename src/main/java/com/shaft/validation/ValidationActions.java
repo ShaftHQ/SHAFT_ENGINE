@@ -18,6 +18,7 @@ import java.util.Arrays;
 import java.util.List;
 
 class ValidationActions {
+    //TODO: implement element attribute and element exists validations for sikuli actions
     private static final int attemptsBeforeThrowingElementNotFoundException = Integer
             .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
     private static final int attemptsBeforeThrowingElementNotFoundExceptionInCaseElementShouldntExist = 1;

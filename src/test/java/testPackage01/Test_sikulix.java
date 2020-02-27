@@ -4,13 +4,19 @@ import com.shaft.cli.TerminalActions;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.ElementActions;
-import com.shaft.tools.io.ReportManager;
+import com.shaft.validation.Assertions;
 import org.openqa.selenium.WebDriver;
+import org.sikuli.script.App;
 import org.sikuli.script.Key;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 public class Test_sikulix {
-    @Test
+    App calculator;
+    String pathToCalculatorElementsFolder = "src/test/resources/DynamicObjectRepository/calculator/";
+
+    //@Test
     public void sampleWithSeleniumWebDriver() {
         WebDriver driver = BrowserFactory.getBrowser();
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "https://www.google.com");
@@ -23,14 +29,23 @@ public class Test_sikulix {
 
     @Test
     public void sampleWithDesktopApplication() {
-        String pathToCalculatorElementsFolder = "src/test/resources/DynamicObjectRepository/calculator/";
-        ReportManager.log("Launching Calculator App...");
-        new TerminalActions().performTerminalCommand("calc \n");
-        ElementActions.performSikuliAction().click(pathToCalculatorElementsFolder + "1.png")
+        String result = ElementActions.performSikuliAction(calculator).click(pathToCalculatorElementsFolder + "1.png")
                 .click(pathToCalculatorElementsFolder + "+.png")
-                .click(pathToCalculatorElementsFolder + "2.png")
-                .click(pathToCalculatorElementsFolder + "=.png");
-        //how will I do the assertion?
+                .click(pathToCalculatorElementsFolder + "3.png")
+                .click(pathToCalculatorElementsFolder + "=.png")
+                .getText(pathToCalculatorElementsFolder + "result.png");
+        Assertions.assertEquals("4", result);
+    }
+
+    @BeforeClass
+    public void openApplication() {
+        new TerminalActions().performTerminalCommand("calc");
+        calculator = BrowserFactory.getSikuliApp("Calculator");
+    }
+
+    @AfterClass
+    public void closeApplication() {
+        BrowserFactory.closeSikuliApp(calculator);
     }
 
 }
