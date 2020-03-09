@@ -107,7 +107,7 @@ class ValidationActions {
 
         if (validationMethodName.contains("reportValidationResult")) {
             //validationMethodName = (new Throwable()).getStackTrace()[4].getMethodName();
-            callingAssertionOrVerificationMethodName = (new Throwable()).getStackTrace()[5].getMethodName();
+            callingAssertionOrVerificationMethodName = (new Throwable()).getStackTrace()[4].getMethodName();
         }
         validationMethodName = callingAssertionOrVerificationMethodName;
 
@@ -250,6 +250,7 @@ class ValidationActions {
                 pass(validationCategory, "NULL", "NULL", ValidationComparisonType.EQUALS, validationType);
             } catch (Exception | AssertionError failureReason) {
                 fail(validationCategory, "NULL", String.valueOf(object), ValidationComparisonType.EQUALS, validationType, failureReason);
+                return;
             }
         } else {
             try {
@@ -257,6 +258,7 @@ class ValidationActions {
                 pass(validationCategory, "NULL", String.valueOf(object), ValidationComparisonType.EQUALS, validationType);
             } catch (Exception | AssertionError failureReason) {
                 fail(validationCategory, "NULL", "NULL", ValidationComparisonType.EQUALS, validationType, failureReason);
+                return;
             }
         }
     }
@@ -363,6 +365,7 @@ class ValidationActions {
                                 + locatorSeparator + elementLocator.toString() + "'",
                         "Failed to read the desired element attribute", validationComparisonType, validationType, e);
             }
+            return;
         }
 
         lastUsedDriver = driver;
@@ -454,6 +457,7 @@ class ValidationActions {
                                 + attributeClosure,
                         "Failed to read the desired browser attribute", validationComparisonType, validationType, e);
             }
+            return;
         }
 
         lastUsedDriver = driver;
@@ -566,6 +570,7 @@ class ValidationActions {
             reportedExpectedResult.append("not ");
         }
         reportedExpectedResult.append("match the reference screenshot");
+
         byte[] elementScreenshot = ScreenshotManager.takeElementScreenshot(driver, elementLocator);
 
         List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Element Screenshot",

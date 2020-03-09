@@ -15,7 +15,7 @@ public class TouchActions {
     // TODO: add to appium properties. divide it to execution properties and
     // platform properties
 
-    TouchActions(WebDriver driver) {
+    public TouchActions(WebDriver driver) {
         this.driver = driver;
     }
 
@@ -24,7 +24,7 @@ public class TouchActions {
      *
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
-     * @return a self-reference to be used to chain touch actions
+     * @return a self-reference to be used to chain actions
      */
     public TouchActions tap(By elementLocator) {
         if (ElementActions.identifyUniqueElement(driver, elementLocator)) {
@@ -68,7 +68,7 @@ public class TouchActions {
      *
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
-     * @return a self-reference to be used to chain touch actions
+     * @return a self-reference to be used to chain actions
      */
     public TouchActions doubleTap(By elementLocator) {
         if (ElementActions.identifyUniqueElement(driver, elementLocator)) {
@@ -114,7 +114,7 @@ public class TouchActions {
      *
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
-     * @return a self-reference to be used to chain touch actions
+     * @return a self-reference to be used to chain actions
      */
     public TouchActions longTap(By elementLocator) {
         if (ElementActions.identifyUniqueElement(driver, elementLocator)) {
@@ -163,7 +163,7 @@ public class TouchActions {
      * @param destinationElementLocator the locator of the webElement that you'll
      *                                  drop the sourceElement on (By xpath, id,
      *                                  selector, name ...etc)
-     * @return a self-reference to be used to chain touch actions
+     * @return a self-reference to be used to chain actions
      */
     public TouchActions swipeToElement(By sourceElementLocator, By destinationElementLocator) {
         if (ElementActions.identifyUniqueElement(driver, sourceElementLocator)
@@ -217,7 +217,7 @@ public class TouchActions {
      * @param yOffset        the vertical offset by which the element should be
      *                       swiped. positive value is "down" and negative value is
      *                       "up"
-     * @return a self-reference to be used to chain touch actions
+     * @return a self-reference to be used to chain actions
      */
     public TouchActions swipeByOffset(By elementLocator, int xOffset, int yOffset) {
         if (ElementActions.identifyUniqueElement(driver, elementLocator)) {
@@ -264,7 +264,7 @@ public class TouchActions {
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      * @param swipeDirection SwipeDirection.DOWN, UP, RIGHT, or LEFT
-     * @return a self-reference to be used to chain touch actions
+     * @return a self-reference to be used to chain actions
      */
     public TouchActions swipeElementIntoView(By elementLocator, SwipeDirection swipeDirection) {
         return swipeElementIntoView(elementLocator, swipeDirection, DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT);
@@ -279,7 +279,7 @@ public class TouchActions {
      * @param swipeDirection                 SwipeDirection.DOWN, UP, RIGHT, or LEFT
      * @param attemptsToScrollAndFindElement number of attempts to scroll and find
      *                                       the element
-     * @return a self-reference to be used to chain touch actions
+     * @return a self-reference to be used to chain actions
      */
     public TouchActions swipeElementIntoView(By elementLocator, SwipeDirection swipeDirection,
                                              int attemptsToScrollAndFindElement) {

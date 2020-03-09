@@ -36,7 +36,7 @@ public class SikuliActions {
      * @param pathToTargetElementImage relative path to the desired element image following this example "src/test/resources/DynamicObjectRepository/" + "sikuli_googleHome_searchBox_text.PNG"
      * @param text                     the target text that needs to be typed into the target
      *                                 element
-     * @return a self-reference to be used to chain touch actions
+     * @return a self-reference to be used to chain actions
      */
     public SikuliActions type(String pathToTargetElementImage, String text) {
         return type(readImageFromFile(pathToTargetElementImage), text);
@@ -49,7 +49,7 @@ public class SikuliActions {
      * @param targetElement the image of the desired element in the form of a byte[]
      * @param text          the target text that needs to be typed into the target
      *                      element
-     * @return a self-reference to be used to chain touch actions
+     * @return a self-reference to be used to chain actions
      */
     public SikuliActions type(byte[] targetElement, String text) {
         Pattern element = null;
@@ -69,7 +69,7 @@ public class SikuliActions {
      * @param pathToTargetElementImage relative path to the desired element image following this example "src/test/resources/DynamicObjectRepository/" + "sikuli_googleHome_searchBox_text.PNG"
      * @param text                     the target text that needs to be typed into the target
      *                                 element
-     * @return a self-reference to be used to chain touch actions
+     * @return a self-reference to be used to chain actions
      */
     public SikuliActions typeAppend(String pathToTargetElementImage, String text) {
         return typeAppend(readImageFromFile(pathToTargetElementImage), text);
@@ -81,7 +81,7 @@ public class SikuliActions {
      * @param targetElement the image of the desired element in the form of a byte[]
      * @param text          the target text that needs to be typed into the target
      *                      element
-     * @return a self-reference to be used to chain touch actions
+     * @return a self-reference to be used to chain actions
      */
     public SikuliActions typeAppend(byte[] targetElement, String text) {
         Pattern element = null;
@@ -102,7 +102,7 @@ public class SikuliActions {
      * @param pathToTargetElementImage relative path to the desired element image following this example "src/test/resources/DynamicObjectRepository/" + "sikuli_googleHome_searchBox_text.PNG"
      * @param text                     the target text that needs to be typed into the target
      *                                 element
-     * @return a self-reference to be used to chain touch actions
+     * @return a self-reference to be used to chain actions
      */
     public SikuliActions typeSecure(String pathToTargetElementImage, String text) {
         return typeSecure(readImageFromFile(pathToTargetElementImage), text);
@@ -115,7 +115,7 @@ public class SikuliActions {
      * @param targetElement the image of the desired element in the form of a byte[]
      * @param text          the target text that needs to be typed into the target
      *                      element
-     * @return a self-reference to be used to chain touch actions
+     * @return a self-reference to be used to chain actions
      */
     public SikuliActions typeSecure(byte[] targetElement, String text) {
         Pattern element = null;
@@ -144,7 +144,7 @@ public class SikuliActions {
      * Clicks on a certain element using SikuliX
      *
      * @param pathToTargetElementImage relative path to the desired element image following this example "src/test/resources/DynamicObjectRepository/" + "sikuli_googleHome_searchBox_text.PNG"
-     * @return a self-reference to be used to chain touch actions
+     * @return a self-reference to be used to chain actions
      */
     public SikuliActions click(String pathToTargetElementImage) {
         return click(readImageFromFile(pathToTargetElementImage));
@@ -154,7 +154,7 @@ public class SikuliActions {
      * Clicks on a certain element using SikuliX
      *
      * @param targetElement the image of the desired element in the form of a byte[]
-     * @return a self-reference to be used to chain touch actions
+     * @return a self-reference to be used to chain actions
      */
     public SikuliActions click(byte[] targetElement) {
         Pattern element = null;
@@ -203,7 +203,7 @@ public class SikuliActions {
      * Hovers over target element.
      *
      * @param pathToTargetElementImage relative path to the desired element image following this example "src/test/resources/DynamicObjectRepository/" + "sikuli_googleHome_searchBox_text.PNG"
-     * @return a self-reference to be used to chain touch actions
+     * @return a self-reference to be used to chain actions
      */
     public SikuliActions hover(String pathToTargetElementImage) {
         return hover(readImageFromFile(pathToTargetElementImage));
@@ -213,7 +213,7 @@ public class SikuliActions {
      * Hovers over target element.
      *
      * @param targetElement the image of the desired element in the form of a byte[]
-     * @return a self-reference to be used to chain touch actions
+     * @return a self-reference to be used to chain actions
      */
     public SikuliActions hover(byte[] targetElement) {
         Pattern element = null;
@@ -233,7 +233,7 @@ public class SikuliActions {
      * Double-clicks on an element using SikuliX
      *
      * @param pathToTargetElementImage relative path to the desired element image following this example "src/test/resources/DynamicObjectRepository/" + "sikuli_googleHome_searchBox_text.PNG"
-     * @return a self-reference to be used to chain touch actions
+     * @return a self-reference to be used to chain actions
      */
     public SikuliActions doubleClick(String pathToTargetElementImage) {
         return doubleClick(readImageFromFile(pathToTargetElementImage));
@@ -243,7 +243,7 @@ public class SikuliActions {
      * Double-clicks on an element using SikuliX
      *
      * @param targetElement the image of the desired element in the form of a byte[]
-     * @return a self-reference to be used to chain touch actions
+     * @return a self-reference to be used to chain actions
      */
     public SikuliActions doubleClick(byte[] targetElement) {
         Pattern element = null;
@@ -263,7 +263,7 @@ public class SikuliActions {
      * Right-clicks on an element to trigger the context menu
      *
      * @param pathToTargetElementImage relative path to the desired element image following this example "src/test/resources/DynamicObjectRepository/" + "sikuli_googleHome_searchBox_text.PNG"
-     * @return a self-reference to be used to chain touch actions
+     * @return a self-reference to be used to chain actions
      */
     public SikuliActions rightClick(String pathToTargetElementImage) {
         return rightClick(readImageFromFile(pathToTargetElementImage));
@@ -273,7 +273,7 @@ public class SikuliActions {
      * Right-clicks on an element to trigger the context menu
      *
      * @param targetElement the image of the desired element in the form of a byte[]
-     * @return a self-reference to be used to chain touch actions
+     * @return a self-reference to be used to chain actions
      */
     public SikuliActions rightClick(byte[] targetElement) {
         Pattern element = null;
@@ -294,7 +294,7 @@ public class SikuliActions {
      *
      * @param pathToDraggableElementImage relative path to the desired element image following this example "src/test/resources/DynamicObjectRepository/" + "sikuli_googleHome_searchBox_text.PNG"
      * @param pathToTargetElementImage    relative path to the desired element image following this example "src/test/resources/DynamicObjectRepository/" + "sikuli_googleHome_searchBox_text.PNG"
-     * @return a self-reference to be used to chain touch actions
+     * @return a self-reference to be used to chain actions
      */
     public SikuliActions dragAndDrop(String pathToDraggableElementImage, String pathToTargetElementImage) {
         return dragAndDrop(readImageFromFile(pathToDraggableElementImage), readImageFromFile(pathToTargetElementImage));
@@ -305,7 +305,7 @@ public class SikuliActions {
      *
      * @param draggableElement the image of the desired element in the form of a byte[]
      * @param targetElement    the image of the desired element in the form of a byte[]
-     * @return a self-reference to be used to chain touch actions
+     * @return a self-reference to be used to chain actions
      */
     public SikuliActions dragAndDrop(byte[] draggableElement, byte[] targetElement) {
         Pattern draggableElementPattern = null;

@@ -3,6 +3,7 @@ package testPackage01;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.ElementActions;
+import com.shaft.validation.Assertions;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.testng.annotations.BeforeClass;
@@ -37,6 +38,16 @@ public class Test_dragAndDrop {
 
         ElementActions.dragAndDropByOffset(driver, dragTargetLocator, 1000, 100);
 
+    }
+
+    @Test
+    public void dragAndDropJquery() {
+        BrowserActions.navigateToURL(driver, "https://jqueryui.com/resources/demos/droppable/default.html");
+        ElementActions actions = new ElementActions(driver);
+        String initialDroppableText = actions.getText(By.id("droppable"));
+        actions.dragAndDrop(By.id("draggable"), By.id("droppable"));
+        String finalDroppableText = actions.getText(By.id("droppable"));
+        Assertions.assertEquals(initialDroppableText, finalDroppableText, Assertions.AssertionComparisonType.EQUALS, Assertions.AssertionType.NEGATIVE, "Checking to see if the text has changed after performing drag and drop");
     }
 
     @BeforeClass // Set-up method, to be run once before the first test

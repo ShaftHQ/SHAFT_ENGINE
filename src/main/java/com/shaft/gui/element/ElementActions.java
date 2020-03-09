@@ -53,6 +53,10 @@ public class ElementActions {
         throw new IllegalStateException("Utility class");
     }
 
+    public ElementActions(WebDriver driver) {
+        lastUsedDriver = driver;
+    }
+
     public static String getAiReferenceFileName() {
         return aiReferenceFileName;
     }
@@ -65,10 +69,6 @@ public class ElementActions {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         passAction(driver, null, actionName, null, null);
     }
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////// [private] Reporting Actions
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     static void passAction(WebDriver driver, By elementLocator) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
@@ -240,10 +240,6 @@ public class ElementActions {
             return false;
         }
     }
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////// [private] Preparation and Support Actions
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     private static void setAiGeneratedXpath(String newXpath) {
         if (newXpath == null) {
@@ -734,10 +730,6 @@ public class ElementActions {
         return getMatchingElementsCount(driver, elementLocator, attemptsBeforeThrowingElementNotFoundException);
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////// [Public] Core Element Actions
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
     /**
      * Returns the number of elements that match a certain elementLocator
      *
@@ -1088,7 +1080,7 @@ public class ElementActions {
 
     /**
      * Checks if there is any text in an element, clears it, then types the required
-     * string into the target element. Obfuscates the written text in the ourput
+     * string into the target element. Obfuscates the written text in the output
      * report. This action should be used for writing passwords and secure text.
      *
      * @param driver         the current instance of Selenium webdriver
@@ -1590,8 +1582,8 @@ public class ElementActions {
 
     /**
      * Get the value of a given CSS property. Color values should be returned as
-     * rgba strings, so, for example if the "background-color" property is set as
-     * "green" in the HTML source, the returned value will be "rgba(0, 255, 0, 1)".
+     * RGBA strings, so, for example if the "background-color" property is set as
+     * "green" in the HTML source, the returned value will be "RGBA(0, 255, 0, 1)".
      * Note that shorthand CSS properties (e.g. background, font, border,
      * border-top, margin, margin-top, padding, padding-top, list-style, outline,
      * pause, cue) are not returned, in accordance with the DOM CSS2 specification -
@@ -1679,40 +1671,27 @@ public class ElementActions {
      */
     public static void waitForElementToBePresent(WebDriver driver, By elementLocator, int numberOfTries,
                                                  boolean stateOfPresence) {
-        int foundElementsCount = getMatchingElementsCount(driver, elementLocator, numberOfTries);
+        ReportManager.logDiscrete("Waiting for element to be present; elementLocator [" + elementLocator + "], numberOfTries[" + numberOfTries + "], stateOfPresence[" + stateOfPresence + "]...");
         // Override current locator with the aiGeneratedElementLocator
         elementLocator = updateLocatorWithAIGenratedOne(elementLocator);
 
-        boolean expectedCondition = false;
-        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckElementLocatorIsUnique")))) {
-            expectedCondition = foundElementsCount <= 1;
-        } else {
-            expectedCondition = foundElementsCount >= 0;
-        }
+        int foundElementsCount = 0;
+        Boolean isElementFound = false;
+        int i = 1;
+        do {
+            foundElementsCount = getMatchingElementsCount(driver, elementLocator, 1);
+            isElementFound = foundElementsCount >= 1;
+            i++;
+        } while (i < numberOfTries && stateOfPresence != isElementFound);
 
-        if (expectedCondition && elementLocator != null) {
-            String reportMessage = "waited for (" + DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT.getSeconds() * numberOfTries
-                    + ") seconds, for the element's state of presence to be (" + stateOfPresence
-                    + "). Element locator (" + elementLocator.toString() + ")";
+        String reportMessage = "waited up to (" + DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT.getSeconds() * numberOfTries
+                + ") seconds, for the element's state of presence to be (" + stateOfPresence
+                + "). Element locator (" + elementLocator.toString() + ")";
 
-            try {
-                if (stateOfPresence) {
-                    passAction(driver, elementLocator, reportMessage);
-                } else {
-                    passAction(driver, reportMessage);
-                }
-            } catch (Exception rootCauseException) {
-                ReportManager.log(rootCauseException);
-                failAction(driver, reportMessage + ". Element locator (" + elementLocator.toString() + ")",
-                        elementLocator, rootCauseException);
-            }
+        if (stateOfPresence == isElementFound) {
+            passAction(driver, elementLocator, reportMessage);
         } else {
-            if (elementLocator != null) {
-                failAction(driver, "Element with locator (" + elementLocator.toString() + "] was found ["
-                        + foundElementsCount + "] times on this page.", elementLocator);
-            } else {
-                failAction(driver, "Element locator is NULL.", elementLocator);
-            }
+            failAction(driver, reportMessage, elementLocator);
         }
     }
 
@@ -1893,6 +1872,239 @@ public class ElementActions {
 
     public static SikuliActions performSikuliAction(App applicationWindow) {
         return new SikuliActions(applicationWindow);
+    }
+
+    /**
+     * Types the required file path into an input[type='file'] button, to
+     * successfully upload the target file.
+     *
+     * @param elementLocator   the locator of the webElement under test (By xpath,
+     *                         id, selector, name ...etc)
+     * @param absoluteFilePath the full path to the file that needs to be uploaded
+     * @return a self-reference to be used to chain actions
+     */
+    public ElementActions typeFileLocationForUpload(By elementLocator, String absoluteFilePath) {
+        typeFileLocationForUpload(lastUsedDriver, elementLocator, absoluteFilePath);
+        return this;
+    }
+
+    /**
+     * Appends the required string into the target element, regardless of the
+     * current text value.
+     *
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param text           the target text that needs to be appended into the
+     *                       target webElement
+     * @return a self-reference to be used to chain actions
+     */
+    public ElementActions typeAppend(By elementLocator, String text) {
+        typeAppend(lastUsedDriver, elementLocator, text);
+        return this;
+    }
+
+    /**
+     * Selects an element from a dropdown list using its displayed text
+     *
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param text           the text of the choice that you need to select from the
+     *                       target dropDown menu
+     * @return a self-reference to be used to chain actions
+     */
+    public ElementActions select(By elementLocator, String text) {
+        select(elementLocator, text);
+        return this;
+    }
+
+    /**
+     * Sends a keypress to the target element.
+     *
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param keys           the key that should be pressed
+     * @return a self-reference to be used to chain actions
+     */
+    public ElementActions keyPress(By elementLocator, Keys keys) {
+        keyPress(elementLocator, keys);
+        return this;
+    }
+
+    /**
+     * Hovers over target element. If you want to hover on a webElement to expose
+     * another webElement and click on it, use hoverAndClick instead for a more
+     * reliable result.
+     *
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @return a self-reference to be used to chain actions
+     */
+    public ElementActions hover(By elementLocator) {
+        hover(lastUsedDriver, elementLocator);
+        return this;
+    }
+
+    /**
+     * Hovers over the hoverElements in sequence then clicks the clickableElement
+     *
+     * @param hoverElementLocators    the list of locators of the webElements under
+     *                                test upon which the hover action will be
+     *                                performed in sequence (By xpath, id, selector,
+     *                                name ...etc)
+     * @param clickableElementLocator the locator of the webElement under test upon
+     *                                which the click action will be performed (By
+     *                                xpath, id, selector, name ...etc)
+     * @return a self-reference to be used to chain actions
+     */
+    public ElementActions hoverAndClick(List<By> hoverElementLocators, By clickableElementLocator) {
+        hoverAndClick(lastUsedDriver, hoverElementLocators, clickableElementLocator);
+        return this;
+    }
+
+    /**
+     * Drags the source element and drops it onto the destination element using
+     * javascript
+     *
+     * @param sourceElementLocator      the locator of the source webElement that
+     *                                  should be dragged under test (By xpath, id,
+     *                                  selector, name ...etc)
+     * @param destinationElementLocator the locator of the target webElement that
+     *                                  should receive the dropped source element
+     *                                  under test (By xpath, id, selector, name
+     *                                  ...etc)
+     * @return a self-reference to be used to chain actions
+     */
+    public ElementActions dragAndDrop(By sourceElementLocator, By destinationElementLocator) {
+        dragAndDrop(lastUsedDriver, sourceElementLocator, destinationElementLocator);
+        return this;
+    }
+
+    /**
+     * Drags the source element and drops it onto the determined offset
+     *
+     * @param sourceElementLocator the locator of the source webElement that should
+     *                             be dragged under test (By xpath, id, selector,
+     *                             name ...etc)
+     * @param xOffset              the horizontal offset by which the element should
+     *                             be moved
+     * @param yOffset              the vertical offset by which the element should
+     *                             be moved
+     * @return a self-reference to be used to chain actions
+     */
+    public ElementActions dragAndDropByOffset(By sourceElementLocator, int xOffset, int yOffset) {
+        dragAndDropByOffset(lastUsedDriver, sourceElementLocator, xOffset, yOffset);
+        return this;
+    }
+
+    /**
+     * Retrieves text from the target element and returns it as a string value.
+     *
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @return the text value of the target webElement
+     */
+    public String getText(By elementLocator) {
+        return getText(lastUsedDriver, elementLocator);
+    }
+
+    /**
+     * Get the value of the given attribute of the element. Will return the current
+     * value, even if this has been modified after the page has been loaded.
+     * <p>
+     * More exactly, this method will return the value of the property with the
+     * given name, if it exists. If it does not, then the value of the attribute
+     * with the given name is returned. If neither exists, null is returned.
+     * <p>
+     * The "style" attribute is converted as best can be to a text representation
+     * with a trailing semi-colon.
+     * <p>
+     * The following are deemed to be "boolean" attributes, and will return either
+     * "true" or null:
+     * <p>
+     * async, autofocus, autoplay, checked, compact, complete, controls, declare,
+     * defaultchecked, defaultselected, defer, disabled, draggable, ended,
+     * formnovalidate, hidden, indeterminate, iscontenteditable, ismap, itemscope,
+     * loop, multiple, muted, nohref, noresize, noshade, novalidate, nowrap, open,
+     * paused, pubdate, readonly, required, reversed, scoped, seamless, seeking,
+     * selected, truespeed, willvalidate
+     * <p>
+     * Finally, the following commonly mis-capitalized attribute/property names are
+     * evaluated as expected:
+     * <p>
+     * If the given name is "class", the "className" property is returned. If the
+     * given name is "readonly", the "readOnly" property is returned. Note: The
+     * reason for this behavior is that users frequently confuse attributes and
+     * properties. If you need to do something more precise, e.g., refer to an
+     * attribute even when a property of the same name exists, then you should
+     * evaluate Javascript to obtain the result you desire.
+     *
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param attributeName  the target attribute of the webElement under test
+     * @return the value of the target attribute of the webElement under test
+     */
+    public String getAttribute(By elementLocator, String attributeName) {
+        return getAttribute(lastUsedDriver, elementLocator, attributeName);
+    }
+
+    /**
+     * Get the value of a given CSS property. Color values should be returned as
+     * RGBA strings, so, for example if the "background-color" property is set as
+     * "green" in the HTML source, the returned value will be "RGBA(0, 255, 0, 1)".
+     * Note that shorthand CSS properties (e.g. background, font, border,
+     * border-top, margin, margin-top, padding, padding-top, list-style, outline,
+     * pause, cue) are not returned, in accordance with the DOM CSS2 specification -
+     * you should directly access the longhand properties (e.g. background-color) to
+     * access the desired values.
+     *
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param propertyName   the target CSS property of the webElement under test
+     * @return the value of the target CSS property of the webElement under test
+     */
+    public String getCSSProperty(By elementLocator, String propertyName) {
+        return getCSSProperty(lastUsedDriver, elementLocator, propertyName);
+
+    }
+
+    /**
+     * Clicks on a certain element using Selenium WebDriver, or JavaScript
+     *
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @return a self-reference to be used to chain actions
+     */
+    public ElementActions click(By elementLocator) {
+        click(lastUsedDriver, elementLocator);
+        return this;
+    }
+
+    /**
+     * Checks if there is any text in an element, clears it, then types the required string into the target element.
+     *
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param text           the target text that needs to be typed into the target
+     *                       webElement
+     * @return a self-reference to be used to chain actions
+     */
+    public ElementActions type(By elementLocator, String text) {
+        type(lastUsedDriver, elementLocator, text);
+        return this;
+    }
+
+    /**
+     * Checks if there is any text in an element, clears it, then types the required string into the target element. Obfuscates the written text in the output report. This action should be used for writing passwords and secure text.
+     *
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param text           the target text that needs to be typed into the target
+     *                       webElement
+     * @return a self-reference to be used to chain actions
+     */
+    public ElementActions typeSecure(By elementLocator, String text) {
+        typeSecure(lastUsedDriver, elementLocator, text);
+        return this;
     }
 
     public enum TextDetectionStrategy {
