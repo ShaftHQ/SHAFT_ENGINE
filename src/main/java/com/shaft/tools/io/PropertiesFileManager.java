@@ -1,11 +1,13 @@
 package com.shaft.tools.io;
 
+import com.shaft.cli.FileActions;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.URL;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -16,7 +18,7 @@ public class PropertiesFileManager {
     private static final String OS_WINDOWS = "Windows-64";
     private static final String OS_LINUX = "Linux-64";
     private static final String OS_MAC = "Mac-64";
-    private static final String DEFAULT_PROPERTIES_FOLDER_PATH = "target/resources/properties";
+    private static final String DEFAULT_PROPERTIES_FOLDER_PATH = "src/main/resources/defaultProperties";
     private static final String CUSTOM_PROPERTIES_FOLDER_PROPERTY_NAME = "propertiesFolderPath";
 
     private PropertiesFileManager() {
@@ -108,8 +110,16 @@ public class PropertiesFileManager {
     }
 
     public static synchronized void readPropertyFiles(String propertiesFolderPath) {
+        ReportManager.logDiscrete("Reading properties directory: " + propertiesFolderPath);
         try {
             Properties properties = new Properties();
+            if (propertiesFolderPath.contains(".jar")) {
+                // unpacks default properties to target folder
+                URL url = new URL(propertiesFolderPath.substring(0, propertiesFolderPath.indexOf("!")));
+                FileActions.unpackArchive(url, "target/");
+                propertiesFolderPath = "target/defaultProperties/";
+            }
+            // reading regular files
             Collection<File> propertiesFilesList;
             propertiesFilesList = FileUtils.listFiles(new File(propertiesFolderPath), new String[]{"properties"},
                     true);
@@ -117,12 +127,14 @@ public class PropertiesFileManager {
             File propertyFile;
             for (int i = 0; i < propertiesFilesList.size(); i++) {
                 propertyFile = (File) (propertiesFilesList.toArray())[i];
+                ReportManager.logDiscrete("Loading properties file: " + propertyFile);
                 loadPropertiesFileIntoSystemProperties(properties, propertyFile);
             }
         } catch (IllegalArgumentException e) {
             // this happens when the user provides a directory that doesn't exist
-            ReportManager.log(
-                    "Please make sure that the propertiesFolderPath directory you provided in the POM.xml file of your project exists. ["
+            ReportManager.log(e);
+            ReportManager.logDiscrete(
+                    "The desired propertiesFolderPath directory doesn't exists. ["
                             + propertiesFolderPath + "]");
         } catch (Exception e) {
             ReportManager.log(e);
@@ -158,6 +170,14 @@ public class PropertiesFileManager {
     // TODO: create directory under src/test/resources and write the default
     // property files
     private static void setDefaultExecutionPropertiesFromResources() {
-        readPropertyFiles(DEFAULT_PROPERTIES_FOLDER_PATH);
+        URL propertiesFolder = PropertiesFileManager.class.getResource("/defaultProperties/");
+        //ClassLoader clsLoader = PropertiesFileManager.class.getClassLoader();
+        //InputStream propertiesFolder =  clsLoader.getResourceAsStream("/defaultProperties/");
+
+        if (propertiesFolder != null) {
+            readPropertyFiles(propertiesFolder.getFile());
+        } else {
+            readPropertyFiles(DEFAULT_PROPERTIES_FOLDER_PATH);
+        }
     }
 }

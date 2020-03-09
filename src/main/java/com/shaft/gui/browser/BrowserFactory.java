@@ -564,16 +564,12 @@ public class BrowserFactory {
      * instance per browser type) and checks for cross-compatibility between the
      * selected browser and operating system
      *
-     * <p>
-     * This method will be removed soon. Use
-     * {@link BrowserFactory#getBrowser(BrowserType)} instead.
-     *
      * @param browserName the name of the browser that you want to run, currently
      *                    supports 'MozillaFirefox', 'MicrosoftInternetExplorer',
      *                    'GoogleChrome', and 'MicrosoftEdge'
      * @return a singleton browser instance
      */
-    public static synchronized WebDriver getBrowser(String browserName) {
+    private static synchronized WebDriver getBrowser(String browserName) {
         initializeSystemProperties(System.getProperty("targetBrowserName") == null);
 
         if (browserName == null) {

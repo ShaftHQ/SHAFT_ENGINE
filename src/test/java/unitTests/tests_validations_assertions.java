@@ -165,7 +165,7 @@ public class tests_validations_assertions {
 
     @Test
     public void assertElementExists_true_expectedToPass() {
-        WebDriver driver = BrowserFactory.getBrowser("GoogleChrome");
+        WebDriver driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 
         Assertions.assertElementExists(driver, By.id("hplogo"), AssertionType.POSITIVE);
@@ -173,7 +173,7 @@ public class tests_validations_assertions {
 
     @Test
     public void assertElementExists_true_expectedToFail() {
-        WebDriver driver = BrowserFactory.getBrowser("GoogleChrome");
+        WebDriver driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
         try {
             Assertions.assertElementExists(driver, By.id("fakeElement"), AssertionType.POSITIVE);
@@ -184,7 +184,7 @@ public class tests_validations_assertions {
 
     @Test
     public void assertElementExists_false_expectedToPass() {
-        WebDriver driver = BrowserFactory.getBrowser("GoogleChrome");
+        WebDriver driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 
         Assertions.assertElementExists(driver, By.id("fakeElement"), AssertionType.NEGATIVE);
@@ -192,7 +192,7 @@ public class tests_validations_assertions {
 
     @Test
     public void assertElementExists_false_expectedToFail() {
-        WebDriver driver = BrowserFactory.getBrowser("GoogleChrome");
+        WebDriver driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
         try {
             Assertions.assertElementExists(driver, By.id("hplogo"), AssertionType.NEGATIVE);
@@ -203,7 +203,7 @@ public class tests_validations_assertions {
 
     @Test
     public void assertElementExists_true_multipleElementsFound_expectedToFail() {
-        WebDriver driver = BrowserFactory.getBrowser("GoogleChrome");
+        WebDriver driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
         try {
             Assertions.assertElementExists(driver, By.xpath("//div"), AssertionType.POSITIVE);
@@ -214,7 +214,7 @@ public class tests_validations_assertions {
 
     @Test
     public void assertElementExists_false_multipleElementsFound_expectedToFail() {
-        WebDriver driver = BrowserFactory.getBrowser("GoogleChrome");
+        WebDriver driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
         try {
             Assertions.assertElementExists(driver, By.xpath("//div"), AssertionType.NEGATIVE);
@@ -225,7 +225,7 @@ public class tests_validations_assertions {
 
     @Test
     public void assertElementAttribute_true_literalComparison_expectedToPass() {
-        WebDriver driver = BrowserFactory.getBrowser("GoogleChrome");
+        WebDriver driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 
         ElementActions.type(driver, By.name("q"), "Automation!@#$%^&*()_+{}[]\\';/.,");
@@ -235,7 +235,7 @@ public class tests_validations_assertions {
 
     @Test
     public void assertElementAttribute_true_literalComparison_expectedToFail() {
-        WebDriver driver = BrowserFactory.getBrowser("GoogleChrome");
+        WebDriver driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 
         ElementActions.type(driver, By.name("q"), "Automation!@#$%^&*()_+{}[]\\';/.,");
@@ -249,7 +249,7 @@ public class tests_validations_assertions {
 
     @Test
     public void assertElementAttribute_true_regexComparison_expectedToPass() {
-        WebDriver driver = BrowserFactory.getBrowser("GoogleChrome");
+        WebDriver driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 
         ElementActions.type(driver, By.name("q"), "Automation123");
@@ -259,7 +259,7 @@ public class tests_validations_assertions {
 
     @Test
     public void assertElementAttribute_true_regexComparison_expectedToFail() {
-        WebDriver driver = BrowserFactory.getBrowser("GoogleChrome");
+        WebDriver driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 
         ElementActions.type(driver, By.name("q"), "Automation123");
@@ -273,7 +273,7 @@ public class tests_validations_assertions {
 
     @Test
     public void assertElementAttribute_true_containsComparison_expectedToPass() {
-        WebDriver driver = BrowserFactory.getBrowser("GoogleChrome");
+        WebDriver driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 
         ElementActions.type(driver, By.name("q"), "Automation123");
@@ -283,7 +283,7 @@ public class tests_validations_assertions {
 
     @Test
     public void assertElementAttribute_true_containsComparison_expectedToFail() {
-        WebDriver driver = BrowserFactory.getBrowser("GoogleChrome");
+        WebDriver driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 
         ElementActions.type(driver, By.name("q"), "Automation123");
@@ -297,7 +297,7 @@ public class tests_validations_assertions {
 
     @Test
     public void assertElementAttribute_true_caseInsensitiveComparison_expectedToPass() {
-        WebDriver driver = BrowserFactory.getBrowser("GoogleChrome");
+        WebDriver driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 
         ElementActions.type(driver, By.name("q"), "AUTOMATION");
@@ -307,7 +307,7 @@ public class tests_validations_assertions {
 
     @Test
     public void assertElementAttribute_true_caseInsensitiveComparison_expectedToFail() {
-        WebDriver driver = BrowserFactory.getBrowser("GoogleChrome");
+        WebDriver driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 
         ElementActions.type(driver, By.name("q"), "AUTOMATION");
@@ -321,7 +321,7 @@ public class tests_validations_assertions {
 
     @Test
     public void assertElementAttribute_false_literalComparison_expectedToPass() {
-        WebDriver driver = BrowserFactory.getBrowser("GoogleChrome");
+        WebDriver driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 
         ElementActions.type(driver, By.name("q"), "Automation!@#$%^&*()_+{}[]\\';/.,");
@@ -331,7 +331,7 @@ public class tests_validations_assertions {
 
     @Test
     public void assertElementAttribute_false_literalComparison_expectedToFail() {
-        WebDriver driver = BrowserFactory.getBrowser("GoogleChrome");
+        WebDriver driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 
         ElementActions.type(driver, By.name("q"), "Automation!@#$%^&*()_+{}[]\\';/.,");
@@ -345,7 +345,7 @@ public class tests_validations_assertions {
 
     @Test
     public void assertElementAttribute_false_regexComparison_expectedToPass() {
-        WebDriver driver = BrowserFactory.getBrowser("GoogleChrome");
+        WebDriver driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 
         ElementActions.type(driver, By.name("q"), "Automation123");
@@ -355,7 +355,7 @@ public class tests_validations_assertions {
 
     @Test
     public void assertElementAttribute_false_regexComparison_expectedToFail() {
-        WebDriver driver = BrowserFactory.getBrowser("GoogleChrome");
+        WebDriver driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 
         ElementActions.type(driver, By.name("q"), "Automation123");
@@ -369,7 +369,7 @@ public class tests_validations_assertions {
 
     @Test
     public void assertElementAttribute_false_containsComparison_expectedToPass() {
-        WebDriver driver = BrowserFactory.getBrowser("GoogleChrome");
+        WebDriver driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 
         ElementActions.type(driver, By.name("q"), "Automation123");
@@ -379,7 +379,7 @@ public class tests_validations_assertions {
 
     @Test
     public void assertElementAttribute_false_containsComparison_expectedToFail() {
-        WebDriver driver = BrowserFactory.getBrowser("GoogleChrome");
+        WebDriver driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 
         ElementActions.type(driver, By.name("q"), "Automation123");
@@ -393,7 +393,7 @@ public class tests_validations_assertions {
 
     @Test
     public void assertElementAttribute_false_caseInsensitiveComparison_expectedToPass() {
-        WebDriver driver = BrowserFactory.getBrowser("GoogleChrome");
+        WebDriver driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 
         ElementActions.type(driver, By.name("q"), "AUTOMATION");
@@ -403,7 +403,7 @@ public class tests_validations_assertions {
 
     @Test
     public void assertElementAttribute_false_caseInsensitiveComparison_expectedToFail() {
-        WebDriver driver = BrowserFactory.getBrowser("GoogleChrome");
+        WebDriver driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
 
         ElementActions.type(driver, By.name("q"), "AUTOMATION");

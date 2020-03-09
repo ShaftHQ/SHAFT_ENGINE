@@ -125,4 +125,12 @@ public class tests_restActions {
         session.performRequest(RequestType.GET, 200, "service/user/isLoggedIn");
         session.performRequest(RequestType.GET, 200, "bff/v1/users/me");
     }
+
+    @Test
+    public void getAnimals() {
+        RestActions api = new RestActions("https://cat-fact.herokuapp.com");
+        Response response = api.performRequest(RequestType.GET, 200, "/facts/random?animal_type=cat&amount=1");
+        String actualResponse = RestActions.getResponseJSONValue(response, "text");
+        Assertions.assertEquals("", actualResponse, AssertionComparisonType.EQUALS, AssertionType.NEGATIVE);
+    }
 }
