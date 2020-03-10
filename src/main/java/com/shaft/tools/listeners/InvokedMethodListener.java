@@ -2,6 +2,7 @@ package com.shaft.tools.listeners;
 
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.ElementActions;
+import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Verifications;
@@ -69,7 +70,7 @@ public class InvokedMethodListener implements IInvokedMethodListener {
     @Override
     public void afterInvocation(IInvokedMethod method, ITestResult testResult) {
         if (!method.getTestMethod().getQualifiedName().contains("closureActivities")) {
-            BrowserFactory.attachAnimatedGif();
+            ScreenshotManager.attachAnimatedGif();
             // configuration method attachment is not added to the report (Allure ->
             // threadContext.getCurrent(); -> empty)
             ReportManager.attachTestLog(testResult.getMethod().getMethodName(),

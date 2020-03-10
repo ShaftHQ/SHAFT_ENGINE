@@ -216,7 +216,11 @@ public class ReportManager {
                                 attachment.get(2).toString());
                     }
                 } else if (attachment != null) {
-                    attach(attachment.get(0).toString(), attachment.get(1).toString(), (InputStream) attachment.get(2));
+                    if (attachment.get(2) instanceof byte[]) {
+                        attach(attachment.get(0).toString(), attachment.get(1).toString(), new ByteArrayInputStream((byte[]) attachment.get(2)));
+                    } else {
+                        attach(attachment.get(0).toString(), attachment.get(1).toString(), (InputStream) attachment.get(2));
+                    }
                 }
             });
         }
@@ -668,7 +672,7 @@ public class ReportManager {
 
     private static void createAllureReportArchiveAndCleanGeneratedDirectory() {
         FileActions.copyFolder(FileActions.getAbsolutePath("target/", "allure"), "generatedReport/allure");
-        FileActions.zipFiles("generatedReport/", "generatedReport.zip");
+        FileActions.zipFiles("generatedReport/", "generatedReport_" + new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date()) + ".zip");
         FileActions.deleteFile("generatedReport/");
     }
 

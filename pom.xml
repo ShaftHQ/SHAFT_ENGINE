@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.mohabmohie</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>4.1.20200224</version>
+    <version>4.1.20200309</version>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
     <url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
@@ -40,7 +40,9 @@
         <!-- http://www.slf4j.org/apidocs/org/slf4j/simple/SimpleLogger.html -->
 
         <!-- SHAFT Test Run Parameters -->
-        <customListeners.list>com.shaft.tools.listeners.AlterSuiteListener</customListeners.list>
+        <customListeners.list>
+            com.shaft.tools.listeners.AlterSuiteListener,com.shaft.tools.listeners.SuiteListener,com.shaft.tools.listeners.InvokedMethodListener
+        </customListeners.list>
         <testSuite.name>unitTestSuite</testSuite.name>
 
         <!-- Dependencies and Plug-ins Version Numbers Parameters -->
@@ -87,9 +89,28 @@
 
         <openpnp-opencv.version>3.4.2-2</openpnp-opencv.version>
         <applitools-eyes.version>4.5.0</applitools-eyes.version>
+        <sikuixapi.version>2.0.3</sikuixapi.version>
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>com.sikulix</groupId>
+            <artifactId>sikulixapi</artifactId>
+            <version>${sikuixapi.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-nop</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/net.sourceforge.tess4j/tess4j -->
+        <!-- http://tess4j.sourceforge.net/ -->
+        <!--        <dependency>
+                    <groupId>net.sourceforge.tess4j</groupId>
+                    <artifactId>tess4j</artifactId>
+                    <version>4.5.1</version>
+                </dependency>-->
         <!-- TESTNG DEPENDENCIES -->
         <dependency>
             <groupId>org.testng</groupId>
@@ -310,6 +331,11 @@
     </dependencies>
 
     <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+        </resources>
         <!-- <pluginManagement> -->
         <!--Plugins -->
         <plugins>
@@ -457,12 +483,13 @@
                 <configuration>
                     <encoding>${encoding.type}</encoding>
                     <!-- Resources -->
-                    <outputDirectory>target/resources</outputDirectory>
+                    <outputDirectory>target/classes</outputDirectory>
                 </configuration>
             </plugin>
         </plugins>
         <!-- </pluginManagement> -->
     </build>
+
     <repositories>
         <!-- <repository> -->
         <!-- <id>redshift</id> -->

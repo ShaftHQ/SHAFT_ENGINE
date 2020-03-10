@@ -30,6 +30,6 @@ public class Test_hover {
 
     @BeforeClass // Set-up method, to be run once before the first test
     public void beforeClass() {
-        driver = BrowserFactory.getBrowser("GoogleChrome");
+        driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
     }
 }
