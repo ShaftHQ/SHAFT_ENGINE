@@ -242,71 +242,79 @@ public class ImageProcessingActions {
                                                            int matchMethod) {
 
         if (FileActions.doesFileExist(referenceImagePath)) {
-            try {
-                OpenCV.loadShared();
-            } catch (java.lang.RuntimeException | java.lang.ExceptionInInitializerError e) {
-                OpenCV.loadLocally();
-            }
-            Mat img = Imgcodecs.imdecode(new MatOfByte(currentPageScreenshot), Imgcodecs.IMREAD_COLOR);
-            Mat templ = Imgcodecs.imread(referenceImagePath, Imgcodecs.IMREAD_COLOR);
-
-            // / Create the result matrix
-            int resultCols = img.cols() - templ.cols() + 1;
-            int resultRows = img.rows() - templ.rows() + 1;
-
-            Mat result = new Mat(resultRows, resultCols, CvType.CV_32FC1);
-
-            // / Do the Matching and Normalize
-            try {
-                Imgproc.matchTemplate(img, templ, result, matchMethod);
-                Core.normalize(result, result, 0, 1, Core.NORM_MINMAX, -1, new Mat());
-
-                // / Localizing the best match with minMaxLoc
-                MinMaxLocResult mmr = Core.minMaxLoc(result);
-
-                Point matchLoc;
-                if (matchMethod == Imgproc.TM_SQDIFF || matchMethod == Imgproc.TM_SQDIFF_NORMED) {
-                    matchLoc = mmr.minLoc;
-                } else {
-                    matchLoc = mmr.maxLoc;
-                }
-
-                if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("debugMode")))) {
-                    // debugging
-                    Imgproc.rectangle(img, matchLoc, new Point(matchLoc.x + templ.cols(), matchLoc.y + templ.rows()),
-                            new Scalar(0, 0, 0), 2, 8, 0);
-                    Image tmpImg = HighGui.toBufferedImage(img);
-                    BufferedImage image = (BufferedImage) tmpImg;
-
-                    try {
-                        FileActions.createFolder("target/openCV/");
-                        File output = new File("target/openCV/" + System.currentTimeMillis() + ".png");
-                        ImageIO.write(image, "png", output);
-                    } catch (IOException e) {
-                        ReportManager.log(e);
-                        return Collections.emptyList();
-                    }
-                }
-
-                // returning the top left corner resulted in an issue with round edged text
-                // boxes
-                // matchLoc.x
-                // matchLoc.y
-
-                // returning the center of the element resulted in an issue with another element
-                // overlaying it
-                // matchLoc.x + templ.cols() / 2
-                // matchLoc.y + templ.rows() / 2
-
-                // returning the top left corner point plus 1x and 1y
-                int x = Integer.parseInt(String.valueOf(matchLoc.x + 1).split("\\.")[0]);
-                int y = Integer.parseInt(String.valueOf(matchLoc.y + 1).split("\\.")[0]);
-                ReportManager.logDiscrete("Successfully identified the element using AI; OpenCV.");
-                return Arrays.asList(x, y);
-            } catch (org.opencv.core.CvException e) {
-                ReportManager.log(e);
-                ReportManager.log("Failed to identify the element using AI; openCV core exception.");
+            if (currentPageScreenshot == null || currentPageScreenshot == new byte[]{}) {
+                //target image is empty, force fail comparison
+                ReportManager.log("Failed to identify the element using AI; target screenshot is empty.");
                 return Collections.emptyList();
+            } else {
+                try {
+                    OpenCV.loadShared();
+                    ReportManager.logDiscrete("Loaded Shared OpenCV");
+                } catch (java.lang.RuntimeException | java.lang.ExceptionInInitializerError e) {
+                    OpenCV.loadLocally();
+                    ReportManager.logDiscrete("Loaded Local OpenCV");
+                }
+                Mat img = Imgcodecs.imdecode(new MatOfByte(currentPageScreenshot), Imgcodecs.IMREAD_COLOR);
+                Mat templ = Imgcodecs.imread(referenceImagePath, Imgcodecs.IMREAD_COLOR);
+
+                // / Create the result matrix
+                int resultCols = img.cols() - templ.cols() + 1;
+                int resultRows = img.rows() - templ.rows() + 1;
+
+                Mat result = new Mat(resultRows, resultCols, CvType.CV_32FC1);
+
+                // / Do the Matching and Normalize
+                try {
+                    Imgproc.matchTemplate(img, templ, result, matchMethod);
+                    Core.normalize(result, result, 0, 1, Core.NORM_MINMAX, -1, new Mat());
+
+                    // / Localizing the best match with minMaxLoc
+                    MinMaxLocResult mmr = Core.minMaxLoc(result);
+
+                    Point matchLoc;
+                    if (matchMethod == Imgproc.TM_SQDIFF || matchMethod == Imgproc.TM_SQDIFF_NORMED) {
+                        matchLoc = mmr.minLoc;
+                    } else {
+                        matchLoc = mmr.maxLoc;
+                    }
+
+                    if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("debugMode")))) {
+                        // debugging
+                        Imgproc.rectangle(img, matchLoc, new Point(matchLoc.x + templ.cols(), matchLoc.y + templ.rows()),
+                                new Scalar(0, 0, 0), 2, 8, 0);
+                        Image tmpImg = HighGui.toBufferedImage(img);
+                        BufferedImage image = (BufferedImage) tmpImg;
+
+                        try {
+                            FileActions.createFolder("target/openCV/");
+                            File output = new File("target/openCV/" + System.currentTimeMillis() + ".png");
+                            ImageIO.write(image, "png", output);
+                        } catch (IOException e) {
+                            ReportManager.log(e);
+                            return Collections.emptyList();
+                        }
+                    }
+
+                    // returning the top left corner resulted in an issue with round edged text
+                    // boxes
+                    // matchLoc.x
+                    // matchLoc.y
+
+                    // returning the center of the element resulted in an issue with another element
+                    // overlaying it
+                    // matchLoc.x + templ.cols() / 2
+                    // matchLoc.y + templ.rows() / 2
+
+                    // returning the top left corner point plus 1x and 1y
+                    int x = Integer.parseInt(String.valueOf(matchLoc.x + 1).split("\\.")[0]);
+                    int y = Integer.parseInt(String.valueOf(matchLoc.y + 1).split("\\.")[0]);
+                    ReportManager.logDiscrete("Successfully identified the element using AI; OpenCV.");
+                    return Arrays.asList(x, y);
+                } catch (org.opencv.core.CvException e) {
+                    ReportManager.log(e);
+                    ReportManager.log("Failed to identify the element using AI; openCV core exception.");
+                    return Collections.emptyList();
+                }
             }
         } else {
             // no reference screenshot exists

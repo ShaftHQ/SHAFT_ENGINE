@@ -3,7 +3,6 @@ package com.shaft.gui.browser;
 import com.google.common.collect.ImmutableMap;
 import com.shaft.cli.FileActions;
 import com.shaft.gui.element.JavaScriptWaitManager;
-import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.PropertiesFileManager;
 import com.shaft.tools.io.ReportManager;
 import io.appium.java_client.AppiumDriver;
@@ -27,6 +26,7 @@ import org.openqa.selenium.logging.LoggingPreferences;
 import org.openqa.selenium.remote.*;
 import org.openqa.selenium.safari.SafariDriver;
 import org.openqa.selenium.safari.SafariOptions;
+import org.sikuli.script.App;
 import org.testng.Assert;
 
 import java.net.MalformedURLException;
@@ -37,7 +37,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
 public class BrowserFactory {
-
+    // TODO: implement pass and fail actions to enable initial factory method screenshot and append it to animated GIF
     private static final Map<String, Map<String, WebDriver>> drivers = new HashMap<>();
     private static Boolean AUTO_MAXIMIZE;
     private static Boolean HEADLESS_EXECUTION;
@@ -520,15 +520,19 @@ public class BrowserFactory {
         return desiredCapabilities;
     }
 
+    public static boolean isWebExecution() {
+        return !isMobileExecution();
+    }
+
     public static boolean isMobileExecution() {
-        if (!EXECUTION_ADDRESS.equals("local") && TARGET_PLATFORM_NAME != null) {
+        if (EXECUTION_ADDRESS != null && !EXECUTION_ADDRESS.equals("local") && TARGET_PLATFORM_NAME != null) {
             return !TARGET_PLATFORM_NAME.equals("");
         }
         return false;
     }
 
     public static boolean isMobileWebExecution() {
-        if (!EXECUTION_ADDRESS.equals("local") && TARGET_PLATFORM_NAME != null
+        if (EXECUTION_ADDRESS != null && !EXECUTION_ADDRESS.equals("local") && TARGET_PLATFORM_NAME != null
                 && TARGET_PLATFORM_BROWSER_NAME != null) {
             return !TARGET_PLATFORM_NAME.equals("") && !TARGET_PLATFORM_BROWSER_NAME.equals("");
         }
@@ -536,7 +540,7 @@ public class BrowserFactory {
     }
 
     public static boolean isMobileNativeExecution() {
-        if (!EXECUTION_ADDRESS.equals("local") && TARGET_PLATFORM_NAME != null) {
+        if (EXECUTION_ADDRESS != null && !EXECUTION_ADDRESS.equals("local") && TARGET_PLATFORM_NAME != null) {
             return !TARGET_PLATFORM_NAME.equals("")
                     && (TARGET_PLATFORM_BROWSER_NAME == null || TARGET_PLATFORM_BROWSER_NAME.equals(""));
         }
@@ -560,16 +564,12 @@ public class BrowserFactory {
      * instance per browser type) and checks for cross-compatibility between the
      * selected browser and operating system
      *
-     * <p>
-     * This method will be removed soon. Use
-     * {@link BrowserFactory#getBrowser(BrowserType)} instead.
-     *
      * @param browserName the name of the browser that you want to run, currently
      *                    supports 'MozillaFirefox', 'MicrosoftInternetExplorer',
      *                    'GoogleChrome', and 'MicrosoftEdge'
      * @return a singleton browser instance
      */
-    public static synchronized WebDriver getBrowser(String browserName) {
+    private static synchronized WebDriver getBrowser(String browserName) {
         initializeSystemProperties(System.getProperty("targetBrowserName") == null);
 
         if (browserName == null) {
@@ -616,13 +616,37 @@ public class BrowserFactory {
                     // it
                 }
             }
-            startAnimatedGif();
         } catch (NullPointerException e) {
             ReportManager.log(e);
             ReportManager.log("Unhandled Exception with Browser Type [" + browserName + "].");
             Assert.fail("Unhandled Exception with Browser Type [" + browserName + "].", e);
         }
         return driver.get();
+    }
+
+    /**
+     * Attaches your SikuliActions to a specific Application instance
+     *
+     * @param applicationName the name or partial name of the currently opened application window that you want to attach to
+     * @return a sikuli App instance that can be used to perform SikuliActions
+     */
+    public static App getSikuliApp(String applicationName) {
+        initializeSystemProperties(System.getProperty("targetBrowserName") == null);
+        App myapp = new App(applicationName);
+        myapp.waitForWindow(Integer.parseInt(System.getProperty("browserNavigationTimeout")));
+        myapp.focus();
+        ReportManager.log("Opened app: [" + myapp.getName() + "]...");
+        return myapp;
+    }
+
+    /**
+     * Terminates the desired sikuli app instance
+     *
+     * @param application a sikuli App instance that can be used to perform SikuliActions
+     */
+    public static void closeSikuliApp(App application) {
+        ReportManager.log("Closing app: [" + application.getName() + "]...");
+        application.close();
     }
 
     private static void initializeSystemProperties(Boolean readPropertyFilesBeforeInitializing) {
@@ -696,18 +720,6 @@ public class BrowserFactory {
 
     public static Boolean isBrowsersListEmpty() {
         return drivers.entrySet().isEmpty();
-    }
-
-    public static void startAnimatedGif(byte[]... screenshot) {
-        if (Boolean.TRUE.equals(CREATE_GIF) && (driver.get() != null)) {
-            ScreenshotManager.startAnimatedGif(driver.get(), screenshot);
-        }
-    }
-
-    public static void attachAnimatedGif() {
-        if (Boolean.TRUE.equals(CREATE_GIF) && (driver.get() != null)) {
-            ScreenshotManager.attachAnimatedGif();
-        }
     }
 
     public static int getActiveDriverSessions() {

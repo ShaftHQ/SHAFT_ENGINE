@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: net.oneandone.reflections8:reflections8:0.11.6">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/net/oneandone/reflections8/reflections8/0.11.6/reflections8-0.11.6.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/net/oneandone/reflections8/reflections8/0.11.6/reflections8-0.11.6-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/net/oneandone/reflections8/reflections8/0.11.6/reflections8-0.11.6-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>
