@@ -1,10 +1,10 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.mohabmohie</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>4.1.20200309</version>
+    <version>4.1.20200329</version>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
     <url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
@@ -49,7 +49,7 @@
         <encoding.type>UTF-8</encoding.type>
         <jdk.version>13</jdk.version>
 
-        <!-- <selenium.version>4.0.0-alpha-3</selenium.version> -->
+        <!-- <selenium.version>4.0.0-alpha-5</selenium.version> -->
         <appium-selenium.version>3.141.59</appium-selenium.version>
         <appium-java-client.version>7.3.0</appium-java-client.version>
 
@@ -346,7 +346,6 @@
                 <configuration>
                     <source>${jdk.version}</source>
                     <target>${jdk.version}</target>
-                    <!--                     <release>${jdk.version}</release>-->
                     <encoding>${encoding.type}</encoding>
                     <maxmem>10240m</maxmem>
                     <meminitial>10240m</meminitial>
@@ -405,6 +404,7 @@
                     </dependency>
                 </dependencies>
             </plugin>
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
@@ -419,11 +419,11 @@
                         </manifest>
                     </archive>
                     <excludes>
-                        <!-- <exclude>allure/**</exclude> -->
-                        <!-- <exclude>drivers/**</exclude> -->
-                        <!-- <exclude>scripts/**</exclude> -->
                         <exclude>test/**</exclude>
-                        <!-- <exclude>SHADE/**</exclude> -->
+                        <exclude>**/CucumberFeatures/**</exclude>
+                        <exclude>**/TestDataFiles/**</exclude>
+                        <exclude>**/TestJsonFiles/**</exclude>
+                        <exclude>**/TestSuites/**</exclude>
                         <exclude>test-output/**</exclude>
                         <exclude>allure-results/**</exclude>
                     </excludes>
@@ -482,7 +482,6 @@
                 <version>${maven-resources-plugin.version}</version>
                 <configuration>
                     <encoding>${encoding.type}</encoding>
-                    <!-- Resources -->
                     <outputDirectory>target/classes</outputDirectory>
                 </configuration>
             </plugin>

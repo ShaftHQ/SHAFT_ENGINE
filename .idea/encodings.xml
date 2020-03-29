@@ -4,6 +4,6 @@
     <file url="file://$PROJECT_DIR$/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/src/main/resources/allure" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/src/main/resources/images" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/src/main/resources/properties" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/src/test/resources" charset="UTF-8" />
   </component>
 </project>
