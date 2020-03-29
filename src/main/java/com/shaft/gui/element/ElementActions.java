@@ -49,10 +49,6 @@ public class ElementActions {
     static WebDriver lastUsedDriver = null;
     private static By aiGeneratedElementLocator = null;
 
-    private ElementActions() {
-        throw new IllegalStateException("Utility class");
-    }
-
     public ElementActions(WebDriver driver) {
         lastUsedDriver = driver;
     }
@@ -333,15 +329,14 @@ public class ElementActions {
 
     private static boolean identifyUniqueElement(WebDriver driver, By elementLocator, int numberOfAttempts,
                                                  boolean checkForVisibility) {
-        int matchingElementsCount = getMatchingElementsCount(driver, elementLocator, numberOfAttempts);
-
         // Override current locator with the aiGeneratedElementLocator
         elementLocator = updateLocatorWithAIGenratedOne(elementLocator);
 
+        int matchingElementsCount = getMatchingElementsCount(driver, elementLocator, numberOfAttempts);
         if (elementLocator != null) {
             switch (matchingElementsCount) {
                 case 0:
-                    failAction(driver, "zero elements found matching this locator \"" + elementLocator + "\".", null);
+                    failAction(driver, "zero elements found matching this locator \"" + elementLocator + "\".", elementLocator);
                     break;
                 case 1:
                     // unique element found
@@ -362,12 +357,12 @@ public class ElementActions {
                 default:
                     if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckElementLocatorIsUnique")))) {
                         failAction(driver, "multiple elements found matching this locator \"" + elementLocator + "\".",
-                                null);
+                                elementLocator);
                     }
                     return true;
             }
         } else {
-            failAction(driver, "element locator is NULL.", null);
+            failAction(driver, "element locator is NULL.", elementLocator);
         }
         return false;
     }
@@ -1913,7 +1908,7 @@ public class ElementActions {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions select(By elementLocator, String text) {
-        select(elementLocator, text);
+        select(lastUsedDriver, elementLocator, text);
         return this;
     }
 
@@ -1926,7 +1921,7 @@ public class ElementActions {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions keyPress(By elementLocator, Keys keys) {
-        keyPress(elementLocator, keys);
+        keyPress(lastUsedDriver, elementLocator, keys);
         return this;
     }
 
