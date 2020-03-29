@@ -3,6 +3,7 @@ package testPackage01;
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.tools.io.ExcelFileManager;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import poms.GoogleSearch;
@@ -16,7 +17,7 @@ public class Test_google {
     GoogleSearch searchObject;
     GoogleSearchResults resultsObject;
 
-    @Test(priority = 0, description = "TC001 - Navigate to URL and Verify page title")
+    @Test(description = "TC001 - Navigate to URL and Verify page title")
     public void navigateToURLandVerifyPageTitle() {
         searchObject = new GoogleSearch(driver); // initialize a new instance of the page
         searchObject.navigateToURL(); // Navigate to Page URL
@@ -61,6 +62,8 @@ public class Test_google {
         System.setProperty("testDataFilePath", "src/test/resources/TestDataFiles/testSuite01/TestData.xlsx");
         testDataReader = new ExcelFileManager(System.getProperty("testDataFilePath"));
         driver = BrowserFactory.getBrowser();
+        driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
+        driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME, new ChromeOptions().addArguments("--start-maximized").setHeadless(true));
         // BrowserActions.setWindowSize(driver, 3840, 2160);
     }
 }
