@@ -68,7 +68,6 @@ public class ScreenshotManager {
     private static String gifRelativePathWithFileName = "";
     private static ThreadLocal<ImageOutputStream> gifOutputStream = new ThreadLocal<>();
     private static ThreadLocal<AnimatedGifManager> gifWriter = new ThreadLocal<>();
-    private final Boolean takeScreenshot;
 
     private ScreenshotManager() {
         throw new IllegalStateException("Utility class");
