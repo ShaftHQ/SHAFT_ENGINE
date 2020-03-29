@@ -56,7 +56,6 @@ public class BrowserFactory {
     private static int SCRIPT_TIMEOUT;
     private static int IMPLICIT_WAIT_TIMEOUT;
     private static Boolean WAIT_IMPLICITLY;
-    private static Boolean CREATE_GIF;
     private static Boolean BROWSEROBJECTSINGLETON;
     private static String customDriverPath;
     private static String customDriverName;
@@ -702,7 +701,6 @@ public class BrowserFactory {
         SCRIPT_TIMEOUT = Integer.parseInt(System.getProperty("scriptExecutionTimeout"));
         IMPLICIT_WAIT_TIMEOUT = Integer.parseInt(System.getProperty("implicitWaitTimeout"));
         WAIT_IMPLICITLY = Boolean.valueOf(System.getProperty("waitImplicitly").trim());
-        CREATE_GIF = Boolean.valueOf(System.getProperty("createAnimatedGif").trim());
         BROWSEROBJECTSINGLETON = Boolean
                 .valueOf(System.getProperty("browserObjectSingleton").trim());
         customDriverPath = System.getProperty("customDriverPath");
