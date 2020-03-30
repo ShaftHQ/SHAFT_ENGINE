@@ -22,7 +22,6 @@ class ValidationActions {
     private static final int attemptsBeforeThrowingElementNotFoundException = Integer
             .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
     private static final int attemptsBeforeThrowingElementNotFoundExceptionInCaseElementShouldntExist = 1;
-    private static final StringBuilder verificationFailures = new StringBuilder();
     private static final StringBuilder verificationSuccesses = new StringBuilder();
     private static WebDriver lastUsedDriver = null;
     private static By lastUsedElementLocator = null;
