@@ -1704,11 +1704,9 @@ public class ElementActions {
             // Override current locator with the aiGeneratedElementLocator
             elementLocator = updateLocatorWithAIGenratedOne(elementLocator);
 
-            (new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER))
-                    .until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
-            // wait for element to be visible
+            Boolean isDisplayed = driver.findElement(elementLocator).isDisplayed();
             passAction(driver, elementLocator);
-            return true;
+            return isDisplayed;
         } else {
             failAction(driver, elementLocator);
             return false;
