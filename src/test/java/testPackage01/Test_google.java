@@ -2,6 +2,7 @@ package testPackage01;
 
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.tools.io.ExcelFileManager;
+import org.openqa.selenium.PageLoadStrategy;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.testng.annotations.BeforeClass;
@@ -61,9 +62,9 @@ public class Test_google {
     public void beforeClass() {
         System.setProperty("testDataFilePath", "src/test/resources/TestDataFiles/testSuite01/TestData.xlsx");
         testDataReader = new ExcelFileManager(System.getProperty("testDataFilePath"));
-        driver = BrowserFactory.getBrowser();
-        driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
-        driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME, new ChromeOptions().addArguments("--start-maximized").setHeadless(true));
+        //driver = BrowserFactory.getBrowser();
+        //driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
+        driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME, new ChromeOptions().setPageLoadStrategy(PageLoadStrategy.EAGER).addArguments("--start-maximized").setHeadless(true));
         // BrowserActions.setWindowSize(driver, 3840, 2160);
     }
 }
