@@ -12,10 +12,7 @@ import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.interactions.Locatable;
 import org.openqa.selenium.remote.UnreachableBrowserException;
-import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.FluentWait;
-import org.openqa.selenium.support.ui.Select;
-import org.openqa.selenium.support.ui.WebDriverWait;
+import org.openqa.selenium.support.ui.*;
 import org.sikuli.script.App;
 import org.sikuli.script.Pattern;
 import org.sikuli.script.Screen;
@@ -1558,6 +1555,7 @@ public class ElementActions {
      * @return the value of the target attribute of the webElement under test
      */
     public static String getAttribute(WebDriver driver, By elementLocator, String attributeName) {
+        ReportManager.logDiscrete("Attempting to getAttribute [" + attributeName + "] from elementLocator [" + elementLocator + "].");
         if (identifyUniqueElement(driver, elementLocator)) {
             // Override current locator with the aiGeneratedElementLocator
             elementLocator = updateLocatorWithAIGenratedOne(elementLocator);
@@ -1599,6 +1597,33 @@ public class ElementActions {
             String elementCssProperty = driver.findElement(elementLocator).getCssValue(propertyName);
             passAction(driver, elementLocator, elementCssProperty);
             return elementCssProperty;
+        } else {
+            failAction(driver, elementLocator);
+            return null;
+        }
+    }
+
+    /**
+     * Retrieves the selected text from the target drop-down list element and returns it as a string value.
+     *
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @return the selected text of the target webElement
+     */
+    public static String getSelectedText(WebDriver driver, By elementLocator) {
+        if (identifyUniqueElement(driver, elementLocator)) {
+            // Override current locator with the aiGeneratedElementLocator
+            elementLocator = updateLocatorWithAIGenratedOne(elementLocator);
+            StringBuilder elementSelectedText = new StringBuilder();
+            try {
+                new Select(driver.findElement(elementLocator)).getAllSelectedOptions().forEach(selectedOption -> elementSelectedText.append(selectedOption.getText()));
+                passAction(driver, elementLocator, elementSelectedText.toString().trim());
+                return elementSelectedText.toString().trim();
+            } catch (UnexpectedTagNameException rootCauseException) {
+                failAction(driver, elementLocator, rootCauseException);
+                return null;
+            }
         } else {
             failAction(driver, elementLocator);
             return null;

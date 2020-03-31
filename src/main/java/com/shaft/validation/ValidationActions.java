@@ -348,6 +348,9 @@ class ValidationActions {
                 case "size":
                     actualValue = ElementActions.getSize(driver, elementLocator);
                     break;
+                case "selectedtext":
+                    actualValue = ElementActions.getSelectedText(driver, elementLocator);
+                    break;
                 default:
                     actualValue = ElementActions.getAttribute(driver, elementLocator, elementAttribute);
                     break;
