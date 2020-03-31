@@ -341,7 +341,7 @@ public class ReportManager {
     private static void cleanAllureResultsDirectory() {
         // clean allure-results directory before execution
         if (Boolean.TRUE.equals(
-                Boolean.valueOf(System.getProperty("automaticallyCleanAllureResultsDirectoryBeforeExecution")))) {
+                Boolean.valueOf(System.getProperty("cleanAllureResultsDirectoryBeforeExecution")))) {
             FileActions.deleteFolder(allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1));
         }
     }
@@ -677,7 +677,7 @@ public class ReportManager {
     }
 
     public static void generateAllureReportArchive() {
-        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("automaticallyGenerateAllureReport").trim()))
+        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateAllureReportArchive").trim()))
                 && System.getProperty("executionAddress").trim().equals("local")) {
             logDiscrete("Generating Allure Report Archive...");
             Boolean discreteLoggingState = isDiscreteLogging();
