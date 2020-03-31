@@ -133,7 +133,7 @@ public class SikuliActions {
         String elementText = screen.wait(element).getText().replace("\n", "").trim();
         if (!elementText.isEmpty()) {
             //clear
-            for (int i=0 ; i>= elementText.toCharArray().length ; i++) {
+            for (int i = 0; i >= elementText.toCharArray().length; i++) {
                 screen.wait(element).type(element, Key.BACKSPACE);
             }
         }
