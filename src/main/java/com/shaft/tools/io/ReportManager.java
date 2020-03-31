@@ -87,6 +87,9 @@ public class ReportManager {
 
     private static void createLogEntry(String logText) {
         String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
+        if (logText ==null){
+            logText="null";
+        }
         String log = REPORT_MANAGER_PREFIX + logText.trim() + " @" + timestamp;
         slf4jLogger.info(log);
         Reporter.log(log, false);
@@ -162,6 +165,9 @@ public class ReportManager {
 
     private static void createReportEntry(String logText, Boolean addToFullLog) {
         String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
+        if (logText == null) {
+            logText = "null";
+        }
         String log = REPORT_MANAGER_PREFIX + logText.trim() + " @" + timestamp;
         Reporter.log(log, true);
         if (addToFullLog) {

@@ -110,6 +110,7 @@ public class PropertiesFileManager {
     }
 
     public static synchronized void readPropertyFiles(String propertiesFolderPath) {
+        //propertiesFolderPath = propertiesFolderPath.replace("/", File.separator).replace("\\", File.separator);
         ReportManager.logDiscrete("Reading properties directory: " + propertiesFolderPath);
         try {
             Properties properties = new Properties();
@@ -121,21 +122,20 @@ public class PropertiesFileManager {
             }
             // reading regular files
             Collection<File> propertiesFilesList;
-            propertiesFilesList = FileUtils.listFiles(new File(propertiesFolderPath), new String[]{"properties"},
-                    true);
-
-            File propertyFile;
-            for (int i = 0; i < propertiesFilesList.size(); i++) {
-                propertyFile = (File) (propertiesFilesList.toArray())[i];
-                ReportManager.logDiscrete("Loading properties file: " + propertyFile);
-                loadPropertiesFileIntoSystemProperties(properties, propertyFile);
+            if (FileActions.doesFileExist(propertiesFolderPath)) {
+                propertiesFilesList = FileUtils.listFiles(new File(propertiesFolderPath), new String[]{"properties"},
+                        true);
+                File propertyFile;
+                for (int i = 0; i < propertiesFilesList.size(); i++) {
+                    propertyFile = (File) (propertiesFilesList.toArray())[i];
+                    ReportManager.logDiscrete("Loading properties file: " + propertyFile);
+                    loadPropertiesFileIntoSystemProperties(properties, propertyFile);
+                }
+            } else {
+                ReportManager.logDiscrete(
+                        "The desired propertiesFolderPath directory doesn't exist. ["
+                                + propertiesFolderPath + "]");
             }
-        } catch (IllegalArgumentException e) {
-            // this happens when the user provides a directory that doesn't exist
-            ReportManager.log(e);
-            ReportManager.logDiscrete(
-                    "The desired propertiesFolderPath directory doesn't exists. ["
-                            + propertiesFolderPath + "]");
         } catch (Exception e) {
             ReportManager.log(e);
         }
