@@ -682,6 +682,20 @@ public class ReportManager {
         FileActions.deleteFile("generatedReport/");
     }
 
+    public static void openAllureReportAfterExecution() {
+	String commandToOpenAllureReport = "";
+	if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("openAllureReportAfterExecution").trim()))
+		&& System.getProperty("executionAddress").trim().equals("local")) {
+
+	    if (SystemUtils.IS_OS_WINDOWS) {
+		commandToOpenAllureReport = ("cd \"" + allureResultsFolderPath + "&&" + allureExecutablePath + ".bat");
+	    } else {
+		commandToOpenAllureReport = (allureExecutablePath + ".sh");
+	    }
+	    (new TerminalActions()).performTerminalCommand(commandToOpenAllureReport);
+	}
+    }
+    
     public static void generateAllureReportArchive() {
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateAllureReportArchive").trim()))
                 && System.getProperty("executionAddress").trim().equals("local")) {
