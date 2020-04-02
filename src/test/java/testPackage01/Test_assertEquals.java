@@ -18,7 +18,7 @@ public class Test_assertEquals {
 
     @Test
     public void test_assertElementAttribute() {
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr");
+        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "https://www.google.com");
         ElementActions.type(driver, By.id("lst-ib"),
                 "INC_004010050:Another SCHEDULER with the same name [Duplicate Job Name] already exists.");
         Assertions.assertElementAttribute(driver, By.id("lst-ib"), "text",

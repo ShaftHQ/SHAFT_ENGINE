@@ -87,8 +87,8 @@ public class ReportManager {
 
     private static void createLogEntry(String logText) {
         String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
-        if (logText ==null){
-            logText="null";
+        if (logText == null) {
+            logText = "null";
         }
         String log = REPORT_MANAGER_PREFIX + logText.trim() + " @" + timestamp;
         slf4jLogger.info(log);
@@ -683,19 +683,19 @@ public class ReportManager {
     }
 
     public static void openAllureReportAfterExecution() {
-	String commandToOpenAllureReport = "";
-	if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("openAllureReportAfterExecution").trim()))
-		&& System.getProperty("executionAddress").trim().equals("local")) {
+        String commandToOpenAllureReport = "";
+        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("openAllureReportAfterExecution").trim()))
+                && System.getProperty("executionAddress").trim().equals("local")) {
 
-	    if (SystemUtils.IS_OS_WINDOWS) {
-		commandToOpenAllureReport = ("cd \"" + allureResultsFolderPath + "&&" + allureExecutablePath + ".bat");
-	    } else {
-		commandToOpenAllureReport = (allureExecutablePath + ".sh");
-	    }
-	    (new TerminalActions()).performTerminalCommand(commandToOpenAllureReport);
-	}
+            if (SystemUtils.IS_OS_WINDOWS) {
+                commandToOpenAllureReport = ("generate_allure_report.bat");
+            } else {
+                commandToOpenAllureReport = ("sh generate_allure_report.sh");
+            }
+            new TerminalActions().performTerminalCommand(commandToOpenAllureReport);
+        }
     }
-    
+
     public static void generateAllureReportArchive() {
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateAllureReportArchive").trim()))
                 && System.getProperty("executionAddress").trim().equals("local")) {
