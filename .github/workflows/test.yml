@@ -1,4 +1,4 @@
-name: Test - Ubuntu
+name: Ubuntu - Test
 
 on:
   pull_request:
@@ -12,7 +12,7 @@ jobs:
 
     steps:
       - name: Set up Zalenium
-        uses: ajinx/zalenium@v1
+        uses: ajinx/zalenium@v1.1
       - uses: actions/checkout@v2
       - name: Set up JDK 13
         uses: actions/setup-java@v1.3.0
