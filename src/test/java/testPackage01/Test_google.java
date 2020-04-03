@@ -18,7 +18,7 @@ public class Test_google {
     GoogleSearch searchObject;
     GoogleSearchResults resultsObject;
 
-    @Test(description = "TC001 - Navigate to URL and Verify page title")
+    //@Test(description = "TC001 - Navigate to URL and Verify page title")
     public void navigateToURLandVerifyPageTitle() {
         searchObject = new GoogleSearch(driver); // initialize a new instance of the page
         searchObject.navigateToURL(); // Navigate to Page URL
@@ -26,7 +26,7 @@ public class Test_google {
         searchObject.verifyPageTitle(testDataReader.getCellData("Expected Page Title")); // Check that page title is
     }
 
-    @Test(priority = 1, description = "TC002 - Search for Query and Assert that the number of results is displayed")
+    //@Test(priority = 1, description = "TC002 - Search for Query and Assert that the number of results is displayed")
     public void searchForQueryandAssertResultsNumDisplayed() {
         searchObject = new GoogleSearch(driver); // initialize a new instance of the page
         // temp steps for debugging changes to the type function

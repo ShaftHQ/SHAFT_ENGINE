@@ -451,14 +451,14 @@ public class ElementActions {
         }
 
         TextDetectionStrategy successfulTextLocationStrategy;
-        if (!text.equals("") && content.equals("") && value != null && value.equals("")) {
+        if (!text.equals("")) {
             successfulTextLocationStrategy = TextDetectionStrategy.TEXT;
-        } else if (text.equals("") && !content.equals("") && value != null && value.equals("")) {
+        } else if (!content.equals("")) {
             successfulTextLocationStrategy = TextDetectionStrategy.CONTENT;
         } else if (value != null && !value.equals("")) {
             successfulTextLocationStrategy = TextDetectionStrategy.VALUE;
         } else {
-            successfulTextLocationStrategy = TextDetectionStrategy.TEXT;
+            successfulTextLocationStrategy = TextDetectionStrategy.UNDEFINED;
         }
         return successfulTextLocationStrategy;
     }
@@ -489,7 +489,9 @@ public class ElementActions {
 
             TextDetectionStrategy successfulTextLocationStrategy = determineSuccessfulTextLocationStrategy(driver,
                     elementLocator);
-            clearBeforeTyping(driver, elementLocator, successfulTextLocationStrategy);
+            if (!successfulTextLocationStrategy.equals(TextDetectionStrategy.UNDEFINED)) {
+                clearBeforeTyping(driver, elementLocator, successfulTextLocationStrategy);
+            }
             if (!targetText.equals("")) {
                 performType(driver, elementLocator, targetText);
             }
@@ -506,6 +508,10 @@ public class ElementActions {
 
     private static String confirmTypingWasSuccessful(WebDriver driver, By elementLocator, String expectedText,
                                                      TextDetectionStrategy successfulTextLocationStrategy) {
+        if (successfulTextLocationStrategy.equals(TextDetectionStrategy.UNDEFINED)){
+            successfulTextLocationStrategy = determineSuccessfulTextLocationStrategy(driver,
+                    elementLocator);
+        }
         String actualText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator,
                 successfulTextLocationStrategy);
         if (expectedText.equals(actualText) || expectedText.replaceAll(".", "•").equals(actualText)) {
@@ -513,30 +519,9 @@ public class ElementActions {
         } else {
             // attempt once to type using javascript then confirm typing was successful
             // again
-            return attemptTypeUsingJavascript(driver, elementLocator, expectedText, successfulTextLocationStrategy);
-
-        }
-    }
-
-    private static String attemptTypeUsingJavascript(WebDriver driver, By elementLocator, String targetText,
-                                                     TextDetectionStrategy successfulTextLocationStrategy) {
-        clearBeforeTyping(driver, elementLocator, successfulTextLocationStrategy);
-        internalSetValueUsingJavaScript(driver, elementLocator, targetText);
-
-        if (targetText.equals(
-                readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator, successfulTextLocationStrategy))) {
-            return targetText;
-        } else {
-            try {
-                Boolean discreetLoggingState = ReportManager.isDiscreteLogging();
-                ReportManager.setDiscreteLogging(true);
-                String actualText = getText(driver, elementLocator);
-                ReportManager.setDiscreteLogging(discreetLoggingState);
-                return actualText;
-            } catch (Exception e) {
-                ReportManager.log(e);
-                return null;
-            }
+            internalSetValueUsingJavaScript(driver, elementLocator, expectedText);
+            actualText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator, TextDetectionStrategy.VALUE);
+            return actualText;
         }
     }
 
@@ -2126,7 +2111,7 @@ public class ElementActions {
     }
 
     public enum TextDetectionStrategy {
-        TEXT("text"), CONTENT("textContent"), VALUE("value");
+        TEXT("text"), CONTENT("textContent"), VALUE("value"), UNDEFINED("undefined");
 
         private final String value;
 
