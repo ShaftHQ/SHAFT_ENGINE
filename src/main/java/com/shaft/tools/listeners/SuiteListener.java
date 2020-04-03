@@ -29,6 +29,6 @@ public class SuiteListener implements ISuiteListener {
     public void onFinish(ISuite suite) {
         ReportManager.setDiscreteLogging(true);
         ReportManager.generateAllureReportArchive();
-	ReportManager.openAllureReportAfterExecution();
+        ReportManager.openAllureReportAfterExecution();
     }
 }
