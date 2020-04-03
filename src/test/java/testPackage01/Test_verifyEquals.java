@@ -20,15 +20,7 @@ public class Test_verifyEquals {
                 "INC_004010050:Another SCHEDULER with the same name [Duplicate Job Name] already exists.");
         Verifications.verifyElementAttribute(driver, By.name("q"), "text",
                 "INC_004010050:Another SCHEDULER with the same name \\[Duplicate Job Name\\] already exists.", Verifications.VerificationComparisonType.MATCHES, Verifications.VerificationType.POSITIVE);
-        Verifications.verifyElementAttribute(driver, By.name("q"), "text",
-                "INC_004010050:Another SCHEDULER with the same name \\[Duplicate Job Name\\] already exists.aaaaaa", Verifications.VerificationComparisonType.MATCHES,
-                Verifications.VerificationType.POSITIVE);
-        Verifications.verifyElementAttribute(driver, By.name("q"), "text",
-                "INC_004010050:Another SCHEDULER with the same name \\[Duplicate Job Name\\] already exists.", Verifications.VerificationComparisonType.MATCHES, Verifications.VerificationType.POSITIVE);
-        Verifications.verifyElementAttribute(driver, By.name("q"), "text",
-                "INC_004010050:Another SCHEDULER with the same name \\[Duplicate Job Name\\] already exists.aaaaaa", Verifications.VerificationComparisonType.MATCHES,
-                Verifications.VerificationType.POSITIVE);
-    }
+        }
 
     // @Test
     public void test_assertEquals() {
