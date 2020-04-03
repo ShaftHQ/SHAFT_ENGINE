@@ -13,7 +13,7 @@ public class Test_iFrame {
     // Declaring webdriver and excelreader instances
     WebDriver driver;
 
-    @Test(priority = 0, description = "TC001 - Navigate to URL and assert element exists inside iframe")
+    //@Test(priority = 0, description = "TC001 - Navigate to URL and assert element exists inside iframe")
     public void navigateToURLandAssertElementExists() {
         BrowserActions.navigateToURL(driver, "https://developer.mozilla.org/en-US/docs/Web/HTML/Element/iframe");
         // directly find elmeent - expected to fail
