@@ -417,14 +417,14 @@ public class tests_validations_assertions {
 
     @Test
     public void assertFileExists_true_expectedToPass() {
-        Assertions.assertFileExists("/src/main/java/com/shaft/gui/element/", "ElementActions.java", 1,
+        Assertions.assertFileExists("src/main/java/com/shaft/gui/element/", "ElementActions.java", 1,
                 AssertionType.POSITIVE);
     }
 
     @Test
     public void assertFileExists_true_expectedToFail() {
         try {
-            Assertions.assertFileExists("/src/main/java/com/shaft/gui/element/", "ElementActions.java_fail", 1,
+            Assertions.assertFileExists("src/main/java/com/shaft/gui/element/", "ElementActions.java_fail", 1,
                     AssertionType.POSITIVE);
         } catch (AssertionError e) {
             Assert.assertTrue(true);
@@ -433,14 +433,14 @@ public class tests_validations_assertions {
 
     @Test
     public void assertFileExists_false_expectedToPass() {
-        Assertions.assertFileExists("/src/main/java/com/shaft/gui/element/", "ElementActions.java_fail", 1,
+        Assertions.assertFileExists("src/main/java/com/shaft/gui/element/", "ElementActions.java_fail", 1,
                 AssertionType.NEGATIVE);
     }
 
     @Test
     public void assertFileExists_false_expectedToFail() {
         try {
-            Assertions.assertFileExists("/src/main/java/com/shaft/gui/element/", "ElementActions.java", 1,
+            Assertions.assertFileExists("src/main/java/com/shaft/gui/element/", "ElementActions.java", 1,
                     AssertionType.NEGATIVE);
         } catch (AssertionError e) {
             Assert.assertTrue(true);
