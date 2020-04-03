@@ -18,11 +18,11 @@ public class tests_element_elementActions {
     public void waitForElementToBePresent_true_expectedToPass() {
         BrowserActions.navigateToURL(driver.get(), "https://www.google.com/ncr", "www.google.com");
         ElementActions.waitForElementToBePresent(driver.get(), By.id("hplogo"), 1, true);
-        //Assertions.assertElementMatches(driver.get(), By.id("hplogo"), Assertions.VisualValidationEngine.EXACT_OPENCV, Assertions.AssertionType.POSITIVE, "Using Visual AI; OpenCV");
-        Assertions.assertElementMatches(driver.get(), By.id("hplogo"), Assertions.VisualValidationEngine.STRICT_EYES, Assertions.AssertionType.POSITIVE, "Using Visual AI; Applitools Eyes");
+        Assertions.assertElementMatches(driver.get(), By.id("hplogo"), Assertions.VisualValidationEngine.EXACT_OPENCV, Assertions.AssertionType.POSITIVE, "Using Visual AI; OpenCV");
+        //Assertions.assertElementMatches(driver.get(), By.id("hplogo"), Assertions.VisualValidationEngine.STRICT_EYES, Assertions.AssertionType.POSITIVE, "Using Visual AI; Applitools Eyes");
     }
 
-    @Test
+    //@Test
     public void waitForElementToBePresent_true_expectedToPass2() {
         BrowserActions.navigateToURL(driver.get(), "https://www.google.com/ncr", "www.google.com");
         Assertions.assertElementMatches(driver.get(), By.xpath("//div[@class='RNNXgb']"), Assertions.VisualValidationEngine.STRICT_EYES, Assertions.AssertionType.POSITIVE, "NEW - Using Visual AI; Applitools Eyes");

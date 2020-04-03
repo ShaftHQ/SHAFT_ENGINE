@@ -19,15 +19,6 @@ public class Test_hover {
         ElementActions.click(driver, By.xpath("//a[contains(text(),'iPhones')]"));
     }
 
-    @Test(priority = 0, description = "TC001 - Test hover function.")
-    public void dragAndDrop2() {
-        BrowserActions.navigateToURL(driver, "https://incorta.com/"); // PASSED
-
-        ElementActions.hover(driver, By.xpath("//a[text()='About']"));
-        ElementActions.click(driver, By.xpath("//li[@role='menuitem']//a[text()='Team']"));
-    }
-
-
     @BeforeClass // Set-up method, to be run once before the first test
     public void beforeClass() {
         driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
