@@ -508,7 +508,7 @@ public class ElementActions {
 
     private static String confirmTypingWasSuccessful(WebDriver driver, By elementLocator, String expectedText,
                                                      TextDetectionStrategy successfulTextLocationStrategy) {
-        if (successfulTextLocationStrategy.equals(TextDetectionStrategy.UNDEFINED)){
+        if (successfulTextLocationStrategy.equals(TextDetectionStrategy.UNDEFINED)) {
             successfulTextLocationStrategy = determineSuccessfulTextLocationStrategy(driver,
                     elementLocator);
         }
@@ -1160,6 +1160,14 @@ public class ElementActions {
             // Override current locator with the aiGeneratedElementLocator
             elementLocator = updateLocatorWithAIGenratedOne(elementLocator);
 
+            //add forced check that the select element actually has options
+            try {
+                (new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER))
+                        .until(ExpectedConditions.not(ExpectedConditions.textToBe(elementLocator, "")));
+            } catch (Exception rootCauseException) {
+                ReportManager.log(rootCauseException);
+                failAction(driver, "waited for (" + DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT.getSeconds() + ") seconds", elementLocator, rootCauseException);
+            }
             Boolean isOptionFound = false;
             var availableOptionsList = (new Select(driver.findElement(elementLocator))).getOptions();
             for (int i = 0; i < availableOptionsList.size(); i++) {
