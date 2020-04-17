@@ -48,8 +48,12 @@
     <orderEntry type="library" name="Maven: org.slf4j:jul-to-slf4j:1.7.28" level="project" />
     <orderEntry type="library" name="Maven: org.slf4j:jcl-over-slf4j:1.7.28" level="project" />
     <orderEntry type="library" name="Maven: org.slf4j:log4j-over-slf4j:1.7.28" level="project" />
-    <orderEntry type="library" name="Maven: org.testng:testng:7.0.0" level="project" />
+    <orderEntry type="library" name="Maven: org.testng:testng:7.1.0" level="project" />
     <orderEntry type="library" name="Maven: com.beust:jcommander:1.72" level="project" />
+    <orderEntry type="library" name="Maven: com.google.inject:guice:no_aop:4.1.0" level="project" />
+    <orderEntry type="library" name="Maven: javax.inject:javax.inject:1" level="project" />
+    <orderEntry type="library" name="Maven: aopalliance:aopalliance:1.0" level="project" />
+    <orderEntry type="library" name="Maven: org.yaml:snakeyaml:1.21" level="project" />
     <orderEntry type="library" name="Maven: org.seleniumhq.selenium:selenium-java:3.141.59" level="project" />
     <orderEntry type="library" name="Maven: org.seleniumhq.selenium:selenium-api:3.141.59" level="project" />
     <orderEntry type="library" name="Maven: org.seleniumhq.selenium:selenium-chrome-driver:3.141.59" level="project" />
@@ -121,22 +125,22 @@
     <orderEntry type="library" name="Maven: org.apache.xmlbeans:xmlbeans:3.1.0" level="project" />
     <orderEntry type="library" name="Maven: org.apache.commons:commons-compress:1.19" level="project" />
     <orderEntry type="library" name="Maven: com.github.virtuald:curvesapi:1.06" level="project" />
-    <orderEntry type="library" name="Maven: io.qameta.allure:allure-testng:2.13.1" level="project" />
-    <orderEntry type="library" name="Maven: io.qameta.allure:allure-java-commons:2.13.1" level="project" />
-    <orderEntry type="library" name="Maven: io.qameta.allure:allure-model:2.13.1" level="project" />
+    <orderEntry type="library" name="Maven: io.qameta.allure:allure-testng:2.13.2" level="project" />
+    <orderEntry type="library" name="Maven: io.qameta.allure:allure-java-commons:2.13.2" level="project" />
+    <orderEntry type="library" name="Maven: io.qameta.allure:allure-model:2.13.2" level="project" />
     <orderEntry type="library" scope="RUNTIME" name="Maven: org.apache.tika:tika-core:1.20" level="project" />
     <orderEntry type="library" scope="RUNTIME" name="Maven: org.jooq:joor-java-8:0.9.10" level="project" />
     <orderEntry type="library" name="Maven: org.aspectj:aspectjweaver:1.9.5" level="project" />
-    <orderEntry type="library" name="Maven: io.rest-assured:rest-assured:4.2.0" level="project" />
-    <orderEntry type="library" name="Maven: org.codehaus.groovy:groovy:2.5.8" level="project" />
-    <orderEntry type="library" name="Maven: org.codehaus.groovy:groovy-xml:2.5.8" level="project" />
+    <orderEntry type="library" name="Maven: io.rest-assured:rest-assured:4.3.0" level="project" />
+    <orderEntry type="library" name="Maven: org.codehaus.groovy:groovy:3.0.2" level="project" />
+    <orderEntry type="library" name="Maven: org.codehaus.groovy:groovy-xml:3.0.2" level="project" />
     <orderEntry type="library" name="Maven: org.apache.httpcomponents:httpmime:4.5.3" level="project" />
     <orderEntry type="library" name="Maven: org.hamcrest:hamcrest:2.1" level="project" />
     <orderEntry type="library" name="Maven: org.ccil.cowan.tagsoup:tagsoup:1.2.1" level="project" />
-    <orderEntry type="library" name="Maven: io.rest-assured:json-path:4.2.0" level="project" />
-    <orderEntry type="library" name="Maven: org.codehaus.groovy:groovy-json:2.5.8" level="project" />
-    <orderEntry type="library" name="Maven: io.rest-assured:rest-assured-common:4.2.0" level="project" />
-    <orderEntry type="library" name="Maven: io.rest-assured:xml-path:4.2.0" level="project" />
+    <orderEntry type="library" name="Maven: io.rest-assured:json-path:4.3.0" level="project" />
+    <orderEntry type="library" name="Maven: org.codehaus.groovy:groovy-json:3.0.2" level="project" />
+    <orderEntry type="library" name="Maven: io.rest-assured:rest-assured-common:4.3.0" level="project" />
+    <orderEntry type="library" name="Maven: io.rest-assured:xml-path:4.3.0" level="project" />
     <orderEntry type="library" name="Maven: jakarta.xml.bind:jakarta.xml.bind-api:2.3.2" level="project" />
     <orderEntry type="library" name="Maven: jakarta.activation:jakarta.activation-api:1.2.1" level="project" />
     <orderEntry type="library" name="Maven: com.sun.xml.bind:jaxb-osgi:2.3.0.1" level="project" />
