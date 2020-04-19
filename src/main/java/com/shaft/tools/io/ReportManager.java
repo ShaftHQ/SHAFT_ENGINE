@@ -392,20 +392,20 @@ public class ReportManager {
         // extract allure from jar file to src/main/resources directory if it doesn't
         // already exist
         String allureVersion = System.getProperty(ALLURE_VERSION_PROPERTY_NAME);
-        allureExecutablePath = allureExtractionLocation + "allure-" + allureVersion + "/bin/allure";
-        if (!(new File(allureExecutablePath)).exists()) {
+        allureExecutablePath = allureExtractionLocation + "allure-" + allureVersion + File.separator + "bin" + File.separator + "allure";
+        if (!FileActions.doesFileExist(allureExecutablePath)) {
             FileActions.deleteFolder(allureExtractionLocation);
             // download allure binary
             URL allureArchive = FileActions.downloadFile(
                     "https://repo.maven.apache.org/maven2/io/qameta/allure/allure-commandline/" + allureVersion
                             + "/allure-commandline-" + allureVersion + ".zip",
-                    "target/allureBinary.zip");
+                    "target" + File.separator + "allureBinary.zip");
             FileActions.unpackArchive(allureArchive, allureExtractionLocation);
             // extract allure from SHAFT_Engine jar
             URL allureSHAFTConfigArchive = ReportManager.class
                     .getResource("/allure/allureBinary_SHAFTEngineConfigFiles.zip");
             FileActions.unpackArchive(allureSHAFTConfigArchive,
-                    allureExtractionLocation + "allure-" + allureVersion + "/");
+                    allureExtractionLocation + "allure-" + allureVersion + File.separator);
 
             if (!System.getProperty(TARGET_OS_PROPERTY_NAME).equals(OS_WINDOWS)) {
                 // make allure executable on unix-based shells
