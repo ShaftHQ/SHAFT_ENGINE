@@ -48,12 +48,8 @@
     <orderEntry type="library" name="Maven: org.slf4j:jul-to-slf4j:1.7.28" level="project" />
     <orderEntry type="library" name="Maven: org.slf4j:jcl-over-slf4j:1.7.28" level="project" />
     <orderEntry type="library" name="Maven: org.slf4j:log4j-over-slf4j:1.7.28" level="project" />
-    <orderEntry type="library" name="Maven: org.testng:testng:7.1.0" level="project" />
+    <orderEntry type="library" name="Maven: org.testng:testng:7.0.0" level="project" />
     <orderEntry type="library" name="Maven: com.beust:jcommander:1.72" level="project" />
-    <orderEntry type="library" name="Maven: com.google.inject:guice:no_aop:4.1.0" level="project" />
-    <orderEntry type="library" name="Maven: javax.inject:javax.inject:1" level="project" />
-    <orderEntry type="library" name="Maven: aopalliance:aopalliance:1.0" level="project" />
-    <orderEntry type="library" name="Maven: org.yaml:snakeyaml:1.21" level="project" />
     <orderEntry type="library" name="Maven: org.seleniumhq.selenium:selenium-java:3.141.59" level="project" />
     <orderEntry type="library" name="Maven: org.seleniumhq.selenium:selenium-api:3.141.59" level="project" />
     <orderEntry type="library" name="Maven: org.seleniumhq.selenium:selenium-chrome-driver:3.141.59" level="project" />
