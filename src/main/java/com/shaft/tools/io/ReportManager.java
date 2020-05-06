@@ -490,7 +490,7 @@ public class ReportManager {
      * @param logText the text that needs to be logged in this action
      */
     public static void log(String logText) {
-        if (isDiscreteLogging() && !logText.toLowerCase().contains("failed")) {
+        if (isDiscreteLogging() && !logText.toLowerCase().contains("failed") && isInternalStep()) {
             createLogEntry(logText);
         } else {
             writeStepToReport(logText, actionCounter);
@@ -498,8 +498,17 @@ public class ReportManager {
         }
     }
 
+    private static Boolean isInternalStep(){
+        String callingMethodName = (new Throwable()).getStackTrace()[2].toString();
+
+        if (callingMethodName.contains("com.shaft")){
+            return true;
+        }
+        return false;
+    }
+
     public static void log(String logText, List<List<Object>> attachments) {
-        if (isDiscreteLogging() && !logText.toLowerCase().contains("failed")) {
+        if (isDiscreteLogging() && !logText.toLowerCase().contains("failed") && isInternalStep()) {
             createLogEntry(logText);
             if (attachments != null) {
                 attachments.forEach(attachment -> {
