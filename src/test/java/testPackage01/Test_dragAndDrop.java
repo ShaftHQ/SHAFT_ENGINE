@@ -3,6 +3,7 @@ package testPackage01;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.ElementActions;
+import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Assertions;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -27,6 +28,7 @@ public class Test_dragAndDrop {
         // http://jqueryui.com/resources/demos/sortable/connect-lists.html
 
         // ElementActions.click(driver, dragTarget1Locator);
+        ReportManager.log("Custom Log");
         ElementActions.dragAndDrop(driver, dragTarget1Locator, dropDestinationLocator);
 
     }
