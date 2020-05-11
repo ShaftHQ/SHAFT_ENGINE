@@ -5,6 +5,7 @@
 - Continuous Integration Status - Install: ![Ubuntu - Install](https://github.com/MohabMohie/SHAFT_ENGINE/workflows/Ubuntu%20-%20Install/badge.svg)
 - Continuous Integration Status - Test: ![Ubuntu - Test](https://github.com/MohabMohie/SHAFT_ENGINE/workflows/Ubuntu%20-%20Test/badge.svg) 
 - Latest In-house release [ ![BinTray](https://api.bintray.com/packages/mohabmohie/SHAFT/SHAFT_Engine/images/download.svg) ](https://bintray.com/mohabmohie/SHAFT/SHAFT_Engine/_latestVersion)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/0e3ed8cf84b049c5a24ec88332496c5a)](https://app.codacy.com/manual/mohab.mohieeldeen/SHAFT_ENGINE?utm_source=github.com&utm_medium=referral&utm_content=MohabMohie/SHAFT_ENGINE&utm_campaign=Badge_Grade_Dashboard)
 - Latest Central Maven Repository release [![Maven Central](https://img.shields.io/maven-central/v/io.github.mohabmohie/SHAFT_ENGINE.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22io.github.mohabmohie%22%20AND%20a:%22SHAFT_ENGINE%22)
 - This project is for contributors who wish to add new features or fix issues with SHAFT_Engine. If you wish to use SHAFT_Engine, please refer to this GitHub project instead: https://github.com/MohabMohie/using_SHAFT_ENGINE/
 - Refer to the published javadocs for detailed information on the available functions/classes/packages https://mohabmohie.github.io/SHAFT_ENGINE/
