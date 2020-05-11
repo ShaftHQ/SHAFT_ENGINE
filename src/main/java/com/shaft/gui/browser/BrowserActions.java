@@ -454,7 +454,7 @@ public class BrowserActions {
             } catch (Exception rootCauseException) {
                 ReportManager.log(rootCauseException);
                 if (rootCauseException instanceof WebDriverException && rootCauseException.getMessage() != null
-                        && rootCauseException.getMessage().contains("was terminated due to TIMEOUT")) {
+                        && (rootCauseException.getMessage().contains("was terminated due to TIMEOUT") || rootCauseException.getMessage().contains("Session ID is null"))) {
                     passAction(null);
                 } else {
                     failAction(rootCauseException);
