@@ -65,7 +65,7 @@
         <testng.version>7.0.0</testng.version>
 
         <mysql-connector-java.version>5.1.6</mysql-connector-java.version>
-        <mssql-jdbc.version>7.2.2.jre8</mssql-jdbc.version>
+        <mssql-jdbc.version>8.3.0.jre14-preview</mssql-jdbc.version>
         <postgresql.version>9.1-901-1.jdbc4</postgresql.version>
         <!-- <ojdbc8.version>19.3.0.0</ojdbc8.version> -->
 
