@@ -7,12 +7,11 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Assertions;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class Test_SelectedValue {
     @Test
-    public void simpleSelect(){
+    public void simpleSelect() {
         WebDriver driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
         BrowserActions.navigateToURL(driver, "https://mdn.mozillademos.org/en-US/docs/Web/HTML/Element/select$samples/Basic_select?revision=1612304");
         By select = By.tagName("select");
@@ -23,7 +22,7 @@ public class Test_SelectedValue {
     }
 
     @Test
-    public void multipleSelect(){
+    public void multipleSelect() {
         WebDriver driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
         BrowserActions.navigateToURL(driver, "https://mdn.mozillademos.org/en-US/docs/Web/HTML/Element/select$samples/Advanced_select_with_multiple_features?revision=1612304");
         By select = By.tagName("select");

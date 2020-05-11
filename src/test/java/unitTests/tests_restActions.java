@@ -2,16 +2,10 @@ package unitTests;
 
 import com.shaft.api.RestActions;
 import com.shaft.api.RestActions.RequestType;
-import com.shaft.tools.support.JavaActions;
 import com.shaft.validation.Assertions;
 import com.shaft.validation.Assertions.AssertionComparisonType;
 import com.shaft.validation.Assertions.AssertionType;
-import com.shaft.validation.Verifications;
-import com.shaft.validation.Verifications.VerificationComparisonType;
-import com.shaft.validation.Verifications.VerificationType;
-import io.restassured.http.ContentType;
 import io.restassured.response.Response;
-import org.json.simple.JSONObject;
 import org.testng.annotations.Test;
 
 import java.util.List;
