@@ -1,5 +1,6 @@
 package testPackage01;
 
+import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.TouchActions.SwipeDirection;
@@ -7,6 +8,7 @@ import com.shaft.validation.Verifications;
 import com.shaft.validation.Verifications.VerificationType;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -29,5 +31,10 @@ public class Test_Appium2 {
     @BeforeClass
     public void setup() {
         driver = BrowserFactory.getBrowser();
+    }
+
+    @AfterClass
+    public void teardown(){
+        BrowserActions.closeCurrentWindow(driver);
     }
 }

@@ -7,6 +7,7 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Assertions;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -28,7 +29,7 @@ public class Test_dragAndDrop {
         // http://jqueryui.com/resources/demos/sortable/connect-lists.html
 
         // ElementActions.click(driver, dragTarget1Locator);
-        ReportManager.log("Custom Log");
+        ReportManager.log("Attempting Drag and Drop");
         ElementActions.dragAndDrop(driver, dragTarget1Locator, dropDestinationLocator);
 
     }
@@ -55,5 +56,11 @@ public class Test_dragAndDrop {
     @BeforeClass // Set-up method, to be run once before the first test
     public void beforeClass() {
         driver = BrowserFactory.getBrowser();
+    }
+
+    @AfterClass
+    public void afterClass(){
+        BrowserActions.closeCurrentWindow(driver);
+        //driver.quit();
     }
 }

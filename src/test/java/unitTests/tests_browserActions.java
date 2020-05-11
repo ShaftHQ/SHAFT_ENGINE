@@ -92,7 +92,7 @@ public class tests_browserActions {
     }
 
     @AfterMethod
-    public void AfterMethod() {
+    public void afterMethod() {
         BrowserActions.navigateToURL(driver.get(), "https://duckduckgo.com");
         BrowserActions.closeCurrentWindow(driver.get());
     }

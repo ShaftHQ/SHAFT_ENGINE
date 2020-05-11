@@ -409,11 +409,11 @@ public class ImageProcessingActions {
                 eyes.setMatchLevel(targetMatchLevel);
                 // Define the OS and hosting application to identify the baseline.
                 if (isMobileNativeExecution()) {
-                    eyes.setHostOS(System.getProperty("appium_platformName") + "_" + System.getProperty("appium_platformVersion"));
+                    eyes.setHostOS(System.getProperty("mobile_platformName") + "_" + System.getProperty("mobile_platformVersion"));
                     eyes.setHostApp("NativeMobileExecution");
                 } else if (isMobileWebExecution()) {
-                    eyes.setHostOS(System.getProperty("appium_platformName") + "_" + System.getProperty("appium_platformVersion"));
-                    eyes.setHostApp(System.getProperty("appium_browserName"));
+                    eyes.setHostOS(System.getProperty("mobile_platformName") + "_" + System.getProperty("mobile_platformVersion"));
+                    eyes.setHostApp(System.getProperty("mobile_browserName"));
                 } else {
                     eyes.setHostOS(System.getProperty("targetOperatingSystem"));
                     eyes.setHostApp(System.getProperty("targetBrowserName"));
