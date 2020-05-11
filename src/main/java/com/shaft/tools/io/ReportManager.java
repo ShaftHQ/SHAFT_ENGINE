@@ -446,7 +446,7 @@ public class ReportManager {
         Boolean discreteLoggingState = isDiscreteLogging();
         allureResultsFolderPath = System.getProperty("allureResultsFolderPath").trim();
         if (System.getProperty("executionAddress").trim().equals("local")
-                || !System.getProperty("appium_platformName").trim().equals("")) {
+                || (System.getProperty("mobile_platformName") != null && !System.getProperty("mobile_platformName").trim().equals(""))) {
             setDiscreteLogging(true);
             cleanAllureResultsDirectory();
             downloadAndExtractAllureBinaries();

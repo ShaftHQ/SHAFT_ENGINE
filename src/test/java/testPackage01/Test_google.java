@@ -1,10 +1,12 @@
 package testPackage01;
 
+import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.tools.io.ExcelFileManager;
 import org.openqa.selenium.PageLoadStrategy;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import poms.GoogleSearch;
@@ -66,5 +68,10 @@ public class Test_google {
         //driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
         driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME, new ChromeOptions().setPageLoadStrategy(PageLoadStrategy.EAGER).addArguments("--start-maximized").setHeadless(true));
         // BrowserActions.setWindowSize(driver, 3840, 2160);
+    }
+
+    @AfterClass
+    public void afterClass(){
+        BrowserActions.closeCurrentWindow(driver);
     }
 }

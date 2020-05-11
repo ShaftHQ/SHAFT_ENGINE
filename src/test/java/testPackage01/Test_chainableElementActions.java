@@ -7,6 +7,7 @@ import com.shaft.validation.Assertions;
 import com.shaft.validation.Verifications;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.Test;
 
 public class Test_chainableElementActions {
@@ -16,5 +17,6 @@ public class Test_chainableElementActions {
         BrowserActions.navigateToURL(driver, "https://jqueryui.com/droppable/");
         new ElementActions(driver).type(By.name("s"), "chained type 1").type(By.name("s"), "chained type 2");
         Assertions.assertElementAttribute(driver, By.name("s"), "text", "chained type 2");
+        BrowserActions.closeCurrentWindow(driver);
     }
 }

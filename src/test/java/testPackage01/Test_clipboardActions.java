@@ -1,7 +1,9 @@
 package testPackage01;
 
+import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.BrowserFactory;
 import org.openqa.selenium.WebDriver;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import poms.GoogleSearch;
@@ -33,5 +35,10 @@ public class Test_clipboardActions {
     @BeforeClass // Set-up method, to be run once before the first test
     public void beforeClass() {
         driver = BrowserFactory.getBrowser();
+    }
+
+    @AfterClass
+    public void afterClass(){
+        BrowserActions.closeCurrentWindow(driver);
     }
 }

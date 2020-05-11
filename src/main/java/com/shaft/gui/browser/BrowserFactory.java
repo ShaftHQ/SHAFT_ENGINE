@@ -133,7 +133,7 @@ public class BrowserFactory {
         BrowserType browserType = getBrowserTypeFromName(browserName);
 
         if (isMobileExecution()) {
-            targetOperatingSystem = System.getProperty("appium_platformName");
+            targetOperatingSystem = System.getProperty("mobile_platformName");
         }
 
         OperatingSystemType operatingSystem = getOperatingSystemFromName(targetOperatingSystem);
@@ -157,8 +157,8 @@ public class BrowserFactory {
                 }
                 break;
             case ANDROID:
-                if (browserType.equals(BrowserType.APPIUM_CHROME) || browserType.equals(BrowserType.APPIUM_CHROMIUM)
-                        || browserType.equals(BrowserType.APPIUM_BROWSER)) {
+                if (browserType.equals(BrowserType.MOBILE_CHROME) || browserType.equals(BrowserType.MOBILE_CHROMIUM)
+                        || browserType.equals(BrowserType.MOBILE_BROWSER)) {
                     isCompatibleBrowser = true;
                 }
                 break;
@@ -233,7 +233,7 @@ public class BrowserFactory {
                     ieOptions.setCapability(CapabilityType.LOGGING_PREFS, logPrefs);
                 }
                 break;
-            case APPIUM_CHROME:
+            case MOBILE_CHROME:
             case GOOGLE_CHROME:
                 if (customBrowserOptions != null) {
                     chOptions = (ChromeOptions) customBrowserOptions;
@@ -381,7 +381,7 @@ public class BrowserFactory {
 
         if (isMobileNativeExecution()) {
             targetOperatingSystem = TARGET_PLATFORM_NAME;
-            browserType = BrowserType.APPIUM_NATIVE;
+            browserType = BrowserType.MOBILE_NATIVE;
         } else {
             browserType = getBrowserTypeFromName(browserName);
         }
@@ -425,7 +425,7 @@ public class BrowserFactory {
                         driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
                     }
                     break;
-                case APPIUM_CHROME:
+                case MOBILE_CHROME:
                     ReportManager.log(WEBDRIVERMANAGER_MESSAGE);
                     WebDriverManager.chromedriver().version(System.getProperty("MobileBrowserVersion")).setup();
                     mobileDesiredCapabilities.setCapability("chromedriverExecutable",
@@ -433,17 +433,17 @@ public class BrowserFactory {
                     mobileDesiredCapabilities.setCapability("appium:chromeOptions", ImmutableMap.of("w3c", false));
                     driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
                     break;
-                case APPIUM_CHROMIUM:
+                case MOBILE_CHROMIUM:
                     WebDriverManager.chromedriver().version(System.getProperty("MobileBrowserVersion")).setup();
                     mobileDesiredCapabilities.setCapability("chromedriverExecutable",
                             WebDriverManager.chromedriver().getBinaryPath());
                     driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
                     break;
-                case APPIUM_BROWSER:
+                case MOBILE_BROWSER:
                     driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
                     // will break in case of firefoxOS
                     break;
-                case APPIUM_NATIVE:
+                case MOBILE_NATIVE:
                     driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
                     break;
                 default:
@@ -534,7 +534,7 @@ public class BrowserFactory {
         Map<String, String> caps = PropertiesFileManager.getAppiumDesiredCapabilities();
         caps.forEach((capabilityName, value) -> {
             if (!value.trim().equals("")) {
-                desiredCapabilities.setCapability(capabilityName.split("appium_")[1], value);
+                desiredCapabilities.setCapability(capabilityName.split("mobile_")[1], value);
             }
         });
         return desiredCapabilities;
@@ -608,7 +608,7 @@ public class BrowserFactory {
         }
 
         if (isMobileWebExecution()) {
-            browserName = System.getProperty("appium_browserName");
+            browserName = System.getProperty("mobile_browserName");
         }
         try {
             if (!isMobileNativeExecution()) {
@@ -694,8 +694,8 @@ public class BrowserFactory {
         TARGET_BROWSER_NAME = System.getProperty("targetBrowserName");
         // Default | MozillaFirefox | MicrosoftInternetExplorer | GoogleChrome |
         // MicrosoftEdge | Safari
-        TARGET_PLATFORM_NAME = System.getProperty("appium_platformName");
-        TARGET_PLATFORM_BROWSER_NAME = System.getProperty("appium_browserName");
+        TARGET_PLATFORM_NAME = System.getProperty("mobile_platformName");
+        TARGET_PLATFORM_BROWSER_NAME = System.getProperty("mobile_browserName");
         WEBDRIVERMANAGER_MESSAGE = "Identifying OS/Browser combination and selecting the correct driver version automatically. Please note that if a new driver executable will be downloaded it may take some time...";
         PAGE_LOAD_TIMEOUT = Integer.parseInt(System.getProperty("pageLoadTimeout"));
         SCRIPT_TIMEOUT = Integer.parseInt(System.getProperty("scriptExecutionTimeout"));
@@ -764,8 +764,8 @@ public class BrowserFactory {
     // supported browser types
     public enum BrowserType {
         MOZILLA_FIREFOX("MozillaFirefox"), GOOGLE_CHROME("GoogleChrome"), APPLE_SAFARI("Safari"),
-        MICROSOFT_IE("MicrosoftInternetExplorer"), MICROSOFT_EDGE("MicrosoftEdge"), APPIUM_CHROME("Chrome"),
-        APPIUM_CHROMIUM("Chromium"), APPIUM_BROWSER("Browser"), APPIUM_NATIVE("");
+        MICROSOFT_IE("MicrosoftInternetExplorer"), MICROSOFT_EDGE("MicrosoftEdge"), MOBILE_CHROME("Chrome"),
+        MOBILE_CHROMIUM("Chromium"), MOBILE_BROWSER("Browser"), MOBILE_NATIVE("");
 
         private final String value;
 
