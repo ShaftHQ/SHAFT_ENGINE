@@ -19,6 +19,7 @@ public class Test_SelectedValue {
         ElementActions.select(driver, select, "Third Value");
         ReportManager.log(ElementActions.getSelectedText(driver, select));
         Assertions.assertElementAttribute(driver, select, "selectedText", "Third Value");
+        BrowserActions.closeCurrentWindow(driver);
     }
 
     @Test
@@ -30,5 +31,6 @@ public class Test_SelectedValue {
         ElementActions.select(driver, select, "Cat");
         ReportManager.log(ElementActions.getSelectedText(driver, select));
         Assertions.assertElementAttribute(driver, select, "selectedText", "DogCat");
+        BrowserActions.closeCurrentWindow(driver);
     }
 }
