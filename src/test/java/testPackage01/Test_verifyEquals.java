@@ -6,6 +6,7 @@ import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Verifications;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -45,5 +46,10 @@ public class Test_verifyEquals {
     @BeforeClass // Set-up method, to be run once before the first test
     public void beforeClass() {
         driver = BrowserFactory.getBrowser();
+    }
+
+    @AfterClass
+    public void afterClass(){
+        BrowserActions.closeCurrentWindow(driver);
     }
 }

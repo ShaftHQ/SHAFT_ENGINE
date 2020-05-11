@@ -102,7 +102,7 @@ public class PropertiesFileManager {
 
         Properties props = System.getProperties();
         props.forEach((key, value) -> {
-            if (String.valueOf(key).toLowerCase().contains("appium_")) {
+            if (String.valueOf(key).toLowerCase().contains("mobile_")) {
                 appiumDesiredCapabilities.put(String.valueOf(key), String.valueOf(value));
             }
         });

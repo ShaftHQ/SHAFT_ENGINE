@@ -16,5 +16,6 @@ public class Test_chainableElementActions {
         BrowserActions.navigateToURL(driver, "https://jqueryui.com/droppable/");
         new ElementActions(driver).type(By.name("s"), "chained type 1").type(By.name("s"), "chained type 2");
         Assertions.assertElementAttribute(driver, By.name("s"), "text", "chained type 2");
+        BrowserActions.closeCurrentWindow(driver);
     }
 }

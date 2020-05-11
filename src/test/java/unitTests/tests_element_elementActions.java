@@ -73,7 +73,7 @@ public class tests_element_elementActions {
     }
 
     @AfterMethod
-    public void AfterMethod() {
+    public void afterMethod() {
         BrowserActions.closeCurrentWindow(driver.get());
     }
 }
