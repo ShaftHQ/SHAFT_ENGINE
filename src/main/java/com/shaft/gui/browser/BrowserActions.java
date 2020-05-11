@@ -443,21 +443,26 @@ public class BrowserActions {
      * @param driver the current instance of Selenium webdriver
      */
     public static synchronized void closeCurrentWindow(WebDriver driver) {
-        JavaScriptWaitManager.waitForLazyLoading();
-        try {
-            String lastPageSource = null;
-            // TODO: handle session timeout while attempting to close empty window
-            lastPageSource = driver.getPageSource();
-            BrowserFactory.closeDriver(driver.hashCode());
-            passAction(lastPageSource);
-        } catch (Exception rootCauseException) {
-            ReportManager.log(rootCauseException);
-            if (rootCauseException instanceof WebDriverException && rootCauseException.getMessage() != null
-                    && rootCauseException.getMessage().contains("was terminated due to TIMEOUT")) {
-                passAction(null);
-            } else {
-                failAction(rootCauseException);
+        if (driver != null) {
+            JavaScriptWaitManager.waitForLazyLoading();
+            try {
+                String lastPageSource = null;
+                // TODO: handle session timeout while attempting to close empty window
+                lastPageSource = driver.getPageSource();
+                BrowserFactory.closeDriver(driver.hashCode());
+                passAction(lastPageSource);
+            } catch (Exception rootCauseException) {
+                ReportManager.log(rootCauseException);
+                if (rootCauseException instanceof WebDriverException && rootCauseException.getMessage() != null
+                        && rootCauseException.getMessage().contains("was terminated due to TIMEOUT")) {
+                    passAction(null);
+                } else {
+                    failAction(rootCauseException);
+                }
             }
+        } else {
+            ReportManager.logDiscrete("Window is already closed and driver object is null.");
+            passAction(null);
         }
     }
 
