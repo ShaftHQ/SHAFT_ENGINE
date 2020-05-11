@@ -7,7 +7,6 @@ import com.shaft.validation.Assertions;
 import com.shaft.validation.Verifications;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
-import org.testng.annotations.AfterClass;
 import org.testng.annotations.Test;
 
 public class Test_chainableElementActions {
