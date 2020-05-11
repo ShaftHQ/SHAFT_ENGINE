@@ -8,7 +8,6 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
 import poms.GoogleSearch;
 import poms.GoogleSearchResults;
 
@@ -71,7 +70,7 @@ public class Test_google {
     }
 
     @AfterClass
-    public void afterClass(){
+    public void afterClass() {
         BrowserActions.closeCurrentWindow(driver);
     }
 }

@@ -450,7 +450,7 @@ public class tests_validations_assertions {
     }
 
     @AfterMethod
-    public void afterMethod(){
+    public void afterMethod() {
         BrowserActions.closeCurrentWindow(driver);
     }
 }

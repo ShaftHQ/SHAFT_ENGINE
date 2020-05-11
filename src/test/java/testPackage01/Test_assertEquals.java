@@ -53,7 +53,7 @@ public class Test_assertEquals {
     }
 
     @AfterClass
-    public void afterClass(){
+    public void afterClass() {
         BrowserActions.closeCurrentWindow(driver);
     }
 }

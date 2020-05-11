@@ -498,10 +498,10 @@ public class ReportManager {
         }
     }
 
-    private static Boolean isInternalStep(){
+    private static Boolean isInternalStep() {
         String callingMethodName = (new Throwable()).getStackTrace()[2].toString();
 
-        if (callingMethodName.contains("com.shaft")){
+        if (callingMethodName.contains("com.shaft")) {
             return true;
         }
         return false;
