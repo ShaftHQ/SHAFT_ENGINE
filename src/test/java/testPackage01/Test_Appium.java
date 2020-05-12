@@ -16,14 +16,13 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 public class Test_Appium {
-    private WebDriver driver;
-
     private final By applicationLogo = By.xpath("//android.widget.ImageView");
     private final By applicationText = By.xpath("//android.widget.TextView");
     private final By email = By.id("textInputEditTextEmail");
     private final By password = By.id("textInputEditTextPassword");
     private final By loginButton = By.id("appCompatButtonLogin");
     private final By popup = By.id("snackbar_text");
+    private WebDriver driver;
 
     @Test
     public void verifyLandingPageContent() {
@@ -50,7 +49,7 @@ public class Test_Appium {
     }
 
     @AfterClass
-    public void teardown(){
+    public void teardown() {
         BrowserActions.closeCurrentWindow(driver);
     }
 }
