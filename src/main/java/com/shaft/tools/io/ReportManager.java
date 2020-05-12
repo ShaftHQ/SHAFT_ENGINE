@@ -567,6 +567,10 @@ public class ReportManager {
         createLogEntry(logText);
     }
 
+    public static void logDiscrete(Throwable t) {
+        createLogEntry(formatStackTraceToLogEntry(t));
+    }
+
     /**
      * Adds a new attachment using the input parameters provided. The attachment is
      * displayed as a step in the execution report. Used for Screenshots.
