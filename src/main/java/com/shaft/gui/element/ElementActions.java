@@ -32,26 +32,31 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class ElementActions {
-    private static final Duration DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT = Duration
-            .ofSeconds(Integer.parseInt(System.getProperty("defaultElementIdentificationTimeout").trim()));
     private static final int DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER = Integer
             .parseInt(System.getProperty("defaultElementIdentificationTimeout").trim());
-    private static final int attemptsBeforeThrowingElementNotFoundException = Integer
+    private static final Duration DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT = Duration
+            .ofSeconds(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
+    private static final int ATTEMPTS_BEFORE_THROWING_ELEMENTNOTFOUNDEXCEPTION = Integer
             .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
-    private static final int elementIdentificationPollingDelay = 1; // seconds
-    private static final boolean forceCheckForElementVisibility = Boolean
+    private static final int ELEMENT_IDENTIFICATION_POLLING_DELAY = 1; // seconds
+    private static final boolean FORCE_CHECK_FOR_ELEMENT_VISIBILITY = Boolean
             .parseBoolean(System.getProperty("forceCheckForElementVisibility").trim());
-    private static final String aiReferenceFileName = "aiAidedElementIdentificationReferenceDB.properties";
+    private static final String AI_REFERENCE_FILE_NAME = "aiAidedElementIdentificationReferenceDB.properties";
+    private static final String OBFUSCATED_STRING = "•";
     // this will only be used for switching back to default content
-    static WebDriver lastUsedDriver = null;
+    private static WebDriver lastUsedDriver = null;
     private static By aiGeneratedElementLocator = null;
 
     public ElementActions(WebDriver driver) {
+        setLastUsedDriver(driver);
+    }
+
+    private static void setLastUsedDriver(WebDriver driver) {
         lastUsedDriver = driver;
     }
 
     public static String getAiReferenceFileName() {
-        return aiReferenceFileName;
+        return AI_REFERENCE_FILE_NAME;
     }
 
     public static By getAiGeneratedElementLocator() {
@@ -181,7 +186,7 @@ public class ElementActions {
         } else {
             return ScreenshotManager.captureScreenShot(driver, actionName, false);
         }
-        lastUsedDriver = driver;
+        setLastUsedDriver(driver);
         return new ArrayList<>();
     }
 
@@ -215,14 +220,14 @@ public class ElementActions {
                 String newXpath = suggestNewXpath(driver, targetElement, elementLocator);
                 System.setProperty(hashedLocatorName, newXpath);
 
-                if (FileActions.doesFileExist(aiFolderPath, aiReferenceFileName, 1)) {
+                if (FileActions.doesFileExist(aiFolderPath, AI_REFERENCE_FILE_NAME, 1)) {
                     // append to current file content if the file already exists
-                    FileActions.writeToFile(aiFolderPath, aiReferenceFileName,
-                            FileActions.readFromFile(aiFolderPath, aiReferenceFileName) + System.lineSeparator()
+                    FileActions.writeToFile(aiFolderPath, AI_REFERENCE_FILE_NAME,
+                            FileActions.readFromFile(aiFolderPath, AI_REFERENCE_FILE_NAME) + System.lineSeparator()
                                     + hashedLocatorName + "=" + newXpath);
                 } else {
                     // writing for the first time
-                    FileActions.writeToFile(aiFolderPath, aiReferenceFileName, hashedLocatorName + "=" + newXpath);
+                    FileActions.writeToFile(aiFolderPath, AI_REFERENCE_FILE_NAME, hashedLocatorName + "=" + newXpath);
                 }
                 setAiGeneratedXpath(newXpath);
                 return true;
@@ -312,7 +317,7 @@ public class ElementActions {
     }
 
     static boolean identifyUniqueElement(WebDriver driver, By elementLocator) {
-        return identifyUniqueElement(driver, elementLocator, attemptsBeforeThrowingElementNotFoundException, true);
+        return identifyUniqueElement(driver, elementLocator, ATTEMPTS_BEFORE_THROWING_ELEMENTNOTFOUNDEXCEPTION, true);
     }
 
     static By updateLocatorWithAIGenratedOne(By elementLocator) {
@@ -345,6 +350,7 @@ public class ElementActions {
                         } catch (org.openqa.selenium.UnsupportedCommandException getElementLocationOnceScrolledIntoView) {
                             // appium -> do nothing
                             // TODO: scroll to elemnt using touchActions
+                            ReportManager.logDiscrete(getElementLocationOnceScrolledIntoView);
                         }
 
                         // check for visibility
@@ -365,7 +371,7 @@ public class ElementActions {
     }
 
     private static void checkForElementVisibility(WebDriver driver, By elementLocator) {
-        if (forceCheckForElementVisibility) {
+        if (FORCE_CHECK_FOR_ELEMENT_VISIBILITY) {
             try {
                 (new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER))
                         .until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
@@ -426,13 +432,13 @@ public class ElementActions {
         try {
             new FluentWait<WebDriver>(driver)
                     .withTimeout(Duration.ofSeconds(
-                            (long) Integer.parseInt(System.getProperty("defaultElementIdentificationTimeout"))
-                                    * numberOfAttempts))
-                    .pollingEvery(Duration.ofSeconds(elementIdentificationPollingDelay))
+                            (long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER * numberOfAttempts))
+                    .pollingEvery(Duration.ofSeconds(ELEMENT_IDENTIFICATION_POLLING_DELAY))
                     .ignoring(NoSuchElementException.class).until(nestedDriver -> driver.findElement(elementLocator));
             return driver.findElements(elementLocator).size();
         } catch (TimeoutException e) {
             // In case the element was not found and the timeout expired
+            ReportManager.logDiscrete(e);
             return 0;
         }
     }
@@ -495,7 +501,7 @@ public class ElementActions {
             if (!targetText.equals("")) {
                 performType(driver, elementLocator, targetText);
             }
-            if (Boolean.valueOf(System.getProperty("forceCheckTextWasTypedCorrectly"))) {
+            if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckTextWasTypedCorrectly")))) {
                 return confirmTypingWasSuccessful(driver, elementLocator, targetText, successfulTextLocationStrategy);
             } else {
                 return targetText;
@@ -514,7 +520,8 @@ public class ElementActions {
         }
         String actualText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator,
                 successfulTextLocationStrategy);
-        if (expectedText.equals(actualText) || expectedText.replaceAll(".", "•").equals(actualText)) {
+
+        if (expectedText.equals(actualText) || OBFUSCATED_STRING.repeat(expectedText.length()).equals(actualText)) {
             return expectedText;
         } else {
             // attempt once to type using javascript then confirm typing was successful
@@ -556,7 +563,7 @@ public class ElementActions {
                 }
 
             }
-        } catch (org.openqa.selenium.InvalidElementStateException e) {
+        } catch (InvalidElementStateException e) {
             // this was seen in case of attempting to type in an invalid element (an image)
             ReportManager.log(e);
         }
@@ -564,19 +571,19 @@ public class ElementActions {
 
     private static void performType(WebDriver driver, By elementLocator, String text) {
         // implementing loop to try and break out of the stale element exception issue
-        for (int i = 0; i < attemptsBeforeThrowingElementNotFoundException; i++) {
+        for (int i = 0; i < ATTEMPTS_BEFORE_THROWING_ELEMENTNOTFOUNDEXCEPTION; i++) {
             try {
                 // attempt to perform action
                 driver.findElement(elementLocator).sendKeys(text);
                 break;
             } catch (StaleElementReferenceException | ElementNotInteractableException | UnreachableBrowserException
                     | NoSuchElementException | TimeoutException e) {
-                if (i + 1 == attemptsBeforeThrowingElementNotFoundException) {
+                if (i + 1 == ATTEMPTS_BEFORE_THROWING_ELEMENTNOTFOUNDEXCEPTION) {
                     ReportManager.log(e);
                 }
             } catch (Exception e) {
                 if (e.getMessage().contains("cannot focus element")
-                        && (i + 1 == attemptsBeforeThrowingElementNotFoundException)) {
+                        && (i + 1 == ATTEMPTS_BEFORE_THROWING_ELEMENTNOTFOUNDEXCEPTION)) {
                     ReportManager.log(e);
                 } else {
                     ReportManager.log(e);
@@ -675,23 +682,29 @@ public class ElementActions {
     }
 
     private static void performHover(WebDriver driver, By elementLocator) {
-        String createMouseEvent = "var evObj = document.createEvent('MouseEvents');";
-        String dispatchMouseEvent = "arguments[arguments.length -1].dispatchEvent(evObj);";
+        try {
+            String createMouseEvent = "var evObj = document.createEvent('MouseEvents');";
+            String dispatchMouseEvent = "arguments[arguments.length -1].dispatchEvent(evObj);";
 
-        String mouseEventFirstHalf = "evObj.initMouseEvent(\"";
-        String mouseEventSecondHalf = "\", true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);";
+            String mouseEventFirstHalf = "evObj.initMouseEvent(\"";
+            String mouseEventSecondHalf = "\", true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);";
 
-        String javaScript = createMouseEvent + mouseEventFirstHalf + "mousemove" + mouseEventSecondHalf
-                + dispatchMouseEvent;
-        ((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
+            String javaScript = createMouseEvent + mouseEventFirstHalf + "mousemove" + mouseEventSecondHalf
+                    + dispatchMouseEvent;
+            ((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
 
-        javaScript = createMouseEvent + mouseEventFirstHalf + "mouseenter" + mouseEventSecondHalf + dispatchMouseEvent;
-        ((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
+            javaScript = createMouseEvent + mouseEventFirstHalf + "mouseenter" + mouseEventSecondHalf + dispatchMouseEvent;
+            ((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
 
-        javaScript = createMouseEvent + mouseEventFirstHalf + "mouseover" + mouseEventSecondHalf + dispatchMouseEvent;
-        ((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
+            javaScript = createMouseEvent + mouseEventFirstHalf + "mouseover" + mouseEventSecondHalf + dispatchMouseEvent;
+            ((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
 
-        (new Actions(driver)).moveToElement(driver.findElement(elementLocator)).perform();
+            (new Actions(driver)).moveToElement(driver.findElement(elementLocator)).perform();
+        } catch (UnsupportedCommandException methodIsNotImplemented) {
+            // appium -> do nothing
+            ReportManager.log(methodIsNotImplemented);
+
+        }
     }
 
     /**
@@ -704,7 +717,7 @@ public class ElementActions {
      * desired elementLocator
      */
     public static int getElementsCount(WebDriver driver, By elementLocator) {
-        return getMatchingElementsCount(driver, elementLocator, attemptsBeforeThrowingElementNotFoundException);
+        return getMatchingElementsCount(driver, elementLocator, ATTEMPTS_BEFORE_THROWING_ELEMENTNOTFOUNDEXCEPTION);
     }
 
     /**
@@ -911,9 +924,12 @@ public class ElementActions {
             elementLocator = ElementActions.updateLocatorWithAIGenratedOne(elementLocator);
             String elementText = "";
             try {
-                elementText = driver.findElement(elementLocator).getText();
+                // attempting to read element text
+                elementText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator,
+                        determineSuccessfulTextLocationStrategy(driver, elementLocator));
             } catch (Exception e) {
                 // do nothing
+                ReportManager.logDiscrete(e);
             }
             List<Object> screenshot = ElementActions.takeScreenshot(driver, elementLocator, "doubleClick", null, true);
             // takes screenshot before clicking the element out of view
@@ -946,26 +962,17 @@ public class ElementActions {
         if (identifyUniqueElement(driver, elementLocator)) {
             // Override current locator with the aiGeneratedElementLocator
             elementLocator = updateLocatorWithAIGenratedOne(elementLocator);
+
             String elementText = "";
             try {
-                elementText = driver.findElement(elementLocator).getText();
-            } catch (Exception e) {
-                // do nothing
-            }
-
-            // adding hover before clicking an element to enable styles to show in the
-            // execution screenshots and to solve issues clicking on certain elements.
-            try {
+                // attempting to read element text
+                elementText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator,
+                        determineSuccessfulTextLocationStrategy(driver, elementLocator));
+                // adding hover before clicking an element to enable styles to show in the
+                // execution screenshots and to solve issues clicking on certain elements.
                 performHover(driver, elementLocator);
-            } catch (org.openqa.selenium.UnsupportedCommandException methodIsNotImplemented) {
-                // appium -> do nothing
-
             } catch (Exception e) {
-                if (!(e.getMessage().contains("Unable to locate element")
-                        || e.getMessage().contains("no such element"))) {
-                    ReportManager.log(e);
-                }
-                // else ignore this issue
+                ReportManager.logDiscrete(e);
             }
 
             List<Object> screenshot = takeScreenshot(driver, elementLocator, "click", null, true);
@@ -975,7 +982,7 @@ public class ElementActions {
                 (new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER))
                         .until(ExpectedConditions.elementToBeClickable(elementLocator));
             } catch (TimeoutException e) {
-                // Do nothing
+                ReportManager.logDiscrete(e);
             }
 
             try {
@@ -1070,11 +1077,11 @@ public class ElementActions {
         String actualResult = typeWrapper(driver, elementLocator, text);
 
         if (actualResult != null && actualResult.equals(text)) {
-            passAction(driver, elementLocator, text.replaceAll(".", "•"));
+            passAction(driver, elementLocator, OBFUSCATED_STRING.repeat(text.length()));
         } else if (actualResult == null) {
             failAction(driver, elementLocator);
         } else {
-            failAction(driver, "Expected to type: \"" + text.replaceAll(".", "•") + "\", but ended up with: \""
+            failAction(driver, "Expected to type: \"" + text + "\", but ended up with: \""
                     + actualResult + "\"", elementLocator);
         }
 
@@ -1113,10 +1120,11 @@ public class ElementActions {
                 try {
                     ((JavascriptExecutor) driver).executeScript("arguments[0].setAttribute('style', 'display:none');",
                             driver.findElement(elementLocator));
-                } catch (NoSuchElementException | StaleElementReferenceException e2) {
+                } catch (NoSuchElementException | StaleElementReferenceException e) {
                     // this exception is sometimes thrown on firefox after the upload has been
                     // successful, since we don't have to return the style to what it was, then it's
                     // okay to do nothing here.
+                    ReportManager.logDiscrete(e);
                 }
             }
         } else {
@@ -1695,13 +1703,12 @@ public class ElementActions {
             foundElementsCount = getMatchingElementsCount(driver, elementLocator, 1);
             isElementFound = foundElementsCount >= 1;
             i++;
-        } while (i < numberOfTries && stateOfPresence != isElementFound);
+        } while (i < numberOfTries && Boolean.compare(stateOfPresence, isElementFound) != 0);
 
         String reportMessage = "waited up to (" + DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT.getSeconds() * numberOfTries
                 + ") seconds, for the element's state of presence to be (" + stateOfPresence
                 + "). Element locator (" + elementLocator.toString() + ")";
-
-        if (stateOfPresence == isElementFound) {
+        if (Boolean.compare(stateOfPresence, isElementFound) == 0) {
             passAction(driver, elementLocator, reportMessage);
         } else {
             failAction(driver, reportMessage, elementLocator);
@@ -1718,7 +1725,7 @@ public class ElementActions {
      * element is not displayed
      */
     public static boolean isElementDisplayed(WebDriver driver, By elementLocator) {
-        if (identifyUniqueElement(driver, elementLocator, attemptsBeforeThrowingElementNotFoundException, false)) {
+        if (identifyUniqueElement(driver, elementLocator, ATTEMPTS_BEFORE_THROWING_ELEMENTNOTFOUNDEXCEPTION, false)) {
             // Override current locator with the aiGeneratedElementLocator
             elementLocator = updateLocatorWithAIGenratedOne(elementLocator);
 
@@ -1800,7 +1807,7 @@ public class ElementActions {
      *                       element
      */
     public static void setValueUsingJavaScript(WebDriver driver, By elementLocator, String value) {
-        if (identifyUniqueElement(driver, elementLocator, attemptsBeforeThrowingElementNotFoundException, false)) {
+        if (identifyUniqueElement(driver, elementLocator, ATTEMPTS_BEFORE_THROWING_ELEMENTNOTFOUNDEXCEPTION, false)) {
             // Override current locator with the aiGeneratedElementLocator
             elementLocator = updateLocatorWithAIGenratedOne(elementLocator);
 
@@ -1824,7 +1831,7 @@ public class ElementActions {
      *                       selector, name ...etc)
      */
     public static void submitFormUsingJavaScript(WebDriver driver, By elementLocator) {
-        if (identifyUniqueElement(driver, elementLocator, attemptsBeforeThrowingElementNotFoundException, false)) {
+        if (identifyUniqueElement(driver, elementLocator, ATTEMPTS_BEFORE_THROWING_ELEMENTNOTFOUNDEXCEPTION, false)) {
             // Override current locator with the aiGeneratedElementLocator
             elementLocator = updateLocatorWithAIGenratedOne(elementLocator);
 

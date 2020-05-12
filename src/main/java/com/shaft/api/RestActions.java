@@ -6,7 +6,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.shaft.tools.io.PropertiesFileManager;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.support.JavaActions;
 import com.shaft.validation.Assertions;
 import eu.medsea.mimeutil.MimeUtil;
 import eu.medsea.mimeutil.MimeUtil2;
@@ -1028,75 +1027,6 @@ public class RestActions {
     }
 
     /**
-     * @param requestType      POST/PATCH/GET/DELETE
-     * @param targetStatusCode default success code is 200
-     * @param serviceName      /servicePATH/serviceNAME
-     * @param urlArguments     '&amp;' separated arguments without a preceding '?',
-     *                         is nullable, Example:
-     *                         "username=test&amp;password=test"
-     * @param parameters       a list of key/value pairs that will be sent as
-     *                         parameters with this API call, is nullable, Example:
-     *                         Arrays.asList(Arrays.asList("itemId", "123"),
-     *                         Arrays.asList("contents", XMLcontents));
-     * @param requestBody      Specify an Object request content that will
-     *                         automatically be serialized to JSON or XML and sent
-     *                         with the request. If the object is a primitive or
-     *                         Number the object will be converted to a String and
-     *                         put in the request body. This works for the POST, PUT
-     *                         and PATCH methods only. Trying to do this for the
-     *                         other http methods will cause an exception to be
-     *                         thrown, is nullable in case there is no body for that
-     *                         request
-     * @param contentType      Enumeration of common IANA content-types. This may be
-     *                         used to specify a request or response content-type
-     *                         more easily than specifying the full string each
-     *                         time. Example: ContentType.ANY
-     * @param credentials      an optional array of strings that holds the username,
-     *                         password that will be used for the
-     *                         headerAuthorization of this request
-     * @return Response; returns the full response object for further manipulation
-     * @deprecated Attempts to perform POST/PATCH/GET/DELETE request to a REST API,
-     * then checks the response status code, if it matches the target
-     * code the step is passed and the response is returned. Otherwise
-     * the action fails and NULL is returned.
-     *
-     * <p>
-     * This method will be removed soon.
-     */
-    @Deprecated
-    public Response performRequest(String requestType, String targetStatusCode, String serviceName, String urlArguments,
-                                   List<List<Object>> parameters, Object requestBody, ContentType contentType, String... credentials) {
-        RequestType requestTypeEnum = null;
-        if (RequestType.GET.toString().equalsIgnoreCase(requestType.trim())) {
-            requestTypeEnum = RequestType.GET;
-        } else if (RequestType.POST.toString().equalsIgnoreCase(requestType.trim())) {
-            requestTypeEnum = RequestType.POST;
-        } else if (RequestType.PATCH.toString().equalsIgnoreCase(requestType.trim())) {
-            requestTypeEnum = RequestType.PATCH;
-        } else if (RequestType.DELETE.toString().equalsIgnoreCase(requestType.trim())) {
-            requestTypeEnum = RequestType.DELETE;
-        } else if (RequestType.PUT.toString().equalsIgnoreCase(requestType.trim())) {
-            requestTypeEnum = RequestType.PUT;
-        } else {
-            failAction("Invalid Request Type: \"" + requestType + "\".");
-        }
-
-        try {
-            Integer.valueOf(targetStatusCode);
-        } catch (Exception e) {
-            failAction("Invalid Target Status Code: \"" + targetStatusCode + "\".", e);
-        }
-
-        if (headerAuthorization.equals("") && credentials.length == 2) {
-            headerAuthorization = "Basic " + JavaActions.convertBase64(credentials[0] + ":" + credentials[1]);
-            addHeaderVariable("Authorization", headerAuthorization);
-        }
-
-        return performRequest(new Object[]{requestTypeEnum, Integer.valueOf(targetStatusCode), serviceName,
-                urlArguments, parameters, ParametersType.FORM, requestBody, contentType});
-    }
-
-    /**
      * Append a header variable to the current session to be used in all the
      * following requests. Note: This feature is commonly used for authentication
      * tokens.
@@ -1110,29 +1040,92 @@ public class RestActions {
         return this;
     }
 
+    /**
+     * Attempts to perform a request to a REST API, then checks the response status code, if it matches the target code the step is passed and the response is returned. Otherwise the action fails.
+     *
+     * @param requestType      POST, GET, PATCH, DELETE, PUT
+     * @param targetStatusCode default success code is 200
+     * @param serviceName      /servicePATH/serviceNAME
+     * @return Response; returns the full response object for further manipulation
+     */
     public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName) {
         return performRequest(
                 new Object[]{requestType, targetStatusCode, serviceName, null, null, null, null, ContentType.ANY});
     }
 
+    /**
+     * Attempts to perform a request to a REST API, then checks the response status code, if it matches the target code the step is passed and the response is returned. Otherwise the action fails.
+     *
+     * @param requestType      POST, GET, PATCH, DELETE, PUT
+     * @param targetStatusCode default success code is 200
+     * @param serviceName      /servicePATH/serviceNAME
+     * @param urlArguments     '&amp;' separated arguments without a preceding '?',
+     *                         is nullable, Example:
+     *                         "username=test&amp;password=test"
+     * @return Response; returns the full response object for further manipulation
+     */
     public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName,
                                    String urlArguments) {
         return performRequest(new Object[]{requestType, targetStatusCode, serviceName, urlArguments, null, null, null,
                 ContentType.ANY});
     }
 
+    /**
+     * Attempts to perform a request to a REST API, then checks the response status code, if it matches the target code the step is passed and the response is returned. Otherwise the action fails.
+     *
+     * @param requestType      POST, GET, PATCH, DELETE, PUT
+     * @param targetStatusCode default success code is 200
+     * @param serviceName      /servicePATH/serviceNAME
+     * @param contentType      Enumeration of common IANA content-types. This may be
+     *                         used to specify a request or response content-type
+     *                         more easily than specifying the full string each
+     *                         time. Example: ContentType.ANY
+     * @return Response; returns the full response object for further manipulation
+     */
     public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName,
                                    ContentType contentType) {
         return performRequest(
                 new Object[]{requestType, targetStatusCode, serviceName, null, null, null, null, contentType});
     }
 
+    /**
+     * Attempts to perform a request to a REST API, then checks the response status code, if it matches the target code the step is passed and the response is returned. Otherwise the action fails.
+     *
+     * @param requestType      POST, GET, PATCH, DELETE, PUT
+     * @param targetStatusCode default success code is 200
+     * @param serviceName      /servicePATH/serviceNAME
+     * @param contentType      Enumeration of common IANA content-types. This may be
+     *                         used to specify a request or response content-type
+     *                         more easily than specifying the full string each
+     *                         time. Example: ContentType.ANY
+     * @param urlArguments     '&amp;' separated arguments without a preceding '?',
+     *                         is nullable, Example:
+     *                         "username=test&amp;password=test"
+     * @return Response; returns the full response object for further manipulation
+     */
     public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName,
                                    ContentType contentType, String urlArguments) {
         return performRequest(new Object[]{requestType, targetStatusCode, serviceName, urlArguments, null, null, null,
                 contentType});
     }
 
+    /**
+     * Attempts to perform a request to a REST API, then checks the response status code, if it matches the target code the step is passed and the response is returned. Otherwise the action fails.
+     *
+     * @param requestType      POST, GET, PATCH, DELETE, PUT
+     * @param targetStatusCode default success code is 200
+     * @param serviceName      /servicePATH/serviceNAME
+     * @param parameters       a list of key/value pairs that will be sent as
+     *                         parameters with this API call, is nullable, Example:
+     *                         Arrays.asList(Arrays.asList("itemId", "123"),
+     *                         Arrays.asList("contents", XMLcontents));
+     * @param parametersType   FORM, QUERY
+     * @param contentType      Enumeration of common IANA content-types. This may be
+     *                         used to specify a request or response content-type
+     *                         more easily than specifying the full string each
+     *                         time. Example: ContentType.ANY
+     * @return Response; returns the full response object for further manipulation
+     */
     public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName,
                                    List<List<Object>> parameters, ParametersType parametersType, ContentType contentType) {
         return performRequest(new Object[]{requestType, targetStatusCode, serviceName, null, parameters,
@@ -1140,6 +1133,27 @@ public class RestActions {
 
     }
 
+    /**
+     * Attempts to perform a request to a REST API, then checks the response status code, if it matches the target code the step is passed and the response is returned. Otherwise the action fails.
+     *
+     * @param requestType      POST, GET, PATCH, DELETE, PUT
+     * @param targetStatusCode default success code is 200
+     * @param serviceName      /servicePATH/serviceNAME
+     * @param requestBody      Specify an Object request content that will
+     *                         automatically be serialized to JSON or XML and sent
+     *                         with the request. If the object is a primitive or
+     *                         Number the object will be converted to a String and
+     *                         put in the request body. This works for the POST, PUT
+     *                         and PATCH methods only. Trying to do this for the
+     *                         other http methods will cause an exception to be
+     *                         thrown, is nullable in case there is no body for that
+     *                         request
+     * @param contentType      Enumeration of common IANA content-types. This may be
+     *                         used to specify a request or response content-type
+     *                         more easily than specifying the full string each
+     *                         time. Example: ContentType.ANY
+     * @return Response; returns the full response object for further manipulation
+     */
     public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName,
                                    Object requestBody, ContentType contentType) {
         return performRequest(
