@@ -1,5 +1,5 @@
 # SHAFT_ENGINE
-<img src="https://drive.google.com/uc?export=download&id=1VHD9VsVHDndMjSV-wTVtCXUPHZ9AryO7" alt="SHAFT_ENGINE" style="display:block; margin-left:auto; margin-right:auto;"/>
+<img src="src/main/resources/images/shaft.png" alt="SHAFT_ENGINE" style="display:block; margin-left:auto; margin-right:auto;"/>
 
 ### Getting Started:
 - Code Quality - Codacy: [![Codacy Badge](https://api.codacy.com/project/badge/Grade/96f62023e1fb4e9295f2e2ce0e9e9950)](https://www.codacy.com/manual/mohab.mohieeldeen/SHAFT_ENGINE?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=MohabMohie/SHAFT_ENGINE&amp;utm_campaign=Badge_Grade)
