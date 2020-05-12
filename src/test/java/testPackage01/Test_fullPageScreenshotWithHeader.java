@@ -33,7 +33,7 @@ public class Test_fullPageScreenshotWithHeader {
     }
 
     @AfterClass
-    public void afterClass(){
+    public void afterClass() {
         BrowserActions.closeCurrentWindow(driver);
     }
 }

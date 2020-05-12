@@ -59,7 +59,7 @@ public class Test_dragAndDrop {
     }
 
     @AfterClass
-    public void afterClass(){
+    public void afterClass() {
         BrowserActions.closeCurrentWindow(driver);
         //driver.quit();
     }

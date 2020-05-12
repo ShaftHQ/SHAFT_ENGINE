@@ -38,7 +38,7 @@ public class Test_clipboardActions {
     }
 
     @AfterClass
-    public void afterClass(){
+    public void afterClass() {
         BrowserActions.closeCurrentWindow(driver);
     }
 }

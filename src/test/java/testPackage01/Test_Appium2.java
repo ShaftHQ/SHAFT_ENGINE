@@ -13,11 +13,10 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 public class Test_Appium2 {
-    private WebDriver driver;
-
     private final By accessibilityButton = By.xpath("//android.widget.TextView[@content-desc='Accessibility']");
     private final By viewsButton = By.xpath("//android.widget.TextView[@content-desc='Views']");
     private final By webView3 = By.xpath("//android.widget.TextView[@content-desc='WebView3']");
+    private WebDriver driver;
 
     @Test
     public void verifyLandingPageContent() {
@@ -34,7 +33,7 @@ public class Test_Appium2 {
     }
 
     @AfterClass
-    public void teardown(){
+    public void teardown() {
         BrowserActions.closeCurrentWindow(driver);
     }
 }
