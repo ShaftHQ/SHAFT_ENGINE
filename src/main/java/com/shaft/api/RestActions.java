@@ -704,11 +704,7 @@ public class RestActions {
         }
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////// [Public] Core REST Actions
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    private void initializeSystemProperties(boolean readPropertyFilesBeforeInitializing) {
+    private static void initializeSystemProperties(boolean readPropertyFilesBeforeInitializing) {
         if (readPropertyFilesBeforeInitializing) {
             PropertiesFileManager.readPropertyFiles();
         }

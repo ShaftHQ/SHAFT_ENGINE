@@ -36,7 +36,6 @@ public class ReportManager {
     private static int totalNumberOfTests = 0;
     private static int testCasesCounter = 0;
     private static boolean debugMode = false;
-    //    private static String currentTestLog = "";
     private static int actionCounter = 1;
     private static int openIssuesForFailedTestsCounter = 0;
     private static int openIssuesForPassedTestsCounter = 0;
@@ -93,8 +92,6 @@ public class ReportManager {
         String log = REPORT_MANAGER_PREFIX + logText.trim() + " @" + timestamp;
         slf4jLogger.info(log);
         Reporter.log(log, false);
-//	appendToFullLog(log);
-//	appendToFullLog(System.lineSeparator());
     }
 
     /**
@@ -104,7 +101,6 @@ public class ReportManager {
      */
     private static void appendToFullLog(String log) {
         fullLog += log;
-//	currentTestLog += log;
     }
 
     public static void logIssue(String issue) {
@@ -155,13 +151,6 @@ public class ReportManager {
             return "";
         }
     }
-
-//    /**
-//     * Clears the current test log to prepare for a new test
-//     */
-//    private static void clearTestLog() {
-//	currentTestLog = "";
-//    }
 
     private static void createReportEntry(String logText, Boolean addToFullLog) {
         String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
@@ -275,7 +264,6 @@ public class ReportManager {
                 String logEntry = REPORT_MANAGER_PREFIX + "Debugging Attachment Entry" + " @" + timestamp
                         + System.lineSeparator() + theString + System.lineSeparator();
                 slf4jLogger.info(logEntry);
-//		appendToFullLog(logEntry);
             }
         }
     }
@@ -296,12 +284,7 @@ public class ReportManager {
         } else if (attachmentType.toLowerCase().contains("json") || attachmentName.toLowerCase().contains("json")) {
             Allure.addAttachment(attachmentDescription, "text/json", attachmentContent, ".json");
         } else if (attachmentType.toLowerCase().contains("engine logs")) {
-//	    if (attachmentName.equals("Current Method log")) {
-//		Allure.addAttachment(attachmentDescription, "text/plain",
-//			new ByteArrayInputStream(currentTestLog.trim().getBytes()), ".txt");
-//	    } else {
             Allure.addAttachment(attachmentDescription, "text/plain", attachmentContent, ".txt");
-//	    }
         } else {
             Allure.addAttachment(attachmentDescription, attachmentContent);
         }
@@ -464,7 +447,6 @@ public class ReportManager {
 
     public static synchronized void logTestInformation(String className, String testMethodName,
                                                        String testDescription) {
-//	clearTestLog();
         testCasesCounter++;
         if (!testDescription.equals("")) {
             createImportantReportEntry("Starting Execution:\t[" + testCasesCounter + " out of " + totalNumberOfTests
