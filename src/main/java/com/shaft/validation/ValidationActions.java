@@ -19,9 +19,9 @@ import java.util.List;
 
 class ValidationActions {
     //TODO: implement element attribute and element exists validations for sikuli actions
-    private static final int attemptsBeforeThrowingElementNotFoundException = Integer
+    private static final int ATTEMPTS_ELEMENTNOTFOUNDEXCEPTION = Integer
             .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
-    private static final int attemptsBeforeThrowingElementNotFoundExceptionInCaseElementShouldntExist = 1;
+    private static final int ATTEMPTS_ELEMENTNOTFOUNDEXCEPTION_ELEMENTSHOULDNOTEXIST = 1;
     private static final StringBuilder verificationSuccesses = new StringBuilder();
     private static WebDriver lastUsedDriver = null;
     private static By lastUsedElementLocator = null;
@@ -105,7 +105,6 @@ class ValidationActions {
         String callingAssertionOrVerificationMethodName = (new Throwable()).getStackTrace()[3].getMethodName();
 
         if (validationMethodName.contains("reportValidationResult")) {
-            //validationMethodName = (new Throwable()).getStackTrace()[4].getMethodName();
             callingAssertionOrVerificationMethodName = (new Throwable()).getStackTrace()[4].getMethodName();
         }
         validationMethodName = callingAssertionOrVerificationMethodName;
@@ -269,9 +268,9 @@ class ValidationActions {
             ReportManager.log(customMessage + "...");
         }
 
-        int customAttempts = attemptsBeforeThrowingElementNotFoundException;
+        int customAttempts = ATTEMPTS_ELEMENTNOTFOUNDEXCEPTION;
         if (!validationType.getValue()) {
-            customAttempts = attemptsBeforeThrowingElementNotFoundExceptionInCaseElementShouldntExist;
+            customAttempts = ATTEMPTS_ELEMENTNOTFOUNDEXCEPTION_ELEMENTSHOULDNOTEXIST;
         }
 
         String[] expectedElementStates = {"Element Should Exist", "Element Should not Exist"};
@@ -677,7 +676,6 @@ class ValidationActions {
         String propertySeparator = (String) args[1];
         String attributeClosure = (String) args[2];
         int comparisonResult = (int) args[3];
-//        By elementLocator = (By) args[4];
         String propertyName = (String) args[5];
         String expectedValue = (String) args[6];
         String actualValue = (String) args[7];
