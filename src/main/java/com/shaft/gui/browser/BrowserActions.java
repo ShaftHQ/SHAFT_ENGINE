@@ -451,14 +451,15 @@ public class BrowserActions {
                 lastPageSource = driver.getPageSource();
                 BrowserFactory.closeDriver(driver.hashCode());
                 passAction(lastPageSource);
-            } catch (Exception rootCauseException) {
-                ReportManager.log(rootCauseException);
-                if (rootCauseException instanceof WebDriverException && rootCauseException.getMessage() != null
+            } catch (WebDriverException rootCauseException) {
+                if (rootCauseException.getMessage() != null
                         && (rootCauseException.getMessage().contains("was terminated due to TIMEOUT") || rootCauseException.getMessage().contains("Session ID is null"))) {
                     passAction(null);
                 } else {
                     failAction(rootCauseException);
                 }
+            } catch (Exception rootCauseException) {
+                failAction(rootCauseException);
             }
         } else {
             ReportManager.logDiscrete("Window is already closed and driver object is null.");
