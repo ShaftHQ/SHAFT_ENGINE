@@ -2,6 +2,7 @@
 <img src="src/main/resources/images/shaft.png" alt="SHAFT_ENGINE" style="display:block; margin-left:auto; margin-right:auto;"/>
 
 ### Badges:
+- FEATURE 2
 - Continuous Integration Status - Install: ![Ubuntu - Install](https://github.com/MohabMohie/SHAFT_ENGINE/workflows/Ubuntu%20-%20Install/badge.svg)
 - Continuous Integration Status - Test: ![Ubuntu - Test](https://github.com/MohabMohie/SHAFT_ENGINE/workflows/Ubuntu%20-%20Test/badge.svg) 
 - Code Quality - Codacy: [![Codacy Badge](https://api.codacy.com/project/badge/Grade/96f62023e1fb4e9295f2e2ce0e9e9950)](https://www.codacy.com/manual/mohab.mohieeldeen/SHAFT_ENGINE?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=MohabMohie/SHAFT_ENGINE&amp;utm_campaign=Badge_Grade)
