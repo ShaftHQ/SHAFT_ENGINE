@@ -4,6 +4,7 @@
 ### Badges:
 - FEATURE 1
 - FEATURE 2
+- FEATURE 3
 - FEATURE 4
 - Continuous Integration Status - Install: ![Ubuntu - Install](https://github.com/MohabMohie/SHAFT_ENGINE/workflows/Ubuntu%20-%20Install/badge.svg)
 - Continuous Integration Status - Test: ![Ubuntu - Test](https://github.com/MohabMohie/SHAFT_ENGINE/workflows/Ubuntu%20-%20Test/badge.svg) 
