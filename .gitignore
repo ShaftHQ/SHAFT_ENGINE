@@ -10,4 +10,4 @@
 /allure-results.zip
 /generate_allure_report.bat
 .DS_Store
-.idea
+/.idea/
