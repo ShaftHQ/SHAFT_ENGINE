@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.mohabmohie</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>4.2.20200511</version>
+    <version>4.2.20200518</version>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
     <url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
@@ -53,7 +53,7 @@
         <appium-selenium.version>3.141.59</appium-selenium.version>
         <appium-java-client.version>7.3.0</appium-java-client.version>
 
-        <webdrivermanager.version>3.8.1</webdrivermanager.version>
+        <webdrivermanager.version>4.0.0</webdrivermanager.version>
         <allure-testng.version>2.13.2</allure-testng.version> <!-- UPDATE path.properties -->
         <aspectj.version>1.9.5</aspectj.version> <!-- 1.9.5 DO NOT UPDATE -->
 
