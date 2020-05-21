@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.mohabmohie</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>4.2.20200518</version>
+    <version>4.2.20200521</version>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
     <url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
@@ -47,7 +47,7 @@
 
         <!-- Dependencies and Plug-ins Version Numbers Parameters -->
         <encoding.type>UTF-8</encoding.type>
-        <jdk.version>13</jdk.version>
+        <jdk.version>14</jdk.version>
 
         <!-- <selenium.version>4.0.0-alpha-5</selenium.version> -->
         <appium-selenium.version>3.141.59</appium-selenium.version>
@@ -93,6 +93,20 @@
     </properties>
 
     <dependencies>
+        <!-- https://mvnrepository.com/artifact/ws.schild/jave-all-deps -->
+        <dependency>
+            <groupId>ws.schild</groupId>
+            <artifactId>jave-all-deps</artifactId>
+            <version>2.7.3</version>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/com.automation-remarks/video-recorder-testng -->
+        <dependency>
+            <groupId>com.automation-remarks</groupId>
+            <artifactId>video-recorder-testng</artifactId>
+            <version>2.0</version>
+        </dependency>
+
         <dependency>
             <groupId>com.sikulix</groupId>
             <artifactId>sikulixapi</artifactId>
@@ -528,7 +542,7 @@
         <!-- </pluginManagement> -->
     </build>
 
-    <repositories>
+    <!--    <repositories>-->
         <!-- <repository> -->
         <!-- <id>redshift</id> -->
         <!-- <url>http://redshift-maven-repository.s3-website-us-east-1.amazonaws.com/release</url> -->
@@ -542,23 +556,7 @@
         <!-- <url>https://maven.oracle.com</url> -->
         <!-- <layout>default</layout> -->
         <!-- </repository> -->
-        <repository>
-            <id>bintray-cbeust-maven-testng</id>
-            <name>bintray</name>
-            <url>https://dl.bintray.com/cbeust/maven</url>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>
-        <repository>
-            <id>bintray-qameta-maven-allure</id>
-            <name>bintray</name>
-            <url>https://dl.bintray.com/qameta/maven</url>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>
-    </repositories>
+    <!--    </repositories>-->
     <!-- <pluginRepositories> -->
     <!-- <pluginRepository> -->
     <!-- <id>maven.oracle.com</id> -->

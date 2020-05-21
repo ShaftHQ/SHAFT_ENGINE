@@ -273,8 +273,11 @@ public class ReportManager {
         if (attachmentType.toLowerCase().contains("screenshot")) {
             Allure.addAttachment(attachmentDescription, "image/png", attachmentContent, ".png");
         } else if (attachmentType.toLowerCase().contains("recording")) {
-            Allure.addAttachment(attachmentDescription, "video/quicktime", attachmentContent, ".mov");
-            // attachmentName, "video/mp4", attachmentContent, ".mp4"
+            Allure.addAttachment(attachmentDescription, "video/mp4", attachmentContent, ".mp4");
+            // attachmentDescription, "video/quicktime", attachmentContent, ".mov");
+            // attachmentDescription, "video/webm", attachmentContent, ".webm");
+            // attachmentDescription, "video/mp4", attachmentContent, ".mp4");
+            // attachmentDescription, "video/ogg", attachmentContent, ".ogg");
         } else if (attachmentType.toLowerCase().contains("gif")) {
             Allure.addAttachment(attachmentDescription, "image/gif", attachmentContent, ".gif");
         } else if (attachmentType.toLowerCase().contains("csv") || attachmentName.toLowerCase().contains("csv")) {
@@ -483,10 +486,7 @@ public class ReportManager {
     private static Boolean isInternalStep() {
         String callingMethodName = (new Throwable()).getStackTrace()[2].toString();
 
-        if (callingMethodName.contains("com.shaft")) {
-            return true;
-        }
-        return false;
+        return callingMethodName.contains("com.shaft");
     }
 
     public static void log(String logText, List<List<Object>> attachments) {
