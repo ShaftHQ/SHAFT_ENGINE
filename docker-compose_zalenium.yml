@@ -1,5 +1,5 @@
 # https://github.com/zalando/zalenium
-# docker-compose -f docker-compose_zalenium.yml up --force-recreate
+# docker-compose -f docker-compose_zalenium.yml up --force-recreate --remove-orphans
 # docker-compose -f docker-compose_zalenium.yml reset
 # docker-compose -f docker-compose_zalenium.yml down
 # http://localhost:4444/grid/admin/live?only_active_sessions=true&refresh=10
