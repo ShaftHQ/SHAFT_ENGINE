@@ -12,8 +12,8 @@ services:
       - 4444:4444
       environment:
          GRID_MAX_SESSION: 16
-         GRID_BROWSER_TIMEOUT: 300
-         GRID_TIMEOUT: 300
+         GRID_BROWSER_TIMEOUT: 60000
+         GRID_TIMEOUT: 50000
    chrome:
       image: selenium/node-chrome:3.141.59-20200515
       depends_on:
