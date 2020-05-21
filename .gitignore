@@ -4,7 +4,7 @@
 /test-output/
 /dependency-reduced-pom.xml
 /b.sh
-/generatedReport.zip
+/generatedReport_*.zip
 /generatedReport/
 /generate_allure_report.sh
 /allure-results.zip
