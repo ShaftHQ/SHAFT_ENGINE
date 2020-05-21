@@ -1,5 +1,6 @@
 package com.shaft.gui.element;
 
+import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManager;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.TouchAction;
@@ -17,6 +18,7 @@ public class TouchActions {
 
     public TouchActions(WebDriver driver) {
         this.driver = driver;
+        RecordManager.startVideoRecording();
     }
 
     /**
