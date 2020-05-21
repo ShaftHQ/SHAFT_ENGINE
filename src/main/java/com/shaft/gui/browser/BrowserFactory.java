@@ -652,6 +652,7 @@ public class BrowserFactory {
             ReportManager.log("Unhandled Exception with Browser Type [" + browserName + "].");
             Assert.fail("Unhandled Exception with Browser Type [" + browserName + "].", e);
         }
+
         return driver.get();
     }
 
