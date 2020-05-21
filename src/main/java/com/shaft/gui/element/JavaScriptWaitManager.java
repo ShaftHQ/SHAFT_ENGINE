@@ -36,9 +36,9 @@ public class JavaScriptWaitManager {
     public static boolean waitForLazyLoading() {
         RecordManager.startVideoRecording();
         try {
-            waitForJSLoadIfDefined();
-            waitForAngularIfDefined();
             waitForJQueryLoadIfDefined();
+            waitForAngularIfDefined();
+            waitForJSLoadIfDefined();
             return true;
         } catch (NoSuchSessionException | NullPointerException e) {
             // do nothing
@@ -141,7 +141,12 @@ public class JavaScriptWaitManager {
             int tryCounter = 0;
             while ((!jsReady) && (tryCounter < 5)) {
                 // Wait for Javascript to load
-                (new WebDriverWait(jsWaitDriver.get(), WAIT_DURATION_INTEGER)).until(jsLoad);
+                try {
+                    (new WebDriverWait(jsWaitDriver.get(), WAIT_DURATION_INTEGER)).until(jsLoad);
+                } catch (org.openqa.selenium.TimeoutException e) {
+                    //do nothing
+                    //TODO: confirm that this fixed the timeout issue on the grid
+                }
                 // More Wait for stability (Optional)
                 sleep(delayBetweenPolls);
                 tryCounter++;

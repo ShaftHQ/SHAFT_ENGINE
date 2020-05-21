@@ -98,6 +98,12 @@
             <groupId>ws.schild</groupId>
             <artifactId>jave-all-deps</artifactId>
             <version>2.7.3</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/com.automation-remarks/video-recorder-testng -->
@@ -105,6 +111,16 @@
             <groupId>com.automation-remarks</groupId>
             <artifactId>video-recorder-testng</artifactId>
             <version>2.0</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>log4j</groupId>
+                    <artifactId>log4j</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
@@ -543,19 +559,19 @@
     </build>
 
     <!--    <repositories>-->
-        <!-- <repository> -->
-        <!-- <id>redshift</id> -->
-        <!-- <url>http://redshift-maven-repository.s3-website-us-east-1.amazonaws.com/release</url> -->
-        <!-- <id>maven.oracle.com</id> -->
-        <!-- <releases> -->
-        <!-- <enabled>true</enabled> -->
-        <!-- </releases> -->
-        <!-- <snapshots> -->
-        <!-- <enabled>false</enabled> -->
-        <!-- </snapshots> -->
-        <!-- <url>https://maven.oracle.com</url> -->
-        <!-- <layout>default</layout> -->
-        <!-- </repository> -->
+    <!-- <repository> -->
+    <!-- <id>redshift</id> -->
+    <!-- <url>http://redshift-maven-repository.s3-website-us-east-1.amazonaws.com/release</url> -->
+    <!-- <id>maven.oracle.com</id> -->
+    <!-- <releases> -->
+    <!-- <enabled>true</enabled> -->
+    <!-- </releases> -->
+    <!-- <snapshots> -->
+    <!-- <enabled>false</enabled> -->
+    <!-- </snapshots> -->
+    <!-- <url>https://maven.oracle.com</url> -->
+    <!-- <layout>default</layout> -->
+    <!-- </repository> -->
     <!--    </repositories>-->
     <!-- <pluginRepositories> -->
     <!-- <pluginRepository> -->

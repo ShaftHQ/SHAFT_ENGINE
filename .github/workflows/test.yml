@@ -24,7 +24,3 @@ jobs:
         run: docker ps
       - name: Run all tests
         run: mvn test -DexecutionAddress="localhost:4444" -DtargetOperatingSystem="Linux-64" -DmaximumPerformanceMode="true" -DtargetBrowserName="GoogleChrome" -Dtest="!%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*]"
-      #      - name: Tear Down Zalenium
-      #        run: docker-compose -f docker-compose_zalenium.yml down
-      - name: Tear-down Native Selenium Grid
-        run: docker-compose -f docker-compose_native.yml down --remove-orphans
