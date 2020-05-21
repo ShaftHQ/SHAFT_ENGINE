@@ -50,9 +50,6 @@ public class InvokedMethodListener implements IInvokedMethodListener {
             } else {
                 ReportManager.logTestInformation(testMethod.getTestClass().getName(), testMethod.getMethodName(), "");
             }
-            if (invokedTestsCounter == 0) {
-                RecordManager.startRecording();
-            }
         } else if (testMethod instanceof ConfigurationMethod) {
             // org.testng.internal.ConfigurationMethod
             // ReportManager.logDiscrete("Current TestNG Method Name: " +
@@ -70,6 +67,7 @@ public class InvokedMethodListener implements IInvokedMethodListener {
     @Override
     public void afterInvocation(IInvokedMethod method, ITestResult testResult) {
         if (!method.getTestMethod().getQualifiedName().contains("closureActivities")) {
+            RecordManager.attachVideoRecording();
             ScreenshotManager.attachAnimatedGif();
             // configuration method attachment is not added to the report (Allure ->
             // threadContext.getCurrent(); -> empty)

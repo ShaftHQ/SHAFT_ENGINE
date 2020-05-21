@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.mohabmohie</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>4.2.20200511</version>
+    <version>4.2.20200521</version>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
     <url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
@@ -47,13 +47,13 @@
 
         <!-- Dependencies and Plug-ins Version Numbers Parameters -->
         <encoding.type>UTF-8</encoding.type>
-        <jdk.version>13</jdk.version>
+        <jdk.version>14</jdk.version>
 
         <!-- <selenium.version>4.0.0-alpha-5</selenium.version> -->
         <appium-selenium.version>3.141.59</appium-selenium.version>
         <appium-java-client.version>7.3.0</appium-java-client.version>
 
-        <webdrivermanager.version>3.8.1</webdrivermanager.version>
+        <webdrivermanager.version>4.0.0</webdrivermanager.version>
         <allure-testng.version>2.13.2</allure-testng.version> <!-- UPDATE path.properties -->
         <aspectj.version>1.9.5</aspectj.version> <!-- 1.9.5 DO NOT UPDATE -->
 
@@ -72,14 +72,14 @@
         <pojosontheweb-monte.version>1.0.1</pojosontheweb-monte.version>
 
         <apachepoi.version>4.1.2</apachepoi.version>
-        <org.slf4j.version>1.7.26</org.slf4j.version>
+        <org.slf4j.version>1.7.30</org.slf4j.version>
 
         <maven-resources-plugin.version>3.1.0</maven-resources-plugin.version>
         <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
         <maven-surefire-plugin.version>3.0.0-M4</maven-surefire-plugin.version>
         <maven-shade-plugin.version>3.2.1</maven-shade-plugin.version>
         <maven-jar-plugin.version>3.2.0</maven-jar-plugin.version>
-        <maven-javadoc-plugin.version>3.1.1</maven-javadoc-plugin.version>
+        <maven-javadoc-plugin.version>3.2.0</maven-javadoc-plugin.version>
         <maven-source-plugin.version>3.2.1</maven-source-plugin.version>
 
         <jcraft-jsch.version>0.1.55</jcraft-jsch.version>
@@ -87,12 +87,26 @@
         <cucumber.version>5.3.0</cucumber.version>
         <cverges-expect4j.version>1.9</cverges-expect4j.version>
 
-        <openpnp-opencv.version>3.4.2-2</openpnp-opencv.version>
+        <openpnp-opencv.version>4.3.0-2</openpnp-opencv.version>
         <applitools-eyes.version>4.5.0</applitools-eyes.version>
         <sikuixapi.version>2.0.3</sikuixapi.version>
     </properties>
 
     <dependencies>
+        <!-- https://mvnrepository.com/artifact/ws.schild/jave-all-deps -->
+        <dependency>
+            <groupId>ws.schild</groupId>
+            <artifactId>jave-all-deps</artifactId>
+            <version>2.7.3</version>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/com.automation-remarks/video-recorder-testng -->
+        <dependency>
+            <groupId>com.automation-remarks</groupId>
+            <artifactId>video-recorder-testng</artifactId>
+            <version>2.0</version>
+        </dependency>
+
         <dependency>
             <groupId>com.sikulix</groupId>
             <artifactId>sikulixapi</artifactId>
@@ -528,7 +542,7 @@
         <!-- </pluginManagement> -->
     </build>
 
-    <repositories>
+    <!--    <repositories>-->
         <!-- <repository> -->
         <!-- <id>redshift</id> -->
         <!-- <url>http://redshift-maven-repository.s3-website-us-east-1.amazonaws.com/release</url> -->
@@ -542,23 +556,7 @@
         <!-- <url>https://maven.oracle.com</url> -->
         <!-- <layout>default</layout> -->
         <!-- </repository> -->
-        <repository>
-            <id>bintray-cbeust-maven-testng</id>
-            <name>bintray</name>
-            <url>https://dl.bintray.com/cbeust/maven</url>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>
-        <repository>
-            <id>bintray-qameta-maven-allure</id>
-            <name>bintray</name>
-            <url>https://dl.bintray.com/qameta/maven</url>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>
-    </repositories>
+    <!--    </repositories>-->
     <!-- <pluginRepositories> -->
     <!-- <pluginRepository> -->
     <!-- <id>maven.oracle.com</id> -->

@@ -10,7 +10,7 @@
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
-      <module name="SHAFT_Engine" target="13" />
+      <module name="SHAFT_Engine" target="14" />
     </bytecodeTargetLevel>
   </component>
 </project>

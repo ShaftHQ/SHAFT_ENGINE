@@ -1126,7 +1126,6 @@ public class RestActions {
                                    List<List<Object>> parameters, ParametersType parametersType, ContentType contentType) {
         return performRequest(new Object[]{requestType, targetStatusCode, serviceName, null, parameters,
                 parametersType, null, contentType});
-
     }
 
     /**
@@ -1153,7 +1152,7 @@ public class RestActions {
     public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName,
                                    Object requestBody, ContentType contentType) {
         return performRequest(
-                new Object[]{requestType, targetStatusCode, serviceName, null, null, requestBody, contentType});
+                new Object[]{requestType, targetStatusCode, serviceName, null, null, null, requestBody, contentType});
     }
 
     public enum ComparisonType {

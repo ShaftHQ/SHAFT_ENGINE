@@ -1,5 +1,6 @@
 package com.shaft.gui.element;
 
+import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.support.JSHelpers;
 import org.openqa.selenium.JavascriptExecutor;
@@ -33,6 +34,7 @@ public class JavaScriptWaitManager {
      * severe exception
      */
     public static boolean waitForLazyLoading() {
+        RecordManager.startVideoRecording();
         try {
             waitForJSLoadIfDefined();
             waitForAngularIfDefined();

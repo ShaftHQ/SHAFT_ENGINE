@@ -9,3 +9,5 @@
 /generate_allure_report.sh
 /allure-results.zip
 /generate_allure_report.bat
+.DS_Store
+/.idea/

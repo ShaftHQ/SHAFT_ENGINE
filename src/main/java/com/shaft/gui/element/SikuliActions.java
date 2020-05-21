@@ -2,6 +2,7 @@ package com.shaft.gui.element;
 
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.image.ScreenshotManager;
+import com.shaft.gui.video.RecordManager;
 import org.apache.commons.io.IOUtils;
 import org.sikuli.basics.Settings;
 import org.sikuli.script.*;
@@ -13,8 +14,8 @@ import java.io.IOException;
 import java.util.List;
 
 public class SikuliActions {
-    Screen screen;
-    App applicationWindow;
+    private Screen screen;
+    private App applicationWindow;
 
     public SikuliActions() {
         initializeSikuliEngineForCurrentScreen();
@@ -354,6 +355,7 @@ public class SikuliActions {
         Settings.LogTime = true;
         screen = new Screen();
         screen.setAutoWaitTimeout(Double.parseDouble(System.getProperty("defaultElementIdentificationTimeout")));
+        RecordManager.startVideoRecording();
     }
 
     private String formatTextForReport(String text) {

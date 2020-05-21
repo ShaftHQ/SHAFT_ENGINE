@@ -4,6 +4,7 @@ import com.shaft.cli.FileActions;
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.gui.image.ScreenshotManager;
+import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.support.JSHelpers;
 import io.appium.java_client.AppiumDriver;
@@ -389,6 +390,7 @@ public class ElementActions {
 
     private static int getMatchingElementsCount(WebDriver driver, By elementLocator, int numberOfAttempts,
                                                 boolean waitForLazyLoading) {
+        RecordManager.startVideoRecording();
         if (waitForLazyLoading) {
             JavaScriptWaitManager.waitForLazyLoading();
         }
