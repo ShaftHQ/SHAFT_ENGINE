@@ -8,10 +8,7 @@ import com.shaft.tools.io.ReportManager;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.MobileElement;
 import io.github.bonigarcia.wdm.WebDriverManager;
-import org.openqa.selenium.MutableCapabilities;
-import org.openqa.selenium.Platform;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebDriverException;
+import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.edge.EdgeDriver;
@@ -241,20 +238,33 @@ public class BrowserFactory {
                     chOptions = new ChromeOptions();
                     chOptions.setCapability("platform", getDesiredOperatingSystem());
                     chOptions.setHeadless(HEADLESS_EXECUTION);
-//                    if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
-//                        // https://developers.google.com/web/updates/2017/04/headless-chrome
-//                        chOptions.addArguments("--disable-gpu"); // Temporarily needed if running on Windows
-//                    }
+                    if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
+                        // https://developers.google.com/web/updates/2017/04/headless-chrome
+                        chOptions.addArguments("--headless"); // only if you are ACTUALLY running headless
+                    }
                     chOptions.setCapability(CapabilityType.LOGGING_PREFS, logPrefs);
-                    chOptions.addArguments("--disable-logging");
-                    chOptions.addArguments("--no-sandbox");
+                    //chOptions.addArguments("--disable-logging");
+
+                    // ChromeDriver is just AWFUL because every version or two it breaks unless you pass cryptic arguments
+                    //AGRESSIVE:
+                    chOptions.setPageLoadStrategy(PageLoadStrategy.NONE); // https://www.skptricks.com/2018/08/timed-out-receiving-message-from-renderer-selenium.html
+
+                    //chOptions.addArguments("start-maximized"); // https://stackoverflow.com/a/26283818/1689770
+                    chOptions.addArguments("enable-automation"); // https://stackoverflow.com/a/43840128/1689770
+                    chOptions.addArguments("--no-sandbox"); //https://stackoverflow.com/a/50725918/1689770
+                    chOptions.addArguments("--disable-infobars"); //https://stackoverflow.com/a/43840128/1689770
+                    chOptions.addArguments("--disable-dev-shm-usage"); //https://stackoverflow.com/a/50725918/1689770
+                    chOptions.addArguments("--disable-browser-side-navigation"); //https://stackoverflow.com/a/49123152/1689770
+                    chOptions.addArguments("--disable-gpu"); //https://stackoverflow.com/questions/51959986/how-to-solve-selenium-chromedriver-timed-out-receiving-message-from-renderer-exc
+
+                    //chOptions.setExperimentalOption("excludeSwitches", new String[]{"enable-automation"});
+                    //https://github.com/GoogleChrome/chrome-launcher/blob/master/docs/chrome-flags-for-tools.md#--enable-automation
+
                     Map<String, Object> chromePreferences = new HashMap<>();
                     chromePreferences.put("profile.default_content_settings.popups", 0);
                     chromePreferences.put("download.prompt_for_download", "false");
                     chromePreferences.put("download.default_directory", downloadsFolderPath);
                     chOptions.setExperimentalOption("prefs", chromePreferences);
-                    //chOptions.setExperimentalOption("excludeSwitches", new String[]{"enable-automation"});
-                    //https://github.com/GoogleChrome/chrome-launcher/blob/master/docs/chrome-flags-for-tools.md#--enable-automation
                 }
                 break;
             case MICROSOFT_EDGE:
