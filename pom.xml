@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.mohabmohie</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>4.2.20200521</version>
+    <version>4.2.20200522</version>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
     <url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
@@ -53,7 +53,7 @@
         <appium-selenium.version>3.141.59</appium-selenium.version>
         <appium-java-client.version>7.3.0</appium-java-client.version>
 
-        <webdrivermanager.version>4.0.0</webdrivermanager.version>
+        <webdrivermanager.version>3.8.1</webdrivermanager.version>
         <allure-testng.version>2.13.2</allure-testng.version> <!-- UPDATE path.properties -->
         <aspectj.version>1.9.5</aspectj.version> <!-- 1.9.5 DO NOT UPDATE -->
 
@@ -98,6 +98,12 @@
             <groupId>ws.schild</groupId>
             <artifactId>jave-all-deps</artifactId>
             <version>2.7.3</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/com.automation-remarks/video-recorder-testng -->
@@ -105,6 +111,16 @@
             <groupId>com.automation-remarks</groupId>
             <artifactId>video-recorder-testng</artifactId>
             <version>2.0</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>log4j</groupId>
+                    <artifactId>log4j</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
@@ -543,19 +559,19 @@
     </build>
 
     <!--    <repositories>-->
-        <!-- <repository> -->
-        <!-- <id>redshift</id> -->
-        <!-- <url>http://redshift-maven-repository.s3-website-us-east-1.amazonaws.com/release</url> -->
-        <!-- <id>maven.oracle.com</id> -->
-        <!-- <releases> -->
-        <!-- <enabled>true</enabled> -->
-        <!-- </releases> -->
-        <!-- <snapshots> -->
-        <!-- <enabled>false</enabled> -->
-        <!-- </snapshots> -->
-        <!-- <url>https://maven.oracle.com</url> -->
-        <!-- <layout>default</layout> -->
-        <!-- </repository> -->
+    <!-- <repository> -->
+    <!-- <id>redshift</id> -->
+    <!-- <url>http://redshift-maven-repository.s3-website-us-east-1.amazonaws.com/release</url> -->
+    <!-- <id>maven.oracle.com</id> -->
+    <!-- <releases> -->
+    <!-- <enabled>true</enabled> -->
+    <!-- </releases> -->
+    <!-- <snapshots> -->
+    <!-- <enabled>false</enabled> -->
+    <!-- </snapshots> -->
+    <!-- <url>https://maven.oracle.com</url> -->
+    <!-- <layout>default</layout> -->
+    <!-- </repository> -->
     <!--    </repositories>-->
     <!-- <pluginRepositories> -->
     <!-- <pluginRepository> -->

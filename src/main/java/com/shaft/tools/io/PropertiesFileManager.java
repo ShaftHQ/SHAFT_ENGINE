@@ -51,7 +51,7 @@ public class PropertiesFileManager {
         readPropertyFiles(System.getProperty(CUSTOM_PROPERTIES_FOLDER_PROPERTY_NAME));
 
         // This section set the default properties values for Execution/path/pattern
-        setDefaultExecutionPropertiesFromResources();
+        readPropertyFiles(getDefaultPropertiesFolderPath());
 
         overrideTargetOperatingSystemForLocalExecution();
 
@@ -168,16 +168,15 @@ public class PropertiesFileManager {
     }
 
     // TODO: create directory under src/test/resources and write the default
-    // property files
-    private static void setDefaultExecutionPropertiesFromResources() {
+    public static String getDefaultPropertiesFolderPath() {
         URL propertiesFolder = PropertiesFileManager.class.getResource("/defaultProperties/");
         //ClassLoader clsLoader = PropertiesFileManager.class.getClassLoader();
         //InputStream propertiesFolder =  clsLoader.getResourceAsStream("/defaultProperties/");
 
         if (propertiesFolder != null) {
-            readPropertyFiles(propertiesFolder.getFile());
+            return propertiesFolder.getFile();
         } else {
-            readPropertyFiles(DEFAULT_PROPERTIES_FOLDER_PATH);
+            return DEFAULT_PROPERTIES_FOLDER_PATH;
         }
     }
 }
