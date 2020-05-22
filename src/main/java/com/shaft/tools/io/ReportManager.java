@@ -41,7 +41,7 @@ public class ReportManager {
     private static int openIssuesForPassedTestsCounter = 0;
     private static int failedTestsWithoutOpenIssuesCounter = 0;
     private static String allureResultsFolderPath = "";
-    private static String allureExecutablePath = "";
+    private static String allureBinaryPath = "";
 
     // TODO: refactor to regular class that can be instanciated within the test and
     // used in a thread-safe way
@@ -378,8 +378,8 @@ public class ReportManager {
         // extract allure from jar file to src/main/resources directory if it doesn't
         // already exist
         String allureVersion = System.getProperty(ALLURE_VERSION_PROPERTY_NAME);
-        allureExecutablePath = allureExtractionLocation + "allure-" + allureVersion + File.separator + "bin" + File.separator + "allure";
-        if (!FileActions.doesFileExist(allureExecutablePath)) {
+        allureBinaryPath = allureExtractionLocation + "allure-" + allureVersion + File.separator + "bin" + File.separator + "allure";
+        if (!FileActions.doesFileExist(allureBinaryPath)) {
             FileActions.deleteFolder(allureExtractionLocation);
             // download allure binary
             URL allureArchive = FileActions.downloadFile(
@@ -395,7 +395,7 @@ public class ReportManager {
 
             if (!System.getProperty(TARGET_OS_PROPERTY_NAME).equals(OS_WINDOWS)) {
                 // make allure executable on unix-based shells
-                (new TerminalActions()).performTerminalCommand("chmod u+x " + allureExecutablePath);
+                (new TerminalActions()).performTerminalCommand("chmod u+x " + allureBinaryPath);
             }
         }
     }
@@ -656,15 +656,15 @@ public class ReportManager {
         String targetOperatingSystem = System.getProperty(TARGET_OS_PROPERTY_NAME);
         String commandToCreateAllureReport = "";
 
-        allureExecutablePath = allureExtractionLocation + "allure-" + System.getProperty(ALLURE_VERSION_PROPERTY_NAME)
+        allureBinaryPath = allureExtractionLocation + "allure-" + System.getProperty(ALLURE_VERSION_PROPERTY_NAME)
                 + "/bin/allure";
 
         if (targetOperatingSystem.equals(OS_WINDOWS)) {
-            commandToCreateAllureReport = allureExecutablePath + ".bat" + " generate \""
+            commandToCreateAllureReport = allureBinaryPath + ".bat" + " generate \""
                     + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
                     + "\" -o \"generatedReport/allure-report\"";
         } else {
-            commandToCreateAllureReport = allureExecutablePath + " generate \""
+            commandToCreateAllureReport = allureBinaryPath + " generate \""
                     + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
                     + "\" -o \"generatedReport/allure-report\"";
         }
@@ -672,8 +672,10 @@ public class ReportManager {
     }
 
     private static void createAllureReportArchiveAndCleanGeneratedDirectory() {
-        FileActions.copyFolder(FileActions.getAbsolutePath("target/", "allure"), "generatedReport/allure");
-        FileActions.zipFiles("generatedReport/", "generatedReport_" + new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date()) + ".zip");
+        if (FileActions.doesFileExist(allureExtractionLocation)) {
+            FileActions.copyFolder(FileActions.getAbsolutePath(allureExtractionLocation), "generatedReport/allure");
+            FileActions.zipFiles("generatedReport/", "generatedReport_" + new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date()) + ".zip");
+        }
         FileActions.deleteFile("generatedReport/");
     }
 

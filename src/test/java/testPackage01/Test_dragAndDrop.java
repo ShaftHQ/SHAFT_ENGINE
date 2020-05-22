@@ -7,8 +7,8 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Assertions;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class Test_dragAndDrop {
@@ -53,14 +53,13 @@ public class Test_dragAndDrop {
         Assertions.assertEquals(initialDroppableText, finalDroppableText, Assertions.AssertionComparisonType.EQUALS, Assertions.AssertionType.NEGATIVE, "Checking to see if the text has changed after performing drag and drop");
     }
 
-    @BeforeClass // Set-up method, to be run once before the first test
-    public void beforeClass() {
+    @BeforeMethod
+    public void beforeMethod() {
         driver = BrowserFactory.getBrowser();
     }
 
-    @AfterClass
-    public void afterClass() {
+    @AfterMethod
+    public void afterMethod() {
         BrowserActions.closeCurrentWindow(driver);
-        //driver.quit();
     }
 }

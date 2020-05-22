@@ -23,13 +23,13 @@ public class RecordManager {
 
     //TODO: the animated GIF should follow the same path as the video
     public static synchronized void startVideoRecording() {
+
         if (Boolean.TRUE.equals(RECORD_VIDEO)
                 && System.getProperty("executionAddress").trim().equals("local")
                 && Boolean.FALSE.equals(Boolean.valueOf(System.getProperty("headlessExecution").trim()))
                 && recorder.get() == null) {
             recorder.set(RecorderFactory.getRecorder(VideoRecorder.conf().recorderType()));
             recorder.get().start();
-            ReportManager.logDiscrete("Starting video recording...");
         }
     }
 
@@ -37,7 +37,6 @@ public class RecordManager {
         if (Boolean.TRUE.equals(RECORD_VIDEO) && recorder.get() != null) {
             String testMethodName = Reporter.getCurrentTestResult().getMethod().getMethodName();
             String pathToRecording = doVideoProcessing(Reporter.getCurrentTestResult().isSuccess(), recorder.get().stopAndSave(System.currentTimeMillis() + "_" + testMethodName));
-            ReportManager.logDiscrete("Saved video recording to [" + pathToRecording + "].");
             encodeAndAttach(pathToRecording, testMethodName);
             recorder.set(null);
         }
@@ -47,7 +46,6 @@ public class RecordManager {
         File source = new File(pathToRecording);
         File target = new File(pathToRecording.replace("avi", "mp4"));
         try {
-            ReportManager.logDiscrete("Encoding video...");
             AudioAttributes audio = new AudioAttributes();
             audio.setCodec("libvorbis");
             VideoAttributes video = new VideoAttributes();
