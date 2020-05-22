@@ -465,6 +465,7 @@ public class BrowserActions {
      */
     public static synchronized void closeCurrentWindow(WebDriver driver) {
         if (driver != null) {
+            ElementActions.setLastUsedDriver(null);
             JavaScriptWaitManager.waitForLazyLoading();
             try {
                 String lastPageSource = null;

@@ -19,7 +19,6 @@
       <sourceFolder url="file://$MODULE_DIR$/src/test/resources" type="java-test-resource" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
-    <orderEntry type="library" exported="" name="org.eclipse.m2e.MAVEN2_CLASSPATH_CONTAINER" level="application" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="inheritedJdk" />
     <orderEntry type="library" name="Maven: ws.schild:jave-all-deps:2.7.3" level="project" />
@@ -124,12 +123,9 @@
     <orderEntry type="library" name="Maven: org.glassfish.hk2.external:aopalliance-repackaged:2.4.0-b09" level="project" />
     <orderEntry type="library" name="Maven: org.glassfish.hk2.external:javax.inject:2.4.0-b09" level="project" />
     <orderEntry type="library" name="Maven: org.glassfish.hk2:hk2-locator:2.4.0-b09" level="project" />
-    <orderEntry type="library" name="Maven: io.github.bonigarcia:webdrivermanager:4.0.0" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.httpcomponents.client5:httpclient5:5.0" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.httpcomponents.core5:httpcore5:5.0" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.httpcomponents.core5:httpcore5-h2:5.0" level="project" />
+    <orderEntry type="library" name="Maven: io.github.bonigarcia:webdrivermanager:3.8.1" level="project" />
     <orderEntry type="library" name="Maven: org.rauschig:jarchivelib:1.0.0" level="project" />
-    <orderEntry type="library" name="Maven: org.jsoup:jsoup:1.13.1" level="project" />
+    <orderEntry type="library" name="Maven: org.jsoup:jsoup:1.11.3" level="project" />
     <orderEntry type="library" name="Maven: org.apache.poi:poi:4.1.2" level="project" />
     <orderEntry type="library" name="Maven: commons-codec:commons-codec:1.13" level="project" />
     <orderEntry type="library" name="Maven: org.apache.commons:commons-collections4:4.4" level="project" />
