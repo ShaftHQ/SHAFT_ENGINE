@@ -3,11 +3,13 @@ package com.shaft.tools.listeners;
 import com.shaft.tools.io.LogsReporter;
 import com.shaft.tools.io.PropertiesFileManager;
 import com.shaft.tools.io.ReportManager;
+import org.apache.log4j.PropertyConfigurator;
 import org.testng.IAlterSuiteListener;
 import org.testng.xml.XmlClass;
 import org.testng.xml.XmlSuite;
 import org.testng.xml.XmlSuite.ParallelMode;
 
+import java.io.File;
 import java.util.List;
 
 public class AlterSuiteListener implements IAlterSuiteListener {
@@ -15,6 +17,13 @@ public class AlterSuiteListener implements IAlterSuiteListener {
     @Override
     public void alter(List<XmlSuite> suites) {
         addListeners(suites);
+        //log4j configuration needed to fix this warning
+        //log4j:WARN No appenders could be found for logger (com.automation.remarks.video.recorder.monte.MonteRecorder).
+        //log4j:WARN Please initialize the log4j system properly.
+        //log4j:WARN See http://logging.apache.org/log4j/1.2/faq.html#noconfig for more info.
+        PropertyConfigurator.configure(PropertiesFileManager.getDefaultPropertiesFolderPath() + File.separator + "log4j.properties");
+        //TODO: unify log patterns for slf4j
+
         PropertiesFileManager.readPropertyFiles();
         setExecutionProperties(suites);
         renameDefaultSuiteAndTest(suites);

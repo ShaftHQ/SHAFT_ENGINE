@@ -13,6 +13,7 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class tests_validations_assertions {
@@ -165,18 +166,13 @@ public class tests_validations_assertions {
         }
     }
 
-    @Test
+    @Test(groups = {"WebBased"})
     public void assertElementExists_true_expectedToPass() {
-        driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
-
         Assertions.assertElementExists(driver, By.id("hplogo"), AssertionType.POSITIVE);
     }
 
-    @Test
+    @Test(groups = {"WebBased"})
     public void assertElementExists_true_expectedToFail() {
-        driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
         try {
             Assertions.assertElementExists(driver, By.id("fakeElement"), AssertionType.POSITIVE);
         } catch (AssertionError e) {
@@ -184,18 +180,13 @@ public class tests_validations_assertions {
         }
     }
 
-    @Test
+    @Test(groups = {"WebBased"})
     public void assertElementExists_false_expectedToPass() {
-        driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
-
         Assertions.assertElementExists(driver, By.id("fakeElement"), AssertionType.NEGATIVE);
     }
 
-    @Test
+    @Test(groups = {"WebBased"})
     public void assertElementExists_false_expectedToFail() {
-        driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
         try {
             Assertions.assertElementExists(driver, By.id("hplogo"), AssertionType.NEGATIVE);
         } catch (AssertionError e) {
@@ -203,10 +194,8 @@ public class tests_validations_assertions {
         }
     }
 
-    @Test
+    @Test(groups = {"WebBased"})
     public void assertElementExists_true_multipleElementsFound_expectedToFail() {
-        driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
         try {
             Assertions.assertElementExists(driver, By.xpath("//div"), AssertionType.POSITIVE);
         } catch (AssertionError e) {
@@ -214,10 +203,8 @@ public class tests_validations_assertions {
         }
     }
 
-    @Test
+    @Test(groups = {"WebBased"})
     public void assertElementExists_false_multipleElementsFound_expectedToFail() {
-        driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
         try {
             Assertions.assertElementExists(driver, By.xpath("//div"), AssertionType.NEGATIVE);
         } catch (AssertionError e) {
@@ -225,21 +212,15 @@ public class tests_validations_assertions {
         }
     }
 
-    @Test
+    @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_literalComparison_expectedToPass() {
-        driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
-
         ElementActions.type(driver, By.name("q"), "Automation!@#$%^&*()_+{}[]\\';/.,");
         Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation!@#$%^&*()_+{}[]\\';/.,",
                 AssertionComparisonType.EQUALS, AssertionType.POSITIVE);
     }
 
-    @Test
+    @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_literalComparison_expectedToFail() {
-        driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
-
         ElementActions.type(driver, By.name("q"), "Automation!@#$%^&*()_+{}[]\\';/.,");
         try {
             Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation",
@@ -249,21 +230,15 @@ public class tests_validations_assertions {
         }
     }
 
-    @Test
+    @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_regexComparison_expectedToPass() {
-        driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
-
         ElementActions.type(driver, By.name("q"), "Automation123");
         Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation.*", AssertionComparisonType.MATCHES,
                 AssertionType.POSITIVE);
     }
 
-    @Test
+    @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_regexComparison_expectedToFail() {
-        driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
-
         ElementActions.type(driver, By.name("q"), "Automation123");
         try {
             Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation",
@@ -273,21 +248,15 @@ public class tests_validations_assertions {
         }
     }
 
-    @Test
+    @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_containsComparison_expectedToPass() {
-        driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
-
         ElementActions.type(driver, By.name("q"), "Automation123");
         Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation", AssertionComparisonType.CONTAINS,
                 AssertionType.POSITIVE);
     }
 
-    @Test
+    @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_containsComparison_expectedToFail() {
-        driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
-
         ElementActions.type(driver, By.name("q"), "Automation123");
         try {
             Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation1234",
@@ -297,21 +266,15 @@ public class tests_validations_assertions {
         }
     }
 
-    @Test
+    @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_caseInsensitiveComparison_expectedToPass() {
-        driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
-
         ElementActions.type(driver, By.name("q"), "AUTOMATION");
         Assertions.assertElementAttribute(driver, By.name("q"), "text", "AutomaTion",
                 AssertionComparisonType.CASE_INSENSITIVE, AssertionType.POSITIVE);
     }
 
-    @Test
+    @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_caseInsensitiveComparison_expectedToFail() {
-        driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
-
         ElementActions.type(driver, By.name("q"), "AUTOMATION");
         try {
             Assertions.assertElementAttribute(driver, By.name("q"), "text", "AutomaTion123",
@@ -321,21 +284,15 @@ public class tests_validations_assertions {
         }
     }
 
-    @Test
+    @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_literalComparison_expectedToPass() {
-        driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
-
         ElementActions.type(driver, By.name("q"), "Automation!@#$%^&*()_+{}[]\\';/.,");
         Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation", AssertionComparisonType.EQUALS,
                 AssertionType.NEGATIVE);
     }
 
-    @Test
+    @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_literalComparison_expectedToFail() {
-        driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
-
         ElementActions.type(driver, By.name("q"), "Automation!@#$%^&*()_+{}[]\\';/.,");
         try {
             Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation!@#$%^&*()_+{}[]\\\\';/.,",
@@ -345,21 +302,15 @@ public class tests_validations_assertions {
         }
     }
 
-    @Test
+    @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_regexComparison_expectedToPass() {
-        driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
-
         ElementActions.type(driver, By.name("q"), "Automation123");
         Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation", AssertionComparisonType.MATCHES,
                 AssertionType.NEGATIVE);
     }
 
-    @Test
+    @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_regexComparison_expectedToFail() {
-        driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
-
         ElementActions.type(driver, By.name("q"), "Automation123");
         try {
             Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation.*",
@@ -369,21 +320,15 @@ public class tests_validations_assertions {
         }
     }
 
-    @Test
+    @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_containsComparison_expectedToPass() {
-        driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
-
         ElementActions.type(driver, By.name("q"), "Automation123");
         Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation1234",
                 AssertionComparisonType.CONTAINS, AssertionType.NEGATIVE);
     }
 
-    @Test
+    @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_containsComparison_expectedToFail() {
-        driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
-
         ElementActions.type(driver, By.name("q"), "Automation123");
         try {
             Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation",
@@ -393,21 +338,15 @@ public class tests_validations_assertions {
         }
     }
 
-    @Test
+    @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_caseInsensitiveComparison_expectedToPass() {
-        driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
-
         ElementActions.type(driver, By.name("q"), "AUTOMATION");
         Assertions.assertElementAttribute(driver, By.name("q"), "text", "AutomaTion123",
                 AssertionComparisonType.CASE_INSENSITIVE, AssertionType.NEGATIVE);
     }
 
-    @Test
+    @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_caseInsensitiveComparison_expectedToFail() {
-        driver = BrowserFactory.getBrowser(BrowserFactory.BrowserType.GOOGLE_CHROME);
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
-
         ElementActions.type(driver, By.name("q"), "AUTOMATION");
         try {
             Assertions.assertElementAttribute(driver, By.name("q"), "text", "AutomaTion",
@@ -449,8 +388,14 @@ public class tests_validations_assertions {
         }
     }
 
-    @AfterMethod
+    @AfterMethod(onlyForGroups = {"WebBased"})
     public void afterMethod() {
         BrowserActions.closeCurrentWindow(driver);
+    }
+
+    @BeforeMethod(onlyForGroups = {"WebBased"})
+    public void beforeMethod() {
+        driver = BrowserFactory.getBrowser();
+        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
     }
 }

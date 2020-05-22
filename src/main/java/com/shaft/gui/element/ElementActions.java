@@ -52,7 +52,7 @@ public class ElementActions {
         setLastUsedDriver(driver);
     }
 
-    private static void setLastUsedDriver(WebDriver driver) {
+    public static void setLastUsedDriver(WebDriver driver) {
         lastUsedDriver = driver;
     }
 

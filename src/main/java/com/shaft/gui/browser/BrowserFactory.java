@@ -243,9 +243,8 @@ public class BrowserFactory {
                         chOptions.addArguments("--headless"); // only if you are ACTUALLY running headless
                     }
                     chOptions.setCapability(CapabilityType.LOGGING_PREFS, logPrefs);
-                    //chOptions.addArguments("--disable-logging");
 
-                    chOptions.setPageLoadStrategy(PageLoadStrategy.EAGER); // https://www.skptricks.com/2018/08/timed-out-receiving-message-from-renderer-selenium.html
+                    chOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL); // https://www.skptricks.com/2018/08/timed-out-receiving-message-from-renderer-selenium.html
 
                     //chOptions.addArguments("start-maximized"); // https://stackoverflow.com/a/26283818/1689770
                     chOptions.addArguments("enable-automation"); // https://stackoverflow.com/a/43840128/1689770
@@ -435,14 +434,14 @@ public class BrowserFactory {
                     break;
                 case MOBILE_CHROME:
                     ReportManager.log(WEBDRIVERMANAGER_MESSAGE);
-                    WebDriverManager.chromedriver().browserVersion(System.getProperty("MobileBrowserVersion")).setup();
+                    WebDriverManager.chromedriver().version(System.getProperty("MobileBrowserVersion")).setup();
                     mobileDesiredCapabilities.setCapability("chromedriverExecutable",
                             WebDriverManager.chromedriver().getBinaryPath());
                     mobileDesiredCapabilities.setCapability("appium:chromeOptions", ImmutableMap.of("w3c", false));
                     driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
                     break;
                 case MOBILE_CHROMIUM:
-                    WebDriverManager.chromedriver().browserVersion(System.getProperty("MobileBrowserVersion")).setup();
+                    WebDriverManager.chromedriver().version(System.getProperty("MobileBrowserVersion")).setup();
                     mobileDesiredCapabilities.setCapability("chromedriverExecutable",
                             WebDriverManager.chromedriver().getBinaryPath());
                     driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
