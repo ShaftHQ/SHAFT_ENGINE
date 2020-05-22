@@ -109,19 +109,35 @@ public class BrowserActions {
         });
     }
 
-    private static void navigateToNewURL(WebDriver driver, String targetUrl, String targetUrlAfterRedirection) {
+    private static void navigateToNewURL(WebDriver driver, String initialURL, String targetUrl, String targetUrlAfterRedirection) {
         try {
             driver.navigate().to(targetUrl);
-            // will use contains here instead of equals, because sometimes the url after
-            // redirection contains a random token that cannot be predefined, also as a
-            // precaution against the failure in case the user tries to navigate back to the
-            // source url which already redirected him
-            (new WebDriverWait(driver, NAVIGATION_TIMEOUT_INTEGER))
-                    .until(ExpectedConditions.urlContains(targetUrlAfterRedirection));
         } catch (WebDriverException rootCauseException) {
             ReportManager.log(rootCauseException);
             failAction(driver, targetUrl, rootCauseException);
         }
+
+
+        if (!targetUrl.equals(targetUrlAfterRedirection)) {
+            try {
+                (new WebDriverWait(driver, NAVIGATION_TIMEOUT_INTEGER))
+                        .until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
+            } catch (TimeoutException rootCauseException) {
+                ReportManager.log(rootCauseException);
+                failAction(driver, "Waited for " + NAVIGATION_TIMEOUT_INTEGER + " seconds to navigate away from [" + initialURL + "] but didn't.", rootCauseException);
+            }
+        } else {
+            try {
+                (new WebDriverWait(driver, NAVIGATION_TIMEOUT_INTEGER))
+                        .until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
+                (new WebDriverWait(driver, NAVIGATION_TIMEOUT_INTEGER))
+                        .until(ExpectedConditions.urlContains(targetUrlAfterRedirection));
+            } catch (TimeoutException rootCauseException) {
+                ReportManager.log(rootCauseException);
+                failAction(driver, "Waited for " + NAVIGATION_TIMEOUT_INTEGER + " seconds to navigate to [" + targetUrlAfterRedirection + "] but ended up with [" + driver.getCurrentUrl() + "].", rootCauseException);
+            }
+        }
+
     }
 
     private static Dimension attemptMaximizeUsingSeleniumWebDriver(WebDriver driver, String executionAddress,
@@ -321,8 +337,13 @@ public class BrowserActions {
      *                                  navigation
      */
     public static void navigateToURL(WebDriver driver, String targetUrl, String targetUrlAfterRedirection) {
-        ReportManager.logDiscrete(
-                "Target URL: [" + targetUrl + "], and after redirection if any: [" + targetUrlAfterRedirection + "]");
+        if (targetUrl.equals(targetUrlAfterRedirection)) {
+            ReportManager.logDiscrete(
+                    "Target URL: [" + targetUrl + "]");
+        } else {
+            ReportManager.logDiscrete(
+                    "Target URL: [" + targetUrl + "], and after redirection: [" + targetUrlAfterRedirection + "]");
+        }
         // force stop any current navigation
         try {
             ((JavascriptExecutor) driver).executeScript("return window.stop;");
@@ -351,7 +372,7 @@ public class BrowserActions {
             ReportManager.logDiscrete("Initial URL: [" + initialURL + "]");
             if (!initialURL.equals(targetUrl)) {
                 // navigate to new url
-                navigateToNewURL(driver, targetUrl, targetUrlAfterRedirection);
+                navigateToNewURL(driver, initialURL, targetUrl, targetUrlAfterRedirection);
                 JavaScriptWaitManager.waitForLazyLoading();
                 if ((ElementActions.getElementsCount(driver, By.tagName("html")) == 1)
                         && (!driver.getPageSource().equalsIgnoreCase(initialSource))) {
