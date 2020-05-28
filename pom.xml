@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.mohabmohie</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>4.2.20200522</version>
+    <version>4.2.20200528</version>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
     <url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
@@ -49,7 +49,7 @@
         <encoding.type>UTF-8</encoding.type>
         <jdk.version>14</jdk.version>
 
-        <!-- <selenium.version>4.0.0-alpha-5</selenium.version> -->
+        <selenium.version>4.0.0-alpha-5</selenium.version>
         <appium-selenium.version>3.141.59</appium-selenium.version>
         <appium-java-client.version>7.3.0</appium-java-client.version>
 
@@ -153,7 +153,7 @@
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-java</artifactId>
             <version>${appium-selenium.version}</version>
-            <!-- <version>${selenium.version}</version> -->
+            <!--             <version>${selenium.version}</version>-->
         </dependency>
 
         <!-- APPIUM -->

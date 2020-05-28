@@ -465,7 +465,6 @@ public class BrowserActions {
      */
     public static synchronized void closeCurrentWindow(WebDriver driver) {
         if (driver != null) {
-            ElementActions.setLastUsedDriver(null);
             JavaScriptWaitManager.waitForLazyLoading();
             try {
                 String lastPageSource = null;
@@ -482,6 +481,8 @@ public class BrowserActions {
                 }
             } catch (Exception rootCauseException) {
                 failAction(rootCauseException);
+            } finally {
+                ElementActions.setLastUsedDriver(null);
             }
         } else {
             ReportManager.logDiscrete("Window is already closed and driver object is null.");
