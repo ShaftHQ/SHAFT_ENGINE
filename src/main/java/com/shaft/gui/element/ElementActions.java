@@ -1107,8 +1107,6 @@ public class ElementActions {
             List<Object> screenshot = takeScreenshot(driver, elementLocator, "typeFileLocationForUpload", null, true);
             // takes screenshot before clicking the element out of view
 
-            boolean forcedElementVisibility = false;
-
             try {
                 driver.findElement(elementLocator).sendKeys(absoluteFilePath);
             } catch (InvalidArgumentException e) {
