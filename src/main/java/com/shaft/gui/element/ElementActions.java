@@ -1100,13 +1100,19 @@ public class ElementActions {
      */
     public static void typeFileLocationForUpload(WebDriver driver, By elementLocator, String absoluteFilePath) {
         absoluteFilePath = absoluteFilePath.replace("/", FileSystems.getDefault().getSeparator());
-        if (identifyUniqueElement(driver, elementLocator)) {
+        if (identifyUniqueElement(driver, elementLocator, ATTEMPTS_BEFORE_THROWING_ELEMENTNOTFOUNDEXCEPTION, false)) {
             // Override current locator with the aiGeneratedElementLocator
             elementLocator = updateLocatorWithAIGenratedOne(elementLocator);
 
-            passAction(driver, elementLocator, absoluteFilePath);
+            List<Object> screenshot = takeScreenshot(driver, elementLocator, "typeFileLocationForUpload", null, true);
+            // takes screenshot before clicking the element out of view
+
             try {
                 driver.findElement(elementLocator).sendKeys(absoluteFilePath);
+            } catch (InvalidArgumentException e) {
+                //this happens when the file path doesn't exist
+                failAction(driver, absoluteFilePath, elementLocator, e);
+
             } catch (ElementNotInteractableException exception1) {
                 ((JavascriptExecutor) driver).executeScript(
                         "arguments[0].setAttribute('style', 'display:block !important;');",
@@ -1129,6 +1135,7 @@ public class ElementActions {
                     ReportManager.logDiscrete(e);
                 }
             }
+            passAction(driver, elementLocator, absoluteFilePath, screenshot);
         } else {
             failAction(driver, absoluteFilePath, elementLocator);
         }
