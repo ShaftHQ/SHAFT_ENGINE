@@ -26,50 +26,6 @@
     </content>
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="inheritedJdk" />
-    <orderEntry type="library" name="Maven: ws.schild:jave-all-deps:2.7.3" level="project" />
-    <orderEntry type="library" name="Maven: ws.schild:jave-core:2.7.3" level="project" />
-    <orderEntry type="library" name="Maven: ws.schild:jave-nativebin-win32:2.7.3" level="project" />
-    <orderEntry type="library" name="Maven: ws.schild:jave-nativebin-win64:2.7.3" level="project" />
-    <orderEntry type="library" name="Maven: ws.schild:jave-nativebin-linux32:2.7.3" level="project" />
-    <orderEntry type="library" name="Maven: ws.schild:jave-nativebin-linux64:2.7.3" level="project" />
-    <orderEntry type="library" name="Maven: ws.schild:jave-nativebin-osx64:2.7.3" level="project" />
-    <orderEntry type="library" name="Maven: com.automation-remarks:video-recorder-testng:2.0" level="project" />
-    <orderEntry type="library" name="Maven: com.automation-remarks:video-recorder-core:2.0" level="project" />
-    <orderEntry type="library" name="Maven: org.aeonbits.owner:owner-java8:1.0.10" level="project" />
-    <orderEntry type="library" name="Maven: org.aeonbits.owner:owner:1.0.10" level="project" />
-    <orderEntry type="library" name="Maven: org.zeroturnaround:zt-exec:1.10" level="project" />
-    <orderEntry type="library" name="Maven: org.awaitility:awaitility:3.1.6" level="project" />
-    <orderEntry type="library" name="Maven: org.hamcrest:hamcrest-library:1.3" level="project" />
-    <orderEntry type="library" name="Maven: org.objenesis:objenesis:2.6" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.httpcomponents:httpclient:4.5.7" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.httpcomponents:httpcore:4.4.11" level="project" />
-    <orderEntry type="library" name="Maven: commons-logging:commons-logging:1.2" level="project" />
-    <orderEntry type="library" name="Maven: org.json:json:20180813" level="project" />
-    <orderEntry type="library" name="Maven: com.sikulix:sikulixapi:2.0.3" level="project" />
-    <orderEntry type="library" name="Maven: com.sikulix:sikulix2tigervnc:1.1.4" level="project" />
-    <orderEntry type="library" name="Maven: commons-cli:commons-cli:1.4" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.commons:commons-exec:1.3" level="project" />
-    <orderEntry type="library" name="Maven: net.java.dev.jna:jna-platform:5.4.0" level="project" />
-    <orderEntry type="library" name="Maven: net.java.dev.jna:jna:5.4.0" level="project" />
-    <orderEntry type="library" name="Maven: net.oneandone.reflections8:reflections8:0.11.6" level="project" />
-    <orderEntry type="library" name="Maven: org.javassist:javassist:3.22.0-GA" level="project" />
-    <orderEntry type="library" name="Maven: net.sourceforge.tess4j:tess4j:4.4.1" level="project" />
-    <orderEntry type="library" name="Maven: com.github.jai-imageio:jai-imageio-core:1.4.0" level="project" />
-    <orderEntry type="library" name="Maven: org.ghost4j:ghost4j:1.0.1" level="project" />
-    <orderEntry type="library" name="Maven: log4j:log4j:1.2.17" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.xmlgraphics:xmlgraphics-commons:1.4" level="project" />
-    <orderEntry type="library" name="Maven: com.lowagie:itext:2.1.7" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.pdfbox:pdfbox:2.0.17" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.pdfbox:fontbox:2.0.17" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.pdfbox:pdfbox-tools:2.0.17" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.pdfbox:pdfbox-debugger:2.0.17" level="project" />
-    <orderEntry type="library" name="Maven: org.apache.pdfbox:jbig2-imageio:3.0.2" level="project" />
-    <orderEntry type="library" name="Maven: net.sourceforge.lept4j:lept4j:1.12.3" level="project" />
-    <orderEntry type="library" name="Maven: org.jboss:jboss-vfs:3.2.14.Final" level="project" />
-    <orderEntry type="library" name="Maven: org.jboss.logging:jboss-logging:3.1.4.GA" level="project" />
-    <orderEntry type="library" name="Maven: org.slf4j:jul-to-slf4j:1.7.28" level="project" />
-    <orderEntry type="library" name="Maven: org.slf4j:jcl-over-slf4j:1.7.28" level="project" />
-    <orderEntry type="library" name="Maven: org.slf4j:log4j-over-slf4j:1.7.28" level="project" />
     <orderEntry type="library" name="Maven: org.testng:testng:7.0.0" level="project" />
     <orderEntry type="library" name="Maven: com.beust:jcommander:1.72" level="project" />
     <orderEntry type="library" name="Maven: org.seleniumhq.selenium:selenium-java:3.141.59" level="project" />
@@ -83,6 +39,7 @@
     <orderEntry type="library" name="Maven: org.seleniumhq.selenium:selenium-safari-driver:3.141.59" level="project" />
     <orderEntry type="library" name="Maven: org.seleniumhq.selenium:selenium-support:3.141.59" level="project" />
     <orderEntry type="library" name="Maven: net.bytebuddy:byte-buddy:1.8.15" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.commons:commons-exec:1.3" level="project" />
     <orderEntry type="library" name="Maven: com.google.guava:guava:25.0-jre" level="project" />
     <orderEntry type="library" name="Maven: com.google.code.findbugs:jsr305:1.3.9" level="project" />
     <orderEntry type="library" name="Maven: org.checkerframework:checker-compat-qual:2.0.0" level="project" />
@@ -93,6 +50,8 @@
     <orderEntry type="library" name="Maven: com.squareup.okio:okio:1.14.0" level="project" />
     <orderEntry type="library" name="Maven: io.appium:java-client:7.3.0" level="project" />
     <orderEntry type="library" name="Maven: com.google.code.gson:gson:2.8.5" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.httpcomponents:httpclient:4.5.9" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.httpcomponents:httpcore:4.4.11" level="project" />
     <orderEntry type="library" name="Maven: cglib:cglib:3.2.12" level="project" />
     <orderEntry type="library" name="Maven: org.ow2.asm:asm:7.1" level="project" />
     <orderEntry type="library" name="Maven: commons-validator:commons-validator:1.6" level="project" />
@@ -128,6 +87,27 @@
     <orderEntry type="library" name="Maven: org.glassfish.hk2.external:aopalliance-repackaged:2.4.0-b09" level="project" />
     <orderEntry type="library" name="Maven: org.glassfish.hk2.external:javax.inject:2.4.0-b09" level="project" />
     <orderEntry type="library" name="Maven: org.glassfish.hk2:hk2-locator:2.4.0-b09" level="project" />
+    <orderEntry type="library" name="Maven: com.sikulix:sikulixapi:2.0.3" level="project" />
+    <orderEntry type="library" name="Maven: com.sikulix:sikulix2tigervnc:1.1.4" level="project" />
+    <orderEntry type="library" name="Maven: commons-cli:commons-cli:1.4" level="project" />
+    <orderEntry type="library" name="Maven: net.java.dev.jna:jna-platform:5.4.0" level="project" />
+    <orderEntry type="library" name="Maven: net.java.dev.jna:jna:5.4.0" level="project" />
+    <orderEntry type="library" name="Maven: net.oneandone.reflections8:reflections8:0.11.6" level="project" />
+    <orderEntry type="library" name="Maven: org.javassist:javassist:3.22.0-GA" level="project" />
+    <orderEntry type="library" name="Maven: net.sourceforge.tess4j:tess4j:4.4.1" level="project" />
+    <orderEntry type="library" name="Maven: com.github.jai-imageio:jai-imageio-core:1.4.0" level="project" />
+    <orderEntry type="library" name="Maven: org.ghost4j:ghost4j:1.0.1" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.xmlgraphics:xmlgraphics-commons:1.4" level="project" />
+    <orderEntry type="library" name="Maven: com.lowagie:itext:2.1.7" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.pdfbox:pdfbox:2.0.17" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.pdfbox:fontbox:2.0.17" level="project" />
+    <orderEntry type="library" name="Maven: commons-logging:commons-logging:1.2" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.pdfbox:pdfbox-tools:2.0.17" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.pdfbox:pdfbox-debugger:2.0.17" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.pdfbox:jbig2-imageio:3.0.2" level="project" />
+    <orderEntry type="library" name="Maven: net.sourceforge.lept4j:lept4j:1.12.3" level="project" />
+    <orderEntry type="library" name="Maven: org.jboss:jboss-vfs:3.2.14.Final" level="project" />
+    <orderEntry type="library" name="Maven: org.jboss.logging:jboss-logging:3.1.4.GA" level="project" />
     <orderEntry type="library" name="Maven: io.github.bonigarcia:webdrivermanager:3.8.1" level="project" />
     <orderEntry type="library" name="Maven: org.rauschig:jarchivelib:1.0.0" level="project" />
     <orderEntry type="library" name="Maven: org.jsoup:jsoup:1.11.3" level="project" />
@@ -163,8 +143,6 @@
     <orderEntry type="library" name="Maven: org.apache.sling:org.apache.sling.javax.activation:0.1.0" level="project" />
     <orderEntry type="library" name="Maven: javax.activation:activation:1.1.1" level="project" />
     <orderEntry type="library" name="Maven: com.googlecode.json-simple:json-simple:1.1.1" level="project" />
-    <orderEntry type="library" name="Maven: junit:junit:4.10" level="project" />
-    <orderEntry type="library" name="Maven: org.hamcrest:hamcrest-core:1.1" level="project" />
     <orderEntry type="library" name="Maven: org.skyscreamer:jsonassert:1.5.0" level="project" />
     <orderEntry type="library" name="Maven: com.vaadin.external.google:android-json:0.0.20131108.vaadin1" level="project" />
     <orderEntry type="library" name="Maven: eu.medsea.mimeutil:mime-util:2.1.3" level="project" />
@@ -189,11 +167,25 @@
     <orderEntry type="library" name="Maven: io.cucumber:docstring:5.3.0" level="project" />
     <orderEntry type="library" name="Maven: org.apiguardian:apiguardian-api:1.1.0" level="project" />
     <orderEntry type="library" name="Maven: io.cucumber:cucumber-testng:5.3.0" level="project" />
-    <orderEntry type="library" name="Maven: com.pojosontheweb:monte-repack:1.0.1" level="project" />
-    <orderEntry type="library" name="Maven: javax.media.jai:com.springsource.javax.media.jai.core:1.1.3" level="project" />
-    <orderEntry type="library" name="Maven: javax.media.jai:com.springsource.javax.media.jai.codec:1.1.3" level="project" />
-    <orderEntry type="library" name="Maven: javax.media:jmf:2.1.1e" level="project" />
+    <orderEntry type="library" name="Maven: ws.schild:jave-all-deps:2.7.3" level="project" />
+    <orderEntry type="library" name="Maven: ws.schild:jave-core:2.7.3" level="project" />
+    <orderEntry type="library" name="Maven: ws.schild:jave-nativebin-win32:2.7.3" level="project" />
+    <orderEntry type="library" name="Maven: ws.schild:jave-nativebin-win64:2.7.3" level="project" />
+    <orderEntry type="library" name="Maven: ws.schild:jave-nativebin-linux32:2.7.3" level="project" />
+    <orderEntry type="library" name="Maven: ws.schild:jave-nativebin-linux64:2.7.3" level="project" />
+    <orderEntry type="library" name="Maven: ws.schild:jave-nativebin-osx64:2.7.3" level="project" />
+    <orderEntry type="library" name="Maven: com.automation-remarks:video-recorder-testng:2.0" level="project" />
+    <orderEntry type="library" name="Maven: com.automation-remarks:video-recorder-core:2.0" level="project" />
+    <orderEntry type="library" name="Maven: org.aeonbits.owner:owner-java8:1.0.10" level="project" />
+    <orderEntry type="library" name="Maven: org.aeonbits.owner:owner:1.0.10" level="project" />
+    <orderEntry type="library" name="Maven: org.zeroturnaround:zt-exec:1.10" level="project" />
+    <orderEntry type="library" name="Maven: org.awaitility:awaitility:3.1.6" level="project" />
+    <orderEntry type="library" name="Maven: org.hamcrest:hamcrest-library:1.3" level="project" />
+    <orderEntry type="library" name="Maven: org.hamcrest:hamcrest-core:1.3" level="project" />
+    <orderEntry type="library" name="Maven: org.objenesis:objenesis:2.6" level="project" />
+    <orderEntry type="library" name="Maven: org.json:json:20180813" level="project" />
     <orderEntry type="library" name="Maven: org.slf4j:slf4j-simple:1.7.30" level="project" />
     <orderEntry type="library" name="Maven: org.slf4j:slf4j-api:1.7.30" level="project" />
+    <orderEntry type="library" name="Maven: org.slf4j:log4j-over-slf4j:1.7.30" level="project" />
   </component>
 </module>
