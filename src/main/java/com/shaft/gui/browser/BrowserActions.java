@@ -498,8 +498,8 @@ public class BrowserActions {
     public static void maximizeWindow(WebDriver driver) {
         Dimension initialWindowSize;
         Dimension currentWindowSize;
-        int width = 1920;
-        int height = 1080;
+        int targetWidth = 1920;
+        int targetHeight = 1080;
 
         initialWindowSize = driver.manage().window().getSize();
         ReportManager.logDiscrete("Initial window size: " + initialWindowSize.toString());
@@ -518,21 +518,20 @@ public class BrowserActions {
         if ((initialWindowSize.height == currentWindowSize.height)
                 && (initialWindowSize.width == currentWindowSize.width)) {
             // attempt resize using toolkit
-            currentWindowSize = attemptMazimizeUsingToolkitAndJavascript(driver, width, height);
+            currentWindowSize = attemptMazimizeUsingToolkitAndJavascript(driver, targetWidth, targetHeight);
         }
 
-        if ((initialWindowSize.height == currentWindowSize.height)
-                && (initialWindowSize.width == currentWindowSize.width)) {
+        if ((currentWindowSize.height != targetHeight)
+                || (currentWindowSize.width != targetWidth)) {
             // happens with headless firefox browsers // remote // linux and windows
             // also happens with chrome/windows
 
             // attempt resize using WebDriver mange window
-            currentWindowSize = attemptMaximizeUsingSeleniumWebDriverManageWindow(driver, width, height);
+            currentWindowSize = attemptMaximizeUsingSeleniumWebDriverManageWindow(driver, targetWidth, targetHeight);
         }
 
-        if ((initialWindowSize.height == currentWindowSize.height)
-                && (initialWindowSize.width == currentWindowSize.width)) {
-
+        if ((currentWindowSize.height != targetHeight)
+                || (currentWindowSize.width != targetWidth)) {
             // attempt setting window to fullscreen
             fullScreenWindow(driver);
 
@@ -540,8 +539,8 @@ public class BrowserActions {
             ReportManager.logDiscrete("Window size after fullScreenWindow: " + currentWindowSize.toString());
         }
 
-        if ((initialWindowSize.height == currentWindowSize.height)
-                && (initialWindowSize.width == currentWindowSize.width)) {
+        if ((currentWindowSize.height != targetHeight)
+                || (currentWindowSize.width != targetWidth)) {
             ReportManager.logDiscrete("skipping window maximization due to unknown error, marking step as passed.");
         }
 
@@ -590,31 +589,17 @@ public class BrowserActions {
     }
 
     public static void fullScreenWindow(WebDriver driver) {
-        Dimension initialWindowSize;
-        int width = 1920;
-        int height = 1080;
-        Boolean heightNotChanged;
-        Boolean widthNotChanged;
+        Dimension initialWindowSize = driver.manage().window().getSize();
+        ReportManager.logDiscrete("Initial Windows Size: " + initialWindowSize.width + "x" + initialWindowSize.height);
 
-        initialWindowSize = driver.manage().window().getSize();
-        driver.manage().window().fullscreen();
-
-        heightNotChanged = String.valueOf(initialWindowSize.height)
-                .equals(String.valueOf(driver.manage().window().getSize().height));
-        widthNotChanged = String.valueOf(initialWindowSize.width)
-                .equals(String.valueOf(driver.manage().window().getSize().width));
-
-        if (heightNotChanged && widthNotChanged) {
-            ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_FOCUS.getValue());
-            ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_RESET_LOCATION.getValue());
-            ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_RESIZE.getValue()
-                    .replace("$WIDTH", String.valueOf(width)).replace("$HEIGHT", String.valueOf(height)));
+        if (!System.getProperty("executionAddress").trim().toLowerCase().equals("local")
+                && System.getProperty("headlessExecution").trim().toLowerCase().equals("true")) {
+            maximizeWindow(driver);
+        } else {
+            driver.manage().window().fullscreen();
         }
 
-        if (heightNotChanged && widthNotChanged) {
-            ReportManager.logDiscrete(
-                    "skipping switching window to full screen due to unknown error, marking step as passed.");
-        }
+        ReportManager.logDiscrete("Current Windows Size after fullScreen: " + driver.manage().window().getSize().width + "x" + driver.manage().window().getSize().height);
         passAction(driver, driver.getPageSource());
     }
 }
