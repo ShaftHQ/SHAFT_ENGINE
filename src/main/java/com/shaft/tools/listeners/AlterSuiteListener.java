@@ -3,32 +3,19 @@ package com.shaft.tools.listeners;
 import com.shaft.tools.io.LogsReporter;
 import com.shaft.tools.io.PropertiesFileManager;
 import com.shaft.tools.io.ReportManager;
-import org.apache.log4j.PropertyConfigurator;
 import org.testng.IAlterSuiteListener;
 import org.testng.xml.XmlClass;
 import org.testng.xml.XmlSuite;
 import org.testng.xml.XmlSuite.ParallelMode;
 
 import java.util.List;
-import java.util.Properties;
 
 public class AlterSuiteListener implements IAlterSuiteListener {
 
     @Override
     public void alter(List<XmlSuite> suites) {
         addListeners(suites);
-        //log4j configuration needed to fix this warning
-        //log4j:WARN No appenders could be found for logger (com.automation.remarks.video.recorder.monte.MonteRecorder).
-        //log4j:WARN Please initialize the log4j system properly.
-        //log4j:WARN See http://logging.apache.org/log4j/1.2/faq.html#noconfig for more info.
-        Properties log4jProperties = new Properties();
-        log4jProperties.setProperty("log4j.rootLogger", "INFO, stdout");
-        log4jProperties.setProperty("log4j.appender.stdout", "org.apache.log4j.ConsoleAppender");
-        log4jProperties.setProperty("log4j.appender.stdout.Target", "System.out");
-        log4jProperties.setProperty("log4j.appender.stdout.layout", "org.apache.log4j.PatternLayout");
-        log4jProperties.setProperty("log4j.appender.stdout.layout.ConversionPattern", "[main] %p %c - %m @%d{dd-MM-yyyy HH:mm:ss.SSSS aaa}%n");
-        PropertyConfigurator.configure(log4jProperties);
-        //TODO: unify log patterns for log4j and slf4j
+        //TODO: manage slf4j log patterns
         PropertiesFileManager.readPropertyFiles();
         setExecutionProperties(suites);
         renameDefaultSuiteAndTest(suites);
