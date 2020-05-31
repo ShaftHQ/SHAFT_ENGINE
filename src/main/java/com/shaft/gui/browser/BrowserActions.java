@@ -159,7 +159,7 @@ public class BrowserActions {
         return null;
     }
 
-    private static Dimension attemptMazimizeUsingToolkitAndJavascript(WebDriver driver, int width, int height) {
+    private static Dimension attemptMaximizeUsingToolkitAndJavascript(WebDriver driver, int width, int height) {
         try {
             Toolkit toolkit = Toolkit.getDefaultToolkit();
             if (Boolean.FALSE.equals(HEADLESS_EXECUTION)) {
@@ -518,7 +518,7 @@ public class BrowserActions {
         if ((initialWindowSize.height == currentWindowSize.height)
                 && (initialWindowSize.width == currentWindowSize.width)) {
             // attempt resize using toolkit
-            currentWindowSize = attemptMazimizeUsingToolkitAndJavascript(driver, targetWidth, targetHeight);
+            currentWindowSize = attemptMaximizeUsingToolkitAndJavascript(driver, targetWidth, targetHeight);
         }
 
         if ((currentWindowSize.height != targetHeight)

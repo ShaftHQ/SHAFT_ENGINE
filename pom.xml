@@ -49,7 +49,7 @@
         <encoding.type>UTF-8</encoding.type>
         <jdk.version>14</jdk.version>
 
-        <selenium.version>4.0.0-alpha-5</selenium.version>
+        <selenium.version>4.0.0-alpha-6</selenium.version>
         <appium-selenium.version>3.141.59</appium-selenium.version>
         <appium-java-client.version>7.3.0</appium-java-client.version>
 
@@ -68,8 +68,6 @@
         <mssql-jdbc.version>7.2.2.jre8</mssql-jdbc.version>
         <postgresql.version>9.1-901-1.jdbc4</postgresql.version>
         <!-- <ojdbc8.version>19.3.0.0</ojdbc8.version> -->
-
-        <pojosontheweb-monte.version>1.0.1</pojosontheweb-monte.version>
 
         <apachepoi.version>4.1.2</apachepoi.version>
         <org.slf4j.version>1.7.30</org.slf4j.version>
@@ -90,57 +88,13 @@
         <openpnp-opencv.version>4.3.0-2</openpnp-opencv.version>
         <applitools-eyes.version>4.12.0</applitools-eyes.version>
         <sikuixapi.version>2.0.3</sikuixapi.version>
+
+        <jave-all-deps.version>2.7.3</jave-all-deps.version>
+        <video-recorder-testng.version>2.0</video-recorder-testng.version>
+
     </properties>
 
     <dependencies>
-        <!-- https://mvnrepository.com/artifact/ws.schild/jave-all-deps -->
-        <dependency>
-            <groupId>ws.schild</groupId>
-            <artifactId>jave-all-deps</artifactId>
-            <version>2.7.3</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-api</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-
-        <!-- https://mvnrepository.com/artifact/com.automation-remarks/video-recorder-testng -->
-        <dependency>
-            <groupId>com.automation-remarks</groupId>
-            <artifactId>video-recorder-testng</artifactId>
-            <version>2.0</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-api</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>log4j</groupId>
-                    <artifactId>log4j</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-
-        <dependency>
-            <groupId>com.sikulix</groupId>
-            <artifactId>sikulixapi</artifactId>
-            <version>${sikuixapi.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-nop</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/net.sourceforge.tess4j/tess4j -->
-        <!-- http://tess4j.sourceforge.net/ -->
-        <!--        <dependency>
-                    <groupId>net.sourceforge.tess4j</groupId>
-                    <artifactId>tess4j</artifactId>
-                    <version>4.5.1</version>
-                </dependency>-->
         <!-- TESTNG DEPENDENCIES -->
         <dependency>
             <groupId>org.testng</groupId>
@@ -153,7 +107,7 @@
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-java</artifactId>
             <version>${appium-selenium.version}</version>
-            <!--             <version>${selenium.version}</version>-->
+            <!--<version>${selenium.version}</version>-->
         </dependency>
 
         <!-- APPIUM -->
@@ -197,6 +151,35 @@
             <version>${applitools-eyes.version}</version>
         </dependency>
 
+        <!-- VISUAL ELEMENT IDENTIFICATION -->
+        <dependency>
+            <groupId>com.sikulix</groupId>
+            <artifactId>sikulixapi</artifactId>
+            <version>${sikuixapi.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-nop</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>jul-to-slf4j</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>jcl-over-slf4j</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>log4j-over-slf4j</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>log4j</groupId>
+                    <artifactId>log4j</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
         <!-- WEBDRIVER MANAGER -->
         <dependency>
             <groupId>io.github.bonigarcia</groupId>
@@ -232,6 +215,10 @@
                     <groupId>org.slf4j</groupId>
                     <artifactId>slf4j-api</artifactId>
                 </exclusion>
+                <exclusion>
+                    <groupId>org.testng</groupId>
+                    <artifactId>testng</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
         <dependency>
@@ -245,21 +232,17 @@
             <groupId>io.rest-assured</groupId>
             <artifactId>rest-assured</artifactId>
             <version>${rest-assured.version}</version>
-            <!-- <exclusions> -->
-            <!-- <exclusion> -->
-            <!-- <groupId>com.sun.xml.bind</groupId> -->
-            <!-- <artifactId>jaxb-osgi</artifactId> -->
-            <!-- </exclusion> -->
-            <!-- <exclusion> -->
-            <!-- <groupId>javax.xml.bind</groupId> -->
-            <!-- <artifactId>jaxb-api</artifactId> -->
-            <!-- </exclusion> -->
-            <!-- </exclusions> -->
         </dependency>
         <dependency>
             <groupId>com.googlecode.json-simple</groupId>
             <artifactId>json-simple</artifactId>
             <version>${json-simple.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>junit</groupId>
+                    <artifactId>junit</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.skyscreamer</groupId>
@@ -346,10 +329,38 @@
         </dependency>
 
         <!-- VIDEO RECORDING -->
+        <!-- https://mvnrepository.com/artifact/ws.schild/jave-all-deps -->
         <dependency>
-            <groupId>com.pojosontheweb</groupId>
-            <artifactId>monte-repack</artifactId>
-            <version>${pojosontheweb-monte.version}</version>
+            <groupId>ws.schild</groupId>
+            <artifactId>jave-all-deps</artifactId>
+            <version>${jave-all-deps.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/com.automation-remarks/video-recorder-testng -->
+        <dependency>
+            <groupId>com.automation-remarks</groupId>
+            <artifactId>video-recorder-testng</artifactId>
+            <version>${video-recorder-testng.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>log4j</groupId>
+                    <artifactId>log4j</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.testng</groupId>
+                    <artifactId>testng</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- TRANSITIVE LOGGING -->
@@ -357,6 +368,13 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
             <version>${org.slf4j.version}</version>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/org.slf4j/log4j-over-slf4j -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>log4j-over-slf4j</artifactId>
+            <version>1.7.30</version>
         </dependency>
     </dependencies>
 
