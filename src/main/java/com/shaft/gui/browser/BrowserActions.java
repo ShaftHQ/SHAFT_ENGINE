@@ -590,31 +590,22 @@ public class BrowserActions {
     }
 
     public static void fullScreenWindow(WebDriver driver) {
-        Dimension initialWindowSize;
-        int width = 1920;
-        int height = 1080;
-        Boolean heightNotChanged;
-        Boolean widthNotChanged;
+        int targetWidth = 1920;
+        int targetHeight = 1080;
 
-        initialWindowSize = driver.manage().window().getSize();
+        Dimension initialWindowSize = driver.manage().window().getSize();
+        ReportManager.logDiscrete("Initial Windows Size: " + initialWindowSize.width + "x" + initialWindowSize.height);
+
         driver.manage().window().fullscreen();
+        int currentWidth = driver.manage().window().getSize().width;
+        int currentHeight = driver.manage().window().getSize().height;
+        ReportManager.logDiscrete("Current Windows Size after fullScreen: " + currentWidth + "x" + currentHeight);
 
-        heightNotChanged = String.valueOf(initialWindowSize.height)
-                .equals(String.valueOf(driver.manage().window().getSize().height));
-        widthNotChanged = String.valueOf(initialWindowSize.width)
-                .equals(String.valueOf(driver.manage().window().getSize().width));
-
-        if (heightNotChanged && widthNotChanged) {
-            ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_FOCUS.getValue());
-            ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_RESET_LOCATION.getValue());
-            ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_RESIZE.getValue()
-                    .replace("$WIDTH", String.valueOf(width)).replace("$HEIGHT", String.valueOf(height)));
+        if ((currentWidth == initialWindowSize.width && currentWidth != targetWidth)
+                || (currentHeight == initialWindowSize.height && currentHeight != targetHeight)) {
+            maximizeWindow(driver);
         }
 
-        if (heightNotChanged && widthNotChanged) {
-            ReportManager.logDiscrete(
-                    "skipping switching window to full screen due to unknown error, marking step as passed.");
-        }
         passAction(driver, driver.getPageSource());
     }
 }
