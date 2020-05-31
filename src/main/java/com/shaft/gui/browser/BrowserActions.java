@@ -590,22 +590,17 @@ public class BrowserActions {
     }
 
     public static void fullScreenWindow(WebDriver driver) {
-        int targetWidth = 1920;
-        int targetHeight = 1080;
-
         Dimension initialWindowSize = driver.manage().window().getSize();
         ReportManager.logDiscrete("Initial Windows Size: " + initialWindowSize.width + "x" + initialWindowSize.height);
 
-        driver.manage().window().fullscreen();
-        int currentWidth = driver.manage().window().getSize().width;
-        int currentHeight = driver.manage().window().getSize().height;
-        ReportManager.logDiscrete("Current Windows Size after fullScreen: " + currentWidth + "x" + currentHeight);
-
-        if ((currentWidth == initialWindowSize.width && currentWidth != targetWidth)
-                || (currentHeight == initialWindowSize.height && currentHeight != targetHeight)) {
+        if (!System.getProperty("executionAddress").trim().toLowerCase().equals("local")
+                && System.getProperty("headlessExecution").trim().toLowerCase().equals("true")) {
             maximizeWindow(driver);
+        } else {
+            driver.manage().window().fullscreen();
         }
 
+        ReportManager.logDiscrete("Current Windows Size after fullScreen: " + driver.manage().window().getSize().width + "x" + driver.manage().window().getSize().height);
         passAction(driver, driver.getPageSource());
     }
 }
