@@ -19,14 +19,14 @@ import java.util.stream.Collectors;
 
 public class ReportManager {
 
-    private static final String TIMESTAMP_FORMAT = "dd-MM-yyyy HH:mm:ss.SSSS aaa";
-    private static final Logger slf4jLogger = LoggerFactory.getLogger(ReportManager.class);
-    private static final String SHAFT_ENGINE_VERSION_PROPERTY_NAME = "shaftEngineVersion";
-    private static final String TARGET_OS_PROPERTY_NAME = "targetOperatingSystem";
-    private static final String ALLURE_VERSION_PROPERTY_NAME = "allureVersion";
-    private static final String REPORT_MANAGER_PREFIX = "[ReportManager] ";
-    private static final String SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE = "SHAFT Engine Logs";
-    private static final String OS_WINDOWS = "Windows-64";
+	private static final String TIMESTAMP_FORMAT = "dd-MM-yyyy HH:mm:ss.SSSS aaa";
+	private static final Logger slf4jLogger = LoggerFactory.getLogger(ReportManager.class);
+	private static final String SHAFT_ENGINE_VERSION_PROPERTY_NAME = "shaftEngineVersion";
+	private static final String TARGET_OS_PROPERTY_NAME = "targetOperatingSystem";
+	private static final String ALLURE_VERSION_PROPERTY_NAME = "allureVersion";
+	private static final String REPORT_MANAGER_PREFIX = "[ReportManager] ";
+	private static final String SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE = "SHAFT Engine Logs";
+	private static final String OS_WINDOWS = "Windows-64";
 	private static final String allureExtractionLocation = System.getProperty("user.home") + File.separator + ".m2"
 			+ File.separator + "repository" + File.separator + "allure" + File.separator;
 	private static String fullLog = "";
@@ -699,8 +699,8 @@ public class ReportManager {
 		}
 	}
 
-	//TO close running reports so allure results can be cleaned before execution
-	//That will work after running test terminated from IDE first
+	// TO close running reports so allure results can be cleaned before execution
+	// That will work after running test terminated from IDE first.
 	public static void closeRunningAllureReport() {
 		String commandToCloseAllureReport = "";
 		if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("openAllureReportAfterExecution").trim()))
@@ -714,7 +714,7 @@ public class ReportManager {
 			new TerminalActions().performTerminalCommand(commandToCloseAllureReport);
 		}
 	}
-   
+
 	public static void generateAllureReportArchive() {
 		if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateAllureReportArchive").trim()))
 				&& System.getProperty("executionAddress").trim().equals("local")) {
