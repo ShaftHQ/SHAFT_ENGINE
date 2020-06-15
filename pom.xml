@@ -107,7 +107,7 @@
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-java</artifactId>
             <version>${appium-selenium.version}</version>
-            <!--<version>${selenium.version}</version>-->
+<!--            <version>${selenium.version}</version>-->
         </dependency>
 
         <!-- APPIUM -->
