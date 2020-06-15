@@ -1766,8 +1766,16 @@ public class ElementActions {
                     .until(ExpectedConditions.elementToBeClickable(elementLocator));
             // wait for element to be clickable
             passAction(driver, elementLocator);
-            return true;
-        } else {
+            return true;          
+        } else if (identifyUniqueElement(driver, elementLocator) 
+        		&& !(driver.findElement(elementLocator).isEnabled())) {
+            // Override current locator with the aiGeneratedElementLocator
+            elementLocator = updateLocatorWithAIGenratedOne(elementLocator);
+            // wait for element to be clickable
+            passAction(driver, elementLocator);
+            return false;
+        }else {
+        	failAction(driver, elementLocator);
             return false;
         }
     }
