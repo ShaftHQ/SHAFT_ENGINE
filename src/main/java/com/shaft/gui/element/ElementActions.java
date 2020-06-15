@@ -1757,7 +1757,8 @@ public class ElementActions {
      * element is not clickable
      */
     public static boolean isElementClickable(WebDriver driver, By elementLocator) {
-        if (identifyUniqueElement(driver, elementLocator)) {
+        if (identifyUniqueElement(driver, elementLocator) 
+        		&& driver.findElement(elementLocator).isEnabled()) {
             // Override current locator with the aiGeneratedElementLocator
             elementLocator = updateLocatorWithAIGenratedOne(elementLocator);
 
@@ -1767,7 +1768,6 @@ public class ElementActions {
             passAction(driver, elementLocator);
             return true;
         } else {
-            failAction(driver, elementLocator);
             return false;
         }
     }

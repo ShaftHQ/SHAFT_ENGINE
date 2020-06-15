@@ -434,6 +434,7 @@ public class ReportManager {
         if (System.getProperty("executionAddress").trim().equals("local")
                 || (System.getProperty("mobile_platformName") != null && !System.getProperty("mobile_platformName").trim().equals(""))) {
             setDiscreteLogging(true);
+            closeRunningAllureReport();
             cleanAllureResultsDirectory();
             downloadAndExtractAllureBinaries();
             writeGenerateReportShellFilesToProjectDirectory();
@@ -692,6 +693,23 @@ public class ReportManager {
             new TerminalActions().performTerminalCommand(commandToOpenAllureReport);
         }
     }
+    
+    // TO close running reports so allure results can be cleaned before execution
+ 	// That will work after running test terminated from IDE first.
+ 	public static void closeRunningAllureReport() {
+ 		String commandToCloseAllureReport = "";
+ 		if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("openAllureReportAfterExecution").trim()))
+ 				&& System.getProperty("executionAddress").trim().equals("local")) {
+
+ 			if (SystemUtils.IS_OS_WINDOWS) {
+ 				commandToCloseAllureReport = ("taskkill /F /IM java.exe /T");
+ 			} else {
+ 				commandToCloseAllureReport = ("pkill -9 -f io.qameta.allure.CommandLine");
+ 			}
+ 			new TerminalActions().performTerminalCommand(commandToCloseAllureReport);
+ 		}
+ 	}
+
 
     public static void generateAllureReportArchive() {
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateAllureReportArchive").trim()))
