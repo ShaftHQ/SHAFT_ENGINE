@@ -4,7 +4,6 @@ import com.automation.remarks.video.RecorderFactory;
 import com.automation.remarks.video.recorder.IVideoRecorder;
 import com.automation.remarks.video.recorder.VideoRecorder;
 import com.shaft.tools.io.ReportManager;
-import org.testng.Reporter;
 import ws.schild.jave.*;
 
 import java.io.File;
@@ -35,8 +34,8 @@ public class RecordManager {
 
     public static synchronized void attachVideoRecording() {
         if (Boolean.TRUE.equals(RECORD_VIDEO) && recorder.get() != null) {
-            String testMethodName = Reporter.getCurrentTestResult().getMethod().getMethodName();
-            String pathToRecording = doVideoProcessing(Reporter.getCurrentTestResult().isSuccess(), recorder.get().stopAndSave(System.currentTimeMillis() + "_" + testMethodName));
+            String testMethodName = ReportManager.getTestMethodName();
+            String pathToRecording = doVideoProcessing(ReportManager.isCurrentTestPassed(), recorder.get().stopAndSave(System.currentTimeMillis() + "_" + testMethodName));
             encodeAndAttach(pathToRecording, testMethodName);
             recorder.set(null);
         }

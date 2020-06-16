@@ -9,7 +9,6 @@ import org.openqa.selenium.*;
 import org.sikuli.script.App;
 import org.sikuli.script.Pattern;
 import org.sikuli.script.Screen;
-import org.testng.Reporter;
 
 import javax.imageio.ImageIO;
 import javax.imageio.stream.FileImageOutputStream;
@@ -241,7 +240,7 @@ public class ScreenshotManager {
                 /*
                  * Declare screenshot file name
                  */
-                testCaseName = Reporter.getCurrentTestResult().getMethod().getMethodName();
+                testCaseName = ReportManager.getTestMethodName();
                 screenshotFileName = System.currentTimeMillis() + "_" + testCaseName + "_" + actionName;
                 if (!appendedText.equals("")) {
                     screenshotFileName = screenshotFileName + "_" + appendedText;
@@ -354,7 +353,7 @@ public class ScreenshotManager {
             /*
              * Declare screenshot file name
              */
-            testCaseName = Reporter.getCurrentTestResult().getMethod().getMethodName();
+            testCaseName = ReportManager.getTestMethodName();
             screenshotFileName = System.currentTimeMillis() + "_" + testCaseName + "_" + actionName;
             if (!globalPassFailAppendedText.equals("")) {
                 screenshotFileName = screenshotFileName + "_" + globalPassFailAppendedText;
@@ -484,7 +483,7 @@ public class ScreenshotManager {
         // TODO: refactor performance to reduce severe drop when enabling this option
         if (Boolean.TRUE.equals(CREATE_GIF) && screenshot != null) {
             try {
-                testCaseName = Reporter.getCurrentTestResult().getMethod().getMethodName();
+                testCaseName = ReportManager.getTestMethodName();
                 String gifFileName = FileSystems.getDefault().getSeparator() + System.currentTimeMillis() + "_"
                         + testCaseName + ".gif";
                 gifRelativePathWithFileName = SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME + gifFileName;
