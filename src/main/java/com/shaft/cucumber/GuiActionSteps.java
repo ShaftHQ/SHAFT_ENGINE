@@ -3,9 +3,11 @@ package com.shaft.cucumber;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.ElementActions;
+import com.shaft.tools.io.PropertiesFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Assertions;
 
+import io.cucumber.java.After;
 import io.cucumber.java.Before;
 import io.cucumber.java.ParameterType;
 import io.cucumber.java.Scenario;
@@ -20,11 +22,6 @@ import java.util.Arrays;
 public class GuiActionSteps {
     //TODO: handle shaft_engine listeners
     private ThreadLocal<WebDriver> driver = new ThreadLocal<>();
-
-    @Before
-    public void before(Scenario scenario){
-        ReportManager.setCucumberScenario(scenario);
-    }
 
     @Given("I Open the target browser")
     public void BrowserFactory_getBrowser(){

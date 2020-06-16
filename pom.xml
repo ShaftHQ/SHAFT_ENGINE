@@ -507,7 +507,7 @@
                     </archive>
                     <excludes>
                         <exclude>test/**</exclude>
-                        <exclude>**/CucumberFeatures/**</exclude>
+<!--                        <exclude>**/CucumberFeatures/**</exclude>-->
                         <exclude>**/TestDataFiles/**</exclude>
                         <exclude>**/TestJsonFiles/**</exclude>
                         <exclude>**/TestSuites/**</exclude>

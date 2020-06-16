@@ -468,6 +468,12 @@ public class ReportManager {
         }
     }
 
+    public static synchronized void logScenarioInformation(String id, String name){
+        createImportantReportEntry("Starting Execution of Scenario with id:\t[" + id
+                        + "]\nScenario Name:\t\t["+ name + "]",
+                false);
+    }
+
     public static void logConfigurationMethodInformation(String className, String testMethodName) {
         // In TestNG Reporter, this log entry is logged at the end of the previous test
         // (or null for the first test)
