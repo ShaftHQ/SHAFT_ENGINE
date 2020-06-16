@@ -242,7 +242,7 @@ public class ImageProcessingActions {
         try {
             OpenCV.loadShared();
             ReportManager.logDiscrete("Loaded Shared OpenCV");
-        } catch (java.lang.RuntimeException | java.lang.ExceptionInInitializerError e) {
+        } catch (NoClassDefFoundError | RuntimeException | ExceptionInInitializerError e) {
             OpenCV.loadLocally();
             ReportManager.logDiscrete("Loaded Local OpenCV");
         }
