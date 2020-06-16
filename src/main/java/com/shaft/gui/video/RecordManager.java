@@ -35,8 +35,8 @@ public class RecordManager {
 
     public static synchronized void attachVideoRecording() {
         if (Boolean.TRUE.equals(RECORD_VIDEO) && recorder.get() != null) {
-            String testMethodName = Reporter.getCurrentTestResult().getMethod().getMethodName();
-            String pathToRecording = doVideoProcessing(Reporter.getCurrentTestResult().isSuccess(), recorder.get().stopAndSave(System.currentTimeMillis() + "_" + testMethodName));
+            String testMethodName = ReportManager.getTestMethodName();
+            String pathToRecording = doVideoProcessing(ReportManager.isCurrentTestPassed(), recorder.get().stopAndSave(System.currentTimeMillis() + "_" + testMethodName));
             encodeAndAttach(pathToRecording, testMethodName);
             recorder.set(null);
         }

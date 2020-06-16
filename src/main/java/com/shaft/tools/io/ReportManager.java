@@ -3,6 +3,7 @@ package com.shaft.tools.io;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
+import io.cucumber.java.Scenario;
 import io.qameta.allure.Allure;
 import io.qameta.allure.Step;
 import org.apache.commons.lang3.SystemUtils;
@@ -42,6 +43,11 @@ public class ReportManager {
     private static int failedTestsWithoutOpenIssuesCounter = 0;
     private static String allureResultsFolderPath = "";
     private static String allureBinaryPath = "";
+    private static Scenario cucumberScenario;
+
+    public static void setCucumberScenario(Scenario cucumberScenario){
+        ReportManager.cucumberScenario = cucumberScenario;
+    }
 
     // TODO: refactor to regular class that can be instanciated within the test and
     // used in a thread-safe way
@@ -720,5 +726,21 @@ public class ReportManager {
             }
         }
         return callingMethodFullName.toString();
+    }
+
+    public static String getTestMethodName(){
+        if (cucumberScenario != null) {
+            return cucumberScenario.getName().replaceAll(" ","_");
+        }else{
+            return Reporter.getCurrentTestResult().getMethod().getMethodName();
+        }
+    }
+
+    public static Boolean isCurrentTestPassed(){
+        if (cucumberScenario != null) {
+            return !cucumberScenario.isFailed();
+        }else {
+            return Reporter.getCurrentTestResult().isSuccess();
+        }
     }
 }

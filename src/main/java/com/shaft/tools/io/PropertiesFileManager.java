@@ -110,34 +110,36 @@ public class PropertiesFileManager {
     }
 
     public static synchronized void readPropertyFiles(String propertiesFolderPath) {
-        //propertiesFolderPath = propertiesFolderPath.replace("/", File.separator).replace("\\", File.separator);
-        ReportManager.logDiscrete("Reading properties directory: " + propertiesFolderPath);
-        try {
-            Properties properties = new Properties();
-            if (propertiesFolderPath.contains(".jar")) {
-                // unpacks default properties to target folder
-                URL url = new URL(propertiesFolderPath.substring(0, propertiesFolderPath.indexOf("!")));
-                FileActions.unpackArchive(url, "target/");
-                propertiesFolderPath = "target/defaultProperties/";
-            }
-            // reading regular files
-            Collection<File> propertiesFilesList;
-            if (FileActions.doesFileExist(propertiesFolderPath)) {
-                propertiesFilesList = FileUtils.listFiles(new File(propertiesFolderPath), new String[]{"properties"},
-                        true);
-                File propertyFile;
-                for (int i = 0; i < propertiesFilesList.size(); i++) {
-                    propertyFile = (File) (propertiesFilesList.toArray())[i];
-                    ReportManager.logDiscrete("Loading properties file: " + propertyFile);
-                    loadPropertiesFileIntoSystemProperties(properties, propertyFile);
+        if (propertiesFolderPath != null) {
+            //propertiesFolderPath = propertiesFolderPath.replace("/", File.separator).replace("\\", File.separator);
+            ReportManager.logDiscrete("Reading properties directory: " + propertiesFolderPath);
+            try {
+                Properties properties = new Properties();
+                if (propertiesFolderPath.contains(".jar")) {
+                    // unpacks default properties to target folder
+                    URL url = new URL(propertiesFolderPath.substring(0, propertiesFolderPath.indexOf("!")));
+                    FileActions.unpackArchive(url, "target/");
+                    propertiesFolderPath = "target/defaultProperties/";
                 }
-            } else {
-                ReportManager.logDiscrete(
-                        "The desired propertiesFolderPath directory doesn't exist. ["
-                                + propertiesFolderPath + "]");
+                // reading regular files
+                Collection<File> propertiesFilesList;
+                if (FileActions.doesFileExist(propertiesFolderPath)) {
+                    propertiesFilesList = FileUtils.listFiles(new File(propertiesFolderPath), new String[]{"properties"},
+                            true);
+                    File propertyFile;
+                    for (int i = 0; i < propertiesFilesList.size(); i++) {
+                        propertyFile = (File) (propertiesFilesList.toArray())[i];
+                        ReportManager.logDiscrete("Loading properties file: " + propertyFile);
+                        loadPropertiesFileIntoSystemProperties(properties, propertyFile);
+                    }
+                } else {
+                    ReportManager.logDiscrete(
+                            "The desired propertiesFolderPath directory doesn't exist. ["
+                                    + propertiesFolderPath + "]");
+                }
+            } catch (Exception e) {
+                ReportManager.log(e);
             }
-        } catch (Exception e) {
-            ReportManager.log(e);
         }
     }
 
