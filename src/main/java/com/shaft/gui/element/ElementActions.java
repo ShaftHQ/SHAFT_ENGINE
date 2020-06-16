@@ -1757,8 +1757,8 @@ public class ElementActions {
      * element is not clickable
      */
     public static boolean isElementClickable(WebDriver driver, By elementLocator) {
-        if (identifyUniqueElement(driver, elementLocator) 
-        		&& driver.findElement(elementLocator).isEnabled()) {
+        if (identifyUniqueElement(driver, elementLocator)
+                && driver.findElement(elementLocator).isEnabled()) {
             // Override current locator with the aiGeneratedElementLocator
             elementLocator = updateLocatorWithAIGenratedOne(elementLocator);
 
@@ -1766,16 +1766,16 @@ public class ElementActions {
                     .until(ExpectedConditions.elementToBeClickable(elementLocator));
             // wait for element to be clickable
             passAction(driver, elementLocator);
-            return true;          
-        } else if (identifyUniqueElement(driver, elementLocator) 
-        		&& !(driver.findElement(elementLocator).isEnabled())) {
+            return true;
+        } else if (identifyUniqueElement(driver, elementLocator)
+                && !(driver.findElement(elementLocator).isEnabled())) {
             // Override current locator with the aiGeneratedElementLocator
             elementLocator = updateLocatorWithAIGenratedOne(elementLocator);
             // wait for element to be clickable
             passAction(driver, elementLocator);
             return false;
-        }else {
-        	failAction(driver, elementLocator);
+        } else {
+            failAction(driver, elementLocator);
             return false;
         }
     }
