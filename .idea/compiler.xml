@@ -6,11 +6,11 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
-        <module name="SHAFT_Engine" />
+        <module name="SHAFT_ENGINE" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
-      <module name="SHAFT_Engine" target="14" />
+      <module name="SHAFT_ENGINE" target="14" />
     </bytecodeTargetLevel>
   </component>
 </project>

@@ -210,7 +210,7 @@ public class ImageProcessingActions {
     public static byte[] highlightElementInScreenshot(byte[] targetScreenshot,
                                                       org.openqa.selenium.Rectangle elementLocation, java.awt.Color highlightColor) {
 
-        OpenCV.loadLocally();
+        loadOpenCV();
         Mat img = Imgcodecs.imdecode(new MatOfByte(targetScreenshot), Imgcodecs.IMREAD_COLOR);
 
         int outlineThickness = 5;
@@ -238,6 +238,16 @@ public class ImageProcessingActions {
         return baos.toByteArray();
     }
 
+    private static void loadOpenCV() {
+        try {
+            OpenCV.loadShared();
+            ReportManager.logDiscrete("Loaded Shared OpenCV");
+        } catch (NoClassDefFoundError | RuntimeException | ExceptionInInitializerError e) {
+            OpenCV.loadLocally();
+            ReportManager.logDiscrete("Loaded Local OpenCV");
+        }
+    }
+
     public static List<Integer> findImageWithinCurrentPage(String referenceImagePath, byte[] currentPageScreenshot,
                                                            int matchMethod) {
 
@@ -247,13 +257,7 @@ public class ImageProcessingActions {
                 ReportManager.log("Failed to identify the element using AI; target screenshot is empty.");
                 return Collections.emptyList();
             } else {
-                try {
-                    OpenCV.loadShared();
-                    ReportManager.logDiscrete("Loaded Shared OpenCV");
-                } catch (java.lang.RuntimeException | java.lang.ExceptionInInitializerError e) {
-                    OpenCV.loadLocally();
-                    ReportManager.logDiscrete("Loaded Local OpenCV");
-                }
+                loadOpenCV();
                 Mat img = Imgcodecs.imdecode(new MatOfByte(currentPageScreenshot), Imgcodecs.IMREAD_COLOR);
                 Mat templ = Imgcodecs.imread(referenceImagePath, Imgcodecs.IMREAD_COLOR);
 

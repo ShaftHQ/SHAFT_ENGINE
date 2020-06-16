@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.mohabmohie</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>4.2.20200531</version>
+    <version>4.3.20200616</version>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
     <url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
@@ -82,11 +82,11 @@
 
         <jcraft-jsch.version>0.1.55</jcraft-jsch.version>
 
-        <cucumber.version>5.3.0</cucumber.version>
+        <cucumber.version>6.1.1</cucumber.version>
         <cverges-expect4j.version>1.9</cverges-expect4j.version>
 
         <openpnp-opencv.version>4.3.0-2</openpnp-opencv.version>
-        <applitools-eyes.version>4.12.0</applitools-eyes.version>
+        <applitools-eyes.version>4.13.3</applitools-eyes.version>
         <sikuixapi.version>2.0.3</sikuixapi.version>
 
         <jave-all-deps.version>2.7.3</jave-all-deps.version>
@@ -107,7 +107,7 @@
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-java</artifactId>
             <version>${appium-selenium.version}</version>
-            <!--<version>${selenium.version}</version>-->
+<!--            <version>${selenium.version}</version>-->
         </dependency>
 
         <!-- APPIUM -->
@@ -507,7 +507,7 @@
                     </archive>
                     <excludes>
                         <exclude>test/**</exclude>
-                        <exclude>**/CucumberFeatures/**</exclude>
+<!--                        <exclude>**/CucumberFeatures/**</exclude>-->
                         <exclude>**/TestDataFiles/**</exclude>
                         <exclude>**/TestJsonFiles/**</exclude>
                         <exclude>**/TestSuites/**</exclude>

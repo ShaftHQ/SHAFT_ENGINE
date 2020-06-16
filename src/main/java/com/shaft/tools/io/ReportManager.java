@@ -3,6 +3,7 @@ package com.shaft.tools.io;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
+import io.cucumber.java.Scenario;
 import io.qameta.allure.Allure;
 import io.qameta.allure.Step;
 import org.apache.commons.lang3.SystemUtils;
@@ -42,7 +43,7 @@ public class ReportManager {
     private static int failedTestsWithoutOpenIssuesCounter = 0;
     private static String allureResultsFolderPath = "";
     private static String allureBinaryPath = "";
-
+    private static Scenario cucumberScenario;
     // TODO: refactor to regular class that can be instanciated within the test and
     // used in a thread-safe way
     private static List<List<String>> listOfOpenIssuesForFailedTests = new ArrayList<>();
@@ -53,6 +54,10 @@ public class ReportManager {
 
     private ReportManager() {
         throw new IllegalStateException("Utility class");
+    }
+
+    public static void setCucumberScenario(Scenario cucumberScenario) {
+        ReportManager.cucumberScenario = cucumberScenario;
     }
 
     public static void setOpenIssuesForFailedTestsCounter(int openIssuesForFailedTestsCounter) {
@@ -462,6 +467,12 @@ public class ReportManager {
         }
     }
 
+    public static synchronized void logScenarioInformation(String id, String name) {
+        createImportantReportEntry("Starting Execution of Scenario with id:\t[" + id
+                        + "]\nScenario Name:\t\t[" + name + "]",
+                false);
+    }
+
     public static void logConfigurationMethodInformation(String className, String testMethodName) {
         // In TestNG Reporter, this log entry is logged at the end of the previous test
         // (or null for the first test)
@@ -720,5 +731,21 @@ public class ReportManager {
             }
         }
         return callingMethodFullName.toString();
+    }
+
+    public static String getTestMethodName() {
+        if (cucumberScenario != null) {
+            return cucumberScenario.getName().replaceAll(" ", "_");
+        } else {
+            return Reporter.getCurrentTestResult().getMethod().getMethodName();
+        }
+    }
+
+    public static Boolean isCurrentTestPassed() {
+        if (cucumberScenario != null) {
+            return !cucumberScenario.isFailed();
+        } else {
+            return Reporter.getCurrentTestResult().isSuccess();
+        }
     }
 }
