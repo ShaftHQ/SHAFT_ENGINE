@@ -9,7 +9,6 @@ import org.openqa.selenium.*;
 import org.sikuli.script.App;
 import org.sikuli.script.Pattern;
 import org.sikuli.script.Screen;
-import org.testng.Reporter;
 
 import javax.imageio.ImageIO;
 import javax.imageio.stream.FileImageOutputStream;

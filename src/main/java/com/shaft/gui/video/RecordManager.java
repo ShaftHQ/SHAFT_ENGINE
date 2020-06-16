@@ -4,7 +4,6 @@ import com.automation.remarks.video.RecorderFactory;
 import com.automation.remarks.video.recorder.IVideoRecorder;
 import com.automation.remarks.video.recorder.VideoRecorder;
 import com.shaft.tools.io.ReportManager;
-import org.testng.Reporter;
 import ws.schild.jave.*;
 
 import java.io.File;

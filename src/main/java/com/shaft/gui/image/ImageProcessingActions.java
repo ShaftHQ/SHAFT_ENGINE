@@ -238,7 +238,7 @@ public class ImageProcessingActions {
         return baos.toByteArray();
     }
 
-    private static void loadOpenCV(){
+    private static void loadOpenCV() {
         try {
             OpenCV.loadShared();
             ReportManager.logDiscrete("Loaded Shared OpenCV");

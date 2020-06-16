@@ -7,7 +7,6 @@ import com.shaft.tools.io.PropertiesFileManager;
 import com.shaft.tools.io.ReportManager;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.MobileElement;
-import io.github.bonigarcia.wdm.OperatingSystem;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
@@ -27,7 +26,6 @@ import org.openqa.selenium.safari.SafariDriver;
 import org.openqa.selenium.safari.SafariOptions;
 import org.sikuli.script.App;
 import org.testng.Assert;
-import org.testng.annotations.Listeners;
 
 import java.net.MalformedURLException;
 import java.net.URL;
