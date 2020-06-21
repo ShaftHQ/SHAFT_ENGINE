@@ -77,7 +77,7 @@ public class InvokedMethodListener implements IInvokedMethodListener {
             if (issues != null) {
                 StringBuilder issueNames = new StringBuilder();
                 Arrays.stream(issues.value()).iterator().forEachRemaining(issueI -> issueNames.append(issueI.value()).append(" ,"));
-                SkipException ex = new SkipException("Skipping Test as it's expected to fail due to open issues: [" + issueNames.substring(0, issueNames.toString().length() - 2) + "]");
+                SkipException ex = new SkipException("Skipping Test as it's expected to fail due to open issues: [" + issueNames.substring(0, issueNames.length() - 2) + "]");
                 ReportManager.log(ex);
                 throw ex;
             }
