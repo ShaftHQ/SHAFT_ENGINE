@@ -78,6 +78,7 @@
         <maven-shade-plugin.version>3.2.1</maven-shade-plugin.version>
         <maven-jar-plugin.version>3.2.0</maven-jar-plugin.version>
         <maven-javadoc-plugin.version>3.2.0</maven-javadoc-plugin.version>
+        <maven-scm-publish-plugin.version>3.0.0</maven-scm-publish-plugin.version>
         <maven-source-plugin.version>3.2.1</maven-source-plugin.version>
 
         <jcraft-jsch.version>0.1.55</jcraft-jsch.version>
@@ -390,48 +391,9 @@
                 <directory>src/main/resources</directory>
             </resource>
         </resources>
-        <!-- <pluginManagement> -->
+
         <!--Plugins -->
         <plugins>
-            <plugin>
-                <groupId>org.jacoco</groupId>
-                <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.8.5</version>
-                <executions>
-                    <execution>
-                        <id>default-prepare-agent</id>
-                        <goals>
-                            <goal>prepare-agent</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>default-report</id>
-                        <goals>
-                            <goal>report</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>default-check</id>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                        <configuration>
-                            <rules>
-                                <rule>
-                                    <element>BUNDLE</element>
-                                    <limits>
-                                        <limit>
-                                            <counter>COMPLEXITY</counter>
-                                            <value>COVEREDRATIO</value>
-                                            <minimum>0.60</minimum>
-                                        </limit>
-                                    </limits>
-                                </rule>
-                            </rules>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -449,11 +411,6 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${maven-surefire-plugin.version}</version>
                 <configuration>
-                    <!-- <reuseForks>false</reuseForks> -->
-                    <!-- <forkCount>2C</forkCount> -->
-                    <!-- <threadCount>10</threadCount> -->
-                    <!-- <threadCount>1</threadCount> -->
-                    <!-- <perCoreThreadCount>false</perCoreThreadCount> -->
                     <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
                     <failIfNoTests>false</failIfNoTests>
                     <systemPropertyVariables>
@@ -463,9 +420,6 @@
                         <propertiesFolderPath>${propertiesFolderPath}</propertiesFolderPath>
                         <propertiesFolderPath_jenkins>${propertiesFolderPath_jenkins}</propertiesFolderPath_jenkins>
                     </systemPropertyVariables>
-                    <!-- To continue execution after validation errors are thrown in the
-                        before method -->
-                    <!--					<configfailurepolicy>continue</configfailurepolicy>-->
                     <!-- <suiteXmlFiles> -->
                     <!-- <suiteXmlFile>src\test\resources\TestSuites\${testSuite.name}.xml</suiteXmlFile> -->
                     <!-- </suiteXmlFiles> -->
@@ -473,11 +427,6 @@
                     <argLine>
                         -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"
                     </argLine>
-                    <!-- <argLine> -->
-                    <!-- -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar" -->
-                    <!-- -Dcucumber.options="-plugin -->
-                    <!-- io.qameta.allure.cucumber4jvm.AllureCucumber4Jvm" -->
-                    <!-- </argLine> -->
                     <properties>
                         <property>
                             <name>usedefaultlisteners</name>
@@ -497,7 +446,6 @@
                     </dependency>
                 </dependencies>
             </plugin>
-
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
@@ -505,15 +453,12 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <!-- <addDefaultImplementationEntries>true</addDefaultImplementationEntries> -->
-                            <!-- <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries> -->
-                            <addClasspath>true</addClasspath>
-                            <!-- <classpathLayoutType>repository</classpathLayoutType> -->
+                           <addClasspath>true</addClasspath>
                         </manifest>
                     </archive>
                     <excludes>
                         <exclude>test/**</exclude>
-<!--                        <exclude>**/CucumberFeatures/**</exclude>-->
+                        <exclude>**/CucumberFeatures/**</exclude>
                         <exclude>**/TestDataFiles/**</exclude>
                         <exclude>**/TestJsonFiles/**</exclude>
                         <exclude>**/TestSuites/**</exclude>
@@ -532,6 +477,11 @@
                     </sourcepath>
                     <encoding>${encoding.type}</encoding>
                     <failOnError>false</failOnError>
+                    <show>public</show>
+                    <nohelp>true</nohelp>
+                    <header>SHAFT_Engine, ${project.version}</header>
+                    <footer>SHAFT_Engine, ${project.version}</footer>
+                    <doctitle>SHAFT_Engine, ${project.version}</doctitle>
                 </configuration>
                 <executions>
                     <execution>
@@ -542,6 +492,21 @@
                     </execution>
                 </executions>
             </plugin>
+<!--            <plugin>-->
+<!--                <groupId>org.apache.maven.plugins</groupId>-->
+<!--                <artifactId>maven-scm-publish-plugin</artifactId>-->
+<!--                <version>${maven-scm-publish-plugin.version}</version>-->
+<!--                <configuration>-->
+<!--                    <checkoutDirectory>${project.basedir}/../SHAFT_ENGINE_apidocs</checkoutDirectory>-->
+<!--                    <tryUpdate>true</tryUpdate>-->
+<!--                    <siteOutputEncoding>UTF-8</siteOutputEncoding>-->
+<!--                    <checkinComment>Publishing javadoc for ${project.artifactId}:${project.version}</checkinComment>-->
+<!--                    <content>${project.reporting.outputDirectory}</content>-->
+<!--                    <skipDeletedFiles>true</skipDeletedFiles>-->
+<!--                    <pubScmUrl>scm:git:https://github.com/MohabMohie/SHAFT_ENGINE.git</pubScmUrl>-->
+<!--                    <scmBranch>gh-pages</scmBranch> &lt;!&ndash; branch with static site &ndash;&gt;-->
+<!--                </configuration>-->
+<!--            </plugin>-->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>
@@ -558,10 +523,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <!-- <addDefaultImplementationEntries>true</addDefaultImplementationEntries> -->
-                            <!-- <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries> -->
                             <addClasspath>true</addClasspath>
-                            <!-- <classpathLayoutType>repository</classpathLayoutType> -->
                         </manifest>
                     </archive>
                     <includes>
@@ -579,7 +541,6 @@
                 </configuration>
             </plugin>
         </plugins>
-        <!-- </pluginManagement> -->
     </build>
 
     <!--    <repositories>-->
