@@ -423,6 +423,11 @@ public class BrowserActions {
         }
     }
 
+    /**
+     * Navigates one step forward from the browsers history
+     *
+     * @param driver the current instance of Selenium webdriver
+     */
     public static void navigateForward(WebDriver driver) {
         JavaScriptWaitManager.waitForLazyLoading();
         String initialURL = "";

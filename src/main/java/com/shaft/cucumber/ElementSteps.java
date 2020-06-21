@@ -1,11 +1,7 @@
 package com.shaft.cucumber;
 
-import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.browser.BrowserFactory;
-import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Assertions;
 import io.cucumber.java.ParameterType;
-import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.openqa.selenium.By;
@@ -13,28 +9,14 @@ import org.openqa.selenium.WebDriver;
 
 import java.util.Arrays;
 
-public class GuiActionSteps {
-    //TODO: handle shaft_engine listeners
-    private final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
+public class ElementSteps {
+    private final ThreadLocal<WebDriver> driver;
 
-    @Given("I Open the target browser")
-    public void BrowserFactory_getBrowser() {
-        driver.set(BrowserFactory.getBrowser());
-    }
-
-    @When("I Navigate to {string}")
-    public void BrowserActions_navigateToURL(String url) {
-        BrowserActions.navigateToURL(driver.get(), url);
-    }
-
-    @When("I Navigate to {string} and get redirected to {string}")
-    public void BrowserActions_navigateToURL(String url, String urlAfetrRedirection) {
-        BrowserActions.navigateToURL(driver.get(), url, urlAfetrRedirection);
-    }
-
-    @When("I Close the current window")
-    public void BrowserActions_closeCurrentWindow() {
-        BrowserActions.closeCurrentWindow(driver.get());
+    public ElementSteps(ThreadLocal<WebDriver> driver) {
+        if (driver == null) {
+            driver = new ThreadLocal<>();
+        }
+        this.driver = driver;
     }
 
     @ParameterType(".*")
@@ -42,30 +24,53 @@ public class GuiActionSteps {
         return getLocatorTypeFromName(locatorName);
     }
 
+    /**
+     * Checks if there is any text in an element, clears it, then types the required
+     * string into the target element.
+     *
+     * @param text         the target text that needs to be typed into the target
+     *                     webElement
+     * @param locatorType
+     * @param locatorValue
+     */
     @When("I Type {string} into the element found by {locatorType}: {string}")
-    public void ElementActions_type(String text, LocatorType locatorType, String locatorValue) {
-        ElementActions.type(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue), text);
+    public void elementActionsType(String text, LocatorType locatorType, String locatorValue) {
+        com.shaft.gui.element.ElementActions.type(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue), text);
     }
 
     /**
-     * Sends a keypress to the target element. Supported keys are: ENTER, RETURN, TAB
+     * Sends a keypress to the target element. Supported keys are: ENTER, RETURN, TAB.
      *
-     * @param key
+     * @param key          the key that should be pressed
      * @param locatorType
      * @param locatorValue
      */
     @When("I Press the {word} key into the element found by {locatorType}: {string}")
-    public void ElementActions_keyPress(String key, LocatorType locatorType, String locatorValue) {
-        ElementActions.keyPress(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue), key);
+    public void elementActionsKeyPress(String key, LocatorType locatorType, String locatorValue) {
+        com.shaft.gui.element.ElementActions.keyPress(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue), key);
     }
 
+    /**
+     * Clicks on a certain element using Selenium WebDriver, or JavaScript.
+     *
+     * @param locatorType
+     * @param locatorValue
+     */
     @When("I Click the element found by {locatorType}: {string}")
-    public void ElementActions_click(LocatorType locatorType, String locatorValue) {
-        ElementActions.click(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue));
+    public void elementActionsClick(LocatorType locatorType, String locatorValue) {
+        com.shaft.gui.element.ElementActions.click(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue));
     }
 
+    /**
+     * Asserts webElement attribute equals expectedValue.
+     *
+     * @param elementAttribute the desired attribute of the webElement under test
+     * @param locatorType
+     * @param locatorValue
+     * @param expectedValue    the expected value (test data) of this assertion
+     */
     @Then("I Assert that the {word} attribute of the element found by {locatorType}: {string}, should be {string}")
-    public void Assertions_assertElementAttribute(String elementAttribute, LocatorType locatorType, String locatorValue, String expectedValue) {
+    public void assertElementAttribute(String elementAttribute, LocatorType locatorType, String locatorValue, String expectedValue) {
         Assertions.assertElementAttribute(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue), elementAttribute, expectedValue);
     }
 
@@ -123,4 +128,5 @@ public class GuiActionSteps {
             return value;
         }
     }
+    //TODO: add element validations and assertions
 }
