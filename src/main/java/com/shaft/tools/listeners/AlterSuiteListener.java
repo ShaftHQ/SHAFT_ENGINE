@@ -54,7 +54,7 @@ public class AlterSuiteListener implements IAlterSuiteListener {
             }
             suite.getTests().forEach(test -> {
                 if (test.getName().toLowerCase().trim().equals("default test")
-                        || test.getName().toLowerCase().trim().equals("surefire test")) {
+                        || test.getName().toLowerCase().trim().equals("surefire test") || test.getName().equalsIgnoreCase("SHAFT_ENGINE")) {
                     test.setName(prefix + "Custom Test");
                 } else {
                     test.setName(prefix + test.getName());

@@ -3,7 +3,6 @@ package com.shaft.tools.io;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
-import io.cucumber.java.Scenario;
 import io.qameta.allure.Allure;
 import io.qameta.allure.Step;
 import org.apache.commons.lang3.SystemUtils;
@@ -43,7 +42,6 @@ public class ReportManager {
     private static int failedTestsWithoutOpenIssuesCounter = 0;
     private static String allureResultsFolderPath = "";
     private static String allureBinaryPath = "";
-    private static Scenario cucumberScenario;
     // TODO: refactor to regular class that can be instanciated within the test and
     // used in a thread-safe way
     private static List<List<String>> listOfOpenIssuesForFailedTests = new ArrayList<>();
@@ -51,13 +49,10 @@ public class ReportManager {
     private static List<List<String>> listOfOpenIssuesForPassedTests = new ArrayList<>();
     // class name, method name, link name, link url
     private static List<List<String>> listOfNewIssuesForFailedTests = new ArrayList<>();
+    private static String featureName = "";
 
     private ReportManager() {
         throw new IllegalStateException("Utility class");
-    }
-
-    public static void setCucumberScenario(Scenario cucumberScenario) {
-        ReportManager.cucumberScenario = cucumberScenario;
     }
 
     public static void setOpenIssuesForFailedTestsCounter(int openIssuesForFailedTestsCounter) {
@@ -467,9 +462,12 @@ public class ReportManager {
         }
     }
 
-    public static synchronized void logScenarioInformation(String id, String name) {
-        createImportantReportEntry("Starting Execution of Scenario with id:\t[" + id
-                        + "]\nScenario Name:\t\t[" + name + "]",
+    public static synchronized void logScenarioInformation(String featureUri, String keyword, String name, String steps) {
+        testCasesCounter++;
+        createImportantReportEntry("Starting Execution:\t[" + testCasesCounter + " out of " + totalNumberOfTests
+                        + "] scenarios in the [" + featureName + "] feature"
+                        + "\n" + keyword + " Name:\t\t[" + name
+                        + "]\n" + keyword + " Steps:" + steps,
                 false);
     }
 
@@ -733,19 +731,30 @@ public class ReportManager {
         return callingMethodFullName.toString();
     }
 
+    public static String getTestClassName() {
+        return Reporter.getCurrentTestResult().getMethod().getTestClass().getName();
+    }
+
     public static String getTestMethodName() {
-        if (cucumberScenario != null) {
-            return cucumberScenario.getName().replaceAll(" ", "_");
-        } else {
-            return Reporter.getCurrentTestResult().getMethod().getMethodName();
+        return Reporter.getCurrentTestResult().getMethod().getMethodName();
+    }
+
+    public static void setTestCaseName(String scenarioName) {
+        Allure.getLifecycle().updateTestCase(testResult -> testResult.setName(scenarioName));
+        if (!"".equals(featureName)) {
+            Allure.getLifecycle().updateTestCase(testResult -> testResult.setFullName(featureName + ": " + scenarioName));
         }
     }
 
+    public static void setTestCaseDescription(String scenarioSteps) {
+        Allure.getLifecycle().updateTestCase(testResult -> testResult.setDescription(scenarioSteps));
+    }
+
     public static Boolean isCurrentTestPassed() {
-        if (cucumberScenario != null) {
-            return !cucumberScenario.isFailed();
-        } else {
-            return Reporter.getCurrentTestResult().isSuccess();
-        }
+        return Reporter.getCurrentTestResult().isSuccess();
+    }
+
+    public static void setFeatureName(String featureName) {
+        ReportManager.featureName = featureName;
     }
 }

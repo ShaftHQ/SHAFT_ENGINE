@@ -20,6 +20,7 @@ public class PropertiesFileManager {
     private static final String OS_MAC = "Mac-64";
     private static final String DEFAULT_PROPERTIES_FOLDER_PATH = "src/main/resources/defaultProperties";
     private static final String CUSTOM_PROPERTIES_FOLDER_PROPERTY_NAME = "propertiesFolderPath";
+    private static Boolean readPropertyFiles = true;
 
     private PropertiesFileManager() {
         throw new IllegalStateException("Utility class");
@@ -34,28 +35,31 @@ public class PropertiesFileManager {
      * properties files THEN Base properties files (lowest priority)
      */
     public static synchronized void readPropertyFiles() {
-        // read base system properties
-        Properties props = System.getProperties();
+        if (Boolean.TRUE.equals(readPropertyFiles)) {
+            // read base system properties
+            Properties props = System.getProperties();
 
-        // read properties from any explicit properties files
-        for (int i = 0; i < props.size(); i++) {
-            String propertyKey = ((String) (props.keySet().toArray())[i]).trim();
-            if (propertyKey.contains(CUSTOM_PROPERTIES_FOLDER_PROPERTY_NAME)
-                    && !propertyKey.equals(CUSTOM_PROPERTIES_FOLDER_PROPERTY_NAME)
-                    && !props.getProperty(propertyKey).trim().equals("")) {
-                readPropertyFiles(props.getProperty(propertyKey));
+            // read properties from any explicit properties files
+            for (int i = 0; i < props.size(); i++) {
+                String propertyKey = ((String) (props.keySet().toArray())[i]).trim();
+                if (propertyKey.contains(CUSTOM_PROPERTIES_FOLDER_PROPERTY_NAME)
+                        && !propertyKey.equals(CUSTOM_PROPERTIES_FOLDER_PROPERTY_NAME)
+                        && !props.getProperty(propertyKey).trim().equals("")) {
+                    readPropertyFiles(props.getProperty(propertyKey));
+                }
             }
+
+            // read properties form the base properties file
+            readPropertyFiles(System.getProperty(CUSTOM_PROPERTIES_FOLDER_PROPERTY_NAME));
+
+            // This section set the default properties values for Execution/path/pattern
+            readPropertyFiles(getDefaultPropertiesFolderPath());
+
+            overrideTargetOperatingSystemForLocalExecution();
+
+            manageMaximumPerformanceMode();
+            readPropertyFiles = false;
         }
-
-        // read properties form the base properties file
-        readPropertyFiles(System.getProperty(CUSTOM_PROPERTIES_FOLDER_PROPERTY_NAME));
-
-        // This section set the default properties values for Execution/path/pattern
-        readPropertyFiles(getDefaultPropertiesFolderPath());
-
-        overrideTargetOperatingSystemForLocalExecution();
-
-        manageMaximumPerformanceMode();
     }
 
     /**

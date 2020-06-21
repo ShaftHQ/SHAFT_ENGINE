@@ -3,8 +3,8 @@
 <suite name="Suite01" verbose="10">
 	<test name="Test01">
 		<classes>
-			<class name="cucumberSteps.CucumberTestRunner">
-			</class>
-		</classes>
+            <class name="cucumberTestRunner.CucumberTestRunner">
+            </class>
+        </classes>
 	</test>
 </suite>
