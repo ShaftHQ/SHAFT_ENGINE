@@ -1,5 +1,6 @@
 com.shaft.api
 com.shaft.cli
+com.shaft.cucumber
 com.shaft.db
 com.shaft.gui.browser
 com.shaft.gui.element

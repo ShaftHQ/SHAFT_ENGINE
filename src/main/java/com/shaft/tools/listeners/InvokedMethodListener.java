@@ -6,6 +6,8 @@ import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Verifications;
+import io.qameta.allure.Issue;
+import io.qameta.allure.Issues;
 import io.qameta.allure.model.Link;
 import io.qameta.allure.util.AnnotationUtils;
 import org.testng.*;
@@ -13,10 +15,7 @@ import org.testng.internal.ConfigurationMethod;
 import org.testng.internal.ConstructorOrMethod;
 
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 
 public class InvokedMethodListener implements IInvokedMethodListener {
     private final List<List<String>> listOfOpenIssues = new ArrayList<>();
@@ -43,24 +42,45 @@ public class InvokedMethodListener implements IInvokedMethodListener {
             ReportManager.log(e);
         }
         ITestNGMethod testMethod = method.getTestMethod();
-        if (testMethod.isTest()) {
-            if (testMethod.getDescription() != null) {
-                ReportManager.logTestInformation(testMethod.getTestClass().getName(), testMethod.getMethodName(),
-                        testMethod.getDescription());
-            } else {
-                ReportManager.logTestInformation(testMethod.getTestClass().getName(), testMethod.getMethodName(), "");
+        if (!testMethod.getQualifiedName().contains("AbstractTestNGCucumberTests")) {
+            if (testMethod.isTest()) {
+                if (testMethod.getDescription() != null) {
+                    ReportManager.logTestInformation(ReportManager.getTestClassName(), ReportManager.getTestMethodName(),
+                            testMethod.getDescription());
+                } else {
+                    ReportManager.logTestInformation(ReportManager.getTestClassName(), ReportManager.getTestMethodName(), "");
+                }
+            } else if (testMethod instanceof ConfigurationMethod) {
+                // org.testng.internal.ConfigurationMethod
+                // ReportManager.logDiscrete("Current TestNG Method Name: " +
+                // testMethod.getClass().getName());
+                // configuration method information is not added to any logger (TestNG.Reporter)
+                ReportManager.logConfigurationMethodInformation(testMethod.getTestClass().getName(),
+                        testMethod.getMethodName());
             }
-        } else if (testMethod instanceof ConfigurationMethod) {
-            // org.testng.internal.ConfigurationMethod
-            // ReportManager.logDiscrete("Current TestNG Method Name: " +
-            // testMethod.getClass().getName());
-            // configuration method information is not added to any logger (TestNG.Reporter)
-            ReportManager.logConfigurationMethodInformation(testMethod.getTestClass().getName(),
-                    testMethod.getMethodName());
         }
         // implementing the new kill switch at the start of every test method
         if (BrowserFactory.isKillSwitch()) {
-            throw new SkipException("Skipping Test: " + testResult.getName());
+            SkipException ex = new SkipException("Skipping Test: " + testResult.getName());
+            ReportManager.log(ex);
+            throw ex;
+        }
+
+        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("skipTestsWithLinkedIssues")))) {
+            Issue issue = testResult.getMethod().getConstructorOrMethod().getMethod().getAnnotation(Issue.class);
+            if (issue != null) {
+                SkipException ex = new SkipException("Skipping Test as it's expected to fail due to open issue: [" + issue.value() + "]");
+                ReportManager.log(ex);
+                throw ex;
+            }
+            Issues issues = testResult.getMethod().getConstructorOrMethod().getMethod().getAnnotation(Issues.class);
+            if (issues != null) {
+                StringBuilder issueNames = new StringBuilder();
+                Arrays.stream(issues.value()).iterator().forEachRemaining(issueI -> issueNames.append(issueI.value()).append(" ,"));
+                SkipException ex = new SkipException("Skipping Test as it's expected to fail due to open issues: [" + issueNames.substring(0, issueNames.length() - 2) + "]");
+                ReportManager.log(ex);
+                throw ex;
+            }
         }
     }
 

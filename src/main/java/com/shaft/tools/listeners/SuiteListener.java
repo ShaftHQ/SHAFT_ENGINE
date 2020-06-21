@@ -20,7 +20,10 @@ public class SuiteListener implements ISuiteListener {
         }
         ReportManager.prepareAllureReportingEnvironment();
         ReportManager.logEngineVersion();
-        ReportManager.setTotalNumberOfTests(suite.getAllMethods().size());
+        if (!(suite.getAllMethods().size() == 1 && suite.getAllMethods().get(0).getMethodName().equals("runScenario"))) {
+            // not cucumber test runner
+            ReportManager.setTotalNumberOfTests(suite.getAllMethods().size());
+        }
         ReportManager.setDiscreteLogging(Boolean.parseBoolean(System.getProperty("alwaysLogDiscreetly")));
         ReportManager.setDebugMode(Boolean.valueOf(System.getProperty("debugMode")));
     }

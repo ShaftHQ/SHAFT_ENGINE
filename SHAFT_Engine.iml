@@ -13,6 +13,7 @@
       <sourceFolder url="file://$MODULE_DIR$/src/main/resources" type="java-resource" />
       <sourceFolder url="file://$MODULE_DIR$/src/test/java" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/src/test/resources" type="java-test-resource" />
+      <sourceFolder url="file://$MODULE_DIR$/src/site/resources" type="java-resource" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />
@@ -160,6 +161,8 @@
     <orderEntry type="library" name="Maven: io.cucumber:html-formatter:6.0.3" level="project" />
     <orderEntry type="library" name="Maven: org.apiguardian:apiguardian-api:1.1.0" level="project" />
     <orderEntry type="library" name="Maven: io.cucumber:cucumber-testng:6.1.1" level="project" />
+    <orderEntry type="library" name="Maven: io.cucumber:cucumber-picocontainer:6.1.1" level="project" />
+    <orderEntry type="library" name="Maven: org.picocontainer:picocontainer:2.15" level="project" />
     <orderEntry type="library" name="Maven: ws.schild:jave-all-deps:2.7.3" level="project" />
     <orderEntry type="library" name="Maven: ws.schild:jave-core:2.7.3" level="project" />
     <orderEntry type="library" name="Maven: ws.schild:jave-nativebin-win32:2.7.3" level="project" />
