@@ -160,6 +160,8 @@
     <orderEntry type="library" name="Maven: io.cucumber:html-formatter:6.0.3" level="project" />
     <orderEntry type="library" name="Maven: org.apiguardian:apiguardian-api:1.1.0" level="project" />
     <orderEntry type="library" name="Maven: io.cucumber:cucumber-testng:6.1.1" level="project" />
+    <orderEntry type="library" name="Maven: io.cucumber:cucumber-picocontainer:6.1.1" level="project" />
+    <orderEntry type="library" name="Maven: org.picocontainer:picocontainer:2.15" level="project" />
     <orderEntry type="library" name="Maven: ws.schild:jave-all-deps:2.7.3" level="project" />
     <orderEntry type="library" name="Maven: ws.schild:jave-core:2.7.3" level="project" />
     <orderEntry type="library" name="Maven: ws.schild:jave-nativebin-win32:2.7.3" level="project" />

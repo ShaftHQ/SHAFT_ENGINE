@@ -395,6 +395,30 @@
 
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
+                                        <label class="col-md-4 control-label" for="skipTestsWithLinkedIssues">Skip Tests
+                                            With Linked Issues
+                                        </label>
+                                        <div class="col-md-4" id="skipTestsWithLinkedIssues">
+                                            <div class="radio-inline">
+                                                <label for="skipTestsWithLinkedIssues-0">
+                                                    <input id="skipTestsWithLinkedIssues-0"
+                                                           name="skipTestsWithLinkedIssues" type="radio" value="true">
+                                                    Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="skipTestsWithLinkedIssues-1">
+                                                    <input checked="checked" id="skipTestsWithLinkedIssues-1"
+                                                           name="skipTestsWithLinkedIssues"
+                                                           type="radio" value="false"> Disabled
+                                                </label>
+                                            </div>
+                                            <span class="help-block">• It is recommended to leave this feature disabled unless you explicitly want to skip any tests that have the @Issue or @Issues annotation.</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
                                         <label class="col-md-4 control-label" for="aiPoweredElementIdentification">AI
                                             Powered
                                             Element Identification
@@ -1153,7 +1177,7 @@
     // tab panes scripts
 
     //Platform
-    $("a[tabName='Platform']").click(function() {
+    $("a[tabName='Platform']").click(function () {
         $("div[id=executionPlatformSettings]").attr("class", "tab-pane active");
         $("div[id=platformFlags]").attr("class", "tab-pane");
         $("div[id=timeouts]").attr("class", "tab-pane");
@@ -1163,7 +1187,7 @@
     });
 
     //Flags
-    $("a[tabName='Flags']").click(function() {
+    $("a[tabName='Flags']").click(function () {
         $("div[id=executionPlatformSettings]").attr("class", "tab-pane");
         $("div[id=platformFlags]").attr("class", "tab-pane active");
         $("div[id=timeouts]").attr("class", "tab-pane");
@@ -1173,7 +1197,7 @@
     });
 
     //Timeouts
-    $("a[tabName='Timeouts']").click(function() {
+    $("a[tabName='Timeouts']").click(function () {
         $("div[id=executionPlatformSettings]").attr("class", "tab-pane");
         $("div[id=platformFlags]").attr("class", "tab-pane");
         $("div[id=timeouts]").attr("class", "tab-pane active");
@@ -1183,7 +1207,7 @@
     });
 
     //Validations
-    $("a[tabName='Validations']").click(function() {
+    $("a[tabName='Validations']").click(function () {
         $("div[id=executionPlatformSettings]").attr("class", "tab-pane");
         $("div[id=platformFlags]").attr("class", "tab-pane");
         $("div[id=timeouts]").attr("class", "tab-pane");
@@ -1193,7 +1217,7 @@
     });
 
     //Reporting
-    $("a[tabName='Reporting']").click(function() {
+    $("a[tabName='Reporting']").click(function () {
         $("div[id=executionPlatformSettings]").attr("class", "tab-pane");
         $("div[id=platformFlags]").attr("class", "tab-pane");
         $("div[id=timeouts]").attr("class", "tab-pane");
@@ -1203,7 +1227,7 @@
     });
 
     //All
-    $("a[tabName='All']").click(function() {
+    $("a[tabName='All']").click(function () {
         $("div[id=executionPlatformSettings]").attr("class", "tab-pane");
         $("div[id=platformFlags]").attr("class", "tab-pane");
         $("div[id=timeouts]").attr("class", "tab-pane");
@@ -1213,16 +1237,11 @@
     });
 
 
-
-
-
-
-
 </script>
 
 <script type="text/javascript">
     // remote server configuration
-    $("input[name=executionAddress]").click(function() {
+    $("input[name=executionAddress]").click(function () {
         if ($("input[name=executionAddress]:checked").val() == "remote") {
             $("#executionAddress-remote").attr("disabled", false);
             $("select[id=targetOperatingSystem]").attr("disabled", false);
@@ -1234,18 +1253,13 @@
     });
 
 
-
-
-
-
-
 </script>
 
 <script type="text/javascript">
     // headless execution configuration
-    $("input[name=targetBrowserName]").click(function() {
-    var selectedBrowser = $("input[name=targetBrowserName]:checked").val();
-        if (selectedBrowser == "Safari" || selectedBrowser=="MicrosoftEdge" || selectedBrowser=="MicrosoftInternetExplorer") {
+    $("input[name=targetBrowserName]").click(function () {
+        var selectedBrowser = $("input[name=targetBrowserName]:checked").val();
+        if (selectedBrowser == "Safari" || selectedBrowser == "MicrosoftEdge" || selectedBrowser == "MicrosoftInternetExplorer") {
             $("label[for=headlessExecution-0]").attr("style", "color:#A9A9A9");
             $("input[id=headlessExecution-0]").click();
             $("input[id=headlessExecution-0]").attr("disabled", true);
@@ -1260,16 +1274,11 @@
     });
 
 
-
-
-
-
-
 </script>
 
 <script type="text/javascript">
     // implicit wait configuration
-    $("input[name=waitImplicitly]").click(function() {
+    $("input[name=waitImplicitly]").click(function () {
         if ($("input[name=waitImplicitly]:checked").val() == "true") {
             $("#implicitWaitTimeout").attr("disabled", false);
         } else {
@@ -1278,16 +1287,11 @@
     });
 
 
-
-
-
-
-
 </script>
 
 <script type="text/javascript">
     // element screenshot configuration
-    $("select[name=screenshotParams_whenToTakeAScreenshot]").change(function() {
+    $("select[name=screenshotParams_whenToTakeAScreenshot]").change(function () {
         if ($("select[name=screenshotParams_whenToTakeAScreenshot]").val() != "Never") {
             //enable element highlighting
             $("#screenshotParams_highlightElements-0").attr("disabled", false);
@@ -1350,16 +1354,11 @@
     });
 
 
-
-
-
-
-
 </script>
 
 <script type="text/javascript">
     // screenshotParams_screenshotType element only + highlighting configuration
-    $("input[name=screenshotParams_screenshotType]").click(function() {
+    $("input[name=screenshotParams_screenshotType]").click(function () {
         if ($("input[name=screenshotParams_screenshotType]:checked").val() == "Element") {
             //disable element highlighting
             $("#screenshotParams_highlightElements-0").attr("disabled", true);
@@ -1382,16 +1381,11 @@
     });
 
 
-
-
-
-
-
 </script>
 
 <script type="text/javascript">
     // element highlighting configuration
-    $("input[name=screenshotParams_highlightElements]").click(function() {
+    $("input[name=screenshotParams_highlightElements]").click(function () {
         if ($("input[name=screenshotParams_highlightElements]:checked").val() == "true") {
             $("#screenshotParams_highlightMethod-0").attr("disabled", false);
             $("label[for=screenshotParams_highlightMethod-0]").attr("style", '');
@@ -1406,16 +1400,11 @@
     });
 
 
-
-
-
-
-
 </script>
 
 <script type="text/javascript">
     // screenshot watermark configuration
-    $("input[name=screenshotParams_watermark]").click(function() {
+    $("input[name=screenshotParams_watermark]").click(function () {
         if ($("input[name=screenshotParams_highlightElements]:checked").val() == "true") {
             $("#screenshotParams_watermarkOpacity").attr("disabled", false);
         } else {
@@ -1424,27 +1413,17 @@
     });
 
 
-
-
-
-
-
 </script>
 
 <script type="text/javascript">
     // animated gif configuration
-    $("input[name=createAnimatedGif]").click(function() {
+    $("input[name=createAnimatedGif]").click(function () {
         if ($("input[name=createAnimatedGif]:checked").val() == "true") {
             $("#animatedGif_frameDelay").attr("disabled", false);
         } else {
             $("#animatedGif_frameDelay").attr("disabled", true);
         }
     });
-
-
-
-
-
 
 
 </script>
@@ -1475,11 +1454,6 @@
     }
 
 
-
-
-
-
-
 </script>
 
 <script>
@@ -1506,11 +1480,6 @@
     }
 
 
-
-
-
-
-
 </script>
 
 <script>
@@ -1521,6 +1490,7 @@
         const forceCheckElementLocatorIsUnique = $("input[name=forceCheckElementLocatorIsUnique]:checked").val();
         const forceCheckTextWasTypedCorrectly = $("input[name=forceCheckTextWasTypedCorrectly]:checked").val();
         const maximumPerformanceMode = $("input[name=maximumPerformanceMode]:checked").val();
+        const skipTestsWithLinkedIssues = $("input[name=skipTestsWithLinkedIssues]:checked").val();
         const aiPoweredElementIdentification = $("input[name=aiPoweredElementIdentification]:checked").val();
 
         // This variable stores all the data.
@@ -1531,15 +1501,11 @@
             'forceCheckElementLocatorIsUnique=' + forceCheckElementLocatorIsUnique + '\r\n' +
             'forceCheckTextWasTypedCorrectly=' + forceCheckTextWasTypedCorrectly + '\r\n' +
             'maximumPerformanceMode=' + maximumPerformanceMode + '\r\n' +
+            'skipTestsWithLinkedIssues=' + skipTestsWithLinkedIssues + '\r\n' +
             'aiPoweredElementIdentification=' + aiPoweredElementIdentification + '\r\n';
 
         downloadFile(data, 'PlatformFlags.properties');
     }
-
-
-
-
-
 
 
 </script>
@@ -1585,11 +1551,6 @@
     }
 
 
-
-
-
-
-
 </script>
 
 <script>
@@ -1623,11 +1584,6 @@
     }
 
 
-
-
-
-
-
 </script>
 
 <script>
@@ -1651,11 +1607,6 @@
     }
 
 
-
-
-
-
-
 </script>
 
 <script>
@@ -1666,11 +1617,6 @@
         generateVisualValidations();
         generateReporting();
     }
-
-
-
-
-
 
 
 </script>

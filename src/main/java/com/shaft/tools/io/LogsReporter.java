@@ -1,5 +1,6 @@
 package com.shaft.tools.io;
 
+import com.shaft.cli.FileActions;
 import com.shaft.gui.browser.BrowserFactory;
 import org.testng.annotations.AfterSuite;
 
@@ -13,6 +14,13 @@ public class LogsReporter {
         initializeClosureActivities();
         attachBrowserLogs();
         attachFullLogs();
+        attachCucumberReport();
+    }
+
+    private void attachCucumberReport() {
+        if (FileActions.doesFileExist("allure-results/cucumberReport.html")) {
+            ReportManager.attach("HTML", "Cucumber Execution Report", FileActions.readFromFile("allure-results/cucumberReport.html"));
+        }
     }
 
     private void initializeClosureActivities() {
