@@ -53,16 +53,6 @@ public class ExcelFileManager {
         }
     }
 
-    private void initializeVariables() {
-        fis = null;
-        workbook = null;
-        sheet = null;
-        row = null;
-        cell = null;
-        excelFilePath = "";
-        testDataColumnNamePrefix = System.getProperty("testDataColumnNamePrefix");
-    }
-
     /**
      * Reads cell data from the first sheet in the desired excel workbook Reads cell
      * data using row name (1st column) only Reads cell data from the 2nd column
@@ -122,6 +112,90 @@ public class ExcelFileManager {
                     + "].");
             return "";
         }
+    }
+
+    /**
+     * Returns the last column number that contains a header value (zero based)
+     * assuming that you are working within the default sheet. That is if the last
+     * column number is 3, it means that there are 4 columns.
+     *
+     * @return the number of the last column that holds data in the default test
+     * data sheet
+     */
+    public int getLastColumnNumber() {
+        return getLastColumnNumber(getDefaultSheetName());
+    }
+
+    /**
+     * Returns the last column number that contains a header value (zero based).
+     * That is if the last column number is 3, it means that there are 4 columns.
+     *
+     * @param sheetName the name of the target excel sheet
+     * @return the number of the last column that holds data in the target test data
+     * sheet
+     */
+    public int getLastColumnNumber(String sheetName) {
+        sheet = workbook.getSheet(sheetName);
+        row = sheet.getRow(0);
+        int lastColumnNumber = 0;
+        while (true) {
+            try {
+                cell = row.getCell(lastColumnNumber);
+                if (cell.getCellType() == CellType.STRING) {
+                    lastColumnNumber++;
+                } else {
+                    return lastColumnNumber - 1;
+                }
+            } catch (java.lang.NullPointerException e) {
+                return lastColumnNumber - 1;
+            }
+        }
+    }
+
+    /**
+     * Looks for the column name that holds the cellData in the specified rowName
+     * and sheetName
+     *
+     * @param sheetName the name of the target excel sheet
+     * @param rowName   the value of the first cell of the target row
+     * @param cellData  the value of the target cell within the target row
+     * @return the value of the first cell of the target column
+     */
+    public String getColumnNameUsingRowNameAndCellData(String sheetName, String rowName, String cellData) {
+        String columnName;
+        for (int i = 1; i <= getLastColumnNumber(sheetName); i++) {
+            columnName = testDataColumnNamePrefix + i;
+            if (cellData.equals(getCellData(rowName, columnName))) {
+                return columnName;
+            }
+        }
+        ReportManager.log("Failed to get column name using row [" + rowName + "] and cell data [" + cellData
+                + "] in the Test Data Sheet [" + sheetName + "], under the following path [" + excelFilePath + "].");
+        Assert.fail("Failed to get column name using row [" + rowName + "] and cell data [" + cellData
+                + "] in the Test Data Sheet [" + sheetName + "], under the following path [" + excelFilePath + "].");
+        return "";
+    }
+
+    /**
+     * Looks for the column name that holds the cellData in the specified rowName
+     * and the default sheet name
+     *
+     * @param rowName  the value of the first cell of the target row
+     * @param cellData the value of the target cell within the target row
+     * @return the value of the first cell of the target column
+     */
+    public String getColumnNameUsingRowNameAndCellData(String rowName, String cellData) {
+        return getColumnNameUsingRowNameAndCellData(getDefaultSheetName(), rowName, cellData);
+    }
+
+    private void initializeVariables() {
+        fis = null;
+        workbook = null;
+        sheet = null;
+        row = null;
+        cell = null;
+        excelFilePath = "";
+        testDataColumnNamePrefix = System.getProperty("testDataColumnNamePrefix");
     }
 
     private int getRowNumberFromRowName(String sheetName, String rowName) {
@@ -231,86 +305,12 @@ public class ExcelFileManager {
     }
 
     /**
-     * Returns the last column number that contains a header value (zero based)
-     * assuming that you are working within the default sheet. That is if the last
-     * column number is 3, it means that there are 4 columns.
-     *
-     * @return the number of the last column that holds data in the default test
-     * data sheet
-     */
-    public int getLastColumnNumber() {
-        return getLastColumnNumber(getDefaultSheetName());
-    }
-
-    /**
-     * Returns the last column number that contains a header value (zero based).
-     * That is if the last column number is 3, it means that there are 4 columns.
-     *
-     * @param sheetName the name of the target excel sheet
-     * @return the number of the last column that holds data in the target test data
-     * sheet
-     */
-    public int getLastColumnNumber(String sheetName) {
-        sheet = workbook.getSheet(sheetName);
-        row = sheet.getRow(0);
-        int lastColumnNumber = 0;
-        while (true) {
-            try {
-                cell = row.getCell(lastColumnNumber);
-                if (cell.getCellType() == CellType.STRING) {
-                    lastColumnNumber++;
-                } else {
-                    return lastColumnNumber - 1;
-                }
-            } catch (java.lang.NullPointerException e) {
-                return lastColumnNumber - 1;
-            }
-        }
-    }
-
-    /**
      * Extracts the first sheet name from the desired workbook.
      *
      * @return the first sheet name for the current test data file
      */
     private String getDefaultSheetName() {
         return workbook.getSheetName(0);
-    }
-
-    /**
-     * Looks for the column name that holds the cellData in the specified rowName
-     * and sheetName
-     *
-     * @param sheetName the name of the target excel sheet
-     * @param rowName   the value of the first cell of the target row
-     * @param cellData  the value of the target cell within the target row
-     * @return the value of the first cell of the target column
-     */
-    public String getColumnNameUsingRowNameAndCellData(String sheetName, String rowName, String cellData) {
-        String columnName;
-        for (int i = 1; i <= getLastColumnNumber(sheetName); i++) {
-            columnName = testDataColumnNamePrefix + i;
-            if (cellData.equals(getCellData(rowName, columnName))) {
-                return columnName;
-            }
-        }
-        ReportManager.log("Failed to get column name using row [" + rowName + "] and cell data [" + cellData
-                + "] in the Test Data Sheet [" + sheetName + "], under the following path [" + excelFilePath + "].");
-        Assert.fail("Failed to get column name using row [" + rowName + "] and cell data [" + cellData
-                + "] in the Test Data Sheet [" + sheetName + "], under the following path [" + excelFilePath + "].");
-        return "";
-    }
-
-    /**
-     * Looks for the column name that holds the cellData in the specified rowName
-     * and the default sheet name
-     *
-     * @param rowName  the value of the first cell of the target row
-     * @param cellData the value of the target cell within the target row
-     * @return the value of the first cell of the target column
-     */
-    public String getColumnNameUsingRowNameAndCellData(String rowName, String cellData) {
-        return getColumnNameUsingRowNameAndCellData(getDefaultSheetName(), rowName, cellData);
     }
 
 }

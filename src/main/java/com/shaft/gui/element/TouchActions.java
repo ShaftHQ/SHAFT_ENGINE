@@ -13,8 +13,6 @@ import java.util.List;
 public class TouchActions {
     private static final int DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT = 10;
     private final WebDriver driver;
-    // TODO: add to appium properties. divide it to execution properties and
-    // platform properties
 
     public TouchActions(WebDriver driver) {
         this.driver = driver;

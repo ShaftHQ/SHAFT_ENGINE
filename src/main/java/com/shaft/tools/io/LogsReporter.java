@@ -17,16 +17,6 @@ public class LogsReporter {
         attachCucumberReport();
     }
 
-    private void attachCucumberReport() {
-        if (FileActions.doesFileExist("allure-results/cucumberReport.html")) {
-            ReportManager.attach("HTML", "Cucumber Execution Report", FileActions.readFromFile("allure-results/cucumberReport.html"));
-        }
-    }
-
-    private void initializeClosureActivities() {
-        ReportManager.logClosureActivitiesInitialization();
-    }
-
     public void attachFullLogs() {
         String executionEndTimestamp = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
         ReportManager.attachIssuesLog(executionEndTimestamp);
@@ -39,5 +29,15 @@ public class LogsReporter {
         } else {
             ReportManager.logDiscrete("There were no Web Browsers used for this test run.");
         }
+    }
+
+    private void attachCucumberReport() {
+        if (FileActions.doesFileExist("allure-results/cucumberReport.html")) {
+            ReportManager.attach("HTML", "Cucumber Execution Report", FileActions.readFromFile("allure-results/cucumberReport.html"));
+        }
+    }
+
+    private void initializeClosureActivities() {
+        ReportManager.logClosureActivitiesInitialization();
     }
 }

@@ -46,13 +46,124 @@ public class DatabaseActions {
         }
     }
 
+    /**
+     * Returns a string representation of the provided resultSet object
+     *
+     * @param resultSet the object returned as a result of performing a certain
+     *                  database query
+     * @return a string value which represents the provided resultSet object
+     */
+    public static String getResult(ResultSet resultSet) {
+        String resultSetString = getResultStringValue(resultSet, false);
+        passAction();
+        return resultSetString;
+    }
+
+    /**
+     * Returns a string value which represents the data of the target row
+     *
+     * @param resultSet      the object returned as a result of performing a certain
+     *                       database query
+     * @param columnName     the name of the column holding the knownCellValue
+     * @param knownCellValue a value that the engine searches for under the
+     *                       specified columnName, when that value is found, the row
+     *                       that contains it is read and added to the returned
+     *                       string
+     * @return a string value which represents the data of the target row
+     */
+    public static String getRow(ResultSet resultSet, String columnName, String knownCellValue) {
+        String reportMessage = "Column Name: \"" + columnName + "\" | Cell Content: \"" + knownCellValue + "\"";
+        StringBuilder str = new StringBuilder();
+        boolean foundRow = false;
+
+        try {
+            resultSet.beforeFirst();
+            if (resultSet.last()) {
+                int columnsCount = resultSet.getMetaData().getColumnCount();
+                int lastRowID = resultSet.getRow();
+                int targetColumnID = resultSet.findColumn(columnName);
+
+                // read table data
+                for (int i = 1; i <= lastRowID; i++) {
+                    resultSet.absolute(i);
+                    if (String.valueOf(resultSet.getString(targetColumnID)).trim().equals(knownCellValue.trim())) {
+                        for (int j = 1; j <= columnsCount; j++) {
+                            str.append(resultSet.getString(j)).append("\t");
+                        }
+                        str.append("\n");
+                        foundRow = true;
+                    }
+                }
+            }
+        } catch (SQLException | NullPointerException rootCauseException) {
+            ReportManager.log(rootCauseException);
+            failAction(reportMessage, rootCauseException);
+        }
+        if (Boolean.TRUE.equals(foundRow)) {
+            passAction(reportMessage);
+        } else {
+            failAction(reportMessage);
+        }
+        return str.toString().trim();
+    }
+
+    /**
+     * Returns a string value which represents the data of the target column
+     *
+     * @param resultSet  the object returned as a result of performing a certain
+     *                   database query
+     * @param columnName the name of the target column that will be read
+     * @return a string value which represents the data of the target column
+     */
+    public static String getColumn(ResultSet resultSet, String columnName) {
+        StringBuilder str = new StringBuilder();
+        try {
+            resultSet.beforeFirst();
+            if (resultSet.last()) {
+                int lastRowID = resultSet.getRow();
+                int targetColumnID = resultSet.findColumn(columnName);
+
+                // read table data
+                for (int i = 1; i <= lastRowID; i++) {
+                    resultSet.absolute(i);
+                    str.append(resultSet.getString(targetColumnID)).append("\n");
+                }
+            }
+        } catch (SQLException | NullPointerException rootCauseException) {
+            ReportManager.log(rootCauseException);
+            failAction(rootCauseException);
+        }
+        passAction(columnName);
+        return str.toString().trim();
+    }
+
+    /**
+     * Returns the number of rows contained inside the provided resultSet
+     *
+     * @param resultSet the object returned as a result of performing a certain
+     *                  database query
+     * @return an integer value which represents the number of rows contained inside
+     * the provided resultSet
+     */
+    public static int getRowCount(ResultSet resultSet) {
+        int rowCount = 0;
+        try {
+            resultSet.beforeFirst();
+            if (resultSet.last()) {
+                rowCount = resultSet.getRow();
+                resultSet.beforeFirst(); // reset pointer
+            }
+        } catch (SQLException rootCauseException) {
+            ReportManager.log(rootCauseException);
+            failAction(rootCauseException);
+        }
+        passAction();
+        return rowCount;
+    }
+
     private static void passAction(String actionName, String testData, String queryResult) {
         reportActionResult(actionName, testData, queryResult, true);
     }
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////// [private] Reporting Actions
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     private static void passAction(String testData, String queryResult) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
@@ -90,7 +201,7 @@ public class DatabaseActions {
 
     private static String reportActionResult(String actionName, String testData, String queryResult,
                                              Boolean passFailStatus) {
-        String message = "";
+        String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
             message = "Database Action [" + actionName + "] successfully performed.";
         } else {
@@ -133,10 +244,6 @@ public class DatabaseActions {
         return str;
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////// [private] Preparation and Support Actions
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
     private static StringBuilder readColumnData(ResultSet resultSet, int columnsCount, int lastRowID)
             throws SQLException {
         StringBuilder str = new StringBuilder();
@@ -175,154 +282,67 @@ public class DatabaseActions {
     }
 
     /**
-     * Returns a string representation of the provided resultSet object
+     * Executes a SELECT statement and returns the result as a ResultSet object
      *
-     * @param resultSet the object returned as a result of performing a certain
-     *                  database query
-     * @return a string value which represents the provided resultSet object
+     * @param sql an SQL statement to be sent to the database, typically a static
+     *            SQL SELECT statement
+     * @return a ResultSet object that contains the data produced by the given
+     * query; never null
      */
-    public static String getResult(ResultSet resultSet) {
-        String resultSetString = getResultStringValue(resultSet, false);
-        passAction();
-        return resultSetString;
-    }
-
-    /**
-     * Returns a string value which represents the data of the target row
-     *
-     * @param resultSet      the object returned as a result of performing a certain
-     *                       database query
-     * @param columnName     the name of the column holding the knownCellValue
-     * @param knownCellValue a value that the engine searches for under the
-     *                       specified columnName, when that value is found, the row
-     *                       that contains it is read and added to the returned
-     *                       string
-     * @return a string value which represents the data of the target row
-     */
-    public static String getRow(ResultSet resultSet, String columnName, String knownCellValue) {
-        String reportMessage = "Column Name: \"" + columnName + "\" | Cell Content: \"" + knownCellValue + "\"";
-        StringBuilder str = new StringBuilder();
-        Boolean foundRow = false;
-
+    public ResultSet executeSelectQuery(String sql) {
+        ResultSet resultSet = null;
         try {
-            resultSet.beforeFirst();
-            if (resultSet.last()) {
-                int columnsCount = resultSet.getMetaData().getColumnCount();
-                int lastRowID = resultSet.getRow();
-                int targetColumnID = resultSet.findColumn(columnName);
-
-                // read table data
-                for (int i = 1; i <= lastRowID; i++) {
-                    resultSet.absolute(i);
-                    if (String.valueOf(resultSet.getString(targetColumnID)).trim().equals(knownCellValue.trim())) {
-                        for (int j = 1; j <= columnsCount; j++) {
-                            str.append(resultSet.getString(j) + "\t");
-                        }
-                        str.append("\n");
-                        foundRow = true;
-                    }
-                }
-            }
+            resultSet = createStatement(createConnection()).executeQuery(sql);
         } catch (SQLException | NullPointerException rootCauseException) {
             ReportManager.log(rootCauseException);
-            failAction(reportMessage, rootCauseException);
+            failAction(getReportMessage("SELECT", sql), rootCauseException);
         }
-        if (Boolean.TRUE.equals(foundRow)) {
-            passAction(reportMessage);
+
+        if (resultSet != null) {
+            passAction(getReportMessage("SELECT", sql), getResultStringValue(resultSet, true));
         } else {
-            failAction(reportMessage);
+            failAction("Null or no resultSet was returned from executing this query [" + sql + "]");
         }
-        return str.toString().trim();
+
+        return resultSet;
     }
 
     /**
-     * Returns a string value which represents the data of the target column
+     * Executes any DML or DDL statement and returns the result as a ResultSet
+     * object
      *
-     * @param resultSet  the object returned as a result of performing a certain
-     *                   database query
-     * @param columnName the name of the target column that will be read
-     * @return a string value which represents the data of the target column
+     * @param sql an SQL Data Manipulation Language (DML) statement, such as INSERT,
+     *            UPDATE or DELETE; or an SQL statement that returns nothing, such
+     *            as a DDL statement.
+     * @return either (1) the row count for SQL Data Manipulation Language (DML)
+     * statements or (2) 0 for SQL statements that return nothing
      */
-    public static String getColumn(ResultSet resultSet, String columnName) {
-        StringBuilder str = new StringBuilder();
+    public int executeUpdateQuery(String sql) {
+        int updatedRows = 0;
         try {
-            resultSet.beforeFirst();
-            if (resultSet.last()) {
-                int lastRowID = resultSet.getRow();
-                int targetColumnID = resultSet.findColumn(columnName);
-
-                // read table data
-                for (int i = 1; i <= lastRowID; i++) {
-                    resultSet.absolute(i);
-                    str.append(resultSet.getString(targetColumnID) + "\n");
-                }
-            }
+            updatedRows = createStatement(createConnection()).executeUpdate(sql);
+            passAction(sql);
         } catch (SQLException | NullPointerException rootCauseException) {
             ReportManager.log(rootCauseException);
-            failAction(rootCauseException);
+            failAction(getReportMessage("UPDATE", sql), rootCauseException);
         }
-        passAction(columnName);
-        return str.toString().trim();
+        return updatedRows;
     }
-
-    /**
-     * Returns the number of rows contained inside the provided resultSet
-     *
-     * @param resultSet the object returned as a result of performing a certain
-     *                  database query
-     * @return an integer value which represents the number of rows contained inside
-     * the provided resultSet
-     */
-    public static int getRowCount(ResultSet resultSet) {
-        int rowCount = 0;
-        try {
-            resultSet.beforeFirst();
-            if (resultSet.last()) {
-                rowCount = resultSet.getRow();
-                resultSet.beforeFirst(); // reset pointer
-            }
-        } catch (SQLException rootCauseException) {
-            ReportManager.log(rootCauseException);
-            failAction(rootCauseException);
-        }
-        passAction();
-        return rowCount;
-    }
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////// [Public] Core Database Actions
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     private Connection createConnection() {
         Connection connection = null;
         String connectionString = "";
         try {
             switch (dbType) {
-
-                case MY_SQL:
-                    connectionString = "jdbc:mysql://" + dbServerIP + ":" + dbPort + "/" + dbName;
-                    break;
-
-                case SQL_SERVER:
-                    connectionString = "jdbc:sqlserver://" + dbServerIP + ":" + dbPort + ";databaseName=" + dbName;
-                    break;
-
-                case POSTGRE_SQL:
-                    connectionString = "jdbc:postgresql://" + dbServerIP + ":" + dbPort + "/" + dbName;
-                    break;
-
-                case ORACLE:
-                    connectionString = "jdbc:oracle:thin:@" + dbServerIP + ":" + dbPort + ":" + dbName;
-                    break;
-
-                case IBM_DB2:
-                    connectionString = "jdbc:db2://" + dbServerIP + ":" + dbPort + "/" + dbName;
-                    break;
-
-                default:
+                case MY_SQL -> connectionString = "jdbc:mysql://" + dbServerIP + ":" + dbPort + "/" + dbName;
+                case SQL_SERVER -> connectionString = "jdbc:sqlserver://" + dbServerIP + ":" + dbPort + ";databaseName=" + dbName;
+                case POSTGRE_SQL -> connectionString = "jdbc:postgresql://" + dbServerIP + ":" + dbPort + "/" + dbName;
+                case ORACLE -> connectionString = "jdbc:oracle:thin:@" + dbServerIP + ":" + dbPort + ":" + dbName;
+                case IBM_DB2 -> connectionString = "jdbc:db2://" + dbServerIP + ":" + dbPort + "/" + dbName;
+                default -> {
                     ReportManager.log("Database not supported");
                     failAction(dbType.toString());
-                    break;
+                }
             }
             if (System.getProperty("databaseLoginTimeout") == null) {
                 PropertiesFileManager.readPropertyFiles();
@@ -376,63 +396,13 @@ public class DatabaseActions {
     }
 
     private String getReportMessage(String queryType, String query) {
-        StringBuilder reportMessage = new StringBuilder();
-        reportMessage.append("Database Type: \"" + dbType + "\"");
-        reportMessage.append("| Server: \"" + dbServerIP + ":" + dbPort + "\"");
-        reportMessage.append("| Name: \"" + dbName + "\"");
-        reportMessage.append("| Username: \"" + username + "\"");
-        reportMessage.append("| Password: \"" + password.replaceAll(".", "*") + "\"");
-        reportMessage.append("| Query Type: \"" + queryType + "\"");
-        reportMessage.append("| Query: \"" + query + "\"");
-        return reportMessage.toString();
-    }
-
-    /**
-     * Executes a SELECT statement and returns the result as a ResultSet object
-     *
-     * @param sql an SQL statement to be sent to the database, typically a static
-     *            SQL SELECT statement
-     * @return a ResultSet object that contains the data produced by the given
-     * query; never null
-     */
-    public ResultSet executeSelectQuery(String sql) {
-        ResultSet resultSet = null;
-        try {
-            resultSet = createStatement(createConnection()).executeQuery(sql);
-        } catch (SQLException | NullPointerException rootCauseException) {
-            ReportManager.log(rootCauseException);
-            failAction(getReportMessage("SELECT", sql), rootCauseException);
-        }
-
-        if (resultSet != null) {
-            passAction(getReportMessage("SELECT", sql), getResultStringValue(resultSet, true));
-        } else {
-            failAction("Null or no resultSet was returned from executing this query [" + sql + "]");
-        }
-
-        return resultSet;
-    }
-
-    /**
-     * Executes any DML or DDL statement and returns the result as a ResultSet
-     * object
-     *
-     * @param sql an SQL Data Manipulation Language (DML) statement, such as INSERT,
-     *            UPDATE or DELETE; or an SQL statement that returns nothing, such
-     *            as a DDL statement.
-     * @return either (1) the row count for SQL Data Manipulation Language (DML)
-     * statements or (2) 0 for SQL statements that return nothing
-     */
-    public int executeUpdateQuery(String sql) {
-        int updatedRows = 0;
-        try {
-            updatedRows = createStatement(createConnection()).executeUpdate(sql);
-            passAction(sql);
-        } catch (SQLException | NullPointerException rootCauseException) {
-            ReportManager.log(rootCauseException);
-            failAction(getReportMessage("UPDATE", sql), rootCauseException);
-        }
-        return updatedRows;
+        return "Database Type: \"" + dbType + "\"" +
+                "| Server: \"" + dbServerIP + ":" + dbPort + "\"" +
+                "| Name: \"" + dbName + "\"" +
+                "| Username: \"" + username + "\"" +
+                "| Password: \"" + password.replaceAll(".", "*") + "\"" +
+                "| Query Type: \"" + queryType + "\"" +
+                "| Query: \"" + query + "\"";
     }
 
     public enum DatabaseType {

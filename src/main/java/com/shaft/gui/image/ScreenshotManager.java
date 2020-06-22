@@ -18,10 +18,8 @@ import java.awt.image.BufferedImage;
 import java.io.*;
 import java.nio.file.FileSystems;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
+import java.util.*;
 
 public class ScreenshotManager {
     private static final String SCREENSHOT_FOLDERPATH = System.getProperty("allureResultsFolderPath").trim()
@@ -50,18 +48,7 @@ public class ScreenshotManager {
     private static String screenshotFileName = "Screenshot";
     private static By aiGeneratedElementLocator = null;
     private static By targetElementLocator;
-    /*
-     * A flag to determine when to take a screenshot. Always; after every browser
-     * and element action. Never; never. ValidationPointsOnly; after every assertion
-     * or verification point. FailuresOnly; after validation failures and element
-     * action failures.
-     */
     private static boolean globalPassFailStatus = false;
-    // default is 500
-    /*
-     * A flag to control the highlighting of the element green for passing yellow
-     * for failing
-     */
     private static String globalPassFailAppendedText = "";
     private static String testCaseName = "";
     private static String gifRelativePathWithFileName = "";
@@ -159,136 +146,6 @@ public class ScreenshotManager {
         // Note: Excluded the "Always" case as there will already be another screenshot
         // taken by the browser/element action // reversed this option to be able to
         // take a failure screenshot
-    }
-
-    /**
-     * Internal use only. Considers the screenshotParams_whenToTakeAScreenshot
-     * parameter.
-     *
-     * @param driver         the current instance of Selenium webdriver
-     * @param elementLocator the locator of the webElement under test (By xpath, id,
-     *                       selector, name ...etc)
-     * @param appendedText   the text that needs to be appended to the name of the
-     *                       screenshot to make it more recognizable
-     * @param takeScreenshot determines whether or not to take a screenshot given
-     *                       the screenshotParams_whenToTakeAScreenshot parameter
-     *                       from the pom.xml file
-     * @return
-     */
-    private static synchronized List<Object> internalCaptureScreenShot(WebDriver driver, By elementLocator,
-                                                                       String actionName, String appendedText, boolean takeScreenshot) {
-
-        // Override current locator with the aiGeneratedElementLocator
-        if (Boolean.TRUE.equals(AI_SUPPORTED_ELEMENT_IDENTIFICATION) && aiGeneratedElementLocator != null
-                && elementLocator != null) {
-            elementLocator = aiGeneratedElementLocator;
-        }
-
-        if (takeScreenshot || CREATE_GIF) {
-            /*
-             * Force screenshot link to be shown in the results as a link not text
-             */
-            System.setProperty("org.uncommons.reportng.escape-output", "false");
-
-            /*
-             * Declare regularElementStyle, the WebElemnt, and Javascript Executor to
-             * highlight and unhighlight the WebElement
-             */
-            String regularElementStyle = "";
-            JavascriptExecutor js = null;
-            WebElement element = null;
-            Rectangle elementLocation = null;
-
-            try {
-                /*
-                 * If an elementLocator was passed, store regularElementStyle and highlight that
-                 * element before taking the screenshot
-                 */
-                if (takeScreenshot && Boolean.TRUE.equals(SCREENSHOT_PARAMS_HIGHLIGHTELEMENTS) && elementLocator != null
-                        && (ElementActions.getElementsCount(driver, elementLocator,
-                        RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1)) {
-
-                    if (SCREENSHOT_PARAMS_HIGHLIGHTMETHOD.equals("JavaScript")) {
-                        element = driver.findElement(elementLocator);
-                        js = (JavascriptExecutor) driver;
-                        regularElementStyle = highlightElementAndReturnDefaultStyle(element, js,
-                                setHighlightedElementStyle());
-                    } else {
-                        // TODO: AI rect isn't in the proper location on Windows
-                        // default to using AI
-                        elementLocation = driver.findElement(elementLocator).getRect();
-                    }
-                }
-            } catch (StaleElementReferenceException e) {
-                // this happens when WebDriver fails to capture the elements initial style or
-                // fails to highlight the element for some reason
-                ReportManager.log(e);
-            }
-
-            /*
-             * Take the screenshot and store it as a file
-             */
-            byte[] src;
-
-            /*
-             * Attempt to take a full page screenshot, take a regular screenshot upon
-             * failure
-             */
-            try {
-                src = takeScreenshot(driver);
-
-                /*
-                 * Declare screenshot file name
-                 */
-                testCaseName = ReportManager.getTestMethodName();
-                screenshotFileName = System.currentTimeMillis() + "_" + testCaseName + "_" + actionName;
-                if (!appendedText.equals("")) {
-                    screenshotFileName = screenshotFileName + "_" + appendedText;
-                }
-
-                /*
-                 * If an elementLocator was passed, unhighlight that element after taking the
-                 * screenshot
-                 *
-                 */
-                if (takeScreenshot && SCREENSHOT_PARAMS_HIGHLIGHTMETHOD.equals("JavaScript") && js != null) {
-                    js.executeScript("arguments[0].setAttribute('style', arguments[1]);", element, regularElementStyle);
-                }
-
-                if (takeScreenshot && !SCREENSHOT_PARAMS_HIGHLIGHTMETHOD.equals("JavaScript") && elementLocation != null) {
-                    Color color = null;
-                    if (globalPassFailStatus) {
-                        color = new Color(165, 210, 165); // green
-                    } else {
-                        color = new Color(255, 255, 153); // yellow
-                    }
-                    src = ImageProcessingActions.highlightElementInScreenshot(src, elementLocation, color);
-                }
-                startOrAppendToAnimatedGif(src);
-                if (takeScreenshot) {
-                    return addScreenshotToReport(src);
-                } else {
-                    return null;
-                }
-            } catch (WebDriverException e) {
-                // this happens when a browser session crashes mid-execution, or the docker is
-                // unregistered
-                ReportManager.log(e);
-            }
-        }
-        return null;
-    }
-
-    private static byte[] takeScreenshot(WebDriver driver) {
-        switch (SCREENSHOT_PARAMS_SCREENSHOTTYPE.toLowerCase().trim()) {
-            case "regular":
-            default:
-                return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
-            case "fullpage":
-                return takeFullPageScreenshot(driver);
-            case "element":
-                return takeElementScreenshot(driver, targetElementLocator, true);
-        }
     }
 
     public static synchronized List<Object> captureScreenShotUsingSikuliX(Screen screen, App applicationWindow, Pattern element, String actionName,
@@ -398,6 +255,189 @@ public class ScreenshotManager {
         return takeElementScreenshot(driver, targetElementLocator, false);
     }
 
+    public static synchronized void attachAnimatedGif() {
+        // stop and attach
+        if (Boolean.TRUE.equals(CREATE_GIF) && !gifRelativePathWithFileName.equals("")) {
+            try {
+                ReportManager.attach("Animated Gif", testCaseName, new FileInputStream(gifRelativePathWithFileName));
+                if (!gifWriter.equals(new ThreadLocal<>())) {
+                    gifWriter.get().close();
+                }
+                if (!gifOutputStream.equals(new ThreadLocal<>())) {
+                    gifOutputStream.get().close();
+                }
+
+                gifOutputStream = new ThreadLocal<>();
+                gifWriter = new ThreadLocal<>();
+                gifRelativePathWithFileName = "";
+            } catch (FileNotFoundException e) {
+                // this happens when the gif fails to start, maybe the browser window was
+                // already closed
+            } catch (IOException | NullPointerException | IllegalStateException e) {
+                ReportManager.log(e);
+            }
+        }
+    }
+
+    public static void storeElementScreenshotForAISupportedElementIdentification(WebDriver driver, By
+            elementLocator) {
+        // Override current locator with the aiGeneratedElementLocator
+        if (Boolean.TRUE.equals(AI_SUPPORTED_ELEMENT_IDENTIFICATION) && aiGeneratedElementLocator != null
+                && elementLocator != null) {
+            elementLocator = aiGeneratedElementLocator;
+        }
+
+        if (Boolean.TRUE.equals(AI_SUPPORTED_ELEMENT_IDENTIFICATION)) {
+            FileActions.createFolder(AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH);
+            WebElement targetElement = driver.findElement(elementLocator);
+            File screenshotFile = null;
+            try {
+                screenshotFile = targetElement.getScreenshotAs(OutputType.FILE);
+            } catch (JavascriptException e) {
+                // do nothing
+            }
+            if (screenshotFile != null) {
+                String elementFileName = ImageProcessingActions.formatElementLocatorToImagePath(Objects.requireNonNull(elementLocator));
+                if (!targetElement.getTagName().equalsIgnoreCase("input")) {
+                    FileActions.copyFile(screenshotFile.getAbsolutePath(),
+                            AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH + elementFileName + ".png");
+                } else {
+                    if (!FileActions.doesFileExist(AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH, elementFileName + ".png",
+                            2)) {
+                        FileActions.copyFile(screenshotFile.getAbsolutePath(),
+                                AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH + elementFileName + ".png");
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Internal use only. Considers the screenshotParams_whenToTakeAScreenshot
+     * parameter.
+     *
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param appendedText   the text that needs to be appended to the name of the
+     *                       screenshot to make it more recognizable
+     * @param takeScreenshot determines whether or not to take a screenshot given
+     *                       the screenshotParams_whenToTakeAScreenshot parameter
+     *                       from the pom.xml file
+     * @return screenshot list object
+     */
+    private static synchronized List<Object> internalCaptureScreenShot(WebDriver driver, By elementLocator,
+                                                                       String actionName, String appendedText, boolean takeScreenshot) {
+
+        // Override current locator with the aiGeneratedElementLocator
+        if (Boolean.TRUE.equals(AI_SUPPORTED_ELEMENT_IDENTIFICATION) && aiGeneratedElementLocator != null
+                && elementLocator != null) {
+            elementLocator = aiGeneratedElementLocator;
+        }
+
+        if (takeScreenshot || CREATE_GIF) {
+            /*
+             * Force screenshot link to be shown in the results as a link not text
+             */
+            System.setProperty("org.uncommons.reportng.escape-output", "false");
+
+            /*
+             * Declare regularElementStyle, the WebElemnt, and Javascript Executor to
+             * highlight and unhighlight the WebElement
+             */
+            String regularElementStyle = "";
+            JavascriptExecutor js = null;
+            WebElement element = null;
+            Rectangle elementLocation = null;
+
+            try {
+                /*
+                 * If an elementLocator was passed, store regularElementStyle and highlight that
+                 * element before taking the screenshot
+                 */
+                if (takeScreenshot && Boolean.TRUE.equals(SCREENSHOT_PARAMS_HIGHLIGHTELEMENTS) && elementLocator != null
+                        && (ElementActions.getElementsCount(driver, elementLocator,
+                        RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1)) {
+
+                    if (SCREENSHOT_PARAMS_HIGHLIGHTMETHOD.equals("JavaScript")) {
+                        element = driver.findElement(elementLocator);
+                        js = (JavascriptExecutor) driver;
+                        regularElementStyle = highlightElementAndReturnDefaultStyle(element, js,
+                                setHighlightedElementStyle());
+                    } else {
+                        // TODO: AI rect isn't in the proper location on Windows
+                        // default to using AI
+                        elementLocation = driver.findElement(elementLocator).getRect();
+                    }
+                }
+            } catch (StaleElementReferenceException e) {
+                // this happens when WebDriver fails to capture the elements initial style or
+                // fails to highlight the element for some reason
+                ReportManager.log(e);
+            }
+
+            /*
+             * Take the screenshot and store it as a file
+             */
+            byte[] src;
+
+            /*
+             * Attempt to take a full page screenshot, take a regular screenshot upon
+             * failure
+             */
+            try {
+                src = takeScreenshot(driver);
+
+                /*
+                 * Declare screenshot file name
+                 */
+                testCaseName = ReportManager.getTestMethodName();
+                screenshotFileName = System.currentTimeMillis() + "_" + testCaseName + "_" + actionName;
+                if (!appendedText.equals("")) {
+                    screenshotFileName = screenshotFileName + "_" + appendedText;
+                }
+
+                /*
+                 * If an elementLocator was passed, unhighlight that element after taking the
+                 * screenshot
+                 *
+                 */
+                if (takeScreenshot && SCREENSHOT_PARAMS_HIGHLIGHTMETHOD.equals("JavaScript") && js != null) {
+                    js.executeScript("arguments[0].setAttribute('style', arguments[1]);", element, regularElementStyle);
+                }
+
+                if (takeScreenshot && !SCREENSHOT_PARAMS_HIGHLIGHTMETHOD.equals("JavaScript") && elementLocation != null) {
+                    Color color;
+                    if (globalPassFailStatus) {
+                        color = new Color(165, 210, 165); // green
+                    } else {
+                        color = new Color(255, 255, 153); // yellow
+                    }
+                    src = ImageProcessingActions.highlightElementInScreenshot(src, elementLocation, color);
+                }
+                startOrAppendToAnimatedGif(src);
+                if (takeScreenshot) {
+                    return addScreenshotToReport(src);
+                } else {
+                    return null;
+                }
+            } catch (WebDriverException e) {
+                // this happens when a browser session crashes mid-execution, or the docker is
+                // unregistered
+                ReportManager.log(e);
+            }
+        }
+        return null;
+    }
+
+    private static byte[] takeScreenshot(WebDriver driver) {
+        return switch (SCREENSHOT_PARAMS_SCREENSHOTTYPE.toLowerCase().trim()) {
+            default -> ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+            case "fullpage" -> takeFullPageScreenshot(driver);
+            case "element" -> takeElementScreenshot(driver, targetElementLocator, true);
+        };
+    }
+
     private static byte[] takeElementScreenshot(WebDriver driver, By targetElementLocator, Boolean
             returnRegularScreenshotInCaseOfFailure) {
         try {
@@ -430,7 +470,7 @@ public class ScreenshotManager {
             // add SHAFT_Engine logo overlay
             InputStream in = new ByteArrayInputStream(screenshotFile);
             BufferedImage screenshotImage = ImageIO.read(in);
-            screenshotImage = overlayShaftEngineLogo(screenshotImage);
+            overlayShaftEngineLogo(screenshotImage);
 
             ByteArrayOutputStream screenshotOutputStream = new ByteArrayOutputStream();
             ImageIO.write(screenshotImage, "png", screenshotOutputStream);
@@ -461,17 +501,15 @@ public class ScreenshotManager {
     }
 
     private static String setHighlightedElementStyle() {
-        String backgroud = "";
-        String backgroundColor = "";
+        String backgroud;
+        String backgroundColor;
 
         if (globalPassFailStatus) {
             backgroud = "#46aad2";
             backgroundColor = "#A5D2A5";
-            // [incorta-blue: #46aad2] background-color:#A5D2A5
         } else {
             backgroud = "#FFFF99";
             backgroundColor = "#FFFF99";
-            // background-color:#ffff66
         }
         return "outline-offset:-3px !important; outline:3px solid #808080 !important; background:" + backgroud
                 + " !important; background-color:" + backgroundColor
@@ -591,63 +629,6 @@ public class ScreenshotManager {
             // leave the gif intact and will attach it even after failing to append to it
         } catch (WebDriverException | IOException | IllegalStateException | IllegalArgumentException | NullPointerException e) {
             ReportManager.log(e);
-        }
-    }
-
-    public static synchronized void attachAnimatedGif() {
-        // stop and attach
-        if (Boolean.TRUE.equals(CREATE_GIF) && !gifRelativePathWithFileName.equals("")) {
-            try {
-                ReportManager.attach("Animated Gif", testCaseName, new FileInputStream(gifRelativePathWithFileName));
-                if (!gifWriter.equals(new ThreadLocal<>())) {
-                    gifWriter.get().close();
-                }
-                if (!gifOutputStream.equals(new ThreadLocal<>())) {
-                    gifOutputStream.get().close();
-                }
-
-                gifOutputStream = new ThreadLocal<>();
-                gifWriter = new ThreadLocal<>();
-                gifRelativePathWithFileName = "";
-            } catch (FileNotFoundException e) {
-                // this happens when the gif fails to start, maybe the browser window was
-                // already closed
-            } catch (IOException | NullPointerException | IllegalStateException e) {
-                ReportManager.log(e);
-            }
-        }
-    }
-
-    public static void storeElementScreenshotForAISupportedElementIdentification(WebDriver driver, By
-            elementLocator) {
-        // Override current locator with the aiGeneratedElementLocator
-        if (Boolean.TRUE.equals(AI_SUPPORTED_ELEMENT_IDENTIFICATION) && aiGeneratedElementLocator != null
-                && elementLocator != null) {
-            elementLocator = aiGeneratedElementLocator;
-        }
-
-        if (Boolean.TRUE.equals(AI_SUPPORTED_ELEMENT_IDENTIFICATION)) {
-            FileActions.createFolder(AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH);
-            WebElement targetElement = driver.findElement(elementLocator);
-            File screenshotFile = null;
-            try {
-                screenshotFile = targetElement.getScreenshotAs(OutputType.FILE);
-            } catch (JavascriptException e) {
-                // do nothing
-            }
-            if (screenshotFile != null) {
-                String elementFileName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
-                if (!targetElement.getTagName().equalsIgnoreCase("input")) {
-                    FileActions.copyFile(screenshotFile.getAbsolutePath(),
-                            AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH + elementFileName + ".png");
-                } else {
-                    if (!FileActions.doesFileExist(AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH, elementFileName + ".png",
-                            2)) {
-                        FileActions.copyFile(screenshotFile.getAbsolutePath(),
-                                AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH + elementFileName + ".png");
-                    }
-                }
-            }
         }
     }
 }
