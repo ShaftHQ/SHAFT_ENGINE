@@ -132,21 +132,6 @@ public class SikuliActions {
         return this;
     }
 
-    private void clearAndType(Pattern element, String text) throws FindFailed {
-        String elementText = screen.wait(element).getText().replace("\n", "").trim();
-        if (!elementText.isEmpty()) {
-            //clear
-            Collections.singletonList(elementText.toCharArray()).forEach(character -> {
-                try {
-                    screen.wait(element).type(element, Key.BACKSPACE);
-                } catch (FindFailed findFailed) {
-                    ReportManager.log(findFailed);
-                }
-            });
-        }
-        screen.wait(element).type(text);
-    }
-
     /**
      * Clicks on a certain element using SikuliX
      *
@@ -328,6 +313,21 @@ public class SikuliActions {
         }
         ElementActions.passAction(screen, applicationWindow, draggableElementPattern, elementText);
         return this;
+    }
+
+    private void clearAndType(Pattern element, String text) throws FindFailed {
+        String elementText = screen.wait(element).getText().replace("\n", "").trim();
+        if (!elementText.isEmpty()) {
+            //clear
+            Collections.singletonList(elementText.toCharArray()).forEach(character -> {
+                try {
+                    screen.wait(element).type(element, Key.BACKSPACE);
+                } catch (FindFailed findFailed) {
+                    ReportManager.log(findFailed);
+                }
+            });
+        }
+        screen.wait(element).type(text);
     }
 
     private byte[] readImageFromFile(String pathToTargetElementImage) {

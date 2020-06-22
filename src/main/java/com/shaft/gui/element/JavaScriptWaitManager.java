@@ -10,6 +10,8 @@ import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.support.ui.ExpectedCondition;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
+import java.util.Objects;
+
 public class JavaScriptWaitManager {
     private static final int WAIT_DURATION_INTEGER = 15;
     private static final String TARGET_DOCUMENT_READY_STATE = "complete";
@@ -21,7 +23,6 @@ public class JavaScriptWaitManager {
         throw new IllegalStateException("Utility class");
     }
 
-    // Get the driver
     public static void setDriver(WebDriver driver) {
         jsWaitDriver.set(driver);
         jsExec = (JavascriptExecutor) jsWaitDriver.get();
@@ -62,7 +63,6 @@ public class JavaScriptWaitManager {
         }
     }
 
-    // Wait for JQuery Load
     private static void waitForJQueryLoadIfDefined() {
         Boolean jQueryDefined = (Boolean) jsExec.executeScript("return typeof jQuery != 'undefined'");
         if (Boolean.TRUE.equals(jQueryDefined)) {
@@ -95,7 +95,6 @@ public class JavaScriptWaitManager {
         }
     }
 
-    // Wait for Angular Load
     private static void waitForAngularLoad() {
         JavascriptExecutor jsExec = (JavascriptExecutor) jsWaitDriver.get();
 
@@ -103,7 +102,7 @@ public class JavaScriptWaitManager {
 
         // Wait for ANGULAR to load
         ExpectedCondition<Boolean> angularLoad = driver -> Boolean
-                .valueOf(((JavascriptExecutor) driver).executeScript(angularReadyScript).toString());
+                .valueOf(((JavascriptExecutor) Objects.requireNonNull(driver)).executeScript(angularReadyScript).toString());
 
         // Get Angular is Ready
         boolean angularReady = Boolean.parseBoolean(jsExec.executeScript(angularReadyScript).toString());
@@ -122,7 +121,6 @@ public class JavaScriptWaitManager {
         }
     }
 
-    // Wait Until JS Ready
     private static void waitForJSLoadIfDefined() {
         JavascriptExecutor jsExec = (JavascriptExecutor) jsWaitDriver.get();
 

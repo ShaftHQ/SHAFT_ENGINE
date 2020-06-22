@@ -20,17 +20,13 @@ import java.util.*;
 public class InvokedMethodListener implements IInvokedMethodListener {
     private final List<List<String>> listOfOpenIssues = new ArrayList<>();
     private final List<List<String>> listOfOpenIssuesForFailedTests = new ArrayList<>();
-    // class name, method name, link name, link url
     private final List<List<String>> listOfOpenIssuesForPassedTests = new ArrayList<>();
-    // class name, method name, link name, link url
     private final List<List<String>> listOfNewIssuesForFailedTests = new ArrayList<>();
     private int invokedTestsCounter = 0; // TODO: remove this variable
     private int testSize = 0;
-    // link name, link url
     private int openIssuesForFailedTestsCounter = 0;
     private int openIssuesForPassedTestsCounter = 0;
     private int newIssuesForFailedTestsCounter = 0;
-    // class name, method name
 
     @Override
     public void beforeInvocation(IInvokedMethod method, ITestResult testResult) {
@@ -97,7 +93,7 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 
         // resetting scope and config
         ElementActions.switchToDefaultContent();
-        ReportManager.setDiscreteLogging(Boolean.valueOf(System.getProperty("alwaysLogDiscreetly")));
+        ReportManager.setDiscreteLogging(Boolean.parseBoolean(System.getProperty("alwaysLogDiscreetly")));
         ITestNGMethod testMethod = method.getTestMethod();
         if (testMethod.isTest()) {
             updateTestStatusInCaseOfVerificationFailure(testResult);

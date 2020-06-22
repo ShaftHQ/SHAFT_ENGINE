@@ -35,6 +35,7 @@ import java.nio.file.FileSystems;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 import static com.shaft.gui.browser.BrowserFactory.isMobileNativeExecution;
 import static com.shaft.gui.browser.BrowserFactory.isMobileWebExecution;
@@ -64,8 +65,8 @@ public class ImageProcessingActions {
             File[] refrenceFiles = refrenceFolder.listFiles();
             File[] testFiles = testFolder.listFiles();
 
-            ReportManager.log("Comparing [" + testFiles.length + "] image files from the testFolder ["
-                    + testFolder.getPath() + "] against [" + refrenceFiles.length
+            ReportManager.log("Comparing [" + Objects.requireNonNull(testFiles).length + "] image files from the testFolder ["
+                    + testFolder.getPath() + "] against [" + Objects.requireNonNull(refrenceFiles).length
                     + "] image files from the referenceFolder [" + testFolder.getPath() + "]");
 
             // sorting objects for files by fileName
@@ -99,7 +100,9 @@ public class ImageProcessingActions {
                 File[] testProcessingFiles = testProcessingFolder.listFiles();
 
                 // sorting objects for files by fileName
-                Arrays.sort(testProcessingFiles);
+                if (testProcessingFiles != null) {
+                    Arrays.sort(testProcessingFiles);
+                }
 
                 // compare images from the test directory against the reference directory
                 compareImageFolders(refrenceFiles, testFiles, testProcessingFiles, refrenceProcessingFolder,
@@ -124,87 +127,6 @@ public class ImageProcessingActions {
             ReportManager.log(e);
             ReportManager.log("Failed to compare image files ...");
         }
-    }
-
-    private static void compareImageFolders(File[] refrenceFiles, File[] testFiles, File[] testProcessingFiles,
-                                            File refrenceProcessingFolder, File testProcessingFolder, double threshhold) throws IOException {
-        // TODO: refactor to minimize File IO actions
-        int passedImagesCount = 0;
-        int failedImagesCount = 0;
-
-        // compare images from the test directory against the reference directory
-        for (File screenshot : testProcessingFiles) {
-            float percentage = 0;
-            // take buffer data from both image files //
-
-            BufferedImage biA = ImageIO.read(screenshot);
-            DataBuffer dbA = biA.getData().getDataBuffer();
-            float sizeA = dbA.getSize();
-
-            BufferedImage biB = ImageIO.read(new File(
-                    refrenceProcessingFolder + FileSystems.getDefault().getSeparator() + screenshot.getName()));
-            DataBuffer dbB = biB.getData().getDataBuffer();
-            float sizeB = dbB.getSize();
-            float count = 0;
-
-            // compare data-buffer objects //
-            if (sizeA == sizeB) {
-
-                for (int i = 0; i < sizeA; i++) {
-
-                    if (dbA.getElem(i) == dbB.getElem(i)) {
-                        count = count + 1;
-                    }
-
-                }
-                percentage = (count * 100) / sizeA;
-            } else {
-                ReportManager.log("Both the images are not of same size");
-            }
-
-            // fetch the related reference screenshot file name using the current file
-            // name/number as index
-            String relatedReferenceFileName = refrenceFiles[Integer.parseInt(screenshot.getName()) - 1].getName();
-
-            List<Object> referenceScreenshotAttachment = Arrays.asList("Reference Screenshot", relatedReferenceFileName,
-                    new FileInputStream(new File(refrenceProcessingFolder + FileSystems.getDefault().getSeparator()
-                            + screenshot.getName())));
-
-            String relatedTestFileName = testFiles[Integer.parseInt(screenshot.getName()) - 1].getName();
-
-            List<Object> testScreenshotAttachment = Arrays.asList("Test Screenshot", relatedTestFileName,
-                    new FileInputStream(screenshot));
-
-            ReportManager.log(
-                    "Test Screenshot [" + relatedTestFileName + "] and related Refrence Image ["
-                            + relatedReferenceFileName + "] match by [" + percentage + "] percent.",
-                    Arrays.asList(referenceScreenshotAttachment, testScreenshotAttachment));
-
-            Boolean discreetLoggingState = ReportManager.isDiscreteLogging();
-            try {
-                // add to pass/fail counter depending on assertion result, without logging
-                ReportManager.setDiscreteLogging(true);
-                Assertions.assertComparativeRelation(threshhold, percentage,
-                        ComparativeRelationType.GREATER_THAN_OR_EQUALS, AssertionType.POSITIVE);
-                ReportManager.setDiscreteLogging(discreetLoggingState);
-                passedImagesCount++;
-            } catch (AssertionError e) {
-                ReportManager.setDiscreteLogging(discreetLoggingState);
-                // copying image to failed images directory
-                FileActions.copyFile(screenshot.getAbsolutePath(),
-                        testProcessingFolder.getParent() + DIRECTORY_FAILED + relatedTestFileName + "_testImage");
-                FileActions.copyFile(
-                        refrenceProcessingFolder + FileSystems.getDefault().getSeparator() + screenshot.getName(),
-                        testProcessingFolder.getParent() + DIRECTORY_FAILED + relatedTestFileName + "_refrenceImage");
-                failedImagesCount++;
-            }
-
-            Verifications.verifyComparativeRelation(threshhold, percentage, Verifications.ComparativeRelationType.GREATER_THAN_OR_EQUALS, Verifications.VerificationType.POSITIVE);
-        }
-
-        ReportManager.log("[" + passedImagesCount + "] images passed, and [" + failedImagesCount
-                + "] images failed the threshold of [" + threshhold + "%] matching.");
-
     }
 
     public static byte[] highlightElementInScreenshot(byte[] targetScreenshot,
@@ -238,21 +160,11 @@ public class ImageProcessingActions {
         return baos.toByteArray();
     }
 
-    private static void loadOpenCV() {
-        try {
-            OpenCV.loadShared();
-            ReportManager.logDiscrete("Loaded Shared OpenCV");
-        } catch (NoClassDefFoundError | RuntimeException | ExceptionInInitializerError e) {
-            OpenCV.loadLocally();
-            ReportManager.logDiscrete("Loaded Local OpenCV");
-        }
-    }
-
     public static List<Integer> findImageWithinCurrentPage(String referenceImagePath, byte[] currentPageScreenshot,
                                                            int matchMethod) {
 
         if (FileActions.doesFileExist(referenceImagePath)) {
-            if (currentPageScreenshot == null || currentPageScreenshot == new byte[]{}) {
+            if (currentPageScreenshot == null || Arrays.equals(currentPageScreenshot, new byte[]{})) {
                 //target image is empty, force fail comparison
                 ReportManager.log("Failed to identify the element using AI; target screenshot is empty.");
                 return Collections.emptyList();
@@ -336,107 +248,194 @@ public class ImageProcessingActions {
     public static synchronized Boolean compareAgainstBaseline(WebDriver driver, By elementLocator, byte[] elementScreenshot, VisualValidationEngine visualValidationEngine) {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
 
-        switch (visualValidationEngine) {
-            case EXACT_OPENCV:
-                String aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
-                String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
+        if (visualValidationEngine == VisualValidationEngine.EXACT_OPENCV) {
+            String aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
+            String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
 
-                Boolean doesReferenceFileExist = FileActions.doesFileExist(referenceImagePath);
+            boolean doesReferenceFileExist = FileActions.doesFileExist(referenceImagePath);
 
-                if (!elementScreenshot.equals(new byte[]{})) {
-                    if (!doesReferenceFileExist || !ImageProcessingActions.findImageWithinCurrentPage(referenceImagePath, elementScreenshot, Imgproc.TM_CCORR_NORMED).equals(Collections.emptyList())) {
-                        //pass: element found and matched || first time element
-                        if (!doesReferenceFileExist) {
-                            ReportManager.logDiscrete("Passing the test and saving a reference image");
-                            FileActions.writeToFile(aiFolderPath, hashedLocatorName + ".png", elementScreenshot);
-                        }
-                        return true;
-                    } else {
-                        //fail: element doesn't match
-                        return false;
+            if (!Arrays.equals(elementScreenshot, new byte[]{})) {
+                if (!doesReferenceFileExist || !ImageProcessingActions.findImageWithinCurrentPage(referenceImagePath, elementScreenshot, Imgproc.TM_CCORR_NORMED).equals(Collections.emptyList())) {
+                    //pass: element found and matched || first time element
+                    if (!doesReferenceFileExist) {
+                        ReportManager.logDiscrete("Passing the test and saving a reference image");
+                        FileActions.writeToFile(aiFolderPath, hashedLocatorName + ".png", elementScreenshot);
                     }
+                    return true;
                 } else {
-                    //TODO: if element locator was not found, attempt to use AI to find it
-                    Boolean initialState = ScreenshotManager.getAiSupportedElementIdentification();
-                    ScreenshotManager.setAiSupportedElementIdentification(true);
-                    if (!doesReferenceFileExist || ElementActions.attemptToFindElementUsingAI(driver, elementLocator)) {
-                        //pass: element found using AI and new locator suggested || first time element
-                        if (!doesReferenceFileExist) {
-                            ReportManager.logDiscrete("Passing the test and saving a reference image");
-                            FileActions.writeToFile(aiFolderPath, hashedLocatorName + ".png", elementScreenshot);
-                        }
-                        ScreenshotManager.setAiSupportedElementIdentification(initialState);
-                        return true;
-                    } else {
-                        //fail: element not found using AI
-                        ScreenshotManager.setAiSupportedElementIdentification(initialState);
-                        return false;
-                    }
-                }
-            default:
-                //all the other cases of Eyes
-                Eyes eyes = new Eyes();
-                // Define global settings
-                eyes.setLogHandler(new LogHandler() {
-                    @Override
-                    public void open() {
-                    }
-
-                    @Override
-                    public void onMessage(boolean b, String s) {
-                        ReportManager.logDiscrete(s);
-                    }
-
-                    @Override
-                    public void close() {
-                    }
-                });
-                eyes.setApiKey(System.getProperty("applitoolsApiKey"));
-                MatchLevel targetMatchLevel = MatchLevel.STRICT;
-                switch (visualValidationEngine) {
-                    // https://help.applitools.com/hc/en-us/articles/360007188591-Match-Levels
-                    case EXACT_EYES:
-                        targetMatchLevel = MatchLevel.EXACT;
-                        break;
-                    case STRICT_EYES:
-                        targetMatchLevel = MatchLevel.STRICT;
-                        break;
-                    case CONTENT_EYES:
-                        targetMatchLevel = MatchLevel.CONTENT;
-                        break;
-                    case LAYOUT_EYES:
-                        targetMatchLevel = MatchLevel.LAYOUT;
-                        break;
-                    default:
-                        break;
-                }
-                eyes.setMatchLevel(targetMatchLevel);
-                // Define the OS and hosting application to identify the baseline.
-                if (isMobileNativeExecution()) {
-                    eyes.setHostOS(System.getProperty("mobile_platformName") + "_" + System.getProperty("mobile_platformVersion"));
-                    eyes.setHostApp("NativeMobileExecution");
-                } else if (isMobileWebExecution()) {
-                    eyes.setHostOS(System.getProperty("mobile_platformName") + "_" + System.getProperty("mobile_platformVersion"));
-                    eyes.setHostApp(System.getProperty("mobile_browserName"));
-                } else {
-                    eyes.setHostOS(System.getProperty("targetOperatingSystem"));
-                    eyes.setHostApp(System.getProperty("targetBrowserName"));
-                }
-                try {
-                    eyes.open("SHAFT_Engine", ReportManager.getCallingMethodFullName());
-                    eyes.checkImage(elementScreenshot, hashedLocatorName);
-                    TestResults eyesValidationResult = eyes.close();
-                    ReportManager.logDiscrete("Successfully validated the element using AI; Applitools Eyes.");
-                    return eyesValidationResult.isNew() || eyesValidationResult.isPassed();
-                } catch (DiffsFoundException e) {
-                    ReportManager.log(e);
+                    //fail: element doesn't match
                     return false;
-                } finally {
-                    eyes.abortIfNotClosed();
                 }
+            } else {
+                //TODO: if element locator was not found, attempt to use AI to find it
+                Boolean initialState = ScreenshotManager.getAiSupportedElementIdentification();
+                ScreenshotManager.setAiSupportedElementIdentification(true);
+                if (!doesReferenceFileExist || ElementActions.attemptToFindElementUsingAI(driver, elementLocator)) {
+                    //pass: element found using AI and new locator suggested || first time element
+                    if (!doesReferenceFileExist) {
+                        ReportManager.logDiscrete("Passing the test and saving a reference image");
+                        FileActions.writeToFile(aiFolderPath, hashedLocatorName + ".png", elementScreenshot);
+                    }
+                    ScreenshotManager.setAiSupportedElementIdentification(initialState);
+                    return true;
+                } else {
+                    //fail: element not found using AI
+                    ScreenshotManager.setAiSupportedElementIdentification(initialState);
+                    return false;
+                }
+            }
+        }//all the other cases of Eyes
+        Eyes eyes = new Eyes();
+        // Define global settings
+        eyes.setLogHandler(new LogHandler() {
+            @Override
+            public void open() {
+            }
+
+            @Override
+            public void onMessage(boolean b, String s) {
+                ReportManager.logDiscrete(s);
+            }
+
+            @Override
+            public void close() {
+            }
+        });
+        eyes.setApiKey(System.getProperty("applitoolsApiKey"));
+        MatchLevel targetMatchLevel = MatchLevel.STRICT;
+        switch (visualValidationEngine) {
+            // https://help.applitools.com/hc/en-us/articles/360007188591-Match-Levels
+            case EXACT_EYES:
+                targetMatchLevel = MatchLevel.EXACT;
+                break;
+            case STRICT_EYES:
+                targetMatchLevel = MatchLevel.STRICT;
+                break;
+            case CONTENT_EYES:
+                targetMatchLevel = MatchLevel.CONTENT;
+                break;
+            case LAYOUT_EYES:
+                targetMatchLevel = MatchLevel.LAYOUT;
+                break;
+            default:
+                break;
+        }
+        eyes.setMatchLevel(targetMatchLevel);
+        // Define the OS and hosting application to identify the baseline.
+        if (isMobileNativeExecution()) {
+            eyes.setHostOS(System.getProperty("mobile_platformName") + "_" + System.getProperty("mobile_platformVersion"));
+            eyes.setHostApp("NativeMobileExecution");
+        } else if (isMobileWebExecution()) {
+            eyes.setHostOS(System.getProperty("mobile_platformName") + "_" + System.getProperty("mobile_platformVersion"));
+            eyes.setHostApp(System.getProperty("mobile_browserName"));
+        } else {
+            eyes.setHostOS(System.getProperty("targetOperatingSystem"));
+            eyes.setHostApp(System.getProperty("targetBrowserName"));
+        }
+        try {
+            eyes.open("SHAFT_Engine", ReportManager.getCallingMethodFullName());
+            eyes.checkImage(elementScreenshot, hashedLocatorName);
+            TestResults eyesValidationResult = eyes.close();
+            ReportManager.logDiscrete("Successfully validated the element using AI; Applitools Eyes.");
+            return eyesValidationResult.isNew() || eyesValidationResult.isPassed();
+        } catch (DiffsFoundException e) {
+            ReportManager.log(e);
+            return false;
+        } finally {
+            eyes.abortIfNotClosed();
         }
     }
 
+    private static void compareImageFolders(File[] refrenceFiles, File[] testFiles, File[] testProcessingFiles,
+                                            File refrenceProcessingFolder, File testProcessingFolder, double threshhold) throws IOException {
+        // TODO: refactor to minimize File IO actions
+        int passedImagesCount = 0;
+        int failedImagesCount = 0;
+
+        // compare images from the test directory against the reference directory
+        for (File screenshot : testProcessingFiles) {
+            float percentage = 0;
+            // take buffer data from both image files //
+
+            BufferedImage biA = ImageIO.read(screenshot);
+            DataBuffer dbA = biA.getData().getDataBuffer();
+            float sizeA = dbA.getSize();
+
+            BufferedImage biB = ImageIO.read(new File(
+                    refrenceProcessingFolder + FileSystems.getDefault().getSeparator() + screenshot.getName()));
+            DataBuffer dbB = biB.getData().getDataBuffer();
+            float sizeB = dbB.getSize();
+            float count = 0;
+
+            // compare data-buffer objects //
+            if (sizeA == sizeB) {
+
+                for (int i = 0; i < sizeA; i++) {
+
+                    if (dbA.getElem(i) == dbB.getElem(i)) {
+                        count = count + 1;
+                    }
+
+                }
+                percentage = (count * 100) / sizeA;
+            } else {
+                ReportManager.log("Both the images are not of same size");
+            }
+
+            // fetch the related reference screenshot file name using the current file
+            // name/number as index
+            String relatedReferenceFileName = refrenceFiles[Integer.parseInt(screenshot.getName()) - 1].getName();
+
+            List<Object> referenceScreenshotAttachment = Arrays.asList("Reference Screenshot", relatedReferenceFileName,
+                    new FileInputStream(new File(refrenceProcessingFolder + FileSystems.getDefault().getSeparator()
+                            + screenshot.getName())));
+
+            String relatedTestFileName = testFiles[Integer.parseInt(screenshot.getName()) - 1].getName();
+
+            List<Object> testScreenshotAttachment = Arrays.asList("Test Screenshot", relatedTestFileName,
+                    new FileInputStream(screenshot));
+
+            ReportManager.log(
+                    "Test Screenshot [" + relatedTestFileName + "] and related Refrence Image ["
+                            + relatedReferenceFileName + "] match by [" + percentage + "] percent.",
+                    Arrays.asList(referenceScreenshotAttachment, testScreenshotAttachment));
+
+            boolean discreetLoggingState = ReportManager.isDiscreteLogging();
+            try {
+                // add to pass/fail counter depending on assertion result, without logging
+                ReportManager.setDiscreteLogging(true);
+                Assertions.assertComparativeRelation(threshhold, percentage,
+                        ComparativeRelationType.GREATER_THAN_OR_EQUALS, AssertionType.POSITIVE);
+                ReportManager.setDiscreteLogging(discreetLoggingState);
+                passedImagesCount++;
+            } catch (AssertionError e) {
+                ReportManager.setDiscreteLogging(discreetLoggingState);
+                // copying image to failed images directory
+                FileActions.copyFile(screenshot.getAbsolutePath(),
+                        testProcessingFolder.getParent() + DIRECTORY_FAILED + relatedTestFileName + "_testImage");
+                FileActions.copyFile(
+                        refrenceProcessingFolder + FileSystems.getDefault().getSeparator() + screenshot.getName(),
+                        testProcessingFolder.getParent() + DIRECTORY_FAILED + relatedTestFileName + "_refrenceImage");
+                failedImagesCount++;
+            }
+
+            Verifications.verifyComparativeRelation(threshhold, percentage, Verifications.ComparativeRelationType.GREATER_THAN_OR_EQUALS, Verifications.VerificationType.POSITIVE);
+        }
+
+        ReportManager.log("[" + passedImagesCount + "] images passed, and [" + failedImagesCount
+                + "] images failed the threshold of [" + threshhold + "%] matching.");
+
+    }
+
+    private static void loadOpenCV() {
+        try {
+            OpenCV.loadShared();
+            ReportManager.logDiscrete("Loaded Shared OpenCV");
+        } catch (NoClassDefFoundError | RuntimeException | ExceptionInInitializerError e) {
+            OpenCV.loadLocally();
+            ReportManager.logDiscrete("Loaded Local OpenCV");
+        }
+    }
 
     public enum VisualValidationEngine {
         EXACT_OPENCV,

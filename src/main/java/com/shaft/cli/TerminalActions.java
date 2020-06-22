@@ -100,12 +100,8 @@ public class TerminalActions {
         this.dockerUsername = dockerUsername;
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////// [private] Reporting Actions
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
     private static String reportActionResult(String actionName, String testData, String log, Boolean passFailStatus) {
-        String message = "";
+        String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
             message = "Terminal Action [" + actionName + "] successfully performed.";
         } else {
@@ -134,6 +130,95 @@ public class TerminalActions {
         return message;
     }
 
+    public boolean isRemoteTerminal() {
+        return !sshHostName.equals("");
+    }
+
+    public boolean isDockerizedTerminal() {
+        return !dockerName.equals("");
+    }
+
+    public String performTerminalCommands(List<String> commands) {
+        String log;
+
+        // Build long command and refactor for dockerized execution if needed
+        String command = buildLongCommand(commands);
+
+        // Declare Buffered Readers to track terminal session output
+        BufferedReader reader = null;
+        BufferedReader errorReader = null;
+
+        // Declare Variables which will need to be destroyed at the end of the sessions
+        Session remoteSession = null;
+        ChannelExec remoteChannelExecutor = null;
+        Process localProcess = null;
+
+        // Perform command
+        List<Object> teminalSession = executeCommand(remoteSession, remoteChannelExecutor, command, localProcess,
+                reader, errorReader);
+
+        // Capture logs and close readers
+        reader = (BufferedReader) teminalSession.get(3);
+        errorReader = (BufferedReader) teminalSession.get(4);
+        log = captureTerminalLogs(reader, errorReader, command);
+
+        // Retrieve the exit status of the executed command and destroy open sessions
+        remoteSession = (Session) teminalSession.get(0);
+        remoteChannelExecutor = (ChannelExec) teminalSession.get(1);
+        localProcess = (Process) teminalSession.get(2);
+        int exitStatus = getExitStatus(remoteSession, remoteChannelExecutor, localProcess);
+
+        // Prepare final log message
+        StringBuilder reportMessage = new StringBuilder();
+        if (!sshHostName.equals("")) {
+            reportMessage.append("Host Name: \"").append(sshHostName).append("\"");
+            reportMessage.append(" | SSH Port Number: \"").append(sshPortNumber).append("\"");
+            reportMessage.append(" | SSH Username: \"").append(sshUsername).append("\"");
+        } else {
+            reportMessage.append("Host Name: \"" + "localHost" + "\"");
+        }
+        if (sshKeyFileName != null && !sshKeyFileName.equals("")) {
+            reportMessage.append(" | Key File: \"").append(sshKeyFileFolderName).append(sshKeyFileName).append("\"");
+        }
+        reportMessage.append(" | Command: \"").append(command).append("\"");
+        reportMessage.append(" | Exit Status: \"").append(exitStatus).append("\"");
+
+        passAction(reportMessage.toString(), log);
+        return log;
+    }
+
+    public String performTerminalCommand(String command) {
+        return performTerminalCommands(Collections.singletonList(command));
+    }
+
+    public String getSshHostName() {
+        return sshHostName;
+    }
+
+    public String getSshUsername() {
+        return sshUsername;
+    }
+
+    public String getSshKeyFileFolderName() {
+        return sshKeyFileFolderName;
+    }
+
+    public String getSshKeyFileName() {
+        return sshKeyFileName;
+    }
+
+    public int getSshPortNumber() {
+        return sshPortNumber;
+    }
+
+    public String getDockerName() {
+        return dockerName;
+    }
+
+    public String getDockerUsername() {
+        return dockerUsername;
+    }
+
     private void passAction(String actionName, String testData, String log) {
         reportActionResult(actionName, testData, log, true);
     }
@@ -157,10 +242,6 @@ public class TerminalActions {
         failAction(actionName, testData, null, rootCauseException);
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////// [private] Preparation and Support Actions
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
     private Session createSSHsession() {
         Session session = null;
         String testData = sshHostName + ", " + sshPortNumber + ", " + sshUsername + ", " + sshKeyFileFolderName + ", "
@@ -183,22 +264,14 @@ public class TerminalActions {
         return session;
     }
 
-    public boolean isRemoteTerminal() {
-        return !sshHostName.equals("");
-    }
-
-    public boolean isDockerizedTerminal() {
-        return !dockerName.equals("");
-    }
-
     private String buildLongCommand(List<String> commands) {
         StringBuilder command = new StringBuilder();
         // build long command
         for (Iterator<String> i = commands.iterator(); i.hasNext(); ) {
             if (command.length() == 0) {
-                command = command.append(i.next());
+                command.append(i.next());
             } else {
-                command = command.append(" && " + i.next());
+                command.append(" && ").append(i.next());
             }
         }
 
@@ -255,13 +328,13 @@ public class TerminalActions {
     private String captureTerminalLogs(BufferedReader reader, BufferedReader errorReader, String command) {
         StringBuilder logBuilder = new StringBuilder();
         try {
-            String logLine = "";
+            String logLine;
             if (reader != null) {
                 while ((logLine = reader.readLine()) != null) {
                     if (logBuilder.length() == 0) {
                         logBuilder.append(logLine);
                     } else {
-                        logBuilder.append(System.lineSeparator() + logLine);
+                        logBuilder.append(System.lineSeparator()).append(logLine);
                     }
                 }
                 reader.close();
@@ -271,7 +344,7 @@ public class TerminalActions {
                     if (logBuilder.length() == 0) {
                         logBuilder.append(logLine);
                     } else {
-                        logBuilder.append(System.lineSeparator() + logLine);
+                        logBuilder.append(System.lineSeparator()).append(logLine);
                     }
                 }
                 errorReader.close();
@@ -293,94 +366,6 @@ public class TerminalActions {
             localProcess.destroy();
         }
         return exitStatus;
-    }
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////// [Public] Core Terminal Actions
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    public String performTerminalCommands(List<String> commands) {
-        String log = "";
-
-        // Build long command and refactor for dockerized execution if needed
-        String command = buildLongCommand(commands);
-
-        // Declare Buffered Readers to track terminal session output
-        BufferedReader reader = null;
-        BufferedReader errorReader = null;
-
-        // Declare Variables which will need to be destroyed at the end of the sessions
-        Session remoteSession = null;
-        ChannelExec remoteChannelExecutor = null;
-        Process localProcess = null;
-
-        // Perform command
-        List<Object> teminalSession = executeCommand(remoteSession, remoteChannelExecutor, command, localProcess,
-                reader, errorReader);
-
-        // Capture logs and close readers
-        reader = (BufferedReader) teminalSession.get(3);
-        errorReader = (BufferedReader) teminalSession.get(4);
-        log = captureTerminalLogs(reader, errorReader, command);
-
-        // Retrieve the exit status of the executed command and destroy open sessions
-        remoteSession = (Session) teminalSession.get(0);
-        remoteChannelExecutor = (ChannelExec) teminalSession.get(1);
-        localProcess = (Process) teminalSession.get(2);
-        int exitStatus = getExitStatus(remoteSession, remoteChannelExecutor, localProcess);
-        if (exitStatus > 0) {
-            // Remote script exec error!
-        }
-
-        // Prepare final log message
-        StringBuilder reportMessage = new StringBuilder();
-        if (!sshHostName.equals("")) {
-            reportMessage.append("Host Name: \"" + sshHostName + "\"");
-            reportMessage.append(" | SSH Port Number: \"" + sshPortNumber + "\"");
-            reportMessage.append(" | SSH Username: \"" + sshUsername + "\"");
-        } else {
-            reportMessage.append("Host Name: \"" + "localHost" + "\"");
-        }
-        if (sshKeyFileName != null && !sshKeyFileName.equals("")) {
-            reportMessage.append(" | Key File: \"" + sshKeyFileFolderName + sshKeyFileName + "\"");
-        }
-        reportMessage.append(" | Command: \"" + command + "\"");
-        reportMessage.append(" | Exit Status: \"" + exitStatus + "\"");
-
-        passAction(reportMessage.toString(), log);
-        return log;
-    }
-
-    public String performTerminalCommand(String command) {
-        return performTerminalCommands(Arrays.asList(command));
-    }
-
-    public String getSshHostName() {
-        return sshHostName;
-    }
-
-    public String getSshUsername() {
-        return sshUsername;
-    }
-
-    public String getSshKeyFileFolderName() {
-        return sshKeyFileFolderName;
-    }
-
-    public String getSshKeyFileName() {
-        return sshKeyFileName;
-    }
-
-    public int getSshPortNumber() {
-        return sshPortNumber;
-    }
-
-    public String getDockerName() {
-        return dockerName;
-    }
-
-    public String getDockerUsername() {
-        return dockerUsername;
     }
 
 }
