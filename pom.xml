@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.mohabmohie</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>4.3.20200617</version>
+    <version>4.3.20200621</version>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
     <url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
@@ -23,7 +23,7 @@
         </developer>
     </developers>
     <scm>
-        <connection>scm:git:git://github.com/MohabMohie/SHAFT_ENGINE.git</connection>
+        <connection>scm:git:https://github.com/MohabMohie/SHAFT_ENGINE.git</connection>
         <developerConnection>scm:git:ssh://github.com/MohabMohie/SHAFT_ENGINE.git</developerConnection>
         <url>http://github.com/MohabMohie/SHAFT_ENGINE/tree/master</url>
     </scm>
@@ -93,6 +93,9 @@
         <jave-all-deps.version>2.7.3</jave-all-deps.version>
         <video-recorder-testng.version>2.0</video-recorder-testng.version>
 
+        <!-- Build Commands-->
+        <installToLocalRepository>mvn clean install -DskipTests</installToLocalRepository>
+        <publishJavaDocs>mvn resources:resources javadoc:javadoc scm-publish:publish-scm</publishJavaDocs>
     </properties>
 
     <dependencies>
@@ -390,6 +393,14 @@
             <resource>
                 <directory>src/main/resources</directory>
             </resource>
+            <resource>
+<!--                <filtering>true</filtering>&lt;!&ndash; if it is neccessary &ndash;&gt;-->
+                <directory>${project.basedir}/src/main/javadoc</directory><!-- from -->
+                <targetPath>${project.reporting.outputDirectory}</targetPath><!-- to -->
+<!--                <includes>&lt;!&ndash; what &ndash;&gt;-->
+<!--                    <include>index.html</include>-->
+<!--                </includes>-->
+            </resource>
         </resources>
 
         <!--Plugins -->
@@ -492,21 +503,21 @@
                     </execution>
                 </executions>
             </plugin>
-<!--            <plugin>-->
-<!--                <groupId>org.apache.maven.plugins</groupId>-->
-<!--                <artifactId>maven-scm-publish-plugin</artifactId>-->
-<!--                <version>${maven-scm-publish-plugin.version}</version>-->
-<!--                <configuration>-->
-<!--                    <checkoutDirectory>${project.basedir}/../SHAFT_ENGINE_apidocs</checkoutDirectory>-->
-<!--                    <tryUpdate>true</tryUpdate>-->
-<!--                    <siteOutputEncoding>UTF-8</siteOutputEncoding>-->
-<!--                    <checkinComment>Publishing javadoc for ${project.artifactId}:${project.version}</checkinComment>-->
-<!--                    <content>${project.reporting.outputDirectory}</content>-->
-<!--                    <skipDeletedFiles>true</skipDeletedFiles>-->
-<!--                    <pubScmUrl>scm:git:https://github.com/MohabMohie/SHAFT_ENGINE.git</pubScmUrl>-->
-<!--                    <scmBranch>gh-pages</scmBranch> &lt;!&ndash; branch with static site &ndash;&gt;-->
-<!--                </configuration>-->
-<!--            </plugin>-->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-scm-publish-plugin</artifactId>
+                <version>${maven-scm-publish-plugin.version}</version>
+                <configuration>
+                    <checkoutDirectory>${project.basedir}/../SHAFT_ENGINE_apidocs</checkoutDirectory>
+                    <tryUpdate>true</tryUpdate>
+                    <siteOutputEncoding>${encoding.type}</siteOutputEncoding>
+                    <checkinComment>Publishing javadoc for ${project.artifactId}:${project.version}</checkinComment>
+                    <content>${project.reporting.outputDirectory}</content>
+                    <skipDeletedFiles>true</skipDeletedFiles>
+                    <pubScmUrl>${project.scm.connection}</pubScmUrl>
+                    <scmBranch>gh-pages</scmBranch> <!-- branch with static site -->
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-source-plugin</artifactId>

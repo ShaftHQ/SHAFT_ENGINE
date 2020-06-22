@@ -66,7 +66,7 @@ public class BrowserActions {
 
     private static String reportActionResult(WebDriver driver, String actionName, String testData,
                                              Boolean passFailStatus) {
-        String message = "";
+        String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
             message = "Browser Action [" + actionName + "] successfully performed.";
         } else {
@@ -361,9 +361,8 @@ public class BrowserActions {
         try {
             JavaScriptWaitManager.waitForLazyLoading();
 
-            String initialURL = "";
             String initialSource = driver.getPageSource();
-            initialURL = driver.getCurrentUrl();
+            String initialURL = driver.getCurrentUrl();
             // remove trailing slash which may cause comparing the current and target urls
             // to fail
             if (initialURL.startsWith("/", initialURL.length() - 1)) {
@@ -403,7 +402,7 @@ public class BrowserActions {
      */
     public static void navigateBack(WebDriver driver) {
         JavaScriptWaitManager.waitForLazyLoading();
-        String initialURL = "";
+        String initialURL;
         String newURL = "";
         try {
             initialURL = driver.getCurrentUrl();
@@ -412,7 +411,7 @@ public class BrowserActions {
             (new WebDriverWait(driver, NAVIGATION_TIMEOUT_INTEGER))
                     .until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
             newURL = driver.getCurrentUrl();
-            if (!initialURL.equals(newURL)) {
+            if (!newURL.equals(initialURL)) {
                 passAction(driver, newURL);
             } else {
                 failAction(driver, newURL);
@@ -430,7 +429,7 @@ public class BrowserActions {
      */
     public static void navigateForward(WebDriver driver) {
         JavaScriptWaitManager.waitForLazyLoading();
-        String initialURL = "";
+        String initialURL;
         String newURL = "";
         try {
             initialURL = driver.getCurrentUrl();
@@ -439,7 +438,7 @@ public class BrowserActions {
             (new WebDriverWait(driver, NAVIGATION_TIMEOUT_INTEGER))
                     .until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
             newURL = driver.getCurrentUrl();
-            if (!initialURL.equals(newURL)) {
+            if (!newURL.equals(initialURL)) {
                 passAction(driver, newURL);
             } else {
                 failAction(driver, newURL);
@@ -472,9 +471,8 @@ public class BrowserActions {
         if (driver != null) {
             JavaScriptWaitManager.waitForLazyLoading();
             try {
-                String lastPageSource = null;
                 // TODO: handle session timeout while attempting to close empty window
-                lastPageSource = driver.getPageSource();
+                String lastPageSource = driver.getPageSource();
                 BrowserFactory.closeDriver(driver.hashCode());
                 passAction(lastPageSource);
             } catch (WebDriverException rootCauseException) {
