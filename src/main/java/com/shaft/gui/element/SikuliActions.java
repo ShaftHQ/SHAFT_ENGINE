@@ -3,6 +3,7 @@ package com.shaft.gui.element;
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
+import com.shaft.tools.io.ReportManager;
 import org.apache.commons.io.IOUtils;
 import org.sikuli.basics.Settings;
 import org.sikuli.script.*;
@@ -11,6 +12,7 @@ import javax.imageio.ImageIO;
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 
 public class SikuliActions {
@@ -134,9 +136,13 @@ public class SikuliActions {
         String elementText = screen.wait(element).getText().replace("\n", "").trim();
         if (!elementText.isEmpty()) {
             //clear
-            for (int i = 0; i >= elementText.toCharArray().length; i++) {
-                screen.wait(element).type(element, Key.BACKSPACE);
-            }
+            Collections.singletonList(elementText.toCharArray()).forEach(character -> {
+                try {
+                    screen.wait(element).type(element, Key.BACKSPACE);
+                } catch (FindFailed findFailed) {
+                    ReportManager.log(findFailed);
+                }
+            });
         }
         screen.wait(element).type(text);
     }
@@ -310,7 +316,7 @@ public class SikuliActions {
      */
     public SikuliActions dragAndDrop(byte[] draggableElement, byte[] targetElement) {
         Pattern draggableElementPattern = null;
-        Pattern targetElementPattern = null;
+        Pattern targetElementPattern;
         String elementText = null;
         try {
             draggableElementPattern = prepareElementPattern(draggableElement);
@@ -359,7 +365,11 @@ public class SikuliActions {
     }
 
     private String formatTextForReport(String text) {
-        return text.replace("\n", "").trim();
+        if (text != null) {
+            return text.replace("\n", "").trim();
+        } else {
+            return "NULL";
+        }
     }
 
 }

@@ -31,7 +31,7 @@ public class TouchActions {
     public TouchActions tap(By elementLocator) {
         if (ElementActions.identifyUniqueElement(driver, elementLocator)) {
             // Override current locator with the aiGeneratedElementLocator
-            elementLocator = ElementActions.updateLocatorWithAIGenratedOne(elementLocator);
+            elementLocator = ElementActions.updateLocatorWithAIGeneratedOne(elementLocator);
             String elementText = "";
             try {
                 elementText = driver.findElement(elementLocator).getText();
@@ -75,7 +75,7 @@ public class TouchActions {
     public TouchActions doubleTap(By elementLocator) {
         if (ElementActions.identifyUniqueElement(driver, elementLocator)) {
             // Override current locator with the aiGeneratedElementLocator
-            elementLocator = ElementActions.updateLocatorWithAIGenratedOne(elementLocator);
+            elementLocator = ElementActions.updateLocatorWithAIGeneratedOne(elementLocator);
             String elementText = "";
             try {
                 elementText = driver.findElement(elementLocator).getText();
@@ -121,7 +121,7 @@ public class TouchActions {
     public TouchActions longTap(By elementLocator) {
         if (ElementActions.identifyUniqueElement(driver, elementLocator)) {
             // Override current locator with the aiGeneratedElementLocator
-            elementLocator = ElementActions.updateLocatorWithAIGenratedOne(elementLocator);
+            elementLocator = ElementActions.updateLocatorWithAIGeneratedOne(elementLocator);
             String elementText = "";
             try {
                 elementText = driver.findElement(elementLocator).getText();
@@ -171,8 +171,8 @@ public class TouchActions {
         if (ElementActions.identifyUniqueElement(driver, sourceElementLocator)
                 && ElementActions.identifyUniqueElement(driver, destinationElementLocator)) {
             // Override current locator with the aiGeneratedElementLocator
-            sourceElementLocator = ElementActions.updateLocatorWithAIGenratedOne(sourceElementLocator);
-            destinationElementLocator = ElementActions.updateLocatorWithAIGenratedOne(destinationElementLocator);
+            sourceElementLocator = ElementActions.updateLocatorWithAIGeneratedOne(sourceElementLocator);
+            destinationElementLocator = ElementActions.updateLocatorWithAIGeneratedOne(destinationElementLocator);
 
             WebElement sourceElement = driver.findElement(sourceElementLocator);
             WebElement destinationElement = driver.findElement(destinationElementLocator);
@@ -224,7 +224,7 @@ public class TouchActions {
     public TouchActions swipeByOffset(By elementLocator, int xOffset, int yOffset) {
         if (ElementActions.identifyUniqueElement(driver, elementLocator)) {
             // Override current locator with the aiGeneratedElementLocator
-            elementLocator = ElementActions.updateLocatorWithAIGenratedOne(elementLocator);
+            elementLocator = ElementActions.updateLocatorWithAIGeneratedOne(elementLocator);
 
             WebElement sourceElement = driver.findElement(elementLocator);
             Point elementLocation = sourceElement.getLocation();
@@ -285,7 +285,7 @@ public class TouchActions {
      */
     public TouchActions swipeElementIntoView(By elementLocator, SwipeDirection swipeDirection,
                                              int attemptsToScrollAndFindElement) {
-        elementLocator = ElementActions.updateLocatorWithAIGenratedOne(elementLocator);
+        elementLocator = ElementActions.updateLocatorWithAIGeneratedOne(elementLocator);
         try {
             if (driver instanceof AppiumDriver<?>) {
                 // appium native application
@@ -309,7 +309,7 @@ public class TouchActions {
 
     private void attemptToSwipeElementIntoViewInNativeApp(By elementLocator, SwipeDirection swipeDirection,
                                                           int attemptsToScrollAndFindElement) {
-        Boolean isElementFound = false;
+        boolean isElementFound = false;
         int attemptsToFindElement = 0;
         do {
             // appium native device
@@ -327,22 +327,22 @@ public class TouchActions {
                 Point endingPoint = new Point(0, 0);
 
                 switch (swipeDirection) {
-                    case DOWN:
+                    case DOWN -> {
                         startingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight() * 80 / 100);
                         endingPoint = new Point(screenSize.getWidth() / 2, 0);
-                        break;
-                    case UP:
+                    }
+                    case UP -> {
                         startingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight() * 20 / 100);
                         endingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight());
-                        break;
-                    case RIGHT:
+                    }
+                    case RIGHT -> {
                         startingPoint = new Point(screenSize.getWidth() * 80 / 100, screenSize.getHeight() / 2);
                         endingPoint = new Point(0, screenSize.getHeight() / 2);
-                        break;
-                    case LEFT:
+                    }
+                    case LEFT -> {
                         startingPoint = new Point(screenSize.getWidth() * 20 / 100, screenSize.getHeight() / 2);
                         endingPoint = new Point(screenSize.getWidth(), screenSize.getHeight() / 2);
-                        break;
+                    }
                 }
                 (new TouchAction<>((AppiumDriver<?>) driver)).press(PointOption.point(startingPoint))
                         .moveTo(PointOption.point(endingPoint)).release().perform();

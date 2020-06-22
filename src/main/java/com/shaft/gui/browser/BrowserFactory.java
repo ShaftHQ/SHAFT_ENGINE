@@ -126,7 +126,7 @@ public class BrowserFactory {
      * and report in case they are not compatible
      */
     private static void checkBrowserOSCrossCompatibility(String browserName) {
-        Boolean isCompatibleBrowser = false;
+        boolean isCompatibleBrowser = false;
         BrowserType browserType = getBrowserTypeFromName(browserName);
 
         if (isMobileExecution()) {
@@ -361,24 +361,12 @@ public class BrowserFactory {
         BrowserType browserType = getBrowserTypeFromName(browserName);
 
         switch (browserType) {
-            case MOZILLA_FIREFOX:
-                createNewLocalDriverInstanceForFirefox();
-                break;
-            case MICROSOFT_IE:
-                createNewLocalDriverInstanceForInternetExplorer();
-                break;
-            case GOOGLE_CHROME:
-                createNewLocalDriverInstanceForChrome();
-                break;
-            case MICROSOFT_EDGE:
-                createNewLocalDriverInstanceForEdge();
-                break;
-            case APPLE_SAFARI:
-                createNewLocalDriverInstanceForSafari();
-                break;
-            default:
-                failAction("Unsupported Browser Type [" + browserName + "].");
-                break;
+            case MOZILLA_FIREFOX -> createNewLocalDriverInstanceForFirefox();
+            case MICROSOFT_IE -> createNewLocalDriverInstanceForInternetExplorer();
+            case GOOGLE_CHROME -> createNewLocalDriverInstanceForChrome();
+            case MICROSOFT_EDGE -> createNewLocalDriverInstanceForEdge();
+            case APPLE_SAFARI -> createNewLocalDriverInstanceForSafari();
+            default -> failAction("Unsupported Browser Type [" + browserName + "].");
         }
         return driver.get();
     }
@@ -393,13 +381,13 @@ public class BrowserFactory {
             browserType = getBrowserTypeFromName(browserName);
         }
         StringBuilder initialLog = new StringBuilder();
-        initialLog.append("Attempting to run remotely on: [" + targetOperatingSystem + "]");
+        initialLog.append("Attempting to run remotely on: [").append(targetOperatingSystem).append("]");
 
         if (!isMobileNativeExecution()) {
-            initialLog.append(", [" + browserName + "]");
+            initialLog.append(", [").append(browserName).append("]");
         }
 
-        initialLog.append(", [" + TARGET_HUB_URL + "]");
+        initialLog.append(", [").append(TARGET_HUB_URL).append("]");
 
         if (Boolean.TRUE.equals(HEADLESS_EXECUTION) && !isMobileExecution()) {
             initialLog.append(", Headless Execution");
@@ -447,11 +435,9 @@ public class BrowserFactory {
                     driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
                     break;
                 case MOBILE_BROWSER:
-                    driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
-                    // will break in case of firefoxOS
-                    break;
                 case MOBILE_NATIVE:
                     driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+                    // will break in case of firefoxOS
                     break;
                 default:
                     failAction("Unsupported Browser Type [" + browserName + "].");
@@ -526,7 +512,7 @@ public class BrowserFactory {
             try {
                 StringBuilder logBuilder = new StringBuilder();
                 for (LogEntry entry : driver.manage().logs().get(targetLog)) {
-                    logBuilder.append(entry.toString() + System.lineSeparator());
+                    logBuilder.append(entry.toString()).append(System.lineSeparator());
                 }
                 ReportManager.attach("Selenium WebDriver Logs", targetLog, logBuilder.toString());
             } catch (WebDriverException e) {
@@ -733,7 +719,7 @@ public class BrowserFactory {
                     attemptToCloseOrQuitBrowser(targetDriver, true);
                 }
             }
-            driver = new ThreadLocal<WebDriver>();
+            driver = new ThreadLocal<>();
             drivers.clear();
             ReportManager.log("Successfully Closed All Browsers.");
         }
@@ -765,7 +751,7 @@ public class BrowserFactory {
     }
 
     private static void storeDriverInstance(String browserName) {
-        drivers.put(browserName + "_" + driver.get().hashCode(), new HashMap<String, WebDriver>());
+        drivers.put(browserName + "_" + driver.get().hashCode(), new HashMap<>());
         drivers.get(browserName + "_" + driver.get().hashCode()).put(targetOperatingSystem, driver.get());
     }
 
