@@ -16,6 +16,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
+@SuppressWarnings("UnusedReturnValue")
 public class FileActions {
 
     private static final String ERROR_CANNOT_CREATE_DIRECTORY = "Could not create directory: ";
@@ -130,6 +131,7 @@ public class FileActions {
      *                                           afterwards
      * @return a string that holds the SHA256 checksum for the target file
      */
+    @SuppressWarnings("UnstableApiUsage")
     public static String getFileChecksum(TerminalActions terminalSession, String targetFileFolderPath,
                                          String targetFileName, String... pathToTempDirectoryOnRemoteMachine) {
 
@@ -270,18 +272,7 @@ public class FileActions {
     }
 
     public static String readFromFile(String fileFolderName, String fileName) {
-        String text = "";
-        String absoluteFilePath = getAbsolutePath(fileFolderName, fileName);
-        Path filePath = Paths.get(absoluteFilePath);
-
-        try {
-            text = String.join(System.lineSeparator(), Files.readAllLines(filePath));
-            passAction("File Path: \"" + filePath + "\"", text);
-        } catch (IOException e) {
-            ReportManager.log(e);
-            failAction(e);
-        }
-        return text;
+        return readFromFile(fileFolderName + fileName);
     }
 
     public static String readFromFile(String pathToTargetFile) {
@@ -430,6 +421,7 @@ public class FileActions {
         }
     }
 
+    @SuppressWarnings("UnusedReturnValue")
     public static boolean zipFiles(String srcFolder, String destZipFile) {
         boolean result = false;
         try {
@@ -443,10 +435,13 @@ public class FileActions {
         return result;
     }
 
+    @SuppressWarnings("UnusedReturnValue")
     public static File unpackArchive(URL url, String destinationFolderPath) {
         File targetDir = new File(destinationFolderPath);
         if (!targetDir.exists()) {
-            targetDir.mkdirs();
+            if (!targetDir.mkdirs()) {
+                failAction("file: " + url.toString() + " to directory: " + destinationFolderPath);
+            }
         }
         File unpacked = null;
         try (InputStream in = new BufferedInputStream(url.openStream(), 1024)) {

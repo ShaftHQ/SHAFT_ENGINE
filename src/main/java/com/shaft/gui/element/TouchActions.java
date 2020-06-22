@@ -10,6 +10,7 @@ import org.openqa.selenium.*;
 
 import java.util.List;
 
+@SuppressWarnings("unused")
 public class TouchActions {
     private static final int DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT = 10;
     private final WebDriver driver;

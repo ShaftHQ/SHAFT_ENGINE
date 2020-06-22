@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Executors;
 
+@SuppressWarnings("unused")
 public class DatabaseActions {
     private DatabaseType dbType;
     private String dbServerIP;
@@ -395,6 +396,7 @@ public class DatabaseActions {
         return statement;
     }
 
+    @SuppressWarnings("SuspiciousRegexArgument")
     private String getReportMessage(String queryType, String query) {
         return "Database Type: \"" + dbType + "\"" +
                 "| Server: \"" + dbServerIP + ":" + dbPort + "\"" +

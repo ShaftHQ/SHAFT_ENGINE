@@ -30,36 +30,23 @@ public class JavaScriptWaitManager {
 
     /**
      * Waits for jQuery, Angular, and/or Javascript if present on the current page.
-     *
-     * @return true in case waiting didn't face any isssues, and false in case of a
-     * severe exception
      */
-    public static boolean waitForLazyLoading() {
+    public static void waitForLazyLoading() {
         RecordManager.startVideoRecording();
         try {
             waitForJQueryLoadIfDefined();
             waitForAngularIfDefined();
             waitForJSLoadIfDefined();
-            return true;
         } catch (NoSuchSessionException | NullPointerException e) {
             // do nothing
-            return true;
         } catch (WebDriverException e) {
-            if (e.getMessage().contains("jQuery is not defined")) {
-                // do nothing
-                return true;
-            } else {
+            if (!e.getMessage().contains("jQuery is not defined")) {
                 ReportManager.log(e);
-                return true;
             }
+            // else do nothing
+
         } catch (Exception e) {
-            if (e.getMessage().contains("Error communicating with the remote browser. It may have died.")) {
-                ReportManager.log(e);
-                return false;
-            } else {
-                ReportManager.log(e);
-                return true;
-            }
+            ReportManager.log(e);
         }
     }
 
@@ -87,7 +74,7 @@ public class JavaScriptWaitManager {
                     } catch (NullPointerException e) {
                         // do nothing
                     }
-                    sleep(delayBetweenPolls);
+                    sleep();
                     tryCounter++;
                     jqueryReady = (Boolean) jsExec.executeScript("return jQuery.active == 0");
                 }
@@ -114,7 +101,7 @@ public class JavaScriptWaitManager {
                 // Wait for Angular to load
                 (new WebDriverWait(jsWaitDriver.get(), WAIT_DURATION_INTEGER)).until(angularLoad);
                 // More Wait for stability (Optional)
-                sleep(delayBetweenPolls);
+                sleep();
                 tryCounter++;
                 angularReady = Boolean.parseBoolean(jsExec.executeScript(angularReadyScript).toString());
             }
@@ -146,7 +133,7 @@ public class JavaScriptWaitManager {
                     //TODO: confirm that this fixed the timeout issue on the grid
                 }
                 // More Wait for stability (Optional)
-                sleep(delayBetweenPolls);
+                sleep();
                 tryCounter++;
                 jsReady = jsExec.executeScript(JSHelpers.DOCUMENT_READYSTATE.getValue()).toString().trim()
                         .equalsIgnoreCase(TARGET_DOCUMENT_READY_STATE);
@@ -170,10 +157,9 @@ public class JavaScriptWaitManager {
         }
     }
 
-    private static void sleep(Integer milliSeconds) {
-        long secondsLong = (long) milliSeconds;
+    private static void sleep() {
         try {
-            Thread.sleep(secondsLong);
+            Thread.sleep(JavaScriptWaitManager.delayBetweenPolls);
         } catch (Exception e) {
             ReportManager.log(e);
             // InterruptedException

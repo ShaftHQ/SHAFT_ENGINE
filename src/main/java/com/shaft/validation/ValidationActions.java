@@ -22,7 +22,6 @@ class ValidationActions {
     private static final int ATTEMPTS_ELEMENTNOTFOUNDEXCEPTION = Integer
             .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
     private static final int ATTEMPTS_ELEMENTNOTFOUNDEXCEPTION_ELEMENTSHOULDNOTEXIST = 1;
-    private static final StringBuilder verificationSuccesses = new StringBuilder();
     private static WebDriver lastUsedDriver = null;
     private static By lastUsedElementLocator = null;
     private static Boolean discreetLoggingState = Boolean.valueOf(System.getProperty("alwaysLogDiscreetly"));
@@ -113,22 +112,24 @@ class ValidationActions {
 
         if (validationType.getValue()) {
             // expecting a unique element to be present
+            final String expectedValue = expectedElementStates[0] + locatorSeparator + elementLocator.toString() + "'";
             switch (elementsCount) {
-                case 0 -> fail(validationCategory, expectedElementStates[0] + locatorSeparator + elementLocator.toString() + "'",
+                case 0 -> fail(validationCategory, expectedValue,
                         actualElementStates[1], ValidationComparisonType.EQUALS, validationType, null);
-                case 1 -> pass(validationCategory, expectedElementStates[0] + locatorSeparator + elementLocator.toString() + "'",
+                case 1 -> pass(validationCategory, expectedValue,
                         actualElementStates[0], ValidationComparisonType.EQUALS, validationType);
-                default -> fail(validationCategory, expectedElementStates[0] + locatorSeparator + elementLocator.toString() + "'",
+                default -> fail(validationCategory, expectedValue,
                         actualElementStates[2], ValidationComparisonType.EQUALS, validationType, null);
             }
         } else {
             // not expecting the element to be present
+            final String expectedValue = expectedElementStates[1] + locatorSeparator + elementLocator.toString() + "'";
             switch (elementsCount) {
-                case 0 -> pass(validationCategory, expectedElementStates[1] + locatorSeparator + elementLocator.toString() + "'",
+                case 0 -> pass(validationCategory, expectedValue,
                         actualElementStates[1], ValidationComparisonType.EQUALS, validationType);
-                case 1 -> fail(validationCategory, expectedElementStates[1] + locatorSeparator + elementLocator.toString() + "'",
+                case 1 -> fail(validationCategory, expectedValue,
                         actualElementStates[0], ValidationComparisonType.EQUALS, validationType, null);
-                default -> fail(validationCategory, expectedElementStates[1] + locatorSeparator + elementLocator.toString() + "'",
+                default -> fail(validationCategory, expectedValue,
                         actualElementStates[2], ValidationComparisonType.EQUALS, validationType, null);
             }
         }
@@ -422,6 +423,7 @@ class ValidationActions {
                 ValidationState.PASSED, null, null);
     }
 
+    @SuppressWarnings("SameParameterValue")
     private static void fail(ValidationCategory validationCategory, String expectedValue, String actualValue,
                              Object validationComparisonType, ValidationType validationType, Throwable failureReason, List<List<Object>> externalAttachments) {
         // reset state in case of failure to force reporting the failure
@@ -560,8 +562,6 @@ class ValidationActions {
                 if (!validationState.getValue()) {
                     verificationFailuresList.add(message.toString());
                     verificationError = new AssertionError(String.join("\nAND ", verificationFailuresList));
-                } else {
-                    verificationSuccesses.append(message.toString());
                 }
                 break;
             default:
@@ -569,8 +569,8 @@ class ValidationActions {
         }
     }
 
+    @SuppressWarnings("DuplicatedCode")
     private static void reportValidationResultOfElementAttribute(Object[] args) {
-
         String[] expectedAttributeStates = (String[]) args[0];
         String propertySeparator = (String) args[1];
         String locatorSeparator = (String) args[2];
@@ -612,8 +612,8 @@ class ValidationActions {
         }
     }
 
+    @SuppressWarnings("DuplicatedCode")
     private static void reportValidationResultOfBrowserAttribute(Object[] args) {
-
         String[] expectedAttributeStates = (String[]) args[0];
         String propertySeparator = (String) args[1];
         String attributeClosure = (String) args[2];
@@ -668,6 +668,7 @@ class ValidationActions {
         }
     }
 
+    @SuppressWarnings("unused")
     protected enum ValidationComparisonType {
         EQUALS(1), CONTAINS(3), MATCHES(2), CASE_INSENSITIVE(4);
 
@@ -682,6 +683,7 @@ class ValidationActions {
         }
     }
 
+    @SuppressWarnings("unused")
     protected enum VisualValidationEngine {
         EXACT_OPENCV,
         EXACT_EYES,
@@ -695,6 +697,7 @@ class ValidationActions {
         SOFT_ASSERT
     }
 
+    @SuppressWarnings("unused")
     protected enum ComparativeRelationType {
         GREATER_THAN(">"), GREATER_THAN_OR_EQUALS(">="), LESS_THAN("<"), LESS_THAN_OR_EQUALS("<="), EQUALS("==");
 

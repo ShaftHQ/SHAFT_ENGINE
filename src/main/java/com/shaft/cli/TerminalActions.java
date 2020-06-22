@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.*;
 
+@SuppressWarnings("unused")
 public class TerminalActions {
     private String sshHostName = "";
     private String sshUsername;
@@ -144,28 +145,18 @@ public class TerminalActions {
         // Build long command and refactor for dockerized execution if needed
         String command = buildLongCommand(commands);
 
-        // Declare Buffered Readers to track terminal session output
-        BufferedReader reader = null;
-        BufferedReader errorReader = null;
-
-        // Declare Variables which will need to be destroyed at the end of the sessions
-        Session remoteSession = null;
-        ChannelExec remoteChannelExecutor = null;
-        Process localProcess = null;
-
         // Perform command
-        List<Object> teminalSession = executeCommand(remoteSession, remoteChannelExecutor, command, localProcess,
-                reader, errorReader);
+        List<Object> teminalSession = executeCommand(command);
 
         // Capture logs and close readers
-        reader = (BufferedReader) teminalSession.get(3);
-        errorReader = (BufferedReader) teminalSession.get(4);
+        BufferedReader reader = (BufferedReader) teminalSession.get(3);
+        BufferedReader errorReader = (BufferedReader) teminalSession.get(4);
         log = captureTerminalLogs(reader, errorReader, command);
 
         // Retrieve the exit status of the executed command and destroy open sessions
-        remoteSession = (Session) teminalSession.get(0);
-        remoteChannelExecutor = (ChannelExec) teminalSession.get(1);
-        localProcess = (Process) teminalSession.get(2);
+        Session remoteSession = (Session) teminalSession.get(0);
+        ChannelExec remoteChannelExecutor = (ChannelExec) teminalSession.get(1);
+        Process localProcess = (Process) teminalSession.get(2);
         int exitStatus = getExitStatus(remoteSession, remoteChannelExecutor, localProcess);
 
         // Prepare final log message
@@ -228,8 +219,8 @@ public class TerminalActions {
         passAction(actionName, testData, log);
     }
 
-    private void failAction(String actionName, String testData, String log, Exception... rootCauseException) {
-        String message = reportActionResult(actionName, testData, log, false);
+    private void failAction(String actionName, String testData, Exception... rootCauseException) {
+        String message = reportActionResult(actionName, testData, null, false);
         if (rootCauseException != null && rootCauseException.length >= 1) {
             Assert.fail(message, rootCauseException[0]);
         } else {
@@ -239,7 +230,7 @@ public class TerminalActions {
 
     private void failAction(String testData, Exception... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        failAction(actionName, testData, null, rootCauseException);
+        failAction(actionName, testData, rootCauseException);
     }
 
     private Session createSSHsession() {
@@ -287,8 +278,12 @@ public class TerminalActions {
         return command.toString();
     }
 
-    private List<Object> executeCommand(Session remoteSession, ChannelExec remoteChannelExecutor, String command,
-                                        Process localProcess, BufferedReader reader, BufferedReader errorReader) {
+    private List<Object> executeCommand(String command) {
+        BufferedReader reader = null;
+        BufferedReader errorReader = null;
+        Session remoteSession = null;
+        ChannelExec remoteChannelExecutor = null;
+        Process localProcess = null;
         try {
             if (isRemoteTerminal()) {
                 int sessionTimeout = Integer.parseInt(System.getProperty("shellSessionTimeout")) * 1000;
@@ -329,29 +324,27 @@ public class TerminalActions {
         StringBuilder logBuilder = new StringBuilder();
         try {
             String logLine;
-            if (reader != null) {
-                while ((logLine = reader.readLine()) != null) {
-                    if (logBuilder.length() == 0) {
-                        logBuilder.append(logLine);
-                    } else {
-                        logBuilder.append(System.lineSeparator()).append(logLine);
-                    }
-                }
-                reader.close();
-            }
-            if (errorReader != null) {
-                while ((logLine = errorReader.readLine()) != null) {
-                    if (logBuilder.length() == 0) {
-                        logBuilder.append(logLine);
-                    } else {
-                        logBuilder.append(System.lineSeparator()).append(logLine);
-                    }
-                }
-                errorReader.close();
-            }
+            logBuilder.append(readConsoleLogs(reader));
+            logBuilder.append(readConsoleLogs(errorReader));
         } catch (IOException rootCauseException) {
             ReportManager.log(rootCauseException);
             failAction(command, rootCauseException);
+        }
+        return logBuilder.toString();
+    }
+
+    private String readConsoleLogs(BufferedReader errorReader) throws IOException {
+        StringBuilder logBuilder = new StringBuilder();
+        if (errorReader != null) {
+            String logLine;
+            while ((logLine = errorReader.readLine()) != null) {
+                if (logBuilder.length() == 0) {
+                    logBuilder.append(logLine);
+                } else {
+                    logBuilder.append(System.lineSeparator()).append(logLine);
+                }
+            }
+            errorReader.close();
         }
         return logBuilder.toString();
     }
