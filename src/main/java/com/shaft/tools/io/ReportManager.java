@@ -218,7 +218,7 @@ public class ReportManager {
         if (isDiscreteLogging() && !logText.toLowerCase().contains("failed") && isInternalStep()) {
             createLogEntry(logText);
         } else {
-            writeStepToReport(logText);
+            writeStepToReport(actionCounter, logText);
             actionCounter++;
         }
     }
@@ -240,7 +240,7 @@ public class ReportManager {
                 });
             }
         } else {
-            writeStepToReport(logText, attachments);
+            writeStepToReport(actionCounter, logText, attachments);
             actionCounter++;
         }
     }
@@ -483,12 +483,12 @@ public class ReportManager {
      * @param logText the text that needs to be logged in this action
      */
     @Step("Action [{actionCounter}]: {logText}")
-    private static void writeStepToReport(String logText) {
+    private static void writeStepToReport(int actionCounter, String logText) {
         createReportEntry(logText, false);
     }
 
     @Step("Action [{actionCounter}]: {logText}")
-    private static void writeStepToReport(String logText, List<List<Object>> attachments) {
+    private static void writeStepToReport(int actionCounter, String logText, List<List<Object>> attachments) {
         createReportEntry(logText, false);
         if (attachments != null) {
             attachments.forEach(attachment -> {
@@ -639,8 +639,7 @@ public class ReportManager {
                     "target" + File.separator + "allureBinary.zip");
             FileActions.unpackArchive(allureArchive, allureExtractionLocation);
             // extract allure from SHAFT_Engine jar
-            URL allureSHAFTConfigArchive = ReportManager.class
-                    .getResource("/allure/allureBinary_SHAFTEngineConfigFiles.zip");
+            URL allureSHAFTConfigArchive = ReportManager.class.getResource("/allure/allureBinary_SHAFTEngineConfigFiles.zip");
             FileActions.unpackArchive(allureSHAFTConfigArchive,
                     allureExtractionLocation + "allure-" + allureVersion + File.separator);
 
