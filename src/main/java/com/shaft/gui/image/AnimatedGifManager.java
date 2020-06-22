@@ -63,6 +63,20 @@ public class AnimatedGifManager {
         return (node);
     }
 
+    protected void writeToSequence(RenderedImage img) throws IOException {
+        gifWriter.get().writeToSequence(new IIOImage(img, null, imageMetaData.get()), imageWriteParam.get());
+    }
+
+    /**
+     * Close this GifSequenceWriter object. This does not close the underlying
+     * stream, just finishes off the GIF.
+     *
+     * @throws IOException if an error occurs during writing.
+     */
+    protected void close() throws IOException {
+        gifWriter.get().endWriteSequence();
+    }
+
     private synchronized void initialize(ImageOutputStream outputStream, int imageType, int timeBetweenFramesMS,
                                          boolean loopContinuously) throws IOException {
         // my method to create a writer
@@ -104,19 +118,5 @@ public class AnimatedGifManager {
         gifWriter.get().setOutput(outputStream);
 
         gifWriter.get().prepareWriteSequence(null);
-    }
-
-    protected void writeToSequence(RenderedImage img) throws IOException {
-        gifWriter.get().writeToSequence(new IIOImage(img, null, imageMetaData.get()), imageWriteParam.get());
-    }
-
-    /**
-     * Close this GifSequenceWriter object. This does not close the underlying
-     * stream, just finishes off the GIF.
-     *
-     * @throws IOException if an error occurs during writing.
-     */
-    protected void close() throws IOException {
-        gifWriter.get().endWriteSequence();
     }
 }

@@ -24,234 +24,6 @@ public class FileActions {
         throw new IllegalStateException("Utility class");
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////// [private] Reporting Actions
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    private static void passAction(String testData) {
-        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        reportActionResult(actionName, testData, null, true);
-    }
-
-    private static void passAction(String testData, String log) {
-        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        reportActionResult(actionName, testData, log, true);
-    }
-
-    private static void failAction(String testData, Exception... rootCauseException) {
-        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        failAction(actionName, testData, rootCauseException);
-
-    }
-
-    private static void failAction(Exception... rootCauseException) {
-        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        failAction(actionName, null, rootCauseException);
-    }
-
-    private static void failAction(String actionName, String testData, Exception... rootCauseException) {
-        String message = reportActionResult(actionName, testData, null, false);
-        if (rootCauseException != null && rootCauseException.length >= 1) {
-            Assert.fail(message, rootCauseException[0]);
-        } else {
-            Assert.fail(message);
-        }
-    }
-
-    private static String reportActionResult(String actionName, String testData, String log, Boolean passFailStatus) {
-        String message = "";
-        if (Boolean.TRUE.equals(passFailStatus)) {
-            message = "File Action [" + actionName + "] successfully performed.";
-        } else {
-            message = "File Action [" + actionName + "] failed.";
-        }
-
-        List<List<Object>> attachments = new ArrayList<>();
-        if (testData != null && !testData.isEmpty() && testData.length() >= 500) {
-            List<Object> actualValueAttachment = Arrays.asList("File Action Test Data - " + actionName, "Actual Value",
-                    testData);
-            attachments.add(actualValueAttachment);
-        } else if (testData != null && !testData.isEmpty()) {
-            message = message + " With the following test data [" + testData + "].";
-        }
-
-        if (log != null && !log.trim().equals("")) {
-            attachments.add(Arrays.asList("File Action Actual Result", "Command Log", log));
-        }
-
-        // Minimize File Action log steps and move them to discrete logs if called
-        // within SHAFT_Engine itself
-        StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
-        StackTraceElement parentMethod = stackTrace[4];
-        if (parentMethod.getClassName().contains("com.shaft")) {
-            ReportManager.logDiscrete(message);
-        } else {
-            if (!attachments.equals(new ArrayList<>())) {
-                ReportManager.log(message, attachments);
-            } else {
-                ReportManager.log(message);
-            }
-        }
-
-        return message;
-    }
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////// [private] Preparation and Support Actions
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    private static boolean isTargetOSUnixBased() {
-        if (System.getProperty("executionAddress") == null) {
-            PropertiesFileManager.readPropertyFiles();
-        }
-        if (System.getProperty("executionAddress").trim().equals("local")) {
-            // local execution
-            if (SystemUtils.IS_OS_WINDOWS) {
-                return false;
-            } else if (SystemUtils.IS_OS_LINUX || SystemUtils.IS_OS_MAC) {
-                return true;
-            } else {
-                ReportManager.logDiscrete("Unsupported OS type, will assume it's unix based.");
-                return true;
-            }
-        } else {
-            // remote execution
-            String targetOS = System.getProperty("targetOperatingSystem");
-            if (targetOS.equals("Windows-64")) {
-                return false;
-            } else if (targetOS.equals("Linux-64") || targetOS.equals("Mac-64")) {
-                return true;
-            } else {
-                ReportManager.logDiscrete("Unsupported OS type, will assume it's unix based.");
-                return true;
-            }
-        }
-    }
-
-    private static void copyFile(File sourceFile, File destinationFile) {
-        try {
-            FileUtils.copyFile(sourceFile, destinationFile);
-        } catch (IOException rootCauseException) {
-            ReportManager.log(rootCauseException);
-            failAction(rootCauseException);
-        }
-    }
-
-    /**
-     * zip the folders
-     *
-     * @param srcFolder
-     * @param destZipFile
-     */
-    private static void zipFolder(String srcFolder, String destZipFile) {
-        /*
-         * create the output stream to zip file result
-         */
-        try (FileOutputStream fileWriter = new FileOutputStream(destZipFile);
-             ZipOutputStream zip = new ZipOutputStream(fileWriter)) {
-
-            /*
-             * add the folder to the zip
-             */
-            addFolderToZip("", srcFolder, zip);
-            /*
-             * close the zip objects
-             */
-            zip.flush();
-        } catch (IOException e) {
-            ReportManager.log(e);
-            failAction(e);
-        }
-    }
-
-    /**
-     * recursively add files to the zip files
-     *
-     * @param path
-     * @param srcFile
-     * @param zip
-     * @param flag
-     * @throws IOException
-     */
-    private static void addFileToZip(String path, String srcFile, ZipOutputStream zip, boolean flag)
-            throws IOException {
-        /*
-         * create the file object for inputs
-         */
-        File folder = new File(srcFile);
-
-        /*
-         * if the folder is empty add empty folder to the Zip file
-         */
-        if (flag) {
-            zip.putNextEntry(new ZipEntry(path + FileSystems.getDefault().getSeparator() + folder.getName()
-                    + FileSystems.getDefault().getSeparator()));
-        } else { /*
-         * if the current name is directory, recursively traverse it to get the files
-         */
-            if (folder.isDirectory()) {
-                /*
-                 * if folder is not empty
-                 */
-                addFolderToZip(path, srcFile, zip);
-            } else {
-                /*
-                 * write the file to the output
-                 */
-                try (FileInputStream in = new FileInputStream(srcFile)) {
-                    byte[] buf = new byte[1024];
-                    int len;
-                    zip.putNextEntry(new ZipEntry(path + FileSystems.getDefault().getSeparator() + folder.getName()));
-                    while ((len = in.read(buf)) > 0) {
-                        /*
-                         * Write the Result
-                         */
-                        zip.write(buf, 0, len);
-                    }
-                } catch (Exception e) {
-                    ReportManager.log(e);
-                    failAction(e);
-                }
-            }
-        }
-    }
-
-    /**
-     * add folder to the zip file
-     *
-     * @param path
-     * @param srcFolder
-     * @param zip
-     * @throws IOException
-     */
-    private static void addFolderToZip(String path, String srcFolder, ZipOutputStream zip) throws IOException {
-        File folder = new File(srcFolder);
-
-        /*
-         * check the empty folder
-         */
-        if (folder.list().length == 0) {
-            addFileToZip(path, srcFolder, zip, true);
-        } else {
-            /*
-             * list the files in the folder
-             */
-            for (String fileName : folder.list()) {
-                if (path.equals("")) {
-                    addFileToZip(folder.getName(), srcFolder + FileSystems.getDefault().getSeparator() + fileName, zip,
-                            false);
-                } else {
-                    addFileToZip(path + FileSystems.getDefault().getSeparator() + folder.getName(),
-                            srcFolder + FileSystems.getDefault().getSeparator() + fileName, zip, false);
-                }
-            }
-        }
-    }
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////// [Public] Core File Actions
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
     /**
      * Copies a file from sourceFilePath to destinationFilePath on the local storage
      *
@@ -306,7 +78,7 @@ public class FileActions {
         try {
             Collection<File> filesList = FileUtils.listFiles(new File(targetDirectory), TrueFileFilter.TRUE,
                     TrueFileFilter.TRUE);
-            filesList.forEach(file -> files.append(file.getName() + System.lineSeparator()));
+            filesList.forEach(file -> files.append(file.getName()).append(System.lineSeparator()));
         } catch (IllegalArgumentException rootCauseException) {
             ReportManager.log(rootCauseException);
             failAction("Failed to list files in this directory: \"" + targetDirectory + "\"", rootCauseException);
@@ -327,9 +99,9 @@ public class FileActions {
     public static String listFilesInDirectory(TerminalActions terminalSession, String targetDirectory) {
         List<String> commands;
         if (isTargetOSUnixBased()) {
-            commands = Arrays.asList("ls " + targetDirectory);
+            commands = Collections.singletonList("ls " + targetDirectory);
         } else {
-            commands = Arrays.asList("dir " + targetDirectory);
+            commands = Collections.singletonList("dir " + targetDirectory);
         }
         String log = terminalSession.performTerminalCommands(commands);
         passAction("TargetDirectory: \"" + targetDirectory + "\"", log);
@@ -446,14 +218,14 @@ public class FileActions {
                     .getAbsolutePath(terminalSession.getSshKeyFileFolderName(), terminalSession.getSshKeyFileName()));
 
             (new TerminalActions()).performTerminalCommand(command);
-        } else {
-            // local regular
-            // it's already on the local machine so no need to do anything here
         }
+        // else local regular
+        // it's already on the local machine so no need to do anything here
+
 
         // clean temp directory on remote machine
         if (terminalSession.isDockerizedTerminal() && terminalSession.isRemoteTerminal()) {
-            terminalSessionForRemoteMachine.performTerminalCommand("rm -r " + pathToTempDirectoryOnRemoteMachine);
+            terminalSessionForRemoteMachine.performTerminalCommand("rm -r " + Arrays.toString(pathToTempDirectoryOnRemoteMachine));
         }
 
         passAction("Target File Path: \"" + targetFilePath + "\"");
@@ -540,7 +312,7 @@ public class FileActions {
      * @return true if the file exists, false if it doesn't
      */
     public static boolean doesFileExist(String fileFolderName, String fileName, int numberOfRetries) {
-        Boolean doesFileExit = false;
+        boolean doesFileExit = false;
         int i = 0;
         while (i < numberOfRetries) {
             try {
@@ -564,7 +336,7 @@ public class FileActions {
     }
 
     public static boolean doesFileExist(String targetFile) {
-        Boolean doesFileExit = false;
+        boolean doesFileExit = false;
         try {
             doesFileExit = (new File(targetFile)).getAbsoluteFile().exists();
         } catch (Exception e) {
@@ -693,52 +465,6 @@ public class FileActions {
         return unpacked;
     }
 
-    private static File unpackArchive(File theFile, File targetDir) throws IOException {
-        if (!theFile.exists()) {
-            throw new IOException(theFile.getAbsolutePath() + " does not exist");
-        }
-        if (!buildDirectory(targetDir)) {
-            throw new IOException(ERROR_CANNOT_CREATE_DIRECTORY + targetDir);
-        }
-
-        try (ZipFile zipFile = new ZipFile(theFile)) {
-            for (Enumeration<? extends ZipEntry> entries = zipFile.entries(); entries.hasMoreElements(); ) {
-                ZipEntry entry = entries.nextElement();
-                File file = new File(targetDir, File.separator + entry.getName());
-                if (!buildDirectory(file.getParentFile())) {
-                    throw new IOException(ERROR_CANNOT_CREATE_DIRECTORY + file.getParentFile());
-                }
-                if (!entry.isDirectory()) {
-                    copyInputStream(zipFile.getInputStream(entry),
-                            new BufferedOutputStream(new FileOutputStream(file)));
-                } else {
-                    if (!buildDirectory(file)) {
-                        throw new IOException(ERROR_CANNOT_CREATE_DIRECTORY + file);
-                    }
-                }
-            }
-        } catch (IOException e) {
-            throw new IOException(e);
-        }
-        passAction("Target File\"" + theFile.getAbsolutePath() + "\" | Destination Folder: \"" + targetDir + "\"");
-        return theFile;
-    }
-
-    private static void copyInputStream(InputStream in, OutputStream out) throws IOException {
-        byte[] buffer = new byte[1024];
-        int len = in.read(buffer);
-        while (len >= 0) {
-            out.write(buffer, 0, len);
-            len = in.read(buffer);
-        }
-        in.close();
-        out.close();
-    }
-
-    private static boolean buildDirectory(File file) {
-        return file.exists() || file.mkdirs();
-    }
-
     public static URL downloadFile(String targetFileURL, String destinationFilePath) {
         return downloadFile(targetFileURL, destinationFilePath, 0, 0);
     }
@@ -747,7 +473,7 @@ public class FileActions {
                                    int readTimeout) {
         if (targetFileURL != null && destinationFilePath != null) {
             // force logging
-            Boolean initialLoggingState = ReportManager.isDiscreteLogging();
+            boolean initialLoggingState = ReportManager.isDiscreteLogging();
             ReportManager.setDiscreteLogging(false);
             try {
                 ReportManager.log("Downloading a file from this url [" + targetFileURL + "] to this directory ["
@@ -774,5 +500,244 @@ public class FileActions {
                     + "]");
             return null;
         }
+    }
+
+    private static void passAction(String testData) {
+        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+        reportActionResult(actionName, testData, null, true);
+    }
+
+    private static void passAction(String testData, String log) {
+        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+        reportActionResult(actionName, testData, log, true);
+    }
+
+    private static void failAction(String testData, Exception... rootCauseException) {
+        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+        failAction(actionName, testData, rootCauseException);
+
+    }
+
+    private static void failAction(Exception... rootCauseException) {
+        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+        failAction(actionName, null, rootCauseException);
+    }
+
+    private static void failAction(String actionName, String testData, Exception... rootCauseException) {
+        String message = reportActionResult(actionName, testData, null, false);
+        if (rootCauseException != null && rootCauseException.length >= 1) {
+            Assert.fail(message, rootCauseException[0]);
+        } else {
+            Assert.fail(message);
+        }
+    }
+
+    private static String reportActionResult(String actionName, String testData, String log, Boolean passFailStatus) {
+        String message;
+        if (Boolean.TRUE.equals(passFailStatus)) {
+            message = "File Action [" + actionName + "] successfully performed.";
+        } else {
+            message = "File Action [" + actionName + "] failed.";
+        }
+
+        List<List<Object>> attachments = new ArrayList<>();
+        if (testData != null && !testData.isEmpty() && testData.length() >= 500) {
+            List<Object> actualValueAttachment = Arrays.asList("File Action Test Data - " + actionName, "Actual Value",
+                    testData);
+            attachments.add(actualValueAttachment);
+        } else if (testData != null && !testData.isEmpty()) {
+            message = message + " With the following test data [" + testData + "].";
+        }
+
+        if (log != null && !log.trim().equals("")) {
+            attachments.add(Arrays.asList("File Action Actual Result", "Command Log", log));
+        }
+
+        // Minimize File Action log steps and move them to discrete logs if called
+        // within SHAFT_Engine itself
+        StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+        StackTraceElement parentMethod = stackTrace[4];
+        if (parentMethod.getClassName().contains("com.shaft")) {
+            ReportManager.logDiscrete(message);
+        } else {
+            if (!attachments.equals(new ArrayList<>())) {
+                ReportManager.log(message, attachments);
+            } else {
+                ReportManager.log(message);
+            }
+        }
+
+        return message;
+    }
+
+    private static boolean isTargetOSUnixBased() {
+        if (System.getProperty("executionAddress") == null) {
+            PropertiesFileManager.readPropertyFiles();
+        }
+        if (System.getProperty("executionAddress").trim().equals("local")) {
+            // local execution
+            if (SystemUtils.IS_OS_WINDOWS) {
+                return false;
+            } else if (SystemUtils.IS_OS_LINUX || SystemUtils.IS_OS_MAC) {
+                return true;
+            } else {
+                ReportManager.logDiscrete("Unsupported OS type, will assume it's unix based.");
+                return true;
+            }
+        } else {
+            // remote execution
+            String targetOS = System.getProperty("targetOperatingSystem");
+            if (targetOS.equals("Windows-64")) {
+                return false;
+            } else if (targetOS.equals("Linux-64") || targetOS.equals("Mac-64")) {
+                return true;
+            } else {
+                ReportManager.logDiscrete("Unsupported OS type, will assume it's unix based.");
+                return true;
+            }
+        }
+    }
+
+    private static void copyFile(File sourceFile, File destinationFile) {
+        try {
+            FileUtils.copyFile(sourceFile, destinationFile);
+        } catch (IOException rootCauseException) {
+            ReportManager.log(rootCauseException);
+            failAction(rootCauseException);
+        }
+    }
+
+    private static void zipFolder(String srcFolder, String destZipFile) {
+        /*
+         * create the output stream to zip file result
+         */
+        try (FileOutputStream fileWriter = new FileOutputStream(destZipFile);
+             ZipOutputStream zip = new ZipOutputStream(fileWriter)) {
+
+            /*
+             * add the folder to the zip
+             */
+            addFolderToZip("", srcFolder, zip);
+            /*
+             * close the zip objects
+             */
+            zip.flush();
+        } catch (IOException e) {
+            ReportManager.log(e);
+            failAction(e);
+        }
+    }
+
+    private static void addFileToZip(String path, String srcFile, ZipOutputStream zip, boolean flag)
+            throws IOException {
+        /*
+         * create the file object for inputs
+         */
+        File folder = new File(srcFile);
+
+        /*
+         * if the folder is empty add empty folder to the Zip file
+         */
+        if (flag) {
+            zip.putNextEntry(new ZipEntry(path + FileSystems.getDefault().getSeparator() + folder.getName()
+                    + FileSystems.getDefault().getSeparator()));
+        } else { /*
+         * if the current name is directory, recursively traverse it to get the files
+         */
+            if (folder.isDirectory()) {
+                /*
+                 * if folder is not empty
+                 */
+                addFolderToZip(path, srcFile, zip);
+            } else {
+                /*
+                 * write the file to the output
+                 */
+                try (FileInputStream in = new FileInputStream(srcFile)) {
+                    byte[] buf = new byte[1024];
+                    int len;
+                    zip.putNextEntry(new ZipEntry(path + FileSystems.getDefault().getSeparator() + folder.getName()));
+                    while ((len = in.read(buf)) > 0) {
+                        /*
+                         * Write the Result
+                         */
+                        zip.write(buf, 0, len);
+                    }
+                } catch (Exception e) {
+                    ReportManager.log(e);
+                    failAction(e);
+                }
+            }
+        }
+    }
+
+    private static void addFolderToZip(String path, String srcFolder, ZipOutputStream zip) throws IOException {
+        File folder = new File(srcFolder);
+
+        /*
+         * check the empty folder
+         */
+        if (Objects.requireNonNull(folder.list()).length == 0) {
+            addFileToZip(path, srcFolder, zip, true);
+        } else {
+            /*
+             * list the files in the folder
+             */
+            for (String fileName : Objects.requireNonNull(folder.list())) {
+                if (path.equals("")) {
+                    addFileToZip(folder.getName(), srcFolder + FileSystems.getDefault().getSeparator() + fileName, zip,
+                            false);
+                } else {
+                    addFileToZip(path + FileSystems.getDefault().getSeparator() + folder.getName(),
+                            srcFolder + FileSystems.getDefault().getSeparator() + fileName, zip, false);
+                }
+            }
+        }
+    }
+
+    private static File unpackArchive(File theFile, File targetDir) throws IOException {
+        if (!theFile.exists()) {
+            throw new IOException(theFile.getAbsolutePath() + " does not exist");
+        }
+        if (buildDirectory(targetDir)) {
+            throw new IOException(ERROR_CANNOT_CREATE_DIRECTORY + targetDir);
+        }
+
+        try (ZipFile zipFile = new ZipFile(theFile)) {
+            for (Enumeration<? extends ZipEntry> entries = zipFile.entries(); entries.hasMoreElements(); ) {
+                ZipEntry entry = entries.nextElement();
+                File file = new File(targetDir, File.separator + entry.getName());
+                if (buildDirectory(file.getParentFile())) {
+                    throw new IOException(ERROR_CANNOT_CREATE_DIRECTORY + file.getParentFile());
+                }
+                if (!entry.isDirectory()) {
+                    copyInputStream(zipFile.getInputStream(entry),
+                            new BufferedOutputStream(new FileOutputStream(file)));
+                } else {
+                    if (buildDirectory(file)) {
+                        throw new IOException(ERROR_CANNOT_CREATE_DIRECTORY + file);
+                    }
+                }
+            }
+        } catch (IOException e) {
+            throw new IOException(e);
+        }
+        passAction("Target File\"" + theFile.getAbsolutePath() + "\" | Destination Folder: \"" + targetDir + "\"");
+        return theFile;
+    }
+
+    private static void copyInputStream(InputStream in, OutputStream out) throws IOException {
+        byte[] buffer = new byte[1024];
+        int len = in.read(buffer);
+        while (len >= 0) {
+            out.write(buffer, 0, len);
+            len = in.read(buffer);
+        }
+        in.close();
+        out.close();
+    }
+
+    private static boolean buildDirectory(File file) {
+        return !file.exists() && !file.mkdirs();
     }
 }

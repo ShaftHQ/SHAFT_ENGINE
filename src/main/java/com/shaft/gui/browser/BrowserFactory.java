@@ -76,6 +76,125 @@ public class BrowserFactory {
         throw new IllegalStateException("Utility class");
     }
 
+    public static boolean isWebExecution() {
+        return !isMobileExecution();
+    }
+
+    public static boolean isMobileExecution() {
+        if (EXECUTION_ADDRESS != null && !EXECUTION_ADDRESS.equals("local") && TARGET_PLATFORM_NAME != null) {
+            return !TARGET_PLATFORM_NAME.equals("");
+        }
+        return false;
+    }
+
+    public static boolean isMobileWebExecution() {
+        if (EXECUTION_ADDRESS != null && !EXECUTION_ADDRESS.equals("local") && TARGET_PLATFORM_NAME != null
+                && TARGET_PLATFORM_BROWSER_NAME != null) {
+            return !TARGET_PLATFORM_NAME.equals("") && !TARGET_PLATFORM_BROWSER_NAME.equals("");
+        }
+        return false;
+    }
+
+    public static boolean isMobileNativeExecution() {
+        if (EXECUTION_ADDRESS != null && !EXECUTION_ADDRESS.equals("local") && TARGET_PLATFORM_NAME != null) {
+            return !TARGET_PLATFORM_NAME.equals("")
+                    && (TARGET_PLATFORM_BROWSER_NAME == null || TARGET_PLATFORM_BROWSER_NAME.equals(""));
+        }
+        return false;
+    }
+
+    /**
+     * Read the target browser value from the execution.properties file
+     *
+     * @return a new browser instance
+     */
+    public static WebDriver getBrowser() {
+        return getBrowser(TARGET_BROWSER_NAME, null);
+    }
+
+    /**
+     * Creates a new browser instance
+     *
+     * @param browserType one of the supported browser types
+     * @return a new browser instance
+     */
+    public static WebDriver getBrowser(BrowserType browserType) {
+        return getBrowser(browserType.getValue(), null);
+    }
+
+    public static WebDriver getBrowser(BrowserType browserType, MutableCapabilities customBrowserOptions) {
+        return getBrowser(browserType.getValue(), customBrowserOptions);
+    }
+
+    /**
+     * Attaches your SikuliActions to a specific Application instance
+     *
+     * @param applicationName the name or partial name of the currently opened application window that you want to attach to
+     * @return a sikuli App instance that can be used to perform SikuliActions
+     */
+    public static App getSikuliApp(String applicationName) {
+        initializeSystemProperties(System.getProperty("targetBrowserName") == null);
+        App myapp = new App(applicationName);
+        myapp.waitForWindow(Integer.parseInt(System.getProperty("browserNavigationTimeout")));
+        myapp.focus();
+        ReportManager.log("Opened app: [" + myapp.getName() + "]...");
+        return myapp;
+    }
+
+    /**
+     * Terminates the desired sikuli app instance
+     *
+     * @param application a sikuli App instance that can be used to perform SikuliActions
+     */
+    public static void closeSikuliApp(App application) {
+        ReportManager.log("Closing app: [" + application.getName() + "]...");
+        application.close();
+    }
+
+    /**
+     * Close all open browser instances.
+     */
+    public static synchronized void closeAllDrivers() {
+        if (!drivers.entrySet().isEmpty()) {
+            for (Entry<String, Map<String, WebDriver>> entry : drivers.entrySet()) {
+                for (Entry<String, WebDriver> driverEntry : entry.getValue().entrySet()) {
+                    WebDriver targetDriver = driverEntry.getValue();
+                    attachWebDriverLogs(targetDriver);
+                    attemptToCloseOrQuitBrowser(targetDriver, false);
+                    attemptToCloseOrQuitBrowser(targetDriver, true);
+                }
+            }
+            driver = new ThreadLocal<>();
+            drivers.clear();
+            ReportManager.log("Successfully Closed All Browsers.");
+        }
+    }
+
+    public static Boolean isBrowsersListEmpty() {
+        return drivers.entrySet().isEmpty();
+    }
+
+    public static int getActiveDriverSessions() {
+        return drivers.entrySet().size();
+    }
+
+    public static boolean isKillSwitch() {
+        return killSwitch;
+    }
+
+    protected static synchronized void closeDriver(int hashCode) {
+        if (!drivers.entrySet().isEmpty()) {
+            for (Entry<String, Map<String, WebDriver>> entry : drivers.entrySet()) {
+                if (entry.getKey().contains(String.valueOf(hashCode))) {
+                    WebDriver targetDriver = entry.getValue().get(targetOperatingSystem);
+                    attachWebDriverLogs(targetDriver);
+                    //attemptToCloseOrQuitBrowser(targetDriver, false);
+                    attemptToCloseOrQuitBrowser(targetDriver, true);
+                }
+            }
+        }
+    }
+
     private static void failAction(String testData, Exception... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         String message = "Browser Factory Action [" + actionName + "] failed.";
@@ -101,10 +220,6 @@ public class BrowserFactory {
         return BrowserType.GOOGLE_CHROME;
     }
 
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////// [private] Reporting Actions
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
     private static OperatingSystemType getOperatingSystemFromName(String operatingSystemName) {
         int values = OperatingSystemType.values().length;
         for (int i = 0; i < values; i++) {
@@ -116,10 +231,6 @@ public class BrowserFactory {
         failAction("Unsupported Operating System [" + targetOperatingSystem + "].");
         return OperatingSystemType.LINUX;
     }
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////// [private] Preparation and Support Actions
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     /**
      * Check cross-compatibility between the selected operating system and browser
@@ -533,56 +644,6 @@ public class BrowserFactory {
         return desiredCapabilities;
     }
 
-    public static boolean isWebExecution() {
-        return !isMobileExecution();
-    }
-
-    public static boolean isMobileExecution() {
-        if (EXECUTION_ADDRESS != null && !EXECUTION_ADDRESS.equals("local") && TARGET_PLATFORM_NAME != null) {
-            return !TARGET_PLATFORM_NAME.equals("");
-        }
-        return false;
-    }
-
-    public static boolean isMobileWebExecution() {
-        if (EXECUTION_ADDRESS != null && !EXECUTION_ADDRESS.equals("local") && TARGET_PLATFORM_NAME != null
-                && TARGET_PLATFORM_BROWSER_NAME != null) {
-            return !TARGET_PLATFORM_NAME.equals("") && !TARGET_PLATFORM_BROWSER_NAME.equals("");
-        }
-        return false;
-    }
-
-    public static boolean isMobileNativeExecution() {
-        if (EXECUTION_ADDRESS != null && !EXECUTION_ADDRESS.equals("local") && TARGET_PLATFORM_NAME != null) {
-            return !TARGET_PLATFORM_NAME.equals("")
-                    && (TARGET_PLATFORM_BROWSER_NAME == null || TARGET_PLATFORM_BROWSER_NAME.equals(""));
-        }
-        return false;
-    }
-
-    /**
-     * Read the target browser value from the execution.properties file
-     *
-     * @return a new browser instance
-     */
-    public static WebDriver getBrowser() {
-        return getBrowser(TARGET_BROWSER_NAME, null);
-    }
-
-    /**
-     * Creates a new browser instance
-     *
-     * @param browserType one of the supported browser types
-     * @return a new browser instance
-     */
-    public static WebDriver getBrowser(BrowserType browserType) {
-        return getBrowser(browserType.getValue(), null);
-    }
-
-    public static WebDriver getBrowser(BrowserType browserType, MutableCapabilities customBrowserOptions) {
-        return getBrowser(browserType.getValue(), customBrowserOptions);
-    }
-
     /**
      * Create and/or return an instance of the target browser (maintains a single
      * instance per browser type) and checks for cross-compatibility between the
@@ -649,31 +710,6 @@ public class BrowserFactory {
         return driver.get();
     }
 
-    /**
-     * Attaches your SikuliActions to a specific Application instance
-     *
-     * @param applicationName the name or partial name of the currently opened application window that you want to attach to
-     * @return a sikuli App instance that can be used to perform SikuliActions
-     */
-    public static App getSikuliApp(String applicationName) {
-        initializeSystemProperties(System.getProperty("targetBrowserName") == null);
-        App myapp = new App(applicationName);
-        myapp.waitForWindow(Integer.parseInt(System.getProperty("browserNavigationTimeout")));
-        myapp.focus();
-        ReportManager.log("Opened app: [" + myapp.getName() + "]...");
-        return myapp;
-    }
-
-    /**
-     * Terminates the desired sikuli app instance
-     *
-     * @param application a sikuli App instance that can be used to perform SikuliActions
-     */
-    public static void closeSikuliApp(App application) {
-        ReportManager.log("Closing app: [" + application.getName() + "]...");
-        application.close();
-    }
-
     private static void initializeSystemProperties(Boolean readPropertyFilesBeforeInitializing) {
         if (readPropertyFilesBeforeInitializing) {
             PropertiesFileManager.readPropertyFiles();
@@ -700,54 +736,6 @@ public class BrowserFactory {
         customDriverPath = System.getProperty("customDriverPath");
         customDriverName = System.getProperty("customDriverName");
         targetOperatingSystem = System.getProperty("targetOperatingSystem");
-    }
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////// [Public] Core Browser Factory Actions
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    /**
-     * Close all open browser instances.
-     */
-    public static synchronized void closeAllDrivers() {
-        if (!drivers.entrySet().isEmpty()) {
-            for (Entry<String, Map<String, WebDriver>> entry : drivers.entrySet()) {
-                for (Entry<String, WebDriver> driverEntry : entry.getValue().entrySet()) {
-                    WebDriver targetDriver = driverEntry.getValue();
-                    attachWebDriverLogs(targetDriver);
-                    attemptToCloseOrQuitBrowser(targetDriver, false);
-                    attemptToCloseOrQuitBrowser(targetDriver, true);
-                }
-            }
-            driver = new ThreadLocal<>();
-            drivers.clear();
-            ReportManager.log("Successfully Closed All Browsers.");
-        }
-    }
-
-    protected static synchronized void closeDriver(int hashCode) {
-        if (!drivers.entrySet().isEmpty()) {
-            for (Entry<String, Map<String, WebDriver>> entry : drivers.entrySet()) {
-                if (entry.getKey().contains(String.valueOf(hashCode))) {
-                    WebDriver targetDriver = entry.getValue().get(targetOperatingSystem);
-                    attachWebDriverLogs(targetDriver);
-                    //attemptToCloseOrQuitBrowser(targetDriver, false);
-                    attemptToCloseOrQuitBrowser(targetDriver, true);
-                }
-            }
-        }
-    }
-
-    public static Boolean isBrowsersListEmpty() {
-        return drivers.entrySet().isEmpty();
-    }
-
-    public static int getActiveDriverSessions() {
-        return drivers.entrySet().size();
-    }
-
-    public static boolean isKillSwitch() {
-        return killSwitch;
     }
 
     private static void storeDriverInstance(String browserName) {
