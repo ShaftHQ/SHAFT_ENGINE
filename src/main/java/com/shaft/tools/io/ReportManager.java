@@ -406,7 +406,7 @@ public class ReportManager {
 
     public static void setTestCaseName(String scenarioName) {
         Allure.getLifecycle().updateTestCase(testResult -> testResult.setName(scenarioName));
-        if (!"".equals(featureName)) {
+        if (!featureName.equals("")) {
             Allure.getLifecycle().updateTestCase(testResult -> testResult.setFullName(featureName + ": " + scenarioName));
         }
     }
