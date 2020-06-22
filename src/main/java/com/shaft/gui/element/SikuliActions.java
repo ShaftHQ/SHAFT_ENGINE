@@ -26,7 +26,7 @@ public class SikuliActions {
         this.applicationWindow = applicationWindow;
     }
 
-    static List<Object> prepareElementScreenshotAttachment(Screen screen, App applicationWindow, Pattern element, String actionName, boolean passFailStatus) {
+    protected static List<Object> prepareElementScreenshotAttachment(Screen screen, App applicationWindow, Pattern element, String actionName, boolean passFailStatus) {
         return ScreenshotManager.captureScreenShotUsingSikuliX(screen, applicationWindow, element, actionName, passFailStatus);
     }
 
