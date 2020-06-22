@@ -536,7 +536,7 @@ public class ScreenshotManager {
                 // create a gif sequence with the type of the first image, 500 milliseconds
                 // between frames, which loops infinitely
                 gifWriter.set(
-                        new AnimatedGifManager(gifOutputStream.get(), firstImage.getType(), GIF_FRAME_DELAY, true));
+                        new AnimatedGifManager(gifOutputStream.get(), firstImage.getType(), GIF_FRAME_DELAY));
 
                 // draw initial blank image to set the size of the GIF...
                 BufferedImage initialImage = new BufferedImage(firstImage.getWidth(), firstImage.getHeight(),

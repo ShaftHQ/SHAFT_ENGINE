@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
+@SuppressWarnings("unused")
 public class ElementActions {
     private static final int DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER = Integer
             .parseInt(System.getProperty("defaultElementIdentificationTimeout").trim());
@@ -79,7 +80,9 @@ public class ElementActions {
                 ReportManager.setDiscreteLogging(initialLoggingState);
 
                 String newXpath = suggestNewXpath(driver, targetElement, elementLocator);
-                System.setProperty(hashedLocatorName, newXpath);
+                if (newXpath != null) {
+                    System.setProperty(hashedLocatorName, newXpath);
+                }
 
                 if (FileActions.doesFileExist(aiFolderPath, AI_REFERENCE_FILE_NAME, 1)) {
                     // append to current file content if the file already exists
@@ -1372,14 +1375,13 @@ public class ElementActions {
                                                  boolean passFailStatus) {
         if (passFailStatus) {
             try {
-                if ((elementLocator == null) && (testData == null)) {
-                    // this only happens when switching to default content so there is no need to
-                    // take a screenshot
-                } else if (elementLocator != null) {
+                if (elementLocator != null) {
                     return ScreenshotManager.captureScreenShot(driver, elementLocator, actionName, true);
-                } else {
+                } else if (testData != null) {
                     return ScreenshotManager.captureScreenShot(driver, actionName, true);
                 }
+                // else only happens when switching to default content so there is no need to
+                // take a screenshot
             } catch (Exception e) {
                 ReportManager.log(e);
                 ReportManager.log(
