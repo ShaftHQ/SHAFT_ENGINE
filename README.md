@@ -11,7 +11,7 @@
 ### Getting Started:
 - This project is for contributors who wish to add new features or fix issues with SHAFT_Engine. If you wish to create your own project using SHAFT_Engine, please refer to this sample project instead: https://github.com/MohabMohie/using_SHAFT_ENGINE/
 - Use the new online configuration manager to be able to manage SHAFT_Engine's properties and settings easily https://mohabmohie.github.io/SHAFT_ENGINE/
-- Refer to the published Javadoc for detailed information on the available functions/classes/packages https://mohabmohie.github.io/SHAFT_ENGINE/docs/index.html
+- Refer to the published Javadoc for detailed information on the available functions/classes/packages https://mohabmohie.github.io/SHAFT_ENGINE/index.html
 - If you wish to use this project with IntelliJ please apply these settings:
 <br/>Run/Debug Configurations > Edit Configurations... > Templates > TestNG > Configuration > Listeners > Add all SHAFT_Engine Listeners [AlterSuite, InvokedMethod, Suite]
 
