@@ -42,12 +42,9 @@ public class ReportManager {
     private static int failedTestsWithoutOpenIssuesCounter = 0;
     private static String allureResultsFolderPath = "";
     private static String allureBinaryPath = "";
-    // TODO: refactor to regular class that can be instanciated within the test and
-    // used in a thread-safe way
+    // TODO: refactor to regular class that can be instantiated within the test and
     private static List<List<String>> listOfOpenIssuesForFailedTests = new ArrayList<>();
-    // class name, method name, link name, link url
     private static List<List<String>> listOfOpenIssuesForPassedTests = new ArrayList<>();
-    // class name, method name, link name, link url
     private static List<List<String>> listOfNewIssuesForFailedTests = new ArrayList<>();
     private static String featureName = "";
 
@@ -62,7 +59,6 @@ public class ReportManager {
     public static void setOpenIssuesForPassedTestsCounter(int openIssuesForPassedTestsCounter) {
         ReportManager.openIssuesForPassedTestsCounter = openIssuesForPassedTestsCounter;
     }
-    // class name, method name
 
     public static void setFailedTestsWithoutOpenIssuesCounter(int failedTestsWithoutOpenIssuesCounter) {
         ReportManager.failedTestsWithoutOpenIssuesCounter = failedTestsWithoutOpenIssuesCounter;
@@ -78,29 +74,6 @@ public class ReportManager {
 
     public static void setListOfNewIssuesForFailedTests(List<List<String>> listOfNewIssuesForFailedTests) {
         ReportManager.listOfNewIssuesForFailedTests = listOfNewIssuesForFailedTests;
-    }
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////// [private] Preparation and Support Actions
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    private static void createLogEntry(String logText) {
-        String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
-        if (logText == null) {
-            logText = "null";
-        }
-        String log = REPORT_MANAGER_PREFIX + logText.trim() + " @" + timestamp;
-        slf4jLogger.info(log);
-        Reporter.log(log, false);
-    }
-
-    /**
-     * Appends a log entry to the complete log of the current execution session.
-     *
-     * @param log the log entry that needs to be appended to the full log
-     */
-    private static void appendToFullLog(String log) {
-        fullLog += log;
     }
 
     public static void logIssue(String issue) {
@@ -152,6 +125,328 @@ public class ReportManager {
         }
     }
 
+    /**
+     * @return the discreteLogging
+     */
+    public static boolean isDiscreteLogging() {
+        return discreteLogging;
+    }
+
+    /**
+     * @param discreteLogging the discreteLogging to set
+     */
+    public static void setDiscreteLogging(boolean discreteLogging) {
+        if (debugMode) {
+            ReportManager.logDiscrete("Setting discrete logging to: \"" + discreteLogging + "\"");
+        }
+        ReportManager.discreteLogging = discreteLogging;
+    }
+
+    public static int getTestCasesCounter() {
+        return testCasesCounter;
+    }
+
+    public static int getTotalNumberOfTests() {
+        return totalNumberOfTests;
+    }
+
+    public static void setTotalNumberOfTests(int totalNumberOfTests) {
+        ReportManager.totalNumberOfTests = totalNumberOfTests;
+    }
+
+    public static void setDebugMode(Boolean debugMode) {
+        ReportManager.debugMode = debugMode;
+    }
+
+    public static void prepareAllureReportingEnvironment() {
+        logDiscrete("Preparing Allure Reporting Environment...");
+        boolean discreteLoggingState = isDiscreteLogging();
+        allureResultsFolderPath = System.getProperty("allureResultsFolderPath").trim();
+        if (System.getProperty("executionAddress").trim().equals("local")
+                || (System.getProperty("mobile_platformName") != null && !System.getProperty("mobile_platformName").trim().equals(""))) {
+            setDiscreteLogging(true);
+            cleanAllureResultsDirectory();
+            downloadAndExtractAllureBinaries();
+            writeGenerateReportShellFilesToProjectDirectory();
+        }
+        writeEnvironmentVariablesToAllureResultsDirectory();
+        setDiscreteLogging(discreteLoggingState);
+    }
+
+    public static void logEngineVersion() {
+        String engineVersion = "Detected SHAFT Engine Version: ["
+                + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "]";
+        createImportantReportEntry(engineVersion, true);
+    }
+
+    public static synchronized void logTestInformation(String className, String testMethodName,
+                                                       String testDescription) {
+        testCasesCounter++;
+        if (!testDescription.equals("")) {
+            createImportantReportEntry("Starting Execution:\t[" + testCasesCounter + " out of " + totalNumberOfTests
+                    + "] test cases in the current suite\nTest Method:\t\t[" + className + "." + testMethodName
+                    + "]\nTest Description:\t[" + testDescription + "]", false);
+        } else {
+            createImportantReportEntry("Starting Execution:\t[" + testCasesCounter + " out of " + totalNumberOfTests
+                            + "] test cases in the current suite\nTest Method:\t\t[" + className + "." + testMethodName + "]",
+                    false);
+        }
+    }
+
+    public static synchronized void logScenarioInformation(String featureUri, String keyword, String name, String steps) {
+        testCasesCounter++;
+        createImportantReportEntry("Starting Execution:\t[" + testCasesCounter + " out of " + totalNumberOfTests
+                        + "] scenarios in the [" + featureName + "] feature"
+                        + "\n" + keyword + " Name:\t\t[" + name
+                        + "]\n" + keyword + " Steps:" + steps,
+                false);
+    }
+
+    public static void logConfigurationMethodInformation(String className, String testMethodName) {
+        // In TestNG Reporter, this log entry is logged at the end of the previous test
+        // (or null for the first test)
+        createImportantReportEntry("Starting Execution of a Configuration (Setup or Teardown) Method\nTest Method:\t\t["
+                + className + "." + testMethodName + "]", false);
+    }
+
+    /**
+     * Manages action counter and calls writeLog to format and print the log entry.
+     *
+     * @param logText the text that needs to be logged in this action
+     */
+    public static void log(String logText) {
+        if (isDiscreteLogging() && !logText.toLowerCase().contains("failed") && isInternalStep()) {
+            createLogEntry(logText);
+        } else {
+            writeStepToReport(logText, actionCounter);
+            actionCounter++;
+        }
+    }
+
+    public static void log(String logText, List<List<Object>> attachments) {
+        if (isDiscreteLogging() && !logText.toLowerCase().contains("failed") && isInternalStep()) {
+            createLogEntry(logText);
+            if (attachments != null) {
+                attachments.forEach(attachment -> {
+                    if (attachment != null) {
+                        if (attachment.get(2) instanceof java.lang.String) {
+                            attachAsStep(attachment.get(0).toString(), attachment.get(1).toString(),
+                                    new ByteArrayInputStream(attachment.get(2).toString().getBytes()));
+                        } else {
+                            attachAsStep(attachment.get(0).toString(), attachment.get(1).toString(),
+                                    (InputStream) attachment.get(2));
+                        }
+                    }
+                });
+            }
+        } else {
+            writeStepToReport(logText, actionCounter, attachments);
+            actionCounter++;
+        }
+    }
+
+    /**
+     * Format an exception message and stack trace, and calls attach to add it as a
+     * log entry.
+     *
+     * @param t the throwable (exception or error) that will be logged in this
+     *          action
+     */
+    public static void log(Throwable t) {
+        String logText;
+
+        logText = formatStackTraceToLogEntry(t);
+        if (t.getMessage() != null) {
+            ReportManager.log("An Exception Occured with this Message: " + t.getMessage().split("\n")[0].trim() + ".",
+                    Collections.singletonList(Arrays.asList("Exception Stack Trace", t.getClass().getName(), logText)));
+        } else {
+            ReportManager.log("An Exception Occured",
+                    Collections.singletonList(Arrays.asList("Exception Stack Trace", t.getClass().getName(), logText)));
+        }
+        actionCounter++;
+    }
+
+    public static String formatStackTraceToLogEntry(Throwable t) {
+        StringBuilder logBuilder = new StringBuilder();
+        StackTraceElement[] trace = t.getStackTrace();
+
+        logBuilder.append(t.getClass().getName()).append(":").append(System.lineSeparator()).append(t.getMessage()).append(System.lineSeparator());
+
+        for (StackTraceElement stackTraceElement : trace) {
+            logBuilder.append(stackTraceElement.toString()).append(System.lineSeparator());
+        }
+        return logBuilder.toString();
+    }
+
+    public static void logDiscrete(String logText) {
+        createLogEntry(logText);
+    }
+
+    public static void logDiscrete(Throwable t) {
+        createLogEntry(formatStackTraceToLogEntry(t));
+    }
+
+    /**
+     * Adds a new attachment using the input parameters provided. The attachment is
+     * displayed as a step in the execution report. Used for Screenshots.
+     *
+     * @param attachmentType    the type of this attachment
+     * @param attachmentName    the name of this attachment
+     * @param attachmentContent the content of this attachment
+     */
+    public static void attach(String attachmentType, String attachmentName, InputStream attachmentContent) {
+        createAttachment(attachmentType, attachmentName, attachmentContent);
+    }
+
+    /**
+     * Adds a new attachment using the input parameters provided. The attachment is
+     * displayed as a step in the execution report. Used for Screenshots.
+     *
+     * @param attachmentType    the type of this attachment
+     * @param attachmentName    the name of this attachment
+     * @param attachmentContent the content of this attachment
+     */
+    public static void attach(String attachmentType, String attachmentName, String attachmentContent) {
+        if (!attachmentContent.trim().equals("")) {
+            createAttachment(attachmentType, attachmentName, new ByteArrayInputStream(attachmentContent.getBytes()));
+
+        }
+    }
+
+    /**
+     * Returns the log of the current test, and attaches it in the end of the test
+     * execution report.
+     *
+     * @param currentMethodName name of the current test method to be used in the attachment name
+     * @param testLog           content of the text log to be used as the attachment value
+     */
+    public static void attachTestLog(String currentMethodName, String testLog) {
+        appendToFullLog(testLog);
+        appendToFullLog(System.lineSeparator());
+        if (!testLog.isBlank()) {
+            createAttachment(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE, "Current Method log: " + currentMethodName,
+                    new ByteArrayInputStream(testLog.getBytes()));
+        }
+    }
+
+    public static void attachFullLog(String executionEndTimestamp) {
+        if (!fullLog.trim().equals("")) {
+            String fullLogCreated = "Successfully created attachment [" + SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE + " - "
+                    + "Execution log" + "]";
+            createReportEntry(fullLogCreated, true);
+            String copyrights = "This test run was powered by SHAFT Engine Version: ["
+                    + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "]" + System.lineSeparator()
+                    + "SHAFT Engine is licensed under the MIT License: [https://github.com/MohabMohie/SHAFT_ENGINE/blob/master/LICENSE].";
+            createImportantReportEntry(copyrights, true);
+            createAttachment(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE, "Execution log: " + executionEndTimestamp,
+                    new ByteArrayInputStream(fullLog.trim().getBytes()));
+        }
+    }
+
+    public static void attachIssuesLog(String executionEndTimestamp) {
+        String issueSummary = prepareIssuesLog();
+        if (!issuesLog.trim().equals("")) {
+            log(issueSummary,
+                    Collections.singletonList(
+                            Arrays.asList(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE, "Issues log CSV: " + executionEndTimestamp,
+                                    new ByteArrayInputStream(issuesLog.trim().getBytes()))));
+        }
+    }
+
+    public static void openAllureReportAfterExecution() {
+        String commandToOpenAllureReport;
+        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("openAllureReportAfterExecution").trim()))
+                && System.getProperty("executionAddress").trim().equals("local")) {
+
+            if (SystemUtils.IS_OS_WINDOWS) {
+                commandToOpenAllureReport = ("generate_allure_report.bat");
+            } else {
+                commandToOpenAllureReport = ("sh generate_allure_report.sh");
+            }
+            new TerminalActions().performTerminalCommand(commandToOpenAllureReport);
+        }
+    }
+
+    public static void generateAllureReportArchive() {
+        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateAllureReportArchive").trim()))
+                && System.getProperty("executionAddress").trim().equals("local")) {
+            logDiscrete("Generating Allure Report Archive...");
+            boolean discreteLoggingState = isDiscreteLogging();
+            setDiscreteLogging(true);
+            writeOpenReportShellFilesToGeneratedDirectory();
+            writeAllureReportToGeneratedDirectory();
+            createAllureReportArchiveAndCleanGeneratedDirectory();
+            setDiscreteLogging(discreteLoggingState);
+        }
+    }
+
+    public static String getCallingMethodFullName() {
+        StackTraceElement[] callingStack = Thread.currentThread().getStackTrace();
+        StringBuilder callingMethodFullName = new StringBuilder();
+        for (int i = 1; i < callingStack.length; i++) {
+            if (!callingStack[i].getClassName().contains("com.shaft")) {
+                callingMethodFullName.append(callingStack[i].getClassName());
+                if (!callingStack[i].getMethodName().isEmpty()) {
+                    callingMethodFullName.append(".");
+                    callingMethodFullName.append(callingStack[i].getMethodName());
+                }
+                break;
+            }
+        }
+        return callingMethodFullName.toString();
+    }
+
+    public static String getTestClassName() {
+        return Reporter.getCurrentTestResult().getMethod().getTestClass().getName();
+    }
+
+    public static String getTestMethodName() {
+        return Reporter.getCurrentTestResult().getMethod().getMethodName();
+    }
+
+    public static void setTestCaseName(String scenarioName) {
+        Allure.getLifecycle().updateTestCase(testResult -> testResult.setName(scenarioName));
+        if (!"".equals(featureName)) {
+            Allure.getLifecycle().updateTestCase(testResult -> testResult.setFullName(featureName + ": " + scenarioName));
+        }
+    }
+
+    public static void setTestCaseDescription(String scenarioSteps) {
+        Allure.getLifecycle().updateTestCase(testResult -> testResult.setDescription(scenarioSteps));
+    }
+
+    public static Boolean isCurrentTestPassed() {
+        return Reporter.getCurrentTestResult().isSuccess();
+    }
+
+    public static void setFeatureName(String featureName) {
+        ReportManager.featureName = featureName;
+    }
+
+    protected static void logClosureActivitiesInitialization() {
+        String closureActivities = "Test Closure Activities";
+        createImportantReportEntry(closureActivities, true);
+    }
+
+    private static void createLogEntry(String logText) {
+        String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
+        if (logText == null) {
+            logText = "null";
+        }
+        String log = REPORT_MANAGER_PREFIX + logText.trim() + " @" + timestamp;
+        slf4jLogger.info(log);
+        Reporter.log(log, false);
+    }
+
+    /**
+     * Appends a log entry to the complete log of the current execution session.
+     *
+     * @param log the log entry that needs to be appended to the full log
+     */
+    private static void appendToFullLog(String log) {
+        fullLog += log;
+    }
+
     private static void createReportEntry(String logText, Boolean addToFullLog) {
         String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
         if (logText == null) {
@@ -165,13 +460,8 @@ public class ReportManager {
         }
     }
 
-    protected static void logClosureActivitiesInitialization() {
-        String closureActivities = "Test Closure Activities";
-        createImportantReportEntry(closureActivities, true);
-    }
-
     private static void createImportantReportEntry(String logText, Boolean addToFullLog) {
-        Boolean initialLoggingStatus = discreteLogging;
+        boolean initialLoggingStatus = discreteLogging;
         setDiscreteLogging(false); // force log even if discrete logging was turned on
         String log = System.lineSeparator()
                 + "################################################################################################################################################"
@@ -222,7 +512,7 @@ public class ReportManager {
     }
 
     private static void createAttachment(String attachmentType, String attachmentName, InputStream attachmentContent) {
-        InputStream attachmentContentCopy = null;
+        InputStream attachmentContentCopy;
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         byte[] buffer = new byte[1024];
         int len;
@@ -256,7 +546,7 @@ public class ReportManager {
                 && !attachmentType.toLowerCase().contains("engine logs")) {
             String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
 
-            String theString = "";
+            String theString;
             BufferedReader br = new BufferedReader(
                     new InputStreamReader(attachmentContentCopy, StandardCharsets.UTF_8));
             theString = br.lines().collect(Collectors.joining(System.lineSeparator()));
@@ -291,43 +581,6 @@ public class ReportManager {
         } else {
             Allure.addAttachment(attachmentDescription, attachmentContent);
         }
-    }
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //////////////////////////////////// [Public] Core Reporting Actions
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    /**
-     * @return the discreteLogging
-     */
-    public static boolean isDiscreteLogging() {
-        return discreteLogging;
-    }
-
-    /**
-     * @param discreteLogging the discreteLogging to set
-     */
-    public static void setDiscreteLogging(boolean discreteLogging) {
-        if (debugMode) {
-            ReportManager.logDiscrete("Setting discrete logging to: \"" + discreteLogging + "\"");
-        }
-        ReportManager.discreteLogging = discreteLogging;
-    }
-
-    public static int getTestCasesCounter() {
-        return testCasesCounter;
-    }
-
-    public static int getTotalNumberOfTests() {
-        return totalNumberOfTests;
-    }
-
-    public static void setTotalNumberOfTests(int totalNumberOfTests) {
-        ReportManager.totalNumberOfTests = totalNumberOfTests;
-    }
-
-    public static void setDebugMode(Boolean debugMode) {
-        ReportManager.debugMode = debugMode;
     }
 
     private static void cleanAllureResultsDirectory() {
@@ -427,139 +680,10 @@ public class ReportManager {
         }
     }
 
-    public static void prepareAllureReportingEnvironment() {
-        logDiscrete("Preparing Allure Reporting Environment...");
-        Boolean discreteLoggingState = isDiscreteLogging();
-        allureResultsFolderPath = System.getProperty("allureResultsFolderPath").trim();
-        if (System.getProperty("executionAddress").trim().equals("local")
-                || (System.getProperty("mobile_platformName") != null && !System.getProperty("mobile_platformName").trim().equals(""))) {
-            setDiscreteLogging(true);
-            cleanAllureResultsDirectory();
-            downloadAndExtractAllureBinaries();
-            writeGenerateReportShellFilesToProjectDirectory();
-        }
-        writeEnvironmentVariablesToAllureResultsDirectory();
-        setDiscreteLogging(discreteLoggingState);
-    }
-
-    public static void logEngineVersion() {
-        String engineVersion = "Detected SHAFT Engine Version: ["
-                + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "]";
-        createImportantReportEntry(engineVersion, true);
-    }
-
-    public static synchronized void logTestInformation(String className, String testMethodName,
-                                                       String testDescription) {
-        testCasesCounter++;
-        if (!testDescription.equals("")) {
-            createImportantReportEntry("Starting Execution:\t[" + testCasesCounter + " out of " + totalNumberOfTests
-                    + "] test cases in the current suite\nTest Method:\t\t[" + className + "." + testMethodName
-                    + "]\nTest Description:\t[" + testDescription + "]", false);
-        } else {
-            createImportantReportEntry("Starting Execution:\t[" + testCasesCounter + " out of " + totalNumberOfTests
-                            + "] test cases in the current suite\nTest Method:\t\t[" + className + "." + testMethodName + "]",
-                    false);
-        }
-    }
-
-    public static synchronized void logScenarioInformation(String featureUri, String keyword, String name, String steps) {
-        testCasesCounter++;
-        createImportantReportEntry("Starting Execution:\t[" + testCasesCounter + " out of " + totalNumberOfTests
-                        + "] scenarios in the [" + featureName + "] feature"
-                        + "\n" + keyword + " Name:\t\t[" + name
-                        + "]\n" + keyword + " Steps:" + steps,
-                false);
-    }
-
-    public static void logConfigurationMethodInformation(String className, String testMethodName) {
-        // In TestNG Reporter, this log entry is logged at the end of the previous test
-        // (or null for the first test)
-        createImportantReportEntry("Starting Execution of a Configuration (Setup or Teardown) Method\nTest Method:\t\t["
-                + className + "." + testMethodName + "]", false);
-    }
-
-    /**
-     * Manages action counter and calls writeLog to format and print the log entry.
-     *
-     * @param logText the text that needs to be logged in this action
-     */
-    public static void log(String logText) {
-        if (isDiscreteLogging() && !logText.toLowerCase().contains("failed") && isInternalStep()) {
-            createLogEntry(logText);
-        } else {
-            writeStepToReport(logText, actionCounter);
-            actionCounter++;
-        }
-    }
-
     private static Boolean isInternalStep() {
         String callingMethodName = (new Throwable()).getStackTrace()[2].toString();
 
         return callingMethodName.contains("com.shaft");
-    }
-
-    public static void log(String logText, List<List<Object>> attachments) {
-        if (isDiscreteLogging() && !logText.toLowerCase().contains("failed") && isInternalStep()) {
-            createLogEntry(logText);
-            if (attachments != null) {
-                attachments.forEach(attachment -> {
-                    if (attachment != null) {
-                        if (attachment.get(2) instanceof java.lang.String) {
-                            attachAsStep(attachment.get(0).toString(), attachment.get(1).toString(),
-                                    new ByteArrayInputStream(attachment.get(2).toString().getBytes()));
-                        } else {
-                            attachAsStep(attachment.get(0).toString(), attachment.get(1).toString(),
-                                    (InputStream) attachment.get(2));
-                        }
-                    }
-                });
-            }
-        } else {
-            writeStepToReport(logText, actionCounter, attachments);
-            actionCounter++;
-        }
-    }
-
-    /**
-     * Format an exception message and stack trace, and calls attach to add it as a
-     * log entry.
-     *
-     * @param t the throwable (exception or error) that will be logged in this
-     *          action
-     */
-    public static void log(Throwable t) {
-        String logText = "";
-
-        logText = formatStackTraceToLogEntry(t);
-        if (t.getMessage() != null) {
-            ReportManager.log("An Exception Occured with this Message: " + t.getMessage().split("\n")[0].trim() + ".",
-                    Arrays.asList(Arrays.asList("Exception Stack Trace", t.getClass().getName(), logText)));
-        } else {
-            ReportManager.log("An Exception Occured",
-                    Arrays.asList(Arrays.asList("Exception Stack Trace", t.getClass().getName(), logText)));
-        }
-        actionCounter++;
-    }
-
-    public static String formatStackTraceToLogEntry(Throwable t) {
-        StringBuilder logBuilder = new StringBuilder();
-        StackTraceElement[] trace = t.getStackTrace();
-
-        logBuilder.append(
-                t.getClass().getName() + ":" + System.lineSeparator() + t.getMessage() + System.lineSeparator());
-
-        for (int i = 0; i < trace.length; ++i) {
-            logBuilder.append(trace[i].toString() + System.lineSeparator());
-        }
-        return logBuilder.toString();
-    }
-
-    public static void logDiscrete(String logText) {
-        createLogEntry(logText);
-    }
-
-    public static void logDiscrete(Throwable t) {
-        createLogEntry(formatStackTraceToLogEntry(t));
     }
 
     /**
@@ -575,76 +699,8 @@ public class ReportManager {
         createAttachment(attachmentType, attachmentName, attachmentContent);
     }
 
-    /**
-     * Adds a new attachment using the input parameters provided. The attachment is
-     * displayed as a step in the execution report. Used for Screenshots.
-     *
-     * @param attachmentType    the type of this attachment
-     * @param attachmentName    the name of this attachment
-     * @param attachmentContent the content of this attachment
-     */
-    public static void attach(String attachmentType, String attachmentName, InputStream attachmentContent) {
-        createAttachment(attachmentType, attachmentName, attachmentContent);
-    }
-
-    /**
-     * Adds a new attachment using the input parameters provided. The attachment is
-     * displayed as a step in the execution report. Used for Screenshots.
-     *
-     * @param attachmentType    the type of this attachment
-     * @param attachmentName    the name of this attachment
-     * @param attachmentContent the content of this attachment
-     */
-    public static void attach(String attachmentType, String attachmentName, String attachmentContent) {
-        if (!attachmentContent.trim().equals("")) {
-            createAttachment(attachmentType, attachmentName, new ByteArrayInputStream(attachmentContent.getBytes()));
-
-        }
-    }
-
-
-    /**
-     * Returns the log of the current test, and attaches it in the end of the test
-     * execution report.
-     *
-     * @param currentMethodName name of the current test method to be used in the attachment name
-     * @param testLog           content of the text log to be used as the attachment value
-     */
-    public static void attachTestLog(String currentMethodName, String testLog) {
-        appendToFullLog(testLog);
-        appendToFullLog(System.lineSeparator());
-        if (!testLog.isBlank()) {
-            createAttachment(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE, "Current Method log: " + currentMethodName,
-                    new ByteArrayInputStream(testLog.getBytes()));
-        }
-    }
-
-    public static void attachFullLog(String executionEndTimestamp) {
-        if (!fullLog.trim().equals("")) {
-            String fullLogCreated = "Successfully created attachment [" + SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE + " - "
-                    + "Execution log" + "]";
-            createReportEntry(fullLogCreated, true);
-            String copyrights = "This test run was powered by SHAFT Engine Version: ["
-                    + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "]" + System.lineSeparator()
-                    + "SHAFT Engine is licensed under the MIT License: [https://github.com/MohabMohie/SHAFT_ENGINE/blob/master/LICENSE].";
-            createImportantReportEntry(copyrights, true);
-            createAttachment(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE, "Execution log: " + executionEndTimestamp,
-                    new ByteArrayInputStream(fullLog.trim().getBytes()));
-        }
-    }
-
-    public static void attachIssuesLog(String executionEndTimestamp) {
-        String issueSummary = prepareIssuesLog();
-        if (!issuesLog.trim().equals("")) {
-            log(issueSummary,
-                    Arrays.asList(
-                            Arrays.asList(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE, "Issues log CSV: " + executionEndTimestamp,
-                                    new ByteArrayInputStream(issuesLog.trim().getBytes()))));
-        }
-    }
-
     private static void writeOpenReportShellFilesToGeneratedDirectory() {
-        List<String> commandsToOpenAllureReport = null;
+        List<String> commandsToOpenAllureReport;
         // create unix-based sh file
         commandsToOpenAllureReport = Arrays.asList("#!/bin/bash",
                 "parent_path=$( cd \"$(dirname \"${BASH_SOURCE[0]}\")\" ; pwd -P )",
@@ -663,7 +719,7 @@ public class ReportManager {
     private static void writeAllureReportToGeneratedDirectory() {
         // add correct file extension based on target OS
         String targetOperatingSystem = System.getProperty(TARGET_OS_PROPERTY_NAME);
-        String commandToCreateAllureReport = "";
+        String commandToCreateAllureReport;
 
         allureBinaryPath = allureExtractionLocation + "allure-" + System.getProperty(ALLURE_VERSION_PROPERTY_NAME)
                 + "/bin/allure";
@@ -686,75 +742,5 @@ public class ReportManager {
             FileActions.zipFiles("generatedReport/", "generatedReport_" + new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date()) + ".zip");
         }
         FileActions.deleteFile("generatedReport/");
-    }
-
-    public static void openAllureReportAfterExecution() {
-        String commandToOpenAllureReport = "";
-        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("openAllureReportAfterExecution").trim()))
-                && System.getProperty("executionAddress").trim().equals("local")) {
-
-            if (SystemUtils.IS_OS_WINDOWS) {
-                commandToOpenAllureReport = ("generate_allure_report.bat");
-            } else {
-                commandToOpenAllureReport = ("sh generate_allure_report.sh");
-            }
-            new TerminalActions().performTerminalCommand(commandToOpenAllureReport);
-        }
-    }
-
-    public static void generateAllureReportArchive() {
-        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateAllureReportArchive").trim()))
-                && System.getProperty("executionAddress").trim().equals("local")) {
-            logDiscrete("Generating Allure Report Archive...");
-            Boolean discreteLoggingState = isDiscreteLogging();
-            setDiscreteLogging(true);
-            writeOpenReportShellFilesToGeneratedDirectory();
-            writeAllureReportToGeneratedDirectory();
-            createAllureReportArchiveAndCleanGeneratedDirectory();
-            setDiscreteLogging(discreteLoggingState);
-        }
-    }
-
-    public static String getCallingMethodFullName() {
-        StackTraceElement[] callingStack = Thread.currentThread().getStackTrace();
-        StringBuilder callingMethodFullName = new StringBuilder();
-        for (int i = 1; i < callingStack.length; i++) {
-            if (!callingStack[i].getClassName().contains("com.shaft")) {
-                callingMethodFullName.append(callingStack[i].getClassName());
-                if (!callingStack[i].getMethodName().isEmpty()) {
-                    callingMethodFullName.append(".");
-                    callingMethodFullName.append(callingStack[i].getMethodName());
-                }
-                break;
-            }
-        }
-        return callingMethodFullName.toString();
-    }
-
-    public static String getTestClassName() {
-        return Reporter.getCurrentTestResult().getMethod().getTestClass().getName();
-    }
-
-    public static String getTestMethodName() {
-        return Reporter.getCurrentTestResult().getMethod().getMethodName();
-    }
-
-    public static void setTestCaseName(String scenarioName) {
-        Allure.getLifecycle().updateTestCase(testResult -> testResult.setName(scenarioName));
-        if (!"".equals(featureName)) {
-            Allure.getLifecycle().updateTestCase(testResult -> testResult.setFullName(featureName + ": " + scenarioName));
-        }
-    }
-
-    public static void setTestCaseDescription(String scenarioSteps) {
-        Allure.getLifecycle().updateTestCase(testResult -> testResult.setDescription(scenarioSteps));
-    }
-
-    public static Boolean isCurrentTestPassed() {
-        return Reporter.getCurrentTestResult().isSuccess();
-    }
-
-    public static void setFeatureName(String featureName) {
-        ReportManager.featureName = featureName;
     }
 }

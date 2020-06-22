@@ -14,7 +14,6 @@ import java.util.Map;
 import java.util.Properties;
 
 public class PropertiesFileManager {
-    // supported operating systems
     private static final String OS_WINDOWS = "Windows-64";
     private static final String OS_LINUX = "Linux-64";
     private static final String OS_MAC = "Mac-64";
@@ -60,45 +59,6 @@ public class PropertiesFileManager {
             manageMaximumPerformanceMode();
             readPropertyFiles = false;
         }
-    }
-
-    /**
-     * When Maximum Performance Mode is enabled the following properties will be
-     * overridden:
-     * <p>
-     * <ul>
-     * <li>aiPoweredElementIdentification=>false;
-     * <li>headlessExecution=>true;
-     * <li>autoMaximizeBrowserWindow=>false;
-     * <li>forceCheckForElementVisibility=>false;
-     * <li>forceCheckElementLocatorIsUnique=>false;
-     * <li>screenshotParams_whenToTakeAScreenshot=>FailuresOnly;
-     * <li>screenshotParams_highlightElements=>false;
-     * <li>screenshotParams_screenshotType=>Regular;
-     * <li>screenshotParams_watermark=>false;
-     * <li>createAnimatedGif=>false;
-     * <li>recordVideo=>false;
-     * <li>debugMode"=>"false;
-     * </ul>
-     */
-    private static void manageMaximumPerformanceMode() {
-        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("maximumPerformanceMode")))) {
-            // Beast Mode On
-            System.setProperty("aiPoweredElementIdentification", String.valueOf(false));
-            System.setProperty("headlessExecution", String.valueOf(true));
-            System.setProperty("autoMaximizeBrowserWindow", String.valueOf(true));
-            System.setProperty("forceCheckForElementVisibility", String.valueOf(false));
-            System.setProperty("forceCheckElementLocatorIsUnique", String.valueOf(false));
-            System.setProperty("screenshotParams_whenToTakeAScreenshot", "ValidationPointsOnly");
-            System.setProperty("screenshotParams_highlightElements", String.valueOf(true));
-            System.setProperty("screenshotParams_highlightMethod", "AI");
-            System.setProperty("screenshotParams_screenshotType", "Regular");
-            System.setProperty("screenshotParams_watermark", String.valueOf(true));
-            System.setProperty("createAnimatedGif", String.valueOf(false));
-            System.setProperty("recordVideo", String.valueOf(false));
-            System.setProperty("debugMode", String.valueOf(false));
-        }
-
     }
 
     public static synchronized Map<String, String> getAppiumDesiredCapabilities() {
@@ -147,6 +107,58 @@ public class PropertiesFileManager {
         }
     }
 
+    // TODO: create directory under src/test/resources and write the default
+    public static String getDefaultPropertiesFolderPath() {
+        URL propertiesFolder = PropertiesFileManager.class.getResource("/defaultProperties/");
+        //ClassLoader clsLoader = PropertiesFileManager.class.getClassLoader();
+        //InputStream propertiesFolder =  clsLoader.getResourceAsStream("/defaultProperties/");
+
+        if (propertiesFolder != null) {
+            return propertiesFolder.getFile();
+        } else {
+            return DEFAULT_PROPERTIES_FOLDER_PATH;
+        }
+    }
+
+    /**
+     * When Maximum Performance Mode is enabled the following properties will be
+     * overridden:
+     * <p>
+     * <ul>
+     * <li>aiPoweredElementIdentification=>false;
+     * <li>headlessExecution=>true;
+     * <li>autoMaximizeBrowserWindow=>false;
+     * <li>forceCheckForElementVisibility=>false;
+     * <li>forceCheckElementLocatorIsUnique=>false;
+     * <li>screenshotParams_whenToTakeAScreenshot=>FailuresOnly;
+     * <li>screenshotParams_highlightElements=>false;
+     * <li>screenshotParams_screenshotType=>Regular;
+     * <li>screenshotParams_watermark=>false;
+     * <li>createAnimatedGif=>false;
+     * <li>recordVideo=>false;
+     * <li>debugMode"=>"false;
+     * </ul>
+     */
+    private static void manageMaximumPerformanceMode() {
+        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("maximumPerformanceMode")))) {
+            // Beast Mode On
+            System.setProperty("aiPoweredElementIdentification", String.valueOf(false));
+            System.setProperty("headlessExecution", String.valueOf(true));
+            System.setProperty("autoMaximizeBrowserWindow", String.valueOf(true));
+            System.setProperty("forceCheckForElementVisibility", String.valueOf(false));
+            System.setProperty("forceCheckElementLocatorIsUnique", String.valueOf(false));
+            System.setProperty("screenshotParams_whenToTakeAScreenshot", "ValidationPointsOnly");
+            System.setProperty("screenshotParams_highlightElements", String.valueOf(true));
+            System.setProperty("screenshotParams_highlightMethod", "AI");
+            System.setProperty("screenshotParams_screenshotType", "Regular");
+            System.setProperty("screenshotParams_watermark", String.valueOf(true));
+            System.setProperty("createAnimatedGif", String.valueOf(false));
+            System.setProperty("recordVideo", String.valueOf(false));
+            System.setProperty("debugMode", String.valueOf(false));
+        }
+
+    }
+
     private static void loadPropertiesFileIntoSystemProperties(Properties properties, File propertyFile) {
         try {
             properties.load(new FileInputStream(propertyFile));
@@ -170,19 +182,6 @@ public class PropertiesFileManager {
             } else if (SystemUtils.IS_OS_MAC) {
                 System.setProperty(targetOperatingSystemPropertyName, OS_MAC);
             }
-        }
-    }
-
-    // TODO: create directory under src/test/resources and write the default
-    public static String getDefaultPropertiesFolderPath() {
-        URL propertiesFolder = PropertiesFileManager.class.getResource("/defaultProperties/");
-        //ClassLoader clsLoader = PropertiesFileManager.class.getClassLoader();
-        //InputStream propertiesFolder =  clsLoader.getResourceAsStream("/defaultProperties/");
-
-        if (propertiesFolder != null) {
-            return propertiesFolder.getFile();
-        } else {
-            return DEFAULT_PROPERTIES_FOLDER_PATH;
         }
     }
 }
