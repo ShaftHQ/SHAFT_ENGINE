@@ -30,7 +30,7 @@ public class ElementSteps {
      *
      * @param text         the target text that needs to be typed into the target
      *                     webElement
-     * @param locatorType can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
+     * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue the value/expression of the desired element locator
      */
     @When("I Type {string} into the element found by {locatorType}: {string}")
@@ -42,7 +42,7 @@ public class ElementSteps {
      * Sends a keypress to the target element. Supported keys are: ENTER, RETURN, TAB.
      *
      * @param key          the key that should be pressed
-     * @param locatorType can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
+     * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue the value/expression of the desired element locator
      */
     @When("I Press the {word} key into the element found by {locatorType}: {string}")
@@ -53,7 +53,7 @@ public class ElementSteps {
     /**
      * Clicks on a certain element using Selenium WebDriver, or JavaScript.
      *
-     * @param locatorType can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
+     * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue the value/expression of the desired element locator
      */
     @When("I Click the element found by {locatorType}: {string}")
@@ -65,8 +65,8 @@ public class ElementSteps {
      * Asserts webElement attribute equals expectedValue.
      *
      * @param elementAttribute the desired attribute of the webElement under test
-     * @param locatorType can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
-     * @param locatorValue the value/expression of the desired element locator
+     * @param locatorType      can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
+     * @param locatorValue     the value/expression of the desired element locator
      * @param expectedValue    the expected value (test data) of this assertion
      */
     @Then("I Assert that the {word} attribute of the element found by {locatorType}: {string}, should be {string}")
