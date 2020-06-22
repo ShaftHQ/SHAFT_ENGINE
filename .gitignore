@@ -1,7 +1,7 @@
-/target/
-/allure-results/
-/allure-report/
-/test-output/
+/target/*
+/allure-results/*
+/allure-report/*
+/test-output/*
 /dependency-reduced-pom.xml
 /b.sh
 /generatedReport_*.zip
@@ -10,4 +10,6 @@
 /allure-results.zip
 /generate_allure_report.bat
 .DS_Store
-/.idea/
+/.idea/*
+/.git/*
+*.iml
