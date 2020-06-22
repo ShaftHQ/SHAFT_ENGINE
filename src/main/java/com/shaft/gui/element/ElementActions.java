@@ -69,12 +69,12 @@ public class ElementActions {
         passAction(driver, null, actionName, null, null);
     }
 
-    static void passAction(WebDriver driver, By elementLocator) {
+    protected static void passAction(WebDriver driver, By elementLocator) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         passAction(driver, elementLocator, actionName, null, null);
     }
 
-    static void passAction(WebDriver driver, By elementLocator, List<Object> screenshot) {
+    protected static void passAction(WebDriver driver, By elementLocator, List<Object> screenshot) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         passAction(driver, elementLocator, actionName, null, screenshot);
     }
@@ -84,17 +84,17 @@ public class ElementActions {
         passAction(driver, null, actionName, testData, null);
     }
 
-    static void passAction(WebDriver driver, By elementLocator, String testData) {
+    protected static void passAction(WebDriver driver, By elementLocator, String testData) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         passAction(driver, elementLocator, actionName, testData, null);
     }
 
-    static void passAction(WebDriver driver, By elementLocator, String testData, List<Object> screenshot) {
+    protected static void passAction(WebDriver driver, By elementLocator, String testData, List<Object> screenshot) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         passAction(driver, elementLocator, actionName, testData, screenshot);
     }
 
-    static void passAction(Screen screen, App applicationWindow, Pattern element, String testData) {
+    protected static void passAction(Screen screen, App applicationWindow, Pattern element, String testData) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         passAction(null, null, actionName, testData, SikuliActions.prepareElementScreenshotAttachment(screen, applicationWindow, element, actionName, true));
     }
@@ -104,17 +104,17 @@ public class ElementActions {
         reportActionResult(driver, actionName, testData, elementLocator, screenshot, true);
     }
 
-    static void failAction(WebDriver driver, By elementLocator, Exception... rootCauseException) {
+    protected static void failAction(WebDriver driver, By elementLocator, Exception... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         failAction(driver, actionName, null, elementLocator, null, rootCauseException);
     }
 
-    static void failAction(WebDriver driver, String testData, By elementLocator, Exception... rootCauseException) {
+    protected static void failAction(WebDriver driver, String testData, By elementLocator, Exception... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         failAction(driver, actionName, testData, elementLocator, null, rootCauseException);
     }
 
-    static void failAction(Screen screen, App applicationWindow, Pattern element, String testData, Exception... rootCauseException) {
+    protected static void failAction(Screen screen, App applicationWindow, Pattern element, String testData, Exception... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         failAction(null, actionName, testData, null, SikuliActions.prepareElementScreenshotAttachment(screen, applicationWindow, element, actionName, false), rootCauseException);
     }
@@ -166,8 +166,8 @@ public class ElementActions {
         return message;
     }
 
-    static List<Object> takeScreenshot(WebDriver driver, By elementLocator, String actionName, String testData,
-                                       boolean passFailStatus) {
+    protected static List<Object> takeScreenshot(WebDriver driver, By elementLocator, String actionName, String testData,
+                                                 boolean passFailStatus) {
         if (passFailStatus) {
             try {
                 if ((elementLocator == null) && (testData == null)) {
@@ -317,11 +317,11 @@ public class ElementActions {
         }
     }
 
-    static boolean identifyUniqueElement(WebDriver driver, By elementLocator) {
+    protected static boolean identifyUniqueElement(WebDriver driver, By elementLocator) {
         return identifyUniqueElement(driver, elementLocator, ATTEMPTS_BEFORE_THROWING_ELEMENTNOTFOUNDEXCEPTION, true);
     }
 
-    static By updateLocatorWithAIGenratedOne(By elementLocator) {
+    protected static By updateLocatorWithAIGenratedOne(By elementLocator) {
         // Override current locator with the aiGeneratedElementLocator
         if (Boolean.TRUE.equals(ScreenshotManager.getAiSupportedElementIdentification())
                 && aiGeneratedElementLocator != null && elementLocator != null) {
@@ -897,21 +897,6 @@ public class ElementActions {
         }
     }
 
-    public static void switchToDefaultContent() {
-        if (BrowserFactory.getActiveDriverSessions() > 0 && (lastUsedDriver != null)) {
-            try {
-                lastUsedDriver.switchTo().defaultContent();
-                Boolean discreetLoggingState = ReportManager.isDiscreteLogging();
-                ReportManager.setDiscreteLogging(true);
-                passAction(lastUsedDriver);
-                ReportManager.setDiscreteLogging(discreetLoggingState);
-            } catch (Exception e) {
-                ReportManager.log(e);
-            }
-        }
-        // if there is no last used driver or no drivers in the drivers list, do
-        // nothing...
-    }
 
     /**
      * Double-clicks on an element using Selenium WebDriver's Actions Library
@@ -1910,6 +1895,17 @@ public class ElementActions {
     }
 
     /**
+     * Retrieves the selected text from the target drop-down list element and returns it as a string value.
+     *
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @return the selected text of the target webElement
+     */
+    public static String getSelectedText(By elementLocator) {
+        return getSelectedText(lastUsedDriver, elementLocator);
+    }
+
+    /**
      * Types the required file path into an input[type='file'] button, to
      * successfully upload the target file.
      *
@@ -2115,6 +2111,42 @@ public class ElementActions {
     }
 
     /**
+     * Double-clicks on an element using Selenium WebDriver's Actions Library
+     *
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     */
+    public ElementActions doubleClick(By elementLocator) {
+        doubleClick(lastUsedDriver, elementLocator);
+        return this;
+    }
+
+    /**
+     * Waits for the element to be clickable, and then clicks and holds it.
+     *
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     */
+    public ElementActions clickAndHold(By elementLocator) {
+        clickAndHold(lastUsedDriver, elementLocator);
+        return this;
+    }
+
+    /**
+     * Attempts to perform a native clipboard action on the text from a certain web
+     * element, like copy/cut/paste
+     *
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param action         supports the following actions "copy", "paste", "cut",
+     *                       "select all", "unselect"
+     */
+    public ElementActions clipboardActions(By elementLocator, String action) {
+        clipboardActions(lastUsedDriver, elementLocator, action);
+        return this;
+    }
+
+    /**
      * Checks if there is any text in an element, clears it, then types the required string into the target element.
      *
      * @param elementLocator the locator of the webElement under test (By xpath, id,
@@ -2141,6 +2173,176 @@ public class ElementActions {
         typeSecure(lastUsedDriver, elementLocator, text);
         return this;
     }
+
+    /**
+     * Returns the handle for currently active context. This can be used to switch
+     * to this context at a later time.
+     *
+     * @return The current context handle
+     */
+    public String getContext() {
+        return getContext(lastUsedDriver);
+    }
+
+    /**
+     * Switches focus to another context
+     *
+     * @param context The name of the context or the handle as returned by
+     *                ElementActions.getContext(WebDriver driver)
+     * @return a self-reference to be used to chain actions
+     */
+    public ElementActions setContext(String context) {
+        setContext(lastUsedDriver, context);
+        return this;
+    }
+
+    /**
+     * Returns a list of unique handles for all the currently open contexts. This
+     * can be used to switch to any of these contexts at a later time.
+     *
+     * @return list of context handles
+     */
+    public List<String> getContextHandles() {
+        return getContextHandles(lastUsedDriver);
+    }
+
+    /**
+     * Returns the unique handle for currently active window. This can be used to
+     * switch to this window at a later time.
+     *
+     * @return window handle
+     */
+    public String getWindowHandle() {
+        return getWindowHandle(lastUsedDriver);
+    }
+
+    /**
+     * Returns a list of unique handles for all the currently open windows. This can
+     * be used to switch to any of these windows at a later time.
+     *
+     * @return list of window handles
+     */
+    public List<String> getWindowHandles() {
+        return getWindowHandles(lastUsedDriver);
+    }
+
+    /**
+     * Used to set value for an element (hidden or visible) using javascript
+     *
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param value          the desired value that should be set for the target
+     *                       element
+     * @return a self-reference to be used to chain actions
+     */
+    public ElementActions setValueUsingJavaScript(By elementLocator, String value) {
+        setValueUsingJavaScript(lastUsedDriver, elementLocator, value);
+        return this;
+    }
+
+    /**
+     * Used to submit a form using javascript
+     *
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @return a self-reference to be used to chain actions
+     */
+    public ElementActions submitFormUsingJavaScript(By elementLocator) {
+        submitFormUsingJavaScript(lastUsedDriver, elementLocator);
+        return this;
+    }
+
+    /**
+     * Switches focus to default content, is mainly used in coordination with
+     * {@link #switchToIframe(WebDriver, By)} to exit any iFrame layer and go back
+     * to the main page
+     *
+     * @return a self-reference to be used to chain actions
+     */
+    public ElementActions switchToDefaultContent() {
+        if (BrowserFactory.getActiveDriverSessions() > 0 && (lastUsedDriver != null)) {
+            try {
+                lastUsedDriver.switchTo().defaultContent();
+                Boolean discreetLoggingState = ReportManager.isDiscreteLogging();
+                ReportManager.setDiscreteLogging(true);
+                passAction(lastUsedDriver);
+                ReportManager.setDiscreteLogging(discreetLoggingState);
+            } catch (Exception e) {
+                ReportManager.log(e);
+            }
+        }
+        // if there is no last used driver or no drivers in the drivers list, do
+        // nothing...
+        return this;
+    }
+
+    /**
+     * Switches focus to a certain iFrame, is mainly used in coordination with
+     * {@link #switchToDefaultContent(WebDriver)} to navigate inside any iFrame
+     * layer and go back to the main page
+     *
+     * @param elementLocator the locator of the iFrame webElement under test (By
+     *                       xpath, id, selector, name ...etc)
+     * @return a self-reference to be used to chain actions
+     */
+    public ElementActions switchToIframe(By elementLocator) {
+        switchToIframe(lastUsedDriver, elementLocator);
+        return this;
+    }
+
+    /**
+     * Switches focus to another window
+     *
+     * @param nameOrHandle The name of the window or the handle as returned by
+     *                     ElementActions.getWindowHandle(WebDriver driver)
+     * @return a self-reference to be used to chain actions
+     */
+    public ElementActions switchToWindow(String nameOrHandle) {
+        switchToWindow(lastUsedDriver, nameOrHandle);
+        return this;
+    }
+
+    /**
+     * Waits dynamically for a specific element to achieve the desired
+     * stateOfPresence on the current page. Waits for a specific number of retries
+     * multiplied by the default element identification timeout (in the POM.xml
+     * file)
+     *
+     * @param elementLocator  the locator of the webElement under test (By xpath,
+     *                        id, selector, name ...etc)
+     * @param numberOfTries   the number of times to try and wait for the element to
+     *                        achieve the desired stateOfPresence (default is 1)
+     * @param stateOfPresence the expected state of presence of the element; false
+     *                        is not present, and true is present
+     * @return a self-reference to be used to chain actions
+     */
+    public ElementActions waitForElementToBePresent(By elementLocator, int numberOfTries,
+                                                    boolean stateOfPresence) {
+        waitForElementToBePresent(lastUsedDriver, elementLocator, numberOfTries,
+                stateOfPresence);
+        return this;
+    }
+
+    /**
+     * Waits dynamically for a specific element's text to change from the initial
+     * value to a new unknown value. Waits for a specific number of retries
+     * multiplied by the default element identification timeout (in the POM.xml
+     * file)
+     *
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param initialValue   the initial text value of the target webElement
+     * @param numberOfTries  the number of times to try and wait for the element
+     *                       text to change (default is 1)
+     * @return a self-reference to be used to chain actions
+     */
+    public ElementActions waitForTextToChange(By elementLocator, String initialValue,
+                                              int numberOfTries) {
+        waitForTextToChange(lastUsedDriver, elementLocator, initialValue,
+                numberOfTries);
+        return this;
+    }
+
 
     public enum TextDetectionStrategy {
         TEXT("text"), CONTENT("textContent"), VALUE("value"), UNDEFINED("undefined");
