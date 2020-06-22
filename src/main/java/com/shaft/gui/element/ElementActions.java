@@ -2108,6 +2108,7 @@ public class ElementActions {
      *
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
+     * @return a self-reference to be used to chain actions
      */
     public ElementActions doubleClick(By elementLocator) {
         doubleClick(lastUsedDriver, elementLocator);
@@ -2119,6 +2120,7 @@ public class ElementActions {
      *
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
+     * @return a self-reference to be used to chain actions
      */
     public ElementActions clickAndHold(By elementLocator) {
         clickAndHold(lastUsedDriver, elementLocator);
@@ -2133,6 +2135,7 @@ public class ElementActions {
      *                       selector, name ...etc)
      * @param action         supports the following actions "copy", "paste", "cut",
      *                       "select all", "unselect"
+     * @return a self-reference to be used to chain actions
      */
     public ElementActions clipboardActions(By elementLocator, String action) {
         clipboardActions(lastUsedDriver, elementLocator, action);
@@ -2252,7 +2255,7 @@ public class ElementActions {
      *
      * @return a self-reference to be used to chain actions
      */
-    public ElementActions switchToDefaultContent() {
+    public static ElementActions switchToDefaultContent() {
         if (BrowserFactory.getActiveDriverSessions() > 0 && (lastUsedDriver != null)) {
             try {
                 lastUsedDriver.switchTo().defaultContent();
@@ -2266,7 +2269,7 @@ public class ElementActions {
         }
         // if there is no last used driver or no drivers in the drivers list, do
         // nothing...
-        return this;
+        return new ElementActions(lastUsedDriver);
     }
 
     /**
