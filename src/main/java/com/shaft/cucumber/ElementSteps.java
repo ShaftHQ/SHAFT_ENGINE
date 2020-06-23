@@ -14,9 +14,10 @@ public class ElementSteps {
 
     public ElementSteps(ThreadLocal<WebDriver> driver) {
         if (driver == null) {
-            driver = new ThreadLocal<>();
+            this.driver = new ThreadLocal<>();
+        }else {
+            this.driver = driver;
         }
-        this.driver = driver;
     }
 
     @ParameterType(".*")

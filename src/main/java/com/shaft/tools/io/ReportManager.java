@@ -17,8 +17,8 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@SuppressWarnings("unused")
 public class ReportManager {
-
     private static final String TIMESTAMP_FORMAT = "dd-MM-yyyy HH:mm:ss.SSSS aaa";
     private static final Logger slf4jLogger = LoggerFactory.getLogger(ReportManager.class);
     private static final String SHAFT_ENGINE_VERSION_PROPERTY_NAME = "shaftEngineVersion";
@@ -193,7 +193,7 @@ public class ReportManager {
         }
     }
 
-    public static synchronized void logScenarioInformation(String featureUri, String keyword, String name, String steps) {
+    public static synchronized void logScenarioInformation(String keyword, String name, String steps) {
         testCasesCounter++;
         createImportantReportEntry("Starting Execution:\t[" + testCasesCounter + " out of " + totalNumberOfTests
                         + "] scenarios in the [" + featureName + "] feature"
@@ -218,7 +218,7 @@ public class ReportManager {
         if (isDiscreteLogging() && !logText.toLowerCase().contains("failed") && isInternalStep()) {
             createLogEntry(logText);
         } else {
-            writeStepToReport(logText, actionCounter);
+            writeStepToReport(actionCounter, logText);
             actionCounter++;
         }
     }
@@ -240,7 +240,7 @@ public class ReportManager {
                 });
             }
         } else {
-            writeStepToReport(logText, actionCounter, attachments);
+            writeStepToReport(actionCounter, logText, attachments);
             actionCounter++;
         }
     }
@@ -480,17 +480,15 @@ public class ReportManager {
      * Formats logText and adds timestamp, then logs it as a step in the execution
      * report.
      *
-     * @param logText       the text that needs to be logged in this action
-     * @param actionCounter a number that represents the serial number of this
-     *                      action within this test run
+     * @param logText the text that needs to be logged in this action
      */
     @Step("Action [{actionCounter}]: {logText}")
-    private static void writeStepToReport(String logText, int actionCounter) {
+    private static void writeStepToReport(int actionCounter, String logText) {
         createReportEntry(logText, false);
     }
 
     @Step("Action [{actionCounter}]: {logText}")
-    private static void writeStepToReport(String logText, int actionCounter, List<List<Object>> attachments) {
+    private static void writeStepToReport(int actionCounter, String logText, List<List<Object>> attachments) {
         createReportEntry(logText, false);
         if (attachments != null) {
             attachments.forEach(attachment -> {
@@ -641,8 +639,7 @@ public class ReportManager {
                     "target" + File.separator + "allureBinary.zip");
             FileActions.unpackArchive(allureArchive, allureExtractionLocation);
             // extract allure from SHAFT_Engine jar
-            URL allureSHAFTConfigArchive = ReportManager.class
-                    .getResource("/allure/allureBinary_SHAFTEngineConfigFiles.zip");
+            URL allureSHAFTConfigArchive = ReportManager.class.getResource("/allure/allureBinary_SHAFTEngineConfigFiles.zip");
             FileActions.unpackArchive(allureSHAFTConfigArchive,
                     allureExtractionLocation + "allure-" + allureVersion + File.separator);
 

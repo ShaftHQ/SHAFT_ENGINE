@@ -19,12 +19,11 @@ public class AnimatedGifManager {
      * @param outputStream        the ImageOutputStream to be written to
      * @param imageType           one of the imageTypes specified in BufferedImage
      * @param timeBetweenFramesMS the time between frames in milliseconds
-     * @param loopContinuously    whether the gif should loop repeatedly
      * @throws IOException if no gif ImageWriters are found
      */
-    protected AnimatedGifManager(ImageOutputStream outputStream, int imageType, int timeBetweenFramesMS,
-                                 boolean loopContinuously) throws IOException {
-        initialize(outputStream, imageType, timeBetweenFramesMS, loopContinuously);
+    @SuppressWarnings("SameParameterValue")
+    protected AnimatedGifManager(ImageOutputStream outputStream, int imageType, int timeBetweenFramesMS) throws IOException {
+        initialize(outputStream, imageType, timeBetweenFramesMS);
     }
 
     /**
@@ -77,8 +76,8 @@ public class AnimatedGifManager {
         gifWriter.get().endWriteSequence();
     }
 
-    private synchronized void initialize(ImageOutputStream outputStream, int imageType, int timeBetweenFramesMS,
-                                         boolean loopContinuously) throws IOException {
+    @SuppressWarnings("ConstantConditions")
+    private synchronized void initialize(ImageOutputStream outputStream, int imageType, int timeBetweenFramesMS) throws IOException {
         // my method to create a writer
         gifWriter.set(getWriter());
         imageWriteParam.set(gifWriter.get().getDefaultWriteParam());
@@ -108,7 +107,7 @@ public class AnimatedGifManager {
         child.setAttribute("applicationID", "NETSCAPE");
         child.setAttribute("authenticationCode", "2.0");
 
-        int loop = loopContinuously ? 0 : 1;
+        int loop = 0;
 
         child.setUserObject(new byte[]{0x1, (byte) (loop & 0xFF), (byte) ((loop >> 8) & 0xFF)});
         appEntensionsNode.appendChild(child);

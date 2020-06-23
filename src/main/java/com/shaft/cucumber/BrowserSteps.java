@@ -13,9 +13,10 @@ public class BrowserSteps {
 
     public BrowserSteps(ThreadLocal<WebDriver> driver) {
         if (driver == null) {
-            driver = new ThreadLocal<>();
+            this.driver = new ThreadLocal<>();
+        }else {
+            this.driver = driver;
         }
-        this.driver = driver;
     }
 
     /**

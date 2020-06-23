@@ -81,24 +81,24 @@ public class BrowserFactory {
     }
 
     public static boolean isMobileExecution() {
-        if (EXECUTION_ADDRESS != null && !EXECUTION_ADDRESS.equals("local") && TARGET_PLATFORM_NAME != null) {
-            return !TARGET_PLATFORM_NAME.equals("");
+        if (EXECUTION_ADDRESS != null && !"local".equals(EXECUTION_ADDRESS) && TARGET_PLATFORM_NAME != null) {
+            return !"".equals(TARGET_PLATFORM_NAME);
         }
         return false;
     }
 
     public static boolean isMobileWebExecution() {
-        if (EXECUTION_ADDRESS != null && !EXECUTION_ADDRESS.equals("local") && TARGET_PLATFORM_NAME != null
+        if (EXECUTION_ADDRESS != null && !"local".equals(EXECUTION_ADDRESS) && TARGET_PLATFORM_NAME != null
                 && TARGET_PLATFORM_BROWSER_NAME != null) {
-            return !TARGET_PLATFORM_NAME.equals("") && !TARGET_PLATFORM_BROWSER_NAME.equals("");
+            return !"".equals(TARGET_PLATFORM_NAME) && !"".equals(TARGET_PLATFORM_BROWSER_NAME);
         }
         return false;
     }
 
     public static boolean isMobileNativeExecution() {
-        if (EXECUTION_ADDRESS != null && !EXECUTION_ADDRESS.equals("local") && TARGET_PLATFORM_NAME != null) {
-            return !TARGET_PLATFORM_NAME.equals("")
-                    && (TARGET_PLATFORM_BROWSER_NAME == null || TARGET_PLATFORM_BROWSER_NAME.equals(""));
+        if (EXECUTION_ADDRESS != null && !"local".equals(EXECUTION_ADDRESS) && TARGET_PLATFORM_NAME != null) {
+            return !"".equals(TARGET_PLATFORM_NAME)
+                    && (TARGET_PLATFORM_BROWSER_NAME == null || "".equals(TARGET_PLATFORM_BROWSER_NAME));
         }
         return false;
     }
@@ -401,7 +401,7 @@ public class BrowserFactory {
     }
 
     private static void createNewLocalDriverInstanceForFirefox() {
-        if (!customDriverName.equals("") && !customDriverPath.equals("")) {
+        if (!"".equals(customDriverName) && !"".equals(customDriverPath)) {
             System.setProperty("webdriver.gecko.driver",
                     customDriverPath + customDriverName + setDriversExtecutableFileExtension());
         } else {
@@ -455,7 +455,7 @@ public class BrowserFactory {
     private static void createNewLocalDriverInstanceForSafari() {
         try {
             driver.set(new SafariDriver(sfOptions));
-        } catch (org.openqa.selenium.SessionNotCreatedException e) {
+        } catch (SessionNotCreatedException e) {
             ReportManager.log(e);
             failAction("Failed to create a session on" + BrowserType.APPLE_SAFARI.toString());
         }
@@ -656,17 +656,17 @@ public class BrowserFactory {
      */
     private static synchronized WebDriver getBrowser(String browserName, MutableCapabilities customBrowserOptions) {
         initializeSystemProperties(System.getProperty("targetBrowserName") == null);
-
-        if (browserName == null) {
-            browserName = TARGET_BROWSER_NAME;
+        String internalBrowserName = browserName;
+        if (internalBrowserName == null) {
+            internalBrowserName = TARGET_BROWSER_NAME;
         }
 
         if (isMobileWebExecution()) {
-            browserName = System.getProperty("mobile_browserName");
+            internalBrowserName = System.getProperty("mobile_browserName");
         }
         try {
             if (!isMobileNativeExecution()) {
-                checkBrowserOSCrossCompatibility(browserName);
+                checkBrowserOSCrossCompatibility(internalBrowserName);
                 // check cross-compatibility between the selected operating system and browser
                 // and report in case they are not compatible
 
@@ -674,19 +674,19 @@ public class BrowserFactory {
                 // set logging global preferences
             }
             if (!isMobileExecution()) {
-                setDriverOptions(browserName, customBrowserOptions);
+                setDriverOptions(internalBrowserName, customBrowserOptions);
                 // set driver options with respect to the target browser name
             }
             if (Boolean.TRUE.equals(BROWSEROBJECTSINGLETON)) {
                 closeAllDrivers();
             }
 
-            if (EXECUTION_ADDRESS.equals("local") && !isMobileExecution()) {
+            if ("local".equals(EXECUTION_ADDRESS) && !isMobileExecution()) {
                 // Manage local execution
-                driver.set(createNewLocalDriverInstance(browserName));
+                driver.set(createNewLocalDriverInstance(internalBrowserName));
             } else {
                 // Manage remote execution / or appium execution
-                driver.set(createNewRemoteDriverInstance(browserName));
+                driver.set(createNewRemoteDriverInstance(internalBrowserName));
             }
             if (!isMobileNativeExecution()) {
                 driver.get().manage().timeouts().pageLoadTimeout(PAGE_LOAD_TIMEOUT, TimeUnit.SECONDS);
@@ -703,8 +703,8 @@ public class BrowserFactory {
             }
         } catch (NullPointerException e) {
             ReportManager.log(e);
-            ReportManager.log("Unhandled Exception with Browser Type [" + browserName + "].");
-            Assert.fail("Unhandled Exception with Browser Type [" + browserName + "].", e);
+            ReportManager.log("Unhandled Exception with Browser Type [" + internalBrowserName + "].");
+            Assert.fail("Unhandled Exception with Browser Type [" + internalBrowserName + "].", e);
         }
 
         return driver.get();

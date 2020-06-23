@@ -392,14 +392,11 @@
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
+                <targetPath>${project.basedir}/target/resources</targetPath>
             </resource>
             <resource>
-<!--                <filtering>true</filtering>&lt;!&ndash; if it is neccessary &ndash;&gt;-->
                 <directory>${project.basedir}/src/main/javadoc</directory><!-- from -->
                 <targetPath>${project.reporting.outputDirectory}</targetPath><!-- to -->
-<!--                <includes>&lt;!&ndash; what &ndash;&gt;-->
-<!--                    <include>index.html</include>-->
-<!--                </includes>-->
             </resource>
         </resources>
 
