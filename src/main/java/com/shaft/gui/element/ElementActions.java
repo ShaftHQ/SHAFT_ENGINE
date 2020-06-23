@@ -282,18 +282,20 @@ public class ElementActions {
      *                                  ...etc)
      */
     public static void dragAndDrop(WebDriver driver, By sourceElementLocator, By destinationElementLocator) {
-        if (identifyUniqueElement(driver, sourceElementLocator)
-                && identifyUniqueElement(driver, destinationElementLocator)) {
+        By internalSourceElementLocator = sourceElementLocator;
+        By internalDestinationElementLocator = destinationElementLocator;
+        if (identifyUniqueElement(driver, internalSourceElementLocator)
+                && identifyUniqueElement(driver, internalDestinationElementLocator)) {
             // Override current locator with the aiGeneratedElementLocator
-            sourceElementLocator = updateLocatorWithAIGeneratedOne(sourceElementLocator);
-            destinationElementLocator = updateLocatorWithAIGeneratedOne(destinationElementLocator);
+            internalSourceElementLocator = updateLocatorWithAIGeneratedOne(internalSourceElementLocator);
+            internalDestinationElementLocator = updateLocatorWithAIGeneratedOne(internalDestinationElementLocator);
 
             // replaced canFindUniqueElementForInternalUse, with countFoundElements for
             // destinationElement to bypass the check for element visibility
 
             // define source and destination elements
-            WebElement sourceElement = driver.findElement(sourceElementLocator);
-            WebElement destinationElement = driver.findElement(destinationElementLocator);
+            WebElement sourceElement = driver.findElement(internalSourceElementLocator);
+            WebElement destinationElement = driver.findElement(internalDestinationElementLocator);
 
             // get source element start location
             String startLocation = sourceElement.getLocation().toString();
@@ -314,35 +316,35 @@ public class ElementActions {
                 ((JavascriptExecutor) driver).executeScript(dragAndDropHelper, sourceElement, destinationElement);
             } catch (Exception rootCauseException) {
                 ReportManager.log(rootCauseException);
-                failAction(driver, sourceElementLocator, rootCauseException);
+                failAction(driver, internalSourceElementLocator, rootCauseException);
             }
 
             // get source element end location
-            String endLocation = driver.findElement(sourceElementLocator).getLocation().toString();
+            String endLocation = driver.findElement(internalSourceElementLocator).getLocation().toString();
 
             String reportMessage = "Start point: " + startLocation + ", End point: " + endLocation;
 
             if (!endLocation.equals(startLocation)) {
-                passAction(driver, sourceElementLocator, reportMessage);
+                passAction(driver, internalSourceElementLocator, reportMessage);
             } else {
                 try {
-                    (new Actions(driver)).dragAndDrop(driver.findElement(sourceElementLocator),
-                            driver.findElement(destinationElementLocator)).build().perform();
+                    (new Actions(driver)).dragAndDrop(driver.findElement(internalSourceElementLocator),
+                            driver.findElement(internalDestinationElementLocator)).build().perform();
 
                 } catch (Exception rootCauseException) {
                     ReportManager.log(rootCauseException);
-                    failAction(driver, sourceElementLocator, rootCauseException);
+                    failAction(driver, internalSourceElementLocator, rootCauseException);
                 }
                 // get source element end location
-                endLocation = driver.findElement(sourceElementLocator).getLocation().toString();
+                endLocation = driver.findElement(internalSourceElementLocator).getLocation().toString();
                 if (!endLocation.equals(startLocation)) {
-                    passAction(driver, sourceElementLocator, reportMessage);
+                    passAction(driver, internalSourceElementLocator, reportMessage);
                 } else {
-                    failAction(driver, reportMessage, sourceElementLocator);
+                    failAction(driver, reportMessage, internalSourceElementLocator);
                 }
             }
         } else {
-            failAction(driver, sourceElementLocator);
+            failAction(driver, internalSourceElementLocator);
         }
     }
 
@@ -359,32 +361,33 @@ public class ElementActions {
      *                             be moved
      */
     public static void dragAndDropByOffset(WebDriver driver, By sourceElementLocator, int xOffset, int yOffset) {
-        if (identifyUniqueElement(driver, sourceElementLocator)) {
+        By internalSourceElementLocator = sourceElementLocator;
+        if (identifyUniqueElement(driver, internalSourceElementLocator)) {
             // Override current locator with the aiGeneratedElementLocator
-            sourceElementLocator = updateLocatorWithAIGeneratedOne(sourceElementLocator);
+            internalSourceElementLocator = updateLocatorWithAIGeneratedOne(internalSourceElementLocator);
 
-            WebElement sourceElement = driver.findElement(sourceElementLocator);
+            WebElement sourceElement = driver.findElement(internalSourceElementLocator);
             String startLocation = sourceElement.getLocation().toString();
 
             // attempt to perform drag and drop
             try {
-                (new Actions(driver)).dragAndDropBy(driver.findElement(sourceElementLocator), xOffset, yOffset).build()
+                (new Actions(driver)).dragAndDropBy(driver.findElement(internalSourceElementLocator), xOffset, yOffset).build()
                         .perform();
             } catch (Exception rootCauseException) {
                 ReportManager.log(rootCauseException);
-                failAction(driver, sourceElementLocator, rootCauseException);
+                failAction(driver, internalSourceElementLocator, rootCauseException);
             }
 
-            String endLocation = driver.findElement(sourceElementLocator).getLocation().toString();
+            String endLocation = driver.findElement(internalSourceElementLocator).getLocation().toString();
 
             if (!endLocation.equals(startLocation)) {
-                passAction(driver, sourceElementLocator,
+                passAction(driver, internalSourceElementLocator,
                         "Start point: " + startLocation + ", End point: " + endLocation);
             } else {
-                failAction(driver, "Start point = End point: " + endLocation, sourceElementLocator);
+                failAction(driver, "Start point = End point: " + endLocation, internalSourceElementLocator);
             }
         } else {
-            failAction(driver, sourceElementLocator);
+            failAction(driver, internalSourceElementLocator);
         }
     }
 
@@ -1200,7 +1203,7 @@ public class ElementActions {
      * @param absoluteFilePath the full path to the file that needs to be uploaded
      */
     public static void typeFileLocationForUpload(WebDriver driver, By elementLocator, String absoluteFilePath) {
-        absoluteFilePath = absoluteFilePath.replace("/", FileSystems.getDefault().getSeparator());
+        String internalAbsoluteFilePath = absoluteFilePath.replace("/", FileSystems.getDefault().getSeparator());
         By internalElementLocator = elementLocator;
         if (identifyUniqueElement(driver, internalElementLocator
                 , false)) {
@@ -1211,22 +1214,22 @@ public class ElementActions {
             // takes screenshot before clicking the element out of view
 
             try {
-                driver.findElement(internalElementLocator).sendKeys(absoluteFilePath);
+                driver.findElement(internalElementLocator).sendKeys(internalAbsoluteFilePath);
             } catch (InvalidArgumentException e) {
                 //this happens when the file path doesn't exist
-                failAction(driver, absoluteFilePath, internalElementLocator, e);
+                failAction(driver, internalAbsoluteFilePath, internalElementLocator, e);
 
             } catch (ElementNotInteractableException exception1) {
                 ((JavascriptExecutor) driver).executeScript(
                         "arguments[0].setAttribute('style', 'display:block !important;');",
                         driver.findElement(internalElementLocator));
                 try {
-                    driver.findElement(internalElementLocator).sendKeys(absoluteFilePath);
+                    driver.findElement(internalElementLocator).sendKeys(internalAbsoluteFilePath);
                 } catch (WebDriverException rootCauseException) {
                     rootCauseException.initCause(exception1);
                     ReportManager.log(rootCauseException);
                     // happened for the first time on MacOSX due to incorrect file path separator
-                    failAction(driver, absoluteFilePath, internalElementLocator, rootCauseException);
+                    failAction(driver, internalAbsoluteFilePath, internalElementLocator, rootCauseException);
                 }
                 try {
                     ((JavascriptExecutor) driver).executeScript("arguments[0].setAttribute('style', 'display:none');",
@@ -1238,9 +1241,9 @@ public class ElementActions {
                     ReportManager.logDiscrete(e);
                 }
             }
-            passAction(driver, internalElementLocator, absoluteFilePath, screenshot);
+            passAction(driver, internalElementLocator, internalAbsoluteFilePath, screenshot);
         } else {
-            failAction(driver, absoluteFilePath, internalElementLocator);
+            failAction(driver, internalAbsoluteFilePath, internalElementLocator);
         }
     }
 
@@ -1484,12 +1487,13 @@ public class ElementActions {
 
     private static String confirmTypingWasSuccessful(WebDriver driver, By elementLocator, String expectedText,
                                                      TextDetectionStrategy successfulTextLocationStrategy) {
-        if (successfulTextLocationStrategy.equals(TextDetectionStrategy.UNDEFINED)) {
-            successfulTextLocationStrategy = determineSuccessfulTextLocationStrategy(driver,
+        TextDetectionStrategy updatedSuccessfulTextLocationStrategy = successfulTextLocationStrategy;
+        if (updatedSuccessfulTextLocationStrategy.equals(TextDetectionStrategy.UNDEFINED)) {
+            updatedSuccessfulTextLocationStrategy = determineSuccessfulTextLocationStrategy(driver,
                     elementLocator);
         }
         String actualText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator,
-                successfulTextLocationStrategy);
+                updatedSuccessfulTextLocationStrategy);
 
         if (expectedText.equals(actualText) || OBFUSCATED_STRING.repeat(expectedText.length()).equals(actualText)) {
             return expectedText;
@@ -1545,29 +1549,30 @@ public class ElementActions {
 
     private static int getMatchingElementsCount(WebDriver driver, By elementLocator, int numberOfAttempts,
                                                 boolean waitForLazyLoading) {
+        By internalElementLocator = elementLocator;
         RecordManager.startVideoRecording();
         if (waitForLazyLoading) {
             JavaScriptWaitManager.waitForLazyLoading();
         }
 
         int matchingElementsCount = 0;
-        if (elementLocator != null && elementLocator.equals(By.tagName("html"))) {
-            matchingElementsCount = waitForElementPresence(driver, elementLocator, numberOfAttempts);
-        } else if (elementLocator != null) {
+        if (internalElementLocator != null && internalElementLocator.equals(By.tagName("html"))) {
+            matchingElementsCount = waitForElementPresence(driver, internalElementLocator, numberOfAttempts);
+        } else if (internalElementLocator != null) {
             // check to see if this element was already identified using AI, and if it's
             // still unique, use that locator directly
-            String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
+            String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(internalElementLocator);
             String previouslyIdentifiedXpath = System.getProperty(hashedLocatorName);
             setAiGeneratedXpath(previouslyIdentifiedXpath);
 
             // wait for element presence
             if (previouslyIdentifiedXpath != null) {
-                elementLocator = aiGeneratedElementLocator;
+                internalElementLocator = aiGeneratedElementLocator;
             }
-            matchingElementsCount = waitForElementPresence(driver, elementLocator, numberOfAttempts);
+            matchingElementsCount = waitForElementPresence(driver, internalElementLocator, numberOfAttempts);
 
             if (matchingElementsCount == 0
-                    && Boolean.TRUE.equals(attemptToFindElementUsingAI(driver, elementLocator))) {
+                    && Boolean.TRUE.equals(attemptToFindElementUsingAI(driver, internalElementLocator))) {
                 matchingElementsCount = 1;
             } else if (matchingElementsCount == 1) {
                 if (previouslyIdentifiedXpath != null) {
@@ -1575,11 +1580,11 @@ public class ElementActions {
                     ReportManager.setDiscreteLogging(false);
                     ReportManager
                             .log("Element was previously found using AI... Kindly update your element locator from ["
-                                    + elementLocator + "] to [" + aiGeneratedElementLocator + "].");
+                                    + internalElementLocator + "] to [" + aiGeneratedElementLocator + "].");
                     ReportManager.setDiscreteLogging(initialLoggingState);
-                    elementLocator = aiGeneratedElementLocator;
+                    internalElementLocator = aiGeneratedElementLocator;
                 }
-                ScreenshotManager.storeElementScreenshotForAISupportedElementIdentification(driver, elementLocator);
+                ScreenshotManager.storeElementScreenshotForAISupportedElementIdentification(driver, internalElementLocator);
             }
         }
         return matchingElementsCount;
