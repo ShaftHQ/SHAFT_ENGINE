@@ -155,23 +155,13 @@ public class InvokedMethodListener implements IInvokedMethodListener {
                 // flag already opened issue for closure
                 openIssuesForPassedTestsCounter++;
                 ReportManager.setOpenIssuesForPassedTestsCounter(openIssuesForPassedTestsCounter);
-                List<String> newIssue = new ArrayList<>();
-                newIssue.add(className);
-                newIssue.add(methodName);
-                newIssue.add(listOfOpenIssues.get(listOfOpenIssues.size() - 1).get(0));
-                newIssue.add(listOfOpenIssues.get(listOfOpenIssues.size() - 1).get(1));
-                listOfOpenIssuesForPassedTests.add(newIssue);
+                addNewIssue(className, methodName, listOfOpenIssuesForPassedTests);
                 ReportManager.setListOfOpenIssuesForPassedTests(listOfOpenIssuesForPassedTests);
             } else {
                 // confirm already opened issue
                 openIssuesForFailedTestsCounter++;
                 ReportManager.setOpenIssuesForFailedTestsCounter(openIssuesForFailedTestsCounter);
-                List<String> newIssue = new ArrayList<>();
-                newIssue.add(className);
-                newIssue.add(methodName);
-                newIssue.add(listOfOpenIssues.get(listOfOpenIssues.size() - 1).get(0));
-                newIssue.add(listOfOpenIssues.get(listOfOpenIssues.size() - 1).get(1));
-                listOfOpenIssuesForFailedTests.add(newIssue);
+                addNewIssue(className, methodName, listOfOpenIssuesForFailedTests);
                 ReportManager.setListOfOpenIssuesForFailedTests(listOfOpenIssuesForFailedTests);
             }
         } else {
@@ -186,6 +176,15 @@ public class InvokedMethodListener implements IInvokedMethodListener {
                 ReportManager.setListOfNewIssuesForFailedTests(listOfNewIssuesForFailedTests);
             }
         }
+    }
+
+    private void addNewIssue(String className, String methodName, List<List<String>> listOfOpenIssuesForPassedTests) {
+        List<String> newIssue = new ArrayList<>();
+        newIssue.add(className);
+        newIssue.add(methodName);
+        newIssue.add(listOfOpenIssues.get(listOfOpenIssues.size() - 1).get(0));
+        newIssue.add(listOfOpenIssues.get(listOfOpenIssues.size() - 1).get(1));
+        listOfOpenIssuesForPassedTests.add(newIssue);
     }
 
     private String createTestLog(List<String> output) {

@@ -48,12 +48,12 @@ public class ImageProcessingActions {
         throw new IllegalStateException("Utility class");
     }
 
-    public static void compareImageFolders(String refrenceFolderPath, String testFolderPath, double threshhold) {
+    public static void compareImageFolders(String referenceFolderPath, String testFolderPath, double threshhold) {
         // TODO: refactor to minimize File IO actions
         try {
             long fileCounter = 1;
 
-            File refrenceFolder = new File(refrenceFolderPath);
+            File refrenceFolder = new File(referenceFolderPath);
             File testFolder = new File(testFolderPath);
 
             // cleaning processing folders
@@ -62,21 +62,21 @@ public class ImageProcessingActions {
             FileActions.deleteFolder(testFolder.getAbsolutePath() + DIRECTORY_FAILED);
 
             // preparing objects for files
-            File[] refrenceFiles = refrenceFolder.listFiles();
+            File[] referenceFiles = refrenceFolder.listFiles();
             File[] testFiles = testFolder.listFiles();
 
             ReportManager.log("Comparing [" + Objects.requireNonNull(testFiles).length + "] image files from the testFolder ["
-                    + testFolder.getPath() + "] against [" + Objects.requireNonNull(refrenceFiles).length
+                    + testFolder.getPath() + "] against [" + Objects.requireNonNull(referenceFiles).length
                     + "] image files from the referenceFolder [" + testFolder.getPath() + "]");
 
             // sorting objects for files by fileName
-            Arrays.sort(refrenceFiles);
+            Arrays.sort(referenceFiles);
             Arrays.sort(testFiles);
 
             // confirming that the number of screenshots match
-            if (refrenceFiles.length == testFiles.length) {
+            if (referenceFiles.length == testFiles.length) {
                 // copy and rename reference screenshots to a processing directory
-                for (File refrenceScreenshot : refrenceFiles) {
+                for (File refrenceScreenshot : referenceFiles) {
                     FileActions.copyFile(refrenceScreenshot.getAbsolutePath(),
                             refrenceScreenshot.getParent() + DIRECTORY_PROCESSING + fileCounter);
                     fileCounter++;
@@ -93,7 +93,7 @@ public class ImageProcessingActions {
                 }
 
                 // point to the two new processing directories
-                File refrenceProcessingFolder = new File(refrenceFolderPath + DIRECTORY_PROCESSING);
+                File refrenceProcessingFolder = new File(referenceFolderPath + DIRECTORY_PROCESSING);
                 File testProcessingFolder = new File(testFolderPath + DIRECTORY_PROCESSING);
 
                 // preparing objects for files
@@ -105,7 +105,7 @@ public class ImageProcessingActions {
                 }
 
                 // compare images from the test directory against the reference directory
-                compareImageFolders(refrenceFiles, testFiles, testProcessingFiles, refrenceProcessingFolder,
+                compareImageFolders(referenceFiles, testFiles, Objects.requireNonNull(testProcessingFiles), refrenceProcessingFolder,
                         testProcessingFolder, threshhold);
 
                 // cleaning processing folders
@@ -114,13 +114,12 @@ public class ImageProcessingActions {
 
             } else {
                 // fail because the number of screenshots don't match
-                // refrenceFiles.length == testFiles.length
-                ReportManager.log("Number of screenshots  [" + testFiles.length + "] from the test folder ["
-                        + testFolderPath + "] do not match the number of screenshots [" + refrenceFiles.length
-                        + "] from the reference folder [" + refrenceFolderPath + "].");
-                Assert.fail("Number of screenshots  [" + testFiles.length + "] from the test folder [" + testFolderPath
-                        + "] do not match the number of screenshots [" + refrenceFiles.length
-                        + "] from the reference folder [" + refrenceFolderPath + "].");
+                // referenceFiles.length == testFiles.length
+                final String message = "Number of screenshots  [" + testFiles.length + "] from the test folder [" + testFolderPath
+                        + "] do not match the number of screenshots [" + referenceFiles.length
+                        + "] from the reference folder [" + referenceFolderPath + "].";
+                ReportManager.log(message);
+                Assert.fail(message);
             }
 
         } catch (NullPointerException | IOException e) {
@@ -239,6 +238,7 @@ public class ImageProcessingActions {
         }
     }
 
+    @SuppressWarnings("RegExpRedundantEscape")
     public static String formatElementLocatorToImagePath(By elementLocator) {
         String elementFileName = ReportManager.getCallingMethodFullName() + "_" + elementLocator.toString();
         return elementFileName.replaceAll("[\\[\\]\\'\\/:]", "").replaceAll("[\\W\\s]", "_").replaceAll("_{2}", "_")

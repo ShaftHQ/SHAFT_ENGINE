@@ -1,5 +1,6 @@
 package com.shaft.tools.support;
 
+@SuppressWarnings("unused")
 public enum JSHelpers {
     LOAD_JQUERY("/** dynamically load jQuery */\n" + "(function(jqueryUrl, callback) {\n"
             + "    if (typeof jqueryUrl != 'string') {\n"

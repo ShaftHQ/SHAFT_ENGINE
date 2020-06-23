@@ -27,7 +27,6 @@ import io.restassured.specification.RequestSpecification;
 import org.apache.commons.io.IOUtils;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.json.simple.JSONArray;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import org.skyscreamer.jsonassert.JSONCompare;
@@ -46,6 +45,7 @@ import java.util.concurrent.TimeUnit;
 
 import static io.restassured.RestAssured.given;
 
+@SuppressWarnings("unused")
 public class RestActions {
     private static final String ARGUMENTSEPARATOR = "?";
     private static final String ERROR_NOT_FOUND = "Either actual value is \"null\" or couldn't find anything that matches with the desired ";
@@ -53,15 +53,12 @@ public class RestActions {
     private static final String ERROR_INCORRECT_XMLPATH = "Incorrect xmlPath ";
     private static final String ERROR_FAILED_TO_PARSE_JSON = "Failed to parse the JSON document";
     private static int HTTP_SOCKET_TIMEOUT;
-    // timeout between two consecutive data packets in seconds
     private static int HTTP_CONNECTION_TIMEOUT;
-    // timeout until a connection is established in seconds
     private static int HTTP_CONNECTION_MANAGER_TIMEOUT;
     private final Map<String, String> sessionHeaders;
     private final String serviceURI;
     private String headerAuthorization;
     private Map<String, String> sessionCookies;
-    // timeout to wait for an available connection from the connection manager/pool
 
     public RestActions(String serviceURI) {
         initializeSystemProperties(System.getProperty("apiConnectionTimeout") == null);
@@ -133,18 +130,18 @@ public class RestActions {
             failAction(jsonPath, rootCauseException);
         }
         if (searchPool != null) {
-            passAction(jsonPath, true);
+            passAction(jsonPath);
             return searchPool;
         } else {
             ReportManager.logDiscrete(ERROR_NOT_FOUND + "jsonPath [" + jsonPath + "]");
-            passAction(jsonPath, true);
-            return searchPool;
+            passAction(jsonPath);
+            return null;
         }
     }
 
     public static String getResponseJSONValue(Object response, String jsonPath) {
         @SuppressWarnings("unchecked")
-        JSONObject obj = new JSONObject((java.util.HashMap<String, String>) response);
+        JSONObject obj = new JSONObject((HashMap<String, String>) response);
 
         String searchPool = "";
         try {
@@ -157,12 +154,12 @@ public class RestActions {
             failAction(jsonPath, rootCauseException);
         }
         if (searchPool != null) {
-            passAction(jsonPath, true);
+            passAction(jsonPath);
             return searchPool;
         } else {
             ReportManager.logDiscrete(ERROR_NOT_FOUND + "jsonPath [" + jsonPath + "]");
-            passAction(jsonPath, true);
-            return searchPool;
+            passAction(jsonPath);
+            return null;
         }
     }
 
@@ -179,12 +176,12 @@ public class RestActions {
         }
 
         if (searchPool != null) {
-            passAction(jsonPath, true);
+            passAction(jsonPath);
             return searchPool;
         } else {
             ReportManager.logDiscrete(ERROR_NOT_FOUND + "jsonPath [" + jsonPath + "]");
-            passAction(jsonPath, true);
-            return searchPool;
+            passAction(jsonPath);
+            return null;
         }
     }
 
@@ -198,12 +195,12 @@ public class RestActions {
 
         }
         if (searchPool != null) {
-            passAction(xmlPath, true);
+            passAction(xmlPath);
             return searchPool;
         } else {
             ReportManager.logDiscrete(ERROR_NOT_FOUND + "xmlPath [" + xmlPath + "]");
-            passAction(xmlPath, true);
-            return searchPool;
+            passAction(xmlPath);
+            return null;
         }
     }
 
@@ -217,12 +214,12 @@ public class RestActions {
 
         }
         if (output != null) {
-            passAction(xmlPath, true);
+            passAction(xmlPath);
             return output;
         } else {
             ReportManager.logDiscrete(ERROR_NOT_FOUND + "xmlPath [" + xmlPath + "]");
-            passAction(xmlPath, true);
-            return output;
+            passAction(xmlPath);
+            return null;
         }
     }
 
@@ -244,18 +241,18 @@ public class RestActions {
             searchPool = Arrays.asList(nodes.toArray());
         }
         if (searchPool != null) {
-            passAction(xmlPath, true);
+            passAction(xmlPath);
             return searchPool;
         } else {
             ReportManager.logDiscrete(ERROR_NOT_FOUND + "xmlPath [" + xmlPath + "]");
-            passAction(xmlPath, true);
-            return searchPool;
+            passAction(xmlPath);
+            return null;
         }
     }
 
     public static int getResponseStatusCode(Response response) {
         int statusCode = response.getStatusCode();
-        passAction(String.valueOf(statusCode), true);
+        passAction(String.valueOf(statusCode));
         return statusCode;
     }
 
@@ -354,12 +351,12 @@ public class RestActions {
             failAction("Couldn't parse the desired file. [" + referenceJsonFilePath + "].", rootCauseException);
             comparisonResult = false;
         }
-        passAction(referenceJsonFilePath, true, expectedJSONAttachment);
+        passAction(referenceJsonFilePath, expectedJSONAttachment);
         return comparisonResult;
     }
 
     public static String formatXML(String input) {
-        return prettyFormatXML(input, "2");
+        return prettyFormatXML(input);
     }
 
     private static void passAction(String actionName, String testData, Object requestBody, Response response,
@@ -367,19 +364,19 @@ public class RestActions {
         reportActionResult(actionName, testData, requestBody, response, isDiscrete, expectedFileBodyAttachment, true);
     }
 
-    private static void passAction(String testData, Boolean isDiscrete) {
+    private static void passAction(String testData) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        passAction(actionName, testData, null, null, isDiscrete, null);
+        passAction(actionName, testData, null, null, true, null);
     }
 
-    private static void passAction(String testData, Boolean isDiscrete, List<Object> expectedFileBodyAttachment) {
+    private static void passAction(String testData, List<Object> expectedFileBodyAttachment) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        passAction(actionName, testData, null, null, isDiscrete, expectedFileBodyAttachment);
+        passAction(actionName, testData, null, null, true, expectedFileBodyAttachment);
     }
 
-    private static void passAction(String testData, Object requestBody, Response response, Boolean isDiscrete) {
+    private static void passAction(String testData, Object requestBody, Response response) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        passAction(actionName, testData, requestBody, response, isDiscrete, null);
+        passAction(actionName, testData, requestBody, response, false, null);
     }
 
     private static void failAction(String actionName, String testData, Object requestBody, Response response,
@@ -427,7 +424,7 @@ public class RestActions {
             if (requestBody != null && !requestBody.equals(new JsonObject())) {
                 reportRequestBody(requestBody);
             }
-            reportResponseBody(response, isDiscrete);
+            reportResponseBody(response, true);
             ReportManager.logDiscrete(message);
         } else {
             if (requestBody != null && !requestBody.equals(new JsonObject())) {
@@ -468,11 +465,9 @@ public class RestActions {
                         requestBodyAttachment.add("XML Body");
                         break;
                     case 3:
-                        // binary... probably
-                        requestBodyAttachment.add("Body");
-                        break;
                     case 4:
                         // I don't remember... may be binary
+                        // binary... probably
                         requestBodyAttachment.add("Body");
                         break;
                     default:
@@ -508,11 +503,9 @@ public class RestActions {
                         responseBodyAttachment.add("XML Body");
                         break;
                     case 3:
-                        // binary... probably
-                        responseBodyAttachment.add("Body");
-                        break;
                     case 4:
                         // I don't remember... may be binary
+                        // binary... probably
                         responseBodyAttachment.add("Body");
                         break;
                     default:
@@ -526,6 +519,7 @@ public class RestActions {
         return null;
     }
 
+    @SuppressWarnings("UnusedAssignment")
     private static int identifyBodyObjectType(Object body) {
         JSONParser parser = new JSONParser();
         try {
@@ -556,11 +550,6 @@ public class RestActions {
                         .parse(body.toString().replace("\\n", "").replace("\\t", "").replace(" ", ""));
             } else {
                 actualJsonObject = (org.json.simple.JSONObject) parser.parse(body.toString());
-            }
-            if (actualJsonObject != null) {
-                actualJsonObject.toString(); // useless
-            } else if (actualJsonArray != null) {
-                actualJsonArray.toString(); // useless
             }
             return 1; // json
         } catch (Exception e) {
@@ -595,7 +584,7 @@ public class RestActions {
                 if (!bodyString.isEmpty()) {
                     actualJsonObject = (org.json.simple.JSONObject) parser.parse(bodyString);
                 }
-            } catch (java.lang.ClassCastException e) {
+            } catch (ClassCastException e) {
                 // java.lang.ClassCastException: org.json.simple.JSONArray cannot be cast to
                 // org.json.simple.JSONObject
                 String bodyString = ((io.restassured.response.ResponseBody<?>) body).asString();
@@ -639,7 +628,7 @@ public class RestActions {
 
     @SuppressWarnings("unchecked")
     private static boolean compareJSONContains(Response response, org.json.simple.JSONObject expectedJsonObject,
-                                               JSONArray expectedJsonArray, org.json.simple.JSONObject actualJsonObject,
+                                               org.json.simple.JSONArray expectedJsonArray, org.json.simple.JSONObject actualJsonObject,
                                                String jsonPathToTargetArray)
             throws JSONException, ParseException {
         JSONParser parser = new JSONParser();
@@ -672,7 +661,7 @@ public class RestActions {
         }
     }
 
-    private static String prettyFormatXML(String input, String indent) {
+    private static String prettyFormatXML(String input) {
         Source xmlInput = new StreamSource(new StringReader(input));
         StringWriter stringWriter = new StringWriter();
         try {
@@ -681,7 +670,7 @@ public class RestActions {
             Transformer transformer = transformerFactory.newTransformer();
             transformer.setOutputProperty(OutputKeys.INDENT, "yes");
             transformer.setOutputProperty(OutputKeys.DOCTYPE_PUBLIC, "yes");
-            transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", indent);
+            transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
             transformer.transform(xmlInput, new StreamResult(stringWriter));
             return stringWriter.toString().trim();
         } catch (TransformerException e) {
@@ -1096,8 +1085,8 @@ public class RestActions {
             boolean responseStatus = evaluateResponseStatusCode(Objects.requireNonNull(response), targetStatusCode);
             String reportMessage = prepareReportMessage(response, targetStatusCode, requestType, serviceName,
                     contentType, urlArguments);
-            if (!reportMessage.equals("") && Boolean.TRUE.equals(responseStatus)) {
-                passAction(reportMessage, requestBody, response, false);
+            if (!"".equals(reportMessage) && Boolean.TRUE.equals(responseStatus)) {
+                passAction(reportMessage, requestBody, response);
             } else {
                 failAction(reportMessage, requestBody, response);
             }

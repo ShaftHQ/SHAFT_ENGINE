@@ -11,12 +11,10 @@ import io.cucumber.plugin.ConcurrentEventListener;
 import io.cucumber.plugin.event.*;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.function.Supplier;
 
 public class CucumberFeatureListener implements ConcurrentEventListener {
     @Override
@@ -58,12 +56,12 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
         testCase.getTestSteps().forEach(testStep -> {
             String lineSeparator = "\n\t\t";
             if (testStep instanceof HookTestStep) {
-                scenarioSteps.append(lineSeparator + ((HookTestStep) testStep).getHookType().name());
+                scenarioSteps.append(lineSeparator).append(((HookTestStep) testStep).getHookType().name());
             }
 
             if (testStep instanceof PickleStepTestStep) {
                 PickleStepTestStep pickleStepTestStep = (PickleStepTestStep) testStep;
-                scenarioSteps.append(lineSeparator + pickleStepTestStep.getStep().getKeyword() + pickleStepTestStep.getStep().getText());
+                scenarioSteps.append(lineSeparator).append(pickleStepTestStep.getStep().getKeyword()).append(pickleStepTestStep.getStep().getText());
 
             }
         });
@@ -73,28 +71,22 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
         }
         ReportManager.setTestCaseName(testCase.getName());
         ReportManager.setTestCaseDescription(scenarioSteps.toString());
-        ReportManager.logScenarioInformation(testCase.getUri().toString(), testCase.getKeyword(), testCase.getName(), scenarioSteps.toString());
+        ReportManager.logScenarioInformation(testCase.getKeyword(), testCase.getName(), scenarioSteps.toString());
     }
 
     private Optional<Feature> getFeature(URI uri) {
-        FeatureParser featureParser = new FeatureParser(new Supplier<UUID>() {
-            @Override
-            public UUID get() {
-                return new UUID(10, 1);
-            }
-        });
-        Optional<Feature> feature = featureParser.parseResource(new Resource() {
+        FeatureParser featureParser = new FeatureParser(() -> new UUID(10, 1));
+        return featureParser.parseResource(new Resource() {
             @Override
             public URI getUri() {
                 return uri;
             }
 
             @Override
-            public InputStream getInputStream() throws IOException {
+            public InputStream getInputStream() {
                 return new ByteArrayInputStream(FileActions.readFromFile(uri.getPath()).getBytes());
             }
         });
-        return feature;
     }
 
     private void handleTestStepStarted(TestStepStarted event) {

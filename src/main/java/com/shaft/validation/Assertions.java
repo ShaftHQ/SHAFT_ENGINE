@@ -7,6 +7,7 @@ import io.restassured.response.Response;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
+@SuppressWarnings("unused")
 public class Assertions {
 
     private Assertions() {
