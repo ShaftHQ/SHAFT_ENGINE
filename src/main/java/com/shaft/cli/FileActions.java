@@ -438,10 +438,8 @@ public class FileActions {
     @SuppressWarnings("UnusedReturnValue")
     public static File unpackArchive(URL url, String destinationFolderPath) {
         File targetDir = new File(destinationFolderPath);
-        if (!targetDir.exists()) {
-            if (!targetDir.mkdirs()) {
+        if (!targetDir.exists() && !targetDir.mkdirs()) {
                 failAction("file: " + url.toString() + " to directory: " + destinationFolderPath);
-            }
         }
         File unpacked = null;
         try (InputStream in = new BufferedInputStream(url.openStream(), 1024)) {
@@ -582,9 +580,9 @@ public class FileActions {
         } else {
             // remote execution
             String targetOS = System.getProperty("targetOperatingSystem");
-            if (targetOS.equals("Windows-64")) {
+            if ("Windows-64".equals(targetOS)) {
                 return false;
-            } else if (targetOS.equals("Linux-64") || targetOS.equals("Mac-64")) {
+            } else if ("Linux-64".equals(targetOS) || "Linux-64".equals(targetOS)) {
                 return true;
             } else {
                 ReportManager.logDiscrete("Unsupported OS type, will assume it's unix based.");

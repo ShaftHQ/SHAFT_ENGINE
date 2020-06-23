@@ -141,7 +141,7 @@ public class RestActions {
 
     public static String getResponseJSONValue(Object response, String jsonPath) {
         @SuppressWarnings("unchecked")
-        JSONObject obj = new JSONObject((java.util.HashMap<String, String>) response);
+        JSONObject obj = new JSONObject((HashMap<String, String>) response);
 
         String searchPool = "";
         try {
@@ -584,7 +584,7 @@ public class RestActions {
                 if (!bodyString.isEmpty()) {
                     actualJsonObject = (org.json.simple.JSONObject) parser.parse(bodyString);
                 }
-            } catch (java.lang.ClassCastException e) {
+            } catch (ClassCastException e) {
                 // java.lang.ClassCastException: org.json.simple.JSONArray cannot be cast to
                 // org.json.simple.JSONObject
                 String bodyString = ((io.restassured.response.ResponseBody<?>) body).asString();
@@ -1085,7 +1085,7 @@ public class RestActions {
             boolean responseStatus = evaluateResponseStatusCode(Objects.requireNonNull(response), targetStatusCode);
             String reportMessage = prepareReportMessage(response, targetStatusCode, requestType, serviceName,
                     contentType, urlArguments);
-            if (!reportMessage.equals("") && Boolean.TRUE.equals(responseStatus)) {
+            if (!"".equals(reportMessage) && Boolean.TRUE.equals(responseStatus)) {
                 passAction(reportMessage, requestBody, response);
             } else {
                 failAction(reportMessage, requestBody, response);

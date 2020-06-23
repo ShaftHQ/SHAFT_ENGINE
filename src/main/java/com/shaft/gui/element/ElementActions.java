@@ -44,7 +44,6 @@ public class ElementActions {
             .parseBoolean(System.getProperty("forceCheckForElementVisibility").trim());
     private static final String AI_REFERENCE_FILE_NAME = "aiAidedElementIdentificationReferenceDB.properties";
     private static final String OBFUSCATED_STRING = "•";
-    // this will only be used for switching back to default content
     private static WebDriver lastUsedDriver = null;
     private static By aiGeneratedElementLocator = null;
 
@@ -111,44 +110,45 @@ public class ElementActions {
      *                       selector, name ...etc)
      */
     public static void click(WebDriver driver, By elementLocator) {
+        By internalElementLocator = elementLocator;
         // Waits for the element to be clickable, and then clicks it.
-        if (identifyUniqueElement(driver, elementLocator)) {
+        if (identifyUniqueElement(driver, internalElementLocator)) {
             // Override current locator with the aiGeneratedElementLocator
-            elementLocator = updateLocatorWithAIGeneratedOne(elementLocator);
+            internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
 
             String elementText = "";
             try {
                 // attempting to read element text
-                elementText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator,
-                        determineSuccessfulTextLocationStrategy(driver, elementLocator));
+                elementText = readTextBasedOnSuccessfulLocationStrategy(driver, internalElementLocator,
+                        determineSuccessfulTextLocationStrategy(driver, internalElementLocator));
                 // adding hover before clicking an element to enable styles to show in the
                 // execution screenshots and to solve issues clicking on certain elements.
-                performHover(driver, elementLocator);
+                performHover(driver, internalElementLocator);
             } catch (Exception e) {
                 ReportManager.logDiscrete(e);
             }
 
-            List<Object> screenshot = takeScreenshot(driver, elementLocator, "click", null, true);
+            List<Object> screenshot = takeScreenshot(driver, internalElementLocator, "click", null, true);
             // takes screenshot before clicking the element out of view
             try {
                 // wait for element to be clickable
                 (new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER))
-                        .until(ExpectedConditions.elementToBeClickable(elementLocator));
+                        .until(ExpectedConditions.elementToBeClickable(internalElementLocator));
             } catch (TimeoutException e) {
                 ReportManager.logDiscrete(e);
             }
 
             try {
-                driver.findElement(elementLocator).click();
+                driver.findElement(internalElementLocator).click();
             } catch (Exception exception1) {
                 try {
                     ((JavascriptExecutor) driver).executeScript("arguments[arguments.length - 1].click();",
-                            driver.findElement(elementLocator));
+                            driver.findElement(internalElementLocator));
                 } catch (Exception rootCauseException) {
                     rootCauseException.initCause(exception1);
                     ReportManager.log(exception1);
                     ReportManager.log(rootCauseException);
-                    failAction(driver, elementLocator, rootCauseException);
+                    failAction(driver, internalElementLocator, rootCauseException);
                 }
             }
             // issue: if performing a navigation after clicking on the login button,
@@ -159,12 +159,12 @@ public class ElementActions {
             // removed to enhance performance, and replaced with a process to assert after
             // every navigation
             if (elementText != null && !elementText.equals("")) {
-                passAction(driver, elementLocator, elementText.replaceAll("\n", " "), screenshot);
+                passAction(driver, internalElementLocator, elementText.replaceAll("\n", " "), screenshot);
             } else {
-                passAction(driver, elementLocator, screenshot);
+                passAction(driver, internalElementLocator, screenshot);
             }
         } else {
-            failAction(driver, elementLocator);
+            failAction(driver, internalElementLocator);
         }
     }
 
@@ -460,7 +460,7 @@ public class ElementActions {
                 String elementAttribute = driver.findElement(elementLocator).getAttribute(attributeName);
                 passAction(driver, elementLocator, elementAttribute);
                 return elementAttribute;
-            } catch (org.openqa.selenium.UnsupportedCommandException rootCauseException) {
+            } catch (UnsupportedCommandException rootCauseException) {
                 failAction(driver, elementLocator, rootCauseException);
                 return null;
             }
@@ -1488,11 +1488,11 @@ public class ElementActions {
         }
 
         TextDetectionStrategy successfulTextLocationStrategy;
-        if (!text.equals("")) {
+        if (!"".equals(text)) {
             successfulTextLocationStrategy = TextDetectionStrategy.TEXT;
-        } else if (!content.equals("")) {
+        } else if (!"".equals(content)) {
             successfulTextLocationStrategy = TextDetectionStrategy.CONTENT;
-        } else if (value != null && !value.equals("")) {
+        } else if (value != null && !"".equals(value)) {
             successfulTextLocationStrategy = TextDetectionStrategy.VALUE;
         } else {
             successfulTextLocationStrategy = TextDetectionStrategy.UNDEFINED;
@@ -1894,7 +1894,7 @@ public class ElementActions {
             if (!successfulTextLocationStrategy.equals(TextDetectionStrategy.UNDEFINED)) {
                 clearBeforeTyping(driver, elementLocator, successfulTextLocationStrategy);
             }
-            if (!targetText.equals("")) {
+            if (!"".equals(targetText)) {
                 performType(driver, elementLocator, targetText);
             }
             if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckTextWasTypedCorrectly")))) {

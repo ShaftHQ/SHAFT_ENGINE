@@ -424,8 +424,8 @@ public class BrowserActions {
         Dimension initialWindowSize = driver.manage().window().getSize();
         ReportManager.logDiscrete("Initial Windows Size: " + initialWindowSize.width + "x" + initialWindowSize.height);
 
-        if (!System.getProperty("executionAddress").trim().toLowerCase().equals("local")
-                && System.getProperty("headlessExecution").trim().toLowerCase().equals("true")) {
+        if (!System.getProperty("executionAddress").trim().equalsIgnoreCase("local")
+                && System.getProperty("headlessExecution").trim().equalsIgnoreCase("true")) {
             maximizeWindow(driver);
         } else {
             driver.manage().window().fullscreen();
@@ -543,9 +543,9 @@ public class BrowserActions {
 
     private static Dimension attemptMaximizeUsingSeleniumWebDriver(WebDriver driver, String executionAddress,
                                                                    String targetBrowserName, String targetOperatingSystem) {
-        if ((!executionAddress.equals("local") && !targetBrowserName.equals("GoogleChrome"))
-                || (executionAddress.equals("local")
-                && !(targetBrowserName.equals("GoogleChrome") && targetOperatingSystem.equals("Mac-64")))) {
+        if ((!"local".equals(executionAddress) && !"GoogleChrome".equals(targetBrowserName))
+                || ("local".equals(executionAddress)
+                && !("GoogleChrome".equals(targetBrowserName) && "Mac-64".equals(targetOperatingSystem)))) {
             try {
                 driver.manage().window().maximize();
                 ReportManager.logDiscrete(

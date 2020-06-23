@@ -4,7 +4,7 @@
 ### Badges:
 - Continuous Integration Status - Install: ![Ubuntu - Install](https://github.com/MohabMohie/SHAFT_ENGINE/workflows/Ubuntu%20-%20Install/badge.svg)
 - Continuous Integration Status - Test: ![Ubuntu - Test](https://github.com/MohabMohie/SHAFT_ENGINE/workflows/Ubuntu%20-%20Test/badge.svg) 
-- Code Quality - Codacy: [![Codacy Badge](https://api.codacy.com/project/badge/Grade/96f62023e1fb4e9295f2e2ce0e9e9950)](https://www.codacy.com/manual/mohab.mohieeldeen/SHAFT_ENGINE?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=MohabMohie/SHAFT_ENGINE&amp;utm_campaign=Badge_Grade)
+- Code Quality - Codacy: [![Codacy Badge](https://app.codacy.com/project/badge/Grade/3579cfd02a2c4f67bd1dce5dad0b1562)](https://www.codacy.com/manual/mohab.mohieeldeen/SHAFT_ENGINE?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=MohabMohie/SHAFT_ENGINE&amp;utm_campaign=Badge_Grade)
 - Latest In-house release [ ![BinTray](https://api.bintray.com/packages/mohabmohie/SHAFT/SHAFT_Engine/images/download.svg) ](https://bintray.com/mohabmohie/SHAFT/SHAFT_Engine/_latestVersion)
 - Latest Central Maven Repository release [![Maven Central](https://img.shields.io/maven-central/v/io.github.mohabmohie/SHAFT_ENGINE.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22io.github.mohabmohie%22%20AND%20a:%22SHAFT_ENGINE%22)
 
