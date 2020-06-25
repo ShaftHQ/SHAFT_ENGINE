@@ -5,9 +5,7 @@ import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.validation.Assertions;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
-import org.testng.annotations.AfterGroups;
-import org.testng.annotations.BeforeGroups;
-import org.testng.annotations.Test;
+import org.testng.annotations.*;
 
 public class Test_NewValidationActions {
     WebDriver driver;
@@ -327,15 +325,16 @@ public class Test_NewValidationActions {
         }
     }
 
-    @BeforeGroups(groups = {"browserBasedTests"})
+    @BeforeMethod(onlyForGroups = {"browserBasedTests"})
     public void openBrowser() {
         driver = BrowserFactory.getBrowser();
         BrowserActions.navigateToURL(driver, "https://the-internet.herokuapp.com/");
     }
 
-    @AfterGroups(groups = {"browserBasedTests"})
+    @AfterMethod(onlyForGroups = {"browserBasedTests"})
     public void closeBrowser() {
         BrowserFactory.closeAllDrivers();
     }
+
 }
 
