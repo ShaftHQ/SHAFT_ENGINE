@@ -10,6 +10,7 @@ import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.support.ui.ExpectedCondition;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
+import java.time.Duration;
 import java.util.Objects;
 
 public class JavaScriptWaitManager {
@@ -18,6 +19,7 @@ public class JavaScriptWaitManager {
     private static final ThreadLocal<WebDriver> jsWaitDriver = new ThreadLocal<>();
     private static final int delayBetweenPolls = 20; // milliseconds
     private static JavascriptExecutor jsExec;
+    private static final Duration WAIT_DURATION = Duration.ofSeconds(WAIT_DURATION_INTEGER);
 
     private JavaScriptWaitManager() {
         throw new IllegalStateException("Utility class");
@@ -71,6 +73,8 @@ public class JavaScriptWaitManager {
                     try {
                         // Wait for jQuery to load
                         (new WebDriverWait(jsWaitDriver.get(), WAIT_DURATION_INTEGER)).until(jQueryLoad);
+//                        ExpectedCondition<Boolean> finalJQueryLoad = jQueryLoad;
+//                        (new WebDriverWait(jsWaitDriver.get(), WAIT_DURATION)).until(waitDriver-> finalJQueryLoad);
                     } catch (NullPointerException e) {
                         // do nothing
                     }
@@ -100,6 +104,8 @@ public class JavaScriptWaitManager {
             while ((!angularReady) && (tryCounter < 5)) {
                 // Wait for Angular to load
                 (new WebDriverWait(jsWaitDriver.get(), WAIT_DURATION_INTEGER)).until(angularLoad);
+//                ExpectedCondition<Boolean> finalAngularLoad = angularLoad;
+//                (new WebDriverWait(jsWaitDriver.get(), WAIT_DURATION)).until(waitDriver-> finalAngularLoad);
                 // More Wait for stability (Optional)
                 sleep();
                 tryCounter++;
@@ -128,6 +134,8 @@ public class JavaScriptWaitManager {
                 // Wait for Javascript to load
                 try {
                     (new WebDriverWait(jsWaitDriver.get(), WAIT_DURATION_INTEGER)).until(jsLoad);
+//                    ExpectedCondition<Boolean> finalJsLoad = jsLoad;
+//                    (new WebDriverWait(jsWaitDriver.get(), WAIT_DURATION)).until(waitDriver-> finalJsLoad);
                 } catch (org.openqa.selenium.TimeoutException e) {
                     //do nothing
                     //TODO: confirm that this fixed the timeout issue on the grid
