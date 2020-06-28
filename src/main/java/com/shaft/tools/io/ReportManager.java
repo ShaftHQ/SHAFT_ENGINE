@@ -370,7 +370,7 @@ public class ReportManager {
             } else {
                 commandToOpenAllureReport = ("sh generate_allure_report.sh");
             }
-            new TerminalActions().performTerminalCommand(commandToOpenAllureReport);
+            new TerminalActions(true).performTerminalCommand(commandToOpenAllureReport);
         }
     }
 
