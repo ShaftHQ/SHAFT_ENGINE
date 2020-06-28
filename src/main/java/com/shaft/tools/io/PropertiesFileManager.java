@@ -49,7 +49,12 @@ public class PropertiesFileManager {
             }
 
             // read properties form the base properties file
-            readPropertyFiles(System.getProperty(CUSTOM_PROPERTIES_FOLDER_PROPERTY_NAME));
+            String basePropertiesPath = System.getProperty(CUSTOM_PROPERTIES_FOLDER_PROPERTY_NAME);
+            if (basePropertiesPath != null) {
+                readPropertyFiles(basePropertiesPath);
+            } else {
+                readPropertyFiles("src/test/resources/Properties");
+            }
 
             // This section set the default properties values for Execution/path/pattern
             readPropertyFiles(getDefaultPropertiesFolderPath());
@@ -83,7 +88,7 @@ public class PropertiesFileManager {
                     // unpacks default properties to target folder
                     URL url = new URL(propertiesFolderPath.substring(0, propertiesFolderPath.indexOf("!")));
                     FileActions.unpackArchive(url, "target/");
-                    propertiesFolderPath = "target/defaultProperties/";
+                    propertiesFolderPath = "target/resources/defaultProperties/";
                 }
                 // reading regular files
                 Collection<File> propertiesFilesList;
@@ -109,7 +114,7 @@ public class PropertiesFileManager {
 
     // TODO: create directory under src/test/resources and write the default
     public static String getDefaultPropertiesFolderPath() {
-        URL propertiesFolder = PropertiesFileManager.class.getResource("/defaultProperties/");
+        URL propertiesFolder = PropertiesFileManager.class.getResource("/resources/defaultProperties/");
         //ClassLoader clsLoader = PropertiesFileManager.class.getClassLoader();
         //InputStream propertiesFolder =  clsLoader.getResourceAsStream("/defaultProperties/");
 

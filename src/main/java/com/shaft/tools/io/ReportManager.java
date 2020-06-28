@@ -254,7 +254,6 @@ public class ReportManager {
      */
     public static void log(Throwable t) {
         String logText;
-
         logText = formatStackTraceToLogEntry(t);
         if (t.getMessage() != null) {
             ReportManager.log("An Exception Occured with this Message: " + t.getMessage().split("\n")[0].trim() + ".",
@@ -267,13 +266,21 @@ public class ReportManager {
     }
 
     public static String formatStackTraceToLogEntry(Throwable t) {
+        return formatStackTraceToLogEntry(t, false);
+    }
+
+    private static String formatStackTraceToLogEntry(Throwable t, boolean isCause) {
         StringBuilder logBuilder = new StringBuilder();
-        StackTraceElement[] trace = t.getStackTrace();
-
-        logBuilder.append(t.getClass().getName()).append(":").append(System.lineSeparator()).append(t.getMessage()).append(System.lineSeparator());
-
-        for (StackTraceElement stackTraceElement : trace) {
-            logBuilder.append(stackTraceElement.toString()).append(System.lineSeparator());
+        if (t !=null){
+            StackTraceElement[] trace = t.getStackTrace();
+            if (isCause){
+                logBuilder.append(System.lineSeparator()).append("Caused by: ");
+            }
+            logBuilder.append(t.getClass().getName()).append(":").append(System.lineSeparator()).append(t.getMessage()).append(System.lineSeparator());
+            for (StackTraceElement stackTraceElement : trace) {
+                logBuilder.append(stackTraceElement.toString()).append(System.lineSeparator());
+            }
+            logBuilder.append(formatStackTraceToLogEntry(t.getCause(), true));
         }
         return logBuilder.toString();
     }
@@ -639,7 +646,7 @@ public class ReportManager {
                     "target" + File.separator + "allureBinary.zip");
             FileActions.unpackArchive(allureArchive, allureExtractionLocation);
             // extract allure from SHAFT_Engine jar
-            URL allureSHAFTConfigArchive = ReportManager.class.getResource("/allure/allureBinary_SHAFTEngineConfigFiles.zip");
+            URL allureSHAFTConfigArchive = ReportManager.class.getResource("/resources/allure/allureBinary_SHAFTEngineConfigFiles.zip");
             FileActions.unpackArchive(allureSHAFTConfigArchive,
                     allureExtractionLocation + "allure-" + allureVersion + File.separator);
 
