@@ -439,7 +439,7 @@ public class FileActions {
     public static File unpackArchive(URL url, String destinationFolderPath) {
         File targetDir = new File(destinationFolderPath);
         if (!targetDir.exists() && !targetDir.mkdirs()) {
-                failAction("file: " + url.toString() + " to directory: " + destinationFolderPath);
+            failAction("file: " + url.toString() + " to directory: " + destinationFolderPath);
         }
         File unpacked = null;
         try (InputStream in = new BufferedInputStream(url.openStream(), 1024)) {

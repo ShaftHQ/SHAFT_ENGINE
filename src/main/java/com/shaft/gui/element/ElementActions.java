@@ -134,6 +134,8 @@ public class ElementActions {
                 // wait for element to be clickable
                 (new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER))
                         .until(ExpectedConditions.elementToBeClickable(internalElementLocator));
+//                By finalInternalElementLocator = internalElementLocator;
+//                new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT).until(waitDriver -> ExpectedConditions.elementToBeClickable(finalInternalElementLocator));
             } catch (TimeoutException e) {
                 ReportManager.logDiscrete(e);
             }
@@ -180,9 +182,10 @@ public class ElementActions {
         if (identifyUniqueElement(driver, internalElementLocator)) {
             // Override current locator with the aiGeneratedElementLocator
             internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
-
             (new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER))
                     .until(ExpectedConditions.elementToBeClickable(internalElementLocator));
+//            By finalInternalElementLocator = internalElementLocator;
+//            new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT).until(waitDriver -> ExpectedConditions.elementToBeClickable(finalInternalElementLocator));
             // wait for element to be clickable
             passAction(driver, internalElementLocator);
             (new Actions(driver)).clickAndHold(driver.findElement(internalElementLocator)).build().perform();
@@ -825,9 +828,10 @@ public class ElementActions {
                 && driver.findElement(internalElementLocator).isEnabled()) {
             // Override current locator with the aiGeneratedElementLocator
             internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
-
             (new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER))
                     .until(ExpectedConditions.elementToBeClickable(internalElementLocator));
+//            By finalInternalElementLocator = internalElementLocator;
+//            new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT).until(waitDriver -> ExpectedConditions.elementToBeClickable(finalInternalElementLocator));
             // wait for element to be clickable
             passAction(driver, internalElementLocator);
             return true;
@@ -962,6 +966,8 @@ public class ElementActions {
             try {
                 (new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER))
                         .until(ExpectedConditions.not(ExpectedConditions.textToBe(internalElementLocator, "")));
+//                By finalInternalElementLocator = internalElementLocator;
+//                new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT).until(waitDriver -> ExpectedConditions.not(ExpectedConditions.textToBe(finalInternalElementLocator, "")));
             } catch (Exception rootCauseException) {
                 ReportManager.log(rootCauseException);
                 failAction(driver, "waited for (" + DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT.getSeconds() + ") seconds", internalElementLocator, rootCauseException);
@@ -1335,6 +1341,8 @@ public class ElementActions {
             try {
                 (new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER * (long) numberOfTries))
                         .until(ExpectedConditions.not(ExpectedConditions.textToBe(internalElementLocator, initialValue)));
+//                By finalInternalElementLocator = internalElementLocator;
+//                new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT).until(waitDriver -> ExpectedConditions.not(ExpectedConditions.textToBe(finalInternalElementLocator, initialValue)));
             } catch (Exception rootCauseException) {
                 ReportManager.log(rootCauseException);
                 failAction(driver, "waited for (" + DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT.getSeconds() * numberOfTries
@@ -1440,6 +1448,7 @@ public class ElementActions {
             try {
                 (new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER))
                         .until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
+//                new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT).until(waitDriver -> ExpectedConditions.visibilityOfElementLocated(elementLocator));
             } catch (TimeoutException rootCauseException) {
                 ReportManager.log(rootCauseException);
                 failAction(driver, "unique element matching this locator \"" + elementLocator + "\" is not visible.",
@@ -2010,8 +2019,7 @@ public class ElementActions {
     }
 
     /**
-     * Drags the source element and drops it onto the destination element using
-     * javascript
+     * Drags the source element and drops it onto the destination element
      *
      * @param sourceElementLocator      the locator of the source webElement that
      *                                  should be dragged under test (By xpath, id,

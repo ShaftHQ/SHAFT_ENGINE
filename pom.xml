@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.mohabmohie</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>4.3.20200621</version>
+    <version>4.3.20200629</version>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
     <url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
@@ -29,33 +29,14 @@
     </scm>
 
     <properties>
-        <shaft_engine.version>${project.artifactId}-${project.version}</shaft_engine.version>
-        <!-- SHAFT_Engine Properties and other property files are read from the
-            below location -->
-        <propertiesFolderPath>src/test/resources/Properties/</propertiesFolderPath>
-        <propertiesFolderPath_jenkins></propertiesFolderPath_jenkins>
-
-        <org.slf4j.simpleLogger.defaultLogLevel>info</org.slf4j.simpleLogger.defaultLogLevel>
-        <!-- "trace", "debug", "info", "warn", "error" or "off" -->
-        <!-- http://www.slf4j.org/apidocs/org/slf4j/simple/SimpleLogger.html -->
-
-        <!-- SHAFT Test Run Parameters -->
-        <customListeners.list>
-            com.shaft.tools.listeners.AlterSuiteListener,com.shaft.tools.listeners.SuiteListener,com.shaft.tools.listeners.InvokedMethodListener
-        </customListeners.list>
-        <testSuite.name>unitTestSuite</testSuite.name>
-
         <!-- Dependencies and Plug-ins Version Numbers Parameters -->
-        <encoding.type>UTF-8</encoding.type>
-        <jdk.version>14</jdk.version>
-
         <selenium.version>4.0.0-alpha-6</selenium.version>
         <appium-selenium.version>3.141.59</appium-selenium.version>
         <appium-java-client.version>7.3.0</appium-java-client.version>
 
         <webdrivermanager.version>4.0.0</webdrivermanager.version>
-        <allure-testng.version>2.13.3</allure-testng.version> <!-- UPDATE path.properties -->
-        <aspectj.version>1.9.5</aspectj.version> <!-- 1.9.5 DO NOT UPDATE -->
+        <allure-testng.version>2.13.3</allure-testng.version> <!-- UPDATE internal.properties -->
+        <aspectj.version>1.9.5</aspectj.version> <!-- 1.9.5 DO NOT UPDATE (Search and replace) -->
 
         <rest-assured.version>4.3.0</rest-assured.version>
         <json-simple.version>1.1.1</json-simple.version>
@@ -83,7 +64,7 @@
 
         <jcraft-jsch.version>0.1.55</jcraft-jsch.version>
 
-        <cucumber.version>6.1.1</cucumber.version>
+        <cucumber.version>6.1.2</cucumber.version>
         <cverges-expect4j.version>1.9</cverges-expect4j.version>
 
         <openpnp-opencv.version>4.3.0-2</openpnp-opencv.version>
@@ -111,7 +92,7 @@
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-java</artifactId>
             <version>${appium-selenium.version}</version>
-<!--            <version>${selenium.version}</version>-->
+            <!--<version>${selenium.version}</version>-->
         </dependency>
 
         <!-- APPIUM -->
@@ -391,12 +372,12 @@
     <build>
         <resources>
             <resource>
-                <directory>src/main/resources</directory>
-                <targetPath>${project.basedir}/target/resources</targetPath>
+                <directory>${project.basedir}/src/main/resources</directory>
+                <targetPath>${project.basedir}/target/classes/resources</targetPath>
             </resource>
             <resource>
-                <directory>${project.basedir}/src/main/javadoc</directory><!-- from -->
-                <targetPath>${project.reporting.outputDirectory}</targetPath><!-- to -->
+                <directory>${project.basedir}/src/main/javadoc</directory>
+                <targetPath>${project.reporting.outputDirectory}</targetPath>
             </resource>
         </resources>
 
@@ -407,9 +388,9 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${maven-compiler-plugin.version}</version>
                 <configuration>
-                    <source>${jdk.version}</source>
-                    <target>${jdk.version}</target>
-                    <encoding>${encoding.type}</encoding>
+                    <source>14</source>
+                    <target>14</target>
+                    <encoding>UTF-8</encoding>
                     <maxmem>10240m</maxmem>
                     <meminitial>10240m</meminitial>
                 </configuration>
@@ -421,19 +402,10 @@
                 <configuration>
                     <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
                     <failIfNoTests>false</failIfNoTests>
-                    <systemPropertyVariables>
-                        <org.slf4j.simpleLogger.defaultLogLevel>${org.slf4j.simpleLogger.defaultLogLevel}
-                        </org.slf4j.simpleLogger.defaultLogLevel>
-                        <shaftEngineVersion>${shaft_engine.version}</shaftEngineVersion>
-                        <propertiesFolderPath>${propertiesFolderPath}</propertiesFolderPath>
-                        <propertiesFolderPath_jenkins>${propertiesFolderPath_jenkins}</propertiesFolderPath_jenkins>
-                    </systemPropertyVariables>
-                    <!-- <suiteXmlFiles> -->
-                    <!-- <suiteXmlFile>src\test\resources\TestSuites\${testSuite.name}.xml</suiteXmlFile> -->
-                    <!-- </suiteXmlFiles> -->
-                    <encoding>${encoding.type}</encoding>
+                    <encoding>UTF-8</encoding>
                     <argLine>
-                        -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"
+                        -Dtestng.dtd.http=true
+                        -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.5/aspectjweaver-1.9.5.jar"
                     </argLine>
                     <properties>
                         <property>
@@ -442,7 +414,7 @@
                         </property>
                         <property>
                             <name>listener</name>
-                            <value>${customListeners.list}</value>
+                            <value>com.shaft.tools.listeners.AlterSuiteListener,com.shaft.tools.listeners.SuiteListener,com.shaft.tools.listeners.InvokedMethodListener,com.shaft.tools.listeners.CucumberFeatureListener</value>
                         </property>
                     </properties>
                 </configuration>
@@ -450,7 +422,7 @@
                     <dependency>
                         <groupId>org.aspectj</groupId>
                         <artifactId>aspectjweaver</artifactId>
-                        <version>${aspectj.version}</version>
+                        <version>1.9.5</version>
                     </dependency>
                 </dependencies>
             </plugin>
@@ -459,20 +431,16 @@
                 <artifactId>maven-jar-plugin</artifactId>
                 <version>${maven-jar-plugin.version}</version>
                 <configuration>
+                    <classesDirectory>target/classes</classesDirectory>
                     <archive>
                         <manifest>
-                           <addClasspath>true</addClasspath>
+                            <addClasspath>true</addClasspath>
                         </manifest>
                     </archive>
-                    <excludes>
-                        <exclude>test/**</exclude>
-                        <exclude>**/CucumberFeatures/**</exclude>
-                        <exclude>**/TestDataFiles/**</exclude>
-                        <exclude>**/TestJsonFiles/**</exclude>
-                        <exclude>**/TestSuites/**</exclude>
-                        <exclude>test-output/**</exclude>
-                        <exclude>allure-results/**</exclude>
-                    </excludes>
+                    <includes>
+                        <include>com/**/*</include>
+                        <include>resources/**/*</include>
+                    </includes>
                 </configuration>
             </plugin>
             <plugin>
@@ -483,7 +451,7 @@
                     <sourcepath>
                         ${project.basedir}/src/main/java;${project.basedir}/target/generated-sources/annotations
                     </sourcepath>
-                    <encoding>${encoding.type}</encoding>
+                    <encoding>UTF-8</encoding>
                     <failOnError>false</failOnError>
                     <show>public</show>
                     <nohelp>true</nohelp>
@@ -507,7 +475,7 @@
                 <configuration>
                     <checkoutDirectory>${project.basedir}/../SHAFT_ENGINE_apidocs</checkoutDirectory>
                     <tryUpdate>true</tryUpdate>
-                    <siteOutputEncoding>${encoding.type}</siteOutputEncoding>
+                    <siteOutputEncoding>UTF-8</siteOutputEncoding>
                     <checkinComment>Publishing javadoc for ${project.artifactId}:${project.version}</checkinComment>
                     <content>${project.reporting.outputDirectory}</content>
                     <skipDeletedFiles>true</skipDeletedFiles>
@@ -544,7 +512,7 @@
                 <artifactId>maven-resources-plugin</artifactId>
                 <version>${maven-resources-plugin.version}</version>
                 <configuration>
-                    <encoding>${encoding.type}</encoding>
+                    <encoding>UTF-8</encoding>
                     <outputDirectory>target/classes</outputDirectory>
                 </configuration>
             </plugin>
