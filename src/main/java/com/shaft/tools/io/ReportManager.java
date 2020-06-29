@@ -198,7 +198,7 @@ public class ReportManager {
         createImportantReportEntry("Starting Execution:\t[" + testCasesCounter + " out of " + totalNumberOfTests
                         + "] scenarios in the [" + featureName + "] feature"
                         + "\n" + keyword + " Name:\t\t[" + name
-                        + "]\n" + keyword + " Steps:" + steps,
+                        + "]\n" + keyword + " Steps:\n" + steps,
                 false);
     }
 

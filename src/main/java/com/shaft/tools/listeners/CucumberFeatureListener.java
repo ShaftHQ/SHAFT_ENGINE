@@ -54,19 +54,23 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
     private void handleTestCaseStarted(TestCaseStarted event) {
         TestCase testCase = event.getTestCase();
         StringBuilder scenarioSteps = new StringBuilder();
-        String lineSeparator = "<br>";
+        StringBuilder cleanScenarioSteps = new StringBuilder();
         testCase.getTestSteps().forEach(testStep -> {
             if (testStep instanceof HookTestStep) {
-                scenarioSteps.append(lineSeparator).append(((HookTestStep) testStep).getHookType().name());
+                scenarioSteps.append(((HookTestStep) testStep).getHookType().name()).append("<br/>");
+                cleanScenarioSteps.append(((HookTestStep) testStep).getHookType().name()).append(System.lineSeparator());
             }
 
             if (testStep instanceof PickleStepTestStep) {
                 PickleStepTestStep pickleStepTestStep = (PickleStepTestStep) testStep;
-                scenarioSteps.append(lineSeparator)
-                        .append("<b style=\"color:ForestGreen;\">")
+                scenarioSteps.append("<b style=\"color:ForestGreen;\">")
                         .append(pickleStepTestStep.getStep().getKeyword())
                         .append("</b>")
-                        .append(pickleStepTestStep.getStep().getText());
+                        .append(pickleStepTestStep.getStep().getText())
+                        .append("<br/>");
+                cleanScenarioSteps.append(pickleStepTestStep.getStep().getKeyword())
+                        .append(pickleStepTestStep.getStep().getText())
+                        .append(System.lineSeparator());
             }
         });
         Optional<Feature> feature = getFeature(testCase.getUri());
@@ -75,7 +79,7 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
         }
         ReportManager.setTestCaseName(testCase.getName());
         ReportManager.setTestCaseDescription(scenarioSteps.toString());
-        ReportManager.logScenarioInformation(testCase.getKeyword(), testCase.getName(), scenarioSteps.toString());
+        ReportManager.logScenarioInformation(testCase.getKeyword(), testCase.getName(), cleanScenarioSteps.toString());
     }
 
     private Optional<Feature> getFeature(URI uri) {
