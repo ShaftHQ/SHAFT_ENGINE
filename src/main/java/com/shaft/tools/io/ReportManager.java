@@ -269,22 +269,6 @@ public class ReportManager {
         return formatStackTraceToLogEntry(t, false);
     }
 
-    private static String formatStackTraceToLogEntry(Throwable t, boolean isCause) {
-        StringBuilder logBuilder = new StringBuilder();
-        if (t !=null){
-            StackTraceElement[] trace = t.getStackTrace();
-            if (isCause){
-                logBuilder.append(System.lineSeparator()).append("Caused by: ");
-            }
-            logBuilder.append(t.getClass().getName()).append(":").append(System.lineSeparator()).append(t.getMessage()).append(System.lineSeparator());
-            for (StackTraceElement stackTraceElement : trace) {
-                logBuilder.append(stackTraceElement.toString()).append(System.lineSeparator());
-            }
-            logBuilder.append(formatStackTraceToLogEntry(t.getCause(), true));
-        }
-        return logBuilder.toString();
-    }
-
     public static void logDiscrete(String logText) {
         createLogEntry(logText);
     }
@@ -437,6 +421,22 @@ public class ReportManager {
     protected static void logClosureActivitiesInitialization() {
         String closureActivities = "Test Closure Activities";
         createImportantReportEntry(closureActivities, true);
+    }
+
+    private static String formatStackTraceToLogEntry(Throwable t, boolean isCause) {
+        StringBuilder logBuilder = new StringBuilder();
+        if (t != null) {
+            StackTraceElement[] trace = t.getStackTrace();
+            if (isCause) {
+                logBuilder.append(System.lineSeparator()).append("Caused by: ");
+            }
+            logBuilder.append(t.getClass().getName()).append(":").append(System.lineSeparator()).append(t.getMessage()).append(System.lineSeparator());
+            for (StackTraceElement stackTraceElement : trace) {
+                logBuilder.append(stackTraceElement.toString()).append(System.lineSeparator());
+            }
+            logBuilder.append(formatStackTraceToLogEntry(t.getCause(), true));
+        }
+        return logBuilder.toString();
     }
 
     private static void createLogEntry(String logText) {
