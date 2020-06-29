@@ -2,9 +2,7 @@ package com.shaft.cucumber;
 
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.BrowserFactory;
-import com.shaft.validation.Assertions;
 import io.cucumber.java.en.Given;
-import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.openqa.selenium.WebDriver;
 
@@ -14,7 +12,7 @@ public class BrowserSteps {
     public BrowserSteps(ThreadLocal<WebDriver> driver) {
         if (driver == null) {
             this.driver = new ThreadLocal<>();
-        }else {
+        } else {
             this.driver = driver;
         }
     }
@@ -23,7 +21,8 @@ public class BrowserSteps {
      * Read the target browser value from the execution.properties file
      */
     @Given("I Open the target browser")
-    public void browserFactoryGetBrowser() {
+//    @بفرض("انى قمت بفتح المتصفح المطلوب")
+    public void getBrowser() {
         driver.set(BrowserFactory.getBrowser());
     }
 
@@ -33,7 +32,8 @@ public class BrowserSteps {
      * @param targetUrl a string that represents the URL that you wish to navigate to
      */
     @When("I Navigate to {string}")
-    public void browserActionsNavigateToURL(String targetUrl) {
+//    @عندما("اقوم بزيارة هذا الموقع {string}")
+    public void navigateToURL(String targetUrl) {
         BrowserActions.navigateToURL(driver.get(), targetUrl);
     }
 
@@ -46,7 +46,7 @@ public class BrowserSteps {
      * @param targetUrlAfterRedirection a string that represents a part of the url that should be present after redirection, this string is used to confirm successful navigation
      */
     @When("I Navigate to {string} and get redirected to {string}")
-    public void browserActionsNavigateToURL(String targetUrl, String targetUrlAfterRedirection) {
+    public void navigateToURL(String targetUrl, String targetUrlAfterRedirection) {
         BrowserActions.navigateToURL(driver.get(), targetUrl, targetUrlAfterRedirection);
     }
 
@@ -54,7 +54,7 @@ public class BrowserSteps {
      * Navigates one step back from the browsers history
      */
     @When("I Navigate back")
-    public void browserActionsNavigateBack() {
+    public void navigateBack() {
         BrowserActions.navigateBack(driver.get());
     }
 
@@ -62,27 +62,27 @@ public class BrowserSteps {
      * Navigates one step forward from the browsers history
      */
     @When("I Navigate forward")
-    public void browserActionsNavigateForward() {
+    public void navigateForward() {
         BrowserActions.navigateForward(driver.get());
     }
 
     @When("I Maximize the current window")
-    public void browserActionsMaximizeWindow() {
+    public void maximizeWindow() {
         BrowserActions.maximizeWindow(driver.get());
     }
 
     @When("I Resize the current window size to {int} width * {int} height")
-    public void browserActionsSetWindowSize(int width, int height) {
+    public void setWindowSize(int width, int height) {
         BrowserActions.setWindowSize(driver.get(), width, height);
     }
 
     @When("I Full Screen the current window")
-    public void browserActionsFullScreenWindow() {
+    public void fullScreenWindow() {
         BrowserActions.fullScreenWindow(driver.get());
     }
 
     @When("I Refresh the current window")
-    public void browserActionsRefreshCurrentPage() {
+    public void refreshCurrentPage() {
         BrowserActions.refreshCurrentPage(driver.get());
     }
 
@@ -90,21 +90,8 @@ public class BrowserSteps {
      * Closes the current browser window
      */
     @When("I Close the current window")
-    public void browserActionsCloseCurrentWindow() {
+//    @عندما("اقوم بغلق نافذة المتصفح الحالية")
+    public void closeCurrentWindow() {
         BrowserActions.closeCurrentWindow(driver.get());
     }
-
-    /**
-     * Asserts browser attribute equals expectedValue. Supports
-     * CurrentUrl, PageSource, Title, WindowHandle, WindowPosition, WindowSize.
-     *
-     * @param browserAttribute the desired attribute of the browser window
-     *                         under test
-     * @param expectedValue    the expected value (test data) of this assertion
-     */
-    @Then("I Assert that the {word} attribute of the browser, should be {string}")
-    public void assertBrowserAttribute(String browserAttribute, String expectedValue) {
-        Assertions.assertBrowserAttribute(driver.get(), browserAttribute, expectedValue);
-    }
-    //TODO: add browser validations and assertions
 }

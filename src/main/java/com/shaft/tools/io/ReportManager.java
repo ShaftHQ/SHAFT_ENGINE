@@ -419,7 +419,11 @@ public class ReportManager {
     }
 
     public static void setTestCaseDescription(String scenarioSteps) {
-        Allure.getLifecycle().updateTestCase(testResult -> testResult.setDescription(scenarioSteps));
+        if (scenarioSteps.contains("و")) {
+            Allure.getLifecycle().updateTestCase(testResult -> testResult.setDescriptionHtml("<p dir=\"rtl\">" + scenarioSteps + "</p>"));
+        } else {
+            Allure.getLifecycle().updateTestCase(testResult -> testResult.setDescriptionHtml("<p dir=\"ltr\">" + scenarioSteps + "</p>"));
+        }
     }
 
     public static Boolean isCurrentTestPassed() {
