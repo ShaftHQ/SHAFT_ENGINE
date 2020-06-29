@@ -195,7 +195,7 @@ public class BrowserFactory {
         }
     }
 
-    private static void failAction(String testData, Exception... rootCauseException) {
+    private static void failAction(String testData, Throwable... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         String message = "Browser Factory Action [" + actionName + "] failed.";
         if (testData != null) {
@@ -203,6 +203,7 @@ public class BrowserFactory {
         }
         ReportManager.log(message);
         if (rootCauseException != null && rootCauseException.length >= 1) {
+            ReportManager.log(rootCauseException[0]);
             Assert.fail(message, rootCauseException[0]);
         } else {
             Assert.fail(message);
@@ -559,22 +560,23 @@ public class BrowserFactory {
             ((RemoteWebDriver) driver.get()).setFileDetector(new LocalFileDetector());
         } catch (UnreachableBrowserException e) {
             killSwitch = true;
-            ReportManager.log(e);
-            failAction("Unreachable Browser, terminated test suite execution.");
+//            ReportManager.log(e);
+            failAction("Unreachable Browser, terminated test suite execution.", e);
         } catch (WebDriverException e) {
             ReportManager.log(e);
             if (e.getMessage().contains("Error forwarding the new session cannot find")) {
                 ReportManager.log("Failed to run remotely on: [" + targetOperatingSystem + "], [" + browserName + "], ["
                         + TARGET_HUB_URL + "].");
                 failAction(
-                        "Error forwarding the new session: Couldn't find a node that matches the desired capabilities.");
+                        "Error forwarding the new session: Couldn't find a node that matches the desired capabilities.", e);
             } else {
                 ReportManager.log("Failed to run remotely on: [" + targetOperatingSystem + "], [" + browserName + "], ["
                         + TARGET_HUB_URL + "].");
-                failAction("Unhandled Error.");
+                failAction("Unhandled Error.", e);
             }
-        } catch (MalformedURLException e) {
-            ReportManager.log(e);
+        } catch (NoClassDefFoundError | MalformedURLException e) {
+//            ReportManager.log(e);
+            failAction("Failed to create Remote WebDriver instance", e);
         }
         return driver.get();
     }

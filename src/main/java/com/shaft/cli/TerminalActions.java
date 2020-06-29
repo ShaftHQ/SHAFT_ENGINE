@@ -24,10 +24,21 @@ public class TerminalActions {
     private String dockerName = "";
     private String dockerUsername;
 
+    private boolean unattended = false;
+
     /**
      * This constructor is used for local terminal actions.
      */
     public TerminalActions() {
+    }
+
+    /**
+     * This constructor is used for local terminal actions.
+     *
+     * @param unattended true for unattended execution of commands in a separate thread
+     */
+    public TerminalActions(boolean unattended) {
+        this.unattended = unattended;
     }
 
     /**
@@ -140,7 +151,7 @@ public class TerminalActions {
     }
 
     public String performTerminalCommands(List<String> commands) {
-        String log;
+        String log = null;
 
         // Build long command and refactor for dockerized execution if needed
         String command = buildLongCommand(commands);
@@ -148,17 +159,19 @@ public class TerminalActions {
         // Perform command
         List<Object> teminalSession = executeCommand(command);
 
-        // Capture logs and close readers
-        BufferedReader reader = (BufferedReader) teminalSession.get(3);
-        BufferedReader errorReader = (BufferedReader) teminalSession.get(4);
-        log = captureTerminalLogs(reader, errorReader, command);
+        String exitStatus = "unattended";
+        if (!unattended) {
+            // Capture logs and close readers
+            BufferedReader reader = (BufferedReader) teminalSession.get(3);
+            BufferedReader errorReader = (BufferedReader) teminalSession.get(4);
+            log = captureTerminalLogs(reader, errorReader, command);
 
-        // Retrieve the exit status of the executed command and destroy open sessions
-        Session remoteSession = (Session) teminalSession.get(0);
-        ChannelExec remoteChannelExecutor = (ChannelExec) teminalSession.get(1);
-        Process localProcess = (Process) teminalSession.get(2);
-        int exitStatus = getExitStatus(remoteSession, remoteChannelExecutor, localProcess);
-
+            // Retrieve the exit status of the executed command and destroy open sessions
+            Session remoteSession = (Session) teminalSession.get(0);
+            ChannelExec remoteChannelExecutor = (ChannelExec) teminalSession.get(1);
+            Process localProcess = (Process) teminalSession.get(2);
+            exitStatus = String.valueOf(getExitStatus(remoteSession, remoteChannelExecutor, localProcess));
+        }
         // Prepare final log message
         StringBuilder reportMessage = new StringBuilder();
         if (!sshHostName.equals("")) {
@@ -174,8 +187,12 @@ public class TerminalActions {
         reportMessage.append(" | Command: \"").append(command).append("\"");
         reportMessage.append(" | Exit Status: \"").append(exitStatus).append("\"");
 
-        passAction(reportMessage.toString(), log);
-        return log;
+        if (log != null) {
+            passAction(reportMessage.toString(), log);
+            return log;
+        } else {
+            return "";
+        }
     }
 
     public String performTerminalCommand(String command) {
@@ -293,7 +310,6 @@ public class TerminalActions {
                 remoteSession = createSSHsession();
                 if (remoteSession != null) {
                     remoteSession.setTimeout(sessionTimeout);
-
                     remoteChannelExecutor = (ChannelExec) remoteSession.openChannel("exec");
                     remoteChannelExecutor.setCommand(command);
                     remoteChannelExecutor.connect();
@@ -305,7 +321,9 @@ public class TerminalActions {
                 ReportManager
                         .logDiscrete("Attempting to perform the following command locally. Command: [" + command + "]");
                 localProcess = Runtime.getRuntime().exec(command);
-                localProcess.waitFor();
+                if (!unattended) {
+                    localProcess.waitFor();
+                }
                 reader = new BufferedReader(new InputStreamReader(localProcess.getInputStream()));
                 errorReader = new BufferedReader(new InputStreamReader(localProcess.getErrorStream()));
             }

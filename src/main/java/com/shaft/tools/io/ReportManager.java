@@ -254,7 +254,6 @@ public class ReportManager {
      */
     public static void log(Throwable t) {
         String logText;
-
         logText = formatStackTraceToLogEntry(t);
         if (t.getMessage() != null) {
             ReportManager.log("An Exception Occured with this Message: " + t.getMessage().split("\n")[0].trim() + ".",
@@ -267,15 +266,7 @@ public class ReportManager {
     }
 
     public static String formatStackTraceToLogEntry(Throwable t) {
-        StringBuilder logBuilder = new StringBuilder();
-        StackTraceElement[] trace = t.getStackTrace();
-
-        logBuilder.append(t.getClass().getName()).append(":").append(System.lineSeparator()).append(t.getMessage()).append(System.lineSeparator());
-
-        for (StackTraceElement stackTraceElement : trace) {
-            logBuilder.append(stackTraceElement.toString()).append(System.lineSeparator());
-        }
-        return logBuilder.toString();
+        return formatStackTraceToLogEntry(t, false);
     }
 
     public static void logDiscrete(String logText) {
@@ -363,7 +354,7 @@ public class ReportManager {
             } else {
                 commandToOpenAllureReport = ("sh generate_allure_report.sh");
             }
-            new TerminalActions().performTerminalCommand(commandToOpenAllureReport);
+            new TerminalActions(true).performTerminalCommand(commandToOpenAllureReport);
         }
     }
 
@@ -412,7 +403,11 @@ public class ReportManager {
     }
 
     public static void setTestCaseDescription(String scenarioSteps) {
-        Allure.getLifecycle().updateTestCase(testResult -> testResult.setDescription(scenarioSteps));
+        if (scenarioSteps.contains("و")) {
+            Allure.getLifecycle().updateTestCase(testResult -> testResult.setDescriptionHtml("<p dir=\"rtl\">" + scenarioSteps + "</p>"));
+        } else {
+            Allure.getLifecycle().updateTestCase(testResult -> testResult.setDescriptionHtml("<p dir=\"ltr\">" + scenarioSteps + "</p>"));
+        }
     }
 
     public static Boolean isCurrentTestPassed() {
@@ -426,6 +421,22 @@ public class ReportManager {
     protected static void logClosureActivitiesInitialization() {
         String closureActivities = "Test Closure Activities";
         createImportantReportEntry(closureActivities, true);
+    }
+
+    private static String formatStackTraceToLogEntry(Throwable t, boolean isCause) {
+        StringBuilder logBuilder = new StringBuilder();
+        if (t != null) {
+            StackTraceElement[] trace = t.getStackTrace();
+            if (isCause) {
+                logBuilder.append(System.lineSeparator()).append("Caused by: ");
+            }
+            logBuilder.append(t.getClass().getName()).append(":").append(System.lineSeparator()).append(t.getMessage()).append(System.lineSeparator());
+            for (StackTraceElement stackTraceElement : trace) {
+                logBuilder.append(stackTraceElement.toString()).append(System.lineSeparator());
+            }
+            logBuilder.append(formatStackTraceToLogEntry(t.getCause(), true));
+        }
+        return logBuilder.toString();
     }
 
     private static void createLogEntry(String logText) {
@@ -639,7 +650,7 @@ public class ReportManager {
                     "target" + File.separator + "allureBinary.zip");
             FileActions.unpackArchive(allureArchive, allureExtractionLocation);
             // extract allure from SHAFT_Engine jar
-            URL allureSHAFTConfigArchive = ReportManager.class.getResource("/allure/allureBinary_SHAFTEngineConfigFiles.zip");
+            URL allureSHAFTConfigArchive = ReportManager.class.getResource("/resources/allure/allureBinary_SHAFTEngineConfigFiles.zip");
             FileActions.unpackArchive(allureSHAFTConfigArchive,
                     allureExtractionLocation + "allure-" + allureVersion + File.separator);
 
