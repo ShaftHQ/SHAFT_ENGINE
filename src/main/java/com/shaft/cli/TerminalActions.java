@@ -34,6 +34,8 @@ public class TerminalActions {
 
     /**
      * This constructor is used for local terminal actions.
+     *
+     * @param unattended true for unattended execution of commands in a separate thread
      */
     public TerminalActions(boolean unattended) {
         this.unattended = unattended;

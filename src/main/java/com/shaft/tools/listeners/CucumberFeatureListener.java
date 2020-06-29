@@ -17,6 +17,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 public class CucumberFeatureListener implements ConcurrentEventListener {
+
     @Override
     public void setEventPublisher(EventPublisher publisher) {
         //https://github.com/cucumber/cucumber-jvm/issues/1901
@@ -53,16 +54,19 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
     private void handleTestCaseStarted(TestCaseStarted event) {
         TestCase testCase = event.getTestCase();
         StringBuilder scenarioSteps = new StringBuilder();
+        String lineSeparator = "<br>";
         testCase.getTestSteps().forEach(testStep -> {
-            String lineSeparator = "\n\t\t";
             if (testStep instanceof HookTestStep) {
                 scenarioSteps.append(lineSeparator).append(((HookTestStep) testStep).getHookType().name());
             }
 
             if (testStep instanceof PickleStepTestStep) {
                 PickleStepTestStep pickleStepTestStep = (PickleStepTestStep) testStep;
-                scenarioSteps.append(lineSeparator).append(pickleStepTestStep.getStep().getKeyword()).append(pickleStepTestStep.getStep().getText());
-
+                scenarioSteps.append(lineSeparator)
+                        .append("<b style=\"color:ForestGreen;\">")
+                        .append(pickleStepTestStep.getStep().getKeyword())
+                        .append("</b>")
+                        .append(pickleStepTestStep.getStep().getText());
             }
         });
         Optional<Feature> feature = getFeature(testCase.getUri());

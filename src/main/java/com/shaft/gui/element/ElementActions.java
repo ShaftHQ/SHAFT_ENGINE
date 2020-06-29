@@ -2019,8 +2019,7 @@ public class ElementActions {
     }
 
     /**
-     * Drags the source element and drops it onto the destination element using
-     * javascript
+     * Drags the source element and drops it onto the destination element
      *
      * @param sourceElementLocator      the locator of the source webElement that
      *                                  should be dragged under test (By xpath, id,
