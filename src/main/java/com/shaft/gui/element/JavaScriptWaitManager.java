@@ -18,8 +18,8 @@ public class JavaScriptWaitManager {
     private static final String TARGET_DOCUMENT_READY_STATE = "complete";
     private static final ThreadLocal<WebDriver> jsWaitDriver = new ThreadLocal<>();
     private static final int delayBetweenPolls = 20; // milliseconds
-    private static JavascriptExecutor jsExec;
     private static final Duration WAIT_DURATION = Duration.ofSeconds(WAIT_DURATION_INTEGER);
+    private static JavascriptExecutor jsExec;
 
     private JavaScriptWaitManager() {
         throw new IllegalStateException("Utility class");
