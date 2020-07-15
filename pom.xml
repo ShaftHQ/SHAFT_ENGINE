@@ -34,7 +34,7 @@
         <appium-selenium.version>3.141.59</appium-selenium.version>
         <appium-java-client.version>7.3.0</appium-java-client.version>
 
-        <webdrivermanager.version>4.0.0</webdrivermanager.version>
+        <webdrivermanager.version>4.1.0</webdrivermanager.version>
         <allure-testng.version>2.13.5</allure-testng.version> <!-- UPDATE internal.properties -->
         <aspectj.version>1.9.5</aspectj.version> <!-- 1.9.5 DO NOT UPDATE (Search and replace) -->
 
