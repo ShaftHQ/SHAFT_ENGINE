@@ -2,7 +2,7 @@
 <img src="src/main/resources/images/shaft.png" alt="SHAFT_ENGINE" style="display:block; margin-left:auto; margin-right:auto;"/>
 
 ### Badges:
-- Continuous Integration Status - Install: ![Ubuntu - Install](https://github.com/MohabMohie/SHAFT_ENGINE/workflows/Ubuntu%20-%20Install/badge.svg)
+- Continuous Integration Status - Build, Install, and perform Security Analysis: ![CodeQL - Security Analysis](https://github.com/MohabMohie/SHAFT_ENGINE/workflows/CodeQL%20-%20Security%20Analysis/badge.svg)
 - Continuous Integration Status - Test: ![Ubuntu - Test](https://github.com/MohabMohie/SHAFT_ENGINE/workflows/Ubuntu%20-%20Test/badge.svg) 
 - Code Quality - Codacy: [![Codacy Badge](https://app.codacy.com/project/badge/Grade/3579cfd02a2c4f67bd1dce5dad0b1562)](https://www.codacy.com/manual/mohab.mohieeldeen/SHAFT_ENGINE?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=MohabMohie/SHAFT_ENGINE&amp;utm_campaign=Badge_Grade)
 - Latest In-house release [ ![BinTray](https://api.bintray.com/packages/mohabmohie/SHAFT/SHAFT_Engine/images/download.svg) ](https://bintray.com/mohabmohie/SHAFT/SHAFT_Engine/_latestVersion)
