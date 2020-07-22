@@ -1,13 +1,15 @@
 name: "CodeQL"
 
-on:
-  push:
-    branches: [master, 4.3.x]
-  pull_request:
+on: [push]
+
+#on:
+#  push:
+#    branches: [master, 4.3.x]
+#  pull_request:
     # The branches below must be a subset of the branches above
-    branches: [master]
-  schedule:
-    - cron: '0 3 * * 3'
+#    branches: [master]
+#  schedule:
+#    - cron: '0 3 * * 3'
 
 jobs:
   analyse:
@@ -36,8 +38,8 @@ jobs:
 
     # Autobuild attempts to build any compiled languages  (C/C++, C#, or Java).
     # If this step fails, then you should remove it and run the build manually (see below)
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v1
+    #- name: Autobuild
+    #  uses: github/codeql-action/autobuild@v1
 
     # ℹ️ Command-line programs to run using the OS shell.
     # 📚 https://git.io/JvXDl
@@ -49,6 +51,11 @@ jobs:
     #- run: |
     #   make bootstrap
     #   make release
-
+    - name: Set up JDK 14
+      uses: actions/setup-java@v1.3.0
+      with:
+        java-version: 14
+    - name: Build & Install
+      run: mvn clean install -DskipTests
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v1
