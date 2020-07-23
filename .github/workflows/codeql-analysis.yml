@@ -56,6 +56,6 @@ jobs:
       with:
         java-version: 14
     - name: Build & Install
-      run: mvn clean install -DskipTests
+      run: mvn clean install -DskipTests -Dmaven.artifact.threads=30
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v1
