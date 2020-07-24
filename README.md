@@ -1,14 +1,17 @@
 # SHAFT_ENGINE
 <img src="src/main/resources/images/shaft.png" alt="SHAFT_ENGINE" style="display:block; margin-left:auto; margin-right:auto;"/>
 
-### Badges:
+### Badges:<!-- Badges provided by https://shields.io/ -->
 [![Bintray](https://img.shields.io/bintray/v/mohabmohie/SHAFT/SHAFT_Engine?label=Bintray&style=for-the-badge)](https://bintray.com/mohabmohie/SHAFT/SHAFT_Engine/_latestVersion)
  [![Maven Central](https://img.shields.io/maven-central/v/io.github.mohabmohie/SHAFT_ENGINE?style=for-the-badge)](https://search.maven.org/search?q=g:%22io.github.mohabmohie%22%20AND%20a:%22SHAFT_ENGINE%22)
 
 [![Codacy grade](https://img.shields.io/codacy/grade/3579cfd02a2c4f67bd1dce5dad0b1562?style=for-the-badge)](https://www.codacy.com/manual/mohab.mohieeldeen/SHAFT_ENGINE?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=MohabMohie/SHAFT_ENGINE&amp;utm_campaign=Badge_Grade)
  [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/MohabMohie/SHAFT_ENGINE/CodeQL%20-%20Security%20Analysis?label=CodeQL%20-%20Security%20Analysis&style=for-the-badge)](https://github.com/MohabMohie/SHAFT_ENGINE/actions?query=workflow%3A%22CodeQL+-+Security+Analysis%22)
  [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/MohabMohie/SHAFT_ENGINE/Ubuntu%20-%20Test?label=Ubuntu%20-%20Test&style=for-the-badge)](https://github.com/MohabMohie/SHAFT_ENGINE/actions?query=workflow%3A%22Ubuntu+-+Test%22)
-<!-- Badges provided by https://shields.io/ -->
+
+#### If you want to contribute to this project, or you need any help/support getting started feel free to join our online Facebook group Automatest:
+[![Automatest](https://facebookbrand.com/wp-content/uploads/2019/04/f_logo_RGB-Hex-Blue_512.png?w=50&h=50)](https://www.facebook.com/groups/Automatest)
+
 ### Getting Started:
 - This project is for contributors who wish to add new features or fix issues with SHAFT_Engine. If you wish to create your own project using SHAFT_Engine, please refer to this sample project instead: https://github.com/MohabMohie/using_SHAFT_ENGINE/
 - Use the new online configuration manager to be able to manage SHAFT_Engine's properties and settings easily https://mohabmohie.github.io/SHAFT_ENGINE/
