@@ -20,34 +20,23 @@
 - A Test Automation Engine.
 - A source controlled Java 14 Maven project that is easily and regularly extended and enhanced with new features.
 - Provides an easily understandable and user-friendly syntax for writing simple, robust, maintainable, and extendable tests.
-- Provides support for Data-Driven, Keyword-Driven, Modular and Behavior-Driven tests.
-- Provides extensive, yet user-friendly reporting for test execution.
+- Provides support for Fluent, Data-Driven, Keyword-Driven, and Modular test design powered by TestNG.
+- Provides support for RPA, UAT, and BDD using Cucumber.
+- Provides and extensive, yet user-friendly unified report for test execution using Allure Reporting.
 - Fully documented with standard JavaDocs.
-- Supports web apps on Chrome, Firefox, Edge, IE, and Safari.
-- Supports mobile apps (Native/Hybrid/Web).
-- Supports testing APIs.
+- Supports web apps on Chrome, Firefox, Edge, IE, and Safari using Selenium WebDriver and WebDriver Manager.
+- Supports mobile apps (Native/Hybrid/Web) using Appium.
+- Supports desktop apps using Appium and SikuliX.
+- Supports testing APIs using REST Assured.
 - Supports testing CLIs.
 - Supports testing Databases.
-- Supports AI powered Visual Validations using OpenCV and Applitools Eyes.
+- Supports test data externalization by using Microsoft Excel, JSON, and property files.
+- Supports Visual Element Identification using SikuliX.
+- Supports AI powered Visual Testing using OpenCV and Applitools Eyes.
+- Supports AI powered Self-healing GUI tests using OpenCV and custom algorithms.
 - Supports test execution on Linux, Windows, Mac, Android, and iOS.
-- Supports remote, unattended, parallel, cloud, and dockerized test execution.
-- Can be easily integrated with Continuous Integration, and DevOps solutions.
+- Supports remote, unattended, parallel, cloud, and dockerized test execution using a native selenium grid or Zalenium.
+- Can be easily integrated with all Continuous Integration, and DevOps solutions like Jenkins, GitHub Actions, or BitBucket.
 
-### SHAFT_ENGINE integrates with:
-- TestNG
-- Selenium WebDriver
-- Appium
-- Rest Assured
-- Cucumber
-- Apache POI
-- WebDriver Manager
-- Allure Reporting
-- Selenium Grid
-- Zalenium (SauceLabs, BrowserStack, TestingBot, CrossBrowserTesting, LambdaTest)
-- Docker-Selenium
-- OpenCV
-- Applitools Eyes
-- Jenkins, GitHub Actions, or any CI/CD tool
-
-### SHAFT_ENGINE Capabilities Map
+### SHAFT_ENGINE Capabilities Map:
 <img src="src/main/resources/images/map.png" alt="SHAFT_ENGINE Map" style="display:block; margin-left:auto; margin-right:auto;"/>
