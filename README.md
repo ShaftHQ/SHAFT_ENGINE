@@ -16,7 +16,7 @@
 - If you wish to use this project with IntelliJ please apply these settings:
 <br/>Run/Debug Configurations > Edit Configurations... > Templates > TestNG > Configuration > Listeners > Add all SHAFT_Engine Listeners [AlterSuite, InvokedMethod, Suite]
 
-### SHAFT is the Selenium Hybrid Automation Framework for Testing, it is:
+### SHAFT_ENGINE is:
 - A Test Automation Engine.
 - A source controlled Java 14 Maven project that is easily and regularly extended and enhanced with new features.
 - Provides an easily understandable and user-friendly syntax for writing simple, robust, maintainable, and extendable tests.
@@ -33,7 +33,7 @@
 - Supports remote, unattended, parallel, cloud, and dockerized test execution.
 - Can be easily integrated with Continuous Integration, and DevOps solutions.
 
-### This project integrates with:
+### SHAFT_ENGINE integrates with:
 - TestNG
 - Selenium WebDriver
 - Appium
@@ -48,3 +48,6 @@
 - OpenCV
 - Applitools Eyes
 - Jenkins, GitHub Actions, or any CI/CD tool
+
+### SHAFT_ENGINE Capabilities Map
+<img src="src/main/resources/images/map.png" alt="SHAFT_ENGINE Map" style="display:block; margin-left:auto; margin-right:auto;"/>
