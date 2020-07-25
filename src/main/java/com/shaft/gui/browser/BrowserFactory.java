@@ -29,7 +29,9 @@ import org.testng.Assert;
 
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -159,9 +161,11 @@ public class BrowserFactory {
             for (Entry<String, Map<String, WebDriver>> entry : drivers.entrySet()) {
                 for (Entry<String, WebDriver> driverEntry : entry.getValue().entrySet()) {
                     WebDriver targetDriver = driverEntry.getValue();
-                    attachWebDriverLogs(targetDriver);
-                    attemptToCloseOrQuitBrowser(targetDriver, false);
-                    attemptToCloseOrQuitBrowser(targetDriver, true);
+                    if (((RemoteWebDriver) targetDriver).getSessionId() != null) {
+                        attachWebDriverLogs(targetDriver);
+                        attemptToCloseOrQuitBrowser(targetDriver, false);
+                        attemptToCloseOrQuitBrowser(targetDriver, true);
+                    }
                 }
             }
             driver = new ThreadLocal<>();
@@ -303,6 +307,9 @@ public class BrowserFactory {
 
     private static void setLoggingPrefrences() {
         logPrefs = new LoggingPreferences();
+        logPrefs.enable(LogType.CLIENT, Level.ALL);
+        logPrefs.enable(LogType.PROFILER, Level.ALL);
+        logPrefs.enable(LogType.SERVER, Level.ALL);
         logPrefs.enable(LogType.PERFORMANCE, Level.ALL);
         logPrefs.enable(LogType.BROWSER, Level.ALL);
         logPrefs.enable(LogType.DRIVER, Level.ALL);
@@ -318,13 +325,15 @@ public class BrowserFactory {
                     ffOptions = (FirefoxOptions) customBrowserOptions;
                 } else {
                     ffOptions = new FirefoxOptions();
-                    ffOptions.setCapability("platform", getDesiredOperatingSystem());
-                    ffOptions.setCapability("nativeEvents", true);
+                    ffOptions.setCapability(CapabilityType.PLATFORM_NAME, getDesiredOperatingSystem());
+                    ffOptions.setCapability(CapabilityType.HAS_NATIVE_EVENTS, true);
                     ffOptions.setCapability(CapabilityType.LOGGING_PREFS, logPrefs);
                     if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
                         // https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Headless_mode
                         ffOptions.addArguments("-headless");
                     }
+                    ffOptions.addArguments("-foreground");
+
                     FirefoxProfile ffProfile = new FirefoxProfile();
                     ffProfile.setPreference("browser.download.dir", downloadsFolderPath);
                     ffProfile.setPreference("browser.download.folderList", 2);
@@ -338,7 +347,7 @@ public class BrowserFactory {
                     ieOptions = (InternetExplorerOptions) customBrowserOptions;
                 } else {
                     ieOptions = new InternetExplorerOptions();
-                    ieOptions.setCapability("platform", getDesiredOperatingSystem());
+                    ieOptions.setCapability(CapabilityType.PLATFORM_NAME, getDesiredOperatingSystem());
                     ieOptions.setCapability(CapabilityType.LOGGING_PREFS, logPrefs);
                 }
                 break;
@@ -348,18 +357,21 @@ public class BrowserFactory {
                     chOptions = (ChromeOptions) customBrowserOptions;
                 } else {
                     chOptions = new ChromeOptions();
-                    chOptions.setCapability("platform", getDesiredOperatingSystem());
+                    chOptions.setCapability(CapabilityType.PLATFORM_NAME, getDesiredOperatingSystem());
                     chOptions.setHeadless(HEADLESS_EXECUTION);
                     if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
                         // https://developers.google.com/web/updates/2017/04/headless-chrome
                         chOptions.addArguments("--headless"); // only if you are ACTUALLY running headless
                     }
+                    if (Boolean.TRUE.equals(AUTO_MAXIMIZE) && !isMobileWebExecution()) {
+                        chOptions.addArguments("--start-maximized");
+                    }
                     chOptions.setCapability(CapabilityType.LOGGING_PREFS, logPrefs);
 
                     chOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL); // https://www.skptricks.com/2018/08/timed-out-receiving-message-from-renderer-selenium.html
 
-                    //chOptions.addArguments("start-maximized"); // https://stackoverflow.com/a/26283818/1689770
-                    chOptions.addArguments("enable-automation"); // https://stackoverflow.com/a/43840128/1689770
+//                    chOptions.addArguments("enable-automation"); // https://stackoverflow.com/a/43840128/1689770
+                    chOptions.addArguments("--enable-automation"); // https://stackoverflow.com/a/43840128/1689770
                     chOptions.addArguments("--no-sandbox"); //https://stackoverflow.com/a/50725918/1689770
                     chOptions.addArguments("--disable-infobars"); //https://stackoverflow.com/a/43840128/1689770
                     chOptions.addArguments("--disable-dev-shm-usage"); //https://stackoverflow.com/a/50725918/1689770
@@ -374,6 +386,7 @@ public class BrowserFactory {
                     chromePreferences.put("download.prompt_for_download", "false");
                     chromePreferences.put("download.default_directory", downloadsFolderPath);
                     chOptions.setExperimentalOption("prefs", chromePreferences);
+                    chOptions.setExperimentalOption("w3c", false);
                 }
                 break;
             case MICROSOFT_EDGE:
@@ -381,7 +394,7 @@ public class BrowserFactory {
                     edOptions = (EdgeOptions) customBrowserOptions;
                 } else {
                     edOptions = new EdgeOptions();
-                    edOptions.setCapability("platform", getDesiredOperatingSystem());
+                    edOptions.setCapability(CapabilityType.PLATFORM_NAME, getDesiredOperatingSystem());
                     edOptions.setCapability(CapabilityType.LOGGING_PREFS, logPrefs);
                 }
                 break;
@@ -390,7 +403,7 @@ public class BrowserFactory {
                     sfOptions = (SafariOptions) customBrowserOptions;
                 } else {
                     sfOptions = new SafariOptions();
-                    sfOptions.setCapability("platform", getDesiredOperatingSystem());
+                    sfOptions.setCapability(CapabilityType.PLATFORM_NAME, getDesiredOperatingSystem());
                     sfOptions.setCapability(CapabilityType.LOGGING_PREFS, logPrefs);
                     sfOptions.setCapability("safari.options.dataDir", downloadsFolderPath);
                 }
@@ -614,24 +627,17 @@ public class BrowserFactory {
     }
 
     private static void attachWebDriverLogs(WebDriver driver) {
-        List<String> targetLogs = new ArrayList<>();
-        targetLogs.add(LogType.PERFORMANCE);
-        targetLogs.add(LogType.BROWSER);
-        targetLogs.add(LogType.CLIENT);
-        targetLogs.add(LogType.DRIVER);
-        targetLogs.add(LogType.SERVER);
-
-        targetLogs.forEach(targetLog -> {
-            try {
+        try {
+            driver.manage().logs().getAvailableLogTypes().forEach(logType -> {
                 StringBuilder logBuilder = new StringBuilder();
-                for (LogEntry entry : driver.manage().logs().get(targetLog)) {
+                for (LogEntry entry : driver.manage().logs().get(logType)) {
                     logBuilder.append(entry.toString()).append(System.lineSeparator());
                 }
-                ReportManager.attach("Selenium WebDriver Logs", targetLog, logBuilder.toString());
-            } catch (WebDriverException e) {
-                // exception when the defined log type is not found
-            }
-        });
+                ReportManager.attach("Selenium WebDriver Logs", logType, logBuilder.toString());
+            });
+        } catch (WebDriverException e) {
+            // exception when the defined logging is not supported
+        }
     }
 
     private static DesiredCapabilities setAppiumDesiredCapabilitiesList() {
@@ -698,9 +704,9 @@ public class BrowserFactory {
                 }
 
                 JavaScriptWaitManager.setDriver(driver.get());
-                if (Boolean.TRUE.equals(AUTO_MAXIMIZE) && !isMobileWebExecution()) {
-                    BrowserActions.maximizeWindow(driver.get()); // Automatically maximize driver window after opening
-                    // it
+                if (Boolean.TRUE.equals(AUTO_MAXIMIZE) && !BrowserType.GOOGLE_CHROME.equals(getBrowserTypeFromName(internalBrowserName)) && !isMobileWebExecution()) {
+                    BrowserActions.maximizeWindow(driver.get());
+                    // Automatically maximize driver window after opening it
                 }
             }
         } catch (NullPointerException e) {

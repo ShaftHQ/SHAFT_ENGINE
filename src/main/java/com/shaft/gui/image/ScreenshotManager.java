@@ -3,6 +3,7 @@ package com.shaft.gui.image;
 import com.shaft.cli.FileActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.JavaScriptWaitManager;
+import com.shaft.tools.io.PropertiesFileManager;
 import com.shaft.tools.io.ReportManager;
 import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.*;
@@ -572,10 +573,10 @@ public class ScreenshotManager {
                 screenshotGraphics.setComposite(
                         AlphaComposite.getInstance(AlphaComposite.SRC_OVER, SCREENSHOT_PARAMS_WATERMARKOPACITY));
 
-                String watermarkImagePath = "watermarkImagePath";
                 BufferedImage shaftLogo;
                 // read from custom location
-                shaftLogo = ImageIO.read(new File(System.getProperty(watermarkImagePath).trim()));
+                String watermarkImagePath = PropertiesFileManager.getDefaultPropertiesFolderPath().replace("defaultProperties/", System.getProperty("watermarkImagePath"));
+                shaftLogo = ImageIO.read(new File(watermarkImagePath));
                 shaftLogo = toBufferedImage(
                         shaftLogo.getScaledInstance(screenshot.getWidth() / 8, -1, Image.SCALE_SMOOTH));
                 screenshotGraphics.drawImage(shaftLogo, screenshot.getWidth() - shaftLogo.getWidth(),
