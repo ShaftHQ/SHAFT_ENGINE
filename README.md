@@ -1,5 +1,5 @@
 # SHAFT_ENGINE
-<img src="src/main/resources/images/GitHub.png" alt="SHAFT_ENGINE" style="display:block; margin-left:auto; margin-right:auto;"/>
+<img src="src/main/resources/images/shaft.png" alt="SHAFT_ENGINE" style="display:block; margin-left:auto; margin-right:auto;"/>
 
 ### Badges:<!-- Badges provided by https://shields.io/ -->
 [![Bintray](https://img.shields.io/bintray/v/mohabmohie/SHAFT/SHAFT_Engine?label=Bintray&style=for-the-badge)](https://bintray.com/mohabmohie/SHAFT/SHAFT_Engine/_latestVersion)
