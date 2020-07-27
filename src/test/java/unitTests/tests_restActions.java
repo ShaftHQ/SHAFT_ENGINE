@@ -13,33 +13,6 @@ import java.util.List;
 public class tests_restActions {
 
     @Test
-    public void mockOK() {
-        String serviceURI = "https://testttal.free.beeceptor.com/";
-        Response mockOK = (new RestActions(serviceURI)).performRequest(RequestType.GET, 200, "mockOK");
-        Assertions.assertEquals("Awesome!", RestActions.getResponseJSONValue(mockOK, "status"),
-                AssertionComparisonType.EQUALS, AssertionType.POSITIVE);
-    }
-
-    @Test
-    public void mockUnauthorizedAccess() {
-        String serviceURI = "https://testttal.free.beeceptor.com/";
-        Response mockUnauthorizedAccess = (new RestActions(serviceURI)).performRequest(RequestType.DELETE, 401,
-                "mockUnauthorized");
-        Assertions.assertEquals("Unauthorized Access",
-                RestActions.getResponseJSONValue(mockUnauthorizedAccess, "status"), AssertionComparisonType.EQUALS,
-                AssertionType.POSITIVE);
-    }
-
-    @Test
-    public void mockNotModified() {
-        String serviceURI = "https://testttal.free.beeceptor.com/";
-        Response mockNotModified = (new RestActions(serviceURI)).performRequest(RequestType.PATCH, 304,
-                "mockNotModified");
-        Assertions.assertEquals(304, RestActions.getResponseStatusCode(mockNotModified), AssertionComparisonType.EQUALS,
-                AssertionType.POSITIVE);
-    }
-
-    @Test
     public void getPostsAndAssertBodyForSpecificTitle() {
         String serviceURI = "https://jsonplaceholder.typicode.com/";
 
