@@ -45,7 +45,7 @@ public class ScreenshotManager {
     private static final int GIF_FRAME_DELAY = Integer.parseInt(System.getProperty("animatedGif_frameDelay").trim());
     private static final String AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH = "src/test/resources/DynamicObjectRepository/";
     private static Boolean AI_SUPPORTED_ELEMENT_IDENTIFICATION = Boolean
-            .valueOf(System.getProperty("aiPoweredElementIdentification").trim());
+            .valueOf(System.getProperty("aiPoweredSelfHealingElementIdentification").trim());
     private static String screenshotFileName = "Screenshot";
     private static By aiGeneratedElementLocator = null;
     private static By targetElementLocator;
