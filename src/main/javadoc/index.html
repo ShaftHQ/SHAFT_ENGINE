@@ -419,28 +419,28 @@
 
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
-                                        <label class="col-md-4 control-label" for="aiPoweredElementIdentification">AI
-                                            Powered
-                                            Element Identification
+                                        <label class="col-md-4 control-label"
+                                               for="aiPoweredSelfHealingElementIdentification">AI Powered Self Healing
                                         </label>
-                                        <div class="col-md-4" id="aiPoweredElementIdentification">
+                                        <div class="col-md-4" id="aiPoweredSelfHealingElementIdentification">
                                             <div class="radio-inline">
-                                                <label for="aiPoweredElementIdentification-0">
-                                                    <input id="aiPoweredElementIdentification-0"
-                                                           name="aiPoweredElementIdentification" type="radio"
+                                                <label for="aiPoweredSelfHealingElementIdentification-0">
+                                                    <input id="aiPoweredSelfHealingElementIdentification-0"
+                                                           name="aiPoweredSelfHealingElementIdentification" type="radio"
                                                            value="true">
                                                     Enabled
                                                 </label>
                                             </div>
                                             <div class="radio-inline">
-                                                <label for="aiPoweredElementIdentification-1">
-                                                    <input checked="checked" id="aiPoweredElementIdentification-1"
-                                                           name="aiPoweredElementIdentification" type="radio"
+                                                <label for="aiPoweredSelfHealingElementIdentification-1">
+                                                    <input checked="checked"
+                                                           id="aiPoweredSelfHealingElementIdentification-1"
+                                                           name="aiPoweredSelfHealingElementIdentification" type="radio"
                                                            value="false">
                                                     Disabled
                                                 </label>
                                             </div>
-                                            <span class="help-block">• <b>ExperimentalFeature* </b>Enabling aiPoweredElementIdentification will have a minor impact on performance, but in return will be able to recover most tests in case of unplanned element locator changes.</span>
+                                            <span class="help-block">• <b>ExperimentalFeature* </b>Enabling AI Powered Self Healing will have a minor impact on performance, but in return will be able to recover most tests in case of unplanned element locator changes.</span>
                                         </div>
                                     </div>
 
@@ -1507,7 +1507,7 @@
         const forceCheckTextWasTypedCorrectly = $("input[name=forceCheckTextWasTypedCorrectly]:checked").val();
         const maximumPerformanceMode = $("input[name=maximumPerformanceMode]:checked").val();
         const skipTestsWithLinkedIssues = $("input[name=skipTestsWithLinkedIssues]:checked").val();
-        const aiPoweredElementIdentification = $("input[name=aiPoweredElementIdentification]:checked").val();
+        const aiPoweredSelfHealingElementIdentification = $("input[name=aiPoweredSelfHealingElementIdentification]:checked").val();
 
         // This variable stores all the data.
         let data =
@@ -1518,7 +1518,7 @@
             'forceCheckTextWasTypedCorrectly=' + forceCheckTextWasTypedCorrectly + '\r\n' +
             'maximumPerformanceMode=' + maximumPerformanceMode + '\r\n' +
             'skipTestsWithLinkedIssues=' + skipTestsWithLinkedIssues + '\r\n' +
-            'aiPoweredElementIdentification=' + aiPoweredElementIdentification + '\r\n';
+            'aiPoweredSelfHealingElementIdentification=' + aiPoweredSelfHealingElementIdentification + '\r\n';
 
         downloadFile(data, 'PlatformFlags.properties');
     }
