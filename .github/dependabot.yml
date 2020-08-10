@@ -7,7 +7,7 @@ updates:
   open-pull-requests-limit: 10
   target-branch: 4.3.x
 
-- package-ecosystem: github-action
+- package-ecosystem: github-actions
   directory: "/"
   schedule:
     interval: daily
