@@ -147,7 +147,7 @@ public class PropertiesFileManager {
     private static void manageMaximumPerformanceMode() {
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("maximumPerformanceMode")))) {
             // Beast Mode On
-            System.setProperty("aiPoweredElementIdentification", String.valueOf(false));
+            System.setProperty("aiPoweredSelfHealingElementIdentification", String.valueOf(false));
             System.setProperty("headlessExecution", String.valueOf(true));
             System.setProperty("autoMaximizeBrowserWindow", String.valueOf(true));
             System.setProperty("forceCheckForElementVisibility", String.valueOf(false));
