@@ -467,6 +467,7 @@
                 <artifactId>maven-javadoc-plugin</artifactId>
                 <version>${maven-javadoc-plugin.version}</version>
                 <configuration>
+                    <javadocExecutable>${java.home}/bin/javadoc</javadocExecutable>
                     <sourcepath>
                         ${project.basedir}/src/main/java;${project.basedir}/target/generated-sources/annotations
                     </sourcepath>
