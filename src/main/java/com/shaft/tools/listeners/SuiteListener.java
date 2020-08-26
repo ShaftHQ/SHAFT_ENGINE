@@ -3,6 +3,7 @@ package com.shaft.tools.listeners;
 import com.shaft.cli.FileActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.image.ScreenshotManager;
+import com.shaft.tools.io.ProjectStructureFactory;
 import com.shaft.tools.io.PropertiesFileManager;
 import com.shaft.tools.io.ReportManager;
 import org.testng.ISuite;
@@ -18,6 +19,7 @@ public class SuiteListener implements ISuiteListener {
                 ElementActions.getAiReferenceFileName(), 1)) {
             PropertiesFileManager.readPropertyFiles(ScreenshotManager.getAiAidedElementIdentificationFolderpath());
         }
+        ProjectStructureFactory.initialize();
         ReportManager.prepareAllureReportingEnvironment();
         ReportManager.logEngineVersion();
         if (!(suite.getAllMethods().size() == 1 && suite.getAllMethods().get(0).getMethodName().equals("runScenario"))) {
