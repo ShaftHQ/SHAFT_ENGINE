@@ -549,14 +549,14 @@ public class BrowserFactory {
                     ReportManager.log(WEBDRIVERMANAGER_MESSAGE);
                     WebDriverManager.chromedriver().browserVersion(System.getProperty("MobileBrowserVersion")).setup();
                     mobileDesiredCapabilities.setCapability("chromedriverExecutable",
-                            WebDriverManager.chromedriver().getBinaryPath());
+                            WebDriverManager.chromedriver().getDownloadedDriverPath());
                     mobileDesiredCapabilities.setCapability("appium:chromeOptions", ImmutableMap.of("w3c", false));
                     driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
                     break;
                 case MOBILE_CHROMIUM:
                     WebDriverManager.chromedriver().browserVersion(System.getProperty("MobileBrowserVersion")).setup();
                     mobileDesiredCapabilities.setCapability("chromedriverExecutable",
-                            WebDriverManager.chromedriver().getBinaryPath());
+                            WebDriverManager.chromedriver().getDownloadedDriverPath());
                     driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
                     break;
                 case MOBILE_BROWSER:
