@@ -4,14 +4,18 @@ import com.google.common.hash.Hashing;
 import com.shaft.tools.io.PropertiesFileManager;
 import com.shaft.tools.io.ReportManager;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
 import org.apache.commons.lang3.SystemUtils;
 import org.testng.Assert;
 
 import java.io.*;
+import java.net.JarURLConnection;
 import java.net.URL;
 import java.nio.file.*;
 import java.util.*;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
@@ -380,6 +384,46 @@ public class FileActions {
             FileUtils.copyDirectory(sourceFolder, destinationFolder);
             passAction(
                     "Source Folder: \"" + sourceFolderPath + "\" | Destination Folder: \"" + destinationFolder + "\"");
+        } catch (IOException e) {
+            ReportManager.log(e);
+            failAction(e);
+        }
+    }
+
+    public static void copyFolderFromJar(String sourceFolderPath, String destinationFolderPath) {
+        try {
+            URL url = new URL(sourceFolderPath.replace("file:", "jar:file:"));
+            JarURLConnection jarConnection = (JarURLConnection) url.openConnection();
+            JarFile jarFile = jarConnection.getJarFile();
+
+            /**
+             * Iterate all entries in the jar file.
+             */
+            for (Enumeration<JarEntry> e = jarFile.entries(); e.hasMoreElements(); ) {
+
+                JarEntry jarEntry = e.nextElement();
+                String jarEntryName = jarEntry.getName();
+                String jarConnectionEntryName = jarConnection.getEntryName();
+
+                /**
+                 * Extract files only if they match the path.
+                 */
+                if (jarEntryName.startsWith(jarConnectionEntryName)) {
+
+                    String filename = jarEntryName.startsWith(jarConnectionEntryName) ? jarEntryName.substring(jarConnectionEntryName.length()) : jarEntryName;
+                    File currentFile = new File(destinationFolderPath, filename);
+
+                    if (jarEntry.isDirectory()) {
+                        currentFile.mkdirs();
+                    } else {
+                        InputStream is = jarFile.getInputStream(jarEntry);
+                        OutputStream out = FileUtils.openOutputStream(currentFile);
+                        IOUtils.copy(is, out);
+                        is.close();
+                        out.close();
+                    }
+                }
+            }
         } catch (IOException e) {
             ReportManager.log(e);
             failAction(e);
