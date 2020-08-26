@@ -27,15 +27,6 @@ public class GoogleSearch {
     }
 
     public void searchForQuery(String searchQuery) {
-        ElementActions.type(driver, searchBox_textField, "351");
-        Assertions.assertEquals(1, 1);
-        Assertions.assertEquals(1, 111, AssertionComparisonType.EQUALS, AssertionType.NEGATIVE);
-
-        Assertions.assertElementAttribute(driver, searchBox_textField, "text", "351", AssertionComparisonType.EQUALS,
-                AssertionType.POSITIVE);
-        Assertions.assertElementAttribute(driver, searchBox_textField, "text", "1", AssertionComparisonType.EQUALS,
-                AssertionType.NEGATIVE);
-
         ElementActions.type(driver, searchBox_textField, searchQuery);
         ElementActions.keyPress(driver, searchBox_textField, "Enter");
     }
