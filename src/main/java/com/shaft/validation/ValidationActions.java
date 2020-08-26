@@ -4,6 +4,7 @@ import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
+import com.shaft.gui.element.JavaScriptWaitManager;
 import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
@@ -348,6 +349,7 @@ class ValidationActions {
         }
         reportedExpectedResult.append("match the reference screenshot");
 
+        JavaScriptWaitManager.waitForLazyLoading();
         byte[] elementScreenshot = ScreenshotManager.takeElementScreenshot(driver, elementLocator);
 
         List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Element Screenshot",
