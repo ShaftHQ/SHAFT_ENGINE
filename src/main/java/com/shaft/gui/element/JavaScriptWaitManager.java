@@ -14,7 +14,7 @@ import java.time.Duration;
 import java.util.Objects;
 
 public class JavaScriptWaitManager {
-    private static final int WAIT_DURATION_INTEGER = 15;
+    private static final int WAIT_DURATION_INTEGER = Integer.parseInt(System.getProperty("lazyLoadingTimeout"));
     private static final String TARGET_DOCUMENT_READY_STATE = "complete";
     private static final ThreadLocal<WebDriver> jsWaitDriver = new ThreadLocal<>();
     private static final int delayBetweenPolls = 20; // milliseconds
