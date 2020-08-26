@@ -45,8 +45,8 @@ public class Assertions {
      *                                assertion
      * @param actualValue             the actual value (calculated data) of this
      *                                assertion
-     * @param assertionComparisonType AssertionComparisonType.LITERAL, CONTAINS,
-     *                                REGEX, CASE_INSENSITIVE
+     * @param assertionComparisonType AssertionComparisonType.EQUALS, CONTAINS,
+     *                                MATCHES, CASE_INSENSITIVE
      * @param assertionType           AssertionType.POSITIVE, NEGATIVE
      * @param customLogMessage        a custom message that will appended to this
      *                                step in the execution report
@@ -145,8 +145,8 @@ public class Assertions {
      *                                test
      * @param expectedValue           the expected value (test data) of this
      *                                assertion
-     * @param assertionComparisonType AssertionComparisonType.LITERAL, CONTAINS,
-     *                                REGEX, CASE_INSENSITIVE
+     * @param assertionComparisonType AssertionComparisonType.EQUALS, CONTAINS,
+     *                                MATCHES, CASE_INSENSITIVE
      * @param assertionType           AssertionType.POSITIVE, NEGATIVE
      * @param customLogMessage        a custom message that will appended to this
      *                                step in the execution report
@@ -187,8 +187,8 @@ public class Assertions {
      *                                under test
      * @param expectedValue           the expected value (test data) of this
      *                                assertion
-     * @param assertionComparisonType AssertionComparisonType.LITERAL, CONTAINS,
-     *                                REGEX, CASE_INSENSITIVE
+     * @param assertionComparisonType AssertionComparisonType.EQUALS, CONTAINS,
+     *                                MATCHES, CASE_INSENSITIVE
      * @param assertionType           AssertionType.POSITIVE, NEGATIVE
      * @param customLogMessage        a custom message that will appended to this
      *                                step in the execution report
@@ -229,8 +229,8 @@ public class Assertions {
      *                                under test
      * @param expectedValue           the expected value (test data) of this
      *                                assertion
-     * @param assertionComparisonType AssertionComparisonType.LITERAL, CONTAINS,
-     *                                REGEX, CASE_INSENSITIVE
+     * @param assertionComparisonType AssertionComparisonType.EQUALS, CONTAINS,
+     *                                MATCHES, CASE_INSENSITIVE
      * @param assertionType           AssertionType.POSITIVE, NEGATIVE
      * @param customLogMessage        a custom message that will appended to this
      *                                step in the execution report

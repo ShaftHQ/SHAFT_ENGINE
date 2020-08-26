@@ -51,8 +51,8 @@ public class Verifications {
      *                                   verification
      * @param actualValue                the actual value (calculated data) of this
      *                                   verification
-     * @param verificationComparisonType verificationComparisonType.LITERAL, CONTAINS,
-     *                                   REGEX, CASE_INSENSITIVE
+     * @param verificationComparisonType verificationComparisonType.EQUALS, CONTAINS,
+     *                                   MATCHES, CASE_INSENSITIVE
      * @param verificationType           verificationType.POSITIVE, NEGATIVE
      * @param customLogMessage           a custom message that will appended to this
      *                                   step in the execution report
@@ -151,8 +151,8 @@ public class Verifications {
      *                                   test
      * @param expectedValue              the expected value (test data) of this
      *                                   verification
-     * @param verificationComparisonType verificationComparisonType.LITERAL, CONTAINS,
-     *                                   REGEX, CASE_INSENSITIVE
+     * @param verificationComparisonType verificationComparisonType.EQUALS, CONTAINS,
+     *                                   MATCHES, CASE_INSENSITIVE
      * @param verificationType           verificationType.POSITIVE, NEGATIVE
      * @param customLogMessage           a custom message that will appended to this
      *                                   step in the execution report
@@ -193,8 +193,8 @@ public class Verifications {
      *                                   under test
      * @param expectedValue              the expected value (test data) of this
      *                                   verification
-     * @param verificationComparisonType verificationComparisonType.LITERAL, CONTAINS,
-     *                                   REGEX, CASE_INSENSITIVE
+     * @param verificationComparisonType verificationComparisonType.EQUALS, CONTAINS,
+     *                                   MATCHES, CASE_INSENSITIVE
      * @param verificationType           verificationType.POSITIVE, NEGATIVE
      * @param customLogMessage           a custom message that will appended to this
      *                                   step in the execution report
@@ -235,8 +235,8 @@ public class Verifications {
      *                                   under test
      * @param expectedValue              the expected value (test data) of this
      *                                   verification
-     * @param verificationComparisonType verificationComparisonType.LITERAL, CONTAINS,
-     *                                   REGEX, CASE_INSENSITIVE
+     * @param verificationComparisonType verificationComparisonType.EQUALS, CONTAINS,
+     *                                   MATCHES, CASE_INSENSITIVE
      * @param verificationType           verificationType.POSITIVE, NEGATIVE
      * @param customLogMessage           a custom message that will appended to this
      *                                   step in the execution report
