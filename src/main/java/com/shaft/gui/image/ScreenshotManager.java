@@ -43,6 +43,9 @@ public class ScreenshotManager {
     private static final int RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION = 1;
     private static final Boolean CREATE_GIF = Boolean.valueOf(System.getProperty("createAnimatedGif").trim());
     private static final int GIF_FRAME_DELAY = Integer.parseInt(System.getProperty("animatedGif_frameDelay").trim());
+    // TODO: parameterize the detailed gif value
+    private static final Boolean DETAILED_GIF = false;
+    private static final String DETAILED_GIF_REGEX = "(verify.*)|(assert.*)|(click.*)|(tap.*)|(key.*)|(navigate.*)";
     private static final String AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH = "src/test/resources/DynamicObjectRepository/";
     private static Boolean AI_SUPPORTED_ELEMENT_IDENTIFICATION = Boolean
             .valueOf(System.getProperty("aiPoweredSelfHealingElementIdentification").trim());
@@ -166,7 +169,7 @@ public class ScreenshotManager {
                 || ("FailuresOnly".equals(SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT) && (!passFailStatus))
                 || !passFailStatus;
 
-        if (CREATE_GIF || takeScreenshot) {
+        if (takeScreenshot || (CREATE_GIF && (DETAILED_GIF || actionName.matches(DETAILED_GIF_REGEX)))) {
             /*
              * Force screenshot link to be shown in the results as a link not text
              */
@@ -337,7 +340,8 @@ public class ScreenshotManager {
             internalElementLocator = aiGeneratedElementLocator;
         }
 
-        if (takeScreenshot || CREATE_GIF) {
+        // Suggested: add to animated gif only in case of click, navigation, or validation actions.
+        if (takeScreenshot || (CREATE_GIF && (DETAILED_GIF || actionName.matches(DETAILED_GIF_REGEX)))) {
             /*
              * Force screenshot link to be shown in the results as a link not text
              */

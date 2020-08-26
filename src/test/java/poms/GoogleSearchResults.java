@@ -11,7 +11,7 @@ import org.openqa.selenium.WebDriver;
 public class GoogleSearchResults {
     WebDriver driver;
     By resultsStats_label = By.id("appbar");
-    By next_button = By.xpath("//table[@id='nav']//span[contains(.,'Next')]");
+    By next_button = By.xpath("//span[text()='Next']");
     By searchResult_box = By.xpath("//div[@class='srg']//div[@class='g']");
 
     public GoogleSearchResults(WebDriver driver) {
