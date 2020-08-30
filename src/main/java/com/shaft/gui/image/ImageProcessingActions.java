@@ -249,8 +249,11 @@ public class ImageProcessingActions {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
         String aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
         String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
-        boolean doesReferenceFileExist = FileActions.doesFileExist(referenceImagePath);
-        return FileActions.readFromImageFile(referenceImagePath);
+        if (FileActions.doesFileExist(referenceImagePath)) {
+            return FileActions.readFromImageFile(referenceImagePath);
+        } else {
+            return new byte[0];
+        }
     }
 
     public static synchronized Boolean compareAgainstBaseline(WebDriver driver, By elementLocator, byte[] elementScreenshot, VisualValidationEngine visualValidationEngine) {
