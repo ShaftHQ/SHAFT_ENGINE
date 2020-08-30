@@ -4,7 +4,6 @@ import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
-import com.shaft.gui.element.JavaScriptWaitManager;
 import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
@@ -349,19 +348,33 @@ class ValidationActions {
         }
         reportedExpectedResult.append("match the reference screenshot");
 
-        JavaScriptWaitManager.waitForLazyLoading();
-        byte[] elementScreenshot = ScreenshotManager.takeElementScreenshot(driver, elementLocator);
-
-        List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Element Screenshot",
-                elementScreenshot);
         List<List<Object>> attachments = new ArrayList<>();
-        attachments.add(actualValueAttachment);
-        Boolean actualResult = ImageProcessingActions.compareAgainstBaseline(driver, elementLocator, elementScreenshot, ImageProcessingActions.VisualValidationEngine.valueOf(visualValidationEngine.name()));
+        byte[] referenceImage = ImageProcessingActions.getReferenceImage(elementLocator);
+        if (!new byte[0].equals(referenceImage)) {
+            List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Reference Screenshot",
+                    referenceImage);
+            attachments.add(expectedValueAttachment);
+        }
 
-        if (expectedResult.equals(actualResult)) {
-            pass(validationCategory, reportedExpectedResult.toString(), String.valueOf(actualResult).toUpperCase(), visualValidationEngine, validationType, attachments);
+        if (ElementActions.getElementsCount(driver, elementLocator) == 1) {
+            byte[] elementScreenshot = ScreenshotManager.takeElementScreenshot(driver, elementLocator);
+            List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Screenshot",
+                    elementScreenshot);
+            attachments.add(actualValueAttachment);
+
+            Boolean actualResult = ImageProcessingActions.compareAgainstBaseline(driver, elementLocator, elementScreenshot, ImageProcessingActions.VisualValidationEngine.valueOf(visualValidationEngine.name()));
+            if (expectedResult.equals(actualResult)) {
+                pass(validationCategory, reportedExpectedResult.toString(), String.valueOf(actualResult).toUpperCase(), visualValidationEngine, validationType, attachments);
+            } else {
+                fail(validationCategory, reportedExpectedResult.toString(), String.valueOf(actualResult).toUpperCase(), visualValidationEngine, validationType, null, attachments);
+            }
         } else {
-            fail(validationCategory, reportedExpectedResult.toString(), String.valueOf(actualResult).toUpperCase(), visualValidationEngine, validationType, null, attachments);
+            byte[] pageScreenshot = ScreenshotManager.takeFullPageScreenshot(driver);
+            List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Screenshot",
+                    pageScreenshot);
+            attachments.add(actualValueAttachment);
+
+            fail(validationCategory, reportedExpectedResult.toString(), "Element not found".toUpperCase(), visualValidationEngine, validationType, null, attachments);
         }
     }
 

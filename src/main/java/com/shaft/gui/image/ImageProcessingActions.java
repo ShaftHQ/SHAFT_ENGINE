@@ -245,6 +245,14 @@ public class ImageProcessingActions {
                 .replaceAll("_{2}", "_").replaceAll("contains", "_contains").replaceAll("_$", "");
     }
 
+    public static byte[] getReferenceImage(By elementLocator) {
+        String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
+        String aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
+        String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
+        boolean doesReferenceFileExist = FileActions.doesFileExist(referenceImagePath);
+        return FileActions.readFromImageFile(referenceImagePath);
+    }
+
     public static synchronized Boolean compareAgainstBaseline(WebDriver driver, By elementLocator, byte[] elementScreenshot, VisualValidationEngine visualValidationEngine) {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
 
