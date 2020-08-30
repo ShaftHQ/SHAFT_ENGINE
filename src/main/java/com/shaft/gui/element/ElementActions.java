@@ -1575,7 +1575,7 @@ public class ElementActions {
             setAiGeneratedXpath(previouslyIdentifiedXpath);
 
             // wait for element presence
-            if (previouslyIdentifiedXpath != null) {
+            if (previouslyIdentifiedXpath != null && Boolean.TRUE.equals(ScreenshotManager.getAiSupportedElementIdentification())) {
                 internalElementLocator = aiGeneratedElementLocator;
             }
             matchingElementsCount = waitForElementPresence(driver, internalElementLocator, numberOfAttempts);

@@ -279,6 +279,21 @@ public class FileActions {
         return readFromFile(fileFolderName + fileName);
     }
 
+    public static byte[] readFromImageFile(String pathToTargetImage) {
+        byte[] data = new byte[0];
+        String absoluteFilePath = getAbsolutePath(pathToTargetImage);
+        Path filePath = Paths.get(absoluteFilePath);
+
+        try {
+            data = Files.readAllBytes(filePath);
+            passAction("File Path: \"" + filePath + "\"");
+        } catch (IOException e) {
+            ReportManager.log(e);
+            failAction(e);
+        }
+        return data;
+    }
+
     public static String readFromFile(String pathToTargetFile) {
         String text = "";
         String absoluteFilePath = getAbsolutePath(pathToTargetFile);
