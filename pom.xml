@@ -64,7 +64,7 @@
 
         <jcraft-jsch.version>0.1.55</jcraft-jsch.version>
 
-        <cucumber.version>6.6.1</cucumber.version>
+        <cucumber.version>6.7.0</cucumber.version>
         <cverges-expect4j.version>1.9</cverges-expect4j.version>
 
         <openpnp-opencv.version>4.3.0-2</openpnp-opencv.version>
