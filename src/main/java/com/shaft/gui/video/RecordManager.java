@@ -4,7 +4,12 @@ import com.automation.remarks.video.RecorderFactory;
 import com.automation.remarks.video.recorder.IVideoRecorder;
 import com.automation.remarks.video.recorder.VideoRecorder;
 import com.shaft.tools.io.ReportManager;
-import ws.schild.jave.*;
+import ws.schild.jave.Encoder;
+import ws.schild.jave.EncoderException;
+import ws.schild.jave.MultimediaObject;
+import ws.schild.jave.encode.AudioAttributes;
+import ws.schild.jave.encode.EncodingAttributes;
+import ws.schild.jave.encode.VideoAttributes;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -50,7 +55,7 @@ public class RecordManager {
             VideoAttributes video = new VideoAttributes();
             video.setFrameRate(30);
             EncodingAttributes attrs = new EncodingAttributes();
-            attrs.setFormat("mp4");
+            attrs.setOutputFormat("mp4");
             attrs.setAudioAttributes(audio);
             attrs.setVideoAttributes(video);
             Encoder encoder = new Encoder();
