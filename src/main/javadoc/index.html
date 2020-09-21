@@ -507,6 +507,29 @@
                                         </div>
                                     </div>
 
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="waitForLazyLoading">Wait for Lazy
+                                            Loading</label>
+                                        <div class="col-md-4" id="waitForLazyLoading">
+                                            <div class="radio-inline">
+                                                <label for="waitForLazyLoading-0">
+                                                    <input checked="checked" id="waitForLazyLoading-0"
+                                                           name="waitForLazyLoading" type="radio"
+                                                           value="true"> Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="waitForLazyLoading-1">
+                                                    <input id="waitForLazyLoading-1"
+                                                           name="waitForLazyLoading"
+                                                           type="radio" value="false"> Disabled
+                                                </label>
+                                            </div>
+                                            <span class="help-block">• Uses SHAFT's built-in waiting mechanism to dynamically wait for any javascript, jquery, or angular lazy loading before any element action is performed to ensure more stable tests.</span>
+                                        </div>
+                                    </div>
+
                                     <!-- Text input-->
                                     <div class="form-group">
                                         <label class="col-md-4 control-label" for="lazyLoadingTimeout">Lazy
@@ -1319,6 +1342,21 @@
     });
 
 
+
+</script>
+
+<script type="text/javascript">
+    // wait for lazy loading configuration
+    $("input[name=waitForLazyLoading]").click(function () {
+        if ($("input[name=waitForLazyLoading]:checked").val() == "true") {
+            $("#lazyLoadingTimeout").attr("disabled", false);
+        } else {
+            $("#lazyLoadingTimeout").attr("disabled", true);
+        }
+    });
+
+
+
 </script>
 
 <script type="text/javascript">
@@ -1547,6 +1585,7 @@
         // Get the data from each element on the form.
         const waitImplicitly = $("input[name=waitImplicitly]:checked").val();
         const implicitWaitTimeout = $("input[name=implicitWaitTimeout]").val();
+        const waitForLazyLoading = $("input[name=waitForLazyLoading]:checked").val();
         const lazyLoadingTimeout = $("input[name=lazyLoadingTimeout]").val();
         const browserNavigationTimeout = $("input[name=browserNavigationTimeout]").val();
         const pageLoadTimeout = $("input[name=pageLoadTimeout]").val();
@@ -1566,6 +1605,7 @@
         let data =
             'waitImplicitly=' + waitImplicitly + '\r\n' +
             'implicitWaitTimeout=' + implicitWaitTimeout + '\r\n' +
+            'waitForLazyLoading=' + waitForLazyLoading + '\r\n' +
             'lazyLoadingTimeout=' + lazyLoadingTimeout + '\r\n' +
             'browserNavigationTimeout=' + browserNavigationTimeout + '\r\n' +
             'pageLoadTimeout=' + pageLoadTimeout + '\r\n' +
