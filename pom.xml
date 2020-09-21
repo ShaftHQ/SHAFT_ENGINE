@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.mohabmohie</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>4.4.20200830</version>
+    <version>4.4.20200921</version>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
     <url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
@@ -64,14 +64,14 @@
 
         <jcraft-jsch.version>0.1.55</jcraft-jsch.version>
 
-        <cucumber.version>6.6.0</cucumber.version>
+        <cucumber.version>6.7.0</cucumber.version>
         <cverges-expect4j.version>1.9</cverges-expect4j.version>
 
         <openpnp-opencv.version>4.3.0-2</openpnp-opencv.version>
         <applitools-eyes.version>4.14.0</applitools-eyes.version>
         <sikuixapi.version>2.0.4</sikuixapi.version>
 
-        <jave-all-deps.version>2.7.3</jave-all-deps.version>
+        <jave-all-deps.version>3.0.1</jave-all-deps.version>
         <video-recorder-testng.version>2.0</video-recorder-testng.version>
 
         <!-- Build Commands-->
