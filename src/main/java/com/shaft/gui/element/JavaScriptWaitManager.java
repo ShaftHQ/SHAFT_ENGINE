@@ -14,6 +14,7 @@ import java.time.Duration;
 import java.util.Objects;
 
 public class JavaScriptWaitManager {
+    private static final boolean WAIT_FOR_LAZY_LOADING = Boolean.parseBoolean(System.getProperty("waitForLazyLoading"));
     private static final int WAIT_DURATION_INTEGER = Integer.parseInt(System.getProperty("lazyLoadingTimeout"));
     private static final String TARGET_DOCUMENT_READY_STATE = "complete";
     private static final ThreadLocal<WebDriver> jsWaitDriver = new ThreadLocal<>();
@@ -35,20 +36,22 @@ public class JavaScriptWaitManager {
      */
     public static void waitForLazyLoading() {
         RecordManager.startVideoRecording();
-        try {
-            waitForJQueryLoadIfDefined();
-            waitForAngularIfDefined();
-            waitForJSLoadIfDefined();
-        } catch (NoSuchSessionException | NullPointerException e) {
-            // do nothing
-        } catch (WebDriverException e) {
-            if (!e.getMessage().contains("jQuery is not defined")) {
+        if (Boolean.TRUE.equals(WAIT_FOR_LAZY_LOADING)) {
+            try {
+                waitForJQueryLoadIfDefined();
+                waitForAngularIfDefined();
+                waitForJSLoadIfDefined();
+            } catch (NoSuchSessionException | NullPointerException e) {
+                // do nothing
+            } catch (WebDriverException e) {
+                if (!e.getMessage().contains("jQuery is not defined")) {
+                    ReportManager.log(e);
+                }
+                // else do nothing
+
+            } catch (Exception e) {
                 ReportManager.log(e);
             }
-            // else do nothing
-
-        } catch (Exception e) {
-            ReportManager.log(e);
         }
     }
 
