@@ -38,7 +38,6 @@ public class JavaScriptWaitManager {
         RecordManager.startVideoRecording();
         if (Boolean.TRUE.equals(WAIT_FOR_LAZY_LOADING)) {
             try {
-                ReportManager.log("Waiting for lazy loading.");
                 waitForJQueryLoadIfDefined();
                 waitForAngularIfDefined();
                 waitForJSLoadIfDefined();
