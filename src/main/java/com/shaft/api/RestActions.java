@@ -56,14 +56,17 @@ public class RestActions {
     private static int HTTP_CONNECTION_TIMEOUT;
     private static int HTTP_CONNECTION_MANAGER_TIMEOUT;
     private final String serviceURI;
-    private RequestSpecBuilder builder;
     private String headerAuthorization;
+    private final Map<String, String> sessionHeaders;
+    private final Map<String, Object> sessionCookies;
+
 
     public RestActions(String serviceURI) {
         initializeSystemProperties(System.getProperty("apiConnectionTimeout") == null);
         headerAuthorization = "";
         this.serviceURI = serviceURI;
-        initializeBuilder();
+        sessionCookies = new HashMap<>();
+        sessionHeaders = new HashMap<>();
     }
 
     public static InputStream parseBodyToJson(Response response) {
@@ -690,8 +693,12 @@ public class RestActions {
 
     }
 
-    private void initializeBuilder() {
-        builder = new RequestSpecBuilder();
+    private RequestSpecBuilder initializeBuilder() {
+        RequestSpecBuilder builder = new RequestSpecBuilder();
+
+        builder.addCookies(sessionCookies);
+        builder.addHeaders(sessionHeaders);
+
         // fixing issue with non-unicode content being encoded with a non UTF-8 charset
         // adding timeouts
         builder.setConfig(
@@ -719,6 +726,7 @@ public class RestActions {
          * the Connection Manager Timeout (http.connection-manager.timeout) – the time
          * to wait for a connection from the connection manager/pool
          */
+        return builder;
     }
 
     /**
@@ -731,7 +739,7 @@ public class RestActions {
      * @return self-reference to be used for chaining actions
      */
     public RestActions addHeader(String key, String value) {
-        builder.addHeader(key, value);
+        sessionHeaders.put(key, value);
         return this;
     }
 
@@ -745,7 +753,7 @@ public class RestActions {
      * @return self-reference to be used for chaining actions
      */
     public RestActions addCookie(String key, Object value) {
-        builder.addCookie(key, value);
+        sessionCookies.put(key, value);
         return this;
     }
 
@@ -879,6 +887,8 @@ public class RestActions {
 
     private RequestSpecification prepareRequestSpecs(List<List<Object>> parameters, ParametersType parametersType,
                                                      Object body, ContentType contentType) {
+        RequestSpecBuilder builder = initializeBuilder();
+
         // set the default content type as part of the specs
         builder.setContentType(contentType);
 
@@ -952,9 +962,9 @@ public class RestActions {
     private void extractCookiesFromResponse(Response response) {
         if (response.getDetailedCookies().size() > 0) {
             for (Cookie cookie : response.getDetailedCookies()) {
-                builder.addCookie(cookie);
+                sessionCookies.put(cookie.getName(), cookie.getValue());
                 if (cookie.getName().equals("XSRF-TOKEN")) {
-                    builder.addCookie("X-XSRF-TOKEN", cookie.getValue());
+                    sessionHeaders.put("X-XSRF-TOKEN", cookie.getValue());
                 }
             }
         }
@@ -964,7 +974,7 @@ public class RestActions {
         if (response.getHeaders().size() > 0) {
             for (Header header : response.getHeaders()) {
                 if (header.getName().equals("X-XSRF-TOKEN") || header.getName().equals("Set-Cookie")) {
-                    builder.addHeader(header.getName(), header.getValue());
+                    sessionHeaders.put(header.getName(), header.getValue());
                 }
             }
         }
@@ -972,8 +982,8 @@ public class RestActions {
         try {
             if (response.jsonPath().getString("type").equalsIgnoreCase("bearer")) {
                 headerAuthorization = "Bearer " + getResponseJSONValue(response, "token");
-                builder.addHeader("Authorization", headerAuthorization);
-                builder.addHeader("Content-Type", "application/json");
+                sessionHeaders.put("Authorization", headerAuthorization);
+                sessionHeaders.put("Content-Type", "application/json");
 
             }
         } catch (JsonPathException | NullPointerException e) {
@@ -1032,6 +1042,7 @@ public class RestActions {
      */
     private Response performRequest(Object[] params) {
 
+        //TODO: create setter for each of the below to use with the builder pattern
         RequestType requestType = (RequestType) params[0];
         int targetStatusCode = (int) params[1];
         String serviceName = (String) params[2];
