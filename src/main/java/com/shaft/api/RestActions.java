@@ -55,17 +55,15 @@ public class RestActions {
     private static int HTTP_SOCKET_TIMEOUT;
     private static int HTTP_CONNECTION_TIMEOUT;
     private static int HTTP_CONNECTION_MANAGER_TIMEOUT;
-    private final Map<String, String> sessionHeaders;
     private final String serviceURI;
+    private RequestSpecBuilder builder;
     private String headerAuthorization;
-    private Map<String, String> sessionCookies;
 
     public RestActions(String serviceURI) {
         initializeSystemProperties(System.getProperty("apiConnectionTimeout") == null);
         headerAuthorization = "";
-        sessionCookies = new HashMap<>();
-        sessionHeaders = new HashMap<>();
         this.serviceURI = serviceURI;
+        initializeBuilder();
     }
 
     public static InputStream parseBodyToJson(Response response) {
@@ -692,19 +690,65 @@ public class RestActions {
 
     }
 
+    private void initializeBuilder() {
+        builder = new RequestSpecBuilder();
+        // fixing issue with non-unicode content being encoded with a non UTF-8 charset
+        // adding timeouts
+        builder.setConfig(
+                (new RestAssuredConfig()).encoderConfig((new EncoderConfig()).defaultContentCharset("UTF-8")).and()
+                        .httpClient(HttpClientConfig.httpClientConfig()
+                                .setParam("http.connection.timeout", HTTP_CONNECTION_TIMEOUT * 1000)
+                                .setParam("http.socket.timeout", HTTP_SOCKET_TIMEOUT * 1000)
+                                .setParam("http.connection-manager.timeout", HTTP_CONNECTION_MANAGER_TIMEOUT * 1000)));
+
+        // timeouts documentation
+        /*
+         * CoreConnectionPNames.SO_TIMEOUT='http.socket.timeout': defines the socket
+         * timeout (SO_TIMEOUT) in milliseconds, which is the timeout for waiting for
+         * data or, put differently, a maximum period inactivity between two consecutive
+         * data packets). A timeout value of zero is interpreted as an infinite timeout.
+         * This parameter expects a value of type java.lang.Integer. If this parameter
+         * is not set, read operations will not time out (infinite timeout).
+         *
+         * CoreConnectionPNames.CONNECTION_TIMEOUT='http.connection.timeout': determines
+         * the timeout in milliseconds until a connection is established. A timeout
+         * value of zero is interpreted as an infinite timeout. This parameter expects a
+         * value of type java.lang.Integer. If this parameter is not set, connect
+         * operations will not time out (infinite timeout).
+         *
+         * the Connection Manager Timeout (http.connection-manager.timeout) – the time
+         * to wait for a connection from the connection manager/pool
+         */
+    }
+
     /**
-     * Append a header variable to the current session to be used in all the
+     * Append a header to the current session to be used in all the
      * following requests. Note: This feature is commonly used for authentication
      * tokens.
      *
-     * @param key   the name of the header variable that you want to add
+     * @param key   the name of the header that you want to add
      * @param value the value that will be put inside the key
      * @return self-reference to be used for chaining actions
      */
-    public RestActions addHeaderVariable(String key, String value) {
-        sessionHeaders.put(key, value);
+    public RestActions addHeader(String key, String value) {
+        builder.addHeader(key, value);
         return this;
     }
+
+    /**
+     * Append a cookie to the current session to be used in all the
+     * following requests. Note: This feature is commonly used for authentication
+     * tokens.
+     *
+     * @param key   the name of the cookie that you want to add
+     * @param value the value that will be put inside the key
+     * @return self-reference to be used for chaining actions
+     */
+    public RestActions addCookie(String key, Object value) {
+        builder.addCookie(key, value);
+        return this;
+    }
+
 
     /**
      * Attempts to perform a request to a REST API, then checks the response status code, if it matches the target code the step is passed and the response is returned. Otherwise the action fails.
@@ -835,38 +879,8 @@ public class RestActions {
 
     private RequestSpecification prepareRequestSpecs(List<List<Object>> parameters, ParametersType parametersType,
                                                      Object body, ContentType contentType) {
-        RequestSpecBuilder builder = new RequestSpecBuilder();
-
         // set the default content type as part of the specs
         builder.setContentType(contentType);
-
-        // fixing issue with non-unicode content being encoded with a non UTF-8 charset
-        // adding timeouts
-        builder.setConfig(
-                (new RestAssuredConfig()).encoderConfig((new EncoderConfig()).defaultContentCharset("UTF-8")).and()
-                        .httpClient(HttpClientConfig.httpClientConfig()
-                                .setParam("http.connection.timeout", HTTP_CONNECTION_TIMEOUT * 1000)
-                                .setParam("http.socket.timeout", HTTP_SOCKET_TIMEOUT * 1000)
-                                .setParam("http.connection-manager.timeout", HTTP_CONNECTION_MANAGER_TIMEOUT * 1000)));
-
-        // timeouts documentation
-        /*
-         * CoreConnectionPNames.SO_TIMEOUT='http.socket.timeout': defines the socket
-         * timeout (SO_TIMEOUT) in milliseconds, which is the timeout for waiting for
-         * data or, put differently, a maximum period inactivity between two consecutive
-         * data packets). A timeout value of zero is interpreted as an infinite timeout.
-         * This parameter expects a value of type java.lang.Integer. If this parameter
-         * is not set, read operations will not time out (infinite timeout).
-         *
-         * CoreConnectionPNames.CONNECTION_TIMEOUT='http.connection.timeout': determines
-         * the timeout in milliseconds until a connection is established. A timeout
-         * value of zero is interpreted as an infinite timeout. This parameter expects a
-         * value of type java.lang.Integer. If this parameter is not set, connect
-         * operations will not time out (infinite timeout).
-         *
-         * the Connection Manager Timeout (http.connection-manager.timeout) – the time
-         * to wait for a connection from the connection manager/pool
-         */
 
         if (body != null && contentType != null && !body.toString().equals("")) {
             prepareRequestBody(builder, body, contentType);
@@ -918,71 +932,29 @@ public class RestActions {
     }
 
     private Response sendRequest(RequestType requestType, String request, RequestSpecification specs) {
-        if (sessionCookies.size() == 0 && sessionHeaders.size() > 0) {
-            switch (requestType) {
-                case POST:
-                    return given().headers(sessionHeaders).spec(specs).when().post(request).andReturn();
-                case PATCH:
-                    return given().headers(sessionHeaders).spec(specs).when().patch(request).andReturn();
-                case PUT:
-                    return given().headers(sessionHeaders).spec(specs).when().put(request).andReturn();
-                case GET:
-                    return given().headers(sessionHeaders).spec(specs).when().get(request).andReturn();
-                case DELETE:
-                    return given().headers(sessionHeaders).spec(specs).when().delete(request).andReturn();
-                default:
-                    break;
-            }
-        } else if (sessionCookies.size() == 0) {
-            switch (requestType) {
-                case POST:
-                    return given().spec(specs).when().post(request).andReturn();
-                case PATCH:
-                    return given().spec(specs).when().patch(request).andReturn();
-                case PUT:
-                    return given().spec(specs).when().put(request).andReturn();
-                case GET:
-                    return given().spec(specs).when().get(request).andReturn();
-                case DELETE:
-                    return given().spec(specs).when().delete(request).andReturn();
-                default:
-                    break;
-            }
-        } else {
-            switch (requestType) {
-                case POST:
-                    return given().headers(sessionHeaders).cookies(sessionCookies).spec(specs).when().post(request)
-                            .andReturn();
-                case PATCH:
-                    return given().headers(sessionHeaders).cookies(sessionCookies).spec(specs).when().patch(request)
-                            .andReturn();
-                case PUT:
-                    return given().headers(sessionHeaders).cookies(sessionCookies).spec(specs).when().put(request)
-                            .andReturn();
-                case GET:
-                    return given().headers(sessionHeaders).cookies(sessionCookies).spec(specs).when().get(request)
-                            .andReturn();
-                case DELETE:
-                    return given().headers(sessionHeaders).cookies(sessionCookies).spec(specs).when().delete(request)
-                            .andReturn();
-                default:
-                    break;
-            }
+        switch (requestType) {
+            case POST:
+                return given().spec(specs).when().post(request).andReturn();
+            case PATCH:
+                return given().spec(specs).when().patch(request).andReturn();
+            case PUT:
+                return given().spec(specs).when().put(request).andReturn();
+            case GET:
+                return given().spec(specs).when().get(request).andReturn();
+            case DELETE:
+                return given().spec(specs).when().delete(request).andReturn();
+            default:
+                break;
         }
         return null;
     }
 
     private void extractCookiesFromResponse(Response response) {
         if (response.getDetailedCookies().size() > 0) {
-            if (sessionCookies == null) {
-                sessionCookies = response.getCookies();
-            } else {
-                for (Cookie cookie : response.getDetailedCookies()) {
-                    sessionCookies.put(cookie.getName(), cookie.getValue());
-
-                    if (cookie.getName().equals("XSRF-TOKEN")) {
-                        sessionHeaders.put("X-XSRF-TOKEN", cookie.getValue());
-                    }
+            for (Cookie cookie : response.getDetailedCookies()) {
+                builder.addCookie(cookie);
+                if (cookie.getName().equals("XSRF-TOKEN")) {
+                    builder.addCookie("X-XSRF-TOKEN", cookie.getValue());
                 }
             }
         }
@@ -992,7 +964,7 @@ public class RestActions {
         if (response.getHeaders().size() > 0) {
             for (Header header : response.getHeaders()) {
                 if (header.getName().equals("X-XSRF-TOKEN") || header.getName().equals("Set-Cookie")) {
-                    sessionHeaders.put(header.getName(), header.getValue());
+                    builder.addHeader(header.getName(), header.getValue());
                 }
             }
         }
@@ -1000,8 +972,9 @@ public class RestActions {
         try {
             if (response.jsonPath().getString("type").equalsIgnoreCase("bearer")) {
                 headerAuthorization = "Bearer " + getResponseJSONValue(response, "token");
-                sessionHeaders.put("Authorization", headerAuthorization);
-                sessionHeaders.put("Content-Type", "application/json");
+                builder.addHeader("Authorization", headerAuthorization);
+                builder.addHeader("Content-Type", "application/json");
+
             }
         } catch (JsonPathException | NullPointerException e) {
             // do nothing if the "type" variable was not found
@@ -1015,6 +988,7 @@ public class RestActions {
         try {
             boolean discreetLoggingState = ReportManager.isDiscreteLogging();
             ReportManager.setDiscreteLogging(true);
+            ReportManager.log("Response status code: [" + response.getStatusCode() + "], status line: [" + response.getStatusLine() + "]");
             Assertions.assertEquals(targetStatusCode, response.getStatusCode(),
                     "Evaluating the actual response status code against the expected one...");
             ReportManager.setDiscreteLogging(discreetLoggingState);
