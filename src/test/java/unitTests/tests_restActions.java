@@ -16,7 +16,9 @@ public class tests_restActions {
     public void getPostsAndAssertBodyForSpecificTitle() {
         String serviceURI = "https://jsonplaceholder.typicode.com/";
 
-        Response posts = (new RestActions(serviceURI)).performRequest(RequestType.GET, 200, "posts");
+//        Response posts = (new RestActions(serviceURI)).performRequest(RequestType.GET, 200, "posts");
+        Response posts = RestActions.buildNewRequest(serviceURI, "posts", RequestType.GET).performRequest();
+
         List<Object> postsList = RestActions.getResponseJSONValueAsList(posts, "");
         postsList.forEach(post -> {
             if (RestActions.getResponseJSONValue(post, "title").equals("qui est esse")) {
