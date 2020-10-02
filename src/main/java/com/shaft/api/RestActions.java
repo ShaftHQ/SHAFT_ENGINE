@@ -60,6 +60,19 @@ public class RestActions {
     private final Map<String, String> sessionHeaders;
     private final Map<String, Object> sessionCookies;
 
+    public static RequestBuilder buildNewRequest(String serviceURI, String serviceName, RequestType requestType) {
+        return new RequestBuilder(new RestActions(serviceURI), serviceName, requestType);
+    }
+
+    static void passAction(String actionName, String testData, Object requestBody, Response response,
+                           Boolean isDiscrete, List<Object> expectedFileBodyAttachment) {
+        reportActionResult(actionName, testData, requestBody, response, isDiscrete, expectedFileBodyAttachment, true);
+    }
+
+    static void passAction(String testData) {
+        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+        passAction(actionName, testData, null, null, true, null);
+    }
 
     public RestActions(String serviceURI) {
         initializeSystemProperties(System.getProperty("apiConnectionTimeout") == null);
@@ -67,6 +80,16 @@ public class RestActions {
         this.serviceURI = serviceURI;
         sessionCookies = new HashMap<>();
         sessionHeaders = new HashMap<>();
+    }
+
+    static void passAction(String testData, List<Object> expectedFileBodyAttachment) {
+        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+        passAction(actionName, testData, null, null, true, expectedFileBodyAttachment);
+    }
+
+    static void passAction(String testData, Object requestBody, Response response) {
+        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+        passAction(actionName, testData, requestBody, response, false, null);
     }
 
     public static InputStream parseBodyToJson(Response response) {
@@ -360,28 +383,8 @@ public class RestActions {
         return prettyFormatXML(input);
     }
 
-    private static void passAction(String actionName, String testData, Object requestBody, Response response,
-                                   Boolean isDiscrete, List<Object> expectedFileBodyAttachment) {
-        reportActionResult(actionName, testData, requestBody, response, isDiscrete, expectedFileBodyAttachment, true);
-    }
-
-    private static void passAction(String testData) {
-        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        passAction(actionName, testData, null, null, true, null);
-    }
-
-    private static void passAction(String testData, List<Object> expectedFileBodyAttachment) {
-        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        passAction(actionName, testData, null, null, true, expectedFileBodyAttachment);
-    }
-
-    private static void passAction(String testData, Object requestBody, Response response) {
-        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        passAction(actionName, testData, requestBody, response, false, null);
-    }
-
-    private static void failAction(String actionName, String testData, Object requestBody, Response response,
-                                   Throwable... rootCauseException) {
+    static void failAction(String actionName, String testData, Object requestBody, Response response,
+                           Throwable... rootCauseException) {
         String message = reportActionResult(actionName, testData, requestBody, response, false, null, false);
         if (rootCauseException != null && rootCauseException.length >= 1) {
             Assert.fail(message, rootCauseException[0]);
@@ -390,15 +393,31 @@ public class RestActions {
         }
     }
 
-    private static void failAction(String testData, Object requestBody, Response response,
-                                   Throwable... rootCauseException) {
+    static void failAction(String testData, Object requestBody, Response response,
+                           Throwable... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         failAction(actionName, testData, requestBody, response, rootCauseException);
     }
 
-    private static void failAction(String testData, Throwable... rootCauseException) {
+    static void failAction(String testData, Throwable... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         failAction(actionName, testData, null, null, rootCauseException);
+    }
+
+    String getServiceURI() {
+        return serviceURI;
+    }
+
+    Map<String, String> getSessionHeaders() {
+        return sessionHeaders;
+    }
+
+    Map<String, Object> getSessionCookies() {
+        return sessionCookies;
+    }
+
+    public RequestBuilder buildNewRequest(String serviceName, RequestType requestType) {
+        return new RequestBuilder(this, serviceName, requestType);
     }
 
     private static String reportActionResult(String actionName, String testData, Object requestBody, Response response,
@@ -693,7 +712,7 @@ public class RestActions {
 
     }
 
-    private RequestSpecBuilder initializeBuilder() {
+    private RequestSpecBuilder initializeBuilder(Map<String, Object> sessionCookies, Map<String, String> sessionHeaders) {
         RequestSpecBuilder builder = new RequestSpecBuilder();
 
         builder.addCookies(sessionCookies);
@@ -738,25 +757,10 @@ public class RestActions {
      * @param value the value that will be put inside the key
      * @return self-reference to be used for chaining actions
      */
-    public RestActions addHeader(String key, String value) {
+    public RestActions addHeaderVariable(String key, String value) {
         sessionHeaders.put(key, value);
         return this;
     }
-
-    /**
-     * Append a cookie to the current session to be used in all the
-     * following requests. Note: This feature is commonly used for authentication
-     * tokens.
-     *
-     * @param key   the name of the cookie that you want to add
-     * @param value the value that will be put inside the key
-     * @return self-reference to be used for chaining actions
-     */
-    public RestActions addCookie(String key, Object value) {
-        sessionCookies.put(key, value);
-        return this;
-    }
-
 
     /**
      * Attempts to perform a request to a REST API, then checks the response status code, if it matches the target code the step is passed and the response is returned. Otherwise the action fails.
@@ -877,7 +881,7 @@ public class RestActions {
                 new Object[]{requestType, targetStatusCode, serviceName, null, null, null, requestBody, contentType});
     }
 
-    private String prepareRequestURL(String urlArguments, String serviceName) {
+    String prepareRequestURL(String serviceURI, String urlArguments, String serviceName) {
         if (urlArguments != null && !urlArguments.equals("")) {
             return serviceURI + serviceName + ARGUMENTSEPARATOR + urlArguments;
         } else {
@@ -885,9 +889,9 @@ public class RestActions {
         }
     }
 
-    private RequestSpecification prepareRequestSpecs(List<List<Object>> parameters, ParametersType parametersType,
-                                                     Object body, ContentType contentType) {
-        RequestSpecBuilder builder = initializeBuilder();
+    RequestSpecification prepareRequestSpecs(List<List<Object>> parameters, ParametersType parametersType,
+                                             Object body, ContentType contentType, Map<String, Object> sessionCookies, Map<String, String> sessionHeaders) {
+        RequestSpecBuilder builder = initializeBuilder(sessionCookies, sessionHeaders);
 
         // set the default content type as part of the specs
         builder.setContentType(contentType);
@@ -941,7 +945,7 @@ public class RestActions {
         });
     }
 
-    private Response sendRequest(RequestType requestType, String request, RequestSpecification specs) {
+    Response sendRequest(RequestType requestType, String request, RequestSpecification specs) {
         switch (requestType) {
             case POST:
                 return given().spec(specs).when().post(request).andReturn();
@@ -994,7 +998,7 @@ public class RestActions {
         }
     }
 
-    private boolean evaluateResponseStatusCode(Response response, int targetStatusCode) {
+    boolean evaluateResponseStatusCode(Response response, int targetStatusCode) {
         try {
             boolean discreetLoggingState = ReportManager.isDiscreteLogging();
             ReportManager.setDiscreteLogging(true);
@@ -1040,9 +1044,7 @@ public class RestActions {
      *               time. Example: ContentType.ANY
      * @return Response; returns the full response object for further manipulation
      */
-    private Response performRequest(Object[] params) {
-
-        //TODO: create setter for each of the below to use with the builder pattern
+    Response performRequest(Object[] params) {
         RequestType requestType = (RequestType) params[0];
         int targetStatusCode = (int) params[1];
         String serviceName = (String) params[2];
@@ -1053,9 +1055,9 @@ public class RestActions {
         Object requestBody = params[6];
         ContentType contentType = (ContentType) params[7];
 
-        String request = prepareRequestURL(urlArguments, serviceName);
+        String request = prepareRequestURL(serviceURI, urlArguments, serviceName);
 
-        RequestSpecification specs = prepareRequestSpecs(parameters, parametersType, requestBody, contentType);
+        RequestSpecification specs = prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders);
 
         Response response = null;
         try {
@@ -1087,8 +1089,8 @@ public class RestActions {
         return response;
     }
 
-    private String prepareReportMessage(Response response, int targetStatusCode, RequestType requestType,
-                                        String serviceName, ContentType contentType, String urlArguments) {
+    String prepareReportMessage(Response response, int targetStatusCode, RequestType requestType,
+                                String serviceName, ContentType contentType, String urlArguments) {
         if (response != null) {
             extractCookiesFromResponse(response);
             extractHeadersFromResponse(response);
