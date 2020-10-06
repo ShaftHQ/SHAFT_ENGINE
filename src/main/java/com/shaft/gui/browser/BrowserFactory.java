@@ -363,7 +363,7 @@ public class BrowserFactory {
                         // https://developers.google.com/web/updates/2017/04/headless-chrome
                         chOptions.addArguments("--headless"); // only if you are ACTUALLY running headless
                     }
-                    if (Boolean.TRUE.equals(AUTO_MAXIMIZE) && !isMobileWebExecution()) {
+                    if (Boolean.TRUE.equals(AUTO_MAXIMIZE) && !isMobileWebExecution() && !OperatingSystemType.MACOS.equals(getOperatingSystemFromName(targetOperatingSystem))) {
                         chOptions.addArguments("--start-maximized");
                     }
                     chOptions.setCapability(CapabilityType.LOGGING_PREFS, logPrefs);
@@ -704,9 +704,9 @@ public class BrowserFactory {
                 }
 
                 JavaScriptWaitManager.setDriver(driver.get());
-                if (Boolean.TRUE.equals(AUTO_MAXIMIZE) && !BrowserType.GOOGLE_CHROME.equals(getBrowserTypeFromName(internalBrowserName)) && !isMobileWebExecution()) {
+                if (Boolean.TRUE.equals(AUTO_MAXIMIZE) && !isMobileWebExecution()
+                        && (!BrowserType.GOOGLE_CHROME.equals(getBrowserTypeFromName(internalBrowserName)) || OperatingSystemType.MACOS.equals(getOperatingSystemFromName(targetOperatingSystem)))) {
                     BrowserActions.maximizeWindow(driver.get());
-                    // Automatically maximize driver window after opening it
                 }
             }
         } catch (NullPointerException e) {
