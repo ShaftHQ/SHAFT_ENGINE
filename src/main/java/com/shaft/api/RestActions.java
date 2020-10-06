@@ -55,17 +55,41 @@ public class RestActions {
     private static int HTTP_SOCKET_TIMEOUT;
     private static int HTTP_CONNECTION_TIMEOUT;
     private static int HTTP_CONNECTION_MANAGER_TIMEOUT;
-    private final Map<String, String> sessionHeaders;
     private final String serviceURI;
     private String headerAuthorization;
-    private Map<String, String> sessionCookies;
+    private final Map<String, String> sessionHeaders;
+    private final Map<String, Object> sessionCookies;
+
+    public static RequestBuilder buildNewRequest(String serviceURI, String serviceName, RequestType requestType) {
+        return new RequestBuilder(new RestActions(serviceURI), serviceName, requestType);
+    }
+
+    static void passAction(String actionName, String testData, Object requestBody, Response response,
+                           Boolean isDiscrete, List<Object> expectedFileBodyAttachment) {
+        reportActionResult(actionName, testData, requestBody, response, isDiscrete, expectedFileBodyAttachment, true);
+    }
+
+    static void passAction(String testData) {
+        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+        passAction(actionName, testData, null, null, true, null);
+    }
 
     public RestActions(String serviceURI) {
         initializeSystemProperties(System.getProperty("apiConnectionTimeout") == null);
         headerAuthorization = "";
+        this.serviceURI = serviceURI;
         sessionCookies = new HashMap<>();
         sessionHeaders = new HashMap<>();
-        this.serviceURI = serviceURI;
+    }
+
+    static void passAction(String testData, List<Object> expectedFileBodyAttachment) {
+        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+        passAction(actionName, testData, null, null, true, expectedFileBodyAttachment);
+    }
+
+    static void passAction(String testData, Object requestBody, Response response) {
+        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+        passAction(actionName, testData, requestBody, response, false, null);
     }
 
     public static InputStream parseBodyToJson(Response response) {
@@ -359,28 +383,8 @@ public class RestActions {
         return prettyFormatXML(input);
     }
 
-    private static void passAction(String actionName, String testData, Object requestBody, Response response,
-                                   Boolean isDiscrete, List<Object> expectedFileBodyAttachment) {
-        reportActionResult(actionName, testData, requestBody, response, isDiscrete, expectedFileBodyAttachment, true);
-    }
-
-    private static void passAction(String testData) {
-        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        passAction(actionName, testData, null, null, true, null);
-    }
-
-    private static void passAction(String testData, List<Object> expectedFileBodyAttachment) {
-        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        passAction(actionName, testData, null, null, true, expectedFileBodyAttachment);
-    }
-
-    private static void passAction(String testData, Object requestBody, Response response) {
-        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        passAction(actionName, testData, requestBody, response, false, null);
-    }
-
-    private static void failAction(String actionName, String testData, Object requestBody, Response response,
-                                   Throwable... rootCauseException) {
+    static void failAction(String actionName, String testData, Object requestBody, Response response,
+                           Throwable... rootCauseException) {
         String message = reportActionResult(actionName, testData, requestBody, response, false, null, false);
         if (rootCauseException != null && rootCauseException.length >= 1) {
             Assert.fail(message, rootCauseException[0]);
@@ -389,15 +393,31 @@ public class RestActions {
         }
     }
 
-    private static void failAction(String testData, Object requestBody, Response response,
-                                   Throwable... rootCauseException) {
+    static void failAction(String testData, Object requestBody, Response response,
+                           Throwable... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         failAction(actionName, testData, requestBody, response, rootCauseException);
     }
 
-    private static void failAction(String testData, Throwable... rootCauseException) {
+    static void failAction(String testData, Throwable... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         failAction(actionName, testData, null, null, rootCauseException);
+    }
+
+    String getServiceURI() {
+        return serviceURI;
+    }
+
+    Map<String, String> getSessionHeaders() {
+        return sessionHeaders;
+    }
+
+    Map<String, Object> getSessionCookies() {
+        return sessionCookies;
+    }
+
+    public RequestBuilder buildNewRequest(String serviceName, RequestType requestType) {
+        return new RequestBuilder(this, serviceName, requestType);
     }
 
     private static String reportActionResult(String actionName, String testData, Object requestBody, Response response,
@@ -692,12 +712,48 @@ public class RestActions {
 
     }
 
+    private RequestSpecBuilder initializeBuilder(Map<String, Object> sessionCookies, Map<String, String> sessionHeaders) {
+        RequestSpecBuilder builder = new RequestSpecBuilder();
+
+        builder.addCookies(sessionCookies);
+        builder.addHeaders(sessionHeaders);
+
+        // fixing issue with non-unicode content being encoded with a non UTF-8 charset
+        // adding timeouts
+        builder.setConfig(
+                (new RestAssuredConfig()).encoderConfig((new EncoderConfig()).defaultContentCharset("UTF-8")).and()
+                        .httpClient(HttpClientConfig.httpClientConfig()
+                                .setParam("http.connection.timeout", HTTP_CONNECTION_TIMEOUT * 1000)
+                                .setParam("http.socket.timeout", HTTP_SOCKET_TIMEOUT * 1000)
+                                .setParam("http.connection-manager.timeout", HTTP_CONNECTION_MANAGER_TIMEOUT * 1000)));
+
+        // timeouts documentation
+        /*
+         * CoreConnectionPNames.SO_TIMEOUT='http.socket.timeout': defines the socket
+         * timeout (SO_TIMEOUT) in milliseconds, which is the timeout for waiting for
+         * data or, put differently, a maximum period inactivity between two consecutive
+         * data packets). A timeout value of zero is interpreted as an infinite timeout.
+         * This parameter expects a value of type java.lang.Integer. If this parameter
+         * is not set, read operations will not time out (infinite timeout).
+         *
+         * CoreConnectionPNames.CONNECTION_TIMEOUT='http.connection.timeout': determines
+         * the timeout in milliseconds until a connection is established. A timeout
+         * value of zero is interpreted as an infinite timeout. This parameter expects a
+         * value of type java.lang.Integer. If this parameter is not set, connect
+         * operations will not time out (infinite timeout).
+         *
+         * the Connection Manager Timeout (http.connection-manager.timeout) – the time
+         * to wait for a connection from the connection manager/pool
+         */
+        return builder;
+    }
+
     /**
-     * Append a header variable to the current session to be used in all the
+     * Append a header to the current session to be used in all the
      * following requests. Note: This feature is commonly used for authentication
      * tokens.
      *
-     * @param key   the name of the header variable that you want to add
+     * @param key   the name of the header that you want to add
      * @param value the value that will be put inside the key
      * @return self-reference to be used for chaining actions
      */
@@ -825,7 +881,7 @@ public class RestActions {
                 new Object[]{requestType, targetStatusCode, serviceName, null, null, null, requestBody, contentType});
     }
 
-    private String prepareRequestURL(String urlArguments, String serviceName) {
+    String prepareRequestURL(String serviceURI, String urlArguments, String serviceName) {
         if (urlArguments != null && !urlArguments.equals("")) {
             return serviceURI + serviceName + ARGUMENTSEPARATOR + urlArguments;
         } else {
@@ -833,40 +889,12 @@ public class RestActions {
         }
     }
 
-    private RequestSpecification prepareRequestSpecs(List<List<Object>> parameters, ParametersType parametersType,
-                                                     Object body, ContentType contentType) {
-        RequestSpecBuilder builder = new RequestSpecBuilder();
+    RequestSpecification prepareRequestSpecs(List<List<Object>> parameters, ParametersType parametersType,
+                                             Object body, ContentType contentType, Map<String, Object> sessionCookies, Map<String, String> sessionHeaders) {
+        RequestSpecBuilder builder = initializeBuilder(sessionCookies, sessionHeaders);
 
         // set the default content type as part of the specs
         builder.setContentType(contentType);
-
-        // fixing issue with non-unicode content being encoded with a non UTF-8 charset
-        // adding timeouts
-        builder.setConfig(
-                (new RestAssuredConfig()).encoderConfig((new EncoderConfig()).defaultContentCharset("UTF-8")).and()
-                        .httpClient(HttpClientConfig.httpClientConfig()
-                                .setParam("http.connection.timeout", HTTP_CONNECTION_TIMEOUT * 1000)
-                                .setParam("http.socket.timeout", HTTP_SOCKET_TIMEOUT * 1000)
-                                .setParam("http.connection-manager.timeout", HTTP_CONNECTION_MANAGER_TIMEOUT * 1000)));
-
-        // timeouts documentation
-        /*
-         * CoreConnectionPNames.SO_TIMEOUT='http.socket.timeout': defines the socket
-         * timeout (SO_TIMEOUT) in milliseconds, which is the timeout for waiting for
-         * data or, put differently, a maximum period inactivity between two consecutive
-         * data packets). A timeout value of zero is interpreted as an infinite timeout.
-         * This parameter expects a value of type java.lang.Integer. If this parameter
-         * is not set, read operations will not time out (infinite timeout).
-         *
-         * CoreConnectionPNames.CONNECTION_TIMEOUT='http.connection.timeout': determines
-         * the timeout in milliseconds until a connection is established. A timeout
-         * value of zero is interpreted as an infinite timeout. This parameter expects a
-         * value of type java.lang.Integer. If this parameter is not set, connect
-         * operations will not time out (infinite timeout).
-         *
-         * the Connection Manager Timeout (http.connection-manager.timeout) – the time
-         * to wait for a connection from the connection manager/pool
-         */
 
         if (body != null && contentType != null && !body.toString().equals("")) {
             prepareRequestBody(builder, body, contentType);
@@ -917,72 +945,30 @@ public class RestActions {
         });
     }
 
-    private Response sendRequest(RequestType requestType, String request, RequestSpecification specs) {
-        if (sessionCookies.size() == 0 && sessionHeaders.size() > 0) {
-            switch (requestType) {
-                case POST:
-                    return given().headers(sessionHeaders).spec(specs).when().post(request).andReturn();
-                case PATCH:
-                    return given().headers(sessionHeaders).spec(specs).when().patch(request).andReturn();
-                case PUT:
-                    return given().headers(sessionHeaders).spec(specs).when().put(request).andReturn();
-                case GET:
-                    return given().headers(sessionHeaders).spec(specs).when().get(request).andReturn();
-                case DELETE:
-                    return given().headers(sessionHeaders).spec(specs).when().delete(request).andReturn();
-                default:
-                    break;
-            }
-        } else if (sessionCookies.size() == 0) {
-            switch (requestType) {
-                case POST:
-                    return given().spec(specs).when().post(request).andReturn();
-                case PATCH:
-                    return given().spec(specs).when().patch(request).andReturn();
-                case PUT:
-                    return given().spec(specs).when().put(request).andReturn();
-                case GET:
-                    return given().spec(specs).when().get(request).andReturn();
-                case DELETE:
-                    return given().spec(specs).when().delete(request).andReturn();
-                default:
-                    break;
-            }
-        } else {
-            switch (requestType) {
-                case POST:
-                    return given().headers(sessionHeaders).cookies(sessionCookies).spec(specs).when().post(request)
-                            .andReturn();
-                case PATCH:
-                    return given().headers(sessionHeaders).cookies(sessionCookies).spec(specs).when().patch(request)
-                            .andReturn();
-                case PUT:
-                    return given().headers(sessionHeaders).cookies(sessionCookies).spec(specs).when().put(request)
-                            .andReturn();
-                case GET:
-                    return given().headers(sessionHeaders).cookies(sessionCookies).spec(specs).when().get(request)
-                            .andReturn();
-                case DELETE:
-                    return given().headers(sessionHeaders).cookies(sessionCookies).spec(specs).when().delete(request)
-                            .andReturn();
-                default:
-                    break;
-            }
+    Response sendRequest(RequestType requestType, String request, RequestSpecification specs) {
+        switch (requestType) {
+            case POST:
+                return given().spec(specs).when().post(request).andReturn();
+            case PATCH:
+                return given().spec(specs).when().patch(request).andReturn();
+            case PUT:
+                return given().spec(specs).when().put(request).andReturn();
+            case GET:
+                return given().spec(specs).when().get(request).andReturn();
+            case DELETE:
+                return given().spec(specs).when().delete(request).andReturn();
+            default:
+                break;
         }
         return null;
     }
 
     private void extractCookiesFromResponse(Response response) {
         if (response.getDetailedCookies().size() > 0) {
-            if (sessionCookies == null) {
-                sessionCookies = response.getCookies();
-            } else {
-                for (Cookie cookie : response.getDetailedCookies()) {
-                    sessionCookies.put(cookie.getName(), cookie.getValue());
-
-                    if (cookie.getName().equals("XSRF-TOKEN")) {
-                        sessionHeaders.put("X-XSRF-TOKEN", cookie.getValue());
-                    }
+            for (Cookie cookie : response.getDetailedCookies()) {
+                sessionCookies.put(cookie.getName(), cookie.getValue());
+                if (cookie.getName().equals("XSRF-TOKEN")) {
+                    sessionHeaders.put("X-XSRF-TOKEN", cookie.getValue());
                 }
             }
         }
@@ -1002,6 +988,7 @@ public class RestActions {
                 headerAuthorization = "Bearer " + getResponseJSONValue(response, "token");
                 sessionHeaders.put("Authorization", headerAuthorization);
                 sessionHeaders.put("Content-Type", "application/json");
+
             }
         } catch (JsonPathException | NullPointerException e) {
             // do nothing if the "type" variable was not found
@@ -1011,10 +998,11 @@ public class RestActions {
         }
     }
 
-    private boolean evaluateResponseStatusCode(Response response, int targetStatusCode) {
+    boolean evaluateResponseStatusCode(Response response, int targetStatusCode) {
         try {
             boolean discreetLoggingState = ReportManager.isDiscreteLogging();
             ReportManager.setDiscreteLogging(true);
+            ReportManager.log("Response status code: [" + response.getStatusCode() + "], status line: [" + response.getStatusLine() + "]");
             Assertions.assertEquals(targetStatusCode, response.getStatusCode(),
                     "Evaluating the actual response status code against the expected one...");
             ReportManager.setDiscreteLogging(discreetLoggingState);
@@ -1056,8 +1044,7 @@ public class RestActions {
      *               time. Example: ContentType.ANY
      * @return Response; returns the full response object for further manipulation
      */
-    private Response performRequest(Object[] params) {
-
+    Response performRequest(Object[] params) {
         RequestType requestType = (RequestType) params[0];
         int targetStatusCode = (int) params[1];
         String serviceName = (String) params[2];
@@ -1068,9 +1055,9 @@ public class RestActions {
         Object requestBody = params[6];
         ContentType contentType = (ContentType) params[7];
 
-        String request = prepareRequestURL(urlArguments, serviceName);
+        String request = prepareRequestURL(serviceURI, urlArguments, serviceName);
 
-        RequestSpecification specs = prepareRequestSpecs(parameters, parametersType, requestBody, contentType);
+        RequestSpecification specs = prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders);
 
         Response response = null;
         try {
@@ -1102,8 +1089,8 @@ public class RestActions {
         return response;
     }
 
-    private String prepareReportMessage(Response response, int targetStatusCode, RequestType requestType,
-                                        String serviceName, ContentType contentType, String urlArguments) {
+    String prepareReportMessage(Response response, int targetStatusCode, RequestType requestType,
+                                String serviceName, ContentType contentType, String urlArguments) {
         if (response != null) {
             extractCookiesFromResponse(response);
             extractHeadersFromResponse(response);
