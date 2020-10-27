@@ -38,6 +38,6 @@ jobs:
         uses: peaceiris/actions-gh-pages@v3.7.3
         with:
           personal_token: ${{ secrets.PERSONAL_TOKEN }}
-          #publish_dir: allure-history
-          destination_dir: allure-history
+          publish_dir: allure-history
+          destination_dir: allure-history/allure-history
           publish_branch: gh-pages
