@@ -39,5 +39,5 @@ jobs:
         with:
           personal_token: ${{ secrets.PERSONAL_TOKEN }}
           publish_dir: allure-history
-          destination_dir: allure-history
+          destination_dir: allure
           publish_branch: gh-pages
