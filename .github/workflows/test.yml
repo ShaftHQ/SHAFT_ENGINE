@@ -36,7 +36,7 @@ jobs:
           github_repo_owner: ${{ github.repository_owner }}
       - name: Deploy report to Github Pages
         uses: peaceiris/actions-gh-pages@v3.7.3
-        env:
+        with:
           personal_token: ${{ secrets.PERSONAL_TOKEN }}
           publish_dir: allure-history
           destination_dir: allure-history
