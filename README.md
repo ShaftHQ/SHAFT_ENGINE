@@ -22,6 +22,7 @@
 - Configuration Manager ⚙️: https://mohabmohie.github.io/SHAFT_ENGINE/
 - Javadocs 📚: https://mohabmohie.github.io/SHAFT_ENGINE/apidocs/index.html
 - Latest Test Execution Report 📊: https://mohabmohie.github.io/SHAFT_ENGINE/allure/index.html
+- Sample project using SHAFT_Engine ✈️: https://github.com/MohabMohie/using_SHAFT_ENGINE
 
 ### SHAFT_ENGINE is:
 - A Test Automation Engine.
