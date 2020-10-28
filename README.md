@@ -14,7 +14,9 @@
 [![Automatest](https://facebookbrand.com/wp-content/uploads/2019/04/f_logo_RGB-Hex-Blue_512.png?w=50&h=50)](https://www.facebook.com/groups/Automatest)
 
 ### Getting Started:
-- How to do cross-browser test automation in 10 minutes using SHAFT_Engine ▶️: https://www.youtube.com/watch?v=3TYGteD843M
+- How to do cross-browser test automation in 10 minutes using SHAFT_Engine ▶️:
+
+  [![How to do cross-browser test automation in 10 minutes using SHAFT_Engine](https://img.youtube.com/vi/3TYGteD843M/0.jpg)](https://www.youtube.com/watch?v=3TYGteD843M)
 - If you wish to use SHAFT_Engine with IntelliJ please apply these settings:
 <br/>Run/Debug Configurations > Edit Configurations... > Templates > TestNG > Configuration > Listeners > Add all SHAFT_Engine Listeners [AlterSuite, InvokedMethod, Suite]
 
