@@ -45,7 +45,7 @@
 
         <testng.version>7.3.0</testng.version>
 
-        <mysql-connector-java.version>8.0.21</mysql-connector-java.version>
+        <mysql-connector-java.version>8.0.22</mysql-connector-java.version>
         <mssql-jdbc.version>8.4.1.jre14</mssql-jdbc.version>
         <postgresql.version>9.1-901-1.jdbc4</postgresql.version>
         <!-- <ojdbc8.version>19.3.0.0</ojdbc8.version> -->
@@ -64,7 +64,7 @@
 
         <jcraft-jsch.version>0.1.55</jcraft-jsch.version>
 
-        <cucumber.version>6.8.0</cucumber.version>
+        <cucumber.version>6.8.1</cucumber.version>
         <cverges-expect4j.version>1.9</cverges-expect4j.version>
 
         <openpnp-opencv.version>4.3.0-2</openpnp-opencv.version>
@@ -384,7 +384,7 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>29.0-jre</version>
+            <version>30.0-jre</version>
         </dependency>
     </dependencies>
 

@@ -22,3 +22,23 @@ jobs:
         run: docker ps
       - name: Run all tests
         run: mvn test -DexecutionAddress="localhost:4444" -DtargetOperatingSystem="Linux-64" -DmaximumPerformanceMode="true" -DtargetBrowserName="GoogleChrome" -Dtest="!%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*]" -Dmaven.artifact.threads=30
+      - name: Generate Allure Report with history
+        uses: simple-elf/allure-report-action@v1.3
+        with:
+          allure_results: allure-results
+          allure_report: allure-report
+          allure_version: 2.13.6
+          gh_pages: gh-pages
+          allure_history: allure-history
+          subfolder: allure
+          github_run_num: ${{ github.run_number }}
+          github_run_id: ${{ github.run_id }}
+          github_repo: ${{ github.repository }}
+          github_repo_owner: ${{ github.repository_owner }}
+      - name: Deploy report to Github Pages
+        uses: peaceiris/actions-gh-pages@v3.7.3
+        with:
+          personal_token: ${{ secrets.PERSONAL_TOKEN }}
+          publish_dir: allure-history/allure
+          destination_dir: allure
+          publish_branch: gh-pages
