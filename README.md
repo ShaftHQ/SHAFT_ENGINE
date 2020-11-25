@@ -14,11 +14,17 @@
 [![Automatest](https://facebookbrand.com/wp-content/uploads/2019/04/f_logo_RGB-Hex-Blue_512.png?w=50&h=50)](https://www.facebook.com/groups/Automatest)
 
 ### Getting Started:
-- This project is for contributors who wish to add new features or fix issues with SHAFT_Engine. If you wish to create your own project using SHAFT_Engine, please refer to this sample project instead: https://github.com/MohabMohie/using_SHAFT_ENGINE/
-- Use the new online configuration manager to be able to manage SHAFT_Engine's properties and settings easily https://mohabmohie.github.io/SHAFT_ENGINE/
-- Refer to the published Javadoc for detailed information on the available functions/classes/packages https://mohabmohie.github.io/SHAFT_ENGINE/apidocs/index.html
-- If you wish to use this project with IntelliJ please apply these settings:
+- How to do cross-browser test automation in 10 minutes using SHAFT_Engine ▶️:
+
+  [![How to do cross-browser test automation in 10 minutes using SHAFT_Engine](https://img.youtube.com/vi/3TYGteD843M/0.jpg)](https://www.youtube.com/watch?v=3TYGteD843M)
+- If you wish to use SHAFT_Engine with IntelliJ please apply these settings:
 <br/>Run/Debug Configurations > Edit Configurations... > Templates > TestNG > Configuration > Listeners > Add all SHAFT_Engine Listeners [AlterSuite, InvokedMethod, Suite]
+
+### Important Links:
+- Configuration Manager ⚙️: https://mohabmohie.github.io/SHAFT_ENGINE/
+- Javadocs 📚: https://mohabmohie.github.io/SHAFT_ENGINE/apidocs/index.html
+- Latest Test Execution Report 📊: https://mohabmohie.github.io/SHAFT_ENGINE/allure/index.html
+- Sample project using SHAFT_Engine ✈️: https://github.com/MohabMohie/using_SHAFT_ENGINE
 
 ### SHAFT_ENGINE is:
 - A Test Automation Engine.
