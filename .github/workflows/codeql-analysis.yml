@@ -56,6 +56,7 @@ jobs:
         with:
           java-version: 15
       - name: Build & Install
-        run: mvn clean install -DskipTests
+        run: |
+         mvn clean install -DskipTests
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v1
