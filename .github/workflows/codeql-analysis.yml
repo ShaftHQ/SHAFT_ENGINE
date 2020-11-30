@@ -75,13 +75,13 @@ jobs:
           github_repo: ${{ github.repository }}
           github_repo_owner: ${{ github.repository_owner }}
       ########################
-      - name: Deploy report to Github Pages
-        uses: peaceiris/actions-gh-pages@v3.7.3
-        with:
-          personal_token: ${{ secrets.PERSONAL_TOKEN }}
-          publish_dir: allure-history/allure
-          destination_dir: allure
-          publish_branch: gh-pages
+#       - name: Deploy report to Github Pages
+#         uses: peaceiris/actions-gh-pages@v3.7.3
+#         with:
+#           personal_token: ${{ secrets.PERSONAL_TOKEN }}
+#           publish_dir: allure-history/allure
+#           destination_dir: allure
+#           publish_branch: gh-pages
       ########################
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v1
