@@ -129,7 +129,7 @@ public class ImageProcessingActions {
     }
 
     public static byte[] highlightElementInScreenshot(byte[] targetScreenshot,
-                                                      org.openqa.selenium.Rectangle elementLocation, java.awt.Color highlightColor) {
+                                                      org.openqa.selenium.Rectangle elementLocation, Color highlightColor) {
 
         loadOpenCV();
         Mat img = Imgcodecs.imdecode(new MatOfByte(targetScreenshot), Imgcodecs.IMREAD_COLOR);
@@ -398,8 +398,8 @@ public class ImageProcessingActions {
             String relatedReferenceFileName = refrenceFiles[Integer.parseInt(screenshot.getName()) - 1].getName();
 
             List<Object> referenceScreenshotAttachment = Arrays.asList("Reference Screenshot", relatedReferenceFileName,
-                    new FileInputStream(new File(refrenceProcessingFolder + FileSystems.getDefault().getSeparator()
-                            + screenshot.getName())));
+                    new FileInputStream(refrenceProcessingFolder + FileSystems.getDefault().getSeparator()
+                            + screenshot.getName()));
 
             String relatedTestFileName = testFiles[Integer.parseInt(screenshot.getName()) - 1].getName();
 

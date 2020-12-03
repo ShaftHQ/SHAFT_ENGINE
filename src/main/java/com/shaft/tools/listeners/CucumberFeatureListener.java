@@ -2,7 +2,7 @@ package com.shaft.tools.listeners;
 
 import com.shaft.cli.FileActions;
 import com.shaft.gui.element.ElementActions;
-import com.shaft.tools.io.PropertiesFileManager;
+import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import io.cucumber.core.feature.FeatureParser;
 import io.cucumber.core.gherkin.Feature;
@@ -30,7 +30,7 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
     }
 
     private void handleTestRunStarted(TestRunStarted event) {
-        PropertiesFileManager.readPropertyFiles();
+        PropertyFileManager.readPropertyFiles();
     }
 
     private void handleTestRunFinished(TestRunFinished event) {
@@ -48,7 +48,7 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
                 }
             }
         });
-        PropertiesFileManager.readPropertyFiles();
+        PropertyFileManager.readPropertyFiles();
     }
 
     private void handleTestCaseStarted(TestCaseStarted event) {

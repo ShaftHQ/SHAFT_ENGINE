@@ -1,6 +1,6 @@
 package com.shaft.db;
 
-import com.shaft.tools.io.PropertiesFileManager;
+import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import org.testng.Assert;
 
@@ -346,7 +346,7 @@ public class DatabaseActions {
                 }
             }
             if (System.getProperty("databaseLoginTimeout") == null) {
-                PropertiesFileManager.readPropertyFiles();
+                PropertyFileManager.readPropertyFiles();
             }
             DriverManager.setLoginTimeout(Integer.parseInt(System.getProperty("databaseLoginTimeout")));
             connection = DriverManager.getConnection(connectionString, username, password);

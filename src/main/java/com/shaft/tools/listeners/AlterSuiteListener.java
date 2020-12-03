@@ -1,7 +1,7 @@
 package com.shaft.tools.listeners;
 
 import com.shaft.tools.io.LogsReporter;
-import com.shaft.tools.io.PropertiesFileManager;
+import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import org.testng.IAlterSuiteListener;
 import org.testng.xml.XmlClass;
@@ -16,7 +16,7 @@ public class AlterSuiteListener implements IAlterSuiteListener {
     public void alter(List<XmlSuite> suites) {
         addListeners(suites);
         //TODO: manage slf4j log patterns
-        PropertiesFileManager.readPropertyFiles();
+        PropertyFileManager.readPropertyFiles();
         setExecutionProperties(suites);
         renameDefaultSuiteAndTest(suites);
         addLogsReporterToFirstTest(suites);
@@ -46,15 +46,15 @@ public class AlterSuiteListener implements IAlterSuiteListener {
         String prefix = "SHAFT_Engine: ";
         // rename default suite and test
         suites.forEach(suite -> {
-            if (suite.getName().toLowerCase().trim().equals("default suite")
-                    || suite.getName().toLowerCase().trim().equals("surefire suite")) {
+            if (suite.getName().trim().equalsIgnoreCase("default suite")
+                    || suite.getName().trim().equalsIgnoreCase("surefire suite")) {
                 suite.setName(prefix + "Custom Suite");
             } else {
                 suite.setName(prefix + suite.getName());
             }
             suite.getTests().forEach(test -> {
-                if (test.getName().toLowerCase().trim().equals("default test")
-                        || test.getName().toLowerCase().trim().equals("surefire test") || test.getName().equalsIgnoreCase("SHAFT_ENGINE")) {
+                if (test.getName().trim().equalsIgnoreCase("default test")
+                        || test.getName().trim().equalsIgnoreCase("surefire test") || test.getName().trim().equalsIgnoreCase("SHAFT_ENGINE")) {
                     test.setName(prefix + "Custom Test");
                 } else {
                     test.setName(prefix + test.getName());
