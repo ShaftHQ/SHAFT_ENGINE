@@ -13,7 +13,6 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import org.testng.Assert;
 
 import java.awt.*;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -22,7 +21,6 @@ public class BrowserActions {
     private static final Boolean HEADLESS_EXECUTION = Boolean.valueOf(System.getProperty("headlessExecution").trim());
     private static final int NAVIGATION_TIMEOUT_INTEGER = Integer
             .parseInt(System.getProperty("browserNavigationTimeout").trim());
-    private static final Duration NAVIGATION_TIMEOUT = Duration.ofSeconds(NAVIGATION_TIMEOUT_INTEGER);
 
     private BrowserActions() {
         throw new IllegalStateException("Utility class");
@@ -241,8 +239,6 @@ public class BrowserActions {
             JavaScriptWaitManager.waitForLazyLoading();
             (new WebDriverWait(driver, NAVIGATION_TIMEOUT_INTEGER))
                     .until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
-//            new WebDriverWait(driver, NAVIGATION_TIMEOUT)
-//                    .until(waitDriver -> ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
             newURL = driver.getCurrentUrl();
             if (!newURL.equals(initialURL)) {
                 passAction(driver, newURL);
@@ -270,8 +266,6 @@ public class BrowserActions {
             JavaScriptWaitManager.waitForLazyLoading();
             (new WebDriverWait(driver, NAVIGATION_TIMEOUT_INTEGER))
                     .until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
-//            new WebDriverWait(driver, NAVIGATION_TIMEOUT)
-//                    .until(waitDriver -> ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
             newURL = driver.getCurrentUrl();
             if (!newURL.equals(initialURL)) {
                 passAction(driver, newURL);
@@ -524,8 +518,6 @@ public class BrowserActions {
             try {
                 (new WebDriverWait(driver, NAVIGATION_TIMEOUT_INTEGER))
                         .until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
-//                new WebDriverWait(driver, NAVIGATION_TIMEOUT)
-//                        .until(waitDriver -> ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
             } catch (TimeoutException rootCauseException) {
                 ReportManager.log(rootCauseException);
                 failAction(driver, "Waited for " + NAVIGATION_TIMEOUT_INTEGER + " seconds to navigate away from [" + initialURL + "] but didn't.", rootCauseException);
@@ -534,12 +526,8 @@ public class BrowserActions {
             try {
                 (new WebDriverWait(driver, NAVIGATION_TIMEOUT_INTEGER))
                         .until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
-//                new WebDriverWait(driver, NAVIGATION_TIMEOUT)
-//                        .until(waitDriver -> ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
                 (new WebDriverWait(driver, NAVIGATION_TIMEOUT_INTEGER))
                         .until(ExpectedConditions.urlContains(targetUrlAfterRedirection));
-//                new WebDriverWait(driver, NAVIGATION_TIMEOUT)
-//                        .until(waitDriver -> ExpectedConditions.urlContains(targetUrlAfterRedirection));
 
             } catch (TimeoutException rootCauseException) {
                 ReportManager.log(rootCauseException);
@@ -570,14 +558,16 @@ public class BrowserActions {
     }
 
     private static Dimension attemptMaximizeUsingToolkitAndJavascript(WebDriver driver, int width, int height) {
+        int targetWidth = width;
+        int targetHeight = height;
         try {
             Toolkit toolkit = Toolkit.getDefaultToolkit();
             if (Boolean.FALSE.equals(HEADLESS_EXECUTION)) {
-                width = (int) toolkit.getScreenSize().getWidth();
-                height = (int) toolkit.getScreenSize().getHeight();
+                targetWidth = (int) toolkit.getScreenSize().getWidth();
+                targetHeight = (int) toolkit.getScreenSize().getHeight();
             }
             driver.manage().window().setPosition(new Point(0, 0));
-            driver.manage().window().setSize(new Dimension(width, height));
+            driver.manage().window().setSize(new Dimension(targetWidth, targetHeight));
 
             ReportManager.logDiscrete("Window size after Toolkit: " + driver.manage().window().getSize().toString());
             return driver.manage().window().getSize();
@@ -585,7 +575,7 @@ public class BrowserActions {
             ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_FOCUS.getValue());
             ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_RESET_LOCATION.getValue());
             ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_RESIZE.getValue()
-                    .replace("$WIDTH", String.valueOf(width)).replace("$HEIGHT", String.valueOf(height)));
+                    .replace("$WIDTH", String.valueOf(targetWidth)).replace("$HEIGHT", String.valueOf(targetHeight)));
 
             ReportManager.logDiscrete(
                     "Window size after JavascriptExecutor: " + driver.manage().window().getSize().toString());
