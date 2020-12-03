@@ -1,7 +1,7 @@
 package com.shaft.cli;
 
 import com.google.common.hash.Hashing;
-import com.shaft.tools.io.PropertiesFileManager;
+import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -411,7 +411,7 @@ public class FileActions {
             JarURLConnection jarConnection = (JarURLConnection) url.openConnection();
             JarFile jarFile = jarConnection.getJarFile();
 
-            /**
+            /*
              * Iterate all entries in the jar file.
              */
             for (Enumeration<JarEntry> e = jarFile.entries(); e.hasMoreElements(); ) {
@@ -420,16 +420,18 @@ public class FileActions {
                 String jarEntryName = jarEntry.getName();
                 String jarConnectionEntryName = jarConnection.getEntryName();
 
-                /**
+                /*
                  * Extract files only if they match the path.
                  */
                 if (jarEntryName.startsWith(jarConnectionEntryName)) {
 
                     String filename = jarEntryName.startsWith(jarConnectionEntryName) ? jarEntryName.substring(jarConnectionEntryName.length()) : jarEntryName;
                     File currentFile = new File(destinationFolderPath, filename);
-
                     if (jarEntry.isDirectory()) {
-                        currentFile.mkdirs();
+                        boolean success = currentFile.mkdirs();
+                        if (success) {
+                            ReportManager.logDiscrete("Directory Created successfully...");
+                        }
                     } else {
                         InputStream is = jarFile.getInputStream(jarEntry);
                         OutputStream out = FileUtils.openOutputStream(currentFile);
@@ -624,7 +626,7 @@ public class FileActions {
 
     private static boolean isTargetOSUnixBased() {
         if (System.getProperty("executionAddress") == null) {
-            PropertiesFileManager.readPropertyFiles();
+            PropertyFileManager.readPropertyFiles();
         }
         if (System.getProperty("executionAddress").trim().equals("local")) {
             // local execution
@@ -641,7 +643,7 @@ public class FileActions {
             String targetOS = System.getProperty("targetOperatingSystem");
             if ("Windows-64".equals(targetOS)) {
                 return false;
-            } else if ("Linux-64".equals(targetOS) || "Linux-64".equals(targetOS)) {
+            } else if ("Linux-64".equals(targetOS) || "Mac-64".equals(targetOS)) {
                 return true;
             } else {
                 ReportManager.logDiscrete("Unsupported OS type, will assume it's unix based.");

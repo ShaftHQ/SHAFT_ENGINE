@@ -6,15 +6,13 @@ import io.cucumber.java.en.Given;
 import io.cucumber.java.en.When;
 import org.openqa.selenium.WebDriver;
 
+import java.util.Objects;
+
 public class BrowserSteps {
     private final ThreadLocal<WebDriver> driver;
 
     public BrowserSteps(ThreadLocal<WebDriver> driver) {
-        if (driver == null) {
-            this.driver = new ThreadLocal<>();
-        } else {
-            this.driver = driver;
-        }
+        this.driver = Objects.requireNonNullElseGet(driver, ThreadLocal::new);
     }
 
     /**

@@ -34,11 +34,11 @@ public class AnimatedGifManager {
      * @throws IIOException if no GIF image writers are returned
      */
     private static ImageWriter getWriter() throws IIOException {
-        Iterator<ImageWriter> iter = ImageIO.getImageWritersBySuffix("gif");
-        if (!iter.hasNext()) {
+        Iterator<ImageWriter> iterator = ImageIO.getImageWritersBySuffix("gif");
+        if (!iterator.hasNext()) {
             throw new IIOException("No GIF Image Writers Exist");
         } else {
-            return iter.next();
+            return iterator.next();
         }
     }
 
@@ -100,7 +100,7 @@ public class AnimatedGifManager {
         IIOMetadataNode commentsNode = getNode(root, "CommentExtensions");
         commentsNode.setAttribute("CommentExtension", "Created by MAH");
 
-        IIOMetadataNode appEntensionsNode = getNode(root, "ApplicationExtensions");
+        IIOMetadataNode appExtensionsNode = getNode(root, "ApplicationExtensions");
 
         IIOMetadataNode child = new IIOMetadataNode("ApplicationExtension");
 
@@ -110,7 +110,7 @@ public class AnimatedGifManager {
         int loop = 0;
 
         child.setUserObject(new byte[]{0x1, (byte) (loop & 0xFF), (byte) ((loop >> 8) & 0xFF)});
-        appEntensionsNode.appendChild(child);
+        appExtensionsNode.appendChild(child);
 
         imageMetaData.get().setFromTree(metaFormatName, root);
 

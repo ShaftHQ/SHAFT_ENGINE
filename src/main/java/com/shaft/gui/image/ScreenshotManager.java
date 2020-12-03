@@ -3,7 +3,7 @@ package com.shaft.gui.image;
 import com.shaft.cli.FileActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.JavaScriptWaitManager;
-import com.shaft.tools.io.PropertiesFileManager;
+import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.*;
@@ -162,7 +162,7 @@ public class ScreenshotManager {
             globalPassFailAppendedText = "failed";
         }
 
-        Boolean takeScreenshot = "Always".equals(SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT)
+        boolean takeScreenshot = "Always".equals(SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT)
                 || ("ValidationPointsOnly".equals(SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT)
                 && (actionName.toLowerCase().contains("assert")
                 || actionName.toLowerCase().contains("verify")))
@@ -579,7 +579,7 @@ public class ScreenshotManager {
 
                 BufferedImage shaftLogo;
                 // read from custom location
-                String watermarkImagePath = PropertiesFileManager.getDefaultPropertiesFolderPath().replace("defaultProperties/", System.getProperty("watermarkImagePath"));
+                String watermarkImagePath = PropertyFileManager.getDefaultPropertiesFolderPath().replace("defaultProperties/", System.getProperty("watermarkImagePath"));
                 shaftLogo = ImageIO.read(new File(watermarkImagePath));
                 shaftLogo = toBufferedImage(
                         shaftLogo.getScaledInstance(screenshot.getWidth() / 8, -1, Image.SCALE_SMOOTH));

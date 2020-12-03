@@ -583,6 +583,8 @@ public class ReportManager {
             Allure.addAttachment(attachmentDescription, "text/csv", attachmentContent, ".csv");
         } else if (attachmentType.toLowerCase().contains("xml") || attachmentName.toLowerCase().contains("xml")) {
             Allure.addAttachment(attachmentDescription, "text/xml", attachmentContent, ".xml");
+        } else if (attachmentType.toLowerCase().contains("excel") || attachmentName.toLowerCase().contains("excel")) {
+            Allure.addAttachment(attachmentDescription, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", attachmentContent, ".xlsx");
         } else if (attachmentType.toLowerCase().contains("json") || attachmentName.toLowerCase().contains("json")) {
             Allure.addAttachment(attachmentDescription, "text/json", attachmentContent, ".json");
         } else if (attachmentType.toLowerCase().contains("engine logs")) {

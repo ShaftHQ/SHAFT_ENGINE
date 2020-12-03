@@ -4,7 +4,7 @@ import com.shaft.cli.FileActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ProjectStructureFactory;
-import com.shaft.tools.io.PropertiesFileManager;
+import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import org.testng.ISuite;
 import org.testng.ISuiteListener;
@@ -17,7 +17,7 @@ public class SuiteListener implements ISuiteListener {
         if (Boolean.TRUE.equals(ScreenshotManager.getAiSupportedElementIdentification())
                 && FileActions.doesFileExist(ScreenshotManager.getAiAidedElementIdentificationFolderpath(),
                 ElementActions.getAiReferenceFileName(), 1)) {
-            PropertiesFileManager.readPropertyFiles(ScreenshotManager.getAiAidedElementIdentificationFolderpath());
+            PropertyFileManager.readPropertyFiles(ScreenshotManager.getAiAidedElementIdentificationFolderpath());
         }
         ProjectStructureFactory.initialize();
         ReportManager.prepareAllureReportingEnvironment();

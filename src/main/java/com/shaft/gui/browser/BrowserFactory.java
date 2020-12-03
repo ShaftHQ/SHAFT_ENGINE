@@ -3,7 +3,7 @@ package com.shaft.gui.browser;
 import com.google.common.collect.ImmutableMap;
 import com.shaft.cli.FileActions;
 import com.shaft.gui.element.JavaScriptWaitManager;
-import com.shaft.tools.io.PropertiesFileManager;
+import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.MobileElement;
@@ -643,7 +643,7 @@ public class BrowserFactory {
     private static DesiredCapabilities setAppiumDesiredCapabilitiesList() {
         DesiredCapabilities desiredCapabilities = new DesiredCapabilities();
 
-        Map<String, String> caps = PropertiesFileManager.getAppiumDesiredCapabilities();
+        Map<String, String> caps = PropertyFileManager.getAppiumDesiredCapabilities();
         caps.forEach((capabilityName, value) -> {
             if (!value.trim().equals("")) {
                 desiredCapabilities.setCapability(capabilityName.split("mobile_")[1], value);
@@ -720,7 +720,7 @@ public class BrowserFactory {
 
     private static void initializeSystemProperties(Boolean readPropertyFilesBeforeInitializing) {
         if (readPropertyFilesBeforeInitializing) {
-            PropertiesFileManager.readPropertyFiles();
+            PropertyFileManager.readPropertyFiles();
         }
         AUTO_MAXIMIZE = Boolean
                 .valueOf(System.getProperty("autoMaximizeBrowserWindow").trim());

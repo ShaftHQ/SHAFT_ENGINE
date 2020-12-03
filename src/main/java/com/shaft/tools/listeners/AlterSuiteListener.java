@@ -1,7 +1,7 @@
 package com.shaft.tools.listeners;
 
 import com.shaft.tools.io.LogsReporter;
-import com.shaft.tools.io.PropertiesFileManager;
+import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import org.testng.IAlterSuiteListener;
 import org.testng.xml.XmlClass;
@@ -16,7 +16,7 @@ public class AlterSuiteListener implements IAlterSuiteListener {
     public void alter(List<XmlSuite> suites) {
         addListeners(suites);
         //TODO: manage slf4j log patterns
-        PropertiesFileManager.readPropertyFiles();
+        PropertyFileManager.readPropertyFiles();
         setExecutionProperties(suites);
         renameDefaultSuiteAndTest(suites);
         addLogsReporterToFirstTest(suites);

@@ -13,7 +13,7 @@ public class ProjectStructureFactory {
             FileActions.createFolder(System.getProperty("testDataFolderPath"));
             FileActions.createFolder(System.getProperty("testSuiteFolderPath"));
             FileActions.createFolder(System.getProperty("jsonFolderPath"));
-            String propertiesFolderPath = PropertiesFileManager.getDefaultPropertiesFolderPath();
+            String propertiesFolderPath = PropertyFileManager.getDefaultPropertiesFolderPath();
             if (propertiesFolderPath.contains("file:")) {
                 FileActions.copyFolderFromJar(propertiesFolderPath, System.getProperty("propertiesFolderPath"));
             } else {

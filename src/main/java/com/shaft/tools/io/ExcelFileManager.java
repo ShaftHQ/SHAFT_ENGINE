@@ -10,10 +10,14 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.testng.Assert;
 
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 
 @SuppressWarnings("unused")
 public class ExcelFileManager {
@@ -26,10 +30,10 @@ public class ExcelFileManager {
     private String testDataColumnNamePrefix;
 
     /**
-     * Creates a new instance of the test data excel reader using the expected excel
+     * Creates a new instance of the test data excel reader using the target excel
      * file path
      *
-     * @param excelFilePath the expected path for the target excel file
+     * @param excelFilePath target test data excel file path
      */
     public ExcelFileManager(String excelFilePath) {
         initializeVariables();
@@ -38,7 +42,7 @@ public class ExcelFileManager {
             fis = new FileInputStream(excelFilePath);
             workbook = new XSSFWorkbook(fis);
             fis.close();
-            ReportManager.logDiscrete("Reading test data from the following file [" + excelFilePath + "].");
+//            ReportManager.logDiscrete("Reading test data from the following file [" + excelFilePath + "].");
         } catch (IOException e) {
             ReportManager.log(e);
             ReportManager.log("Couldn't find the desired file. [" + excelFilePath + "].");
@@ -52,6 +56,17 @@ public class ExcelFileManager {
             ReportManager.log("Please check the target file, as it may be corrupted. [" + excelFilePath + "].");
             Assert.fail("Please check the target file, as it may be corrupted. [" + excelFilePath + "].");
         }
+
+        List<List<Object>> attachments = new ArrayList<>();
+        List<Object> testDataFileAttachment = null;
+        try {
+            testDataFileAttachment = Arrays.asList("Test Data", "Excel",
+                    new FileInputStream(excelFilePath));
+        } catch (FileNotFoundException e) {
+            //unreachable code because if the file was not found then the reader would have failed at a previous step
+        }
+        attachments.add(testDataFileAttachment);
+        ReportManager.log("Successfully loaded the following test data file [" + excelFilePath + "].", attachments);
     }
 
     /**
