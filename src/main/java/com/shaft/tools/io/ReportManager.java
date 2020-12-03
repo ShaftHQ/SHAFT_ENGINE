@@ -229,7 +229,7 @@ public class ReportManager {
             if (attachments != null) {
                 attachments.forEach(attachment -> {
                     if (attachment != null) {
-                        if (attachment.get(2) instanceof java.lang.String) {
+                        if (attachment.get(2) instanceof String) {
                             attachAsStep(attachment.get(0).toString(), attachment.get(1).toString(),
                                     new ByteArrayInputStream(attachment.get(2).toString().getBytes()));
                         } else {

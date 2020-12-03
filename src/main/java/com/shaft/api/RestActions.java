@@ -64,12 +64,12 @@ public class RestActions {
         return new RequestBuilder(new RestActions(serviceURI), serviceName, requestType);
     }
 
-    static void passAction(String actionName, String testData, Object requestBody, Response response,
-                           Boolean isDiscrete, List<Object> expectedFileBodyAttachment) {
+    protected static void passAction(String actionName, String testData, Object requestBody, Response response,
+                                     Boolean isDiscrete, List<Object> expectedFileBodyAttachment) {
         reportActionResult(actionName, testData, requestBody, response, isDiscrete, expectedFileBodyAttachment, true);
     }
 
-    static void passAction(String testData) {
+    protected static void passAction(String testData) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         passAction(actionName, testData, null, null, true, null);
     }
@@ -82,7 +82,7 @@ public class RestActions {
         sessionHeaders = new HashMap<>();
     }
 
-    static void passAction(String testData, List<Object> expectedFileBodyAttachment) {
+    protected static void passAction(String testData, List<Object> expectedFileBodyAttachment) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         passAction(actionName, testData, null, null, true, expectedFileBodyAttachment);
     }
@@ -383,8 +383,8 @@ public class RestActions {
         return prettyFormatXML(input);
     }
 
-    static void failAction(String actionName, String testData, Object requestBody, Response response,
-                           Throwable... rootCauseException) {
+    protected static void failAction(String actionName, String testData, Object requestBody, Response response,
+                                     Throwable... rootCauseException) {
         String message = reportActionResult(actionName, testData, requestBody, response, false, null, false);
         if (rootCauseException != null && rootCauseException.length >= 1) {
             Assert.fail(message, rootCauseException[0]);
@@ -393,26 +393,26 @@ public class RestActions {
         }
     }
 
-    static void failAction(String testData, Object requestBody, Response response,
-                           Throwable... rootCauseException) {
+    protected static void failAction(String testData, Object requestBody, Response response,
+                                     Throwable... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         failAction(actionName, testData, requestBody, response, rootCauseException);
     }
 
-    static void failAction(String testData, Throwable... rootCauseException) {
+    protected static void failAction(String testData, Throwable... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         failAction(actionName, testData, null, null, rootCauseException);
     }
 
-    String getServiceURI() {
+    protected String getServiceURI() {
         return serviceURI;
     }
 
-    Map<String, String> getSessionHeaders() {
+    protected Map<String, String> getSessionHeaders() {
         return sessionHeaders;
     }
 
-    Map<String, Object> getSessionCookies() {
+    protected Map<String, Object> getSessionCookies() {
         return sessionCookies;
     }
 
@@ -881,7 +881,7 @@ public class RestActions {
                 new Object[]{requestType, targetStatusCode, serviceName, null, null, null, requestBody, contentType});
     }
 
-    String prepareRequestURL(String serviceURI, String urlArguments, String serviceName) {
+    protected String prepareRequestURL(String serviceURI, String urlArguments, String serviceName) {
         if (urlArguments != null && !urlArguments.equals("")) {
             return serviceURI + serviceName + ARGUMENTSEPARATOR + urlArguments;
         } else {
@@ -889,8 +889,8 @@ public class RestActions {
         }
     }
 
-    RequestSpecification prepareRequestSpecs(List<List<Object>> parameters, ParametersType parametersType,
-                                             Object body, ContentType contentType, Map<String, Object> sessionCookies, Map<String, String> sessionHeaders) {
+    protected RequestSpecification prepareRequestSpecs(List<List<Object>> parameters, ParametersType parametersType,
+                                                       Object body, ContentType contentType, Map<String, Object> sessionCookies, Map<String, String> sessionHeaders) {
         RequestSpecBuilder builder = initializeBuilder(sessionCookies, sessionHeaders);
 
         // set the default content type as part of the specs
@@ -998,7 +998,7 @@ public class RestActions {
         }
     }
 
-    boolean evaluateResponseStatusCode(Response response, int targetStatusCode) {
+    protected boolean evaluateResponseStatusCode(Response response, int targetStatusCode) {
         try {
             boolean discreetLoggingState = ReportManager.isDiscreteLogging();
             ReportManager.setDiscreteLogging(true);
@@ -1044,7 +1044,7 @@ public class RestActions {
      *               time. Example: ContentType.ANY
      * @return Response; returns the full response object for further manipulation
      */
-    Response performRequest(Object[] params) {
+    protected Response performRequest(Object[] params) {
         RequestType requestType = (RequestType) params[0];
         int targetStatusCode = (int) params[1];
         String serviceName = (String) params[2];

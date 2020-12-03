@@ -129,7 +129,7 @@ public class ImageProcessingActions {
     }
 
     public static byte[] highlightElementInScreenshot(byte[] targetScreenshot,
-                                                      org.openqa.selenium.Rectangle elementLocation, java.awt.Color highlightColor) {
+                                                      org.openqa.selenium.Rectangle elementLocation, Color highlightColor) {
 
         loadOpenCV();
         Mat img = Imgcodecs.imdecode(new MatOfByte(targetScreenshot), Imgcodecs.IMREAD_COLOR);
