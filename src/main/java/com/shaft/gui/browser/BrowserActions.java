@@ -558,14 +558,16 @@ public class BrowserActions {
     }
 
     private static Dimension attemptMaximizeUsingToolkitAndJavascript(WebDriver driver, int width, int height) {
+        int targetWidth = width;
+        int targetHeight = height;
         try {
             Toolkit toolkit = Toolkit.getDefaultToolkit();
             if (Boolean.FALSE.equals(HEADLESS_EXECUTION)) {
-                width = (int) toolkit.getScreenSize().getWidth();
-                height = (int) toolkit.getScreenSize().getHeight();
+                targetWidth = (int) toolkit.getScreenSize().getWidth();
+                targetHeight = (int) toolkit.getScreenSize().getHeight();
             }
             driver.manage().window().setPosition(new Point(0, 0));
-            driver.manage().window().setSize(new Dimension(width, height));
+            driver.manage().window().setSize(new Dimension(targetWidth, targetHeight));
 
             ReportManager.logDiscrete("Window size after Toolkit: " + driver.manage().window().getSize().toString());
             return driver.manage().window().getSize();
@@ -573,7 +575,7 @@ public class BrowserActions {
             ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_FOCUS.getValue());
             ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_RESET_LOCATION.getValue());
             ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_RESIZE.getValue()
-                    .replace("$WIDTH", String.valueOf(width)).replace("$HEIGHT", String.valueOf(height)));
+                    .replace("$WIDTH", String.valueOf(targetWidth)).replace("$HEIGHT", String.valueOf(targetHeight)));
 
             ReportManager.logDiscrete(
                     "Window size after JavascriptExecutor: " + driver.manage().window().getSize().toString());
