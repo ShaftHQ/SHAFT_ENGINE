@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.shaft.tools.io.PropertiesFileManager;
+import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Assertions;
 import eu.medsea.mimeutil.MimeUtil;
@@ -350,12 +350,12 @@ public class RestActions {
                 expectedJsonObject = (org.json.simple.JSONObject) parser.parse(new FileReader(referenceJsonFilePath));
                 expectedJSONAttachment = Arrays.asList("File Content", "Expected JSON",
                         new GsonBuilder().setPrettyPrinting().create()
-                                .toJson(new JsonParser().parse(expectedJsonObject.toJSONString())));
+                                .toJson(JsonParser.parseString(expectedJsonObject.toJSONString())));
             } else {
                 // expectedObject is an array org.json.simple.JSONArray
                 expectedJsonArray = (org.json.simple.JSONArray) parser.parse(new FileReader(referenceJsonFilePath));
                 expectedJSONAttachment = Arrays.asList("File Content", "Expected JSON", new GsonBuilder()
-                        .setPrettyPrinting().create().toJson(new JsonParser().parse(expectedJsonArray.toJSONString())));
+                        .setPrettyPrinting().create().toJson(JsonParser.parseString(expectedJsonArray.toJSONString())));
             }
 
             // handle different combinations of expected and actual (object vs array)
@@ -624,10 +624,10 @@ public class RestActions {
         }
         if (actualJsonObject != null) {
             return new ByteArrayInputStream((new GsonBuilder().setPrettyPrinting().create()
-                    .toJson(new JsonParser().parse(actualJsonObject.toJSONString()))).getBytes());
+                    .toJson(JsonParser.parseString(actualJsonObject.toJSONString()))).getBytes());
         } else if (actualJsonArray != null) {
             return new ByteArrayInputStream((new GsonBuilder().setPrettyPrinting().create()
-                    .toJson(new JsonParser().parse(actualJsonArray.toJSONString()))).getBytes());
+                    .toJson(JsonParser.parseString(actualJsonArray.toJSONString()))).getBytes());
         } else {
             // in case of an empty body
             return new ByteArrayInputStream(("").getBytes());
@@ -701,7 +701,7 @@ public class RestActions {
 
     private static void initializeSystemProperties(boolean readPropertyFilesBeforeInitializing) {
         if (readPropertyFilesBeforeInitializing) {
-            PropertiesFileManager.readPropertyFiles();
+            PropertyFileManager.readPropertyFiles();
         }
         HTTP_SOCKET_TIMEOUT = Integer.parseInt(System.getProperty("apiSocketTimeout"));
         // timeout between two consecutive data packets in seconds

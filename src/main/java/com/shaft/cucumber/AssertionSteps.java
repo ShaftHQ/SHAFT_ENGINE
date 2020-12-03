@@ -4,15 +4,13 @@ import com.shaft.validation.Assertions;
 import io.cucumber.java.en.Then;
 import org.openqa.selenium.WebDriver;
 
+import java.util.Objects;
+
 public class AssertionSteps {
     private final ThreadLocal<WebDriver> driver;
 
     public AssertionSteps(ThreadLocal<WebDriver> driver) {
-        if (driver == null) {
-            this.driver = new ThreadLocal<>();
-        } else {
-            this.driver = driver;
-        }
+        this.driver = Objects.requireNonNullElseGet(driver, ThreadLocal::new);
     }
 
     /**

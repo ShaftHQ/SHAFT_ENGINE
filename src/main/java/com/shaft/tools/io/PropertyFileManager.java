@@ -8,12 +8,9 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URL;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 
-public class PropertiesFileManager {
+public class PropertyFileManager {
     private static final String OS_WINDOWS = "Windows-64";
     private static final String OS_LINUX = "Linux-64";
     private static final String OS_MAC = "Mac-64";
@@ -21,7 +18,7 @@ public class PropertiesFileManager {
     private static final String CUSTOM_PROPERTIES_FOLDER_PROPERTY_NAME = "propertiesFolderPath";
     private static Boolean readPropertyFiles = true;
 
-    private PropertiesFileManager() {
+    private PropertyFileManager() {
         throw new IllegalStateException("Utility class");
     }
 
@@ -50,11 +47,7 @@ public class PropertiesFileManager {
 
             // read properties form the base properties file
             String basePropertiesPath = System.getProperty(CUSTOM_PROPERTIES_FOLDER_PROPERTY_NAME);
-            if (basePropertiesPath != null) {
-                readPropertyFiles(basePropertiesPath);
-            } else {
-                readPropertyFiles("src/test/resources/Properties");
-            }
+            readPropertyFiles(Objects.requireNonNullElse(basePropertiesPath, "src/test/resources/Properties"));
 
             // This section set the default properties values for Execution/path/pattern
             readPropertyFiles(getDefaultPropertiesFolderPath());
@@ -114,9 +107,7 @@ public class PropertiesFileManager {
 
     // TODO: create directory under src/test/resources and write the default
     public static String getDefaultPropertiesFolderPath() {
-        URL propertiesFolder = PropertiesFileManager.class.getResource("/resources/defaultProperties/");
-        //ClassLoader clsLoader = PropertiesFileManager.class.getClassLoader();
-        //InputStream propertiesFolder =  clsLoader.getResourceAsStream("/defaultProperties/");
+        URL propertiesFolder = PropertyFileManager.class.getResource("/resources/defaultProperties/");
 
         if (propertiesFolder != null) {
             return propertiesFolder.getFile();

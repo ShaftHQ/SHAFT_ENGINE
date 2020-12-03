@@ -5,16 +5,13 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
 import java.util.Arrays;
+import java.util.Objects;
 
 public class ElementSteps {
     private final ThreadLocal<WebDriver> driver;
 
     public ElementSteps(ThreadLocal<WebDriver> driver) {
-        if (driver == null) {
-            this.driver = new ThreadLocal<>();
-        } else {
-            this.driver = driver;
-        }
+        this.driver = Objects.requireNonNullElseGet(driver, ThreadLocal::new);
     }
 
     protected static By getLocatorFromTypeAndValue(String locatorType, String locatorValue) {

@@ -16,7 +16,7 @@ public class RequestBuilder {
     private final Map<String, Object> sessionCookies;
     private final RestActions.RequestType requestType;
     private final String serviceName;
-    private String serviceURI;
+    private final String serviceURI;
     private int targetStatusCode = 200;
 
     private String urlArguments = null;
@@ -28,18 +28,18 @@ public class RequestBuilder {
     //TODO: Document everything
     RequestBuilder(RestActions session, String serviceName, RestActions.RequestType requestType) {
         this.session = session;
-        serviceURI = session.getServiceURI();
-        sessionCookies = session.getSessionCookies();
-        sessionHeaders = session.getSessionHeaders();
+        this.serviceURI = session.getServiceURI();
+        this.sessionCookies = session.getSessionCookies();
+        this.sessionHeaders = session.getSessionHeaders();
         this.requestType = requestType;
         this.serviceName = serviceName;
     }
 
     RequestBuilder(String serviceURI, String serviceName, RestActions.RequestType requestType) {
         this.session = new RestActions(serviceURI);
-        serviceURI = session.getServiceURI();
-        sessionCookies = session.getSessionCookies();
-        sessionHeaders = session.getSessionHeaders();
+        this.serviceURI = session.getServiceURI();
+        this.sessionCookies = session.getSessionCookies();
+        this.sessionHeaders = session.getSessionHeaders();
         this.requestType = requestType;
         this.serviceName = serviceName;
     }

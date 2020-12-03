@@ -350,7 +350,7 @@ class ValidationActions {
 
         List<List<Object>> attachments = new ArrayList<>();
         byte[] referenceImage = ImageProcessingActions.getReferenceImage(elementLocator);
-        if (!new byte[0].equals(referenceImage)) {
+        if (!Arrays.equals(new byte[0], referenceImage)) {
             List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Reference Screenshot",
                     referenceImage);
             attachments.add(expectedValueAttachment);

@@ -398,8 +398,8 @@ public class ImageProcessingActions {
             String relatedReferenceFileName = refrenceFiles[Integer.parseInt(screenshot.getName()) - 1].getName();
 
             List<Object> referenceScreenshotAttachment = Arrays.asList("Reference Screenshot", relatedReferenceFileName,
-                    new FileInputStream(new File(refrenceProcessingFolder + FileSystems.getDefault().getSeparator()
-                            + screenshot.getName())));
+                    new FileInputStream(refrenceProcessingFolder + FileSystems.getDefault().getSeparator()
+                            + screenshot.getName()));
 
             String relatedTestFileName = testFiles[Integer.parseInt(screenshot.getName()) - 1].getName();
 
