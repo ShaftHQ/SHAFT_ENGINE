@@ -1510,13 +1510,12 @@ public class ElementActions {
     }
 
     private static TextDetectionStrategy determineSuccessfulTextLocationStrategy(WebDriver driver, By elementLocator) {
-        String text = driver.findElement(elementLocator).getText().trim();
-        String content = "";
-        String value = "";
-        if (!BrowserFactory.isMobileNativeExecution()) {
-            content = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.CONTENT.getValue()).trim();
-            value = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.VALUE.getValue());
+        if (BrowserFactory.isMobileNativeExecution()) {
+            return TextDetectionStrategy.TEXT;
         }
+        String text = driver.findElement(elementLocator).getText().trim();
+        String content = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.CONTENT.getValue()).trim();
+        String value = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.VALUE.getValue());
 
         if (value != null) {
             value = value.trim();
