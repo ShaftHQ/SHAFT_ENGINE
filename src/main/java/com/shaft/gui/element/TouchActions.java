@@ -1,13 +1,21 @@
 package com.shaft.gui.element;
 
+import com.google.common.collect.ImmutableList;
+import com.shaft.gui.browser.BrowserFactory;
+import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManager;
 import io.appium.java_client.AppiumDriver;
+import io.appium.java_client.MobileElement;
 import io.appium.java_client.TouchAction;
 import io.appium.java_client.touch.offset.ElementOption;
 import io.appium.java_client.touch.offset.PointOption;
 import org.openqa.selenium.*;
+import org.openqa.selenium.interactions.Pause;
+import org.openqa.selenium.interactions.PointerInput;
+import org.openqa.selenium.interactions.Sequence;
 
+import java.time.Duration;
 import java.util.List;
 
 @SuppressWarnings("unused")
@@ -17,7 +25,38 @@ public class TouchActions {
 
     public TouchActions(WebDriver driver) {
         this.driver = driver;
-        RecordManager.startVideoRecording();
+        RecordManager.startVideoRecording(driver);
+    }
+
+    /**
+     * Taps an element once on a touch-enabled screen
+     *
+     * @param elementReferenceScreenshot relative path to the reference image from the local object repository, ends with /
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions tap(String elementReferenceScreenshot) {
+        List<Object> screenshot = ElementActions.takeScreenshot(driver, null, "tap", null, true);
+
+        if (BrowserFactory.isMobileNativeExecution()) {
+            byte[] currentScreenImage = ((AppiumDriver<MobileElement>) driver).getScreenshotAs(OutputType.BYTES);
+            List<Integer> coordinates = ImageProcessingActions.findImageWithinCurrentPage(elementReferenceScreenshot, currentScreenImage, 1);
+            PointerInput input = new PointerInput(PointerInput.Kind.TOUCH, "finger1");
+            Sequence tap = new Sequence(input, 0);
+            tap.addAction(input.createPointerMove(Duration.ZERO, PointerInput.Origin.viewport(), coordinates.get(0), coordinates.get(1)));
+            tap.addAction(input.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
+            tap.addAction(new Pause(input, Duration.ofMillis(200)));
+            tap.addAction(input.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+            ((AppiumDriver<?>) driver).perform(ImmutableList.of(tap));
+        } else {
+            byte[] currentScreenImage = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+            List<Integer> coordinates = ImageProcessingActions.findImageWithinCurrentPage(elementReferenceScreenshot, currentScreenImage, 1);
+            (new org.openqa.selenium.interactions.touch.TouchActions(driver))
+                    .down(coordinates.get(0), coordinates.get(1))
+                    .up(coordinates.get(0), coordinates.get(1))
+                    .perform();
+        }
+        ElementActions.passAction(driver, null, screenshot);
+        return this;
     }
 
     /**
@@ -34,7 +73,11 @@ public class TouchActions {
             internalElementLocator = ElementActions.updateLocatorWithAIGeneratedOne(internalElementLocator);
             String elementText = "";
             try {
-                elementText = driver.findElement(internalElementLocator).getText();
+                if (BrowserFactory.isMobileNativeExecution()) {
+                    elementText = driver.findElement(internalElementLocator).getAttribute("text");
+                } else {
+                    elementText = driver.findElement(internalElementLocator).getText();
+                }
             } catch (Exception e) {
                 // do nothing
             }

@@ -3,6 +3,7 @@ package com.shaft.gui.browser;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.JavaScriptWaitManager;
 import com.shaft.gui.image.ScreenshotManager;
+import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.support.JSHelpers;
 import org.openqa.selenium.Dimension;
@@ -466,6 +467,7 @@ public class BrowserActions {
 
     private static String reportActionResult(WebDriver driver, String actionName, String testData,
                                              Boolean passFailStatus) {
+        RecordManager.startVideoRecording(driver);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
             message = "Browser Action [" + actionName + "] successfully performed.";

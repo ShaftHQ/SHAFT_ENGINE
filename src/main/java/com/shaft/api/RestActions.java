@@ -56,9 +56,17 @@ public class RestActions {
     private static int HTTP_CONNECTION_TIMEOUT;
     private static int HTTP_CONNECTION_MANAGER_TIMEOUT;
     private final String serviceURI;
-    private String headerAuthorization;
     private final Map<String, String> sessionHeaders;
     private final Map<String, Object> sessionCookies;
+    private String headerAuthorization;
+
+    public RestActions(String serviceURI) {
+        initializeSystemProperties(System.getProperty("apiConnectionTimeout") == null);
+        headerAuthorization = "";
+        this.serviceURI = serviceURI;
+        sessionCookies = new HashMap<>();
+        sessionHeaders = new HashMap<>();
+    }
 
     public static RequestBuilder buildNewRequest(String serviceURI, String serviceName, RequestType requestType) {
         return new RequestBuilder(new RestActions(serviceURI), serviceName, requestType);
@@ -72,14 +80,6 @@ public class RestActions {
     protected static void passAction(String testData) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         passAction(actionName, testData, null, null, true, null);
-    }
-
-    public RestActions(String serviceURI) {
-        initializeSystemProperties(System.getProperty("apiConnectionTimeout") == null);
-        headerAuthorization = "";
-        this.serviceURI = serviceURI;
-        sessionCookies = new HashMap<>();
-        sessionHeaders = new HashMap<>();
     }
 
     protected static void passAction(String testData, List<Object> expectedFileBodyAttachment) {
@@ -404,22 +404,6 @@ public class RestActions {
         failAction(actionName, testData, null, null, rootCauseException);
     }
 
-    protected String getServiceURI() {
-        return serviceURI;
-    }
-
-    protected Map<String, String> getSessionHeaders() {
-        return sessionHeaders;
-    }
-
-    protected Map<String, Object> getSessionCookies() {
-        return sessionCookies;
-    }
-
-    public RequestBuilder buildNewRequest(String serviceName, RequestType requestType) {
-        return new RequestBuilder(this, serviceName, requestType);
-    }
-
     private static String reportActionResult(String actionName, String testData, Object requestBody, Response response,
                                              Boolean isDiscrete, List<Object> expectedFileBodyAttachment, Boolean passFailStatus) {
 
@@ -710,6 +694,22 @@ public class RestActions {
         HTTP_CONNECTION_MANAGER_TIMEOUT = Integer
                 .parseInt(System.getProperty("apiConnectionManagerTimeout"));
 
+    }
+
+    protected String getServiceURI() {
+        return serviceURI;
+    }
+
+    protected Map<String, String> getSessionHeaders() {
+        return sessionHeaders;
+    }
+
+    protected Map<String, Object> getSessionCookies() {
+        return sessionCookies;
+    }
+
+    public RequestBuilder buildNewRequest(String serviceName, RequestType requestType) {
+        return new RequestBuilder(this, serviceName, requestType);
     }
 
     private RequestSpecBuilder initializeBuilder(Map<String, Object> sessionCookies, Map<String, String> sessionHeaders) {

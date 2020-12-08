@@ -13,3 +13,5 @@
 /.idea/*
 /.git/*
 *.iml
+ajcore*.txt
+debug.log
