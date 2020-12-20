@@ -7,6 +7,8 @@ import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.MobileElement;
+import io.appium.java_client.android.AndroidDriver;
+import io.appium.java_client.ios.IOSDriver;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
@@ -561,14 +563,20 @@ public class BrowserFactory {
                     break;
                 case MOBILE_BROWSER:
                 case MOBILE_NATIVE:
-                    driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
-                    // will break in case of firefoxOS
+                    if ("Android".equals(System.getProperty("mobile_platformName"))) {
+                        driver.set(new AndroidDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+                    } else if ("iOS".equals(System.getProperty("mobile_platformName"))) {
+                        driver.set(new IOSDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+                    } else {
+                        driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+                        // will break in case of firefoxOS
+                    }
                     break;
                 default:
                     failAction("Unsupported Browser Type [" + browserName + "].");
                     break;
             }
-            ReportManager.log("Successfully Opened [" + browserName + "].");
+            ReportManager.log("Successfully Opened [" + browserType.getValue() + "].");
             storeDriverInstance(browserName);
             ((RemoteWebDriver) driver.get()).setFileDetector(new LocalFileDetector());
         } catch (UnreachableBrowserException e) {
@@ -755,7 +763,7 @@ public class BrowserFactory {
     public enum BrowserType {
         MOZILLA_FIREFOX("MozillaFirefox"), GOOGLE_CHROME("GoogleChrome"), APPLE_SAFARI("Safari"),
         MICROSOFT_IE("MicrosoftInternetExplorer"), MICROSOFT_EDGE("MicrosoftEdge"), MOBILE_CHROME("Chrome"),
-        MOBILE_CHROMIUM("Chromium"), MOBILE_BROWSER("Browser"), MOBILE_NATIVE("");
+        MOBILE_CHROMIUM("Chromium"), MOBILE_BROWSER("Browser"), MOBILE_NATIVE("NativeMobileApp");
 
         private final String value;
 

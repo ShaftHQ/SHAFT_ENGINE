@@ -1552,7 +1552,7 @@ public class ElementActions {
     private static int getMatchingElementsCount(WebDriver driver, By elementLocator, int numberOfAttempts,
                                                 boolean waitForLazyLoading) {
         By internalElementLocator = elementLocator;
-        RecordManager.startVideoRecording();
+        RecordManager.startVideoRecording(driver);
         if (waitForLazyLoading) {
             JavaScriptWaitManager.waitForLazyLoading();
         }
@@ -1610,9 +1610,11 @@ public class ElementActions {
                             // scroll element into viewPort
                             ((Locatable) driver.findElement(internalElementLocator)).getCoordinates().inViewPort();
                         } catch (UnsupportedCommandException getElementLocationOnceScrolledIntoView) {
-                            // appium -> do nothing
-                            // TODO: scroll to element using touchActions
-                            ReportManager.logDiscrete(getElementLocationOnceScrolledIntoView);
+                            // TODO: appium -> swipe element into view
+//                            if (BrowserFactory.isMobileNativeExecution()) {
+                            //ElementActions.performTouchAction(driver).swipeElementIntoView(internalElementLocator, TouchActions.SwipeDirection.DOWN);
+//                            }
+                            //ReportManager.logDiscrete(getElementLocationOnceScrolledIntoView);
                         }
 
                         // check for visibility

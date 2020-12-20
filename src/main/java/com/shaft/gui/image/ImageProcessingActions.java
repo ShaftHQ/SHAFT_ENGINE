@@ -6,6 +6,7 @@ import com.applitools.eyes.TestResults;
 import com.applitools.eyes.exceptions.DiffsFoundException;
 import com.applitools.eyes.images.Eyes;
 import com.shaft.cli.FileActions;
+import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Assertions;
@@ -36,9 +37,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-
-import static com.shaft.gui.browser.BrowserFactory.isMobileNativeExecution;
-import static com.shaft.gui.browser.BrowserFactory.isMobileWebExecution;
 
 public class ImageProcessingActions {
     private static final String DIRECTORY_PROCESSING = "/processingDirectory/";
@@ -333,10 +331,10 @@ public class ImageProcessingActions {
         }
         eyes.setMatchLevel(targetMatchLevel);
         // Define the OS and hosting application to identify the baseline.
-        if (isMobileNativeExecution()) {
+        if (BrowserFactory.isMobileNativeExecution()) {
             eyes.setHostOS(System.getProperty("mobile_platformName") + "_" + System.getProperty("mobile_platformVersion"));
             eyes.setHostApp("NativeMobileExecution");
-        } else if (isMobileWebExecution()) {
+        } else if (BrowserFactory.isMobileWebExecution()) {
             eyes.setHostOS(System.getProperty("mobile_platformName") + "_" + System.getProperty("mobile_platformVersion"));
             eyes.setHostApp(System.getProperty("mobile_browserName"));
         } else {
@@ -446,7 +444,7 @@ public class ImageProcessingActions {
             try {
                 OpenCV.loadLocally();
                 ReportManager.logDiscrete("Loaded Local OpenCV");
-            } catch (UnsatisfiedLinkError e2){
+            } catch (UnsatisfiedLinkError e2) {
                 ReportManager.log(e);
                 ReportManager.logDiscrete("Failed to load OpenCV");
             }
