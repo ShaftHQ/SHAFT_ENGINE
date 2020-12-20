@@ -1,6 +1,6 @@
 package com.shaft.gui.element;
 
-import com.shaft.gui.video.RecordManager;
+import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.support.JSHelpers;
 import org.openqa.selenium.JavascriptExecutor;
@@ -33,8 +33,9 @@ public class JavaScriptWaitManager {
      * Waits for jQuery, Angular, and/or Javascript if present on the current page.
      */
     public static void waitForLazyLoading() {
-        RecordManager.startVideoRecording();
-        if (Boolean.TRUE.equals(WAIT_FOR_LAZY_LOADING)) {
+//        RecordManager.startVideoRecording(jsWaitDriver.get());
+        if (Boolean.TRUE.equals(WAIT_FOR_LAZY_LOADING)
+                && !BrowserFactory.isMobileNativeExecution()) {
             try {
                 waitForJQueryLoadIfDefined();
                 waitForAngularIfDefined();

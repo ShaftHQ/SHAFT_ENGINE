@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.mohabmohie</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>4.4.20201130</version>
+    <version>4.4.20201208</version>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
     <url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
@@ -35,10 +35,10 @@
         <appium-java-client.version>7.4.1</appium-java-client.version>
 
         <webdrivermanager.version>4.2.2</webdrivermanager.version>
-        <allure-testng.version>2.13.7</allure-testng.version> <!-- UPDATE internal.properties -->
+        <allure-testng.version>2.13.8</allure-testng.version> <!-- UPDATE internal.properties -->
         <aspectj.version>1.9.6</aspectj.version> <!-- 1.9.5 DO NOT UPDATE (Search and replace) -->
 
-        <rest-assured.version>4.3.2</rest-assured.version>
+        <rest-assured.version>4.3.3</rest-assured.version>
         <json-simple.version>1.1.1</json-simple.version>
         <skyscreamer-jsonassert.version>1.5.0</skyscreamer-jsonassert.version>
         <mime-util.version>2.1.3</mime-util.version>
@@ -64,7 +64,7 @@
 
         <jcraft-jsch.version>0.1.55</jcraft-jsch.version>
 
-        <cucumber.version>6.9.0</cucumber.version>
+        <cucumber.version>6.9.1</cucumber.version>
         <cverges-expect4j.version>1.9</cverges-expect4j.version>
 
         <openpnp-opencv.version>4.3.0-2</openpnp-opencv.version>
@@ -384,7 +384,7 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>30.0-jre</version>
+            <version>30.1-jre</version>
         </dependency>
     </dependencies>
 
