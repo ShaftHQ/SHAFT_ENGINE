@@ -411,7 +411,7 @@
                     <target>15</target>
                     <encoding>UTF-8</encoding>
                     <maxmem>10240m</maxmem>
-                    <meminitial>10240m</meminitial>
+                    <meminitial>1024m</meminitial>
                 </configuration>
             </plugin>
             <plugin>
