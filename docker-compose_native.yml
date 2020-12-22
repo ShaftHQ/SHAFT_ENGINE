@@ -4,26 +4,31 @@
 # add '-d' option for detached execution
 # docker-compose -f docker-compose_native.yml down --remove-orphans
 # http://localhost:4444/grid/console
-version: '3.7'
+version: '3'
 services:
    selenium-hub:
-      image: selenium/hub:3.141.59-20200515
+      #image: selenium/hub:3.141.59-20200515
+      image: selenium/hub:4.0.0
       ports:
-      - 4444:4444
+      - "4442:4442"
+      - "4443:4443"
+      - "4444:4444"
       environment:
         GRID_MAX_SESSION: 5
         GRID_BROWSER_TIMEOUT: 300
         GRID_TIMEOUT: 300
    chrome:
-      image: selenium/node-chrome:3.141.59-20200515
+      #image: selenium/node-chrome:3.141.59-20200515
+      image: selenium/node-chrome:4.0.0
       depends_on:
-      - selenium-hub
+         - selenium-hub
       shm_size: 2gb
       volumes:
          - /dev/shm:/dev/shm
       environment:
-         HUB_HOST: selenium-hub
-         HUB_PORT: 4444
+         SE_EVENT_BUS_HOST: selenium-hub
+         SE_EVENT_BUS_PUBLISH_PORT: 4442
+         SE_EVENT_BUS_SUBSCRIBE_PORT: 4443
          SCREEN_WIDTH: 1920
          SCREEN_HEIGHT: 1080
          # set false for headless execution
@@ -32,14 +37,16 @@ services:
          NODE_MAX_INSTANCES: 1
 #   firefox:
 #      image: selenium/node-firefox:3.141.59-20200515
+#      image: selenium/node-firefox:4.0.0
 #      depends_on:
-#      - selenium-hub
+#        - selenium-hub
 #      shm_size: 2gb
 #      volumes:
 #      - /dev/shm:/dev/shm
 #      environment:
-#         HUB_HOST: selenium-hub
-#         HUB_PORT: 4444
+#         SE_EVENT_BUS_HOST: selenium-hub
+#         SE_EVENT_BUS_PUBLISH_PORT: 4442
+#         SE_EVENT_BUS_SUBSCRIBE_PORT: 4443
 #         SCREEN_WIDTH: 1920
 #         SCREEN_HEIGHT: 1080
 ## set false for headless execution
