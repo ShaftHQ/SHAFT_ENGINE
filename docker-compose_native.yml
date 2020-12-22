@@ -7,7 +7,8 @@
 version: '3.7'
 services:
    selenium-hub:
-      image: selenium/hub:3.141.59-20200515
+      #image: selenium/hub:3.141.59-20200515
+      image: selenium/hub:4.0.0
       ports:
       - 4444:4444
       environment:
@@ -15,7 +16,8 @@ services:
         GRID_BROWSER_TIMEOUT: 300
         GRID_TIMEOUT: 300
    chrome:
-      image: selenium/node-chrome:3.141.59-20200515
+      #image: selenium/node-chrome:3.141.59-20200515
+      image: selenium/node-chrome:4.0.0
       depends_on:
       - selenium-hub
       shm_size: 2gb
@@ -32,6 +34,7 @@ services:
          NODE_MAX_INSTANCES: 1
 #   firefox:
 #      image: selenium/node-firefox:3.141.59-20200515
+#      image: selenium/node-firefox:4.0.0
 #      depends_on:
 #      - selenium-hub
 #      shm_size: 2gb
