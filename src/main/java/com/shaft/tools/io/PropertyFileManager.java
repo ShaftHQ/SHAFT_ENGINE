@@ -1,6 +1,7 @@
 package com.shaft.tools.io;
 
 import com.shaft.cli.FileActions;
+import com.shaft.validation.Assertions;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
 
@@ -154,6 +155,10 @@ public class PropertyFileManager {
             switch (maximumPerformanceMode) {
                 case ("1") -> System.setProperty("headlessExecution", String.valueOf(false));
                 case ("2") -> System.setProperty("headlessExecution", String.valueOf(true));
+                default -> {
+                    ReportManager.log("Unexpected maximumPerformanceMode Property value: " + maximumPerformanceMode);
+                    Assertions.assertFail("Unexpected maximumPerformanceMode Property value: " + maximumPerformanceMode);
+                }
             }
         }
     }
