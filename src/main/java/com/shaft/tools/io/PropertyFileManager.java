@@ -1,6 +1,7 @@
 package com.shaft.tools.io;
 
 import com.shaft.cli.FileActions;
+import com.shaft.validation.Assertions;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
 
@@ -136,10 +137,10 @@ public class PropertyFileManager {
      * </ul>
      */
     private static void manageMaximumPerformanceMode() {
-        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("maximumPerformanceMode")))) {
+        String maximumPerformanceMode = System.getProperty("maximumPerformanceMode");
+        if (!maximumPerformanceMode.equals("0")) {
             // Beast Mode On
             System.setProperty("aiPoweredSelfHealingElementIdentification", String.valueOf(false));
-            System.setProperty("headlessExecution", String.valueOf(true));
             System.setProperty("autoMaximizeBrowserWindow", String.valueOf(true));
             System.setProperty("forceCheckForElementVisibility", String.valueOf(false));
             System.setProperty("forceCheckElementLocatorIsUnique", String.valueOf(false));
@@ -151,8 +152,15 @@ public class PropertyFileManager {
             System.setProperty("createAnimatedGif", String.valueOf(false));
             System.setProperty("recordVideo", String.valueOf(false));
             System.setProperty("debugMode", String.valueOf(false));
+            switch (maximumPerformanceMode) {
+                case ("1") -> System.setProperty("headlessExecution", String.valueOf(false));
+                case ("2") -> System.setProperty("headlessExecution", String.valueOf(true));
+                default -> {
+                    ReportManager.log("Unexpected maximumPerformanceMode Property value: " + maximumPerformanceMode);
+                    Assertions.assertFail("Unexpected maximumPerformanceMode Property value: " + maximumPerformanceMode);
+                }
+            }
         }
-
     }
 
     private static void loadPropertiesFileIntoSystemProperties(Properties properties, File propertyFile) {
