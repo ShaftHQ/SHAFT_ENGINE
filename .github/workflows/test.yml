@@ -43,3 +43,5 @@ jobs:
           publish_dir: allure-history/allure
           destination_dir: allure
           publish_branch: gh-pages
+      - name: Deploy updated docs
+        run: mvn resources:resources javadoc:javadoc scm-publish:publish-scm
