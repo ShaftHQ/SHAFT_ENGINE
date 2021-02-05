@@ -121,7 +121,7 @@ public class JSONFileManager {
 	 */
 	private Object getTestData(String jsonPath, DataType dataType) {
 		Object testData = null;
-		FileReader reader = null;
+		this.reader = null;
 		try {
 			reader = new FileReader(jsonFilePath);
 		} catch (FileNotFoundException rootCauseException) {
