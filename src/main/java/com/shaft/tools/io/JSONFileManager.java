@@ -130,17 +130,17 @@ public class JSONFileManager {
 	 * 
 	 * @return the current value of the reader that had been initialized
 	 */
-	private FileReader initializeReader() {
-		this.reader = null;
-		try {
-            this.reader = new FileReader(jsonFilePath);
+    private FileReader initializeReader() {
+    	this.reader = null;
+    	try {
+            reader = new FileReader(jsonFilePath);
         } catch (FileNotFoundException rootCauseException) {
             ReportManager.log(rootCauseException);
             ReportManager.log("Couldn't find the desired file. [" + jsonFilePath + "].");
             Assert.fail("Couldn't find the desired file. [" + jsonFilePath + "].");
         }
-		return reader;
-	}
+    	return reader;
+    }
 
     public enum DataType {
         STRING, LIST, MAP
