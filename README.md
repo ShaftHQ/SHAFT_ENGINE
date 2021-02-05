@@ -7,8 +7,8 @@
  [![Maven Central](https://img.shields.io/maven-central/v/io.github.mohabmohie/SHAFT_ENGINE?style=for-the-badge)](https://search.maven.org/search?q=g:%22io.github.mohabmohie%22%20AND%20a:%22SHAFT_ENGINE%22)
 
 [![Codacy grade](https://img.shields.io/codacy/grade/3579cfd02a2c4f67bd1dce5dad0b1562?style=for-the-badge)](https://www.codacy.com/manual/mohab.mohieeldeen/SHAFT_ENGINE?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=MohabMohie/SHAFT_ENGINE&amp;utm_campaign=Badge_Grade)
- [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/MohabMohie/SHAFT_ENGINE/CodeQL%20-%20Security%20Analysis?label=CodeQL%20-%20Security%20Analysis&style=for-the-badge)](https://github.com/MohabMohie/SHAFT_ENGINE/actions?query=workflow%3A%22CodeQL+-+Security+Analysis%22)
- [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/MohabMohie/SHAFT_ENGINE/Ubuntu%20-%20Test?label=Ubuntu%20-%20Test&style=for-the-badge)](https://github.com/MohabMohie/SHAFT_ENGINE/actions?query=workflow%3A%22Ubuntu+-+Test%22)
+ [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/MohabMohie/SHAFT_Engine/CodeQL?label=CodeQL&style=for-the-badge)](https://github.com/MohabMohie/SHAFT_ENGINE/actions?query=workflow%3ACodeQL)
+ [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/MohabMohie/SHAFT_Engine/Ubuntu%20-%20Test?label=Ubuntu%20-%20Test&style=for-the-badge)](https://github.com/MohabMohie/SHAFT_ENGINE/actions?query=workflow%3A%22Ubuntu+-+Test%22)
 
 #### To contribute to SHAFT_Engine join our Slack Channel, for support using SHAFT_Engine join our Facebook group:
 <a href="https://join.slack.com/t/automatest-workspace/shared_invite/zt-lcmb3o9h-xqVEgswOtbx2~hQXX2ND4Q" target="_blank"><img src="https://a.slack-edge.com/80588/marketing/img/icons/icon_slack_hash_colored.png" alt="automatest-workspace" width="50" height="50"/></a>  <a href="https://www.facebook.com/groups/Automatest" target="_blank"><img src="https://facebookbrand.com/wp-content/uploads/2019/04/f_logo_RGB-Hex-Blue_512.png" alt="Automatest" width="50" height="50"/></a>
