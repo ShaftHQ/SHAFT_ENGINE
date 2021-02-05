@@ -112,6 +112,14 @@ public class JSONFileManager {
      */
     private Object getTestData(String jsonPath, DataType dataType) {
         Object testData = null;
+        FileReader reader = null;
+		try {
+			reader = new FileReader(jsonFilePath);
+		} catch (FileNotFoundException rootCauseException) {
+			System.out.println(rootCauseException);
+			System.out.println("Couldn't find the desired file. [" + jsonFilePath + "].");
+			Assert.fail("Couldn't find the desired file. [" + jsonFilePath + "].");
+		}
         try {
             switch (dataType) {
                 case STRING -> testData = JsonPath.from(this.reader).getString(jsonPath);
