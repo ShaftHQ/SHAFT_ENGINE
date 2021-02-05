@@ -56,5 +56,9 @@ jobs:
          uses: actions/setup-java@v1.4.3
          with:
            java-version: 15
+       - name: Set Git Identity - Email
+         run: git config --global user.email "Mohab.MohieElDeen@outlook.com"
+       - name: Set Git Identity - Name
+         run: git config --global user.name "Mohab Mohie"
        - name: Generate updated github-pages
          run: mvn resources:resources javadoc:javadoc scm-publish:publish-scm
