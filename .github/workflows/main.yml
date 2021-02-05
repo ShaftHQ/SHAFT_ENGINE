@@ -1,0 +1,70 @@
+name: Test and Deploy - Ubuntu
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: [ master ]
+  schedule:
+    - cron: '00 1 * * *'
+
+jobs:
+  setup:
+    name: Setup Selenium Grid
+    runs-on: [ubuntu-latest]
+    steps:
+      - name: Set up Native Selenium Grid
+        run: docker-compose -f docker-compose_native.yml up --scale chrome=4 --remove-orphans -d
+  
+  build:
+    name: Test on Ubuntu
+    runs-on: [ubuntu-latest]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+      - name: Set up JDK 15
+        uses: actions/setup-java@v1.4.3
+        with:
+          java-version: 15
+      - name: Check running containers
+        run: docker ps
+      - name: Run all tests
+        continue-on-error: true
+        run: mvn test -DexecutionAddress="localhost:4444" -DtargetOperatingSystem="Linux-64" -DmaximumPerformanceMode="2" -DtargetBrowserName="GoogleChrome" -Dtest="!%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*]"
+  report:
+    name: Host Execution Report
+    runs-on: [ubuntu-latest]
+    steps:
+      - name: Generate Allure Report with history
+        uses: simple-elf/allure-report-action@v1.3
+        with:
+          allure_results: allure-results
+          allure_report: allure-report
+          allure_version: 2.13.6
+          gh_pages: gh-pages
+          allure_history: allure-history
+          subfolder: allure
+          github_run_num: ${{ github.run_number }}
+          github_run_id: ${{ github.run_id }}
+          github_repo: ${{ github.repository }}
+          github_repo_owner: ${{ github.repository_owner }}
+      - name: Deploy report to Github Pages
+        uses: peaceiris/actions-gh-pages@v3.7.3
+        with:
+          personal_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: allure-history/allure
+          destination_dir: allure
+          publish_branch: gh-pages
+  deploy:
+      name: Deploy github-pages
+      runs-on: [ubuntu-latest]
+      steps:
+        - name: Checkout Code
+          uses: actions/checkout@v2
+        - name: Set up JDK 15
+          uses: actions/setup-java@v1.4.3
+          with:
+            java-version: 15
+        - name: Generate updated github-pages
+          run: mvn resources:resources javadoc:javadoc scm-publish:publish-scm
