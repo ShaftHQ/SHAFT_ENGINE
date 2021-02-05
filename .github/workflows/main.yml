@@ -10,7 +10,7 @@ on:
     - cron: '00 1 * * *'
 
 jobs:
-  setup:
+  test:
     name: Setup Selenium Grid
     runs-on: [ubuntu-latest]
     steps:
@@ -18,28 +18,13 @@ jobs:
         uses: actions/checkout@v2
       - name: Set up Native Selenium Grid
         run: docker-compose -f docker-compose_native.yml up --scale chrome=4 --remove-orphans -d
-  
-  build:
-    needs: [setup]
-    name: Test on Ubuntu
-    runs-on: [ubuntu-latest]
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v2
       - name: Set up JDK 15
         uses: actions/setup-java@v1.4.3
         with:
           java-version: 15
-      - name: Check running containers
-        run: docker ps
       - name: Run all tests
+        continue-on-error: true
         run: mvn test -DexecutionAddress="localhost:4444" -DtargetOperatingSystem="Linux-64" -DmaximumPerformanceMode="2" -DtargetBrowserName="GoogleChrome" -Dtest="!%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*]"
-  
-  report:
-    needs: [build]
-    name: Host Execution Report
-    runs-on: [ubuntu-latest]
-    steps:
       - name: Generate Allure Report with history
         uses: simple-elf/allure-report-action@v1.3
         with:
@@ -62,7 +47,7 @@ jobs:
           publish_branch: gh-pages
   
   deploy:
-    needs: [report]
+    needs: [test]
     name: Deploy github-pages
     runs-on: [ubuntu-latest]
     steps:
