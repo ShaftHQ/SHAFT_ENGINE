@@ -4,14 +4,13 @@ on:
   push:
     branches: [ master ]
   pull_request:
-    # The branches below must be a subset of the branches above
     branches: [ master ]
   schedule:
     - cron: '00 1 * * *'
 
 jobs:
   test:
-    name: Setup Selenium Grid
+    name: Run System Tests on Ubuntu
     runs-on: [ubuntu-latest]
     steps:
       - name: Checkout Code
