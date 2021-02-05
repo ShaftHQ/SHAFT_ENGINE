@@ -24,13 +24,7 @@ public class JSONFileManager {
      */
     public JSONFileManager(String jsonFilePath) {
         this.jsonFilePath = jsonFilePath;
-        try {
-            this.reader = new FileReader(jsonFilePath);
-        } catch (FileNotFoundException rootCauseException) {
-            ReportManager.log(rootCauseException);
-            ReportManager.log("Couldn't find the desired file. [" + jsonFilePath + "].");
-            Assert.fail("Couldn't find the desired file. [" + jsonFilePath + "].");
-        }
+        initializeReader();
         List<List<Object>> attachments = new ArrayList<>();
         List<Object> testDataFileAttachment = null;
         try {
@@ -112,6 +106,7 @@ public class JSONFileManager {
      */
     private Object getTestData(String jsonPath, DataType dataType) {
         Object testData = null;
+        initializeReader();
         try {
             switch (dataType) {
                 case STRING -> testData = JsonPath.from(this.reader).getString(jsonPath);
@@ -128,6 +123,23 @@ public class JSONFileManager {
             Assert.fail("Couldn't read the desired file. [" + this.jsonFilePath + "].");
         }
         return testData;
+    }
+    
+    /**
+	 * initializes the json reader using the target json file path
+	 * 
+	 * @return the current value of the reader that had been initialized
+	 */
+    private FileReader initializeReader() {
+    	this.reader = null;
+    	try {
+            reader = new FileReader(jsonFilePath);
+        } catch (FileNotFoundException rootCauseException) {
+            ReportManager.log(rootCauseException);
+            ReportManager.log("Couldn't find the desired file. [" + jsonFilePath + "].");
+            Assert.fail("Couldn't find the desired file. [" + jsonFilePath + "].");
+        }
+    	return reader;
     }
 
     public enum DataType {
