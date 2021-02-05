@@ -46,7 +46,6 @@ jobs:
           publish_branch: gh-pages
   
   deploy:
-    needs: [test]
     name: Deploy github-pages
     runs-on: [ubuntu-latest]
     steps:
