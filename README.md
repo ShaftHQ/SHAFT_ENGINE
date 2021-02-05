@@ -10,11 +10,8 @@
  [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/MohabMohie/SHAFT_ENGINE/CodeQL%20-%20Security%20Analysis?label=CodeQL%20-%20Security%20Analysis&style=for-the-badge)](https://github.com/MohabMohie/SHAFT_ENGINE/actions?query=workflow%3A%22CodeQL+-+Security+Analysis%22)
  [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/MohabMohie/SHAFT_ENGINE/Ubuntu%20-%20Test?label=Ubuntu%20-%20Test&style=for-the-badge)](https://github.com/MohabMohie/SHAFT_ENGINE/actions?query=workflow%3A%22Ubuntu+-+Test%22)
 
-#### If you want to contribute to this project join our Slack Channel:
-[![automatest-workspace](https://assets.brandfolder.com/pl546j-7le8zk-6gwiyo/v/2925175/element.png?w=50&h=50&v=1611637093)](https://join.slack.com/t/automatest-workspace/shared_invite/zt-lcmb3o9h-xqVEgswOtbx2~hQXX2ND4Q)
-
-#### If you need any help/support using this project join our Facebook group:
-[![Automatest](https://facebookbrand.com/wp-content/uploads/2019/04/f_logo_RGB-Hex-Blue_512.png?w=50&h=50)](https://www.facebook.com/groups/Automatest)
+#### To contribute to SHAFT_Engine join our Slack Channel, for support using SHAFT_Engine join our Facebook group:
+<a href="https://join.slack.com/t/automatest-workspace/shared_invite/zt-lcmb3o9h-xqVEgswOtbx2~hQXX2ND4Q" target="_blank"><img src="https://a.slack-edge.com/80588/marketing/img/icons/icon_slack_hash_colored.png" alt="automatest-workspace" width="50" height="50"/></a>  <a href="https://www.facebook.com/groups/Automatest" target="_blank"><img src="https://facebookbrand.com/wp-content/uploads/2019/04/f_logo_RGB-Hex-Blue_512.png" alt="Automatest" width="50" height="50"/></a>
 
 ### Getting Started:
 - How to do cross-browser test automation in 10 minutes using SHAFT_Engine ▶️:
