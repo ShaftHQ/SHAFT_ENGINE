@@ -22,6 +22,7 @@ public class SuiteListener implements ISuiteListener {
         ProjectStructureFactory.initialize();
         ReportManager.prepareAllureReportingEnvironment();
         ReportManager.logEngineVersion();
+        ReportManager.initExtentReports();
         if (!(suite.getAllMethods().size() == 1 && suite.getAllMethods().get(0).getMethodName().equals("runScenario"))) {
             // not cucumber test runner
             ReportManager.setTotalNumberOfTests(suite.getAllMethods().size());

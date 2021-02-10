@@ -36,6 +36,7 @@
 
         <webdrivermanager.version>4.3.1</webdrivermanager.version>
         <allure-testng.version>2.13.8</allure-testng.version> <!-- UPDATE internal.properties -->
+        <extentreports.version>5.0.6</extentreports.version>
         <aspectj.version>1.9.6</aspectj.version> <!-- 1.9.5 DO NOT UPDATE (Search and replace) -->
 
         <extentreports.version>5.0.6</extentreports.version>
@@ -449,7 +450,7 @@
                         </property>
                         <property>
                             <name>listener</name>
-                            <value>com.shaft.tools.listeners.AlterSuiteListener,com.shaft.tools.listeners.SuiteListener,com.shaft.tools.listeners.InvokedMethodListener,com.shaft.tools.listeners.CucumberFeatureListener</value>
+                            <value>com.shaft.tools.listeners.TestListener,com.shaft.tools.listeners.AlterSuiteListener,com.shaft.tools.listeners.SuiteListener,com.shaft.tools.listeners.InvokedMethodListener,com.shaft.tools.listeners.CucumberFeatureListener</value>
                         </property>
                     </properties>
                 </configuration>
