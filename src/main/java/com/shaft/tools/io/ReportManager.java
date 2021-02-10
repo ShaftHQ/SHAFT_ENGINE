@@ -1,5 +1,9 @@
 package com.shaft.tools.io;
 
+import com.aventstack.extentreports.ExtentReports;
+import com.aventstack.extentreports.ExtentTest;
+import com.aventstack.extentreports.reporter.ExtentSparkReporter;
+import com.aventstack.extentreports.reporter.configuration.Theme;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
@@ -47,6 +51,9 @@ public class ReportManager {
     private static List<List<String>> listOfOpenIssuesForPassedTests = new ArrayList<>();
     private static List<List<String>> listOfNewIssuesForFailedTests = new ArrayList<>();
     private static String featureName = "";
+
+    private static ExtentReports report;
+    private static ExtentTest test;
 
     private ReportManager() {
         throw new IllegalStateException("Utility class");
@@ -416,6 +423,48 @@ public class ReportManager {
 
     public static void setFeatureName(String featureName) {
         ReportManager.featureName = featureName;
+    }
+
+    public static void initExtentReports() {
+        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateExtentReports").trim()))) {
+            report = new ExtentReports();
+            String timestamp = (new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss")).format(new Date(System.currentTimeMillis()));
+            ExtentSparkReporter spark = new ExtentSparkReporter(System.getProperty("extentReportsFolderPath") + "ExtentReports" + timestamp + ".html");
+            report.attachReporter(spark);
+            spark.config().setTheme(Theme.STANDARD);
+            spark.config().setDocumentTitle("Extent Reports");
+            spark.config().setReportName("Extent Reports - Powered by SHAFT_Engine");
+        }
+    }
+
+    public static void extentReportsCreateTest(String testcaseName) {
+        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateExtentReports").trim()))) {
+            test = report.createTest(testcaseName);
+        }
+    }
+
+    public static void extentReportsInfo(String message) {
+        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateExtentReports").trim()))) {
+            test.info(message);
+        }
+    }
+
+    public static void extentReportsFail(Throwable t) {
+        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateExtentReports").trim()))) {
+            test.fail(t);
+        }
+    }
+
+    public static void extentReportsSkip(Throwable t) {
+        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateExtentReports").trim()))) {
+            test.skip(t);
+        }
+    }
+
+    public static void extentReportsFlush() {
+        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateExtentReports").trim()))) {
+            report.flush();
+        }
     }
 
     protected static void logClosureActivitiesInitialization() {

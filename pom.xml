@@ -38,6 +38,8 @@
         <allure-testng.version>2.13.8</allure-testng.version> <!-- UPDATE internal.properties -->
         <aspectj.version>1.9.6</aspectj.version> <!-- 1.9.5 DO NOT UPDATE (Search and replace) -->
 
+        <extentreports.version>5.0.6</extentreports.version>
+
         <rest-assured.version>4.3.3</rest-assured.version>
         <json-simple.version>1.1.1</json-simple.version>
         <skyscreamer-jsonassert.version>1.5.0</skyscreamer-jsonassert.version>
@@ -222,6 +224,13 @@
             <groupId>org.aspectj</groupId>
             <artifactId>aspectjweaver</artifactId>
             <version>${aspectj.version}</version>
+        </dependency>
+
+        <!-- EXTENT REPORTS -->
+        <dependency>
+            <groupId>com.aventstack</groupId>
+            <artifactId>extentreports</artifactId>
+            <version>${extentreports.version}</version>
         </dependency>
 
         <!-- REST ASSURED -->

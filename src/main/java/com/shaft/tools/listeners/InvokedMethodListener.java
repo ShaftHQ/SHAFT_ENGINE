@@ -43,8 +43,10 @@ public class InvokedMethodListener implements IInvokedMethodListener {
                 if (testMethod.getDescription() != null) {
                     ReportManager.logTestInformation(ReportManager.getTestClassName(), ReportManager.getTestMethodName(),
                             testMethod.getDescription());
+                    ReportManager.extentReportsCreateTest(testMethod.getDescription());
                 } else {
                     ReportManager.logTestInformation(ReportManager.getTestClassName(), ReportManager.getTestMethodName(), "");
+                    ReportManager.extentReportsCreateTest(ReportManager.getTestClassName() + "."+ ReportManager.getTestMethodName());
                 }
             } else if (testMethod instanceof ConfigurationMethod) {
                 // org.testng.internal.ConfigurationMethod
@@ -122,6 +124,11 @@ public class InvokedMethodListener implements IInvokedMethodListener {
         } else if (testResult != null && testResult.getStatus() == ITestResult.FAILURE) {
             // if test failed
             reportOpenIssueStatus(testMethod, false);
+            ReportManager.extentReportsFail(testResult.getThrowable());
+        }
+        else if (testResult != null && testResult.getStatus() == ITestResult.SKIP) {
+            // if test skipped
+            ReportManager.extentReportsSkip(testResult.getThrowable());
         }
     }
 
