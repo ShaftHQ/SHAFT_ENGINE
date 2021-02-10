@@ -29,7 +29,6 @@ public class SuiteListener implements ISuiteListener {
         }
         ReportManager.setDiscreteLogging(Boolean.parseBoolean(System.getProperty("alwaysLogDiscreetly")));
         ReportManager.setDebugMode(Boolean.valueOf(System.getProperty("debugMode")));
-        ReportManager.initExtentReports();
     }
 
     @Override
