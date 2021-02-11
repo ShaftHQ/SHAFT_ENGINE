@@ -555,7 +555,7 @@ public class ElementActions {
      * desired elementLocator
      */
     public static int getElementsCount(WebDriver driver, By elementLocator) {
-        return getMatchingElementsCount(driver, elementLocator, ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION);
+        return getMatchingElementsCount(driver, elementLocator, ElementActions.ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION);
     }
 
     /**
@@ -572,25 +572,6 @@ public class ElementActions {
      */
     public static int getElementsCount(WebDriver driver, By elementLocator, int numberOfAttempts) {
         return getMatchingElementsCount(driver, elementLocator, numberOfAttempts);
-    }
-
-    /**
-     * Returns the number of elements that match a certain elementLocator
-     *
-     * @param driver             the current instance of Selenium webdriver
-     * @param elementLocator     the locator of the webElement under test (By xpath,
-     *                           id, selector, name ...etc)
-     * @param numberOfAttempts   the number of retries before returning a count
-     *                           [returns zero if no elements were found after all
-     *                           the retries]
-     * @param waitForLazyLoading if true, will wait before lazy loading, else if
-     *                           false skips this wait
-     * @return integer value that represents the number of elements that match the
-     * desired elementLocator
-     */
-    public static int getElementsCount(WebDriver driver, By elementLocator, int numberOfAttempts,
-                                       boolean waitForLazyLoading) {
-        return getMatchingElementsCount(driver, elementLocator, numberOfAttempts, waitForLazyLoading);
     }
 
     /**
@@ -1546,48 +1527,48 @@ public class ElementActions {
     }
 
     private static int getMatchingElementsCount(WebDriver driver, By elementLocator, int numberOfAttempts) {
-        return getMatchingElementsCount(driver, elementLocator, numberOfAttempts, true);
-    }
-
-    private static int getMatchingElementsCount(WebDriver driver, By elementLocator, int numberOfAttempts,
-                                                boolean waitForLazyLoading) {
-        By internalElementLocator = elementLocator;
+        if (elementLocator == null) {
+            return 0;
+        }
+        JavaScriptWaitManager.waitForLazyLoading();
         RecordManager.startVideoRecording(driver);
-        if (waitForLazyLoading) {
-            JavaScriptWaitManager.waitForLazyLoading();
+
+        if (elementLocator.equals(By.tagName("html")) || Boolean.FALSE.equals(ScreenshotManager.getAiSupportedElementIdentification())) {
+            return waitForElementPresence(driver, elementLocator, numberOfAttempts);
         }
 
-        int matchingElementsCount = 0;
-        if (internalElementLocator != null && internalElementLocator.equals(By.tagName("html"))) {
-            matchingElementsCount = waitForElementPresence(driver, internalElementLocator, numberOfAttempts);
-        } else if (internalElementLocator != null) {
-            // check to see if this element was already identified using AI, and if it's
-            // still unique, use that locator directly
-            String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(internalElementLocator);
-            String previouslyIdentifiedXpath = System.getProperty(hashedLocatorName);
-            setAiGeneratedXpath(previouslyIdentifiedXpath);
+        // not null AND not html AND ai self healing is enabled
+        return getMatchingElementsCountAI(driver, elementLocator, numberOfAttempts);
+    }
 
-            // wait for element presence
-            if (previouslyIdentifiedXpath != null && Boolean.TRUE.equals(ScreenshotManager.getAiSupportedElementIdentification())) {
+    private static int getMatchingElementsCountAI(WebDriver driver, By elementLocator, int numberOfAttempts) {
+        By internalElementLocator = elementLocator;
+        // check to see if this element was already identified using AI, and if it's
+        // still unique, use that locator directly
+        String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(internalElementLocator);
+        String previouslyIdentifiedXpath = System.getProperty(hashedLocatorName);
+        setAiGeneratedXpath(previouslyIdentifiedXpath);
+
+        // wait for element presence
+        if (previouslyIdentifiedXpath != null && Boolean.TRUE.equals(ScreenshotManager.getAiSupportedElementIdentification())) {
+            internalElementLocator = aiGeneratedElementLocator;
+        }
+        int matchingElementsCount = waitForElementPresence(driver, internalElementLocator, numberOfAttempts);
+
+        if (matchingElementsCount == 0
+                && Boolean.TRUE.equals(attemptToFindElementUsingAI(driver, internalElementLocator))) {
+            matchingElementsCount = 1;
+        } else if (matchingElementsCount == 1) {
+            if (previouslyIdentifiedXpath != null) {
+                boolean initialLoggingState = ReportManager.isDiscreteLogging();
+                ReportManager.setDiscreteLogging(false);
+                ReportManager
+                        .log("Element was previously found using AI... Kindly update your element locator from ["
+                                + internalElementLocator + "] to [" + aiGeneratedElementLocator + "].");
+                ReportManager.setDiscreteLogging(initialLoggingState);
                 internalElementLocator = aiGeneratedElementLocator;
             }
-            matchingElementsCount = waitForElementPresence(driver, internalElementLocator, numberOfAttempts);
-
-            if (matchingElementsCount == 0
-                    && Boolean.TRUE.equals(attemptToFindElementUsingAI(driver, internalElementLocator))) {
-                matchingElementsCount = 1;
-            } else if (matchingElementsCount == 1) {
-                if (previouslyIdentifiedXpath != null) {
-                    boolean initialLoggingState = ReportManager.isDiscreteLogging();
-                    ReportManager.setDiscreteLogging(false);
-                    ReportManager
-                            .log("Element was previously found using AI... Kindly update your element locator from ["
-                                    + internalElementLocator + "] to [" + aiGeneratedElementLocator + "].");
-                    ReportManager.setDiscreteLogging(initialLoggingState);
-                    internalElementLocator = aiGeneratedElementLocator;
-                }
-                ScreenshotManager.storeElementScreenshotForAISupportedElementIdentification(driver, internalElementLocator);
-            }
+            ScreenshotManager.storeElementScreenshotForAISupportedElementIdentification(driver, internalElementLocator);
         }
         return matchingElementsCount;
     }
@@ -1598,7 +1579,7 @@ public class ElementActions {
         // Override current locator with the aiGeneratedElementLocator
         internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
 
-        int matchingElementsCount = getMatchingElementsCount(driver, internalElementLocator, ElementActions.ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION);
+        int matchingElementsCount = getMatchingElementsCount(driver, elementLocator, ElementActions.ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION);
         if (internalElementLocator != null) {
             // unique element found
             switch (matchingElementsCount) {
@@ -1949,12 +1930,13 @@ public class ElementActions {
 
     private static int waitForElementPresence(WebDriver driver, By elementLocator, int numberOfAttempts) {
         try {
-            new FluentWait<>(driver)
+            return new FluentWait<>(driver)
                     .withTimeout(Duration.ofSeconds(
                             (long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER * numberOfAttempts))
                     .pollingEvery(Duration.ofSeconds(ELEMENT_IDENTIFICATION_POLLING_DELAY))
-                    .ignoring(NoSuchElementException.class).until(nestedDriver -> driver.findElement(elementLocator));
-            return driver.findElements(elementLocator).size();
+                    .ignoring(NoSuchElementException.class)
+                    .ignoring(StaleElementReferenceException.class)
+                    .until(nestedDriver -> nestedDriver.findElements(elementLocator).size());
         } catch (TimeoutException e) {
             // In case the element was not found and the timeout expired
             ReportManager.logDiscrete(e);
