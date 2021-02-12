@@ -36,6 +36,7 @@
 
         <webdrivermanager.version>4.3.1</webdrivermanager.version>
         <allure-testng.version>2.13.8</allure-testng.version> <!-- UPDATE internal.properties -->
+        <extentreports.version>5.0.6</extentreports.version>
         <aspectj.version>1.9.6</aspectj.version> <!-- 1.9.5 DO NOT UPDATE (Search and replace) -->
 
         <rest-assured.version>4.3.3</rest-assured.version>
@@ -222,6 +223,13 @@
             <groupId>org.aspectj</groupId>
             <artifactId>aspectjweaver</artifactId>
             <version>${aspectj.version}</version>
+        </dependency>
+
+        <!-- EXTENT REPORTS -->
+        <dependency>
+            <groupId>com.aventstack</groupId>
+            <artifactId>extentreports</artifactId>
+            <version>${extentreports.version}</version>
         </dependency>
 
         <!-- REST ASSURED -->
