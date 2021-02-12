@@ -443,15 +443,21 @@ public class ReportManager {
         }
     }
 
-    public static void extentReportsInfo(String message) {
+    public static void extentReportsFail(String message) {
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateExtentReports").trim()))) {
-            test.info(message);
+            test.fail(message);
         }
     }
 
     public static void extentReportsFail(Throwable t) {
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateExtentReports").trim()))) {
             test.fail(t);
+        }
+    }
+
+    public static void extentReportsSkip(String message) {
+        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateExtentReports").trim()))) {
+            test.skip(message);
         }
     }
 
