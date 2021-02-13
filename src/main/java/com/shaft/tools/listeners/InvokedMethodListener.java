@@ -46,7 +46,7 @@ public class InvokedMethodListener implements IInvokedMethodListener {
                 } else {
                     ReportManager.logTestInformation(ReportManager.getTestClassName(), ReportManager.getTestMethodName(), "");
                 }
-                if (testMethod.getDescription() != null && testMethod.getDescription() != "") {
+                if (testMethod.getDescription() != null && !testMethod.getDescription().equals("")) {
                     ReportManager.extentReportsCreateTest(testMethod.getDescription());
                 } else {
                     ReportManager.extentReportsCreateTest(ReportManager.getTestMethodName());
@@ -130,14 +130,14 @@ public class InvokedMethodListener implements IInvokedMethodListener {
             if (testResult.getThrowable() != null) {
                 ReportManager.extentReportsFail(testResult.getThrowable());
             } else {
-                ReportManager.extentReportsFail("Test is FAILED!");
+                ReportManager.extentReportsFail("Test Failed.");
             }
         } else if (testResult != null && testResult.getStatus() == ITestResult.SKIP) {
             // if test skipped
             if (testResult.getThrowable() != null) {
                 ReportManager.extentReportsSkip(testResult.getThrowable());
             } else {
-                ReportManager.extentReportsSkip("Test is SKIPPED!");
+                ReportManager.extentReportsSkip("Test Skipped as it depends on unsuccessfully executed methods.");
             }
         }
     }

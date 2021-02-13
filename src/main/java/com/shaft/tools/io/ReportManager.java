@@ -2,13 +2,18 @@ package com.shaft.tools.io;
 
 import com.aventstack.extentreports.ExtentReports;
 import com.aventstack.extentreports.ExtentTest;
+import com.aventstack.extentreports.MediaEntityBuilder;
+import com.aventstack.extentreports.markuputils.CodeLanguage;
+import com.aventstack.extentreports.markuputils.MarkupHelper;
 import com.aventstack.extentreports.reporter.ExtentSparkReporter;
 import com.aventstack.extentreports.reporter.configuration.Theme;
+import com.aventstack.extentreports.reporter.configuration.ViewName;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 import io.qameta.allure.Allure;
 import io.qameta.allure.Step;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,11 +57,16 @@ public class ReportManager {
     private static List<List<String>> listOfNewIssuesForFailedTests = new ArrayList<>();
     private static String featureName = "";
 
-    private static ExtentReports report;
-    private static ExtentTest test;
+    private static ExtentReports extentReport;
+    private static ExtentTest extentTest;
+    private static String extentReportFileName;
 
     private ReportManager() {
         throw new IllegalStateException("Utility class");
+    }
+
+    public static String getExtentReportFileName() {
+        return extentReportFileName;
     }
 
     public static void setOpenIssuesForFailedTestsCounter(int openIssuesForFailedTestsCounter) {
@@ -351,7 +361,7 @@ public class ReportManager {
         }
     }
 
-    public static void openAllureReportAfterExecution() {
+    protected static void openAllureReportAfterExecution() {
         String commandToOpenAllureReport;
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("openAllureReportAfterExecution").trim()))
                 && System.getProperty("executionAddress").trim().equals("local")) {
@@ -365,7 +375,7 @@ public class ReportManager {
         }
     }
 
-    public static void generateAllureReportArchive() {
+    protected static void generateAllureReportArchive() {
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateAllureReportArchive").trim()))
                 && System.getProperty("executionAddress").trim().equals("local")) {
             logDiscrete("Generating Allure Report Archive...");
@@ -425,12 +435,16 @@ public class ReportManager {
         ReportManager.featureName = featureName;
     }
 
-    public static void initExtentReports() {
+    public static void initializeExtentReports() {
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateExtentReports").trim()))) {
-            report = new ExtentReports();
-            String timestamp = (new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss")).format(new Date(System.currentTimeMillis()));
-            ExtentSparkReporter spark = new ExtentSparkReporter(System.getProperty("extentReportsFolderPath") + "ExtentReports" + timestamp + ".html");
-            report.attachReporter(spark);
+            extentReportFileName = System.getProperty("extentReportsFolderPath") + "ExtentReports_" + (new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS aaa")).format(new Date(System.currentTimeMillis())) + ".html";
+            extentReport = new ExtentReports();
+            ExtentSparkReporter spark = new ExtentSparkReporter(extentReportFileName)
+                    .viewConfigurer()
+                    .viewOrder()
+                    .as(new ViewName[]{ViewName.DASHBOARD, ViewName.TEST})
+                    .apply();
+            extentReport.attachReporter(spark);
             spark.config().setTheme(Theme.STANDARD);
             spark.config().setDocumentTitle("Extent Reports");
             spark.config().setReportName("Extent Reports - Powered by SHAFT_Engine");
@@ -439,37 +453,37 @@ public class ReportManager {
 
     public static void extentReportsCreateTest(String testcaseName) {
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateExtentReports").trim()))) {
-            test = report.createTest(testcaseName);
+            extentTest = extentReport.createTest(testcaseName);
         }
     }
 
     public static void extentReportsFail(String message) {
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateExtentReports").trim()))) {
-            test.fail(message);
+            extentTest.fail(message);
         }
     }
 
     public static void extentReportsFail(Throwable t) {
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateExtentReports").trim()))) {
-            test.fail(t);
+            extentTest.fail(t);
         }
     }
 
     public static void extentReportsSkip(String message) {
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateExtentReports").trim()))) {
-            test.skip(message);
+            extentTest.skip(message);
         }
     }
 
     public static void extentReportsSkip(Throwable t) {
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateExtentReports").trim()))) {
-            test.skip(t);
+            extentTest.skip(t);
         }
     }
 
     public static void extentReportsFlush() {
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateExtentReports").trim()))) {
-            report.flush();
+            extentReport.flush();
         }
     }
 
@@ -520,6 +534,16 @@ public class ReportManager {
         }
         String log = REPORT_MANAGER_PREFIX + logText.trim() + " @" + timestamp;
         Reporter.log(log, true);
+        if (extentTest != null && !logText.contains("created attachment") && !logText.contains("<html")) {
+            if (logText.contains("PASSED")) {
+                extentTest.pass(logText);
+            } else if (logText.contains("FAILED")) {
+                extentTest.fail(logText);
+            } else {
+                extentTest.info(logText);
+            }
+        }
+
         if (addToFullLog) {
             appendToFullLog(log);
             appendToFullLog(System.lineSeparator());
@@ -576,28 +600,53 @@ public class ReportManager {
     }
 
     private static void createAttachment(String attachmentType, String attachmentName, InputStream attachmentContent) {
-        InputStream attachmentContentCopy;
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        byte[] buffer = new byte[1024];
-        int len;
         try {
-            while ((len = attachmentContent.read(buffer)) > -1) {
-                baos.write(buffer, 0, len);
-            }
-            baos.flush();
+            attachmentContent.transferTo(baos);
         } catch (IOException e) {
             String error = "Error while creating Attachment";
             slf4jLogger.info(error, e);
             Reporter.log(error, false);
         }
 
-        attachmentContent = new ByteArrayInputStream(baos.toByteArray());
-        attachmentContentCopy = new ByteArrayInputStream(baos.toByteArray());
-
         String attachmentDescription = "Attachment: " + attachmentType + " - " + attachmentName;
+        attachBasedOnFileType(attachmentType, attachmentName, baos, attachmentDescription);
+        logAttachmentAction(attachmentType, attachmentName, baos);
+    }
 
-        attachBasedOnFileType(attachmentType, attachmentName, attachmentContent, attachmentDescription);
+    private static synchronized void attachBasedOnFileType(String attachmentType, String attachmentName,
+                                                           ByteArrayOutputStream attachmentContent, String attachmentDescription) {
+        if (attachmentType.toLowerCase().contains("screenshot")) {
+            Allure.addAttachment(attachmentDescription, "image/png", new ByteArrayInputStream(attachmentContent.toByteArray()), ".png");
+            attachImageToExtentReport("image/png", new ByteArrayInputStream(attachmentContent.toByteArray()));
+        } else if (attachmentType.toLowerCase().contains("recording")) {
+            Allure.addAttachment(attachmentDescription, "video/mp4", new ByteArrayInputStream(attachmentContent.toByteArray()), ".mp4");
+            // attachmentDescription, "video/quicktime", attachmentContent, ".mov");
+            // attachmentDescription, "video/webm", attachmentContent, ".webm");
+            // attachmentDescription, "video/mp4", attachmentContent, ".mp4");
+            // attachmentDescription, "video/ogg", attachmentContent, ".ogg");
+        } else if (attachmentType.toLowerCase().contains("gif")) {
+            Allure.addAttachment(attachmentDescription, "image/gif", new ByteArrayInputStream(attachmentContent.toByteArray()), ".gif");
+            attachImageToExtentReport("image/gif", new ByteArrayInputStream(attachmentContent.toByteArray()));
+        } else if (attachmentType.toLowerCase().contains("csv") || attachmentName.toLowerCase().contains("csv")) {
+            Allure.addAttachment(attachmentDescription, "text/csv", new ByteArrayInputStream(attachmentContent.toByteArray()), ".csv");
+            attachCodeBlockToExtentReport("text/csv", new ByteArrayInputStream(attachmentContent.toByteArray()));
+        } else if (attachmentType.toLowerCase().contains("xml") || attachmentName.toLowerCase().contains("xml")) {
+            Allure.addAttachment(attachmentDescription, "text/xml", new ByteArrayInputStream(attachmentContent.toByteArray()), ".xml");
+            attachCodeBlockToExtentReport("text/xml", new ByteArrayInputStream(attachmentContent.toByteArray()));
+        } else if (attachmentType.toLowerCase().contains("excel") || attachmentName.toLowerCase().contains("excel")) {
+            Allure.addAttachment(attachmentDescription, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", new ByteArrayInputStream(attachmentContent.toByteArray()), ".xlsx");
+        } else if (attachmentType.toLowerCase().contains("json") || attachmentName.toLowerCase().contains("json")) {
+            Allure.addAttachment(attachmentDescription, "text/json", new ByteArrayInputStream(attachmentContent.toByteArray()), ".json");
+            attachCodeBlockToExtentReport("text/json", new ByteArrayInputStream(attachmentContent.toByteArray()));
+        } else if (attachmentType.toLowerCase().contains("engine logs")) {
+            Allure.addAttachment(attachmentDescription, "text/plain", new ByteArrayInputStream(attachmentContent.toByteArray()), ".txt");
+        } else {
+            Allure.addAttachment(attachmentDescription, new ByteArrayInputStream(attachmentContent.toByteArray()));
+        }
+    }
 
+    private static synchronized void logAttachmentAction(String attachmentType, String attachmentName, ByteArrayOutputStream attachmentContent) {
         if (!(attachmentType.equals(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE) && attachmentName.equals("Execution log"))) {
             createReportEntry("Successfully created attachment [" + attachmentType + " - " + attachmentName + "]",
                     false);
@@ -612,7 +661,7 @@ public class ReportManager {
 
             String theString;
             BufferedReader br = new BufferedReader(
-                    new InputStreamReader(attachmentContentCopy, StandardCharsets.UTF_8));
+                    new InputStreamReader(new ByteArrayInputStream(attachmentContent.toByteArray()), StandardCharsets.UTF_8));
             theString = br.lines().collect(Collectors.joining(System.lineSeparator()));
             if (!theString.isEmpty()) {
                 String logEntry = REPORT_MANAGER_PREFIX + "Debugging Attachment Entry" + " @" + timestamp
@@ -622,30 +671,33 @@ public class ReportManager {
         }
     }
 
-    private static synchronized void attachBasedOnFileType(String attachmentType, String attachmentName,
-                                                           InputStream attachmentContent, String attachmentDescription) {
-        if (attachmentType.toLowerCase().contains("screenshot")) {
-            Allure.addAttachment(attachmentDescription, "image/png", attachmentContent, ".png");
-        } else if (attachmentType.toLowerCase().contains("recording")) {
-            Allure.addAttachment(attachmentDescription, "video/mp4", attachmentContent, ".mp4");
-            // attachmentDescription, "video/quicktime", attachmentContent, ".mov");
-            // attachmentDescription, "video/webm", attachmentContent, ".webm");
-            // attachmentDescription, "video/mp4", attachmentContent, ".mp4");
-            // attachmentDescription, "video/ogg", attachmentContent, ".ogg");
-        } else if (attachmentType.toLowerCase().contains("gif")) {
-            Allure.addAttachment(attachmentDescription, "image/gif", attachmentContent, ".gif");
-        } else if (attachmentType.toLowerCase().contains("csv") || attachmentName.toLowerCase().contains("csv")) {
-            Allure.addAttachment(attachmentDescription, "text/csv", attachmentContent, ".csv");
-        } else if (attachmentType.toLowerCase().contains("xml") || attachmentName.toLowerCase().contains("xml")) {
-            Allure.addAttachment(attachmentDescription, "text/xml", attachmentContent, ".xml");
-        } else if (attachmentType.toLowerCase().contains("excel") || attachmentName.toLowerCase().contains("excel")) {
-            Allure.addAttachment(attachmentDescription, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", attachmentContent, ".xlsx");
-        } else if (attachmentType.toLowerCase().contains("json") || attachmentName.toLowerCase().contains("json")) {
-            Allure.addAttachment(attachmentDescription, "text/json", attachmentContent, ".json");
-        } else if (attachmentType.toLowerCase().contains("engine logs")) {
-            Allure.addAttachment(attachmentDescription, "text/plain", attachmentContent, ".txt");
-        } else {
-            Allure.addAttachment(attachmentDescription, attachmentContent);
+    private static void attachCodeBlockToExtentReport(String attachmentType, InputStream attachmentContent) {
+        if (extentTest != null) {
+            try {
+                String codeBlock = IOUtils.toString(attachmentContent, StandardCharsets.UTF_8.name());
+                switch (attachmentType) {
+                    case "text/json" -> extentTest.info(MarkupHelper.createCodeBlock(codeBlock, CodeLanguage.JSON));
+                    case "text/xml" -> extentTest.info(MarkupHelper.createCodeBlock(codeBlock, CodeLanguage.XML));
+                    default -> extentTest.info(MarkupHelper.createCodeBlock(codeBlock));
+                }
+            } catch (IOException e) {
+                ReportManager.logDiscrete("Failed to attach code block to extentReport.");
+            }
+        }
+    }
+
+    private static void attachImageToExtentReport(String attachmentType, InputStream attachmentContent) {
+        if (extentTest != null) {
+            try {
+                String image = Base64.getEncoder().encodeToString(IOUtils.toByteArray(attachmentContent));
+                if (attachmentType.toLowerCase().contains("gif")) {
+                    extentTest.addScreenCaptureFromBase64String(image);
+                } else {
+                    extentTest.info(MediaEntityBuilder.createScreenCaptureFromBase64String(image).build());
+                }
+            } catch (IOException e) {
+                ReportManager.logDiscrete("Failed to attach screenshot to extentReport.");
+            }
         }
     }
 
@@ -676,7 +728,6 @@ public class ReportManager {
                 if (propertyValue.contains("&")) {
                     propertyValue = propertyValue.replace("&", "&amp;");
                 }
-
                 String parameter = "<parameter>" + "<key>" + propertyKey + "</key>" + "<value>" + propertyValue
                         + "</value>" + "</parameter>";
                 if (propertyKey.equals(SHAFT_ENGINE_VERSION_PROPERTY_NAME)) {
@@ -725,7 +776,7 @@ public class ReportManager {
         if (SystemUtils.IS_OS_WINDOWS) {
             // create windows batch file
             commandsToServeAllureReport = Arrays.asList("@echo off",
-                    "set path=" + allureExtractionLocation + "allure-" + allureVersion + "\\bin;%path%",
+                    "set path=" + allureExtractionLocation + "allure-" + allureVersion + "\\bin;" + System.getProperty("java.home") + "\\bin;%path%",
                     "allure serve " + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1),
                     "pause", "exit");
             FileActions.writeToFile("", "generate_allure_report.bat", commandsToServeAllureReport);
@@ -775,7 +826,7 @@ public class ReportManager {
 
         // create windows batch file
         commandsToOpenAllureReport = Arrays.asList("@echo off",
-                "set path=allure\\allure-" + System.getProperty(ALLURE_VERSION_PROPERTY_NAME) + "\\bin;%path%",
+                "set path=allure\\allure-" + System.getProperty(ALLURE_VERSION_PROPERTY_NAME) + "\\bin;" + System.getProperty("java.home") + ";%path%",
                 "allure open allure-report", "pause", "exit");
         FileActions.writeToFile("generatedReport/", "open_allure_report.bat", commandsToOpenAllureReport);
 

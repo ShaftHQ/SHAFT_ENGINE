@@ -3,7 +3,6 @@ package poms;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Assertions;
-import com.shaft.validation.Assertions.AssertionComparisonType;
 import com.shaft.validation.Assertions.AssertionType;
 import com.shaft.validation.Verifications;
 import org.openqa.selenium.By;
@@ -15,7 +14,7 @@ public class GoogleSearch {
     // ExcelFileManager(System.getProperty("testDataFilePath"));
 
     // String url = testDataReader.getCellData("URL");
-    By googleLogo_image = By.id("hplogo");
+    By googleLogo_image = By.xpath("//img[@id='hplogo' or @alt='Google']");
     By searchBox_textField = By.xpath("//input[@id='lst-ib' or @class='lst' or @name='q']");
 
     public GoogleSearch(WebDriver driver) {
