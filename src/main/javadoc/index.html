@@ -1184,6 +1184,32 @@
                                         </div>
                                     </div>
 
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="generateExtentReports">Generate
+                                            Emailable Report
+                                        </label>
+                                        <div class="col-md-4" id="generateExtentReports">
+                                            <div class="radio-inline">
+                                                <label for="generateExtentReports-0">
+                                                    <input checked="checked" id="generateExtentReports-0"
+                                                           name="generateExtentReports" type="radio"
+                                                           value="true">
+                                                    Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="generateExtentReports-1">
+                                                    <input id="generateExtentReports-1"
+                                                           name="generateExtentReports" type="radio"
+                                                           value="false">
+                                                    Disabled
+                                                </label>
+                                            </div>
+                                            <span class="help-block">• Enabling this setting will create an emailable extent report html file after every test execution.</span>
+                                        </div>
+                                    </div>
+
                                     <!-- Button -->
                                     <div class="form-group">
                                         <label class="col-md-4 control-label" for="generateReporting_button">Generate
@@ -1676,6 +1702,7 @@
         const cleanAllureResultsDirectoryBeforeExecution = $("input[name=cleanAllureResultsDirectoryBeforeExecution]:checked").val();
         const generateAllureReportArchive = $("input[name=generateAllureReportArchive]:checked").val();
         const openAllureReportAfterExecution = $("input[name=openAllureReportAfterExecution]:checked").val();
+        const generateExtentReports = $("input[name=generateExtentReports]:checked").val();
 
         // This variable stores all the data.
         let data =
@@ -1684,7 +1711,8 @@
             'debugMode=' + debugMode + '\r\n' +
             'cleanAllureResultsDirectoryBeforeExecution=' + cleanAllureResultsDirectoryBeforeExecution + '\r\n' +
             'generateAllureReportArchive=' + generateAllureReportArchive + '\r\n' +
-            'openAllureReportAfterExecution=' + openAllureReportAfterExecution + '\r\n';
+            'openAllureReportAfterExecution=' + openAllureReportAfterExecution + '\r\n' +
+            'generateExtentReports=' + generateExtentReports + '\r\n';
 
         downloadFile(data, 'Reporting.properties');
     }

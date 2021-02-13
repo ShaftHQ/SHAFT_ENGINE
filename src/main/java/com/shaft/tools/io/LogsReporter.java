@@ -15,6 +15,10 @@ public class LogsReporter {
         attachBrowserLogs();
         attachFullLogs();
         attachCucumberReport();
+        attachExtentReport();
+        ReportManager.setDiscreteLogging(true);
+        ReportManager.generateAllureReportArchive();
+        ReportManager.openAllureReportAfterExecution();
     }
 
     public void attachFullLogs() {
@@ -34,6 +38,13 @@ public class LogsReporter {
     private void attachCucumberReport() {
         if (FileActions.doesFileExist("allure-results/cucumberReport.html")) {
             ReportManager.attach("HTML", "Cucumber Execution Report", FileActions.readFromFile("allure-results/cucumberReport.html"));
+        }
+    }
+
+    private void attachExtentReport() {
+        ReportManager.extentReportsFlush();
+        if (FileActions.doesFileExist(ReportManager.getExtentReportFileName())) {
+            ReportManager.attach("HTML", "Extent Emailable Execution Report", FileActions.readFromFile(ReportManager.getExtentReportFileName()));
         }
     }
 

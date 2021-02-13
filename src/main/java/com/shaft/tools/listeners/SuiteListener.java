@@ -20,22 +20,14 @@ public class SuiteListener implements ISuiteListener {
             PropertyFileManager.readPropertyFiles(ScreenshotManager.getAiAidedElementIdentificationFolderpath());
         }
         ProjectStructureFactory.initialize();
+        ReportManager.initializeExtentReports();
         ReportManager.prepareAllureReportingEnvironment();
         ReportManager.logEngineVersion();
-        ReportManager.initExtentReports();
         if (!(suite.getAllMethods().size() == 1 && suite.getAllMethods().get(0).getMethodName().equals("runScenario"))) {
             // not cucumber test runner
             ReportManager.setTotalNumberOfTests(suite.getAllMethods().size());
         }
         ReportManager.setDiscreteLogging(Boolean.parseBoolean(System.getProperty("alwaysLogDiscreetly")));
         ReportManager.setDebugMode(Boolean.valueOf(System.getProperty("debugMode")));
-    }
-
-    @Override
-    public void onFinish(ISuite suite) {
-        ReportManager.setDiscreteLogging(true);
-        ReportManager.generateAllureReportArchive();
-        ReportManager.openAllureReportAfterExecution();
-        ReportManager.extentReportsFlush();
     }
 }
