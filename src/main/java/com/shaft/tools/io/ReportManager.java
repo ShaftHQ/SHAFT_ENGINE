@@ -437,7 +437,7 @@ public class ReportManager {
 
     public static void initializeExtentReports() {
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateExtentReports").trim()))) {
-            extentReportFileName = System.getProperty("extentReportsFolderPath") + "ExtentReports_" + (new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS aaa")).format(new Date(System.currentTimeMillis())) + ".html";
+            extentReportFileName = System.getProperty("extentReportsFolderPath") + "ExtentReports_" + (new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa")).format(System.currentTimeMillis()) + ".html";
             extentReport = new ExtentReports();
             ExtentSparkReporter spark = new ExtentSparkReporter(extentReportFileName)
                     .viewConfigurer()
