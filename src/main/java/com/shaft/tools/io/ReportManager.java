@@ -60,6 +60,7 @@ public class ReportManager {
     private static ExtentReports extentReport;
     private static ExtentTest extentTest;
     private static String extentReportFileName;
+    private static String generateExtentReports;
 
     private ReportManager() {
         throw new IllegalStateException("Utility class");
@@ -435,14 +436,21 @@ public class ReportManager {
         ReportManager.featureName = featureName;
     }
 
+    private static boolean generateExtentReports() {
+        if (generateExtentReports == null) {
+            generateExtentReports = System.getProperty("generateExtentReports").trim();
+        }
+        return Boolean.parseBoolean(generateExtentReports);
+    }
+
     public static void initializeExtentReports() {
-        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateExtentReports").trim()))) {
-            extentReportFileName = System.getProperty("extentReportsFolderPath") + "ExtentReports_" + (new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS aaa")).format(new Date(System.currentTimeMillis())) + ".html";
+        if (Boolean.TRUE.equals(generateExtentReports())) {
+            extentReportFileName = System.getProperty("extentReportsFolderPath") + "ExtentReports_" + (new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa")).format(System.currentTimeMillis()) + ".html";
             extentReport = new ExtentReports();
             ExtentSparkReporter spark = new ExtentSparkReporter(extentReportFileName)
                     .viewConfigurer()
                     .viewOrder()
-                    .as(new ViewName[]{ViewName.DASHBOARD, ViewName.TEST})
+                    .as(new ViewName[]{ViewName.DASHBOARD, ViewName.TEST, ViewName.EXCEPTION})
                     .apply();
             extentReport.attachReporter(spark);
             spark.config().setTheme(Theme.STANDARD);
@@ -451,38 +459,49 @@ public class ReportManager {
         }
     }
 
-    public static void extentReportsCreateTest(String testcaseName) {
-        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateExtentReports").trim()))) {
-            extentTest = extentReport.createTest(testcaseName);
+    public static void extentReportsReset() {
+        extentTest = null;
+    }
+
+    public static void extentReportsCreateTest(String testName, String testDescription) {
+        if (Boolean.TRUE.equals(generateExtentReports())) {
+            extentTest = extentReport.createTest(testName);
+            if (!testDescription.equals("")) extentTest.info(testDescription);
+        }
+    }
+
+    public static void extentReportsPass(String message) {
+        if (Boolean.TRUE.equals(generateExtentReports())) {
+            extentTest.pass(message);
         }
     }
 
     public static void extentReportsFail(String message) {
-        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateExtentReports").trim()))) {
+        if (Boolean.TRUE.equals(generateExtentReports())) {
             extentTest.fail(message);
         }
     }
 
     public static void extentReportsFail(Throwable t) {
-        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateExtentReports").trim()))) {
+        if (Boolean.TRUE.equals(generateExtentReports())) {
             extentTest.fail(t);
         }
     }
 
     public static void extentReportsSkip(String message) {
-        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateExtentReports").trim()))) {
+        if (Boolean.TRUE.equals(generateExtentReports())) {
             extentTest.skip(message);
         }
     }
 
     public static void extentReportsSkip(Throwable t) {
-        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateExtentReports").trim()))) {
+        if (Boolean.TRUE.equals(generateExtentReports())) {
             extentTest.skip(t);
         }
     }
 
     public static void extentReportsFlush() {
-        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateExtentReports").trim()))) {
+        if (Boolean.TRUE.equals(generateExtentReports())) {
             extentReport.flush();
         }
     }
@@ -535,13 +554,7 @@ public class ReportManager {
         String log = REPORT_MANAGER_PREFIX + logText.trim() + " @" + timestamp;
         Reporter.log(log, true);
         if (extentTest != null && !logText.contains("created attachment") && !logText.contains("<html")) {
-            if (logText.contains("PASSED")) {
-                extentTest.pass(logText);
-            } else if (logText.contains("FAILED")) {
-                extentTest.fail(logText);
-            } else {
-                extentTest.info(logText);
-            }
+            extentTest.info(logText);
         }
 
         if (addToFullLog) {
@@ -627,7 +640,7 @@ public class ReportManager {
             // attachmentDescription, "video/ogg", attachmentContent, ".ogg");
         } else if (attachmentType.toLowerCase().contains("gif")) {
             Allure.addAttachment(attachmentDescription, "image/gif", new ByteArrayInputStream(attachmentContent.toByteArray()), ".gif");
-            attachImageToExtentReport("image/gif", new ByteArrayInputStream(attachmentContent.toByteArray()));
+            //attachImageToExtentReport("image/gif", new ByteArrayInputStream(attachmentContent.toByteArray()));
         } else if (attachmentType.toLowerCase().contains("csv") || attachmentName.toLowerCase().contains("csv")) {
             Allure.addAttachment(attachmentDescription, "text/csv", new ByteArrayInputStream(attachmentContent.toByteArray()), ".csv");
             attachCodeBlockToExtentReport("text/csv", new ByteArrayInputStream(attachmentContent.toByteArray()));

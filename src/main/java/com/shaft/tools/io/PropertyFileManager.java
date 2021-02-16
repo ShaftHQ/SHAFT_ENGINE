@@ -1,7 +1,6 @@
 package com.shaft.tools.io;
 
 import com.shaft.cli.FileActions;
-import com.shaft.validation.Assertions;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
 
@@ -54,7 +53,6 @@ public class PropertyFileManager {
             readPropertyFiles(getDefaultPropertiesFolderPath());
 
             overrideTargetOperatingSystemForLocalExecution();
-
             manageMaximumPerformanceMode();
             readPropertyFiles = false;
         }
@@ -122,7 +120,7 @@ public class PropertyFileManager {
      * overridden:
      * <p>
      * <ul>
-     * <li>aiPoweredElementIdentification=>false;
+     * <li>aiPoweredSelfHealingElementIdentification=>false;
      * <li>headlessExecution=>true;
      * <li>autoMaximizeBrowserWindow=>false;
      * <li>forceCheckForElementVisibility=>false;
@@ -130,7 +128,7 @@ public class PropertyFileManager {
      * <li>screenshotParams_whenToTakeAScreenshot=>FailuresOnly;
      * <li>screenshotParams_highlightElements=>false;
      * <li>screenshotParams_screenshotType=>Regular;
-     * <li>screenshotParams_watermark=>false;
+     * <li>screenshotParams_watermark=>true;
      * <li>createAnimatedGif=>false;
      * <li>recordVideo=>false;
      * <li>debugMode"=>"false;
@@ -138,27 +136,24 @@ public class PropertyFileManager {
      */
     private static void manageMaximumPerformanceMode() {
         String maximumPerformanceMode = System.getProperty("maximumPerformanceMode");
-        if (!maximumPerformanceMode.equals("0")) {
-            // Beast Mode On
-            System.setProperty("aiPoweredSelfHealingElementIdentification", String.valueOf(false));
-            System.setProperty("autoMaximizeBrowserWindow", String.valueOf(true));
-            System.setProperty("forceCheckForElementVisibility", String.valueOf(false));
-            System.setProperty("forceCheckElementLocatorIsUnique", String.valueOf(false));
-            System.setProperty("screenshotParams_whenToTakeAScreenshot", "ValidationPointsOnly");
-            System.setProperty("screenshotParams_highlightElements", String.valueOf(true));
-            System.setProperty("screenshotParams_highlightMethod", "AI");
-            System.setProperty("screenshotParams_screenshotType", "Regular");
-            System.setProperty("screenshotParams_watermark", String.valueOf(true));
-            System.setProperty("createAnimatedGif", String.valueOf(false));
-            System.setProperty("recordVideo", String.valueOf(false));
-            System.setProperty("debugMode", String.valueOf(false));
-            switch (maximumPerformanceMode) {
-                case ("1") -> System.setProperty("headlessExecution", String.valueOf(false));
-                case ("2") -> System.setProperty("headlessExecution", String.valueOf(true));
-                default -> {
-                    ReportManager.log("Unexpected maximumPerformanceMode Property value: " + maximumPerformanceMode);
-                    Assertions.assertFail("Unexpected maximumPerformanceMode Property value: " + maximumPerformanceMode);
-                }
+        switch (maximumPerformanceMode) {
+            case "true", "1", "2" -> {
+                System.setProperty("aiPoweredSelfHealingElementIdentification", String.valueOf(false));
+                System.setProperty("autoMaximizeBrowserWindow", String.valueOf(true));
+                System.setProperty("forceCheckForElementVisibility", String.valueOf(false));
+                System.setProperty("forceCheckElementLocatorIsUnique", String.valueOf(false));
+                System.setProperty("screenshotParams_whenToTakeAScreenshot", "ValidationPointsOnly");
+                System.setProperty("screenshotParams_highlightElements", String.valueOf(true));
+                System.setProperty("screenshotParams_highlightMethod", "AI");
+                System.setProperty("screenshotParams_screenshotType", "Regular");
+                System.setProperty("screenshotParams_watermark", String.valueOf(true));
+                System.setProperty("createAnimatedGif", String.valueOf(false));
+                System.setProperty("recordVideo", String.valueOf(false));
+                System.setProperty("debugMode", String.valueOf(false));
+                System.setProperty("headlessExecution", String.valueOf(false));
+                if (maximumPerformanceMode.equals("2")) System.setProperty("headlessExecution", String.valueOf(true));
+            }
+            case "false", "0" -> {
             }
         }
     }
