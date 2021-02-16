@@ -451,9 +451,10 @@ public class ReportManager {
         }
     }
 
-    public static void extentReportsCreateTest(String testcaseName) {
+    public static void extentReportsCreateTest(String testName, String testDescription) {
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateExtentReports").trim()))) {
-            extentTest = extentReport.createTest(testcaseName);
+            extentTest = extentReport.createTest(testName);
+            if (!testDescription.equals("")) extentTest.info(testDescription);
         }
     }
 
@@ -627,7 +628,7 @@ public class ReportManager {
             // attachmentDescription, "video/ogg", attachmentContent, ".ogg");
         } else if (attachmentType.toLowerCase().contains("gif")) {
             Allure.addAttachment(attachmentDescription, "image/gif", new ByteArrayInputStream(attachmentContent.toByteArray()), ".gif");
-            attachImageToExtentReport("image/gif", new ByteArrayInputStream(attachmentContent.toByteArray()));
+            //attachImageToExtentReport("image/gif", new ByteArrayInputStream(attachmentContent.toByteArray()));
         } else if (attachmentType.toLowerCase().contains("csv") || attachmentName.toLowerCase().contains("csv")) {
             Allure.addAttachment(attachmentDescription, "text/csv", new ByteArrayInputStream(attachmentContent.toByteArray()), ".csv");
             attachCodeBlockToExtentReport("text/csv", new ByteArrayInputStream(attachmentContent.toByteArray()));

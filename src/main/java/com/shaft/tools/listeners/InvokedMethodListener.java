@@ -38,26 +38,29 @@ public class InvokedMethodListener implements IInvokedMethodListener {
             ReportManager.log(e);
         }
         ITestNGMethod testMethod = method.getTestMethod();
+
+        String className, methodName, methodDescription = "";
+
         if (!testMethod.getQualifiedName().contains("AbstractTestNGCucumberTests")) {
             if (testMethod.isTest()) {
+                className = ReportManager.getTestClassName();
+                methodName = ReportManager.getTestMethodName();
                 if (testMethod.getDescription() != null) {
-                    ReportManager.logTestInformation(ReportManager.getTestClassName(), ReportManager.getTestMethodName(),
-                            testMethod.getDescription());
-                } else {
-                    ReportManager.logTestInformation(ReportManager.getTestClassName(), ReportManager.getTestMethodName(), "");
+                    methodDescription = testMethod.getDescription();
                 }
-                if (testMethod.getDescription() != null && !testMethod.getDescription().equals("")) {
-                    ReportManager.extentReportsCreateTest(testMethod.getDescription());
-                } else {
-                    ReportManager.extentReportsCreateTest(ReportManager.getTestMethodName());
-                }
+
+                ReportManager.logTestInformation(className, methodName, methodDescription);
+                ReportManager.extentReportsCreateTest(className + "." + methodName, methodDescription);
             } else if (testMethod instanceof ConfigurationMethod) {
                 // org.testng.internal.ConfigurationMethod
                 // ReportManager.logDiscrete("Current TestNG Method Name: " +
                 // testMethod.getClass().getName());
                 // configuration method information is not added to any logger (TestNG.Reporter)
-                ReportManager.logConfigurationMethodInformation(testMethod.getTestClass().getName(),
-                        testMethod.getMethodName());
+                className = testMethod.getTestClass().getName();
+                methodName = testMethod.getMethodName();
+
+                ReportManager.logConfigurationMethodInformation(className, methodName);
+                ReportManager.extentReportsCreateTest(className + "." + methodName, methodDescription);
             }
         }
         // implementing the new kill switch at the start of every test method
