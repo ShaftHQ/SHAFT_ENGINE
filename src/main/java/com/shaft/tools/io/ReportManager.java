@@ -450,7 +450,7 @@ public class ReportManager {
             ExtentSparkReporter spark = new ExtentSparkReporter(extentReportFileName)
                     .viewConfigurer()
                     .viewOrder()
-                    .as(new ViewName[]{ViewName.DASHBOARD, ViewName.TEST})
+                    .as(new ViewName[]{ViewName.DASHBOARD, ViewName.TEST, ViewName.EXCEPTION})
                     .apply();
             extentReport.attachReporter(spark);
             spark.config().setTheme(Theme.STANDARD);
