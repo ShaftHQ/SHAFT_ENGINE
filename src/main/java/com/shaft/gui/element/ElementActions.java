@@ -555,7 +555,7 @@ public class ElementActions {
      * desired elementLocator
      */
     public static int getElementsCount(WebDriver driver, By elementLocator) {
-        return getMatchingElementsCount(driver, elementLocator, ElementActions.ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION);
+        return getMatchingElementsCount(driver, elementLocator, ElementActions.ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION, FORCE_CHECK_FOR_ELEMENT_VISIBILITY);
     }
 
     /**
@@ -571,7 +571,7 @@ public class ElementActions {
      * desired elementLocator
      */
     public static int getElementsCount(WebDriver driver, By elementLocator, int numberOfAttempts) {
-        return getMatchingElementsCount(driver, elementLocator, numberOfAttempts);
+        return getMatchingElementsCount(driver, elementLocator, numberOfAttempts, FORCE_CHECK_FOR_ELEMENT_VISIBILITY);
     }
 
     /**
@@ -1280,7 +1280,7 @@ public class ElementActions {
         boolean isElementFound;
         int i = 1;
         do {
-            foundElementsCount = getMatchingElementsCount(driver, internalElementLocator, 1);
+            foundElementsCount = getMatchingElementsCount(driver, internalElementLocator, 1, FORCE_CHECK_FOR_ELEMENT_VISIBILITY);
             isElementFound = foundElementsCount >= 1;
             i++;
         } while (i < numberOfTries && Boolean.compare(stateOfPresence, isElementFound) != 0);
@@ -1418,20 +1418,6 @@ public class ElementActions {
         return elementLocator;
     }
 
-    private static void checkForElementVisibility(WebDriver driver, By elementLocator) {
-        if (FORCE_CHECK_FOR_ELEMENT_VISIBILITY) {
-            try {
-                (new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER))
-                        .until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
-//                new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT).until(waitDriver -> ExpectedConditions.visibilityOfElementLocated(elementLocator));
-            } catch (TimeoutException rootCauseException) {
-                ReportManager.log(rootCauseException);
-                failAction(driver, "unique element matching this locator \"" + elementLocator + "\" is not visible.",
-                        null, rootCauseException);
-            }
-        }
-    }
-
     private static void clearBeforeTyping(WebDriver driver, By elementLocator,
                                           TextDetectionStrategy successfulTextLocationStrategy) {
         try {
@@ -1526,7 +1512,7 @@ public class ElementActions {
         }
     }
 
-    private static int getMatchingElementsCount(WebDriver driver, By elementLocator, int numberOfAttempts) {
+    private static int getMatchingElementsCount(WebDriver driver, By elementLocator, int numberOfAttempts, boolean checkForVisibility) {
         if (elementLocator == null) {
             return 0;
         }
@@ -1534,7 +1520,7 @@ public class ElementActions {
         RecordManager.startVideoRecording(driver);
 
         if (elementLocator.equals(By.tagName("html")) || Boolean.FALSE.equals(ScreenshotManager.getAiSupportedElementIdentification())) {
-            return waitForElementPresence(driver, elementLocator, numberOfAttempts);
+            return waitForElementPresence(driver, elementLocator, numberOfAttempts, checkForVisibility);
         }
 
         // not null AND not html AND ai self healing is enabled
@@ -1553,7 +1539,7 @@ public class ElementActions {
         if (previouslyIdentifiedXpath != null && Boolean.TRUE.equals(ScreenshotManager.getAiSupportedElementIdentification())) {
             internalElementLocator = aiGeneratedElementLocator;
         }
-        int matchingElementsCount = waitForElementPresence(driver, internalElementLocator, numberOfAttempts);
+        int matchingElementsCount = waitForElementPresence(driver, internalElementLocator, numberOfAttempts, true);
 
         if (matchingElementsCount == 0
                 && Boolean.TRUE.equals(attemptToFindElementUsingAI(driver, internalElementLocator))) {
@@ -1579,7 +1565,7 @@ public class ElementActions {
         // Override current locator with the aiGeneratedElementLocator
         internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
 
-        int matchingElementsCount = getMatchingElementsCount(driver, elementLocator, ElementActions.ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION);
+        int matchingElementsCount = getMatchingElementsCount(driver, elementLocator, ElementActions.ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION, checkForVisibility);
         if (internalElementLocator != null) {
             // unique element found
             switch (matchingElementsCount) {
@@ -1597,9 +1583,6 @@ public class ElementActions {
 //                            }
                             //ReportManager.logDiscrete(getElementLocationOnceScrolledIntoView);
                         }
-
-                        // check for visibility
-                        checkForElementVisibility(driver, internalElementLocator);
                     }
                     return true;
                 }
@@ -1928,15 +1911,22 @@ public class ElementActions {
         }
     }
 
-    private static int waitForElementPresence(WebDriver driver, By elementLocator, int numberOfAttempts) {
+    private static int waitForElementPresence(WebDriver driver, By elementLocator, int numberOfAttempts, boolean checkForVisibility) {
+        ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
+        expectedExceptions.add(NoSuchElementException.class);
+        expectedExceptions.add(StaleElementReferenceException.class);
+        if (checkForVisibility) expectedExceptions.add(ElementNotVisibleException.class);
+
         try {
             return new FluentWait<>(driver)
                     .withTimeout(Duration.ofSeconds(
                             (long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER * numberOfAttempts))
                     .pollingEvery(Duration.ofSeconds(ELEMENT_IDENTIFICATION_POLLING_DELAY))
-                    .ignoring(NoSuchElementException.class)
-                    .ignoring(StaleElementReferenceException.class)
-                    .until(nestedDriver -> nestedDriver.findElements(elementLocator).size());
+                    .ignoreAll(expectedExceptions)
+                    .until(nestedDriver -> {
+                        nestedDriver.findElement(elementLocator);
+                        return nestedDriver.findElements(elementLocator).size();
+                    });
         } catch (TimeoutException e) {
             // In case the element was not found and the timeout expired
             ReportManager.logDiscrete(e);
