@@ -39,7 +39,9 @@ public class InvokedMethodListener implements IInvokedMethodListener {
         }
         ITestNGMethod testMethod = method.getTestMethod();
 
-        String className, methodName, methodDescription = "";
+        String className;
+        String methodName;
+        String methodDescription = "";
 
         if (!testMethod.getQualifiedName().contains("AbstractTestNGCucumberTests")) {
             if (testMethod.isTest()) {
@@ -60,7 +62,7 @@ public class InvokedMethodListener implements IInvokedMethodListener {
                 methodName = testMethod.getMethodName();
 
                 ReportManager.logConfigurationMethodInformation(className, methodName);
-                ReportManager.extentReportsCreateTest(className + "." + methodName, methodDescription);
+                ReportManager.extentReportsReset();
             }
         }
         // implementing the new kill switch at the start of every test method
@@ -127,6 +129,7 @@ public class InvokedMethodListener implements IInvokedMethodListener {
         if (testResult != null && testResult.getStatus() == ITestResult.SUCCESS) {
             // if test passed
             reportOpenIssueStatus(testMethod, true);
+            ReportManager.extentReportsPass("Test Passed.");
         } else if (testResult != null && testResult.getStatus() == ITestResult.FAILURE) {
             // if test failed
             reportOpenIssueStatus(testMethod, false);
