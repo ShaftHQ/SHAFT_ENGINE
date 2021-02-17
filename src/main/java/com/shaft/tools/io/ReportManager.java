@@ -479,7 +479,7 @@ public class ReportManager {
             if (testDescription.equals("")) {
                 extentTest = extentReport.createTest(testName);
             } else {
-                extentTest.info(testDescription);
+                extentTest = extentReport.createTest(testDescription);
             }
         }
     }

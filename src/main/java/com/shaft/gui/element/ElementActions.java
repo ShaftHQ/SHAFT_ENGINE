@@ -1918,7 +1918,7 @@ public class ElementActions {
         if (checkForVisibility) expectedExceptions.add(ElementNotVisibleException.class);
 
         try {
-            return new FluentWait<>(driver)
+            int elementsCount = new FluentWait<>(driver)
                     .withTimeout(Duration.ofSeconds(
                             (long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER * numberOfAttempts))
                     .pollingEvery(Duration.ofSeconds(ELEMENT_IDENTIFICATION_POLLING_DELAY))
@@ -1927,6 +1927,10 @@ public class ElementActions {
                         nestedDriver.findElement(elementLocator);
                         return nestedDriver.findElements(elementLocator).size();
                     });
+            if (elementsCount == 1 && checkForVisibility) {
+                new WebDriverWait(driver, (long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER * numberOfAttempts).until(ExpectedConditions.visibilityOf(driver.findElement(elementLocator)));
+            }
+            return elementsCount;
         } catch (TimeoutException e) {
             // In case the element was not found and the timeout expired
             ReportManager.logDiscrete(e);
