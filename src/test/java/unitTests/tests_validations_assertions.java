@@ -15,6 +15,7 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import poms.GoogleSearch;
 
 public class tests_validations_assertions {
     private WebDriver driver;
@@ -43,7 +44,7 @@ public class tests_validations_assertions {
 
     @Test
     public void assertEquals_longCharacters_Discreet() {
-        Boolean discreetLoggingState = ReportManager.isDiscreteLogging();
+        boolean discreetLoggingState = ReportManager.isDiscreteLogging();
         ReportManager.setDiscreteLogging(true);
         Assertions.assertEquals(
                 "1LH5pROcDBjjQk0t0mCr0lXuzQu9lcGj28kY8R1H81X67eVAQJgWQhILiRWVPUgZ6uCtK5cnBkF55Jr9vYngjGO1Iyf0Mktv6lruDlL9T8MAUPcUZJGHZtji6nIeadujDSNmWMj5d6C8zlFqw0CRqBU0hO5adIasHgBSNoLotAjce3NGXoDwAlp3rYreeV16VIyZXROQY",
@@ -168,7 +169,7 @@ public class tests_validations_assertions {
 
     @Test(groups = {"WebBased"})
     public void assertElementExists_true_expectedToPass() {
-        Assertions.assertElementExists(driver, By.id("hplogo"), AssertionType.POSITIVE);
+        Assertions.assertElementExists(driver, GoogleSearch.googleLogo_image, AssertionType.POSITIVE);
     }
 
     @Test(groups = {"WebBased"})
