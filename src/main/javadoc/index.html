@@ -1210,6 +1210,34 @@
                                         </div>
                                     </div>
 
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label"
+                                               for="cleanExtentReportsDirectoryBeforeExecution">Reset
+                                            Extent Reports
+                                        </label>
+                                        <div class="col-md-4" id="cleanExtentReportsDirectoryBeforeExecution">
+                                            <div class="radio-inline">
+                                                <label for="cleanExtentReportsDirectoryBeforeExecution-0">
+                                                    <input checked="checked"
+                                                           id="cleanExtentReportsDirectoryBeforeExecution-0"
+                                                           name="cleanExtentReportsDirectoryBeforeExecution"
+                                                           type="radio"
+                                                           value="true"> Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="cleanExtentReportsDirectoryBeforeExecution-1">
+                                                    <input id="cleanExtentReportsDirectoryBeforeExecution-1"
+                                                           name="cleanExtentReportsDirectoryBeforeExecution"
+                                                           type="radio"
+                                                           value="false"> Disabled
+                                                </label>
+                                            </div>
+                                            <span class="help-block">• Enabling this setting will reset the extent report before every test run, while disabling it will allow you to keep track of your old reports.</span>
+                                        </div>
+                                    </div>
+
                                     <!-- Button -->
                                     <div class="form-group">
                                         <label class="col-md-4 control-label" for="generateReporting_button">Generate
@@ -1703,6 +1731,7 @@
         const generateAllureReportArchive = $("input[name=generateAllureReportArchive]:checked").val();
         const openAllureReportAfterExecution = $("input[name=openAllureReportAfterExecution]:checked").val();
         const generateExtentReports = $("input[name=generateExtentReports]:checked").val();
+        const cleanExtentReportsDirectoryBeforeExecution = $("input[name=cleanExtentReportsDirectoryBeforeExecution]:checked").val();
 
         // This variable stores all the data.
         let data =
@@ -1712,7 +1741,8 @@
             'cleanAllureResultsDirectoryBeforeExecution=' + cleanAllureResultsDirectoryBeforeExecution + '\r\n' +
             'generateAllureReportArchive=' + generateAllureReportArchive + '\r\n' +
             'openAllureReportAfterExecution=' + openAllureReportAfterExecution + '\r\n' +
-            'generateExtentReports=' + generateExtentReports + '\r\n';
+            'generateExtentReports=' + generateExtentReports + '\r\n' +
+            'cleanExtentReportsDirectoryBeforeExecution=' + cleanExtentReportsDirectoryBeforeExecution + '\r\n';
 
         downloadFile(data, 'Reporting.properties');
     }

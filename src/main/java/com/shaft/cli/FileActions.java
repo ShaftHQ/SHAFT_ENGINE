@@ -7,6 +7,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
 import org.apache.commons.lang3.SystemUtils;
+import org.sikuli.basics.FileManager;
 import org.testng.Assert;
 
 import java.io.*;
@@ -295,17 +296,9 @@ public class FileActions {
     }
 
     public static String readFromFile(String pathToTargetFile) {
-        String text = "";
         String absoluteFilePath = getAbsolutePath(pathToTargetFile);
-        Path filePath = Paths.get(absoluteFilePath);
-
-        try {
-            text = String.join(System.lineSeparator(), Files.readAllLines(filePath));
-            passAction("File Path: \"" + filePath + "\"", text);
-        } catch (IOException e) {
-            ReportManager.log(e);
-            failAction(e);
-        }
+        String text = FileManager.readFileToString(new File(absoluteFilePath));
+        passAction("File Path: \"" + absoluteFilePath + "\"", text);
         return text;
     }
 
