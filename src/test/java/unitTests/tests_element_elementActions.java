@@ -10,16 +10,17 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import poms.GoogleSearch;
 
 public class tests_element_elementActions {
-    private static final ThreadLocal<WebDriver> driver = new ThreadLocal<WebDriver>();
+    private static final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
 
     @Test
     public void waitForElementToBePresent_true_expectedToPass() {
         BrowserActions.navigateToURL(driver.get(), "https://www.google.com/ncr", "www.google.com");
-        ElementActions.waitForElementToBePresent(driver.get(), By.id("hplogo"), 1, true);
-        Assertions.assertElementMatches(driver.get(), By.id("hplogo"), Assertions.VisualValidationEngine.EXACT_OPENCV, Assertions.AssertionType.POSITIVE, "Using Visual AI; OpenCV");
-        //Assertions.assertElementMatches(driver.get(), By.id("hplogo"), Assertions.VisualValidationEngine.STRICT_EYES, Assertions.AssertionType.POSITIVE, "Using Visual AI; Applitools Eyes");
+        ElementActions.waitForElementToBePresent(driver.get(), GoogleSearch.googleLogo_image, 1, true);
+        Assertions.assertElementMatches(driver.get(), GoogleSearch.googleLogo_image, Assertions.VisualValidationEngine.EXACT_OPENCV, Assertions.AssertionType.POSITIVE, "Using Visual AI; OpenCV");
+        //Assertions.assertElementMatches(driver.get(), GoogleSearch.googleLogo_image, Assertions.VisualValidationEngine.STRICT_EYES, Assertions.AssertionType.POSITIVE, "Using Visual AI; Applitools Eyes");
     }
 
     //@Test
@@ -51,7 +52,7 @@ public class tests_element_elementActions {
     public void waitForElementToBePresent_false_expectedToFail() {
         BrowserActions.navigateToURL(driver.get(), "https://www.google.com/ncr", "www.google.com");
         try {
-            ElementActions.waitForElementToBePresent(driver.get(), By.id("hplogo"), 1, false);
+            ElementActions.waitForElementToBePresent(driver.get(), GoogleSearch.googleLogo_image, 1, false);
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }

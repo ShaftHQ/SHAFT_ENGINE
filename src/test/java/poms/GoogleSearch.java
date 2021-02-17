@@ -14,7 +14,7 @@ public class GoogleSearch {
     // ExcelFileManager(System.getProperty("testDataFilePath"));
 
     // String url = testDataReader.getCellData("URL");
-    By googleLogo_image = By.xpath("//img[@id='hplogo' or @alt='Google']");
+    public static By googleLogo_image = By.xpath("//img[@id='hplogo' or @alt='Google']");
     By searchBox_textField = By.xpath("//input[@id='lst-ib' or @class='lst' or @name='q']");
 
     public GoogleSearch(WebDriver driver) {
