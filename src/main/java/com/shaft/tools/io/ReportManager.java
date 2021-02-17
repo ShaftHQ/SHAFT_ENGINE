@@ -57,6 +57,7 @@ public class ReportManager {
     private static List<List<String>> listOfNewIssuesForFailedTests = new ArrayList<>();
     private static String featureName = "";
 
+    private static String extentReportsFolderPath = "";
     private static ExtentReports extentReport;
     private static ExtentTest extentTest;
     private static String extentReportFileName;
@@ -445,7 +446,9 @@ public class ReportManager {
 
     public static void initializeExtentReports() {
         if (Boolean.TRUE.equals(generateExtentReports())) {
-            extentReportFileName = System.getProperty("extentReportsFolderPath") + "ExtentReports_" + (new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa")).format(System.currentTimeMillis()) + ".html";
+            extentReportsFolderPath = System.getProperty("extentReportsFolderPath").trim();
+            cleanExtentReportsDirectory();
+            extentReportFileName = extentReportsFolderPath + "ExtentReports_" + (new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa")).format(System.currentTimeMillis()) + ".html";
             extentReport = new ExtentReports();
             ExtentSparkReporter spark = new ExtentSparkReporter(extentReportFileName)
                     .viewConfigurer()
@@ -459,14 +462,25 @@ public class ReportManager {
         }
     }
 
+    private static void cleanExtentReportsDirectory() {
+        if (Boolean.TRUE.equals(
+                Boolean.valueOf(System.getProperty("cleanExtentReportsDirectoryBeforeExecution")))) {
+            FileActions.deleteFolder(extentReportsFolderPath.substring(0, extentReportsFolderPath.length() - 1));
+        }
+
+    }
+
     public static void extentReportsReset() {
         extentTest = null;
     }
 
     public static void extentReportsCreateTest(String testName, String testDescription) {
         if (Boolean.TRUE.equals(generateExtentReports())) {
-            extentTest = extentReport.createTest(testName);
-            if (!testDescription.equals("")) extentTest.info(testDescription);
+            if (testDescription.equals("")) {
+                extentTest = extentReport.createTest(testName);
+            } else {
+                extentTest.info(testDescription);
+            }
         }
     }
 
@@ -640,7 +654,7 @@ public class ReportManager {
             // attachmentDescription, "video/ogg", attachmentContent, ".ogg");
         } else if (attachmentType.toLowerCase().contains("gif")) {
             Allure.addAttachment(attachmentDescription, "image/gif", new ByteArrayInputStream(attachmentContent.toByteArray()), ".gif");
-            //attachImageToExtentReport("image/gif", new ByteArrayInputStream(attachmentContent.toByteArray()));
+            attachImageToExtentReport("image/gif", new ByteArrayInputStream(attachmentContent.toByteArray()));
         } else if (attachmentType.toLowerCase().contains("csv") || attachmentName.toLowerCase().contains("csv")) {
             Allure.addAttachment(attachmentDescription, "text/csv", new ByteArrayInputStream(attachmentContent.toByteArray()), ".csv");
             attachCodeBlockToExtentReport("text/csv", new ByteArrayInputStream(attachmentContent.toByteArray()));
