@@ -65,19 +65,26 @@ class ElementActionsHelpers {
             // TODO: appium -> swipe element into view
 
             try {
-                return new FluentWait<>(driver)
+                new FluentWait<>(driver)
                         .withTimeout(Duration.ofSeconds(
                                 (long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER * ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION))
                         .pollingEvery(Duration.ofSeconds(ELEMENT_IDENTIFICATION_POLLING_DELAY))
                         .ignoreAll(expectedExceptions)
                         .until(nestedDriver -> {
                             ((Locatable) driver.findElement(elementLocator)).getCoordinates().inViewPort();
-                            return driver.findElement(elementLocator).isDisplayed();
+                            return true;
                         });
             } catch (TimeoutException e) {
-                // In case the element was not found and the timeout expired
+                // In case the element was not visible and the timeout expired
                 ReportManager.logDiscrete(e);
-                return false;
+            }
+            if (Boolean.FALSE.equals(driver.findElement(elementLocator).isDisplayed())) {
+                try {
+                    new WebDriverWait(driver, (long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER * ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION).until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
+                } catch (TimeoutException e) {
+                    ReportManager.logDiscrete(e);
+                    return false;
+                }
             }
         }
         return true;
