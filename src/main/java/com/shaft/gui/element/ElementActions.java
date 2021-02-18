@@ -1260,18 +1260,10 @@ public class ElementActions {
         // Override current locator with the aiGeneratedElementLocator
         internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
 
-        int foundElementsCount;
-        boolean isElementFound;
-        int i = 1;
-        do {
-            foundElementsCount = getMatchingElementsCount(driver, internalElementLocator, Optional.of(1), Optional.empty());
-            isElementFound = foundElementsCount >= 1;
-            i++;
-        } while (i < numberOfTries && Boolean.compare(stateOfPresence, isElementFound) != 0);
-
         String reportMessage = "waited for the element's state of presence to be (" + stateOfPresence
                 + "). Element locator (" + internalElementLocator.toString() + ")";
-        if (Boolean.compare(stateOfPresence, isElementFound) == 0) {
+
+        if (Boolean.compare(stateOfPresence, getMatchingElementsCount(driver, internalElementLocator, Optional.of(numberOfTries), Optional.empty()) >= 1) == 0) {
             passAction(driver, internalElementLocator, reportMessage);
         } else {
             failAction(driver, reportMessage, internalElementLocator);
