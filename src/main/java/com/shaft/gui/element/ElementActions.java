@@ -12,7 +12,6 @@ import org.opencv.imgproc.Imgproc;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Actions;
-import org.openqa.selenium.interactions.Locatable;
 import org.openqa.selenium.remote.UnreachableBrowserException;
 import org.openqa.selenium.support.ui.FluentWait;
 import org.openqa.selenium.support.ui.Select;
@@ -1561,19 +1560,9 @@ public class ElementActions {
                 case 1 -> {
                     if (checkForVisibility && !internalElementLocator.toString().contains("input[@type='file']")
                             && !internalElementLocator.equals(By.tagName("html"))) {
-                        try {
-                            // scroll element into viewPort
-                            ((Locatable) driver.findElement(internalElementLocator)).getCoordinates().inViewPort();
                             if (Boolean.FALSE.equals(ElementActionsHelpers.waitForElementToBeVisible(driver, elementLocator))) {
                                 failAction(driver, "element is not visible.", elementLocator);
                             }
-                        } catch (UnsupportedCommandException getElementLocationOnceScrolledIntoView) {
-                            // TODO: appium -> swipe element into view
-//                            if (BrowserFactory.isMobileNativeExecution()) {
-                            //ElementActions.performTouchAction(driver).swipeElementIntoView(internalElementLocator, TouchActions.SwipeDirection.DOWN);
-//                            }
-                            //ReportManager.logDiscrete(getElementLocationOnceScrolledIntoView);
-                        }
                     }
                     return true;
                 }

@@ -2,6 +2,7 @@ package com.shaft.gui.element;
 
 import com.shaft.tools.io.ReportManager;
 import org.openqa.selenium.*;
+import org.openqa.selenium.interactions.Locatable;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.FluentWait;
 import org.openqa.selenium.support.ui.WebDriverWait;
@@ -55,10 +56,26 @@ class ElementActionsHelpers {
 
     static boolean waitForElementToBeVisible(WebDriver driver, By elementLocator) {
         if (FORCE_CHECK_FOR_ELEMENT_VISIBILITY) {
+            ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
+            expectedExceptions.add(NoSuchElementException.class);
+            expectedExceptions.add(StaleElementReferenceException.class);
+            expectedExceptions.add(ElementNotVisibleException.class);
+            expectedExceptions.add(WebDriverException.class);
+            // UnsupportedCommandException getElementLocationOnceScrolledIntoView
+            // TODO: appium -> swipe element into view
+
             try {
-                (new WebDriverWait(driver, (long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER * ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION))
-                        .until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
+                return new FluentWait<>(driver)
+                        .withTimeout(Duration.ofSeconds(
+                                (long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER * ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION))
+                        .pollingEvery(Duration.ofSeconds(ELEMENT_IDENTIFICATION_POLLING_DELAY))
+                        .ignoreAll(expectedExceptions)
+                        .until(nestedDriver -> {
+                            ((Locatable) driver.findElement(elementLocator)).getCoordinates().inViewPort();
+                            return driver.findElement(elementLocator).isDisplayed();
+                        });
             } catch (TimeoutException e) {
+                // In case the element was not found and the timeout expired
                 ReportManager.logDiscrete(e);
                 return false;
             }
