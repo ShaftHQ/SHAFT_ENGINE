@@ -1583,6 +1583,8 @@ public class ElementActions {
 //                            }
                             //ReportManager.logDiscrete(getElementLocationOnceScrolledIntoView);
                         }
+                        // check for visibility
+                        checkForElementVisibility(driver, internalElementLocator);
                     }
                     return true;
                 }
@@ -1908,6 +1910,20 @@ public class ElementActions {
         } else {
             ReportManager.log("Failed to identify Target element with locator [" + internalElementLocator + "].");
             return null;
+        }
+    }
+
+    private static void checkForElementVisibility(WebDriver driver, By elementLocator) {
+        if (FORCE_CHECK_FOR_ELEMENT_VISIBILITY) {
+            try {
+                (new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER))
+                        .until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
+//                new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT).until(waitDriver -> ExpectedConditions.visibilityOfElementLocated(elementLocator));
+            } catch (TimeoutException rootCauseException) {
+                ReportManager.log(rootCauseException);
+                failAction(driver, "unique element matching this locator \"" + elementLocator + "\" is not visible.",
+                        null, rootCauseException);
+            }
         }
     }
 
