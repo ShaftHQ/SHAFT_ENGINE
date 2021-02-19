@@ -36,7 +36,6 @@ class ElementActionsHelper {
         ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
         expectedExceptions.add(org.openqa.selenium.NoSuchElementException.class);
         expectedExceptions.add(org.openqa.selenium.StaleElementReferenceException.class);
-        if (checkForVisibility) expectedExceptions.add(org.openqa.selenium.ElementNotVisibleException.class);
 
         try {
             return new FluentWait<>(driver)
