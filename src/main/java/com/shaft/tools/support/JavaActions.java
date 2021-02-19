@@ -1,6 +1,6 @@
 package com.shaft.tools.support;
 
-import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
 import org.testng.Assert;
 
 import java.util.Base64;
@@ -79,7 +79,7 @@ public class JavaActions {
             } catch (AssertionError e) {
                 return 0;
             } catch (Exception e) {
-                ReportManager.log(e);
+                ReportManagerHelper.log(e);
                 return -2;
             }
         } else {
@@ -88,7 +88,7 @@ public class JavaActions {
             } catch (AssertionError e) {
                 return 0;
             } catch (Exception e) {
-                ReportManager.log(e);
+                ReportManagerHelper.log(e);
                 return -2;
             }
         }

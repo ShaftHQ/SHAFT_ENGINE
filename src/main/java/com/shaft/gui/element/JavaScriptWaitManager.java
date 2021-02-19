@@ -1,7 +1,7 @@
 package com.shaft.gui.element;
 
 import com.shaft.gui.browser.BrowserFactory;
-import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.tools.support.JSHelpers;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.NoSuchSessionException;
@@ -44,12 +44,12 @@ public class JavaScriptWaitManager {
                 // do nothing
             } catch (WebDriverException e) {
                 if (!e.getMessage().contains("jQuery is not defined")) {
-                    ReportManager.log(e);
+                    ReportManagerHelper.log(e);
                 }
                 // else do nothing
 
             } catch (Exception e) {
-                ReportManager.log(e);
+                ReportManagerHelper.log(e);
             }
         }
     }
@@ -167,7 +167,7 @@ public class JavaScriptWaitManager {
         try {
             Thread.sleep(JavaScriptWaitManager.delayBetweenPolls);
         } catch (Exception e) {
-            ReportManager.log(e);
+            ReportManagerHelper.log(e);
             // InterruptedException
         }
     }

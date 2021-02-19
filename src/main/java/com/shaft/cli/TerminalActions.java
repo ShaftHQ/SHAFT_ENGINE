@@ -6,6 +6,7 @@ import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
 import org.testng.Assert;
 
 import java.io.BufferedReader;
@@ -134,7 +135,7 @@ public class TerminalActions {
         }
 
         if (!attachments.equals(new ArrayList<>())) {
-            ReportManager.log(message, attachments);
+            ReportManagerHelper.log(message, attachments);
         } else {
             ReportManager.log(message);
         }
@@ -266,7 +267,7 @@ public class TerminalActions {
             session.connect();
             ReportManager.logDiscrete("Successfully created SSH Session.");
         } catch (JSchException rootCauseException) {
-            ReportManager.log(rootCauseException);
+            ReportManagerHelper.log(rootCauseException);
             failAction(testData, rootCauseException);
         }
         return session;
@@ -328,11 +329,11 @@ public class TerminalActions {
                 errorReader = new BufferedReader(new InputStreamReader(localProcess.getErrorStream()));
             }
         } catch (InterruptedException rootCauseException) {
-            ReportManager.log(rootCauseException);
+            ReportManagerHelper.log(rootCauseException);
             failAction(command, rootCauseException);
             Thread.currentThread().interrupt();
         } catch (IOException | NullPointerException | JSchException rootCauseException) {
-            ReportManager.log(rootCauseException);
+            ReportManagerHelper.log(rootCauseException);
             failAction(command, rootCauseException);
         }
         return Arrays.asList(remoteSession, remoteChannelExecutor, localProcess, reader, errorReader);
@@ -345,7 +346,7 @@ public class TerminalActions {
             logBuilder.append(readConsoleLogs(reader));
             logBuilder.append(readConsoleLogs(errorReader));
         } catch (IOException rootCauseException) {
-            ReportManager.log(rootCauseException);
+            ReportManagerHelper.log(rootCauseException);
             failAction(command, rootCauseException);
         }
         return logBuilder.toString();

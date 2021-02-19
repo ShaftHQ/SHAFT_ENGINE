@@ -26,8 +26,6 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static com.shaft.tools.io.ReportManager.logDiscrete;
-
 public class ReportManagerHelper {
     private static final String TIMESTAMP_FORMAT = "dd-MM-yyyy HH:mm:ss.SSSS aaa";
     private static final Logger slf4jLogger = LoggerFactory.getLogger(ReportManagerHelper.class);
@@ -153,7 +151,7 @@ public class ReportManagerHelper {
      */
     public static void setDiscreteLogging(boolean discreteLogging) {
         if (debugMode) {
-            logDiscrete("Setting discrete logging to: \"" + discreteLogging + "\"");
+            ReportManager.logDiscrete("Setting discrete logging to: \"" + discreteLogging + "\"");
         }
         ReportManagerHelper.discreteLogging = discreteLogging;
     }
@@ -175,7 +173,7 @@ public class ReportManagerHelper {
     }
 
     public static void prepareAllureReportingEnvironment() {
-        logDiscrete("Preparing Allure Reporting Environment...");
+        ReportManager.logDiscrete("Preparing Allure Reporting Environment...");
         boolean discreteLoggingState = isDiscreteLogging();
         allureResultsFolderPath = System.getProperty("allureResultsFolderPath").trim();
         if (System.getProperty("executionAddress").trim().equals("local")
@@ -290,7 +288,7 @@ public class ReportManagerHelper {
     public static void attachIssuesLog(String executionEndTimestamp) {
         String issueSummary = prepareIssuesLog();
         if (!issuesLog.trim().equals("")) {
-            ReportManager.log(issueSummary,
+            log(issueSummary,
                     Collections.singletonList(
                             Arrays.asList(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE, "Issues log CSV: " + executionEndTimestamp,
                                     new ByteArrayInputStream(issuesLog.trim().getBytes()))));
@@ -314,7 +312,7 @@ public class ReportManagerHelper {
     protected static void generateAllureReportArchive() {
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateAllureReportArchive").trim()))
                 && System.getProperty("executionAddress").trim().equals("local")) {
-            logDiscrete("Generating Allure Report Archive...");
+            ReportManager.logDiscrete("Generating Allure Report Archive...");
             boolean discreteLoggingState = isDiscreteLogging();
             setDiscreteLogging(true);
             writeOpenReportShellFilesToGeneratedDirectory();
@@ -642,7 +640,7 @@ public class ReportManagerHelper {
                     default -> extentTest.info(MarkupHelper.createCodeBlock(codeBlock));
                 }
             } catch (IOException e) {
-                logDiscrete("Failed to attach code block to extentReport.");
+                ReportManager.logDiscrete("Failed to attach code block to extentReport.");
             }
         }
     }
@@ -657,7 +655,7 @@ public class ReportManagerHelper {
                     extentTest.info(MediaEntityBuilder.createScreenCaptureFromBase64String(image).build());
                 }
             } catch (IOException e) {
-                logDiscrete("Failed to attach screenshot to extentReport.");
+                ReportManager.logDiscrete("Failed to attach screenshot to extentReport.");
             }
         }
     }
@@ -821,4 +819,50 @@ public class ReportManagerHelper {
         FileActions.deleteFile("generatedReport/");
     }
 
+
+    public static void log(String logText, List<List<Object>> attachments) {
+        if (isDiscreteLogging() && !logText.toLowerCase().contains("failed") && isInternalStep()) {
+            createLogEntry(logText);
+            if (attachments != null) {
+                attachments.forEach(attachment -> {
+                    if (attachment != null) {
+                        if (attachment.get(2) instanceof String) {
+                            attachAsStep(attachment.get(0).toString(), attachment.get(1).toString(),
+                                    new ByteArrayInputStream(attachment.get(2).toString().getBytes()));
+                        } else {
+                            attachAsStep(attachment.get(0).toString(), attachment.get(1).toString(),
+                                    (InputStream) attachment.get(2));
+                        }
+                    }
+                });
+            }
+        } else {
+            writeStepToReport(actionCounter, logText, attachments);
+            actionCounter++;
+        }
+    }
+
+    /**
+     * Format an exception message and stack trace, and calls attach to add it as a
+     * log entry.
+     *
+     * @param t the throwable (exception or error) that will be logged in this
+     *          action
+     */
+    public static void log(Throwable t) {
+        String logText;
+        logText = formatStackTraceToLogEntry(t);
+        if (t.getMessage() != null) {
+            log("An Exception Occured with this Message: " + t.getMessage().split("\n")[0].trim() + ".",
+                    Collections.singletonList(Arrays.asList("Exception Stack Trace", t.getClass().getName(), logText)));
+        } else {
+            log("An Exception Occured",
+                    Collections.singletonList(Arrays.asList("Exception Stack Trace", t.getClass().getName(), logText)));
+        }
+        actionCounter++;
+    }
+
+    public static void logDiscrete(Throwable t) {
+        createLogEntry(formatStackTraceToLogEntry(t));
+    }
 }

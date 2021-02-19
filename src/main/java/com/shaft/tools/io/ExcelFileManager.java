@@ -44,15 +44,15 @@ public class ExcelFileManager {
             fis.close();
 //            ReportManager.logDiscrete("Reading test data from the following file [" + excelFilePath + "].");
         } catch (IOException e) {
-            ReportManager.log(e);
+            ReportManagerHelper.log(e);
             ReportManager.log("Couldn't find the desired file. [" + excelFilePath + "].");
             Assert.fail("Couldn't find the desired file. [" + excelFilePath + "].");
         } catch (OutOfMemoryError e) {
-//	    ReportManager.log(e); override function to be able to log errors
+//	    ReportManagerHelper.log(e); override function to be able to log errors
             ReportManager.log("Couldn't open the desired file. [" + excelFilePath + "].");
             Assert.fail("Couldn't open the desired file. [" + excelFilePath + "].");
         } catch (EmptyFileException e) {
-            ReportManager.log(e);
+            ReportManagerHelper.log(e);
             ReportManager.log("Please check the target file, as it may be corrupted. [" + excelFilePath + "].");
             Assert.fail("Please check the target file, as it may be corrupted. [" + excelFilePath + "].");
         }
@@ -66,7 +66,7 @@ public class ExcelFileManager {
             //unreachable code because if the file was not found then the reader would have failed at a previous step
         }
         attachments.add(testDataFileAttachment);
-        ReportManager.log("Successfully loaded the following test data file [" + excelFilePath + "].", attachments);
+        ReportManagerHelper.log("Successfully loaded the following test data file [" + excelFilePath + "].", attachments);
     }
 
     /**
@@ -119,7 +119,7 @@ public class ExcelFileManager {
             return getCellData();
 
         } catch (Exception e) {
-            ReportManager.log(e);
+            ReportManagerHelper.log(e);
             ReportManager.log("Failed to read data from row [" + rowName + "] and column [" + columnName
                     + "] in the Test Data Sheet [" + sheetName + "], under the following path [" + excelFilePath
                     + "].");
@@ -244,7 +244,7 @@ public class ExcelFileManager {
                             + sheetName + "], under the following path [" + excelFilePath + "].");
             return -1; // in case of failure this line is unreachable
         } catch (Exception e) {
-            ReportManager.log(e);
+            ReportManagerHelper.log(e);
             ReportManager.log(
                     "Failed to get the row number that coresponds to rowName [" + rowName + "] in the Test Data Sheet ["
                             + sheetName + "], under the following path [" + excelFilePath + "].");
@@ -284,7 +284,7 @@ public class ExcelFileManager {
                     + "].");
             return -1; // in case of failure this line is unreachable
         } catch (Exception e) {
-            ReportManager.log(e);
+            ReportManagerHelper.log(e);
             ReportManager.log("Failed to get the column number that coresponds to columnName [" + columnName
                     + "] in the Test Data Sheet [" + sheetName + "], under the following path [" + excelFilePath
                     + "].");

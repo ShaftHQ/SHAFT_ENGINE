@@ -5,6 +5,7 @@ import com.shaft.gui.element.JavaScriptWaitManager;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.tools.support.JSHelpers;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.Point;
@@ -40,7 +41,7 @@ public class BrowserActions {
             currentURL = driver.getCurrentUrl();
             passAction(driver, currentURL);
         } catch (Exception rootCauseException) {
-            ReportManager.log(rootCauseException);
+            ReportManagerHelper.log(rootCauseException);
             failAction(driver, currentURL, rootCauseException);
         }
         return currentURL;
@@ -59,7 +60,7 @@ public class BrowserActions {
             currentWindowTitle = driver.getTitle();
             passAction(driver, currentWindowTitle);
         } catch (Exception rootCauseException) {
-            ReportManager.log(rootCauseException);
+            ReportManagerHelper.log(rootCauseException);
             failAction(driver, currentWindowTitle, rootCauseException);
         }
         return currentWindowTitle;
@@ -78,7 +79,7 @@ public class BrowserActions {
             pageSource = driver.getPageSource();
             passAction(driver, pageSource);
         } catch (Exception rootCauseException) {
-            ReportManager.log(rootCauseException);
+            ReportManagerHelper.log(rootCauseException);
             failAction(driver, pageSource, rootCauseException);
         }
         return pageSource;
@@ -97,7 +98,7 @@ public class BrowserActions {
             windowHandle = driver.getWindowHandle();
             passAction(driver, windowHandle);
         } catch (Exception rootCauseException) {
-            ReportManager.log(rootCauseException);
+            ReportManagerHelper.log(rootCauseException);
             failAction(driver, windowHandle, rootCauseException);
         }
         return windowHandle;
@@ -116,7 +117,7 @@ public class BrowserActions {
             windowPosition = driver.manage().window().getPosition().toString();
             passAction(driver, windowPosition);
         } catch (Exception rootCauseException) {
-            ReportManager.log(rootCauseException);
+            ReportManagerHelper.log(rootCauseException);
             failAction(driver, windowPosition, rootCauseException);
         }
         return windowPosition;
@@ -135,7 +136,7 @@ public class BrowserActions {
             windowSize = driver.manage().window().getSize().toString();
             passAction(driver, windowSize);
         } catch (Exception rootCauseException) {
-            ReportManager.log(rootCauseException);
+            ReportManagerHelper.log(rootCauseException);
             failAction(driver, windowSize, rootCauseException);
         }
         return windowSize;
@@ -177,8 +178,8 @@ public class BrowserActions {
         // force stop any current navigation
         try {
             ((JavascriptExecutor) driver).executeScript("return window.stop;");
-        } catch (Exception e) {
-            ReportManager.log(e);
+        } catch (Exception rootCauseException) {
+            ReportManagerHelper.log(rootCauseException);
             /*
              * org.openqa.selenium.NoSuchSessionException: Session ID is null. Using
              * WebDriver after calling quit()? Build info: version: '3.141.59', revision:
@@ -220,7 +221,7 @@ public class BrowserActions {
                 }
             }
         } catch (Exception rootCauseException) {
-            ReportManager.log(rootCauseException);
+            ReportManagerHelper.log(rootCauseException);
             failAction(driver, targetUrl, rootCauseException);
         }
     }
@@ -247,7 +248,7 @@ public class BrowserActions {
                 failAction(driver, newURL);
             }
         } catch (Exception rootCauseException) {
-            ReportManager.log(rootCauseException);
+            ReportManagerHelper.log(rootCauseException);
             failAction(driver, newURL, rootCauseException);
         }
     }
@@ -274,7 +275,7 @@ public class BrowserActions {
                 failAction(driver, newURL);
             }
         } catch (Exception rootCauseException) {
-            ReportManager.log(rootCauseException);
+            ReportManagerHelper.log(rootCauseException);
             failAction(driver, newURL, rootCauseException);
         }
     }
@@ -486,9 +487,9 @@ public class BrowserActions {
 
         if (driver != null) {
             attachments.add(ScreenshotManager.captureScreenShot(driver, actionName, true));
-            ReportManager.log(message, attachments);
+            ReportManagerHelper.log(message, attachments);
         } else if (!attachments.equals(new ArrayList<>())) {
-            ReportManager.log(message, attachments);
+            ReportManagerHelper.log(message, attachments);
         } else {
             ReportManager.log(message);
         }
@@ -511,7 +512,7 @@ public class BrowserActions {
         try {
             driver.navigate().to(targetUrl);
         } catch (WebDriverException rootCauseException) {
-            ReportManager.log(rootCauseException);
+            ReportManagerHelper.log(rootCauseException);
             failAction(driver, targetUrl, rootCauseException);
         }
 
@@ -521,7 +522,7 @@ public class BrowserActions {
                 (new WebDriverWait(driver, NAVIGATION_TIMEOUT_INTEGER))
                         .until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
             } catch (TimeoutException rootCauseException) {
-                ReportManager.log(rootCauseException);
+                ReportManagerHelper.log(rootCauseException);
                 failAction(driver, "Waited for " + NAVIGATION_TIMEOUT_INTEGER + " seconds to navigate away from [" + initialURL + "] but didn't.", rootCauseException);
             }
         } else {
@@ -532,7 +533,7 @@ public class BrowserActions {
                         .until(ExpectedConditions.urlContains(targetUrlAfterRedirection));
 
             } catch (TimeoutException rootCauseException) {
-                ReportManager.log(rootCauseException);
+                ReportManagerHelper.log(rootCauseException);
                 failAction(driver, "Waited for " + NAVIGATION_TIMEOUT_INTEGER + " seconds to navigate to [" + targetUrlAfterRedirection + "] but ended up with [" + driver.getCurrentUrl() + "].", rootCauseException);
             }
         }
@@ -550,10 +551,10 @@ public class BrowserActions {
                 ReportManager.logDiscrete(
                         "Window size after SWD Maximize: " + currentWindowSize.toString());
                 return currentWindowSize;
-            } catch (WebDriverException e) {
+            } catch (WebDriverException rootCauseException) {
                 // org.openqa.selenium.WebDriverException: unknown error: failed to change
                 // window state to maximized, current state is normal
-                ReportManager.log(e);
+                ReportManagerHelper.log(rootCauseException);
             }
         }
         return driver.manage().window().getSize();

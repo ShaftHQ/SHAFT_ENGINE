@@ -118,7 +118,7 @@ public class ElementActions {
                 // execution screenshots and to solve issues clicking on certain elements.
                 performHover(driver, internalElementLocator);
             } catch (Exception e) {
-                ReportManager.logDiscrete(e);
+                ReportManagerHelper.logDiscrete(e);
             }
 
             List<Object> screenshot = takeScreenshot(driver, internalElementLocator, "click", null, true);
@@ -136,8 +136,8 @@ public class ElementActions {
                             driver.findElement(internalElementLocator));
                 } catch (Exception rootCauseException) {
                     rootCauseException.initCause(exception1);
-                    ReportManager.log(exception1);
-                    ReportManager.log(rootCauseException);
+                    ReportManagerHelper.log(exception1);
+                    ReportManagerHelper.log(rootCauseException);
                     failAction(driver, internalElementLocator, rootCauseException);
                 }
             }
@@ -237,7 +237,7 @@ public class ElementActions {
                         determineSuccessfulTextLocationStrategy(driver, internalElementLocator));
             } catch (Exception e) {
                 // do nothing
-                ReportManager.logDiscrete(e);
+                ReportManagerHelper.logDiscrete(e);
             }
             List<Object> screenshot = ElementActions.takeScreenshot(driver, internalElementLocator, "doubleClick", null, true);
             // takes screenshot before clicking the element out of view
@@ -305,7 +305,7 @@ public class ElementActions {
 
                 ((JavascriptExecutor) driver).executeScript(dragAndDropHelper, sourceElement, destinationElement);
             } catch (Exception rootCauseException) {
-                ReportManager.log(rootCauseException);
+                ReportManagerHelper.log(rootCauseException);
                 failAction(driver, internalSourceElementLocator, rootCauseException);
             }
 
@@ -322,7 +322,7 @@ public class ElementActions {
                             driver.findElement(internalDestinationElementLocator)).build().perform();
 
                 } catch (Exception rootCauseException) {
-                    ReportManager.log(rootCauseException);
+                    ReportManagerHelper.log(rootCauseException);
                     failAction(driver, internalSourceElementLocator, rootCauseException);
                 }
                 // get source element end location
@@ -364,7 +364,7 @@ public class ElementActions {
                 (new Actions(driver)).dragAndDropBy(driver.findElement(internalSourceElementLocator), xOffset, yOffset).build()
                         .perform();
             } catch (Exception rootCauseException) {
-                ReportManager.log(rootCauseException);
+                ReportManagerHelper.log(rootCauseException);
                 failAction(driver, internalSourceElementLocator, rootCauseException);
             }
 
@@ -724,7 +724,7 @@ public class ElementActions {
             try {
                 performHover(driver, internalElementLocator);
             } catch (Exception rootCauseException) {
-                ReportManager.log(rootCauseException);
+                ReportManagerHelper.log(rootCauseException);
                 failAction(driver, internalElementLocator, rootCauseException);
             }
             passAction(driver, internalElementLocator);
@@ -757,7 +757,7 @@ public class ElementActions {
                 chainedHoverAndClickAction.moveToElement(driver.findElement(clickableElementLocator))
                         .click(driver.findElement(clickableElementLocator)).perform();
             } catch (NoSuchElementException rootCauseException) {
-                ReportManager.log(rootCauseException);
+                ReportManagerHelper.log(rootCauseException);
                 failAction(driver, hoverElementLocators.get(0), rootCauseException);
             }
         } else {
@@ -1021,7 +1021,7 @@ public class ElementActions {
                         driver.findElement(internalElementLocator));
                 passAction(driver, internalElementLocator);
             } catch (Exception rootCauseException) {
-                ReportManager.log(rootCauseException);
+                ReportManagerHelper.log(rootCauseException);
                 failAction(driver, internalElementLocator, rootCauseException);
             }
         } else {
@@ -1064,7 +1064,7 @@ public class ElementActions {
                 passAction(lastUsedDriver);
                 ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
             } catch (Exception e) {
-                ReportManager.log(e);
+                ReportManagerHelper.log(e);
             }
         }
         // if there is no last used driver or no drivers in the drivers list, do
@@ -1195,7 +1195,7 @@ public class ElementActions {
                     driver.findElement(internalElementLocator).sendKeys(internalAbsoluteFilePath);
                 } catch (WebDriverException rootCauseException) {
                     rootCauseException.initCause(exception1);
-                    ReportManager.log(rootCauseException);
+                    ReportManagerHelper.log(rootCauseException);
                     // happened for the first time on MacOSX due to incorrect file path separator
                     failAction(driver, internalAbsoluteFilePath, internalElementLocator, rootCauseException);
                 }
@@ -1206,7 +1206,7 @@ public class ElementActions {
                     // this exception is sometimes thrown on firefox after the upload has been
                     // successful, since we don't have to return the style to what it was, then it's
                     // okay to do nothing here.
-                    ReportManager.logDiscrete(e);
+                    ReportManagerHelper.logDiscrete(e);
                 }
             }
             passAction(driver, internalElementLocator, internalAbsoluteFilePath, screenshot);
@@ -1369,7 +1369,7 @@ public class ElementActions {
                 // else only happens when switching to default content so there is no need to
                 // take a screenshot
             } catch (Exception e) {
-                ReportManager.log(e);
+                ReportManagerHelper.log(e);
                 ReportManager.log(
                         "Failed to take a screenshot of the element as it doesn't exist anymore. Taking a screenshot of the whole page.");
                 return ScreenshotManager.captureScreenShot(driver, actionName, true);
@@ -1423,7 +1423,7 @@ public class ElementActions {
             }
         } catch (InvalidElementStateException e) {
             // this was seen in case of attempting to type in an invalid element (an image)
-            ReportManager.log(e);
+            ReportManagerHelper.log(e);
         }
     }
 
@@ -1589,7 +1589,7 @@ public class ElementActions {
                     driver.findElement(elementLocator));
             return true;
         } catch (Exception e) {
-            ReportManager.log(e);
+            ReportManagerHelper.log(e);
             return false;
         }
     }
@@ -1615,10 +1615,10 @@ public class ElementActions {
                     (String) ((Toolkit.getDefaultToolkit().getSystemClipboard()).getContents(ElementActions.class))
                             .getTransferData(DataFlavor.stringFlavor));
         } catch (UnsupportedFlavorException e) {
-            ReportManager.log(e);
+            ReportManagerHelper.log(e);
             ReportManager.log("Unsupported Flavor Exception: " + e.getMessage());
         } catch (IOException e) {
-            ReportManager.log(e);
+            ReportManagerHelper.log(e);
             ReportManager.log("IO Exception: " + e.getMessage());
         }
     }
@@ -1650,7 +1650,7 @@ public class ElementActions {
             }
             return true;
         } catch (HeadlessException e) {
-            ReportManager.log(e);
+            ReportManagerHelper.log(e);
             return false;
         }
     }
@@ -1699,7 +1699,7 @@ public class ElementActions {
             (new Actions(driver)).moveToElement(driver.findElement(elementLocator)).perform();
         } catch (UnsupportedCommandException methodIsNotImplemented) {
             // appium -> do nothing
-            ReportManager.log(methodIsNotImplemented);
+            ReportManagerHelper.log(methodIsNotImplemented);
 
         }
     }
@@ -1723,7 +1723,7 @@ public class ElementActions {
                     });
         } catch (TimeoutException e) {
             // In case typing failed and the timeout expired
-            ReportManager.log(e);
+            ReportManagerHelper.log(e);
         }
     }
 
@@ -1775,7 +1775,7 @@ public class ElementActions {
         }
 
         if (!attachments.equals(new ArrayList<>())) {
-            ReportManager.log(message, attachments);
+            ReportManagerHelper.log(message, attachments);
         } else {
             ReportManager.log(message);
         }
@@ -1841,7 +1841,7 @@ public class ElementActions {
                     break;
                 }
             } catch (JavascriptException e) {
-                ReportManager.log(e);
+                ReportManagerHelper.log(e);
                 ReportManager.log("Failed to suggest a new XPath for the target element with this deprecated locator ["
                         + deprecatedElementLocator + "]");
             }

@@ -545,7 +545,7 @@ class ValidationActions {
             case HARD_ASSERT:
                 // create the log entry with or without attachments
                 if (!attachments.isEmpty()) {
-                    ReportManager.log(message.toString(), attachments);
+                    ReportManagerHelper.log(message.toString(), attachments);
                 } else {
                     ReportManager.log(message.toString());
                 }
@@ -569,7 +569,7 @@ class ValidationActions {
 
                 // create the log entry with or without attachments
                 if (!attachments.isEmpty()) {
-                    ReportManager.log(message.toString(), attachments);
+                    ReportManagerHelper.log(message.toString(), attachments);
                 } else {
                     ReportManager.log(message.toString());
                 }

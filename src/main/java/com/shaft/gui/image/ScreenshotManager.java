@@ -209,7 +209,7 @@ public class ScreenshotManager {
                 }
             } catch (IOException e) {
                 ReportManager.logDiscrete("Failed to create attachment.");
-                ReportManager.log(e);
+                ReportManagerHelper.log(e);
             }
 
             /*
@@ -251,7 +251,7 @@ public class ScreenshotManager {
                 return ScreenshotUtilities.makeFullScreenshot(driver);
             }
         } catch (Exception e) {
-            ReportManager.log(e);
+            ReportManagerHelper.log(e);
             return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
         }
     }
@@ -279,7 +279,7 @@ public class ScreenshotManager {
                 // this happens when the gif fails to start, maybe the browser window was
                 // already closed
             } catch (IOException | NullPointerException | IllegalStateException e) {
-                ReportManager.log(e);
+                ReportManagerHelper.log(e);
             }
         }
     }
@@ -380,7 +380,7 @@ public class ScreenshotManager {
             } catch (StaleElementReferenceException e) {
                 // this happens when WebDriver fails to capture the elements initial style or
                 // fails to highlight the element for some reason
-                ReportManager.log(e);
+                ReportManagerHelper.log(e);
             }
 
             /*
@@ -431,7 +431,7 @@ public class ScreenshotManager {
             } catch (WebDriverException e) {
                 // this happens when a browser session crashes mid-execution, or the docker is
                 // unregistered
-                ReportManager.log(e);
+                ReportManagerHelper.log(e);
             }
         }
         return null;
@@ -459,7 +459,7 @@ public class ScreenshotManager {
                 }
             }
         } catch (Exception e) {
-            ReportManager.log(e);
+            ReportManagerHelper.log(e);
             if (returnRegularScreenshotInCaseOfFailure) {
                 return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
             } else {
@@ -484,7 +484,7 @@ public class ScreenshotManager {
             return Arrays.asList("Screenshot", screenshotFileName,
                     new ByteArrayInputStream(screenshotOutputStream.toByteArray()));
         } catch (IOException e) {
-            ReportManager.log(e);
+            ReportManagerHelper.log(e);
             return null;
         }
     }
@@ -502,7 +502,7 @@ public class ScreenshotManager {
         try {
             JavaScriptWaitManager.waitForLazyLoading();
         } catch (Exception e) {
-            ReportManager.log(e);
+            ReportManagerHelper.log(e);
         }
         return regularElementStyle;
     }
@@ -562,7 +562,7 @@ public class ScreenshotManager {
                 // method
                 // or this happens when the window is already closed
             } catch (IOException | WebDriverException e) {
-                ReportManager.log(e);
+                ReportManagerHelper.log(e);
             }
         }
     }
@@ -635,7 +635,7 @@ public class ScreenshotManager {
             // removed the old solution, the new fix is to ignore this exception, this will
             // leave the gif intact and will attach it even after failing to append to it
         } catch (WebDriverException | IOException | IllegalStateException | IllegalArgumentException | NullPointerException e) {
-            ReportManager.log(e);
+            ReportManagerHelper.log(e);
         }
     }
 }

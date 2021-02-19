@@ -99,7 +99,7 @@ public class PropertyFileManager {
                                     + propertiesFolderPath + "]");
                 }
             } catch (Exception e) {
-                ReportManager.log(e);
+                ReportManagerHelper.log(e);
             }
         }
     }
@@ -167,7 +167,7 @@ public class PropertyFileManager {
             System.getProperties().putAll(properties);
             // reset system properties
         } catch (IOException e) {
-            ReportManager.log(e);
+            ReportManagerHelper.log(e);
         }
     }
 
