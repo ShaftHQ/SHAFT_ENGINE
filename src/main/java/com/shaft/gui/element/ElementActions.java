@@ -12,9 +12,10 @@ import org.opencv.imgproc.Imgproc;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Actions;
-import org.openqa.selenium.interactions.Locatable;
 import org.openqa.selenium.remote.UnreachableBrowserException;
-import org.openqa.selenium.support.ui.*;
+import org.openqa.selenium.support.ui.FluentWait;
+import org.openqa.selenium.support.ui.Select;
+import org.openqa.selenium.support.ui.UnexpectedTagNameException;
 import org.sikuli.script.App;
 import org.sikuli.script.Pattern;
 import org.sikuli.script.Screen;
@@ -33,15 +34,6 @@ import java.util.concurrent.TimeUnit;
 
 @SuppressWarnings("unused")
 public class ElementActions {
-    private static final int DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER = Integer
-            .parseInt(System.getProperty("defaultElementIdentificationTimeout").trim());
-    private static final Duration DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT = Duration
-            .ofSeconds(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER);
-    private static final int ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION = Integer
-            .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
-    private static final int ELEMENT_IDENTIFICATION_POLLING_DELAY = 1; // seconds
-    private static final boolean FORCE_CHECK_FOR_ELEMENT_VISIBILITY = Boolean
-            .parseBoolean(System.getProperty("forceCheckForElementVisibility").trim());
     private static final String AI_REFERENCE_FILE_NAME = "aiAidedElementIdentificationReferenceDB.properties";
     private static final String OBFUSCATED_STRING = "•";
     private static WebDriver lastUsedDriver = null;
@@ -130,12 +122,9 @@ public class ElementActions {
 
             List<Object> screenshot = takeScreenshot(driver, internalElementLocator, "click", null, true);
             // takes screenshot before clicking the element out of view
-            try {
-                // wait for element to be clickable
-                (new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER))
-                        .until(ExpectedConditions.elementToBeClickable(internalElementLocator));
-            } catch (TimeoutException e) {
-                ReportManager.logDiscrete(e);
+            // wait for element to be clickable
+            if (Boolean.FALSE.equals(ElementActionsHelper.waitForElementToBeClickable(driver, internalElementLocator))) {
+                failAction(driver, "element is not clickable", internalElementLocator);
             }
 
             try {
@@ -180,10 +169,9 @@ public class ElementActions {
         if (identifyUniqueElement(driver, internalElementLocator)) {
             // Override current locator with the aiGeneratedElementLocator
             internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
-            (new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER))
-                    .until(ExpectedConditions.elementToBeClickable(internalElementLocator));
-//            By finalInternalElementLocator = internalElementLocator;
-//            new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT).until(waitDriver -> ExpectedConditions.elementToBeClickable(finalInternalElementLocator));
+            if (Boolean.FALSE.equals(ElementActionsHelper.waitForElementToBeClickable(driver, internalElementLocator))) {
+                failAction(driver, "element is not clickable", internalElementLocator);
+            }
             // wait for element to be clickable
             passAction(driver, internalElementLocator);
             (new Actions(driver)).clickAndHold(driver.findElement(internalElementLocator)).build().perform();
@@ -555,7 +543,7 @@ public class ElementActions {
      * desired elementLocator
      */
     public static int getElementsCount(WebDriver driver, By elementLocator) {
-        return getMatchingElementsCount(driver, elementLocator, ElementActions.ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION, FORCE_CHECK_FOR_ELEMENT_VISIBILITY);
+        return getMatchingElementsCount(driver, elementLocator, Optional.empty(), Optional.empty());
     }
 
     /**
@@ -571,7 +559,7 @@ public class ElementActions {
      * desired elementLocator
      */
     public static int getElementsCount(WebDriver driver, By elementLocator, int numberOfAttempts) {
-        return getMatchingElementsCount(driver, elementLocator, numberOfAttempts, FORCE_CHECK_FOR_ELEMENT_VISIBILITY);
+        return getMatchingElementsCount(driver, elementLocator, Optional.of(numberOfAttempts), Optional.empty());
     }
 
     /**
@@ -807,10 +795,9 @@ public class ElementActions {
                 && driver.findElement(internalElementLocator).isEnabled()) {
             // Override current locator with the aiGeneratedElementLocator
             internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
-            (new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER))
-                    .until(ExpectedConditions.elementToBeClickable(internalElementLocator));
-//            By finalInternalElementLocator = internalElementLocator;
-//            new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT).until(waitDriver -> ExpectedConditions.elementToBeClickable(finalInternalElementLocator));
+            if (Boolean.FALSE.equals(ElementActionsHelper.waitForElementToBeClickable(driver, internalElementLocator))) {
+                failAction(driver, "element is not clickable", internalElementLocator);
+            }
             // wait for element to be clickable
             passAction(driver, internalElementLocator);
             return true;
@@ -941,14 +928,11 @@ public class ElementActions {
             // Override current locator with the aiGeneratedElementLocator
             internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
 
-            //add forced check that the select element actually has options
-            try {
-                (new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER))
-                        .until(ExpectedConditions.not(ExpectedConditions.textToBe(internalElementLocator, "")));
-            } catch (Exception rootCauseException) {
-                ReportManager.log(rootCauseException);
-                failAction(driver, "waited for (" + DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT.getSeconds() + ") seconds", internalElementLocator, rootCauseException);
+            //add forced check that the select element actually has options and is not empty
+            if (!Boolean.TRUE.equals(ElementActionsHelper.waitForElementTextToBeNot(driver, internalElementLocator, ""))) {
+                failAction(driver, text, internalElementLocator);
             }
+
             boolean isOptionFound = false;
             var availableOptionsList = (new Select(driver.findElement(internalElementLocator))).getOptions();
             for (int i = 0; i < availableOptionsList.size(); i++) {
@@ -1276,19 +1260,10 @@ public class ElementActions {
         // Override current locator with the aiGeneratedElementLocator
         internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
 
-        int foundElementsCount;
-        boolean isElementFound;
-        int i = 1;
-        do {
-            foundElementsCount = getMatchingElementsCount(driver, internalElementLocator, 1, FORCE_CHECK_FOR_ELEMENT_VISIBILITY);
-            isElementFound = foundElementsCount >= 1;
-            i++;
-        } while (i < numberOfTries && Boolean.compare(stateOfPresence, isElementFound) != 0);
-
-        String reportMessage = "waited up to (" + DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT.getSeconds() * numberOfTries
-                + ") seconds, for the element's state of presence to be (" + stateOfPresence
+        String reportMessage = "waited for the element's state of presence to be (" + stateOfPresence
                 + "). Element locator (" + internalElementLocator.toString() + ")";
-        if (Boolean.compare(stateOfPresence, isElementFound) == 0) {
+
+        if (Boolean.compare(stateOfPresence, getMatchingElementsCount(driver, internalElementLocator, Optional.of(numberOfTries), Optional.empty()) >= 1) == 0) {
             passAction(driver, internalElementLocator, reportMessage);
         } else {
             failAction(driver, reportMessage, internalElementLocator);
@@ -1315,14 +1290,10 @@ public class ElementActions {
             // Override current locator with the aiGeneratedElementLocator
             internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
 
-            try {
-                (new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER * (long) numberOfTries))
-                        .until(ExpectedConditions.not(ExpectedConditions.textToBe(internalElementLocator, initialValue)));
-            } catch (Exception rootCauseException) {
-                ReportManager.log(rootCauseException);
-                failAction(driver, "waited for (" + DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT.getSeconds() * numberOfTries
-                        + ") seconds", internalElementLocator, rootCauseException);
+            if (!Boolean.TRUE.equals(ElementActionsHelper.waitForElementTextToBeNot(driver, internalElementLocator, initialValue))) {
+                failAction(driver, initialValue, internalElementLocator);
             }
+
             try {
                 passAction(driver, internalElementLocator,
                         "from: \"" + initialValue + "\", to: \"" + getText(driver, internalElementLocator) + "\"");
@@ -1512,7 +1483,8 @@ public class ElementActions {
         }
     }
 
-    private static int getMatchingElementsCount(WebDriver driver, By elementLocator, int numberOfAttempts, boolean checkForVisibility) {
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    private static int getMatchingElementsCount(WebDriver driver, By elementLocator, Optional<Integer> numberOfAttempts, Optional<Boolean> checkForVisibility) {
         if (elementLocator == null) {
             return 0;
         }
@@ -1520,11 +1492,19 @@ public class ElementActions {
         RecordManager.startVideoRecording(driver);
 
         if (elementLocator.equals(By.tagName("html")) || Boolean.FALSE.equals(ScreenshotManager.getAiSupportedElementIdentification())) {
-            return waitForElementPresence(driver, elementLocator, numberOfAttempts, checkForVisibility);
+            if (numberOfAttempts.isEmpty() && checkForVisibility.isEmpty()) {
+                return ElementActionsHelper.waitForElementPresence(driver, elementLocator);
+            } else if (numberOfAttempts.isPresent() && checkForVisibility.isEmpty()) {
+                return ElementActionsHelper.waitForElementPresence(driver, elementLocator, numberOfAttempts.get());
+            } else if (numberOfAttempts.isEmpty()) {
+                return ElementActionsHelper.waitForElementPresence(driver, elementLocator, checkForVisibility.get());
+            } else {
+                return ElementActionsHelper.waitForElementPresence(driver, elementLocator, numberOfAttempts.get(), checkForVisibility.get());
+            }
         }
 
         // not null AND not html AND ai self healing is enabled
-        return getMatchingElementsCountAI(driver, elementLocator, numberOfAttempts);
+        return getMatchingElementsCountAI(driver, elementLocator, numberOfAttempts.orElse(1));
     }
 
     private static int getMatchingElementsCountAI(WebDriver driver, By elementLocator, int numberOfAttempts) {
@@ -1539,7 +1519,7 @@ public class ElementActions {
         if (previouslyIdentifiedXpath != null && Boolean.TRUE.equals(ScreenshotManager.getAiSupportedElementIdentification())) {
             internalElementLocator = aiGeneratedElementLocator;
         }
-        int matchingElementsCount = waitForElementPresence(driver, internalElementLocator, numberOfAttempts, true);
+        int matchingElementsCount = ElementActionsHelper.waitForElementPresence(driver, internalElementLocator, numberOfAttempts, true);
 
         if (matchingElementsCount == 0
                 && Boolean.TRUE.equals(attemptToFindElementUsingAI(driver, internalElementLocator))) {
@@ -1565,24 +1545,17 @@ public class ElementActions {
         // Override current locator with the aiGeneratedElementLocator
         internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
 
-        int matchingElementsCount = getMatchingElementsCount(driver, elementLocator, ElementActions.ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION, checkForVisibility);
+        int matchingElementsCount = getMatchingElementsCount(driver, elementLocator, Optional.empty(), Optional.of(checkForVisibility));
         if (internalElementLocator != null) {
             // unique element found
             switch (matchingElementsCount) {
                 case 0 -> failAction(driver, "zero elements found matching this locator \"" + internalElementLocator + "\".", internalElementLocator);
                 case 1 -> {
-                    if (checkForVisibility && !internalElementLocator.toString().contains("input[@type='file']")
-                            && !internalElementLocator.equals(By.tagName("html"))) {
-                        try {
-                            // scroll element into viewPort
-                            ((Locatable) driver.findElement(internalElementLocator)).getCoordinates().inViewPort();
-                        } catch (UnsupportedCommandException getElementLocationOnceScrolledIntoView) {
-                            // TODO: appium -> swipe element into view
-//                            if (BrowserFactory.isMobileNativeExecution()) {
-                            //ElementActions.performTouchAction(driver).swipeElementIntoView(internalElementLocator, TouchActions.SwipeDirection.DOWN);
-//                            }
-                            //ReportManager.logDiscrete(getElementLocationOnceScrolledIntoView);
-                        }
+                    if (checkForVisibility
+                            && !internalElementLocator.toString().contains("input[@type='file']")
+                            && !internalElementLocator.equals(By.tagName("html"))
+                            && Boolean.FALSE.equals(ElementActionsHelper.waitForElementToBeVisible(driver, elementLocator))) {
+                        failAction(driver, "element is not visible.", elementLocator);
                     }
                     return true;
                 }
@@ -1731,26 +1704,25 @@ public class ElementActions {
     }
 
     private static void performType(WebDriver driver, By elementLocator, String text) {
-        // implementing loop to try and break out of the stale element exception issue
-        for (int i = 0; i < ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION; i++) {
-            try {
-                // attempt to perform action
-                driver.findElement(elementLocator).sendKeys(text);
-                break;
-            } catch (StaleElementReferenceException | ElementNotInteractableException | UnreachableBrowserException
-                    | NoSuchElementException | TimeoutException e) {
-                if (i + 1 == ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION) {
-                    ReportManager.log(e);
-                }
-            } catch (Exception e) {
-                if (e.getMessage().contains("cannot focus element")
-                        && (i + 1 == ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION)) {
-                    ReportManager.log(e);
-                } else {
-                    ReportManager.log(e);
-                    ReportManager.log("Unhandled Exception: " + e.getMessage());
-                }
-            }
+        ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
+        expectedExceptions.add(StaleElementReferenceException.class);
+        expectedExceptions.add(ElementNotInteractableException.class);
+        expectedExceptions.add(UnreachableBrowserException.class);
+        expectedExceptions.add(NoSuchElementException.class);
+        expectedExceptions.add(WebDriverException.class);
+
+        try {
+            new FluentWait<>(driver)
+                    .withTimeout(Duration.ofSeconds(5))
+                    .pollingEvery(Duration.ofSeconds(1))
+                    .ignoreAll(expectedExceptions)
+                    .until(nestedDriver -> {
+                        nestedDriver.findElement(elementLocator).sendKeys(text);
+                        return true;
+                    });
+        } catch (TimeoutException e) {
+            // In case typing failed and the timeout expired
+            ReportManager.log(e);
         }
     }
 
@@ -1908,33 +1880,6 @@ public class ElementActions {
         } else {
             ReportManager.log("Failed to identify Target element with locator [" + internalElementLocator + "].");
             return null;
-        }
-    }
-
-    private static int waitForElementPresence(WebDriver driver, By elementLocator, int numberOfAttempts, boolean checkForVisibility) {
-        ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
-        expectedExceptions.add(NoSuchElementException.class);
-        expectedExceptions.add(StaleElementReferenceException.class);
-        if (checkForVisibility) expectedExceptions.add(ElementNotVisibleException.class);
-
-        try {
-            int elementsCount = new FluentWait<>(driver)
-                    .withTimeout(Duration.ofSeconds(
-                            (long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER * numberOfAttempts))
-                    .pollingEvery(Duration.ofSeconds(ELEMENT_IDENTIFICATION_POLLING_DELAY))
-                    .ignoreAll(expectedExceptions)
-                    .until(nestedDriver -> {
-                        nestedDriver.findElement(elementLocator);
-                        return nestedDriver.findElements(elementLocator).size();
-                    });
-            if (elementsCount == 1 && checkForVisibility) {
-                new WebDriverWait(driver, (long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER * numberOfAttempts).until(ExpectedConditions.visibilityOf(driver.findElement(elementLocator)));
-            }
-            return elementsCount;
-        } catch (TimeoutException e) {
-            // In case the element was not found and the timeout expired
-            ReportManager.logDiscrete(e);
-            return 0;
         }
     }
 
