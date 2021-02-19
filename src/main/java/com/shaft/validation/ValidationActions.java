@@ -7,6 +7,7 @@ import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.tools.support.JavaActions;
 import io.restassured.response.Response;
 import org.openqa.selenium.By;
@@ -149,8 +150,8 @@ class ValidationActions {
 
         String actualValue;
         try {
-            discreetLoggingState = ReportManager.isDiscreteLogging();
-            ReportManager.setDiscreteLogging(true);
+            discreetLoggingState = ReportManagerHelper.isDiscreteLogging();
+            ReportManagerHelper.setDiscreteLogging(true);
             actualValue = switch (elementAttribute.toLowerCase()) {
                 case "text" -> ElementActions.getText(driver, elementLocator);
                 case "tagname" -> ElementActions.getTagName(driver, elementLocator);
@@ -158,7 +159,7 @@ class ValidationActions {
                 case "selectedtext" -> ElementActions.getSelectedText(driver, elementLocator);
                 default -> ElementActions.getAttribute(driver, elementLocator, elementAttribute);
             };
-            ReportManager.setDiscreteLogging(discreetLoggingState);
+            ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
         } catch (AssertionError e) {
             // force fail due to upstream failure
             if (validationType.getValue()) {
@@ -195,10 +196,10 @@ class ValidationActions {
         String propertySeparator = "' for the '";
         String locatorSeparator = "' CSS property, element locator '";
 
-        discreetLoggingState = ReportManager.isDiscreteLogging();
-        ReportManager.setDiscreteLogging(true);
+        discreetLoggingState = ReportManagerHelper.isDiscreteLogging();
+        ReportManagerHelper.setDiscreteLogging(true);
         String actualValue = ElementActions.getCSSProperty(driver, elementLocator, propertyName);
-        ReportManager.setDiscreteLogging(discreetLoggingState);
+        ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
 
         lastUsedDriver = driver;
         lastUsedElementLocator = elementLocator;
@@ -225,8 +226,8 @@ class ValidationActions {
 
         String actualValue;
         try {
-            discreetLoggingState = ReportManager.isDiscreteLogging();
-            ReportManager.setDiscreteLogging(true);
+            discreetLoggingState = ReportManagerHelper.isDiscreteLogging();
+            ReportManagerHelper.setDiscreteLogging(true);
             actualValue = switch (browserAttribute.toLowerCase()) {
                 case "currenturl" -> BrowserActions.getCurrentURL(driver);
                 case "pagesource" -> BrowserActions.getPageSource(driver);
@@ -236,7 +237,7 @@ class ValidationActions {
                 case "windowsize" -> BrowserActions.getWindowSize(driver);
                 default -> "";
             };
-            ReportManager.setDiscreteLogging(discreetLoggingState);
+            ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
         } catch (AssertionError e) {
             // force fail due to upstream failure
             if (validationType.getValue()) {
@@ -442,7 +443,7 @@ class ValidationActions {
     private static void fail(ValidationCategory validationCategory, String expectedValue, String actualValue,
                              Object validationComparisonType, ValidationType validationType, Throwable failureReason, List<List<Object>> externalAttachments) {
         // reset state in case of failure to force reporting the failure
-        ReportManager.setDiscreteLogging(discreetLoggingState);
+        ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
 
         reportValidationState(validationCategory, expectedValue, actualValue, validationComparisonType, validationType,
                 ValidationState.FAILED, failureReason, externalAttachments);
@@ -451,7 +452,7 @@ class ValidationActions {
     private static void fail(ValidationCategory validationCategory, String expectedValue, String actualValue,
                              Object validationComparisonType, ValidationType validationType, Throwable failureReason) {
         // reset state in case of failure to force reporting the failure
-        ReportManager.setDiscreteLogging(discreetLoggingState);
+        ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
 
         reportValidationState(validationCategory, expectedValue, actualValue, validationComparisonType, validationType,
                 ValidationState.FAILED, failureReason, null);
@@ -460,7 +461,7 @@ class ValidationActions {
     private static void fail(ValidationCategory validationCategory, Number expectedValue, Number actualValue,
                              Object comparativeRelationType, ValidationType validationType) {
         // reset state in case of failure to force reporting the failure
-        ReportManager.setDiscreteLogging(discreetLoggingState);
+        ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
 
         reportValidationState(validationCategory, String.valueOf(expectedValue), String.valueOf(actualValue), comparativeRelationType, validationType,
                 ValidationState.FAILED, null, null);
@@ -562,7 +563,7 @@ class ValidationActions {
                 // handle failure reason in case of soft assert
                 if (failureReason != null) {
                     List<Object> failureReasonAttachment = Arrays.asList("Validation Test Data", "Failure Reason",
-                            ReportManager.formatStackTraceToLogEntry(failureReason));
+                            ReportManagerHelper.formatStackTraceToLogEntry(failureReason));
                     attachments.add(failureReasonAttachment);
                 }
 

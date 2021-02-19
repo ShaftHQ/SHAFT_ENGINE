@@ -6,6 +6,7 @@ import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.tools.support.JSHelpers;
 import io.appium.java_client.AppiumDriver;
 import org.opencv.imgproc.Imgproc;
@@ -64,11 +65,11 @@ public class ElementActions {
                     targetElement = (WebElement) ((JavascriptExecutor) driver)
                             .executeScript(JSHelpers.ELEMENT_SCROLL_TO_VIEWPORT.getValue(), point.get(0), point.get(1));
                 }
-                boolean initialLoggingState = ReportManager.isDiscreteLogging();
-                ReportManager.setDiscreteLogging(false);
+                boolean initialLoggingState = ReportManagerHelper.isDiscreteLogging();
+                ReportManagerHelper.setDiscreteLogging(false);
                 ReportManager.log(
                         "New Element found using AI... Kindly update your element locator [" + elementLocator + "].");
-                ReportManager.setDiscreteLogging(initialLoggingState);
+                ReportManagerHelper.setDiscreteLogging(initialLoggingState);
 
                 String newXpath = suggestNewXpath(driver, targetElement, elementLocator);
                 if (newXpath != null) {
@@ -1038,10 +1039,10 @@ public class ElementActions {
     public static void switchToDefaultContent(WebDriver driver) {
         try {
             driver.switchTo().defaultContent();
-            boolean discreetLoggingState = ReportManager.isDiscreteLogging();
-            ReportManager.setDiscreteLogging(true);
+            boolean discreetLoggingState = ReportManagerHelper.isDiscreteLogging();
+            ReportManagerHelper.setDiscreteLogging(true);
             passAction(driver);
-            ReportManager.setDiscreteLogging(discreetLoggingState);
+            ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
         } catch (Exception rootCauseException) {
             failAction(driver, null, rootCauseException);
         }
@@ -1058,10 +1059,10 @@ public class ElementActions {
         if (BrowserFactory.getActiveDriverSessions() > 0 && (lastUsedDriver != null)) {
             try {
                 lastUsedDriver.switchTo().defaultContent();
-                boolean discreetLoggingState = ReportManager.isDiscreteLogging();
-                ReportManager.setDiscreteLogging(true);
+                boolean discreetLoggingState = ReportManagerHelper.isDiscreteLogging();
+                ReportManagerHelper.setDiscreteLogging(true);
                 passAction(lastUsedDriver);
-                ReportManager.setDiscreteLogging(discreetLoggingState);
+                ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
             } catch (Exception e) {
                 ReportManager.log(e);
             }
@@ -1088,10 +1089,10 @@ public class ElementActions {
 
             driver.switchTo().frame(driver.findElement(internalElementLocator));
             // note to self: remove internalElementLocator in case of bug in screenshot manager
-            boolean discreetLoggingState = ReportManager.isDiscreteLogging();
-            ReportManager.setDiscreteLogging(true);
+            boolean discreetLoggingState = ReportManagerHelper.isDiscreteLogging();
+            ReportManagerHelper.setDiscreteLogging(true);
             passAction(driver);
-            ReportManager.setDiscreteLogging(discreetLoggingState);
+            ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
         } else {
             failAction(driver, internalElementLocator);
         }
@@ -1526,12 +1527,12 @@ public class ElementActions {
             matchingElementsCount = 1;
         } else if (matchingElementsCount == 1) {
             if (previouslyIdentifiedXpath != null) {
-                boolean initialLoggingState = ReportManager.isDiscreteLogging();
-                ReportManager.setDiscreteLogging(false);
+                boolean initialLoggingState = ReportManagerHelper.isDiscreteLogging();
+                ReportManagerHelper.setDiscreteLogging(false);
                 ReportManager
                         .log("Element was previously found using AI... Kindly update your element locator from ["
                                 + internalElementLocator + "] to [" + aiGeneratedElementLocator + "].");
-                ReportManager.setDiscreteLogging(initialLoggingState);
+                ReportManagerHelper.setDiscreteLogging(initialLoggingState);
                 internalElementLocator = aiGeneratedElementLocator;
             }
             ScreenshotManager.storeElementScreenshotForAISupportedElementIdentification(driver, internalElementLocator);
@@ -1846,10 +1847,10 @@ public class ElementActions {
             }
         }
         if (newXpath != null) {
-            boolean initialLoggingState = ReportManager.isDiscreteLogging();
-            ReportManager.setDiscreteLogging(false);
+            boolean initialLoggingState = ReportManagerHelper.isDiscreteLogging();
+            ReportManagerHelper.setDiscreteLogging(false);
             ReportManager.log("New AI-Suggested XPath [" + newXpath.replace("\"", "'") + "]");
-            ReportManager.setDiscreteLogging(initialLoggingState);
+            ReportManagerHelper.setDiscreteLogging(initialLoggingState);
             return newXpath;
         } else {
             ReportManager.log("Failed to suggest a new XPath for the target element with this deprecated locator ["
