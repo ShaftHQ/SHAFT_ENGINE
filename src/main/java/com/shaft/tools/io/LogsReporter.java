@@ -16,15 +16,15 @@ public class LogsReporter {
         attachFullLogs();
         attachCucumberReport();
         attachExtentReport();
-        ReportManager.setDiscreteLogging(true);
-        ReportManager.generateAllureReportArchive();
-        ReportManager.openAllureReportAfterExecution();
+        ReportManagerHelper.setDiscreteLogging(true);
+        ReportManagerHelper.generateAllureReportArchive();
+        ReportManagerHelper.openAllureReportAfterExecution();
     }
 
     public void attachFullLogs() {
         String executionEndTimestamp = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
-        ReportManager.attachIssuesLog(executionEndTimestamp);
-        ReportManager.attachFullLog(executionEndTimestamp);
+        ReportManagerHelper.attachIssuesLog(executionEndTimestamp);
+        ReportManagerHelper.attachFullLog(executionEndTimestamp);
     }
 
     public void attachBrowserLogs() {
@@ -37,18 +37,18 @@ public class LogsReporter {
 
     private void attachCucumberReport() {
         if (FileActions.doesFileExist("allure-results/cucumberReport.html")) {
-            ReportManager.attach("HTML", "Cucumber Execution Report", FileActions.readFromFile("allure-results/cucumberReport.html"));
+            ReportManagerHelper.attach("HTML", "Cucumber Execution Report", FileActions.readFromFile("allure-results/cucumberReport.html"));
         }
     }
 
     private void attachExtentReport() {
-        ReportManager.extentReportsFlush();
-        if (FileActions.doesFileExist(ReportManager.getExtentReportFileName())) {
-            ReportManager.attach("HTML", "Extent Emailable Execution Report", FileActions.readFromFile(ReportManager.getExtentReportFileName()));
+        ReportManagerHelper.extentReportsFlush();
+        if (FileActions.doesFileExist(ReportManagerHelper.getExtentReportFileName())) {
+            ReportManagerHelper.attach("HTML", "Extent Emailable Execution Report", FileActions.readFromFile(ReportManagerHelper.getExtentReportFileName()));
         }
     }
 
     private void initializeClosureActivities() {
-        ReportManager.logClosureActivitiesInitialization();
+        ReportManagerHelper.logClosureActivitiesInitialization();
     }
 }

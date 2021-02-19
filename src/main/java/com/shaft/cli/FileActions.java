@@ -3,6 +3,7 @@ package com.shaft.cli;
 import com.google.common.hash.Hashing;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
@@ -520,8 +521,8 @@ public class FileActions {
                                    int readTimeout) {
         if (targetFileURL != null && destinationFilePath != null) {
             // force logging
-            boolean initialLoggingState = ReportManager.isDiscreteLogging();
-            ReportManager.setDiscreteLogging(false);
+            boolean initialLoggingState = ReportManagerHelper.isDiscreteLogging();
+            ReportManagerHelper.setDiscreteLogging(false);
             try {
                 ReportManager.log("Downloading a file from this url [" + targetFileURL + "] to this directory ["
                         + destinationFilePath + "], please wait as downloading may take some time...");
@@ -540,7 +541,7 @@ public class FileActions {
                         + destinationFilePath + "]", rootCauseException);
                 return null;
             } finally {
-                ReportManager.setDiscreteLogging(initialLoggingState);
+                ReportManagerHelper.setDiscreteLogging(initialLoggingState);
             }
         } else {
             failAction("Target File URL: [" + targetFileURL + "], and Destination File Path: [" + destinationFilePath

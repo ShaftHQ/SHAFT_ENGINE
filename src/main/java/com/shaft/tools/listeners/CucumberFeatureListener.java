@@ -4,6 +4,7 @@ import com.shaft.cli.FileActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
 import io.cucumber.core.feature.FeatureParser;
 import io.cucumber.core.gherkin.Feature;
 import io.cucumber.core.resource.Resource;
@@ -41,10 +42,10 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
         event.getNodes().forEach(node -> {
             Optional<Feature> feature = getFeature(event.getUri());
             if (feature.isPresent()) {
-                if (ReportManager.getTotalNumberOfTests() == 0) {
-                    ReportManager.setTotalNumberOfTests(feature.get().getPickles().size());
+                if (ReportManagerHelper.getTotalNumberOfTests() == 0) {
+                    ReportManagerHelper.setTotalNumberOfTests(feature.get().getPickles().size());
                 } else {
-                    ReportManager.setTotalNumberOfTests(ReportManager.getTotalNumberOfTests() + feature.get().getPickles().size());
+                    ReportManagerHelper.setTotalNumberOfTests(ReportManagerHelper.getTotalNumberOfTests() + feature.get().getPickles().size());
                 }
             }
         });
@@ -75,11 +76,11 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
         });
         Optional<Feature> feature = getFeature(testCase.getUri());
         if (feature.isPresent() && feature.get().getName().isPresent()) {
-            ReportManager.setFeatureName(feature.get().getName().get());
+            ReportManagerHelper.setFeatureName(feature.get().getName().get());
         }
-        ReportManager.setTestCaseName(testCase.getName());
-        ReportManager.setTestCaseDescription(scenarioSteps.toString());
-        ReportManager.logScenarioInformation(testCase.getKeyword(), testCase.getName(), cleanScenarioSteps.toString());
+        ReportManagerHelper.setTestCaseName(testCase.getName());
+        ReportManagerHelper.setTestCaseDescription(scenarioSteps.toString());
+        ReportManagerHelper.logScenarioInformation(testCase.getKeyword(), testCase.getName(), cleanScenarioSteps.toString());
     }
 
     private Optional<Feature> getFeature(URI uri) {

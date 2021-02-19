@@ -3,7 +3,7 @@ package unitTests;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.ElementActions;
-import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.validation.Assertions;
 import com.shaft.validation.Assertions.AssertionComparisonType;
 import com.shaft.validation.Assertions.AssertionType;
@@ -44,12 +44,12 @@ public class tests_validations_assertions {
 
     @Test
     public void assertEquals_longCharacters_Discreet() {
-        boolean discreetLoggingState = ReportManager.isDiscreteLogging();
-        ReportManager.setDiscreteLogging(true);
+        boolean discreetLoggingState = ReportManagerHelper.isDiscreteLogging();
+        ReportManagerHelper.setDiscreteLogging(true);
         Assertions.assertEquals(
                 "1LH5pROcDBjjQk0t0mCr0lXuzQu9lcGj28kY8R1H81X67eVAQJgWQhILiRWVPUgZ6uCtK5cnBkF55Jr9vYngjGO1Iyf0Mktv6lruDlL9T8MAUPcUZJGHZtji6nIeadujDSNmWMj5d6C8zlFqw0CRqBU0hO5adIasHgBSNoLotAjce3NGXoDwAlp3rYreeV16VIyZXROQY",
                 "1LH5pROcDBjjQk0t0mCr0lXuzQu9lcGj28kY8R1H81X67eVAQJgWQhILiRWVPUgZ6uCtK5cnBkF55Jr9vYngjGO1Iyf0Mktv6lruDlL9T8MAUPcUZJGHZtji6nIeadujDSNmWMj5d6C8zlFqw0CRqBU0hO5adIasHgBSNoLotAjce3NGXoDwAlp3rYreeV16VIyZXROQY");
-        ReportManager.setDiscreteLogging(discreetLoggingState);
+        ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
     }
 
     @Test

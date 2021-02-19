@@ -6,6 +6,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.validation.Assertions;
 import eu.medsea.mimeutil.MimeUtil;
 import eu.medsea.mimeutil.MimeUtil2;
@@ -423,7 +424,7 @@ public class RestActions {
             message = message + " With the following test data [" + testData + "].";
         }
 
-        Boolean initialLoggingState = ReportManager.isDiscreteLogging();
+        Boolean initialLoggingState = ReportManagerHelper.isDiscreteLogging();
         if (Boolean.TRUE.equals(isDiscrete)) {
             if (requestBody != null && !requestBody.equals(new JsonObject())) {
                 reportRequestBody(requestBody);
@@ -450,7 +451,7 @@ public class RestActions {
     private static List<Object> reportRequestBody(Object requestBody) {
         List<Object> requestBodyAttachment = new ArrayList<>();
         if (requestBody.toString() != null && !requestBody.toString().equals("")) {
-            if (ReportManager.isDiscreteLogging()) {
+            if (ReportManagerHelper.isDiscreteLogging()) {
                 try {
                     ReportManager.logDiscrete("API Request - REST Body:\n"
                             + IOUtils.toString(parseBodyToJson(requestBody), StandardCharsets.UTF_8));
@@ -1000,12 +1001,12 @@ public class RestActions {
 
     protected boolean evaluateResponseStatusCode(Response response, int targetStatusCode) {
         try {
-            boolean discreetLoggingState = ReportManager.isDiscreteLogging();
-            ReportManager.setDiscreteLogging(true);
+            boolean discreetLoggingState = ReportManagerHelper.isDiscreteLogging();
+            ReportManagerHelper.setDiscreteLogging(true);
             ReportManager.log("Response status code: [" + response.getStatusCode() + "], status line: [" + response.getStatusLine() + "]");
             Assertions.assertEquals(targetStatusCode, response.getStatusCode(),
                     "Evaluating the actual response status code against the expected one...");
-            ReportManager.setDiscreteLogging(discreetLoggingState);
+            ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
             return true;
         } catch (AssertionError rootCauseException) {
             return false;
