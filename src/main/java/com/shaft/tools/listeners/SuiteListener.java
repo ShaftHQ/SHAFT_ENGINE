@@ -5,7 +5,7 @@ import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ProjectStructureFactory;
 import com.shaft.tools.io.PropertyFileManager;
-import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
 import org.testng.ISuite;
 import org.testng.ISuiteListener;
 
@@ -20,14 +20,14 @@ public class SuiteListener implements ISuiteListener {
             PropertyFileManager.readPropertyFiles(ScreenshotManager.getAiAidedElementIdentificationFolderpath());
         }
         ProjectStructureFactory.initialize();
-        ReportManager.initializeExtentReports();
-        ReportManager.prepareAllureReportingEnvironment();
-        ReportManager.logEngineVersion();
+        ReportManagerHelper.initializeExtentReports();
+        ReportManagerHelper.prepareAllureReportingEnvironment();
+        ReportManagerHelper.logEngineVersion();
         if (!(suite.getAllMethods().size() == 1 && suite.getAllMethods().get(0).getMethodName().equals("runScenario"))) {
             // not cucumber test runner
-            ReportManager.setTotalNumberOfTests(suite.getAllMethods().size());
+            ReportManagerHelper.setTotalNumberOfTests(suite.getAllMethods().size());
         }
-        ReportManager.setDiscreteLogging(Boolean.parseBoolean(System.getProperty("alwaysLogDiscreetly")));
-        ReportManager.setDebugMode(Boolean.valueOf(System.getProperty("debugMode")));
+        ReportManagerHelper.setDiscreteLogging(Boolean.parseBoolean(System.getProperty("alwaysLogDiscreetly")));
+        ReportManagerHelper.setDebugMode(Boolean.valueOf(System.getProperty("debugMode")));
     }
 }

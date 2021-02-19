@@ -9,6 +9,7 @@ import com.shaft.cli.FileActions;
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.validation.Assertions;
 import com.shaft.validation.Assertions.AssertionType;
 import com.shaft.validation.Assertions.ComparativeRelationType;
@@ -238,7 +239,7 @@ public class ImageProcessingActions {
 
     @SuppressWarnings("RegExpRedundantEscape")
     public static String formatElementLocatorToImagePath(By elementLocator) {
-        String elementFileName = ReportManager.getCallingMethodFullName() + "_" + elementLocator.toString();
+        String elementFileName = ReportManagerHelper.getCallingMethodFullName() + "_" + elementLocator.toString();
         return elementFileName.replaceAll("[\\[\\]\\'\\/:]", "").replaceAll("[\\W\\s]", "_").replaceAll("_{2}", "_")
                 .replaceAll("_{2}", "_").replaceAll("contains", "_contains").replaceAll("_$", "");
     }
@@ -342,7 +343,7 @@ public class ImageProcessingActions {
             eyes.setHostApp(System.getProperty("targetBrowserName"));
         }
         try {
-            eyes.open("SHAFT_Engine", ReportManager.getCallingMethodFullName());
+            eyes.open("SHAFT_Engine", ReportManagerHelper.getCallingMethodFullName());
             eyes.checkImage(elementScreenshot, hashedLocatorName);
             TestResults eyesValidationResult = eyes.close();
             ReportManager.logDiscrete("Successfully validated the element using AI; Applitools Eyes.");
@@ -409,16 +410,16 @@ public class ImageProcessingActions {
                             + relatedReferenceFileName + "] match by [" + percentage + "] percent.",
                     Arrays.asList(referenceScreenshotAttachment, testScreenshotAttachment));
 
-            boolean discreetLoggingState = ReportManager.isDiscreteLogging();
+            boolean discreetLoggingState = ReportManagerHelper.isDiscreteLogging();
             try {
                 // add to pass/fail counter depending on assertion result, without logging
-                ReportManager.setDiscreteLogging(true);
+                ReportManagerHelper.setDiscreteLogging(true);
                 Assertions.assertComparativeRelation(threshhold, percentage,
                         ComparativeRelationType.GREATER_THAN_OR_EQUALS, AssertionType.POSITIVE);
-                ReportManager.setDiscreteLogging(discreetLoggingState);
+                ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
                 passedImagesCount++;
             } catch (AssertionError e) {
-                ReportManager.setDiscreteLogging(discreetLoggingState);
+                ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
                 // copying image to failed images directory
                 FileActions.copyFile(screenshot.getAbsolutePath(),
                         testProcessingFolder.getParent() + DIRECTORY_FAILED + relatedTestFileName + "_testImage");

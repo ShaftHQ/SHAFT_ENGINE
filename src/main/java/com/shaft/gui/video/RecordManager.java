@@ -5,6 +5,7 @@ import com.automation.remarks.video.recorder.IVideoRecorder;
 import com.automation.remarks.video.recorder.VideoRecorder;
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
 import io.appium.java_client.MobileElement;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
@@ -65,13 +66,13 @@ public class RecordManager {
 
     public static synchronized void attachVideoRecording() {
         String pathToRecording;
-        String testMethodName = ReportManager.getTestMethodName();
+        String testMethodName = ReportManagerHelper.getTestMethodName();
 
         if (Boolean.TRUE.equals(RECORD_VIDEO) && recorder.get() != null) {
-            pathToRecording = doVideoProcessing(ReportManager.isCurrentTestPassed(), recorder.get().stopAndSave(System.currentTimeMillis() + "_" + testMethodName));
+            pathToRecording = doVideoProcessing(ReportManagerHelper.isCurrentTestPassed(), recorder.get().stopAndSave(System.currentTimeMillis() + "_" + testMethodName));
 
             try {
-                ReportManager.attach("Video Recording", testMethodName,
+                ReportManagerHelper.attach("Video Recording", testMethodName,
                         new FileInputStream(encodeRecording(pathToRecording)));
             } catch (FileNotFoundException e) {
                 ReportManager.logDiscrete(e);
@@ -85,7 +86,7 @@ public class RecordManager {
             } else if (videoDriver.get() instanceof IOSDriver) {
                 base64EncodedRecording = ((IOSDriver<MobileElement>) videoDriver.get()).stopRecordingScreen();
             }
-            ReportManager.attach("Video Recording", testMethodName,
+            ReportManagerHelper.attach("Video Recording", testMethodName,
                     new ByteArrayInputStream(Base64.getDecoder().decode(base64EncodedRecording)));
 
             videoDriver.set(null);

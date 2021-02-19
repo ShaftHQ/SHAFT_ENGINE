@@ -5,6 +5,7 @@ import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.validation.Verifications;
 import io.qameta.allure.Issue;
 import io.qameta.allure.Issues;
@@ -45,14 +46,14 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 
         if (!testMethod.getQualifiedName().contains("AbstractTestNGCucumberTests")) {
             if (testMethod.isTest()) {
-                className = ReportManager.getTestClassName();
-                methodName = ReportManager.getTestMethodName();
+                className = ReportManagerHelper.getTestClassName();
+                methodName = ReportManagerHelper.getTestMethodName();
                 if (testMethod.getDescription() != null) {
                     methodDescription = testMethod.getDescription();
                 }
 
-                ReportManager.logTestInformation(className, methodName, methodDescription);
-                ReportManager.extentReportsCreateTest(className + "." + methodName, methodDescription);
+                ReportManagerHelper.logTestInformation(className, methodName, methodDescription);
+                ReportManagerHelper.extentReportsCreateTest(className + "." + methodName, methodDescription);
             } else if (testMethod instanceof ConfigurationMethod) {
                 // org.testng.internal.ConfigurationMethod
                 // ReportManager.logDiscrete("Current TestNG Method Name: " +
@@ -61,8 +62,8 @@ public class InvokedMethodListener implements IInvokedMethodListener {
                 className = testMethod.getTestClass().getName();
                 methodName = testMethod.getMethodName();
 
-                ReportManager.logConfigurationMethodInformation(className, methodName);
-                ReportManager.extentReportsReset();
+                ReportManagerHelper.logConfigurationMethodInformation(className, methodName);
+                ReportManagerHelper.extentReportsReset();
             }
         }
         // implementing the new kill switch at the start of every test method
@@ -97,13 +98,13 @@ public class InvokedMethodListener implements IInvokedMethodListener {
             ScreenshotManager.attachAnimatedGif();
             // configuration method attachment is not added to the report (Allure ->
             // threadContext.getCurrent(); -> empty)
-            ReportManager.attachTestLog(testResult.getMethod().getMethodName(),
+            ReportManagerHelper.attachTestLog(testResult.getMethod().getMethodName(),
                     createTestLog(Reporter.getOutput(testResult)));
         }
 
         // resetting scope and config
         ElementActions.switchToDefaultContent();
-        ReportManager.setDiscreteLogging(Boolean.parseBoolean(System.getProperty("alwaysLogDiscreetly")));
+        ReportManagerHelper.setDiscreteLogging(Boolean.parseBoolean(System.getProperty("alwaysLogDiscreetly")));
         ITestNGMethod testMethod = method.getTestMethod();
         if (testMethod.isTest()) {
             updateTestStatusInCaseOfVerificationFailure(testResult);
@@ -129,21 +130,21 @@ public class InvokedMethodListener implements IInvokedMethodListener {
         if (testResult != null && testResult.getStatus() == ITestResult.SUCCESS) {
             // if test passed
             reportOpenIssueStatus(testMethod, true);
-            ReportManager.extentReportsPass("Test Passed.");
+            ReportManagerHelper.extentReportsPass("Test Passed.");
         } else if (testResult != null && testResult.getStatus() == ITestResult.FAILURE) {
             // if test failed
             reportOpenIssueStatus(testMethod, false);
             if (testResult.getThrowable() != null) {
-                ReportManager.extentReportsFail(testResult.getThrowable());
+                ReportManagerHelper.extentReportsFail(testResult.getThrowable());
             } else {
-                ReportManager.extentReportsFail("Test Failed.");
+                ReportManagerHelper.extentReportsFail("Test Failed.");
             }
         } else if (testResult != null && testResult.getStatus() == ITestResult.SKIP) {
             // if test skipped
             if (testResult.getThrowable() != null) {
-                ReportManager.extentReportsSkip(testResult.getThrowable());
+                ReportManagerHelper.extentReportsSkip(testResult.getThrowable());
             } else {
-                ReportManager.extentReportsSkip("Test Skipped as it depends on unsuccessfully executed methods.");
+                ReportManagerHelper.extentReportsSkip("Test Skipped as it depends on unsuccessfully executed methods.");
             }
         }
     }
@@ -177,26 +178,26 @@ public class InvokedMethodListener implements IInvokedMethodListener {
             if (Boolean.TRUE.equals(executionStatus)) {
                 // flag already opened issue for closure
                 openIssuesForPassedTestsCounter++;
-                ReportManager.setOpenIssuesForPassedTestsCounter(openIssuesForPassedTestsCounter);
+                ReportManagerHelper.setOpenIssuesForPassedTestsCounter(openIssuesForPassedTestsCounter);
                 addNewIssue(className, methodName, listOfOpenIssuesForPassedTests);
-                ReportManager.setListOfOpenIssuesForPassedTests(listOfOpenIssuesForPassedTests);
+                ReportManagerHelper.setListOfOpenIssuesForPassedTests(listOfOpenIssuesForPassedTests);
             } else {
                 // confirm already opened issue
                 openIssuesForFailedTestsCounter++;
-                ReportManager.setOpenIssuesForFailedTestsCounter(openIssuesForFailedTestsCounter);
+                ReportManagerHelper.setOpenIssuesForFailedTestsCounter(openIssuesForFailedTestsCounter);
                 addNewIssue(className, methodName, listOfOpenIssuesForFailedTests);
-                ReportManager.setListOfOpenIssuesForFailedTests(listOfOpenIssuesForFailedTests);
+                ReportManagerHelper.setListOfOpenIssuesForFailedTests(listOfOpenIssuesForFailedTests);
             }
         } else {
             if (Boolean.FALSE.equals(executionStatus)) {
                 // log new issue
                 newIssuesForFailedTestsCounter++;
-                ReportManager.setFailedTestsWithoutOpenIssuesCounter(newIssuesForFailedTestsCounter);
+                ReportManagerHelper.setFailedTestsWithoutOpenIssuesCounter(newIssuesForFailedTestsCounter);
                 List<String> newIssue = new ArrayList<>();
                 newIssue.add(className);
                 newIssue.add(methodName);
                 listOfNewIssuesForFailedTests.add(newIssue);
-                ReportManager.setListOfNewIssuesForFailedTests(listOfNewIssuesForFailedTests);
+                ReportManagerHelper.setListOfNewIssuesForFailedTests(listOfNewIssuesForFailedTests);
             }
         }
     }

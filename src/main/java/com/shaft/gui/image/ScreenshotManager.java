@@ -5,6 +5,7 @@ import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.JavaScriptWaitManager;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
 import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.*;
 import org.sikuli.script.App;
@@ -214,7 +215,7 @@ public class ScreenshotManager {
             /*
              * Declare screenshot file name
              */
-            testCaseName = ReportManager.getTestMethodName();
+            testCaseName = ReportManagerHelper.getTestMethodName();
             screenshotFileName = System.currentTimeMillis() + "_" + testCaseName + "_" + actionName;
             if (!"".equals(globalPassFailAppendedText)) {
                 screenshotFileName = screenshotFileName + "_" + globalPassFailAppendedText;
@@ -263,7 +264,7 @@ public class ScreenshotManager {
         // stop and attach
         if (Boolean.TRUE.equals(CREATE_GIF) && !"".equals(gifRelativePathWithFileName)) {
             try {
-                ReportManager.attach("Animated Gif", testCaseName, new FileInputStream(gifRelativePathWithFileName));
+                ReportManagerHelper.attach("Animated Gif", testCaseName, new FileInputStream(gifRelativePathWithFileName));
                 if (!gifWriter.equals(new ThreadLocal<>())) {
                     gifWriter.get().close();
                 }
@@ -397,7 +398,7 @@ public class ScreenshotManager {
                 /*
                  * Declare screenshot file name
                  */
-                testCaseName = ReportManager.getTestMethodName();
+                testCaseName = ReportManagerHelper.getTestMethodName();
                 screenshotFileName = System.currentTimeMillis() + "_" + testCaseName + "_" + actionName;
                 if (!"".equals(appendedText)) {
                     screenshotFileName = screenshotFileName + "_" + appendedText;
@@ -527,7 +528,7 @@ public class ScreenshotManager {
         // TODO: refactor performance to reduce severe drop when enabling this option
         if (Boolean.TRUE.equals(CREATE_GIF) && screenshot != null) {
             try {
-                testCaseName = ReportManager.getTestMethodName();
+                testCaseName = ReportManagerHelper.getTestMethodName();
                 String gifFileName = FileSystems.getDefault().getSeparator() + System.currentTimeMillis() + "_"
                         + testCaseName + ".gif";
                 gifRelativePathWithFileName = SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME + gifFileName;
