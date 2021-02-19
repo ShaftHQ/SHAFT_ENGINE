@@ -123,7 +123,7 @@ public class ElementActions {
             List<Object> screenshot = takeScreenshot(driver, internalElementLocator, "click", null, true);
             // takes screenshot before clicking the element out of view
             // wait for element to be clickable
-            if (Boolean.FALSE.equals(ElementActionsHelpers.waitForElementToBeClickable(driver, internalElementLocator))) {
+            if (Boolean.FALSE.equals(ElementActionsHelper.waitForElementToBeClickable(driver, internalElementLocator))) {
                 failAction(driver, "element is not clickable", internalElementLocator);
             }
 
@@ -169,7 +169,7 @@ public class ElementActions {
         if (identifyUniqueElement(driver, internalElementLocator)) {
             // Override current locator with the aiGeneratedElementLocator
             internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
-            if (Boolean.FALSE.equals(ElementActionsHelpers.waitForElementToBeClickable(driver, internalElementLocator))) {
+            if (Boolean.FALSE.equals(ElementActionsHelper.waitForElementToBeClickable(driver, internalElementLocator))) {
                 failAction(driver, "element is not clickable", internalElementLocator);
             }
             // wait for element to be clickable
@@ -795,7 +795,7 @@ public class ElementActions {
                 && driver.findElement(internalElementLocator).isEnabled()) {
             // Override current locator with the aiGeneratedElementLocator
             internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
-            if (Boolean.FALSE.equals(ElementActionsHelpers.waitForElementToBeClickable(driver, internalElementLocator))) {
+            if (Boolean.FALSE.equals(ElementActionsHelper.waitForElementToBeClickable(driver, internalElementLocator))) {
                 failAction(driver, "element is not clickable", internalElementLocator);
             }
             // wait for element to be clickable
@@ -929,7 +929,7 @@ public class ElementActions {
             internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
 
             //add forced check that the select element actually has options and is not empty
-            if (!Boolean.TRUE.equals(ElementActionsHelpers.waitForElementTextToBeNot(driver, internalElementLocator, ""))) {
+            if (!Boolean.TRUE.equals(ElementActionsHelper.waitForElementTextToBeNot(driver, internalElementLocator, ""))) {
                 failAction(driver, text, internalElementLocator);
             }
 
@@ -1290,7 +1290,7 @@ public class ElementActions {
             // Override current locator with the aiGeneratedElementLocator
             internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
 
-            if (!Boolean.TRUE.equals(ElementActionsHelpers.waitForElementTextToBeNot(driver, internalElementLocator, initialValue))) {
+            if (!Boolean.TRUE.equals(ElementActionsHelper.waitForElementTextToBeNot(driver, internalElementLocator, initialValue))) {
                 failAction(driver, initialValue, internalElementLocator);
             }
 
@@ -1483,6 +1483,7 @@ public class ElementActions {
         }
     }
 
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private static int getMatchingElementsCount(WebDriver driver, By elementLocator, Optional<Integer> numberOfAttempts, Optional<Boolean> checkForVisibility) {
         if (elementLocator == null) {
             return 0;
@@ -1492,13 +1493,13 @@ public class ElementActions {
 
         if (elementLocator.equals(By.tagName("html")) || Boolean.FALSE.equals(ScreenshotManager.getAiSupportedElementIdentification())) {
             if (numberOfAttempts.isEmpty() && checkForVisibility.isEmpty()) {
-                return ElementActionsHelpers.waitForElementPresence(driver, elementLocator);
+                return ElementActionsHelper.waitForElementPresence(driver, elementLocator);
             } else if (numberOfAttempts.isPresent() && checkForVisibility.isEmpty()) {
-                return ElementActionsHelpers.waitForElementPresence(driver, elementLocator, numberOfAttempts.get());
+                return ElementActionsHelper.waitForElementPresence(driver, elementLocator, numberOfAttempts.get());
             } else if (numberOfAttempts.isEmpty()) {
-                return ElementActionsHelpers.waitForElementPresence(driver, elementLocator, checkForVisibility.get());
+                return ElementActionsHelper.waitForElementPresence(driver, elementLocator, checkForVisibility.get());
             } else {
-                return ElementActionsHelpers.waitForElementPresence(driver, elementLocator, numberOfAttempts.get(), checkForVisibility.get());
+                return ElementActionsHelper.waitForElementPresence(driver, elementLocator, numberOfAttempts.get(), checkForVisibility.get());
             }
         }
 
@@ -1518,7 +1519,7 @@ public class ElementActions {
         if (previouslyIdentifiedXpath != null && Boolean.TRUE.equals(ScreenshotManager.getAiSupportedElementIdentification())) {
             internalElementLocator = aiGeneratedElementLocator;
         }
-        int matchingElementsCount = ElementActionsHelpers.waitForElementPresence(driver, internalElementLocator, numberOfAttempts, true);
+        int matchingElementsCount = ElementActionsHelper.waitForElementPresence(driver, internalElementLocator, numberOfAttempts, true);
 
         if (matchingElementsCount == 0
                 && Boolean.TRUE.equals(attemptToFindElementUsingAI(driver, internalElementLocator))) {
@@ -1552,9 +1553,9 @@ public class ElementActions {
                 case 1 -> {
                     if (checkForVisibility && !internalElementLocator.toString().contains("input[@type='file']")
                             && !internalElementLocator.equals(By.tagName("html"))) {
-                            if (Boolean.FALSE.equals(ElementActionsHelpers.waitForElementToBeVisible(driver, elementLocator))) {
-                                failAction(driver, "element is not visible.", elementLocator);
-                            }
+                        if (Boolean.FALSE.equals(ElementActionsHelper.waitForElementToBeVisible(driver, elementLocator))) {
+                            failAction(driver, "element is not visible.", elementLocator);
+                        }
                     }
                     return true;
                 }

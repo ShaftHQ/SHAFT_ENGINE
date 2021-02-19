@@ -10,7 +10,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import java.time.Duration;
 import java.util.ArrayList;
 
-class ElementActionsHelpers {
+class ElementActionsHelper {
     private static final int DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER = Integer
             .parseInt(System.getProperty("defaultElementIdentificationTimeout").trim());
     private static final int ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION = Integer
@@ -19,19 +19,19 @@ class ElementActionsHelpers {
     private static final boolean FORCE_CHECK_FOR_ELEMENT_VISIBILITY = Boolean
             .parseBoolean(System.getProperty("forceCheckForElementVisibility").trim());
 
-    static int waitForElementPresence(WebDriver driver, By elementLocator) {
+    protected static int waitForElementPresence(WebDriver driver, By elementLocator) {
         return waitForElementPresence(driver, elementLocator, ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION, FORCE_CHECK_FOR_ELEMENT_VISIBILITY);
     }
 
-    static int waitForElementPresence(WebDriver driver, By elementLocator, int numberOfAttempts) {
+    protected static int waitForElementPresence(WebDriver driver, By elementLocator, int numberOfAttempts) {
         return waitForElementPresence(driver, elementLocator, numberOfAttempts, FORCE_CHECK_FOR_ELEMENT_VISIBILITY);
     }
 
-    static int waitForElementPresence(WebDriver driver, By elementLocator, boolean checkForVisibility) {
+    protected static int waitForElementPresence(WebDriver driver, By elementLocator, boolean checkForVisibility) {
         return waitForElementPresence(driver, elementLocator, ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION, checkForVisibility);
     }
 
-    static int waitForElementPresence(WebDriver driver, By elementLocator, int numberOfAttempts, boolean checkForVisibility) {
+    protected static int waitForElementPresence(WebDriver driver, By elementLocator, int numberOfAttempts, boolean checkForVisibility) {
         ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
         expectedExceptions.add(NoSuchElementException.class);
         expectedExceptions.add(StaleElementReferenceException.class);
@@ -54,7 +54,7 @@ class ElementActionsHelpers {
         }
     }
 
-    static boolean waitForElementToBeVisible(WebDriver driver, By elementLocator) {
+    protected static boolean waitForElementToBeVisible(WebDriver driver, By elementLocator) {
         if (FORCE_CHECK_FOR_ELEMENT_VISIBILITY) {
             ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
             expectedExceptions.add(NoSuchElementException.class);
@@ -90,7 +90,7 @@ class ElementActionsHelpers {
         return true;
     }
 
-    static boolean waitForElementToBeClickable(WebDriver driver, By elementLocator) {
+    protected static boolean waitForElementToBeClickable(WebDriver driver, By elementLocator) {
         try {
             (new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER))
                     .until(ExpectedConditions.elementToBeClickable(elementLocator));
@@ -101,7 +101,7 @@ class ElementActionsHelpers {
         return true;
     }
 
-    static boolean waitForElementTextToBeNot(WebDriver driver, By elementLocator, String textShouldNotBe) {
+    protected static boolean waitForElementTextToBeNot(WebDriver driver, By elementLocator, String textShouldNotBe) {
         try {
             (new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER))
                     .until(ExpectedConditions.not(ExpectedConditions.textToBe(elementLocator, textShouldNotBe)));
