@@ -5,9 +5,11 @@ import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.validation.Assertions;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
-import org.testng.annotations.*;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
-public class Test_NewValidationActions {
+public class Test_NewValidationHelper {
     WebDriver driver;
 
     @Test
@@ -312,7 +314,7 @@ public class Test_NewValidationActions {
 
     @Test
     public void f36() {
-        Assertions.assertFileExists("src/test/java/testPackage01/", "Test_NewValidationActions.java");
+        Assertions.assertFileExists("src/test/java/testPackage01/", "Test_NewValidationHelper.java");
     }
 
     @Test

@@ -9,11 +9,11 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 
-public class ScreenshotUtilities {
+public class ScreenshotHelper {
 
     private static final String JS_RETRIEVE_DEVICE_PIXEL_RATIO = "var pr = window.devicePixelRatio; if (pr != undefined && pr != null)return pr; else return 1.0;";
 
-    private ScreenshotUtilities() {
+    private ScreenshotHelper() {
         throw new IllegalStateException("Utility class");
     }
 

@@ -7,7 +7,7 @@ import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
-import com.shaft.tools.support.JSHelpers;
+import com.shaft.tools.support.JavaScriptHelper;
 import io.appium.java_client.AppiumDriver;
 import org.opencv.imgproc.Imgproc;
 import org.openqa.selenium.NoSuchElementException;
@@ -63,7 +63,7 @@ public class ElementActions {
                     // element may be outside viewport, attempt to scroll and find it using custom
                     // javascript
                     targetElement = (WebElement) ((JavascriptExecutor) driver)
-                            .executeScript(JSHelpers.ELEMENT_SCROLL_TO_VIEWPORT.getValue(), point.get(0), point.get(1));
+                            .executeScript(JavaScriptHelper.ELEMENT_SCROLL_TO_VIEWPORT.getValue(), point.get(0), point.get(1));
                 }
                 boolean initialLoggingState = ReportManagerHelper.isDiscreteLogging();
                 ReportManagerHelper.setDiscreteLogging(false);
@@ -295,11 +295,11 @@ public class ElementActions {
                 driver.manage().timeouts().setScriptTimeout(10, TimeUnit.SECONDS);
                 JavascriptExecutor js = (JavascriptExecutor) driver;
 
-                String jQueryLoader = JSHelpers.LOAD_JQUERY.getValue();
+                String jQueryLoader = JavaScriptHelper.LOAD_JQUERY.getValue();
 
                 js.executeAsyncScript(jQueryLoader /* , http://localhost:8080/jquery-1.7.2.js */);
 
-                String dragAndDropHelper = JSHelpers.ELEMENT_DRAG_AND_DROP.getValue();
+                String dragAndDropHelper = JavaScriptHelper.ELEMENT_DRAG_AND_DROP.getValue();
 
                 dragAndDropHelper = dragAndDropHelper + "$(arguments[0]).simulateDragDrop({dropTarget:arguments[1]});";
 
@@ -1796,7 +1796,7 @@ public class ElementActions {
         int maximumXpathNodes = 6;
         String newXpath = "";
         for (int i = 0; i < maximumXpathNodes; i++) {
-            String xpathFindingAlgorithm = JSHelpers.ELEMENT_GET_XPATH.getValue();
+            String xpathFindingAlgorithm = JavaScriptHelper.ELEMENT_GET_XPATH.getValue();
             /*
              * $$GetIndex$$ $$GetId$$ $$GetName$$ $$GetType$$ $$GetClass$$ $$GetText$$
              * $$MaxCount$$

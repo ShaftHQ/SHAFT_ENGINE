@@ -6,7 +6,7 @@ import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
-import com.shaft.tools.support.JSHelpers;
+import com.shaft.tools.support.JavaScriptHelper;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.Point;
 import org.openqa.selenium.*;
@@ -400,9 +400,9 @@ public class BrowserActions {
 
         if ((initialWindowSize.height == currentWindowSize.height)
                 && (initialWindowSize.width == currentWindowSize.width)) {
-            ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_FOCUS.getValue());
-            ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_RESET_LOCATION.getValue());
-            ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_RESIZE.getValue()
+            ((JavascriptExecutor) driver).executeScript(JavaScriptHelper.WINDOW_FOCUS.getValue());
+            ((JavascriptExecutor) driver).executeScript(JavaScriptHelper.WINDOW_RESET_LOCATION.getValue());
+            ((JavascriptExecutor) driver).executeScript(JavaScriptHelper.WINDOW_RESIZE.getValue()
                     .replace("$WIDTH", String.valueOf(width)).replace("$HEIGHT", String.valueOf(height)));
 
             currentWindowSize = driver.manage().window().getSize();
@@ -575,9 +575,9 @@ public class BrowserActions {
             ReportManager.logDiscrete("Window size after Toolkit: " + driver.manage().window().getSize().toString());
             return driver.manage().window().getSize();
         } catch (HeadlessException e) {
-            ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_FOCUS.getValue());
-            ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_RESET_LOCATION.getValue());
-            ((JavascriptExecutor) driver).executeScript(JSHelpers.WINDOW_RESIZE.getValue()
+            ((JavascriptExecutor) driver).executeScript(JavaScriptHelper.WINDOW_FOCUS.getValue());
+            ((JavascriptExecutor) driver).executeScript(JavaScriptHelper.WINDOW_RESET_LOCATION.getValue());
+            ((JavascriptExecutor) driver).executeScript(JavaScriptHelper.WINDOW_RESIZE.getValue()
                     .replace("$WIDTH", String.valueOf(targetWidth)).replace("$HEIGHT", String.valueOf(targetHeight)));
 
             ReportManager.logDiscrete(

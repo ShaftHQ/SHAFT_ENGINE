@@ -2,7 +2,7 @@ package com.shaft.gui.element;
 
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.tools.io.ReportManagerHelper;
-import com.shaft.tools.support.JSHelpers;
+import com.shaft.tools.support.JavaScriptHelper;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.NoSuchSessionException;
 import org.openqa.selenium.WebDriver;
@@ -119,11 +119,11 @@ public class JavaScriptWaitManager {
 
         // Wait for Javascript to load
         ExpectedCondition<Boolean> jsLoad = driver -> ((JavascriptExecutor) jsWaitDriver.get())
-                .executeScript(JSHelpers.DOCUMENT_READYSTATE.getValue()).toString().trim()
+                .executeScript(JavaScriptHelper.DOCUMENT_READYSTATE.getValue()).toString().trim()
                 .equalsIgnoreCase(TARGET_DOCUMENT_READY_STATE);
 
         // Get JS is Ready
-        boolean jsReady = jsExec.executeScript(JSHelpers.DOCUMENT_READYSTATE.getValue()).toString().trim()
+        boolean jsReady = jsExec.executeScript(JavaScriptHelper.DOCUMENT_READYSTATE.getValue()).toString().trim()
                 .equalsIgnoreCase(TARGET_DOCUMENT_READY_STATE);
 
         // Wait Javascript until it is Ready!
@@ -141,7 +141,7 @@ public class JavaScriptWaitManager {
                 // More Wait for stability (Optional)
                 sleep();
                 tryCounter++;
-                jsReady = jsExec.executeScript(JSHelpers.DOCUMENT_READYSTATE.getValue()).toString().trim()
+                jsReady = jsExec.executeScript(JavaScriptHelper.DOCUMENT_READYSTATE.getValue()).toString().trim()
                         .equalsIgnoreCase(TARGET_DOCUMENT_READY_STATE);
             }
         }

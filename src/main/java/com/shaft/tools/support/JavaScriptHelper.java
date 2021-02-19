@@ -1,7 +1,7 @@
 package com.shaft.tools.support;
 
 @SuppressWarnings("unused")
-public enum JSHelpers {
+public enum JavaScriptHelper {
     LOAD_JQUERY("""
             /** dynamically load jQuery */
             (function(jqueryUrl, callback) {
@@ -291,7 +291,7 @@ public enum JSHelpers {
 
     private final String value;
 
-    JSHelpers(String type) {
+    JavaScriptHelper(String type) {
         this.value = type;
     }
 

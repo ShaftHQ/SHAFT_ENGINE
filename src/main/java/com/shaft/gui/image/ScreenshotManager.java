@@ -246,9 +246,9 @@ public class ScreenshotManager {
                 WebElement[] skippedElementsArray = new WebElement[skippedElementsList.size()];
                 skippedElementsArray = skippedElementsList.toArray(skippedElementsArray);
 
-                return ScreenshotUtilities.makeFullScreenshot(driver, skippedElementsArray);
+                return ScreenshotHelper.makeFullScreenshot(driver, skippedElementsArray);
             } else {
-                return ScreenshotUtilities.makeFullScreenshot(driver);
+                return ScreenshotHelper.makeFullScreenshot(driver);
             }
         } catch (Exception e) {
             ReportManagerHelper.log(e);

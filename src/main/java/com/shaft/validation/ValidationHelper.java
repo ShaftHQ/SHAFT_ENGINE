@@ -18,7 +18,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-class ValidationActions {
+class ValidationHelper {
     //TODO: implement element attribute and element exists validations for sikuli actions
     private static final int ATTEMPTS_ELEMENTNOTFOUNDEXCEPTION = Integer
             .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
@@ -29,7 +29,7 @@ class ValidationActions {
     private static List<String> verificationFailuresList = new ArrayList<>();
     private static AssertionError verificationError = null;
 
-    private ValidationActions() {
+    private ValidationHelper() {
         throw new IllegalStateException("Utility class");
     }
 
