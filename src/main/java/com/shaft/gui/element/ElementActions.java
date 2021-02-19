@@ -1551,11 +1551,11 @@ public class ElementActions {
             switch (matchingElementsCount) {
                 case 0 -> failAction(driver, "zero elements found matching this locator \"" + internalElementLocator + "\".", internalElementLocator);
                 case 1 -> {
-                    if (checkForVisibility && !internalElementLocator.toString().contains("input[@type='file']")
-                            && !internalElementLocator.equals(By.tagName("html"))) {
-                        if (Boolean.FALSE.equals(ElementActionsHelper.waitForElementToBeVisible(driver, elementLocator))) {
-                            failAction(driver, "element is not visible.", elementLocator);
-                        }
+                    if (checkForVisibility
+                            && !internalElementLocator.toString().contains("input[@type='file']")
+                            && !internalElementLocator.equals(By.tagName("html"))
+                            && Boolean.FALSE.equals(ElementActionsHelper.waitForElementToBeVisible(driver, elementLocator))) {
+                        failAction(driver, "element is not visible.", elementLocator);
                     }
                     return true;
                 }

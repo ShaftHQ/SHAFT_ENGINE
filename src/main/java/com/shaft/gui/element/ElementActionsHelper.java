@@ -1,7 +1,8 @@
 package com.shaft.gui.element;
 
 import com.shaft.tools.io.ReportManager;
-import org.openqa.selenium.*;
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.interactions.Locatable;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.FluentWait;
@@ -33,9 +34,9 @@ class ElementActionsHelper {
 
     protected static int waitForElementPresence(WebDriver driver, By elementLocator, int numberOfAttempts, boolean checkForVisibility) {
         ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
-        expectedExceptions.add(NoSuchElementException.class);
-        expectedExceptions.add(StaleElementReferenceException.class);
-        if (checkForVisibility) expectedExceptions.add(ElementNotVisibleException.class);
+        expectedExceptions.add(org.openqa.selenium.NoSuchElementException.class);
+        expectedExceptions.add(org.openqa.selenium.StaleElementReferenceException.class);
+        if (checkForVisibility) expectedExceptions.add(org.openqa.selenium.ElementNotVisibleException.class);
 
         try {
             return new FluentWait<>(driver)
@@ -47,7 +48,7 @@ class ElementActionsHelper {
                         nestedDriver.findElement(elementLocator);
                         return nestedDriver.findElements(elementLocator).size();
                     });
-        } catch (TimeoutException e) {
+        } catch (org.openqa.selenium.TimeoutException e) {
             // In case the element was not found and the timeout expired
             ReportManager.logDiscrete(e);
             return 0;
@@ -57,10 +58,10 @@ class ElementActionsHelper {
     protected static boolean waitForElementToBeVisible(WebDriver driver, By elementLocator) {
         if (FORCE_CHECK_FOR_ELEMENT_VISIBILITY) {
             ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
-            expectedExceptions.add(NoSuchElementException.class);
-            expectedExceptions.add(StaleElementReferenceException.class);
-            expectedExceptions.add(ElementNotVisibleException.class);
-            expectedExceptions.add(WebDriverException.class);
+            expectedExceptions.add(org.openqa.selenium.NoSuchElementException.class);
+            expectedExceptions.add(org.openqa.selenium.StaleElementReferenceException.class);
+            expectedExceptions.add(org.openqa.selenium.ElementNotVisibleException.class);
+            expectedExceptions.add(org.openqa.selenium.WebDriverException.class);
             // UnsupportedCommandException getElementLocationOnceScrolledIntoView
             // TODO: appium -> swipe element into view
 
@@ -74,14 +75,14 @@ class ElementActionsHelper {
                             ((Locatable) driver.findElement(elementLocator)).getCoordinates().inViewPort();
                             return true;
                         });
-            } catch (TimeoutException e) {
+            } catch (org.openqa.selenium.TimeoutException e) {
                 // In case the element was not visible and the timeout expired
                 ReportManager.logDiscrete(e);
             }
             if (Boolean.FALSE.equals(driver.findElement(elementLocator).isDisplayed())) {
                 try {
                     new WebDriverWait(driver, (long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER * ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION).until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
-                } catch (TimeoutException e) {
+                } catch (org.openqa.selenium.TimeoutException e) {
                     ReportManager.logDiscrete(e);
                     return false;
                 }
@@ -94,7 +95,7 @@ class ElementActionsHelper {
         try {
             (new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER))
                     .until(ExpectedConditions.elementToBeClickable(elementLocator));
-        } catch (TimeoutException e) {
+        } catch (org.openqa.selenium.TimeoutException e) {
             ReportManager.logDiscrete(e);
             return false;
         }
@@ -105,7 +106,7 @@ class ElementActionsHelper {
         try {
             (new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER))
                     .until(ExpectedConditions.not(ExpectedConditions.textToBe(elementLocator, textShouldNotBe)));
-        } catch (TimeoutException e) {
+        } catch (org.openqa.selenium.TimeoutException e) {
             ReportManager.logDiscrete(e);
             return false;
         }
