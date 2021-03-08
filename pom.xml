@@ -68,7 +68,7 @@
         <cucumber.version>6.10.0</cucumber.version>
         <cverges-expect4j.version>1.9</cverges-expect4j.version>
 
-        <openpnp-opencv.version>4.3.0-3</openpnp-opencv.version>
+        <openpnp-opencv.version>4.5.1-0</openpnp-opencv.version>
         <applitools-eyes.version>4.14.0</applitools-eyes.version>
         <sikuixapi.version>2.0.5</sikuixapi.version>
 
