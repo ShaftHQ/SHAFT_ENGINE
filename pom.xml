@@ -36,7 +36,7 @@
 
         <webdrivermanager.version>4.3.1</webdrivermanager.version>
         <allure-testng.version>2.13.8</allure-testng.version> <!-- UPDATE internal.properties -->
-        <extentreports.version>5.0.6</extentreports.version>
+        <extentreports.version>5.0.7</extentreports.version>
         <aspectj.version>1.9.6</aspectj.version> <!-- 1.9.5 DO NOT UPDATE (Search and replace) -->
 
         <rest-assured.version>4.3.3</rest-assured.version>
