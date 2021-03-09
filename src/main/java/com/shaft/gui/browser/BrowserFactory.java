@@ -86,26 +86,15 @@ public class BrowserFactory {
     }
 
     public static boolean isMobileExecution() {
-        if (EXECUTION_ADDRESS != null && !"local".equals(EXECUTION_ADDRESS) && TARGET_PLATFORM_NAME != null) {
-            return !"".equals(TARGET_PLATFORM_NAME);
-        }
-        return false;
+        return "Android".equalsIgnoreCase(targetOperatingSystem) || "iOS".equalsIgnoreCase(targetOperatingSystem);
     }
 
     public static boolean isMobileWebExecution() {
-        if (EXECUTION_ADDRESS != null && !"local".equals(EXECUTION_ADDRESS) && TARGET_PLATFORM_NAME != null
-                && TARGET_PLATFORM_BROWSER_NAME != null) {
-            return !"".equals(TARGET_PLATFORM_NAME) && !"".equals(TARGET_PLATFORM_BROWSER_NAME);
-        }
-        return false;
+        return isMobileExecution() && TARGET_PLATFORM_BROWSER_NAME != null && !"".equals(TARGET_PLATFORM_BROWSER_NAME);
     }
 
     public static boolean isMobileNativeExecution() {
-        if (EXECUTION_ADDRESS != null && !"local".equals(EXECUTION_ADDRESS) && TARGET_PLATFORM_NAME != null) {
-            return !"".equals(TARGET_PLATFORM_NAME)
-                    && (TARGET_PLATFORM_BROWSER_NAME == null || "".equals(TARGET_PLATFORM_BROWSER_NAME));
-        }
-        return false;
+        return isMobileExecution() && (TARGET_PLATFORM_BROWSER_NAME == null || "".equals(TARGET_PLATFORM_BROWSER_NAME));
     }
 
     /**
@@ -625,12 +614,13 @@ public class BrowserFactory {
     private static void attachWebDriverLogs(WebDriver driver) {
         try {
             driver.manage().logs().getAvailableLogTypes().forEach(logType -> {
-                StringBuilder logBuilder = new StringBuilder();
-                for (LogEntry entry : driver.manage().logs().get(logType)) {
-                    logBuilder.append(entry.toString()).append(System.lineSeparator());
-                }
-                ReportManagerHelper.attach("Selenium WebDriver Logs", logType, logBuilder.toString());
-            });
+                        StringBuilder logBuilder = new StringBuilder();
+                        for (LogEntry entry : driver.manage().logs().get(logType)) {
+                            logBuilder.append(entry.toString()).append(System.lineSeparator());
+                        }
+                        ReportManagerHelper.attach("Selenium WebDriver Logs", logType, logBuilder.toString());
+                    }
+            );
         } catch (WebDriverException e) {
             // exception when the defined logging is not supported
         }
