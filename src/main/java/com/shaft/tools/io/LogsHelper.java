@@ -7,7 +7,7 @@ import org.testng.annotations.AfterSuite;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-public class LogsReporter {
+public class LogsHelper {
     //TODO: migrate invokedMethodListener to annotations here?
     @AfterSuite
     public void closureActivities() {

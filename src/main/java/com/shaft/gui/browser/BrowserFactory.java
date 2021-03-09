@@ -210,7 +210,7 @@ public class BrowserFactory {
         }
         ReportManager.log(message);
         if (rootCauseException != null && rootCauseException.length >= 1) {
-            ReportManager.log(rootCauseException[0]);
+            ReportManagerHelper.log(rootCauseException[0]);
             Assert.fail(message, rootCauseException[0]);
         } else {
             Assert.fail(message);
@@ -460,7 +460,7 @@ public class BrowserFactory {
         try {
             driver.set(new SafariDriver(sfOptions));
         } catch (SessionNotCreatedException e) {
-            ReportManager.log(e);
+            ReportManagerHelper.log(e);
             failAction("Failed to create a session on" + BrowserType.APPLE_SAFARI.toString());
         }
         storeDriverInstance(BrowserType.APPLE_SAFARI.getValue());
@@ -572,7 +572,7 @@ public class BrowserFactory {
 //            ReportManager.log(e);
             failAction("Unreachable Browser, terminated test suite execution.", e);
         } catch (WebDriverException e) {
-            ReportManager.log(e);
+            ReportManagerHelper.log(e);
             if (e.getMessage().contains("Error forwarding the new session cannot find")) {
                 ReportManager.log("Failed to run remotely on: [" + targetOperatingSystem + "], [" + browserName + "], ["
                         + TARGET_HUB_URL + "].");
@@ -617,7 +617,7 @@ public class BrowserFactory {
         } catch (WebDriverException e) {
             // browser was already closed
         } catch (Exception e) {
-            ReportManager.log(e);
+            ReportManagerHelper.log(e);
         }
 
     }
@@ -706,7 +706,7 @@ public class BrowserFactory {
                 }
             }
         } catch (NullPointerException e) {
-            ReportManager.log(e);
+            ReportManagerHelper.log(e);
             ReportManager.log("Unhandled Exception with Browser Type [" + internalBrowserName + "].");
             Assert.fail("Unhandled Exception with Browser Type [" + internalBrowserName + "].", e);
         }

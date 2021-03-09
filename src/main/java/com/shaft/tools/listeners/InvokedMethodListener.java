@@ -4,7 +4,6 @@ import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
-import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.validation.Verifications;
 import io.qameta.allure.Issue;
@@ -36,7 +35,7 @@ public class InvokedMethodListener implements IInvokedMethodListener {
             testSize = testResult.getTestContext().getAllTestMethods().length;
         } catch (NullPointerException e) {
             // this is thrown if there is no test context for some reason...
-            ReportManager.log(e);
+            ReportManagerHelper.log(e);
         }
         ITestNGMethod testMethod = method.getTestMethod();
 
@@ -69,7 +68,7 @@ public class InvokedMethodListener implements IInvokedMethodListener {
         // implementing the new kill switch at the start of every test method
         if (BrowserFactory.isKillSwitch()) {
             SkipException ex = new SkipException("Skipping Test: " + testResult.getName());
-            ReportManager.log(ex);
+            ReportManagerHelper.log(ex);
             throw ex;
         }
 
@@ -77,7 +76,7 @@ public class InvokedMethodListener implements IInvokedMethodListener {
             Issue issue = testResult.getMethod().getConstructorOrMethod().getMethod().getAnnotation(Issue.class);
             if (issue != null) {
                 SkipException ex = new SkipException("Skipping Test as it's expected to fail due to open issue: [" + issue.value() + "]");
-                ReportManager.log(ex);
+                ReportManagerHelper.log(ex);
                 throw ex;
             }
             Issues issues = testResult.getMethod().getConstructorOrMethod().getMethod().getAnnotation(Issues.class);
@@ -85,7 +84,7 @@ public class InvokedMethodListener implements IInvokedMethodListener {
                 StringBuilder issueNames = new StringBuilder();
                 Arrays.stream(issues.value()).iterator().forEachRemaining(issueI -> issueNames.append(issueI.value()).append(" ,"));
                 SkipException ex = new SkipException("Skipping Test as it's expected to fail due to open issues: [" + issueNames.substring(0, issueNames.length() - 2) + "]");
-                ReportManager.log(ex);
+                ReportManagerHelper.log(ex);
                 throw ex;
             }
         }

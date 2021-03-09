@@ -3,7 +3,7 @@ package com.shaft.gui.element;
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
-import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
 import org.apache.commons.io.IOUtils;
 import org.sikuli.basics.Settings;
 import org.sikuli.script.*;
@@ -325,7 +325,7 @@ public class SikuliActions {
                 try {
                     screen.wait(element).type(element, Key.BACKSPACE);
                 } catch (FindFailed findFailed) {
-                    ReportManager.log(findFailed);
+                    ReportManagerHelper.log(findFailed);
                 }
             });
         }

@@ -122,7 +122,7 @@ public class ImageProcessingActions {
             }
 
         } catch (NullPointerException | IOException e) {
-            ReportManager.log(e);
+            ReportManagerHelper.log(e);
             ReportManager.log("Failed to compare image files ...");
         }
     }
@@ -153,7 +153,7 @@ public class ImageProcessingActions {
         try {
             ImageIO.write(image, "jpg", baos);
         } catch (IOException e) {
-            ReportManager.log(e);
+            ReportManagerHelper.log(e);
         }
         return baos.toByteArray();
     }
@@ -204,7 +204,7 @@ public class ImageProcessingActions {
                             File output = new File("target/openCV/" + System.currentTimeMillis() + ".png");
                             ImageIO.write(image, "png", output);
                         } catch (IOException e) {
-                            ReportManager.log(e);
+                            ReportManagerHelper.log(e);
                             return Collections.emptyList();
                         }
                     }
@@ -225,7 +225,7 @@ public class ImageProcessingActions {
                     ReportManager.logDiscrete("Successfully identified the element using AI; OpenCV.");
                     return Arrays.asList(x, y);
                 } catch (org.opencv.core.CvException e) {
-                    ReportManager.log(e);
+                    ReportManagerHelper.log(e);
                     ReportManager.log("Failed to identify the element using AI; openCV core exception.");
                     return Collections.emptyList();
                 }
@@ -349,7 +349,7 @@ public class ImageProcessingActions {
             ReportManager.logDiscrete("Successfully validated the element using AI; Applitools Eyes.");
             return eyesValidationResult.isNew() || eyesValidationResult.isPassed();
         } catch (DiffsFoundException e) {
-            ReportManager.log(e);
+            ReportManagerHelper.log(e);
             return false;
         } finally {
             eyes.abortIfNotClosed();
@@ -405,7 +405,7 @@ public class ImageProcessingActions {
             List<Object> testScreenshotAttachment = Arrays.asList("Test Screenshot", relatedTestFileName,
                     new FileInputStream(screenshot));
 
-            ReportManager.log(
+            ReportManagerHelper.log(
                     "Test Screenshot [" + relatedTestFileName + "] and related Refrence Image ["
                             + relatedReferenceFileName + "] match by [" + percentage + "] percent.",
                     Arrays.asList(referenceScreenshotAttachment, testScreenshotAttachment));
@@ -446,7 +446,7 @@ public class ImageProcessingActions {
                 OpenCV.loadLocally();
                 ReportManager.logDiscrete("Loaded Local OpenCV");
             } catch (UnsatisfiedLinkError e2) {
-                ReportManager.log(e);
+                ReportManagerHelper.log(e);
                 ReportManager.logDiscrete("Failed to load OpenCV");
             }
         }

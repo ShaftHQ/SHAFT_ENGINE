@@ -2,6 +2,7 @@ package com.shaft.db;
 
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
 import org.testng.Assert;
 
 import java.sql.*;
@@ -97,7 +98,7 @@ public class DatabaseActions {
                 }
             }
         } catch (SQLException | NullPointerException rootCauseException) {
-            ReportManager.log(rootCauseException);
+            ReportManagerHelper.log(rootCauseException);
             failAction(reportMessage, rootCauseException);
         }
         if (Boolean.TRUE.equals(foundRow)) {
@@ -131,7 +132,7 @@ public class DatabaseActions {
                 }
             }
         } catch (SQLException | NullPointerException rootCauseException) {
-            ReportManager.log(rootCauseException);
+            ReportManagerHelper.log(rootCauseException);
             failAction(rootCauseException);
         }
         passAction(columnName);
@@ -155,7 +156,7 @@ public class DatabaseActions {
                 resultSet.beforeFirst(); // reset pointer
             }
         } catch (SQLException rootCauseException) {
-            ReportManager.log(rootCauseException);
+            ReportManagerHelper.log(rootCauseException);
             failAction(rootCauseException);
         }
         passAction();
@@ -223,7 +224,7 @@ public class DatabaseActions {
         }
 
         if (!attachments.equals(new ArrayList<>())) {
-            ReportManager.log(message, attachments);
+            ReportManagerHelper.log(message, attachments);
         } else {
             ReportManager.log(message);
         }
@@ -276,7 +277,7 @@ public class DatabaseActions {
                 str.append(readColumnData(resultSet, columnsCount, lastRowID));
             }
         } catch (SQLException | NullPointerException rootCauseException) {
-            ReportManager.log(rootCauseException);
+            ReportManagerHelper.log(rootCauseException);
             failAction(rootCauseException);
         }
         return str.toString().trim();
@@ -295,7 +296,7 @@ public class DatabaseActions {
         try {
             resultSet = createStatement(createConnection()).executeQuery(sql);
         } catch (SQLException | NullPointerException rootCauseException) {
-            ReportManager.log(rootCauseException);
+            ReportManagerHelper.log(rootCauseException);
             failAction(getReportMessage("SELECT", sql), rootCauseException);
         }
 
@@ -324,7 +325,7 @@ public class DatabaseActions {
             updatedRows = createStatement(createConnection()).executeUpdate(sql);
             passAction(sql);
         } catch (SQLException | NullPointerException rootCauseException) {
-            ReportManager.log(rootCauseException);
+            ReportManagerHelper.log(rootCauseException);
             failAction(getReportMessage("UPDATE", sql), rootCauseException);
         }
         return updatedRows;
@@ -357,7 +358,7 @@ public class DatabaseActions {
                         Integer.parseInt(System.getProperty("databaseNetworkTimeout")) * 60000);
             }
         } catch (SQLException rootCauseException) {
-            ReportManager.log(rootCauseException);
+            ReportManagerHelper.log(rootCauseException);
             failAction(connectionString, rootCauseException);
         }
 
@@ -378,11 +379,11 @@ public class DatabaseActions {
             statement.setQueryTimeout(Integer.parseInt(System.getProperty("databaseQueryTimeout")));
         } catch (SQLFeatureNotSupportedException rootCauseException) {
             if (!rootCauseException.getMessage().contains("org.postgresql.jdbc4.Jdbc4Statement.setQueryTimeout")) {
-                ReportManager.log(rootCauseException);
+                ReportManagerHelper.log(rootCauseException);
                 failAction(connection.toString(), rootCauseException);
             }
         } catch (SQLException rootCauseException) {
-            ReportManager.log(rootCauseException);
+            ReportManagerHelper.log(rootCauseException);
             failAction(connection.toString(), rootCauseException);
         }
 

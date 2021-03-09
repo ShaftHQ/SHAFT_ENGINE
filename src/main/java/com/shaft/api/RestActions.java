@@ -368,11 +368,11 @@ public class RestActions {
                         actualJsonObject, jsonPathToTargetArray);
             };
         } catch (IOException rootCauseException) {
-            ReportManager.log(rootCauseException);
+            ReportManagerHelper.log(rootCauseException);
             failAction("Couldn't find the desired file. [" + referenceJsonFilePath + "].", rootCauseException);
             comparisonResult = false;
         } catch (ParseException | JSONException rootCauseException) {
-            ReportManager.log(rootCauseException);
+            ReportManagerHelper.log(rootCauseException);
             failAction("Couldn't parse the desired file. [" + referenceJsonFilePath + "].", rootCauseException);
             comparisonResult = false;
         }
@@ -439,7 +439,7 @@ public class RestActions {
             attachments.add(reportResponseBody(response, initialLoggingState));
 
             if (Boolean.FALSE.equals(initialLoggingState)) {
-                ReportManager.log(message, attachments);
+                ReportManagerHelper.log(message, attachments);
             } else {
                 ReportManager.logDiscrete(message);
             }
@@ -679,7 +679,7 @@ public class RestActions {
             transformer.transform(xmlInput, new StreamResult(stringWriter));
             return stringWriter.toString().trim();
         } catch (TransformerException e) {
-            ReportManager.log(e);
+            ReportManagerHelper.log(e);
             return input;
         }
     }
@@ -913,7 +913,7 @@ public class RestActions {
                 default -> builder.setBody(body);
             }
         } catch (Exception rootCauseException) {
-            ReportManager.log(rootCauseException);
+            ReportManagerHelper.log(rootCauseException);
             failAction("Issue with parsing body content", rootCauseException);
 
         }
@@ -1079,7 +1079,7 @@ public class RestActions {
                 failAction(reportMessage, requestBody, response);
             }
         } catch (Exception rootCauseException) {
-            ReportManager.log(rootCauseException);
+            ReportManagerHelper.log(rootCauseException);
             if (response != null) {
                 failAction(request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", requestBody,
                         response, rootCauseException);

@@ -34,7 +34,7 @@ public class JSONFileManager {
             //unreachable code because if the file was not found then the reader would have failed at a previous step
         }
         attachments.add(testDataFileAttachment);
-        ReportManager.log("Successfully loaded the following test data file [" + jsonFilePath + "].", attachments);
+        ReportManagerHelper.log("Successfully loaded the following test data file [" + jsonFilePath + "].", attachments);
     }
 
     /**
@@ -114,32 +114,29 @@ public class JSONFileManager {
                 case MAP -> testData = JsonPath.from(this.reader).getMap(jsonPath);
             }
         } catch (ClassCastException rootCauseException) {
-            ReportManager.log(rootCauseException);
+            ReportManagerHelper.log(rootCauseException);
             ReportManager.log("Incorrect jsonPath. [" + jsonPath + "].");
             Assert.fail("Incorrect jsonPath. [" + jsonPath + "].");
         } catch (JsonPathException | IllegalArgumentException rootCauseException) {
-            ReportManager.log(rootCauseException);
+            ReportManagerHelper.log(rootCauseException);
             ReportManager.log("Couldn't read the desired file. [" + this.jsonFilePath + "].");
             Assert.fail("Couldn't read the desired file. [" + this.jsonFilePath + "].");
         }
         return testData;
     }
-    
+
     /**
-	 * initializes the json reader using the target json file path
-	 * 
-	 * @return the current value of the reader that had been initialized
-	 */
-    private FileReader initializeReader() {
-    	this.reader = null;
-    	try {
+     * initializes the json reader using the target json file path
+     */
+    private void initializeReader() {
+        this.reader = null;
+        try {
             reader = new FileReader(jsonFilePath);
         } catch (FileNotFoundException rootCauseException) {
-            ReportManager.log(rootCauseException);
+            ReportManagerHelper.log(rootCauseException);
             ReportManager.log("Couldn't find the desired file. [" + jsonFilePath + "].");
             Assert.fail("Couldn't find the desired file. [" + jsonFilePath + "].");
         }
-    	return reader;
     }
 
     public enum DataType {

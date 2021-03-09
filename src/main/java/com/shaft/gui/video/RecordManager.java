@@ -75,7 +75,7 @@ public class RecordManager {
                 ReportManagerHelper.attach("Video Recording", testMethodName,
                         new FileInputStream(encodeRecording(pathToRecording)));
             } catch (FileNotFoundException e) {
-                ReportManager.logDiscrete(e);
+                ReportManagerHelper.logDiscrete(e);
             }
 
             recorder.set(null);
@@ -108,7 +108,7 @@ public class RecordManager {
             Encoder encoder = new Encoder();
             encoder.encode(new MultimediaObject(source), target, attrs);
         } catch (EncoderException e) {
-            ReportManager.logDiscrete(e);
+            ReportManagerHelper.logDiscrete(e);
         }
         return target;
     }

@@ -1,6 +1,6 @@
 package com.shaft.tools.listeners;
 
-import com.shaft.tools.io.LogsReporter;
+import com.shaft.tools.io.LogsHelper;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import org.testng.IAlterSuiteListener;
@@ -65,7 +65,7 @@ public class AlterSuiteListener implements IAlterSuiteListener {
 
     private void addLogsReporterToFirstTest(List<XmlSuite> suites) {
         // alter first test and add the afterSuiteMethod
-        XmlClass logsReporter = new XmlClass(LogsReporter.class.getName());
+        XmlClass logsReporter = new XmlClass(LogsHelper.class.getName());
         suites.get(0).getTests().get(0).getClasses().add(logsReporter);
     }
 
