@@ -4,7 +4,7 @@ import com.shaft.cli.FileActions;
 
 import java.nio.file.Paths;
 
-public class ProjectStructureFactory {
+public class ProjectStructureManager {
     public static void initialize() {
         if (System.getProperty("executionAddress").trim().equals("local")
                 && !FileActions.doesFileExist(System.getProperty("propertiesFolderPath") + "ExecutionPlatform.properties")

@@ -1,6 +1,6 @@
 package com.shaft.api;
 
-import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
@@ -107,7 +107,7 @@ public class RequestBuilder {
                 RestActions.failAction(reportMessage, requestBody, response);
             }
         } catch (Exception rootCauseException) {
-            ReportManager.log(rootCauseException);
+            ReportManagerHelper.log(rootCauseException);
             if (response != null) {
                 RestActions.failAction(request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", requestBody,
                         response, rootCauseException);

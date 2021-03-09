@@ -1,6 +1,6 @@
 package com.shaft.gui.element;
 
-import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.interactions.Locatable;
@@ -49,7 +49,7 @@ class ElementActionsHelper {
                     });
         } catch (org.openqa.selenium.TimeoutException e) {
             // In case the element was not found and the timeout expired
-            ReportManager.logDiscrete(e);
+            ReportManagerHelper.logDiscrete(e);
             return 0;
         }
     }
@@ -76,13 +76,13 @@ class ElementActionsHelper {
                         });
             } catch (org.openqa.selenium.TimeoutException e) {
                 // In case the element was not visible and the timeout expired
-                ReportManager.logDiscrete(e);
+                ReportManagerHelper.logDiscrete(e);
             }
             if (Boolean.FALSE.equals(driver.findElement(elementLocator).isDisplayed())) {
                 try {
                     new WebDriverWait(driver, (long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER * ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION).until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
                 } catch (org.openqa.selenium.TimeoutException e) {
-                    ReportManager.logDiscrete(e);
+                    ReportManagerHelper.logDiscrete(e);
                     return false;
                 }
             }
@@ -95,7 +95,7 @@ class ElementActionsHelper {
             (new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER))
                     .until(ExpectedConditions.elementToBeClickable(elementLocator));
         } catch (org.openqa.selenium.TimeoutException e) {
-            ReportManager.logDiscrete(e);
+            ReportManagerHelper.logDiscrete(e);
             return false;
         }
         return true;
@@ -106,7 +106,7 @@ class ElementActionsHelper {
             (new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER))
                     .until(ExpectedConditions.not(ExpectedConditions.textToBe(elementLocator, textShouldNotBe)));
         } catch (org.openqa.selenium.TimeoutException e) {
-            ReportManager.logDiscrete(e);
+            ReportManagerHelper.logDiscrete(e);
             return false;
         }
         return true;
