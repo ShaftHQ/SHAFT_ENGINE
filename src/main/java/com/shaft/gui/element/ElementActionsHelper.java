@@ -1,5 +1,6 @@
 package com.shaft.gui.element;
 
+import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.tools.io.ReportManagerHelper;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -55,7 +56,7 @@ class ElementActionsHelper {
     }
 
     protected static boolean waitForElementToBeVisible(WebDriver driver, By elementLocator) {
-        if (FORCE_CHECK_FOR_ELEMENT_VISIBILITY) {
+        if (FORCE_CHECK_FOR_ELEMENT_VISIBILITY && !BrowserFactory.isMobileNativeExecution()) {
             ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
             expectedExceptions.add(org.openqa.selenium.NoSuchElementException.class);
             expectedExceptions.add(org.openqa.selenium.StaleElementReferenceException.class);
@@ -91,12 +92,14 @@ class ElementActionsHelper {
     }
 
     protected static boolean waitForElementToBeClickable(WebDriver driver, By elementLocator) {
-        try {
-            (new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER))
-                    .until(ExpectedConditions.elementToBeClickable(elementLocator));
-        } catch (org.openqa.selenium.TimeoutException e) {
-            ReportManagerHelper.logDiscrete(e);
-            return false;
+        if (!BrowserFactory.isMobileNativeExecution()) {
+            try {
+                (new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER))
+                        .until(ExpectedConditions.elementToBeClickable(elementLocator));
+            } catch (org.openqa.selenium.TimeoutException e) {
+                ReportManagerHelper.logDiscrete(e);
+                return false;
+            }
         }
         return true;
     }
