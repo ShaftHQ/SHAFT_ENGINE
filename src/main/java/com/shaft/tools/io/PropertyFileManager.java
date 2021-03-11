@@ -54,7 +54,17 @@ public class PropertyFileManager {
 
             overrideTargetOperatingSystemForLocalExecution();
             manageMaximumPerformanceMode();
+
+            setMobilePlatform();
             readPropertyFiles = false;
+        }
+    }
+
+    private static void setMobilePlatform() {
+        String targetOperatingSystem = System.getProperty("targetOperatingSystem");
+        switch (targetOperatingSystem) {
+            case "Android", "iOS" -> System.setProperty("mobile_platformName", targetOperatingSystem);
+            default -> System.setProperty("mobile_platformName", "");
         }
     }
 

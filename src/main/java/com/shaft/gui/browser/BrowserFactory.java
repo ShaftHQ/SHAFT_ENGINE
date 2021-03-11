@@ -21,7 +21,6 @@ import org.openqa.selenium.firefox.FirefoxOptions;
 import org.openqa.selenium.firefox.FirefoxProfile;
 import org.openqa.selenium.ie.InternetExplorerDriver;
 import org.openqa.selenium.ie.InternetExplorerOptions;
-import org.openqa.selenium.logging.LogEntry;
 import org.openqa.selenium.logging.LogType;
 import org.openqa.selenium.logging.LoggingPreferences;
 import org.openqa.selenium.remote.*;
@@ -51,8 +50,7 @@ public class BrowserFactory {
     private static String TARGET_BROWSER_NAME;
     // Default | MozillaFirefox | MicrosoftInternetExplorer | GoogleChrome |
     // MicrosoftEdge | Safari
-    private static String TARGET_PLATFORM_NAME;
-    private static String TARGET_PLATFORM_BROWSER_NAME;
+    private static String TARGET_MOBILE_BROWSER_NAME;
     private static String WEBDRIVERMANAGER_MESSAGE = "Identifying OS/Browser combination and selecting the correct driver version automatically. Please note that if a new driver executable will be downloaded it may take some time...";
     private static int PAGE_LOAD_TIMEOUT;
     private static int SCRIPT_TIMEOUT;
@@ -90,11 +88,11 @@ public class BrowserFactory {
     }
 
     public static boolean isMobileWebExecution() {
-        return isMobileExecution() && TARGET_PLATFORM_BROWSER_NAME != null && !"".equals(TARGET_PLATFORM_BROWSER_NAME);
+        return isMobileExecution() && TARGET_MOBILE_BROWSER_NAME != null && !"".equals(TARGET_MOBILE_BROWSER_NAME);
     }
 
     public static boolean isMobileNativeExecution() {
-        return isMobileExecution() && (TARGET_PLATFORM_BROWSER_NAME == null || "".equals(TARGET_PLATFORM_BROWSER_NAME));
+        return isMobileExecution() && (TARGET_MOBILE_BROWSER_NAME == null || "".equals(TARGET_MOBILE_BROWSER_NAME));
     }
 
     /**
@@ -236,10 +234,6 @@ public class BrowserFactory {
     private static void checkBrowserOSCrossCompatibility(String browserName) {
         boolean isCompatibleBrowser = false;
         BrowserType browserType = getBrowserTypeFromName(browserName);
-
-        if (isMobileExecution()) {
-            targetOperatingSystem = System.getProperty("mobile_platformName");
-        }
 
         OperatingSystemType operatingSystem = getOperatingSystemFromName(targetOperatingSystem);
 
@@ -479,7 +473,6 @@ public class BrowserFactory {
         BrowserType browserType;
 
         if (isMobileNativeExecution()) {
-            targetOperatingSystem = TARGET_PLATFORM_NAME;
             browserType = BrowserType.MOBILE_NATIVE;
         } else {
             browserType = getBrowserTypeFromName(browserName);
@@ -540,9 +533,9 @@ public class BrowserFactory {
                     break;
                 case MOBILE_BROWSER:
                 case MOBILE_NATIVE:
-                    if ("Android".equals(System.getProperty("mobile_platformName"))) {
+                    if ("Android".equals(targetOperatingSystem)) {
                         driver.set(new AndroidDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
-                    } else if ("iOS".equals(System.getProperty("mobile_platformName"))) {
+                    } else if ("iOS".equals(targetOperatingSystem)) {
                         driver.set(new IOSDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
                     } else {
                         driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
@@ -615,9 +608,7 @@ public class BrowserFactory {
         try {
             driver.manage().logs().getAvailableLogTypes().forEach(logType -> {
                         StringBuilder logBuilder = new StringBuilder();
-                        for (LogEntry entry : driver.manage().logs().get(logType)) {
-                            logBuilder.append(entry.toString()).append(System.lineSeparator());
-                        }
+                        driver.manage().logs().get(logType).getAll().forEach(logEntry -> logBuilder.append(logEntry.toString()).append(System.lineSeparator()));
                         ReportManagerHelper.attach("Selenium WebDriver Logs", logType, logBuilder.toString());
                     }
             );
@@ -718,8 +709,7 @@ public class BrowserFactory {
         TARGET_BROWSER_NAME = System.getProperty("targetBrowserName");
         // Default | MozillaFirefox | MicrosoftInternetExplorer | GoogleChrome |
         // MicrosoftEdge | Safari
-        TARGET_PLATFORM_NAME = System.getProperty("mobile_platformName");
-        TARGET_PLATFORM_BROWSER_NAME = System.getProperty("mobile_browserName");
+        TARGET_MOBILE_BROWSER_NAME = System.getProperty("mobile_browserName");
         WEBDRIVERMANAGER_MESSAGE = "Identifying OS/Browser combination and selecting the correct driver version automatically. Please note that if a new driver executable will be downloaded it may take some time...";
         PAGE_LOAD_TIMEOUT = Integer.parseInt(System.getProperty("pageLoadTimeout"));
         SCRIPT_TIMEOUT = Integer.parseInt(System.getProperty("scriptExecutionTimeout"));
