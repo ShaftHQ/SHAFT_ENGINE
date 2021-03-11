@@ -64,6 +64,7 @@
             <!-- Navigation Bar -->
             <ul class="nav nav-tabs">
                 <li class="active"><a data-toggle="tab" href="#" tabName="Platform">Platform</a></li>
+                <li><a data-toggle="tab" href="#" tabName="Mobile">Mobile</a></li>
                 <li><a data-toggle="tab" href="#" tabName="Flags">Flags</a></li>
                 <li><a data-toggle="tab" href="#" tabName="Timeouts">Timeouts</a></li>
                 <li><a data-toggle="tab" href="#" tabName="Validations">Validations</a></li>
@@ -124,21 +125,58 @@
                                         </div>
                                     </div>
 
-                                    <!-- Select Basic -->
+                                    <!-- Multiple Radios -->
                                     <div class="form-group">
                                         <label class="col-md-4 control-label" for="targetOperatingSystem">Target
                                             Operating
-                                            System
-                                        </label>
-                                        <div class="col-md-4">
-                                            <select class="form-control" disabled
-                                                    id="targetOperatingSystem" name="targetOperatingSystem">
-                                                <option value="Windows-64">Windows</option>
-                                                <option selected value="Linux-64">Linux</option>
-                                                <option value="Mac-64">Mac</option>
-                                                <option value="Android">Android</option>
-                                                <option value="iOS">iOS</option>
-                                            </select>
+                                            System</label>
+                                        <div class="col-md-4" id="targetOperatingSystem">
+                                            <div class="radio">
+                                                <label for="targetOperatingSystem-0" style="color:#A9A9A9">
+                                                    <input disabled
+                                                           id="targetOperatingSystem-0"
+                                                           name="targetOperatingSystem" type="radio" value="Windows-64">
+                                                    <img
+                                                            src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAUCAYAAACNiR0NAAACzUlEQVQ4T7WUy2tTURDGf+c+kpg0bdL0nWdLdWEkigp1qS5qFUu1KWqxFFz5D6gLQepjISiC4qJWsdUSH8WlT3Qt4kbQjeDGvRtdWNPc15GTm2JaSxWpAxeGc2e+eXwzI/gloqZqwKKunlxA1tktV0PEch3Ek2k+f3yvHBc/bxUnk3C2hUQ8RVO6m3iul1iml1iqm8a2FJGWDjQzxK2hQn0mGpG2Vho7kjRnu0lk19PQmeXTqzn6T08S7cwQaAhjBEFoID3wHPAs8CTYPypMH9gsSG3rY/eJ8zQkMkRauwg2NladdFMZweOTowxcuIema7iOh5TSRxAghJ+Q+udYFtNDmwWF4iiHp+5T/gqeiuqClC4CibNQ5uWFY+w5exczGK51sr4q1V6J0AVOpeID5geLDF+dwypLNE1XYatRVVkK8MW5cQYmZjGC6/zslhC2EuDQCMVrj7DmPYSmGPbl3wEHixy8+nBlwLJfcv+ZGYzQnzO8U9wq2DJylCPTJazvflb1GdoLipQxBi+XMIPVdv0uih8d7Apc35UXpDYVyA+P41Yksta/KnMauLbNp+cP2LB3FN00q6StJMrWcxzezl4RdBa2sv3wcWxbIuobroxsiw/PZijsO4ZmBhBSIuVSltU0SE3gug6vJ8/XSr5dojL/e8lOGR6fGmPwUgkjtHrJzgJc3533x2ZNScn/j7EZvjaH9WONBlut3qEb9yl/W1x4icRbtnqzmNU5rI78UqKXr16ubwc7T1wkkkgTaekkGA1jBEAzwJqHJ6dGGThXQhg6nuP661fbQP84CDRD7XLtOPwKZ5JItRFNpokme0j0bKCpI8vHpyX6J24Sbc8QCBvoAd9DnS/XVqPls2+VF5g5sOVvD+w6Yrl24l0ZmjI9NGd6iWd7iXV109CaJNzcitADTO3fWN+PevD6d2eVSw7xeBOhli6i6Rxf3r35CRf6Tre38smdAAAAAElFTkSuQmCC"/>
+                                                    Windows
+                                                </label>
+                                            </div>
+                                            <div class="radio">
+                                                <label for="targetOperatingSystem-1" style="color:#A9A9A9">
+                                                    <input checked="checked" disabled id="targetOperatingSystem-1"
+                                                           name="targetOperatingSystem"
+                                                           type="radio" value="Linux-64"> <img
+                                                        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAUCAYAAACEYr13AAADMklEQVQ4T42Uf0yNURjHv+c9b7f3jXT7sWGYSWmWoutHo6jMmB8ZMhTKjz8YW9ZqzIyVYbmEja3ZpGtLZsgwNJmhZcVifkSoRe7yq7f8qu7tnvO+dq57W+6yebb3j/Oc836e53yf5zkEAxsBYPhsDeSDcPqaBEAHEAVgqyzLvYyxYgDNgPv8X2BfgHcdCOAFAUapAQFQVfWTpmkWAJ880fogvgAKgANIDA0Nrta0Tld09Hje0vJO6e7uyQFwDIAMgHnTHhCgKMrsdRu33H739okxfVaqfvPGFVr74N5BADv/CyDLSmJh9ojqrDXUqH9l4vmHv8u1Tz4cArADgMjynxkIAYVFntgW0LhyMYfDNZJvLqS05mn7/W+dHUkegLim2wa8gp+fssFWeqokjLzmMYlZ9EF9o56xahnRdX0eY6yqP6Q/QEQX6lrS01dVl5ef8//l0MlgRSI/vnfoYyOiSHt7exuAeAAfPQnovgBR/ztnzthSMjOzeK+zi+oGwLmBgoICVlR0RCaEnOOcZ3iz8AK8zTN8YmxsU93DOlWWRbUM9z6lfmhrsxsJCTNht9t7GGPhAD4LCbwA92kAe/Ly8vZYrVbucHRTk8kEQoj7Y4whLs6iNzS8FMEWA7gmSvqXiGFD8PjoidNxa9au511dP6miKO6fJUmCw+nAtKnx/PWbFqnX6VgO8AovgJjNCIodRWeU7kLJ3cbIYdGLLhrxk6OJy+UEpQRMl/HzeS5i5xzn6qBAOiLEmXb/aU8fACtSsOH8QVrCnBI+ay7MzQ1Gsa0S0+MngYDDoCreVy7As9pbPGJsCG39wq6mbu9M6xNpeRLWX7DKJ7VvhIWYif/FKn8yZn6NMcUS456+svJLOn+5ScpaoRJXl8T9BnM5O1/bd7zCsdutQfZS6VDRNpInSQSSkJNL2H9lHnoDLGhuasTZ8vO4nO+PJalheNPwC6XXu21ld1wH7F/RJADEDASNi0RCXASSZ08hC4MUI3z1XuRoTtQBGAJg3Nb5cm7yBGO0tYJvftQM279aWfhNKjC0B/jg89IIkBlAq6eJRNP9aRTPTIj6irV30sTU9Q/U3983TL8BY2A2NWvAuMMAAAAASUVORK5CYII="/>
+                                                    Linux
+                                                </label>
+                                            </div>
+                                            <div class="radio">
+                                                <label for="targetOperatingSystem-2" style="color:#A9A9A9">
+                                                    <input disabled id="targetOperatingSystem-2"
+                                                           name="targetOperatingSystem"
+                                                           type="radio" value="Mac-64"> <img
+                                                        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAUCAYAAACEYr13AAABmklEQVQ4T43UTYjNYRQG8N/4anxsWCizs1Eki2FnOZSabGY9iY2FnSL5WJAmNuzZTXYs1ExNYmWtRiIksaLYyJLB6Pn3nrrU3P899d7ufc9znvc5X3fMcBvDKrbiBqZxCN/Q+fKxlsWXM44FTOE99uJ3I+4Ag1ZBuVuHX7iC6w10Hrewvvn+IchlmMtCtgkfsQv3cGLA3+FLQeW6GXvwA28b+C6e4RF24zte4k9STGCk5sc5nGmgSH+BB/jcinccW1rur1pqC6XgNs62F1P1tYobX6z8R/LlKB63okRNToA5UVYBuQ8+dUr+d3AhF4tNYsBxDLNgQvQO+6qIX7CzvThsLkKc2mzAVVzDxgTksu/lUlUEpzCfuBD8DFOP9P8JLrfR7gg+YWLEFKoGyzhYCpZwrFV8lFSK5CJuRsHp1pJyjJJNYedDsAOvBzqRNvVZN8ZYrrZdwtxAm/oIapimahey88/bIpWzprB2pVZ8pXXtIWZCUGs8iafY1vc8PuAwvlYKRZK/rMz4djzB/dbm/ZjFAWQTT+JNxvovAt5eKpJZIkgAAAAASUVORK5CYII="/>
+                                                    macOS
+                                                </label>
+                                            </div>
+                                            <div class="radio">
+                                                <label for="targetOperatingSystem-3" style="color:#A9A9A9">
+                                                    <input disabled id="targetOperatingSystem-3"
+                                                           name="targetOperatingSystem"
+                                                           type="radio" value="Android"> <img
+                                                        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAUCAYAAACEYr13AAADd0lEQVQ4T5VUW0wTWxTd5wx1BgXFByLlUitRQCTxwYVw9eNGjH6I2Gj88IHxFXxEBQ0q12BiRHNVbtWbiDEx4odJlZAo8RUf0WjUEECjIJogCjRtxVKk0NJp6cycc3SGgo0hRvf8zJyz9zpr77PWIPgeCABY6uzoZNnH+trafK6wPUjLEAx+EbC1ZcAKAFquuq++hAcGALpmV+KmKQYhO8EwOp1RRu0d/iZ7u/95TWVnFQBwAECGisIBtOJth4z/mjYkHJSCDGSJanmjBAwYI7BU2PZXVdjNAKDlhjPQUJevjy8oKE26cPW8vWiRKfYwL3DjMAbo65Ed9Q/dZ1fvSjSXF7aYHt/5cnOIicogIkQnovJRRtvY8Tq97aP4Qj81MhNzCBBCIAUp6XIEXiXNjMp0tPubd5ua5oQA6HALhhlCUmlF2hNFZpgXcJQkURGY9gDCgCN0OFKRqI8y5j+4vfEvrwPcWgsL8+JMfCSObnzVf39J3oS18gClDBBFHMOMYe0AhChjBFGIQBwmlN657bD8nRO/ymmT2tC1pmymyAAPrti2LNtoqFQUteCHuwl9qi2JXiVYc+nTzs0l0y72fpG6kaU2iyqESQ2Puv7JXjz5BAKsG7kcGOYQ6u+T3c/u9RzPXTOlnBDmQVfqshghINff7Syenxt/igH6KYDPo7gf3+guM23U/y9LtGcYoO6ec9+CpXHmXwF4crP76PIN+jOyRN3IUptJCEFy/QPngd8ByFuvN8sy7UXXGrOZOrinNzqLfgWg36O4n912HVtZkHhaGqABVHoupQpzeEzd/c/mrYeSHwYCgDhO0zswCgQGtaRKVzUPlSUaPF3SmpNfOPU/e3ugafjCshaM/rPs8twXfW4CRAl5gFfrQFXioCd4DLpRCLYvez3NadVcqblRy4qJgbE7jqSci03gk+MShAx1zWEdqOUw6PRGIYsooHR/Cr60d/jfnCn5sAcAgiPZGYxGwXiienYHpUzet7IhhvFC7NmaOVbRS32F+Q0Gjw16w3USrjmtb8P0qJSTllnNlDKleEXDH3x01CRzdfpb0Uv9xeuaU3scAefQPH5koHk8KZVPLq+a954SBgU5dROiJ/KTKm7NaxW9RN5repfocoldI/0PwsF0ZRfTqgMiFY8XteSrszt6Kf26zyO5Tu5t3RKiPzjVb/EVYkWs9xx6A2AAAAAASUVORK5CYII="/>
+                                                    Android
+                                                </label>
+                                            </div>
+                                            <div class="radio">
+                                                <label for="targetOperatingSystem-4" style="color:#A9A9A9">
+                                                    <input disabled id="targetOperatingSystem-4"
+                                                           name="targetOperatingSystem"
+                                                           type="radio" value="iOS"> <img
+                                                        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAUCAYAAACEYr13AAABmklEQVQ4T43UTYjNYRQG8N/4anxsWCizs1Eki2FnOZSabGY9iY2FnSL5WJAmNuzZTXYs1ExNYmWtRiIksaLYyJLB6Pn3nrrU3P899d7ufc9znvc5X3fMcBvDKrbiBqZxCN/Q+fKxlsWXM44FTOE99uJ3I+4Ag1ZBuVuHX7iC6w10Hrewvvn+IchlmMtCtgkfsQv3cGLA3+FLQeW6GXvwA28b+C6e4RF24zte4k9STGCk5sc5nGmgSH+BB/jcinccW1rur1pqC6XgNs62F1P1tYobX6z8R/LlKB63okRNToA5UVYBuQ8+dUr+d3AhF4tNYsBxDLNgQvQO+6qIX7CzvThsLkKc2mzAVVzDxgTksu/lUlUEpzCfuBD8DFOP9P8JLrfR7gg+YWLEFKoGyzhYCpZwrFV8lFSK5CJuRsHp1pJyjJJNYedDsAOvBzqRNvVZN8ZYrrZdwtxAm/oIapimahey88/bIpWzprB2pVZ8pXXtIWZCUGs8iafY1vc8PuAwvlYKRZK/rMz4djzB/dbm/ZjFAWQTT+JNxvovAt5eKpJZIkgAAAAASUVORK5CYII="/>
+                                                    iOS
+                                                </label>
+                                            </div>
                                             <span class="help-block">• Will be ignored in case of local execution and SHAFT_Engine will identify the correct OS version automatically</span>
                                         </div>
                                     </div>
@@ -232,6 +270,219 @@
                                             </button>
                                         </div>
                                     </div>
+                                </fieldset>
+                            </form>
+                            <br/>
+                        </div>
+                        <div class="tab-pane" id="mobileCapabilities">
+                            <br/><br/>
+                            <form class="form-horizontal">
+                                <fieldset>
+                                    <!-- Form Name -->
+                                    <!--<legend>&nbsp;Mobile:</legend>-->
+
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label"></label>
+                                        <div class="col-md-4">
+                                            <div class="input-group">
+                                            </div>
+                                            <span class="help-block">* Remember to set the correct Target Operating System in the Platform tab.</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="mobile_platformVersion">Platform
+                                            Version</label>
+                                        <div class="col-md-4">
+                                            <div class="input-group">
+                                                <input class="form-control input-md" id="mobile_platformVersion"
+                                                       name="mobile_platformVersion" placeholder="11"
+                                                       required type="text">
+                                            </div>
+                                            <span class="help-block">• Mobile OS version. e.g., 10.0, 11.2.2</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="mobile_deviceName">Device
+                                            Name</label>
+                                        <div class="col-md-4">
+                                            <div class="input-group">
+                                                <input class="form-control input-md" id="mobile_deviceName"
+                                                       name="mobile_deviceName" placeholder="emulator-5554"
+                                                       required type="text">
+                                            </div>
+                                            <span class="help-block">• The kind of mobile device or emulator to use.
+                                            <br/>• On iOS, this should be one of the valid devices returned by instruments with instruments -s devices.
+                                            <br/>• On Android this capability is currently ignored, though it remains required.</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="mobile_automationName">Automation
+                                            Name</label>
+                                        <div class="col-md-4" id="mobile_automationName">
+                                            <div class="radio">
+                                                <label for="mobile_automationName-2">
+                                                    <input checked="checked" id="mobile_automationName-2"
+                                                           name="mobile_automationName"
+                                                           type="radio"
+                                                           value="Appium"> <img
+                                                        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAUCAYAAACEYr13AAADd0lEQVQ4T5VUW0wTWxTd5wx1BgXFByLlUitRQCTxwYVw9eNGjH6I2Gj88IHxFXxEBQ0q12BiRHNVbtWbiDEx4odJlZAo8RUf0WjUEECjIJogCjRtxVKk0NJp6cycc3SGgo0hRvf8zJyz9zpr77PWIPgeCABY6uzoZNnH+trafK6wPUjLEAx+EbC1ZcAKAFquuq++hAcGALpmV+KmKQYhO8EwOp1RRu0d/iZ7u/95TWVnFQBwAECGisIBtOJth4z/mjYkHJSCDGSJanmjBAwYI7BU2PZXVdjNAKDlhjPQUJevjy8oKE26cPW8vWiRKfYwL3DjMAbo65Ed9Q/dZ1fvSjSXF7aYHt/5cnOIicogIkQnovJRRtvY8Tq97aP4Qj81MhNzCBBCIAUp6XIEXiXNjMp0tPubd5ua5oQA6HALhhlCUmlF2hNFZpgXcJQkURGY9gDCgCN0OFKRqI8y5j+4vfEvrwPcWgsL8+JMfCSObnzVf39J3oS18gClDBBFHMOMYe0AhChjBFGIQBwmlN657bD8nRO/ymmT2tC1pmymyAAPrti2LNtoqFQUteCHuwl9qi2JXiVYc+nTzs0l0y72fpG6kaU2iyqESQ2Puv7JXjz5BAKsG7kcGOYQ6u+T3c/u9RzPXTOlnBDmQVfqshghINff7Syenxt/igH6KYDPo7gf3+guM23U/y9LtGcYoO6ec9+CpXHmXwF4crP76PIN+jOyRN3IUptJCEFy/QPngd8ByFuvN8sy7UXXGrOZOrinNzqLfgWg36O4n912HVtZkHhaGqABVHoupQpzeEzd/c/mrYeSHwYCgDhO0zswCgQGtaRKVzUPlSUaPF3SmpNfOPU/e3ugafjCshaM/rPs8twXfW4CRAl5gFfrQFXioCd4DLpRCLYvez3NadVcqblRy4qJgbE7jqSci03gk+MShAx1zWEdqOUw6PRGIYsooHR/Cr60d/jfnCn5sAcAgiPZGYxGwXiienYHpUzet7IhhvFC7NmaOVbRS32F+Q0Gjw16w3USrjmtb8P0qJSTllnNlDKleEXDH3x01CRzdfpb0Uv9xeuaU3scAefQPH5koHk8KZVPLq+a954SBgU5dROiJ/KTKm7NaxW9RN5repfocoldI/0PwsF0ZRfTqgMiFY8XteSrszt6Kf26zyO5Tu5t3RKiPzjVb/EVYkWs9xx6A2AAAAAASUVORK5CYII="/>
+                                                    Android - Appium
+                                                </label>
+                                            </div>
+                                            <div class="radio">
+                                                <label for="mobile_automationName-0">
+                                                    <input id="mobile_automationName-0"
+                                                           name="mobile_automationName"
+                                                           type="radio" value="UiAutomator2"> <img
+                                                        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAUCAYAAACEYr13AAADd0lEQVQ4T5VUW0wTWxTd5wx1BgXFByLlUitRQCTxwYVw9eNGjH6I2Gj88IHxFXxEBQ0q12BiRHNVbtWbiDEx4odJlZAo8RUf0WjUEECjIJogCjRtxVKk0NJp6cycc3SGgo0hRvf8zJyz9zpr77PWIPgeCABY6uzoZNnH+trafK6wPUjLEAx+EbC1ZcAKAFquuq++hAcGALpmV+KmKQYhO8EwOp1RRu0d/iZ7u/95TWVnFQBwAECGisIBtOJth4z/mjYkHJSCDGSJanmjBAwYI7BU2PZXVdjNAKDlhjPQUJevjy8oKE26cPW8vWiRKfYwL3DjMAbo65Ed9Q/dZ1fvSjSXF7aYHt/5cnOIicogIkQnovJRRtvY8Tq97aP4Qj81MhNzCBBCIAUp6XIEXiXNjMp0tPubd5ua5oQA6HALhhlCUmlF2hNFZpgXcJQkURGY9gDCgCN0OFKRqI8y5j+4vfEvrwPcWgsL8+JMfCSObnzVf39J3oS18gClDBBFHMOMYe0AhChjBFGIQBwmlN657bD8nRO/ymmT2tC1pmymyAAPrti2LNtoqFQUteCHuwl9qi2JXiVYc+nTzs0l0y72fpG6kaU2iyqESQ2Puv7JXjz5BAKsG7kcGOYQ6u+T3c/u9RzPXTOlnBDmQVfqshghINff7Syenxt/igH6KYDPo7gf3+guM23U/y9LtGcYoO6ec9+CpXHmXwF4crP76PIN+jOyRN3IUptJCEFy/QPngd8ByFuvN8sy7UXXGrOZOrinNzqLfgWg36O4n912HVtZkHhaGqABVHoupQpzeEzd/c/mrYeSHwYCgDhO0zswCgQGtaRKVzUPlSUaPF3SmpNfOPU/e3ugafjCshaM/rPs8twXfW4CRAl5gFfrQFXioCd4DLpRCLYvez3NadVcqblRy4qJgbE7jqSci03gk+MShAx1zWEdqOUw6PRGIYsooHR/Cr60d/jfnCn5sAcAgiPZGYxGwXiienYHpUzet7IhhvFC7NmaOVbRS32F+Q0Gjw16w3USrjmtb8P0qJSTllnNlDKleEXDH3x01CRzdfpb0Uv9xeuaU3scAefQPH5koHk8KZVPLq+a954SBgU5dROiJ/KTKm7NaxW9RN5repfocoldI/0PwsF0ZRfTqgMiFY8XteSrszt6Kf26zyO5Tu5t3RKiPzjVb/EVYkWs9xx6A2AAAAAASUVORK5CYII="/>
+                                                    Android - UiAutomator2
+                                                </label>
+                                            </div>
+                                            <div class="radio">
+                                                <label for="mobile_automationName-1">
+                                                    <input id="mobile_automationName-1" name="mobile_automationName"
+                                                           type="radio"
+                                                           value="Espresso"> <img
+                                                        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAUCAYAAACEYr13AAADd0lEQVQ4T5VUW0wTWxTd5wx1BgXFByLlUitRQCTxwYVw9eNGjH6I2Gj88IHxFXxEBQ0q12BiRHNVbtWbiDEx4odJlZAo8RUf0WjUEECjIJogCjRtxVKk0NJp6cycc3SGgo0hRvf8zJyz9zpr77PWIPgeCABY6uzoZNnH+trafK6wPUjLEAx+EbC1ZcAKAFquuq++hAcGALpmV+KmKQYhO8EwOp1RRu0d/iZ7u/95TWVnFQBwAECGisIBtOJth4z/mjYkHJSCDGSJanmjBAwYI7BU2PZXVdjNAKDlhjPQUJevjy8oKE26cPW8vWiRKfYwL3DjMAbo65Ed9Q/dZ1fvSjSXF7aYHt/5cnOIicogIkQnovJRRtvY8Tq97aP4Qj81MhNzCBBCIAUp6XIEXiXNjMp0tPubd5ua5oQA6HALhhlCUmlF2hNFZpgXcJQkURGY9gDCgCN0OFKRqI8y5j+4vfEvrwPcWgsL8+JMfCSObnzVf39J3oS18gClDBBFHMOMYe0AhChjBFGIQBwmlN657bD8nRO/ymmT2tC1pmymyAAPrti2LNtoqFQUteCHuwl9qi2JXiVYc+nTzs0l0y72fpG6kaU2iyqESQ2Puv7JXjz5BAKsG7kcGOYQ6u+T3c/u9RzPXTOlnBDmQVfqshghINff7Syenxt/igH6KYDPo7gf3+guM23U/y9LtGcYoO6ec9+CpXHmXwF4crP76PIN+jOyRN3IUptJCEFy/QPngd8ByFuvN8sy7UXXGrOZOrinNzqLfgWg36O4n912HVtZkHhaGqABVHoupQpzeEzd/c/mrYeSHwYCgDhO0zswCgQGtaRKVzUPlSUaPF3SmpNfOPU/e3ugafjCshaM/rPs8twXfW4CRAl5gFfrQFXioCd4DLpRCLYvez3NadVcqblRy4qJgbE7jqSci03gk+MShAx1zWEdqOUw6PRGIYsooHR/Cr60d/jfnCn5sAcAgiPZGYxGwXiienYHpUzet7IhhvFC7NmaOVbRS32F+Q0Gjw16w3USrjmtb8P0qJSTllnNlDKleEXDH3x01CRzdfpb0Uv9xeuaU3scAefQPH5koHk8KZVPLq+a954SBgU5dROiJ/KTKm7NaxW9RN5repfocoldI/0PwsF0ZRfTqgMiFY8XteSrszt6Kf26zyO5Tu5t3RKiPzjVb/EVYkWs9xx6A2AAAAAASUVORK5CYII="/>
+                                                    Android - Espresso
+                                                </label>
+                                            </div>
+                                            <div class="radio">
+                                                <label for="mobile_automationName-3">
+                                                    <input id="mobile_automationName-3" name="mobile_automationName"
+                                                           type="radio"
+                                                           value="XCUITest"> <img
+                                                        src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAUCAYAAACEYr13AAABmklEQVQ4T43UTYjNYRQG8N/4anxsWCizs1Eki2FnOZSabGY9iY2FnSL5WJAmNuzZTXYs1ExNYmWtRiIksaLYyJLB6Pn3nrrU3P899d7ufc9znvc5X3fMcBvDKrbiBqZxCN/Q+fKxlsWXM44FTOE99uJ3I+4Ag1ZBuVuHX7iC6w10Hrewvvn+IchlmMtCtgkfsQv3cGLA3+FLQeW6GXvwA28b+C6e4RF24zte4k9STGCk5sc5nGmgSH+BB/jcinccW1rur1pqC6XgNs62F1P1tYobX6z8R/LlKB63okRNToA5UVYBuQ8+dUr+d3AhF4tNYsBxDLNgQvQO+6qIX7CzvThsLkKc2mzAVVzDxgTksu/lUlUEpzCfuBD8DFOP9P8JLrfR7gg+YWLEFKoGyzhYCpZwrFV8lFSK5CJuRsHp1pJyjJJNYedDsAOvBzqRNvVZN8ZYrrZdwtxAm/oIapimahey88/bIpWzprB2pVZ8pXXtIWZCUGs8iafY1vc8PuAwvlYKRZK/rMz4djzB/dbm/ZjFAWQTT+JNxvovAt5eKpJZIkgAAAAASUVORK5CYII="/>
+                                                    iOS - XCUITest
+                                                </label>
+                                            </div>
+                                            <span class="help-block">• Which automation engine to use.</span>
+                                        </div>
+                                    </div>
+
+
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="mobile_udid">UDID</label>
+                                        <div class="col-md-4">
+                                            <div class="input-group">
+                                                <input class="form-control input-md" id="mobile_udid"
+                                                       name="mobile_udid" placeholder="RQ3005TAQP"
+                                                       type="text">
+                                            </div>
+                                            <span class="help-block">• Unique device identifier of the connected physical device (leave empty if not applicable).</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Select Basic -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="mobile_browserName">Target
+                                            Browser</label>
+                                        <div class="col-md-4">
+                                            <select class="form-control" id="mobile_browserName"
+                                                    name="mobile_browserName">
+                                                <option selected value="">Native App</option>
+                                                <option value="Chrome">Chrome</option>
+                                                <option value="Chromium">Chromium</option>
+                                                <option value="Browser">Browser</option>
+                                                <option value="Safari">Safari</option>
+                                            </select>
+                                            <span class="help-block">• Name of the target web browser to automate. Should be "Native App" if automating an app instead.</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="MobileBrowserVersion">Target Browser
+                                            Version</label>
+                                        <div class="col-md-4">
+                                            <div class="input-group">
+                                                <input class="form-control input-md" id="MobileBrowserVersion"
+                                                       name="MobileBrowserVersion" placeholder="83.0.4103.39"
+                                                       type="text">
+                                            </div>
+                                            <span class="help-block">• The latest version of the webdriver executable that is compatible with the target browser. You can get it from <a
+                                                    href="https://www.selenium.dev/documentation/en/webdriver/driver_requirements/#quick-reference">here</a>.
+                                            <br/>• Leave empty if automating an app instead.</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="mobile_app">App Path</label>
+                                        <div class="col-md-4">
+                                            <div class="input-group">
+                                                <input class="form-control input-md" id="mobile_app"
+                                                       name="mobile_app" placeholder="http://myapp.com/app.ipa"
+                                                       type="text">
+                                            </div>
+                                            <span class="help-block">• The absolute local path or remote http URL to a .ipa file (IOS), .app folder (IOS Simulator), .apk file (Android) or .apks file (Android App Bundle), or a .zip file containing one of these.
+                                            <br/>• e.g., <a>/abs/path/to/my.apk</a> or <a>http://myapp.com/app.ipa</a>
+                                            <br/>• You can set this capability programatically in your setup configuration method like so:
+                                            <br/><code>System.setProperty("mobile_app", FileActions.getAbsolutePath("relativePath/to/myApp/", "myApp.apk"));</code>
+                                            <br/>• This capability is not required for Android if you specify the App Package and App Activity Name (see below).
+                                            <br/>• Leave empty if automating a Web app instead.</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="mobile_appPackage">App
+                                            Package</label>
+                                        <div class="col-md-4">
+                                            <div class="input-group">
+                                                <input class="form-control input-md" id="mobile_appPackage"
+                                                       name="mobile_appPackage" placeholder="com.example.android.myApp"
+                                                       type="text">
+                                            </div>
+                                            <span class="help-block">• Java package of the Android app you want to run.
+                                            <br/>• e.g., <a>com.example.android.myApp</a>, <a>com.android.settings</a>
+                                            <br/>• This capability is not required for Android if you specify the App Path (see above).
+                                            <br/>• For iOS you must specify the App Path (see above).
+                                            <br/>• Leave empty if automating a Web app instead.</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="mobile_appActivity">App Activity
+                                            Name</label>
+                                        <div class="col-md-4">
+                                            <div class="input-group">
+                                                <input class="form-control input-md" id="mobile_appActivity"
+                                                       name="mobile_appActivity" placeholder=".MainActivity"
+                                                       type="text">
+                                            </div>
+                                            <span class="help-block">• Activity name for the Android activity you want to launch from your package.
+                                            <br/>• This often needs to be preceded by a . (e.g., <a>.MainActivity</a> instead of MainActivity).
+                                            <br/>• This capability is not required for Android if you specify the App Path (see above).
+                                            <br/>• For iOS you must specify the App Path (see above).
+                                            <br/>• Leave empty if automating a Web app instead.</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Button -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="generateMobileCapabilities_button">Generate
+                                            Properties File
+                                        </label>
+                                        <div class="col-md-4">
+                                            <button class="btn btn-primary" id="generateMobileCapabilities_button"
+                                                    onclick="generateMobileCapabilities();return false;">
+                                                MobileCapabilities.properties
+                                            </button>
+                                            <span class="help-block">• This is a list of the most commonly used Capabilities.
+                                            <br/>• You can add any property from the <a
+                                                        href="http://appium.io/docs/en/writing-running-appium/caps/">List of Appium Capabilities</a> directly to this file after it's generated, just make sure to add [mobile_] as a prefix.</span>
+                                        </div>
+                                    </div>
+
                                 </fieldset>
                             </form>
                             <br/>
@@ -398,7 +649,7 @@
                                                            type="radio" value="2"> With Headless Execution
                                                 </label>
                                             </div>
-                                            <span class="help-block">• <b>ExperimentalFeature* </b>Enabling maximumPerformanceMode will disable all complementary features to ensure the fastest execution possible with a 400% calculated performance boost.</span>
+                                            <span class="help-block">• Enabling maximumPerformanceMode will disable all complementary features to ensure the fastest execution possible with a 400% calculated performance boost.</span>
                                         </div>
                                     </div>
 
@@ -894,7 +1145,7 @@
                                                            value="JavaScript"> JavaScript (Browser-based)
                                                 </label>
                                             </div>
-                                            <span class="help-block">• <b>ExperimentalFeature* </b>Using AI will result in a significant increase in performance, while using JavaScript will show you the highlights on-screen during test execution.</span>
+                                            <span class="help-block">• Using AI will result in a significant increase in performance, while using JavaScript will show you the highlights on-screen during test execution.</span>
                                         </div>
                                     </div>
 
@@ -973,8 +1224,8 @@
                                                            value="false"> Disabled
                                                 </label>
                                             </div>
-                                            <span class="help-block">• Enabling Animated Gif will result in a significant decrease in performance, but it will also capture all the events that happen on-screen for later debugging.</span>
-                                            <span class="help-block">• There is a reporting bug whereby if you enable the animated GIF and run in parallel threads, the wrong file can be attached to the test case.</span>
+                                            <span class="help-block">• Enabling Animated Gif will result in a significant decrease in performance, but it will also capture all the events that happen on-screen for later debugging.
+                                            <br/>• There is a reporting bug whereby if you enable the animated GIF and run in parallel threads, the wrong file can be attached to the test case.</span>
                                         </div>
                                     </div>
 
@@ -1181,8 +1432,8 @@
                                                     Disabled
                                                 </label>
                                             </div>
-                                            <span class="help-block">• Enabling this setting will serve and open the allure report automatically after every test run.</span>
-                                            <span class="help-block">• There is a known issue whereby if you enable this setting the execution hangs after opening the report and you need to terminate it manually from your IDE.</span>
+                                            <span class="help-block">• Enabling this setting will serve and open the allure report automatically after every test run.
+                                            <br/>• There is a known issue whereby if you enable this setting the execution hangs after opening the report and you need to terminate it manually from your IDE.</span>
                                         </div>
                                     </div>
 
@@ -1297,6 +1548,18 @@
     //Platform
     $("a[tabName='Platform']").click(function () {
         $("div[id=executionPlatformSettings]").attr("class", "tab-pane active");
+        $("div[id=mobileCapabilities]").attr("class", "tab-pane");
+        $("div[id=platformFlags]").attr("class", "tab-pane");
+        $("div[id=timeouts]").attr("class", "tab-pane");
+        $("div[id=visualValidations]").attr("class", "tab-pane");
+        $("div[id=reporting]").attr("class", "tab-pane");
+        $("div[id=allSettings]").attr("class", "tab-pane");
+    });
+
+    //Mobile
+    $("a[tabName='Mobile']").click(function () {
+        $("div[id=executionPlatformSettings]").attr("class", "tab-pane");
+        $("div[id=mobileCapabilities]").attr("class", "tab-pane active");
         $("div[id=platformFlags]").attr("class", "tab-pane");
         $("div[id=timeouts]").attr("class", "tab-pane");
         $("div[id=visualValidations]").attr("class", "tab-pane");
@@ -1307,6 +1570,7 @@
     //Flags
     $("a[tabName='Flags']").click(function () {
         $("div[id=executionPlatformSettings]").attr("class", "tab-pane");
+        $("div[id=mobileCapabilities]").attr("class", "tab-pane");
         $("div[id=platformFlags]").attr("class", "tab-pane active");
         $("div[id=timeouts]").attr("class", "tab-pane");
         $("div[id=visualValidations]").attr("class", "tab-pane");
@@ -1317,6 +1581,7 @@
     //Timeouts
     $("a[tabName='Timeouts']").click(function () {
         $("div[id=executionPlatformSettings]").attr("class", "tab-pane");
+        $("div[id=mobileCapabilities]").attr("class", "tab-pane");
         $("div[id=platformFlags]").attr("class", "tab-pane");
         $("div[id=timeouts]").attr("class", "tab-pane active");
         $("div[id=visualValidations]").attr("class", "tab-pane");
@@ -1327,6 +1592,7 @@
     //Validations
     $("a[tabName='Validations']").click(function () {
         $("div[id=executionPlatformSettings]").attr("class", "tab-pane");
+        $("div[id=mobileCapabilities]").attr("class", "tab-pane");
         $("div[id=platformFlags]").attr("class", "tab-pane");
         $("div[id=timeouts]").attr("class", "tab-pane");
         $("div[id=visualValidations]").attr("class", "tab-pane active");
@@ -1337,6 +1603,7 @@
     //Reporting
     $("a[tabName='Reporting']").click(function () {
         $("div[id=executionPlatformSettings]").attr("class", "tab-pane");
+        $("div[id=mobileCapabilities]").attr("class", "tab-pane");
         $("div[id=platformFlags]").attr("class", "tab-pane");
         $("div[id=timeouts]").attr("class", "tab-pane");
         $("div[id=visualValidations]").attr("class", "tab-pane");
@@ -1347,14 +1614,13 @@
     //All
     $("a[tabName='All']").click(function () {
         $("div[id=executionPlatformSettings]").attr("class", "tab-pane");
+        $("div[id=mobileCapabilities]").attr("class", "tab-pane");
         $("div[id=platformFlags]").attr("class", "tab-pane");
         $("div[id=timeouts]").attr("class", "tab-pane");
         $("div[id=visualValidations]").attr("class", "tab-pane");
         $("div[id=reporting]").attr("class", "tab-pane");
         $("div[id=allSettings]").attr("class", "tab-pane active");
     });
-
-
 </script>
 
 <script type="text/javascript">
@@ -1362,15 +1628,31 @@
     $("input[name=executionAddress]").click(function () {
         if ($("input[name=executionAddress]:checked").val() == "remote") {
             $("#executionAddress-remote").attr("disabled", false);
-            $("select[id=targetOperatingSystem]").attr("disabled", false);
+            $("#targetOperatingSystem-0").attr("disabled", false);
+            $("label[for=targetOperatingSystem-0]").attr("style", '');
+            $("#targetOperatingSystem-1").attr("disabled", false);
+            $("label[for=targetOperatingSystem-1]").attr("style", '');
+            $("#targetOperatingSystem-2").attr("disabled", false);
+            $("label[for=targetOperatingSystem-2]").attr("style", '');
+            $("#targetOperatingSystem-3").attr("disabled", false);
+            $("label[for=targetOperatingSystem-3]").attr("style", '');
+            $("#targetOperatingSystem-4").attr("disabled", false);
+            $("label[for=targetOperatingSystem-4]").attr("style", '');
         } else {
             $("#executionAddress-remote").attr("disabled", true);
             $("#executionAddress-remote").val('');
-            $("select[id=targetOperatingSystem]").attr("disabled", true);
+            $("#targetOperatingSystem-0").attr("disabled", true);
+            $("label[for=targetOperatingSystem-0]").attr("style", "color:#A9A9A9");
+            $("#targetOperatingSystem-1").attr("disabled", true);
+            $("label[for=targetOperatingSystem-1]").attr("style", "color:#A9A9A9");
+            $("#targetOperatingSystem-2").attr("disabled", true);
+            $("label[for=targetOperatingSystem-2]").attr("style", "color:#A9A9A9");
+            $("#targetOperatingSystem-3").attr("disabled", true);
+            $("label[for=targetOperatingSystem-3]").attr("style", "color:#A9A9A9");
+            $("#targetOperatingSystem-4").attr("disabled", true);
+            $("label[for=targetOperatingSystem-4]").attr("style", "color:#A9A9A9");
         }
     });
-
-
 </script>
 
 <script type="text/javascript">
@@ -1390,8 +1672,6 @@
             $("input[id=headlessExecution-1]").attr("disabled", false);
         }
     });
-
-
 </script>
 
 <script type="text/javascript">
@@ -1403,9 +1683,6 @@
             $("#implicitWaitTimeout").attr("disabled", true);
         }
     });
-
-
-
 </script>
 
 <script type="text/javascript">
@@ -1417,9 +1694,6 @@
             $("#lazyLoadingTimeout").attr("disabled", true);
         }
     });
-
-
-
 </script>
 
 <script type="text/javascript">
@@ -1485,8 +1759,6 @@
             $("label[for=screenshotParams_watermark-1]").attr("style", "color:#A9A9A9");
         }
     });
-
-
 </script>
 
 <script type="text/javascript">
@@ -1512,8 +1784,6 @@
             $("label[for=screenshotParams_highlightElements-1]").attr("style", '');
         }
     });
-
-
 </script>
 
 <script type="text/javascript">
@@ -1531,8 +1801,6 @@
             $("label[for=screenshotParams_highlightMethod-1]").attr("style", "color:#A9A9A9");
         }
     });
-
-
 </script>
 
 <script type="text/javascript">
@@ -1544,8 +1812,6 @@
             $("#screenshotParams_watermarkOpacity").attr("disabled", true);
         }
     });
-
-
 </script>
 
 <script type="text/javascript">
@@ -1557,8 +1823,6 @@
             $("#animatedGif_frameDelay").attr("disabled", true);
         }
     });
-
-
 </script>
 
 <script>
@@ -1585,8 +1849,6 @@
         }
         newLink.click();
     }
-
-
 </script>
 
 <script>
@@ -1598,7 +1860,7 @@
         } else {
             executionAddress = $("input[name=executionAddress]:checked").val();
         }
-        const targetOperatingSystem = $("select[name=targetOperatingSystem]").val();
+        const targetOperatingSystem = $("input[name=targetOperatingSystem]:checked").val();
         const targetBrowserName = $("input[name=targetBrowserName]:checked").val();
         const headlessExecution = $("input[name=headlessExecution]:checked").val();
 
@@ -1612,6 +1874,35 @@
         downloadFile(data, 'ExecutionPlatform.properties');
     }
 
+</script>
+
+<script>
+    function generateMobileCapabilities() {
+        // Get the data from each element on the form.
+        const mobile_platformVersion = $("input[name=mobile_platformVersion]").val();
+        const mobile_deviceName = $("input[name=mobile_deviceName]").val();
+        const mobile_automationName = $("input[name=mobile_automationName]:checked").val();
+        const mobile_udid = $("input[name=mobile_udid]").val();
+        const mobile_browserName = $("select[name=mobile_browserName]").val();
+        const MobileBrowserVersion = $("input[name=MobileBrowserVersion]").val();
+        const mobile_app = $("input[name=mobile_app]").val();
+        const mobile_appPackage = $("input[name=mobile_appPackage]").val();
+        const mobile_appActivity = $("input[name=mobile_appActivity]").val();
+
+        // This variable stores all the data.
+        let data =
+            'mobile_platformVersion=' + mobile_platformVersion + '\r\n' +
+            'mobile_deviceName=' + mobile_deviceName + '\r\n' +
+            'mobile_automationName=' + mobile_automationName + '\r\n' +
+            'mobile_udid=' + mobile_udid + '\r\n' +
+            'mobile_browserName=' + mobile_browserName + '\r\n' +
+            'MobileBrowserVersion=' + MobileBrowserVersion + '\r\n' +
+            'mobile_app=' + mobile_app + '\r\n' +
+            'mobile_appPackage=' + mobile_appPackage + '\r\n' +
+            'mobile_appActivity=' + mobile_appActivity + '\r\n';
+
+        downloadFile(data, 'MobileCapabilities.properties');
+    }
 
 </script>
 
@@ -1639,8 +1930,6 @@
 
         downloadFile(data, 'PlatformFlags.properties');
     }
-
-
 </script>
 
 <script>
@@ -1755,6 +2044,7 @@
 <script>
     function generateAllFiles() {
         generateExecutionPlatform();
+        generateMobileCapabilities();
         generatePlatformFlags();
         generateTimeouts();
         generateVisualValidations();
