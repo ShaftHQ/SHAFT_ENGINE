@@ -3,8 +3,8 @@
 
 ### Badges:<!-- Badges provided by https://shields.io/ -->
 ![Bintray](https://img.shields.io/bintray/dt/mohabmohie/SHAFT/SHAFT_Engine?color=blue&label=Total%20Downloads&style=for-the-badge)
- [![Bintray](https://img.shields.io/bintray/v/mohabmohie/SHAFT/SHAFT_Engine?label=Bintray&style=for-the-badge)](https://bintray.com/mohabmohie/SHAFT/SHAFT_Engine/_latestVersion)
- [![Maven Central](https://img.shields.io/maven-central/v/io.github.mohabmohie/SHAFT_ENGINE?style=for-the-badge)](https://search.maven.org/search?q=g:%22io.github.mohabmohie%22%20AND%20a:%22SHAFT_ENGINE%22)
+  ![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/MohabMohie/shaft_engine?include_prereleases&label=Latest%20Release&style=for-the-badge)
+  [![Maven Central](https://img.shields.io/maven-central/v/io.github.mohabmohie/SHAFT_ENGINE?style=for-the-badge)](https://search.maven.org/search?q=g:%22io.github.mohabmohie%22%20AND%20a:%22SHAFT_ENGINE%22)
 
 [![Codacy grade](https://img.shields.io/codacy/grade/3579cfd02a2c4f67bd1dce5dad0b1562?style=for-the-badge)](https://www.codacy.com/manual/mohab.mohieeldeen/SHAFT_ENGINE?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=MohabMohie/SHAFT_ENGINE&amp;utm_campaign=Badge_Grade)
  [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/MohabMohie/SHAFT_Engine/CodeQL?label=CodeQL&style=for-the-badge)](https://github.com/MohabMohie/SHAFT_ENGINE/actions?query=workflow%3ACodeQL)
@@ -32,7 +32,7 @@
 - Provides an easily understandable and user-friendly syntax for writing simple, robust, maintainable, and extendable tests.
 - Provides support for Fluent, Data-Driven, Keyword-Driven, and Modular test design powered by TestNG.
 - Provides support for RPA, UAT, and BDD using Cucumber.
-- Provides and extensive, yet user-friendly unified report for test execution using Allure Reporting.
+- Provides extensive, yet user-friendly unified reporting for test execution using Allure Reporting and ExtentReports.
 - Fully documented with standard JavaDocs.
 - Supports web apps on Chrome, Firefox, Edge, IE, and Safari using Selenium WebDriver and WebDriver Manager.
 - Supports mobile apps (Native/Hybrid/Web) using Appium.
@@ -47,6 +47,7 @@
 - Supports test execution on Linux, Windows, Mac, Android, and iOS.
 - Supports remote, unattended, parallel, cloud, and dockerized test execution using a native selenium grid or Zalenium.
 - Can be easily integrated with all Continuous Integration, and DevOps solutions like Jenkins, GitHub Actions, or BitBucket.
+- Regularly updated with the latest stable versions from all included dependencies.
 
 ### SHAFT_ENGINE Capabilities Map:
 <img src="src/main/resources/images/map.png" alt="SHAFT_ENGINE Map" style="display:block; margin-left:auto; margin-right:auto;"/>
