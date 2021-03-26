@@ -44,7 +44,7 @@ jobs:
           github_repo: ${{ github.repository }}
           github_repo_owner: ${{ github.repository_owner }}
       - name: Deploy report to Github Pages
-        uses: peaceiris/actions-gh-pages@v3.7.3
+        uses: peaceiris/actions-gh-pages@v3.8.0
         with:
           personal_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: allure-history/allure
