@@ -30,23 +30,36 @@ jobs:
       - name: Run all tests
         continue-on-error: true
         run: mvn test -DexecutionAddress="localhost:4444" -DtargetOperatingSystem="Linux-64" -DmaximumPerformanceMode="2" -DtargetBrowserName="GoogleChrome" -Dtest="!%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*]"
+      - name: Get Allure history
+        uses: actions/checkout@v2
+        if: always()
+        continue-on-error: true
+        with:
+          ref: gh-pages
+          path: gh-pages
       - name: Generate Allure Report with history
-        uses: simple-elf/allure-report-action@v1.3
+        uses: simple-elf/allure-report-action@master
+        if: always()
+        id: allure-report
         with:
           allure_results: allure-results
-          allure_report: allure-report
-          allure_version: 2.13.6
           gh_pages: gh-pages
+          allure_report: allure-report
           allure_history: allure-history
           subfolder: allure
-          github_run_num: ${{ github.run_number }}
-          github_run_id: ${{ github.run_id }}
-          github_repo: ${{ github.repository }}
-          github_repo_owner: ${{ github.repository_owner }}
-      - name: Deploy report to Github Pages
+      - name: Deploy Allure report to Github Pages
         uses: peaceiris/actions-gh-pages@v3.8.0
         with:
           personal_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: allure-history/allure
           destination_dir: allure
           publish_branch: gh-pages
+      - name: Post the link to the Allure report
+        if: always()
+        uses: Sibz/github-status-action@v1
+        with: 
+            authToken: ${{secrets.GITHUB_TOKEN}}
+            context: 'Test report'
+            state: 'success'
+            sha: ${{ github.event.pull_request.head.sha }}
+            target_url: mohabmohie.github.io/SHAFT_ENGINE/allure/${{ github.run_number }}
