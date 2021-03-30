@@ -56,7 +56,8 @@ jobs:
           publish_branch: gh-pages
       - name: Post the link to the Allure report
         if: always()
-        uses: Sibz/github-status-action@v1
+        continue-on-error: true
+        uses: Sibz/github-status-action@v1.1.4
         with: 
             authToken: ${{secrets.GITHUB_TOKEN}}
             context: 'Allure Test Execution Report'
