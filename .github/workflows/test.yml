@@ -57,7 +57,7 @@ jobs:
       - name: Post the link to the Allure report
         if: always()
         continue-on-error: true
-        uses: Sibz/github-status-action@v1.1.4
+        uses: Sibz/github-status-action@v1.1.5
         with: 
             authToken: ${{secrets.GITHUB_TOKEN}}
             context: 'Allure Test Execution Report'
