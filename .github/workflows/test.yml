@@ -22,7 +22,7 @@ jobs:
       - name: Set up Native Selenium Grid
         run: docker-compose -f docker-compose_native.yml up --scale chrome=4 --remove-orphans -d
       - name: Set up JDK 15
-        uses: actions/setup-java@v1.4.3
+        uses: actions/setup-java@v2
         with:
           java-version: 15
       - name: Check running containers
