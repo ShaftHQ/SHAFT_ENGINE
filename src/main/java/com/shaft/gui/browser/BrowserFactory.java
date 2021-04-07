@@ -26,6 +26,7 @@ import org.openqa.selenium.logging.LoggingPreferences;
 import org.openqa.selenium.remote.*;
 import org.openqa.selenium.safari.SafariDriver;
 import org.openqa.selenium.safari.SafariOptions;
+import org.openqa.selenium.support.ThreadGuard;
 import org.sikuli.script.App;
 import org.testng.Assert;
 
@@ -395,7 +396,7 @@ public class BrowserFactory {
             ReportManager.log(WEBDRIVERMANAGER_MESSAGE);
             WebDriverManager.firefoxdriver().setup();
         }
-        driver.set(new FirefoxDriver(ffOptions));
+        driver.set(ThreadGuard.protect(new FirefoxDriver(ffOptions)));
         storeDriverInstance(BrowserType.MOZILLA_FIREFOX.getValue());
         ReportManager.log("Successfully Opened Mozilla Firefox.");
     }
@@ -408,7 +409,7 @@ public class BrowserFactory {
             ReportManager.log(WEBDRIVERMANAGER_MESSAGE);
             WebDriverManager.iedriver().setup();
         }
-        driver.set(new InternetExplorerDriver(ieOptions));
+        driver.set(ThreadGuard.protect(new InternetExplorerDriver(ieOptions)));
         storeDriverInstance(BrowserType.MICROSOFT_IE.getValue());
         ReportManager.log("Successfully Opened Microsoft Internet Explorer.");
     }
@@ -421,7 +422,7 @@ public class BrowserFactory {
             ReportManager.log(WEBDRIVERMANAGER_MESSAGE);
             WebDriverManager.chromedriver().setup();
         }
-        driver.set(new ChromeDriver(chOptions));
+        driver.set(ThreadGuard.protect(new ChromeDriver(chOptions)));
         storeDriverInstance(BrowserType.GOOGLE_CHROME.getValue());
         ReportManager.log("Successfully Opened Google Chrome.");
     }
@@ -434,14 +435,14 @@ public class BrowserFactory {
             ReportManager.log(WEBDRIVERMANAGER_MESSAGE);
             WebDriverManager.edgedriver().setup();
         }
-        driver.set(new EdgeDriver(edOptions));
+        driver.set(ThreadGuard.protect(new EdgeDriver(edOptions)));
         storeDriverInstance(BrowserType.MICROSOFT_EDGE.getValue());
         ReportManager.log("Successfully Opened Microsoft Edge.");
     }
 
     private static void createNewLocalDriverInstanceForSafari() {
         try {
-            driver.set(new SafariDriver(sfOptions));
+            driver.set(ThreadGuard.protect(new SafariDriver(sfOptions)));
         } catch (SessionNotCreatedException e) {
             ReportManagerHelper.log(e);
             failAction("Failed to create a session on" + BrowserType.APPLE_SAFARI.toString());
@@ -499,22 +500,22 @@ public class BrowserFactory {
         try {
             switch (browserType) {
                 case MOZILLA_FIREFOX:
-                    driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), ffOptions));
+                    driver.set(ThreadGuard.protect(new RemoteWebDriver(new URL(TARGET_HUB_URL), ffOptions)));
                     break;
                 case MICROSOFT_IE:
-                    driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), ieOptions));
+                    driver.set(ThreadGuard.protect(new RemoteWebDriver(new URL(TARGET_HUB_URL), ieOptions)));
                     break;
                 case GOOGLE_CHROME:
-                    driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), chOptions));
+                    driver.set(ThreadGuard.protect(new RemoteWebDriver(new URL(TARGET_HUB_URL), chOptions)));
                     break;
                 case MICROSOFT_EDGE:
-                    driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), edOptions));
+                    driver.set(ThreadGuard.protect(new RemoteWebDriver(new URL(TARGET_HUB_URL), edOptions)));
                     break;
                 case APPLE_SAFARI:
                     if (!isMobileExecution()) {
-                        driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), sfOptions));
+                        driver.set(ThreadGuard.protect(new RemoteWebDriver(new URL(TARGET_HUB_URL), sfOptions)));
                     } else {
-                        driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+                        driver.set(ThreadGuard.protect(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities)));
                     }
                     break;
                 case MOBILE_CHROME:
@@ -523,22 +524,22 @@ public class BrowserFactory {
                     mobileDesiredCapabilities.setCapability("chromedriverExecutable",
                             WebDriverManager.chromedriver().getDownloadedDriverPath());
                     mobileDesiredCapabilities.setCapability("appium:chromeOptions", ImmutableMap.of("w3c", false));
-                    driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+                    driver.set(ThreadGuard.protect(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities)));
                     break;
                 case MOBILE_CHROMIUM:
                     WebDriverManager.chromedriver().browserVersion(System.getProperty("MobileBrowserVersion")).setup();
                     mobileDesiredCapabilities.setCapability("chromedriverExecutable",
                             WebDriverManager.chromedriver().getDownloadedDriverPath());
-                    driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+                    driver.set(ThreadGuard.protect(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities)));
                     break;
                 case MOBILE_BROWSER:
                 case MOBILE_NATIVE:
                     if ("Android".equals(targetOperatingSystem)) {
-                        driver.set(new AndroidDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+                        driver.set(ThreadGuard.protect(new AndroidDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities)));
                     } else if ("iOS".equals(targetOperatingSystem)) {
-                        driver.set(new IOSDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+                        driver.set(ThreadGuard.protect(new IOSDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities)));
                     } else {
-                        driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+                        driver.set(ThreadGuard.protect(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities)));
                         // will break in case of firefoxOS
                     }
                     break;
@@ -668,10 +669,10 @@ public class BrowserFactory {
 
             if ("local".equals(EXECUTION_ADDRESS) && !isMobileExecution()) {
                 // Manage local execution
-                driver.set(createNewLocalDriverInstance(internalBrowserName));
+                driver.set(ThreadGuard.protect(createNewLocalDriverInstance(internalBrowserName)));
             } else {
                 // Manage remote execution / or appium execution
-                driver.set(createNewRemoteDriverInstance(internalBrowserName));
+                driver.set(ThreadGuard.protect(createNewRemoteDriverInstance(internalBrowserName)));
             }
             if (!isMobileNativeExecution()) {
                 driver.get().manage().timeouts().pageLoadTimeout(PAGE_LOAD_TIMEOUT, TimeUnit.SECONDS);
