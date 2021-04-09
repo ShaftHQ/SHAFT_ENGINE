@@ -915,6 +915,48 @@ public class ElementActions {
     }
 
     /**
+     * Waits dynamically for a specific element's text to change from the initial
+     * value to a new unknown value. Waits for a specific number of retries
+     * multiplied by the default element identification timeout (in the POM.xml
+     * file)
+     *
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param initialValue   the initial text value of the target webElement
+     * @param numberOfTries  the number of times to try and wait for the element
+     *                       text to change (default is 1)
+     */
+    public static void waitForTextToChange(WebDriver driver, By elementLocator, String initialValue,
+                                           int numberOfTries) {
+        By internalElementLocator = elementLocator;
+        if (identifyUniqueElement(driver, internalElementLocator)) {
+            // Override current locator with the aiGeneratedElementLocator
+            internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
+
+            if (!Boolean.TRUE.equals(ElementActionsHelper.waitForElementTextToBeNot(driver, internalElementLocator, initialValue))) {
+                failAction(driver, initialValue, internalElementLocator);
+            }
+
+            try {
+                passAction(driver, internalElementLocator,
+                        "from: \"" + initialValue + "\", to: \"" + getText(driver, internalElementLocator) + "\"");
+            } catch (Exception e) {
+                passAction(driver, internalElementLocator, "from: \"" + initialValue + "\", to a new value.");
+            }
+        } else {
+            if (internalElementLocator != null) {
+                failAction(driver,
+                        "Element with locator (" + internalElementLocator + ") was not found on this page.",
+                        internalElementLocator);
+            } else {
+                // this code is unreachable it's just in place to satisfy SonarLint
+                failAction(driver, "Element has Null locator.", null);
+            }
+        }
+    }
+
+    /**
      * Selects an element from a dropdown list using its displayed text
      *
      * @param driver         the current instance of Selenium webdriver
@@ -1272,45 +1314,16 @@ public class ElementActions {
     }
 
     /**
-     * Waits dynamically for a specific element's text to change from the initial
-     * value to a new unknown value. Waits for a specific number of retries
-     * multiplied by the default element identification timeout (in the POM.xml
-     * file)
+     * This is a convenience method to be able to call TouchActions Actions for
+     * touch-enabled devices from within the regular Element Actions Class.
+     * <p>
+     * Sample use would look like this:
+     * ElementActions.performTouchAction().tap(driver, loginButton);
      *
-     * @param driver         the current instance of Selenium webdriver
-     * @param elementLocator the locator of the webElement under test (By xpath, id,
-     *                       selector, name ...etc)
-     * @param initialValue   the initial text value of the target webElement
-     * @param numberOfTries  the number of times to try and wait for the element
-     *                       text to change (default is 1)
+     * @return a TouchActions object capable of performing actions on touch-enabled devices
      */
-    public static void waitForTextToChange(WebDriver driver, By elementLocator, String initialValue,
-                                           int numberOfTries) {
-        By internalElementLocator = elementLocator;
-        if (identifyUniqueElement(driver, internalElementLocator)) {
-            // Override current locator with the aiGeneratedElementLocator
-            internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
-
-            if (!Boolean.TRUE.equals(ElementActionsHelper.waitForElementTextToBeNot(driver, internalElementLocator, initialValue))) {
-                failAction(driver, initialValue, internalElementLocator);
-            }
-
-            try {
-                passAction(driver, internalElementLocator,
-                        "from: \"" + initialValue + "\", to: \"" + getText(driver, internalElementLocator) + "\"");
-            } catch (Exception e) {
-                passAction(driver, internalElementLocator, "from: \"" + initialValue + "\", to a new value.");
-            }
-        } else {
-            if (internalElementLocator != null) {
-                failAction(driver,
-                        "Element with locator (" + internalElementLocator.toString() + ") was not found on this page.",
-                        internalElementLocator);
-            } else {
-                // this code is unreachable it's just in place to satisfy SonarLint
-                failAction(driver, "Element has Null locator.", null);
-            }
-        }
+    public TouchActions performTouchAction() {
+        return new TouchActions(lastUsedDriver);
     }
 
     protected static void failAction(WebDriver driver, By elementLocator, Exception... rootCauseException) {

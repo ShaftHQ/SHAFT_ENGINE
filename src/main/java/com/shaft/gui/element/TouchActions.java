@@ -6,6 +6,7 @@ import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManager;
 import io.appium.java_client.AppiumDriver;
+import io.appium.java_client.MobileBy;
 import io.appium.java_client.MobileElement;
 import io.appium.java_client.TouchAction;
 import io.appium.java_client.touch.offset.ElementOption;
@@ -26,6 +27,18 @@ public class TouchActions {
     public TouchActions(WebDriver driver) {
         this.driver = driver;
         RecordManager.startVideoRecording(driver);
+    }
+
+    /**
+     * This is a convenience method to be able to call Element Actions from within the current Touch Actions instance.
+     * <p>
+     * Sample use would look like this:
+     * new TouchActions(driver).tap(username_textbox).performElementAction().type(username_textbox, "username");
+     *
+     * @return a ElementActions object
+     */
+    public ElementActions performElementAction() {
+        return new ElementActions(driver);
     }
 
     /**
@@ -360,6 +373,7 @@ public class TouchActions {
                                                           int attemptsToScrollAndFindElement) {
         boolean isElementFound = false;
         int attemptsToFindElement = 0;
+        By androidUIAutomator = MobileBy.AndroidUIAutomator("new UiScrollable(new UiSelector().scrollable(true)).scrollForward()");
         do {
             // appium native device
             if (!driver.findElements(elementLocator).isEmpty()
@@ -370,34 +384,38 @@ public class TouchActions {
             } else {
                 // for the animated GIF:
                 ElementActions.takeScreenshot(driver, elementLocator, "swipeElementIntoView", null, true);
+                if (System.getProperty("targetOperatingSystem").equals("Android")) {
+                    //this line will fluent wait for the scrollable element and initiate a one screen scroll
+                    ElementActions.identifyUniqueElement(driver, androidUIAutomator);
+                } else {
+                    Dimension screenSize = driver.manage().window().getSize();
+                    Point startingPoint = new Point(0, 0);
+                    Point endingPoint = new Point(0, 0);
 
-                Dimension screenSize = driver.manage().window().getSize();
-                Point startingPoint = new Point(0, 0);
-                Point endingPoint = new Point(0, 0);
-
-                switch (swipeDirection) {
-                    case DOWN -> {
-                        startingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight() * 80 / 100);
-                        endingPoint = new Point(screenSize.getWidth() / 2, 0);
+                    switch (swipeDirection) {
+                        case DOWN -> {
+                            startingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight() * 80 / 100);
+                            endingPoint = new Point(screenSize.getWidth() / 2, 0);
+                        }
+                        case UP -> {
+                            startingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight() * 20 / 100);
+                            endingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight());
+                        }
+                        case RIGHT -> {
+                            startingPoint = new Point(screenSize.getWidth() * 80 / 100, screenSize.getHeight() / 2);
+                            endingPoint = new Point(0, screenSize.getHeight() / 2);
+                        }
+                        case LEFT -> {
+                            startingPoint = new Point(screenSize.getWidth() * 20 / 100, screenSize.getHeight() / 2);
+                            endingPoint = new Point(screenSize.getWidth(), screenSize.getHeight() / 2);
+                        }
                     }
-                    case UP -> {
-                        startingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight() * 20 / 100);
-                        endingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight());
-                    }
-                    case RIGHT -> {
-                        startingPoint = new Point(screenSize.getWidth() * 80 / 100, screenSize.getHeight() / 2);
-                        endingPoint = new Point(0, screenSize.getHeight() / 2);
-                    }
-                    case LEFT -> {
-                        startingPoint = new Point(screenSize.getWidth() * 20 / 100, screenSize.getHeight() / 2);
-                        endingPoint = new Point(screenSize.getWidth(), screenSize.getHeight() / 2);
-                    }
+                    (new TouchAction<>((AppiumDriver<?>) driver)).press(PointOption.point(startingPoint))
+                            .moveTo(PointOption.point(endingPoint)).release().perform();
                 }
-                (new TouchAction<>((AppiumDriver<?>) driver)).press(PointOption.point(startingPoint))
-                        .moveTo(PointOption.point(endingPoint)).release().perform();
                 attemptsToFindElement++;
             }
-        } while (Boolean.FALSE.equals(isElementFound) || attemptsToFindElement >= attemptsToScrollAndFindElement);
+        } while (Boolean.FALSE.equals(isElementFound) && attemptsToFindElement < attemptsToScrollAndFindElement);
         // TODO: devise a way to break the loop when no further scrolling options are
         // available. do not use visual comparison which is the easy but costly way to
         // do it.
