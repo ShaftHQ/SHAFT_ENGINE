@@ -32,7 +32,7 @@ public class Test_AppiumNative {
                 .performElementAction()
                 .type(search, "Batman")
                 .performTouchAction()
-                .keyPress(TouchActions.KeyboardKeys.SEARCH)
+                .nativeKeyboardKeyPress(TouchActions.KeyboardKeys.SEARCH)
                 .swipeElementIntoView(scrollable_element, TouchActions.SwipeDirection.DOWN);
         Assertions.assertElementMatches(driver, scrollable_element, "Asserting that the scrollable element is displayed");
     }

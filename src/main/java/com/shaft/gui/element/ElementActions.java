@@ -397,6 +397,7 @@ public class ElementActions {
     public static void executeNativeMobileCommand(WebDriver driver, String command, Map<String, String> parameters) {
         try {
             ((JavascriptExecutor) driver).executeScript(command, parameters);
+            passAction(driver, "Command: " + command + ", Parameters: " + parameters);
         } catch (Exception rootCauseException) {
             failAction(driver, null, rootCauseException);
         }
@@ -1313,19 +1314,6 @@ public class ElementActions {
         }
     }
 
-    /**
-     * This is a convenience method to be able to call TouchActions Actions for
-     * touch-enabled devices from within the regular Element Actions Class.
-     * <p>
-     * Sample use would look like this:
-     * ElementActions.performTouchAction().tap(driver, loginButton);
-     *
-     * @return a TouchActions object capable of performing actions on touch-enabled devices
-     */
-    public TouchActions performTouchAction() {
-        return new TouchActions(lastUsedDriver);
-    }
-
     protected static void failAction(WebDriver driver, By elementLocator, Exception... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         failAction(driver, actionName, null, elementLocator, null, rootCauseException);
@@ -1895,6 +1883,36 @@ public class ElementActions {
             ReportManager.log("Failed to identify Target element with locator [" + internalElementLocator + "].");
             return null;
         }
+    }
+
+    /**
+     * This is a generic method to enable the execution of any of the native mobile
+     * commands found herein: http://appium.io/docs/en/commands/mobile-command/
+     * <p>
+     * Note: This method does no validation on the output of the executed JavaScript
+     *
+     * @param command    the desired mobile command to be executed. e.g., "mobile:
+     *                   scroll"
+     * @param parameters a map of the key, value parameters for this command. e.g.,
+     *                   ImmutableMap.of("direction", "down")
+     * @return a self-reference to be used to chain actions
+     */
+    public ElementActions executeNativeMobileCommand(String command, Map<String, String> parameters) {
+        ElementActions.executeNativeMobileCommand(lastUsedDriver, command, parameters);
+        return this;
+    }
+
+    /**
+     * This is a convenience method to be able to call TouchActions Actions for
+     * touch-enabled devices from within the regular Element Actions Class.
+     * <p>
+     * Sample use would look like this:
+     * ElementActions.performTouchAction().tap(driver, loginButton);
+     *
+     * @return a TouchActions object capable of performing actions on touch-enabled devices
+     */
+    public TouchActions performTouchAction() {
+        return new TouchActions(lastUsedDriver);
     }
 
     /**

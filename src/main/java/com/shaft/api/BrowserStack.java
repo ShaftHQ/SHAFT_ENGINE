@@ -1,6 +1,7 @@
 package com.shaft.api;
 
 import com.shaft.cli.FileActions;
+import com.shaft.tools.io.ReportManager;
 import org.testng.Assert;
 
 import java.io.File;
@@ -29,6 +30,7 @@ public class BrowserStack {
      * @param appName               Name of your APK (excluding version number). This will be used as your CustomID so that you can keep uploading new versions of the same app and run your tests against them.
      */
     public static void setupNativeAppExecution(String username, String password, String deviceName, String osVersion, String relativePathToAppFile, String appName) {
+        ReportManager.logDiscrete("Setting up BrowserStack configuration...");
         String testData = "Username: " + username + ", Password: " + password + ", Device Name: " + deviceName + ", OS Version: " + osVersion + ", Relative Path to App File: " + relativePathToAppFile + ", App Name: " + appName;
         // set initial properties
         System.setProperty("executionAddress", hubUrl);
@@ -40,23 +42,29 @@ public class BrowserStack {
         // upload app to browserstack api
         List<Object> apkFile = new ArrayList<>();
         apkFile.add("file");
-        apkFile.add(new File(FileActions.getAbsolutePath(relativePathToAppFile)));
+        String appPath = FileActions.getAbsolutePath(relativePathToAppFile);
+        apkFile.add(new File(appPath));
+        ReportManager.logDiscrete("BrowserStack appPath: " + appPath);
 
         List<Object> customID = new ArrayList<>();
         customID.add("custom_id");
-        customID.add("SHAFT_Engine_" + appName.replaceAll(" ", "_"));
+        String custom_id = "SHAFT_Engine_" + appName.replaceAll(" ", "_");
+        customID.add(custom_id);
+        ReportManager.logDiscrete("BrowserStack custom_id: " + custom_id);
 
         List<List<Object>> parameters = new ArrayList<>();
         parameters.add(apkFile);
         parameters.add(customID);
 
         try {
-            System.setProperty("mobile_app", Objects.requireNonNull(RestActions.getResponseJSONValue(new RestActions(serviceUri).buildNewRequest(appUploadServiceName, RestActions.RequestType.POST)
+            String app_url = Objects.requireNonNull(RestActions.getResponseJSONValue(new RestActions(serviceUri).buildNewRequest(appUploadServiceName, RestActions.RequestType.POST)
                             .setParameters(parameters)
                             .setParametersType(RestActions.ParametersType.FORM)
                             .setAuthentication(username, password, RequestBuilder.AuthenticationType.BASIC)
                             .performRequest(),
-                    "app_url")));
+                    "app_url"));
+            System.setProperty("mobile_app", app_url);
+            ReportManager.logDiscrete("BrowserStack app_url: " + app_url);
         } catch (NullPointerException exception) {
             failAction(testData, exception);
         }
@@ -79,9 +87,9 @@ public class BrowserStack {
     private static String reportActionResult(String actionName, String testData, Boolean passFailStatus) {
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
-            message = "API Action [" + actionName + "] successfully performed.";
+            message = "BrowserStack API Action [" + actionName + "] successfully performed.";
         } else {
-            message = "API Action [" + actionName + "] failed.";
+            message = "BrowserStack API Action [" + actionName + "] failed.";
         }
         if (testData != null && !testData.isEmpty()) {
             message = message + " With the following test data [" + testData + "].";

@@ -1,6 +1,7 @@
 package com.shaft.gui.element;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.gui.video.RecordManager;
@@ -9,10 +10,6 @@ import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.MobileBy;
 import io.appium.java_client.MobileElement;
 import io.appium.java_client.TouchAction;
-import io.appium.java_client.android.AndroidDriver;
-import io.appium.java_client.android.nativekey.AndroidKey;
-import io.appium.java_client.android.nativekey.KeyEvent;
-import io.appium.java_client.ios.IOSDriver;
 import io.appium.java_client.touch.offset.ElementOption;
 import io.appium.java_client.touch.offset.PointOption;
 import org.openqa.selenium.*;
@@ -51,13 +48,12 @@ public class TouchActions {
      * @param key the key that should be pressed
      * @return a self-reference to be used to chain actions
      */
-    public TouchActions keyPress(KeyboardKeys key) {
-        if (System.getProperty("targetOperatingSystem").equals("Android")) {
-            ((AndroidDriver) driver).pressKey(new KeyEvent(AndroidKey.valueOf(key.name())));
-        } else if (System.getProperty("targetOperatingSystem").equals("iOS")) {
-            ((IOSDriver) driver).getKeyboard().sendKeys(Keys.valueOf(key.name()));
-        } else {
-            ((AppiumDriver<?>) driver).getKeyboard().sendKeys(Keys.valueOf(key.name()));
+    public TouchActions nativeKeyboardKeyPress(KeyboardKeys key) {
+        try {
+            ((JavascriptExecutor) driver).executeScript("mobile: performEditorAction", key.getValue());
+            ElementActions.passAction(driver, null, key.name());
+        } catch (Exception rootCauseException) {
+            ElementActions.failAction(driver, null, rootCauseException);
         }
         ElementActions.passAction(driver, null, key.name());
         return this;
@@ -452,7 +448,18 @@ public class TouchActions {
     }
 
     public enum KeyboardKeys {
-        SEARCH, ENTER, SPACE
+        GO(ImmutableMap.of("action", "go")), DONE(ImmutableMap.of("action", "done")), SEARCH(ImmutableMap.of("action", "search")), SEND(ImmutableMap.of("action", "send")),
+        NEXT(ImmutableMap.of("action", "next")), PREVIOUS(ImmutableMap.of("action", "previous")), NORMAL(ImmutableMap.of("action", "normal")), UNSPECIFIED(ImmutableMap.of("action", "unspecified")), NONE(ImmutableMap.of("action", "none"));
+
+        private final ImmutableMap value;
+
+        KeyboardKeys(ImmutableMap type) {
+            this.value = type;
+        }
+
+        protected ImmutableMap getValue() {
+            return value;
+        }
     }
 
 }
