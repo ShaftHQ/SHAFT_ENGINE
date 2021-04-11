@@ -21,7 +21,6 @@ public class Test_AppiumNative {
     private final By english = By.xpath("//android.widget.TextView[@text='English']");
     private final By search = By.id("com.jumia.android:id/search_input_text");
     private final By scrollable_element = By.xpath("//android.widget.TextView[contains(@text,'Batman Vs Superman Key Chain')]");
-    private final By batman_armor = By.xpath("//android.widget.TextView[contains(@text,'Batman Armor')]/ancestor::android.view.ViewGroup[2]");
     private WebDriver driver;
 
     @Test
@@ -49,7 +48,7 @@ public class Test_AppiumNative {
         //System.setProperty("mobile_app", FileActions.getAbsolutePath("src/test/resources/", "JUMIA_v7.1.1.apk"));
 
         // remote browserstack server
-        BrowserStack.setupNativeAppExecution("mohabmohie1", "7E7PgzBtwk4sWLUcF8Y5", "Samsung Galaxy Note 20", "10.0", "src/test/resources/JUMIA_v7.1.1.apk", "JUMIA");
+        BrowserStack.setupNativeAppExecution("mohabmohie1", "7E7PgzBtwk4sWLUcF8Y5", "Google Pixel 3", "9.0", "src/test/resources/JUMIA_v7.1.1.apk", "JUMIA");
 
         driver = BrowserFactory.getBrowser();
     }

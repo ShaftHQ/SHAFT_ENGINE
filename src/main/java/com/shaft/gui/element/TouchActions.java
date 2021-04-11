@@ -83,7 +83,7 @@ public class TouchActions {
             tap.addAction(input.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
             try {
                 ((AppiumDriver<?>) driver).perform(ImmutableList.of(tap));
-            } catch (org.openqa.selenium.UnsupportedCommandException exception) {
+            } catch (UnsupportedCommandException exception) {
                 ElementActions.failAction(driver, null, exception);
             }
         } else {
