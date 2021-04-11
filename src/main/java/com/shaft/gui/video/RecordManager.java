@@ -10,6 +10,7 @@ import io.appium.java_client.MobileElement;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebDriverException;
 import ws.schild.jave.Encoder;
 import ws.schild.jave.EncoderException;
 import ws.schild.jave.MultimediaObject;
@@ -42,16 +43,21 @@ public class RecordManager {
                 && driver != null
                 && BrowserFactory.isMobileNativeExecution()) {
             videoDriver.set(driver);
-            if (driver instanceof AndroidDriver) {
-                ((AndroidDriver<MobileElement>) driver).startRecordingScreen();
-            } else if (driver instanceof IOSDriver) {
-                ((IOSDriver<MobileElement>) driver).startRecordingScreen();
+            try {
+                if (driver instanceof AndroidDriver) {
+                    ((AndroidDriver<MobileElement>) driver).startRecordingScreen();
+                } else if (driver instanceof IOSDriver) {
+                    ((IOSDriver<MobileElement>) driver).startRecordingScreen();
+                }
+                ReportManager.logDiscrete("Started recording device screen");
+                isRecordingStarted = true;
+            } catch (WebDriverException exception) {
+                ReportManager.logDiscrete("Failed to start recording device screen");
+                ReportManagerHelper.log(exception);
             }
-            ReportManager.logDiscrete("Started recording device screen");
         } else {
             startVideoRecording();
         }
-        isRecordingStarted = true;
     }
 
     public static synchronized void startVideoRecording() {

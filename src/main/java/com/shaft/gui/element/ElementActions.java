@@ -876,19 +876,19 @@ public class ElementActions {
      * @param driver         the current instance of Selenium webdriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
-     * @param keys           the key that should be pressed
+     * @param key            the key that should be pressed
      */
-    public static void keyPress(WebDriver driver, By elementLocator, Keys keys) {
+    public static void keyPress(WebDriver driver, By elementLocator, Keys key) {
         By internalElementLocator = elementLocator;
         if (identifyUniqueElement(driver, internalElementLocator)) {
             // Override current locator with the aiGeneratedElementLocator
             internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
 
-            driver.findElement(internalElementLocator).sendKeys(keys);
+            driver.findElement(internalElementLocator).sendKeys(key);
         } else {
-            failAction(driver, keys.name(), internalElementLocator);
+            failAction(driver, key.name(), internalElementLocator);
         }
-        passAction(driver, internalElementLocator, keys.name());
+        passAction(driver, internalElementLocator, key.name());
     }
 
     public static SikuliActions performSikuliAction() {

@@ -356,7 +356,7 @@ public class FileActions {
      * fileFolderName and the fileName
      *
      * @param fileFolderName The location of the folder that contains the target
-     *                       file, relative to the project's root folder, ending
+     *                       file, relative to the project's root directory, ending
      *                       with a /
      * @param fileName       The name of the target file (including its extension if
      *                       any)
@@ -374,11 +374,17 @@ public class FileActions {
         return filePath;
     }
 
-    public static String getAbsolutePath(String fileFolderName) {
+    /**
+     * Returns the full (absolute) file/folder path using the project-relative relativePath
+     *
+     * @param relativePath The location of the target file or folder, relative to the project's root directory, ending with a / if it's a folder
+     * @return a string value that represents the full/absolute file/folder path
+     */
+    public static String getAbsolutePath(String relativePath) {
         String filePath = "";
         try {
-            filePath = (new File(fileFolderName)).getAbsolutePath();
-            passAction("Relative Folder Path: \"" + fileFolderName + "\"", filePath);
+            filePath = (new File(relativePath)).getAbsolutePath();
+            passAction("Relative Folder Path: \"" + relativePath + "\"", filePath);
         } catch (Exception e) {
             ReportManagerHelper.log(e);
             failAction(e);
@@ -505,10 +511,10 @@ public class FileActions {
             out.close();
             unpacked = unpackArchive(zip, targetDir);
             FileActions.deleteFile(zip.getAbsolutePath());
-            passAction("Target URL\"" + url.toString() + "\" | Destination Folder: \"" + destinationFolderPath + "\"");
+            passAction("Target URL\"" + url + "\" | Destination Folder: \"" + destinationFolderPath + "\"");
         } catch (IOException rootCauseException) {
             ReportManagerHelper.log(rootCauseException);
-            failAction("file: " + url.toString() + " to directory: " + destinationFolderPath, rootCauseException);
+            failAction("file: " + url + " to directory: " + destinationFolderPath, rootCauseException);
         }
         return unpacked;
     }

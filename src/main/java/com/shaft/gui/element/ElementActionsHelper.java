@@ -21,6 +21,10 @@ class ElementActionsHelper {
     private static final boolean FORCE_CHECK_FOR_ELEMENT_VISIBILITY = Boolean
             .parseBoolean(System.getProperty("forceCheckForElementVisibility").trim());
 
+    private ElementActionsHelper() {
+        throw new IllegalStateException("Utility class");
+    }
+
     protected static int waitForElementPresence(WebDriver driver, By elementLocator) {
         return waitForElementPresence(driver, elementLocator, ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION, FORCE_CHECK_FOR_ELEMENT_VISIBILITY);
     }

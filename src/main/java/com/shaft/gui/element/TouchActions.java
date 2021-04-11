@@ -9,6 +9,10 @@ import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.MobileBy;
 import io.appium.java_client.MobileElement;
 import io.appium.java_client.TouchAction;
+import io.appium.java_client.android.AndroidDriver;
+import io.appium.java_client.android.nativekey.AndroidKey;
+import io.appium.java_client.android.nativekey.KeyEvent;
+import io.appium.java_client.ios.IOSDriver;
 import io.appium.java_client.touch.offset.ElementOption;
 import io.appium.java_client.touch.offset.PointOption;
 import org.openqa.selenium.*;
@@ -42,6 +46,24 @@ public class TouchActions {
     }
 
     /**
+     * Sends a keypress via the device keyboard.
+     *
+     * @param key the key that should be pressed
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions keyPress(KeyboardKeys key) {
+        if (System.getProperty("targetOperatingSystem").equals("Android")) {
+            ((AndroidDriver) driver).pressKey(new KeyEvent(AndroidKey.valueOf(key.name())));
+        } else if (System.getProperty("targetOperatingSystem").equals("iOS")) {
+            ((IOSDriver) driver).getKeyboard().sendKeys(Keys.valueOf(key.name()));
+        } else {
+            ((AppiumDriver<?>) driver).getKeyboard().sendKeys(Keys.valueOf(key.name()));
+        }
+        ElementActions.passAction(driver, null, key.name());
+        return this;
+    }
+
+    /**
      * Taps an element once on a touch-enabled screen
      *
      * @param elementReferenceScreenshot relative path to the reference image from the local object repository, ends with /
@@ -59,7 +81,11 @@ public class TouchActions {
             tap.addAction(input.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
             tap.addAction(new Pause(input, Duration.ofMillis(200)));
             tap.addAction(input.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
-            ((AppiumDriver<?>) driver).perform(ImmutableList.of(tap));
+            try {
+                ((AppiumDriver<?>) driver).perform(ImmutableList.of(tap));
+            } catch (org.openqa.selenium.UnsupportedCommandException exception) {
+                ElementActions.failAction(driver, null, exception);
+            }
         } else {
             byte[] currentScreenImage = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
             List<Integer> coordinates = ImageProcessingActions.findImageWithinCurrentPage(elementReferenceScreenshot, currentScreenImage, 1);
@@ -423,6 +449,10 @@ public class TouchActions {
 
     public enum SwipeDirection {
         UP, DOWN, LEFT, RIGHT
+    }
+
+    public enum KeyboardKeys {
+        SEARCH, ENTER, SPACE
     }
 
 }
