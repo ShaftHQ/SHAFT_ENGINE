@@ -73,9 +73,19 @@ public class RestActions {
         return new RequestBuilder(new RestActions(serviceURI), serviceName, requestType);
     }
 
-    protected static void passAction(String actionName, String testData, Object requestBody, Response response,
-                                     Boolean isDiscrete, List<Object> expectedFileBodyAttachment) {
+    private static void passAction(String actionName, String testData, Object requestBody, Response response,
+                                   Boolean isDiscrete, List<Object> expectedFileBodyAttachment) {
         reportActionResult(actionName, testData, requestBody, response, isDiscrete, expectedFileBodyAttachment, true);
+    }
+
+    private static void failAction(String actionName, String testData, Object requestBody, Response response,
+                                   Throwable... rootCauseException) {
+        String message = reportActionResult(actionName, testData, requestBody, response, false, null, false);
+        if (rootCauseException != null && rootCauseException.length >= 1) {
+            Assert.fail(message, rootCauseException[0]);
+        } else {
+            Assert.fail(message);
+        }
     }
 
     protected static void passAction(String testData) {
@@ -384,14 +394,8 @@ public class RestActions {
         return prettyFormatXML(input);
     }
 
-    protected static void failAction(String actionName, String testData, Object requestBody, Response response,
-                                     Throwable... rootCauseException) {
-        String message = reportActionResult(actionName, testData, requestBody, response, false, null, false);
-        if (rootCauseException != null && rootCauseException.length >= 1) {
-            Assert.fail(message, rootCauseException[0]);
-        } else {
-            Assert.fail(message);
-        }
+    public RequestBuilder buildNewRequest(String serviceName, RequestType requestType) {
+        return new RequestBuilder(this, serviceName, requestType);
     }
 
     protected static void failAction(String testData, Object requestBody, Response response,
@@ -709,10 +713,6 @@ public class RestActions {
         return sessionCookies;
     }
 
-    public RequestBuilder buildNewRequest(String serviceName, RequestType requestType) {
-        return new RequestBuilder(this, serviceName, requestType);
-    }
-
     private RequestSpecBuilder initializeBuilder(Map<String, Object> sessionCookies, Map<String, String> sessionHeaders) {
         RequestSpecBuilder builder = new RequestSpecBuilder();
 
@@ -758,6 +758,7 @@ public class RestActions {
      * @param value the value that will be put inside the key
      * @return self-reference to be used for chaining actions
      */
+    @Deprecated
     public RestActions addHeaderVariable(String key, String value) {
         sessionHeaders.put(key, value);
         return this;
@@ -771,6 +772,7 @@ public class RestActions {
      * @param serviceName      /servicePATH/serviceNAME
      * @return Response; returns the full response object for further manipulation
      */
+    @Deprecated
     public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName) {
         return performRequest(
                 new Object[]{requestType, targetStatusCode, serviceName, null, null, null, null, ContentType.ANY});
@@ -787,6 +789,7 @@ public class RestActions {
      *                         "username=test&amp;password=test"
      * @return Response; returns the full response object for further manipulation
      */
+    @Deprecated
     public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName,
                                    String urlArguments) {
         return performRequest(new Object[]{requestType, targetStatusCode, serviceName, urlArguments, null, null, null,
@@ -805,6 +808,7 @@ public class RestActions {
      *                         time. Example: ContentType.ANY
      * @return Response; returns the full response object for further manipulation
      */
+    @Deprecated
     public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName,
                                    ContentType contentType) {
         return performRequest(
@@ -826,6 +830,7 @@ public class RestActions {
      *                         "username=test&amp;password=test"
      * @return Response; returns the full response object for further manipulation
      */
+    @Deprecated
     public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName,
                                    ContentType contentType, String urlArguments) {
         return performRequest(new Object[]{requestType, targetStatusCode, serviceName, urlArguments, null, null, null,
@@ -849,6 +854,7 @@ public class RestActions {
      *                         time. Example: ContentType.ANY
      * @return Response; returns the full response object for further manipulation
      */
+    @Deprecated
     public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName,
                                    List<List<Object>> parameters, ParametersType parametersType, ContentType contentType) {
         return performRequest(new Object[]{requestType, targetStatusCode, serviceName, null, parameters,
@@ -876,6 +882,7 @@ public class RestActions {
      *                         time. Example: ContentType.ANY
      * @return Response; returns the full response object for further manipulation
      */
+    @Deprecated
     public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName,
                                    Object requestBody, ContentType contentType) {
         return performRequest(

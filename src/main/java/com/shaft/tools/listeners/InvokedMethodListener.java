@@ -102,7 +102,9 @@ public class InvokedMethodListener implements IInvokedMethodListener {
         }
 
         // resetting scope and config
-        ElementActions.switchToDefaultContent();
+        if (!BrowserFactory.isMobileNativeExecution()) {
+            ElementActions.switchToDefaultContent();
+        }
         ReportManagerHelper.setDiscreteLogging(Boolean.parseBoolean(System.getProperty("alwaysLogDiscreetly")));
         ITestNGMethod testMethod = method.getTestMethod();
         if (testMethod.isTest()) {

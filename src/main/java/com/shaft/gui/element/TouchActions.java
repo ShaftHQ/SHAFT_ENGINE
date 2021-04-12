@@ -1,11 +1,13 @@
 package com.shaft.gui.element;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManager;
 import io.appium.java_client.AppiumDriver;
+import io.appium.java_client.MobileBy;
 import io.appium.java_client.MobileElement;
 import io.appium.java_client.TouchAction;
 import io.appium.java_client.touch.offset.ElementOption;
@@ -29,6 +31,35 @@ public class TouchActions {
     }
 
     /**
+     * This is a convenience method to be able to call Element Actions from within the current Touch Actions instance.
+     * <p>
+     * Sample use would look like this:
+     * new TouchActions(driver).tap(username_textbox).performElementAction().type(username_textbox, "username");
+     *
+     * @return a ElementActions object
+     */
+    public ElementActions performElementAction() {
+        return new ElementActions(driver);
+    }
+
+    /**
+     * Sends a keypress via the device keyboard.
+     *
+     * @param key the key that should be pressed
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions nativeKeyboardKeyPress(KeyboardKeys key) {
+        try {
+            ((JavascriptExecutor) driver).executeScript("mobile: performEditorAction", key.getValue());
+            ElementActions.passAction(driver, null, key.name());
+        } catch (Exception rootCauseException) {
+            ElementActions.failAction(driver, null, rootCauseException);
+        }
+        ElementActions.passAction(driver, null, key.name());
+        return this;
+    }
+
+    /**
      * Taps an element once on a touch-enabled screen
      *
      * @param elementReferenceScreenshot relative path to the reference image from the local object repository, ends with /
@@ -46,7 +77,11 @@ public class TouchActions {
             tap.addAction(input.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
             tap.addAction(new Pause(input, Duration.ofMillis(200)));
             tap.addAction(input.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
-            ((AppiumDriver<?>) driver).perform(ImmutableList.of(tap));
+            try {
+                ((AppiumDriver<?>) driver).perform(ImmutableList.of(tap));
+            } catch (UnsupportedCommandException exception) {
+                ElementActions.failAction(driver, null, exception);
+            }
         } else {
             byte[] currentScreenImage = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
             List<Integer> coordinates = ImageProcessingActions.findImageWithinCurrentPage(elementReferenceScreenshot, currentScreenImage, 1);
@@ -360,6 +395,7 @@ public class TouchActions {
                                                           int attemptsToScrollAndFindElement) {
         boolean isElementFound = false;
         int attemptsToFindElement = 0;
+        By androidUIAutomator = MobileBy.AndroidUIAutomator("new UiScrollable(new UiSelector().scrollable(true)).scrollForward()");
         do {
             // appium native device
             if (!driver.findElements(elementLocator).isEmpty()
@@ -370,34 +406,38 @@ public class TouchActions {
             } else {
                 // for the animated GIF:
                 ElementActions.takeScreenshot(driver, elementLocator, "swipeElementIntoView", null, true);
+                if (System.getProperty("targetOperatingSystem").equals("Android")) {
+                    //this line will fluent wait for the scrollable element and initiate a one screen scroll
+                    ElementActions.identifyUniqueElement(driver, androidUIAutomator);
+                } else {
+                    Dimension screenSize = driver.manage().window().getSize();
+                    Point startingPoint = new Point(0, 0);
+                    Point endingPoint = new Point(0, 0);
 
-                Dimension screenSize = driver.manage().window().getSize();
-                Point startingPoint = new Point(0, 0);
-                Point endingPoint = new Point(0, 0);
-
-                switch (swipeDirection) {
-                    case DOWN -> {
-                        startingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight() * 80 / 100);
-                        endingPoint = new Point(screenSize.getWidth() / 2, 0);
+                    switch (swipeDirection) {
+                        case DOWN -> {
+                            startingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight() * 80 / 100);
+                            endingPoint = new Point(screenSize.getWidth() / 2, 0);
+                        }
+                        case UP -> {
+                            startingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight() * 20 / 100);
+                            endingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight());
+                        }
+                        case RIGHT -> {
+                            startingPoint = new Point(screenSize.getWidth() * 80 / 100, screenSize.getHeight() / 2);
+                            endingPoint = new Point(0, screenSize.getHeight() / 2);
+                        }
+                        case LEFT -> {
+                            startingPoint = new Point(screenSize.getWidth() * 20 / 100, screenSize.getHeight() / 2);
+                            endingPoint = new Point(screenSize.getWidth(), screenSize.getHeight() / 2);
+                        }
                     }
-                    case UP -> {
-                        startingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight() * 20 / 100);
-                        endingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight());
-                    }
-                    case RIGHT -> {
-                        startingPoint = new Point(screenSize.getWidth() * 80 / 100, screenSize.getHeight() / 2);
-                        endingPoint = new Point(0, screenSize.getHeight() / 2);
-                    }
-                    case LEFT -> {
-                        startingPoint = new Point(screenSize.getWidth() * 20 / 100, screenSize.getHeight() / 2);
-                        endingPoint = new Point(screenSize.getWidth(), screenSize.getHeight() / 2);
-                    }
+                    (new TouchAction<>((AppiumDriver<?>) driver)).press(PointOption.point(startingPoint))
+                            .moveTo(PointOption.point(endingPoint)).release().perform();
                 }
-                (new TouchAction<>((AppiumDriver<?>) driver)).press(PointOption.point(startingPoint))
-                        .moveTo(PointOption.point(endingPoint)).release().perform();
                 attemptsToFindElement++;
             }
-        } while (Boolean.FALSE.equals(isElementFound) || attemptsToFindElement >= attemptsToScrollAndFindElement);
+        } while (Boolean.FALSE.equals(isElementFound) && attemptsToFindElement < attemptsToScrollAndFindElement);
         // TODO: devise a way to break the loop when no further scrolling options are
         // available. do not use visual comparison which is the easy but costly way to
         // do it.
@@ -405,6 +445,21 @@ public class TouchActions {
 
     public enum SwipeDirection {
         UP, DOWN, LEFT, RIGHT
+    }
+
+    public enum KeyboardKeys {
+        GO(ImmutableMap.of("action", "go")), DONE(ImmutableMap.of("action", "done")), SEARCH(ImmutableMap.of("action", "search")), SEND(ImmutableMap.of("action", "send")),
+        NEXT(ImmutableMap.of("action", "next")), PREVIOUS(ImmutableMap.of("action", "previous")), NORMAL(ImmutableMap.of("action", "normal")), UNSPECIFIED(ImmutableMap.of("action", "unspecified")), NONE(ImmutableMap.of("action", "none"));
+
+        private final ImmutableMap value;
+
+        KeyboardKeys(ImmutableMap type) {
+            this.value = type;
+        }
+
+        protected ImmutableMap getValue() {
+            return value;
+        }
     }
 
 }

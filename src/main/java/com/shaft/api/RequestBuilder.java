@@ -11,12 +11,12 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 public class RequestBuilder {
-    private final RestActions session;
-    private final Map<String, String> sessionHeaders;
-    private final Map<String, Object> sessionCookies;
-    private final RestActions.RequestType requestType;
-    private final String serviceName;
-    private final String serviceURI;
+    private RestActions session;
+    private Map<String, String> sessionHeaders;
+    private Map<String, Object> sessionCookies;
+    private RestActions.RequestType requestType;
+    private String serviceName;
+    private String serviceURI;
     private int targetStatusCode = 200;
 
     private String urlArguments = null;
@@ -25,23 +25,28 @@ public class RequestBuilder {
     private Object requestBody = null;
     private ContentType contentType = ContentType.ANY;
 
+    //    private RequestSpecBuilder specBuilder;
+    private AuthenticationType authenticationType;
+    private String authenticationUsername;
+    private String authenticationPassword;
+
     //TODO: Document everything
     RequestBuilder(RestActions session, String serviceName, RestActions.RequestType requestType) {
+        initializeVariables(session, serviceName, requestType);
+    }
+
+    RequestBuilder(String serviceURI, String serviceName, RestActions.RequestType requestType) {
+        initializeVariables(new RestActions(serviceURI), serviceName, requestType);
+    }
+
+    private void initializeVariables(RestActions session, String serviceName, RestActions.RequestType requestType) {
         this.session = session;
         this.serviceURI = session.getServiceURI();
         this.sessionCookies = session.getSessionCookies();
         this.sessionHeaders = session.getSessionHeaders();
         this.requestType = requestType;
         this.serviceName = serviceName;
-    }
-
-    RequestBuilder(String serviceURI, String serviceName, RestActions.RequestType requestType) {
-        this.session = new RestActions(serviceURI);
-        this.serviceURI = session.getServiceURI();
-        this.sessionCookies = session.getSessionCookies();
-        this.sessionHeaders = session.getSessionHeaders();
-        this.requestType = requestType;
-        this.serviceName = serviceName;
+//        this.specBuilder = new RequestSpecBuilder();
     }
 
     public RequestBuilder setTargetStatusCode(int targetStatusCode) {
@@ -84,9 +89,21 @@ public class RequestBuilder {
         return this;
     }
 
+    public RequestBuilder setAuthentication(String username, String password, AuthenticationType authenticationType) {
+        this.authenticationType = authenticationType;
+        this.authenticationUsername = username;
+        this.authenticationPassword = password;
+        return this;
+    }
+
     public Response performRequest() {
         String request = session.prepareRequestURL(serviceURI, urlArguments, serviceName);
         RequestSpecification specs = session.prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders);
+
+        switch (this.authenticationType) {
+            case BASIC -> specs.auth().preemptive().basic(this.authenticationUsername, this.authenticationPassword);
+            case FORM -> specs.auth().form(this.authenticationUsername, this.authenticationPassword);
+        }
 
         Response response = null;
         try {
@@ -116,5 +133,9 @@ public class RequestBuilder {
             }
         }
         return response;
+    }
+
+    public enum AuthenticationType {
+        BASIC, FORM
     }
 }
