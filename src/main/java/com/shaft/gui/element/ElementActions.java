@@ -397,6 +397,7 @@ public class ElementActions {
     public static void executeNativeMobileCommand(WebDriver driver, String command, Map<String, String> parameters) {
         try {
             ((JavascriptExecutor) driver).executeScript(command, parameters);
+            passAction(driver, "Command: " + command + ", Parameters: " + parameters);
         } catch (Exception rootCauseException) {
             failAction(driver, null, rootCauseException);
         }
@@ -876,19 +877,19 @@ public class ElementActions {
      * @param driver         the current instance of Selenium webdriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
-     * @param keys           the key that should be pressed
+     * @param key            the key that should be pressed
      */
-    public static void keyPress(WebDriver driver, By elementLocator, Keys keys) {
+    public static void keyPress(WebDriver driver, By elementLocator, Keys key) {
         By internalElementLocator = elementLocator;
         if (identifyUniqueElement(driver, internalElementLocator)) {
             // Override current locator with the aiGeneratedElementLocator
             internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
 
-            driver.findElement(internalElementLocator).sendKeys(keys);
+            driver.findElement(internalElementLocator).sendKeys(key);
         } else {
-            failAction(driver, keys.name(), internalElementLocator);
+            failAction(driver, key.name(), internalElementLocator);
         }
-        passAction(driver, internalElementLocator, keys.name());
+        passAction(driver, internalElementLocator, key.name());
     }
 
     public static SikuliActions performSikuliAction() {
@@ -912,6 +913,48 @@ public class ElementActions {
      */
     public static TouchActions performTouchAction(WebDriver driver) {
         return new TouchActions(driver);
+    }
+
+    /**
+     * Waits dynamically for a specific element's text to change from the initial
+     * value to a new unknown value. Waits for a specific number of retries
+     * multiplied by the default element identification timeout (in the POM.xml
+     * file)
+     *
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @param initialValue   the initial text value of the target webElement
+     * @param numberOfTries  the number of times to try and wait for the element
+     *                       text to change (default is 1)
+     */
+    public static void waitForTextToChange(WebDriver driver, By elementLocator, String initialValue,
+                                           int numberOfTries) {
+        By internalElementLocator = elementLocator;
+        if (identifyUniqueElement(driver, internalElementLocator)) {
+            // Override current locator with the aiGeneratedElementLocator
+            internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
+
+            if (!Boolean.TRUE.equals(ElementActionsHelper.waitForElementTextToBeNot(driver, internalElementLocator, initialValue))) {
+                failAction(driver, initialValue, internalElementLocator);
+            }
+
+            try {
+                passAction(driver, internalElementLocator,
+                        "from: \"" + initialValue + "\", to: \"" + getText(driver, internalElementLocator) + "\"");
+            } catch (Exception e) {
+                passAction(driver, internalElementLocator, "from: \"" + initialValue + "\", to a new value.");
+            }
+        } else {
+            if (internalElementLocator != null) {
+                failAction(driver,
+                        "Element with locator (" + internalElementLocator + ") was not found on this page.",
+                        internalElementLocator);
+            } else {
+                // this code is unreachable it's just in place to satisfy SonarLint
+                failAction(driver, "Element has Null locator.", null);
+            }
+        }
     }
 
     /**
@@ -1268,48 +1311,6 @@ public class ElementActions {
             passAction(driver, internalElementLocator, reportMessage);
         } else {
             failAction(driver, reportMessage, internalElementLocator);
-        }
-    }
-
-    /**
-     * Waits dynamically for a specific element's text to change from the initial
-     * value to a new unknown value. Waits for a specific number of retries
-     * multiplied by the default element identification timeout (in the POM.xml
-     * file)
-     *
-     * @param driver         the current instance of Selenium webdriver
-     * @param elementLocator the locator of the webElement under test (By xpath, id,
-     *                       selector, name ...etc)
-     * @param initialValue   the initial text value of the target webElement
-     * @param numberOfTries  the number of times to try and wait for the element
-     *                       text to change (default is 1)
-     */
-    public static void waitForTextToChange(WebDriver driver, By elementLocator, String initialValue,
-                                           int numberOfTries) {
-        By internalElementLocator = elementLocator;
-        if (identifyUniqueElement(driver, internalElementLocator)) {
-            // Override current locator with the aiGeneratedElementLocator
-            internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
-
-            if (!Boolean.TRUE.equals(ElementActionsHelper.waitForElementTextToBeNot(driver, internalElementLocator, initialValue))) {
-                failAction(driver, initialValue, internalElementLocator);
-            }
-
-            try {
-                passAction(driver, internalElementLocator,
-                        "from: \"" + initialValue + "\", to: \"" + getText(driver, internalElementLocator) + "\"");
-            } catch (Exception e) {
-                passAction(driver, internalElementLocator, "from: \"" + initialValue + "\", to a new value.");
-            }
-        } else {
-            if (internalElementLocator != null) {
-                failAction(driver,
-                        "Element with locator (" + internalElementLocator.toString() + ") was not found on this page.",
-                        internalElementLocator);
-            } else {
-                // this code is unreachable it's just in place to satisfy SonarLint
-                failAction(driver, "Element has Null locator.", null);
-            }
         }
     }
 
@@ -1882,6 +1883,36 @@ public class ElementActions {
             ReportManager.log("Failed to identify Target element with locator [" + internalElementLocator + "].");
             return null;
         }
+    }
+
+    /**
+     * This is a generic method to enable the execution of any of the native mobile
+     * commands found herein: http://appium.io/docs/en/commands/mobile-command/
+     * <p>
+     * Note: This method does no validation on the output of the executed JavaScript
+     *
+     * @param command    the desired mobile command to be executed. e.g., "mobile:
+     *                   scroll"
+     * @param parameters a map of the key, value parameters for this command. e.g.,
+     *                   ImmutableMap.of("direction", "down")
+     * @return a self-reference to be used to chain actions
+     */
+    public ElementActions executeNativeMobileCommand(String command, Map<String, String> parameters) {
+        ElementActions.executeNativeMobileCommand(lastUsedDriver, command, parameters);
+        return this;
+    }
+
+    /**
+     * This is a convenience method to be able to call TouchActions Actions for
+     * touch-enabled devices from within the regular Element Actions Class.
+     * <p>
+     * Sample use would look like this:
+     * ElementActions.performTouchAction().tap(driver, loginButton);
+     *
+     * @return a TouchActions object capable of performing actions on touch-enabled devices
+     */
+    public TouchActions performTouchAction() {
+        return new TouchActions(lastUsedDriver);
     }
 
     /**
