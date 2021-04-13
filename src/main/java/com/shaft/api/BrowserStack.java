@@ -95,7 +95,7 @@ public class BrowserStack {
         System.setProperty("mobile_os_version", osVersion);
         System.setProperty("mobile_app", appUrl);
     }
-
+  
     private static void passAction(String testData) {
         reportActionResult(Thread.currentThread().getStackTrace()[2].getMethodName(), testData, true);
     }
