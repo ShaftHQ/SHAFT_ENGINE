@@ -79,18 +79,38 @@ public class BrowserFactory {
         throw new IllegalStateException("Utility class");
     }
 
+    /**
+     * Checks to see if the execution is a web-based execution
+     *
+     * @return true if it's a web-based execution
+     */
     public static boolean isWebExecution() {
         return !isMobileExecution();
     }
 
+    /**
+     * Checks to see if the execution is a mobile (native or web) execution
+     *
+     * @return true if it's a mobile (native or web) execution
+     */
     public static boolean isMobileExecution() {
         return "Android".equalsIgnoreCase(targetOperatingSystem) || "iOS".equalsIgnoreCase(targetOperatingSystem);
     }
 
+    /**
+     * Checks to see if the execution is a mobile-web execution
+     *
+     * @return true if it's a mobile mobile-web execution
+     */
     public static boolean isMobileWebExecution() {
         return isMobileExecution() && TARGET_MOBILE_BROWSER_NAME != null && !"".equals(TARGET_MOBILE_BROWSER_NAME);
     }
 
+    /**
+     * Checks to see if the execution is a mobile-native execution
+     *
+     * @return true if it's a mobile mobile-native execution
+     */
     public static boolean isMobileNativeExecution() {
         return isMobileExecution() && (TARGET_MOBILE_BROWSER_NAME == null || "".equals(TARGET_MOBILE_BROWSER_NAME));
     }
@@ -114,6 +134,13 @@ public class BrowserFactory {
         return getBrowser(browserType.getValue(), null);
     }
 
+    /**
+     * Creates a new browser instance with custom browser options
+     *
+     * @param browserType          one of the supported browser types
+     * @param customBrowserOptions the custom options that will be used to create this new browser instance
+     * @return a new browser instance
+     */
     public static WebDriver getBrowser(BrowserType browserType, MutableCapabilities customBrowserOptions) {
         return getBrowser(browserType.getValue(), customBrowserOptions);
     }
@@ -164,14 +191,29 @@ public class BrowserFactory {
         }
     }
 
+    /**
+     * Checks to see that there are currently no opened browser sessions
+     *
+     * @return true if there are currently no opened browser sessions
+     */
     public static Boolean isBrowsersListEmpty() {
         return drivers.entrySet().isEmpty();
     }
 
+    /**
+     * Gets the number of currently opened browser sessions
+     *
+     * @return an int value representing the number of currently opened browser sessions
+     */
     public static int getActiveDriverSessions() {
         return drivers.entrySet().size();
     }
 
+    /**
+     * Checks to see if the kill switch is active
+     *
+     * @return true if the kiss switch is active
+     */
     public static boolean isKillSwitch() {
         return killSwitch;
     }
@@ -444,7 +486,7 @@ public class BrowserFactory {
             driver.set(new SafariDriver(sfOptions));
         } catch (SessionNotCreatedException e) {
             ReportManagerHelper.log(e);
-            failAction("Failed to create a session on" + BrowserType.APPLE_SAFARI.toString());
+            failAction("Failed to create a session on" + BrowserType.APPLE_SAFARI);
         }
         storeDriverInstance(BrowserType.APPLE_SAFARI.getValue());
         ReportManager.log("Successfully Opened Safari.");
@@ -489,7 +531,7 @@ public class BrowserFactory {
         if (Boolean.TRUE.equals(HEADLESS_EXECUTION) && !isMobileExecution()) {
             initialLog.append(", Headless Execution");
         }
-        ReportManager.log(initialLog.toString() + ".");
+        ReportManager.log(initialLog + ".");
 
         DesiredCapabilities mobileDesiredCapabilities = new DesiredCapabilities();
         if (isMobileExecution()) {
@@ -727,7 +769,9 @@ public class BrowserFactory {
         drivers.get(browserName + "_" + driver.get().hashCode()).put(targetOperatingSystem, driver.get());
     }
 
-    // supported browser types
+    /**
+     * Enum list of the supported browser types for execution
+     */
     public enum BrowserType {
         MOZILLA_FIREFOX("MozillaFirefox"), GOOGLE_CHROME("GoogleChrome"), APPLE_SAFARI("Safari"),
         MICROSOFT_IE("MicrosoftInternetExplorer"), MICROSOFT_EDGE("MicrosoftEdge"), MOBILE_CHROME("Chrome"),
@@ -744,7 +788,9 @@ public class BrowserFactory {
         }
     }
 
-    // supported operating systems
+    /**
+     * Enum list of the supported operating systems for execution
+     */
     public enum OperatingSystemType {
         LINUX("Linux-64"), MACOS("Mac-64"), WINDOWS("Windows-64"), ANDROID("Android"), IOS("iOS"),
         FIREFOXOS("FirefoxOS");

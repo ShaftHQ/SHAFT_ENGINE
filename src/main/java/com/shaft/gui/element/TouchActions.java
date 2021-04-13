@@ -352,29 +352,25 @@ public class TouchActions {
      * @return a self-reference to be used to chain actions
      */
     public TouchActions swipeElementIntoView(By elementLocator, SwipeDirection swipeDirection) {
-        return swipeElementIntoView(elementLocator, swipeDirection, DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT);
+        return swipeElementIntoView(null, elementLocator, swipeDirection);
     }
 
     /**
      * Attempts to scroll the element into view in case of native mobile elements.
      *
-     * @param elementLocator                 the locator of the webElement under
-     *                                       test (By xpath, id, selector, name
-     *                                       ...etc)
-     * @param swipeDirection                 SwipeDirection.DOWN, UP, RIGHT, or LEFT
-     * @param attemptsToScrollAndFindElement number of attempts to scroll and find
-     *                                       the element
+     * @param scrollableElementLocator the locator of the scrollable element that hosts the targetElement
+     * @param targetElementLocator     the locator of the webElement under test (By xpath, id,
+     *                                 selector, name ...etc)
+     * @param swipeDirection           SwipeDirection.DOWN, UP, RIGHT, or LEFT
      * @return a self-reference to be used to chain actions
      */
-    public TouchActions swipeElementIntoView(By elementLocator, SwipeDirection swipeDirection,
-                                             int attemptsToScrollAndFindElement) {
-        By internalElementLocator = elementLocator;
+    public TouchActions swipeElementIntoView(By scrollableElementLocator, By targetElementLocator, SwipeDirection swipeDirection) {
+        By internalElementLocator = targetElementLocator;
         internalElementLocator = ElementActions.updateLocatorWithAIGeneratedOne(internalElementLocator);
         try {
             if (driver instanceof AppiumDriver<?>) {
                 // appium native application
-                attemptToSwipeElementIntoViewInNativeApp(internalElementLocator, swipeDirection,
-                        attemptsToScrollAndFindElement);
+                attemptToSwipeElementIntoViewInNativeApp(scrollableElementLocator, internalElementLocator, swipeDirection);
             } else {
                 // regular touch screen device
                 if (ElementActions.identifyUniqueElement(driver, internalElementLocator)) {
@@ -391,8 +387,7 @@ public class TouchActions {
         return this;
     }
 
-    private void attemptToSwipeElementIntoViewInNativeApp(By elementLocator, SwipeDirection swipeDirection,
-                                                          int attemptsToScrollAndFindElement) {
+    private void attemptToSwipeElementIntoViewInNativeApp(By scrollableElementLocator, By elementLocator, SwipeDirection swipeDirection) {
         boolean isElementFound = false;
         int attemptsToFindElement = 0;
         By androidUIAutomator = MobileBy.AndroidUIAutomator("new UiScrollable(new UiSelector().scrollable(true)).scrollForward()");
@@ -407,8 +402,14 @@ public class TouchActions {
                 // for the animated GIF:
                 ElementActions.takeScreenshot(driver, elementLocator, "swipeElementIntoView", null, true);
                 if (System.getProperty("targetOperatingSystem").equals("Android")) {
-                    //this line will fluent wait for the scrollable element and initiate a one screen scroll
-                    ElementActions.identifyUniqueElement(driver, androidUIAutomator);
+                    if (scrollableElementLocator == null) {
+                        //this line will fluent wait for the scrollable element and initiate a one screen scroll
+                        ElementActions.identifyUniqueElement(driver, androidUIAutomator);
+                    } else {
+                        //this line will fluent wait for the custom scrollable element and initiate a one screen scroll
+                        ElementActions.identifyUniqueElement(driver, scrollableElementLocator);
+                        driver.findElement(scrollableElementLocator).findElement(androidUIAutomator);
+                    }
                 } else {
                     Dimension screenSize = driver.manage().window().getSize();
                     Point startingPoint = new Point(0, 0);
@@ -437,7 +438,7 @@ public class TouchActions {
                 }
                 attemptsToFindElement++;
             }
-        } while (Boolean.FALSE.equals(isElementFound) && attemptsToFindElement < attemptsToScrollAndFindElement);
+        } while (Boolean.FALSE.equals(isElementFound) && attemptsToFindElement < DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT);
         // TODO: devise a way to break the loop when no further scrolling options are
         // available. do not use visual comparison which is the easy but costly way to
         // do it.
