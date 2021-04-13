@@ -72,7 +72,7 @@
         <applitools-eyes.version>4.14.0</applitools-eyes.version>
         <sikuixapi.version>2.0.5</sikuixapi.version>
 
-        <jave-all-deps.version>3.0.1</jave-all-deps.version>
+        <jave-all-deps.version>3.1.1</jave-all-deps.version>
         <video-recorder-testng.version>2.0</video-recorder-testng.version>
 
         <!-- Build Commands-->
