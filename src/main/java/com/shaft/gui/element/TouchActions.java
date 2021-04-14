@@ -395,7 +395,6 @@ public class TouchActions {
     private boolean attemptToSwipeElementIntoViewInNativeApp(By elementLocator, SwipeDirection swipeDirection, int scrollableElementInstanceNumber) {
         boolean isElementFound = false;
         int attemptsToFindElement = 0;
-        By androidUIAutomator = MobileBy.AndroidUIAutomator("new UiScrollable(new UiSelector().scrollable(true)).scrollForward()");
         do {
             // appium native device
             if (!driver.findElements(elementLocator).isEmpty()
