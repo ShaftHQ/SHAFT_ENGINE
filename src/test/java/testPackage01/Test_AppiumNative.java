@@ -48,7 +48,8 @@ public class Test_AppiumNative {
         //System.setProperty("mobile_app", FileActions.getAbsolutePath("src/test/resources/", "JUMIA_v7.1.1.apk"));
 
         // remote browserstack server
-        BrowserStack.setupNativeAppExecution("mohabmohie1", "7E7PgzBtwk4sWLUcF8Y5", "Google Pixel 3", "9.0", "src/test/resources/JUMIA_v7.1.1.apk", "JUMIA");
+        BrowserStack.setupNativeAppExecution("mohabmohie1", "7E7PgzBtwk4sWLUcF8Y5",
+                "Google Pixel 3", "9.0", "src/test/resources/JUMIA_v7.1.1.apk", "JUMIA");
 
         driver = BrowserFactory.getBrowser();
     }
