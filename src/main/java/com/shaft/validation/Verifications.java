@@ -159,7 +159,6 @@ public class Verifications {
     /**
      * verifies webElement attribute equals expectedValue if verificationType is
      * POSITIVE, or does not equal expectedValue if verificationType is NEGATIVE.
-     * Supports Text, TagName, Size, Other Attributes
      *
      * @param driver                     the current instance of Selenium webdriver
      * @param elementLocator             the locator of the webElement under test (By
@@ -185,7 +184,6 @@ public class Verifications {
     /**
      * verifies webElement attribute equals expectedValue if verificationType is
      * POSITIVE, or does not equal expectedValue if verificationType is NEGATIVE.
-     * Supports Text, TagName, Size, Other Attributes
      *
      * @param driver                     the current instance of Selenium webdriver
      * @param elementLocator             the locator of the webElement under test (By
@@ -287,6 +285,44 @@ public class Verifications {
     public static void verifyBrowserAttribute(WebDriver driver, String browserAttribute, String expectedValue,
                                               Verifications.VerificationComparisonType verificationComparisonType, Verifications.VerificationType verificationType, String... customLogMessage) {
         ValidationHelper.validateBrowserAttribute(ValidationHelper.ValidationCategory.SOFT_ASSERT, driver, browserAttribute, expectedValue, ValidationHelper.ValidationComparisonType.valueOf(verificationComparisonType.toString()),
+                ValidationHelper.ValidationType.valueOf(verificationType.toString()), customLogMessage);
+    }
+
+    /**
+     * verifies browser attribute equals expectedValue. Supports
+     *
+     * @param driver                the current instance of Selenium webdriver
+     * @param browserAttributeType  the desired attribute type of the browser window
+     *                              under test
+     * @param expectedValue         the expected value (test data) of this
+     *                              verification
+     * @param customLogMessage      a custom message that will appended to this
+     *                              step in the execution report
+     */
+    public static void verifyBrowserAttribute(WebDriver driver, BrowserAttributeType browserAttributeType, String expectedValue,
+                                              String... customLogMessage) {
+        ValidationHelper.validateBrowserAttribute(ValidationHelper.ValidationCategory.SOFT_ASSERT, driver, browserAttributeType.getValue(), expectedValue, ValidationHelper.ValidationComparisonType.EQUALS,
+                ValidationHelper.ValidationType.POSITIVE, customLogMessage);
+    }
+
+    /**
+     * verifies browser attribute equals expectedValue if verificationType is POSITIVE,
+     * or does not equal expectedValue if verificationType is NEGATIVE. Supports
+     *
+     * @param driver                     the current instance of Selenium webdriver
+     * @param browserAttributeType       the desired attribute type of the browser window
+     *                                   under test
+     * @param expectedValue              the expected value (test data) of this
+     *                                   verification
+     * @param verificationComparisonType verificationComparisonType.EQUALS, CONTAINS,
+     *                                   MATCHES, CASE_INSENSITIVE
+     * @param verificationType           verificationType.POSITIVE, NEGATIVE
+     * @param customLogMessage           a custom message that will appended to this
+     *                                   step in the execution report
+     */
+    public static void verifyBrowserAttribute(WebDriver driver, BrowserAttributeType browserAttributeType, String expectedValue,
+                                              Verifications.VerificationComparisonType verificationComparisonType, Verifications.VerificationType verificationType, String... customLogMessage) {
+        ValidationHelper.validateBrowserAttribute(ValidationHelper.ValidationCategory.SOFT_ASSERT, driver, browserAttributeType.getValue(), expectedValue, ValidationHelper.ValidationComparisonType.valueOf(verificationComparisonType.toString()),
                 ValidationHelper.ValidationType.valueOf(verificationType.toString()), customLogMessage);
     }
 
@@ -633,6 +669,20 @@ public class Verifications {
         private final String value;
 
         ElementAttributeType(String type) {
+            this.value = type;
+        }
+
+        protected String getValue() {
+            return value;
+        }
+    }
+
+    public enum BrowserAttributeType {
+        CURRENT_URL("currenturl"), PAGE_SOURCE("pagesource"), TITLE("title"), WINDOW_HANDLE("windowhandle"), WINDOW_POSITION("windowposition"), WINDOW_SIZE("windowsize");
+
+        private final String value;
+
+        BrowserAttributeType(String type) {
             this.value = type;
         }
 

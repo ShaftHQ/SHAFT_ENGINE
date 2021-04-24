@@ -282,6 +282,45 @@ public class Assertions {
                 ValidationType.valueOf(assertionType.toString()), customLogMessage);
     }
 
+
+    /**
+     * Asserts browser attribute equals expectedValue. Supports
+     *
+     * @param driver                the current instance of Selenium webdriver
+     * @param browserAttributeType  the desired attribute type of the browser window
+     *                              under test
+     * @param expectedValue         the expected value (test data) of this
+     *                              assertion
+     * @param customLogMessage      a custom message that will appended to this
+     *                              step in the execution report
+     */
+    public static void assertBrowserAttribute(WebDriver driver, BrowserAttributeType browserAttributeType, String expectedValue,
+                                              String... customLogMessage) {
+        ValidationHelper.validateBrowserAttribute(ValidationHelper.ValidationCategory.HARD_ASSERT, driver, browserAttributeType.getValue(), expectedValue, ValidationComparisonType.EQUALS,
+                ValidationType.POSITIVE, customLogMessage);
+    }
+
+    /**
+     * Asserts browser attribute equals expectedValue if AssertionType is POSITIVE,
+     * or does not equal expectedValue if AssertionType is NEGATIVE. Supports
+     *
+     * @param driver                  the current instance of Selenium webdriver
+     * @param browserAttributeType    the desired attribute type of the browser window
+     *                                under test
+     * @param expectedValue           the expected value (test data) of this
+     *                                assertion
+     * @param assertionComparisonType AssertionComparisonType.EQUALS, CONTAINS,
+     *                                MATCHES, CASE_INSENSITIVE
+     * @param assertionType           AssertionType.POSITIVE, NEGATIVE
+     * @param customLogMessage        a custom message that will appended to this
+     *                                step in the execution report
+     */
+    public static void assertBrowserAttribute(WebDriver driver, BrowserAttributeType browserAttributeType, String expectedValue,
+                                              AssertionComparisonType assertionComparisonType, AssertionType assertionType, String... customLogMessage) {
+        ValidationHelper.validateBrowserAttribute(ValidationHelper.ValidationCategory.HARD_ASSERT, driver, browserAttributeType.getValue(), expectedValue, ValidationComparisonType.valueOf(assertionComparisonType.toString()),
+                ValidationType.valueOf(assertionType.toString()), customLogMessage);
+    }
+
     /**
      * Asserts that the expectedValue is related to the actualValue using the
      * desired comparativeRelationType.
@@ -625,6 +664,20 @@ public class Assertions {
         private final String value;
 
         ElementAttributeType(String type) {
+            this.value = type;
+        }
+
+        protected String getValue() {
+            return value;
+        }
+    }
+
+    public enum BrowserAttributeType {
+        CURRENT_URL("currenturl"), PAGE_SOURCE("pagesource"), TITLE("title"), WINDOW_HANDLE("windowhandle"), WINDOW_POSITION("windowposition"), WINDOW_SIZE("windowsize");
+
+        private final String value;
+
+        BrowserAttributeType(String type) {
             this.value = type;
         }
 
