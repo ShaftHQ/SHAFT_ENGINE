@@ -214,6 +214,13 @@ public class tests_validations_assertions {
     }
 
     @Test(groups = {"WebBased"})
+    public void assertElementAttribute_type_true_literalComparison_expectedToPass() {
+        ElementActions.type(driver, By.name("q"), "Automation!@#$%^&*()_+{}[]\\';/.,");
+        Assertions.assertElementAttribute(driver, By.name("q"), Assertions.ElementAttributeType.TEXT, "Automation!@#$%^&*()_+{}[]\\';/.,",
+                AssertionComparisonType.EQUALS, AssertionType.POSITIVE);
+    }
+
+    @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_literalComparison_expectedToPass() {
         ElementActions.type(driver, By.name("q"), "Automation!@#$%^&*()_+{}[]\\';/.,");
         Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation!@#$%^&*()_+{}[]\\';/.,",

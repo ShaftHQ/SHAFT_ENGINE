@@ -125,6 +125,23 @@ public class Verifications {
     /**
      * verifies webElement attribute equals expectedValue.
      *
+     * @param driver                the current instance of Selenium webdriver
+     * @param elementLocator        the locator of the webElement under test (By xpath,
+     *                              id, selector, name ...etc)
+     * @param elementAttributeType  the desired attribute type of the webElement under test
+     * @param expectedValue         the expected value (test data) of this verification
+     * @param customLogMessage      a custom message that will appended to this step in
+     *                              the execution report
+     */
+    public static void verifyElementAttribute(WebDriver driver, By elementLocator, ElementAttributeType elementAttributeType,
+                                              String expectedValue, String... customLogMessage) {
+        ValidationHelper.validateElementAttribute(ValidationHelper.ValidationCategory.SOFT_ASSERT, driver, elementLocator, elementAttributeType.getValue(), expectedValue,
+                ValidationHelper.ValidationComparisonType.EQUALS, ValidationHelper.ValidationType.POSITIVE, customLogMessage);
+    }
+
+    /**
+     * verifies webElement attribute equals expectedValue.
+     *
      * @param driver           the current instance of Selenium webdriver
      * @param elementLocator   the locator of the webElement under test (By xpath,
      *                         id, selector, name ...etc)
@@ -137,6 +154,32 @@ public class Verifications {
                                               String expectedValue, String... customLogMessage) {
         ValidationHelper.validateElementAttribute(ValidationHelper.ValidationCategory.SOFT_ASSERT, driver, elementLocator, elementAttribute, expectedValue,
                 ValidationHelper.ValidationComparisonType.EQUALS, ValidationHelper.ValidationType.POSITIVE, customLogMessage);
+    }
+
+    /**
+     * verifies webElement attribute equals expectedValue if verificationType is
+     * POSITIVE, or does not equal expectedValue if verificationType is NEGATIVE.
+     * Supports Text, TagName, Size, Other Attributes
+     *
+     * @param driver                     the current instance of Selenium webdriver
+     * @param elementLocator             the locator of the webElement under test (By
+     *                                   xpath, id, selector, name ...etc)
+     * @param elementAttributeType       the desired attribute type of the webElement under
+     *                                   test
+     * @param expectedValue              the expected value (test data) of this
+     *                                   verification
+     * @param verificationComparisonType verificationComparisonType.EQUALS, CONTAINS,
+     *                                   MATCHES, CASE_INSENSITIVE
+     * @param verificationType           verificationType.POSITIVE, NEGATIVE
+     * @param customLogMessage           a custom message that will appended to this
+     *                                   step in the execution report
+     */
+    public static void verifyElementAttribute(WebDriver driver, By elementLocator, ElementAttributeType elementAttributeType,
+                                              String expectedValue, Verifications.VerificationComparisonType verificationComparisonType, Verifications.VerificationType verificationType,
+                                              String... customLogMessage) {
+        ValidationHelper.validateElementAttribute(ValidationHelper.ValidationCategory.SOFT_ASSERT, driver, elementLocator, elementAttributeType.getValue(), expectedValue,
+                ValidationHelper.ValidationComparisonType.valueOf(verificationComparisonType.toString()),
+                ValidationHelper.ValidationType.valueOf(verificationType.toString()), customLogMessage);
     }
 
     /**
@@ -582,5 +625,19 @@ public class Verifications {
         STRICT_EYES,
         CONTENT_EYES,
         LAYOUT_EYES
+    }
+
+    public enum ElementAttributeType {
+        TEXT("text"), TAG_NAME("tagname"), SIZE("size"), SELECTED_TEXT("selectedtext");
+
+        private final String value;
+
+        ElementAttributeType(String type) {
+            this.value = type;
+        }
+
+        protected String getValue() {
+            return value;
+        }
     }
 }
