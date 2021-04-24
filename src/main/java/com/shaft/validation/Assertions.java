@@ -119,6 +119,23 @@ public class Assertions {
     /**
      * Asserts webElement attribute equals expectedValue.
      *
+     * @param driver                the current instance of Selenium webdriver
+     * @param elementLocator        the locator of the webElement under test (By xpath,
+     *                              id, selector, name ...etc)
+     * @param elementAttributeType  the desired attribute type of the webElement under test
+     * @param expectedValue         the expected value (test data) of this assertion
+     * @param customLogMessage      a custom message that will appended to this step in
+     *                              the execution report
+     */
+    public static void assertElementAttribute(WebDriver driver, By elementLocator, ElementAttributeType elementAttributeType,
+                                              String expectedValue, String... customLogMessage) {
+        ValidationHelper.validateElementAttribute(ValidationHelper.ValidationCategory.HARD_ASSERT, driver, elementLocator, elementAttributeType.getValue(), expectedValue,
+                ValidationComparisonType.EQUALS, ValidationType.POSITIVE, customLogMessage);
+    }
+
+    /**
+     * Asserts webElement attribute equals expectedValue.
+     *
      * @param driver           the current instance of Selenium webdriver
      * @param elementLocator   the locator of the webElement under test (By xpath,
      *                         id, selector, name ...etc)
@@ -136,7 +153,31 @@ public class Assertions {
     /**
      * Asserts webElement attribute equals expectedValue if AssertionType is
      * POSITIVE, or does not equal expectedValue if AssertionType is NEGATIVE.
-     * Supports Text, TagName, Size, Other Attributes
+     *
+     * @param driver                  the current instance of Selenium webdriver
+     * @param elementLocator          the locator of the webElement under test (By
+     *                                xpath, id, selector, name ...etc)
+     * @param elementAttributeType    the desired attribute type of the webElement under
+     *                                test
+     * @param expectedValue           the expected value (test data) of this
+     *                                assertion
+     * @param assertionComparisonType AssertionComparisonType.EQUALS, CONTAINS,
+     *                                MATCHES, CASE_INSENSITIVE
+     * @param assertionType           AssertionType.POSITIVE, NEGATIVE
+     * @param customLogMessage        a custom message that will appended to this
+     *                                step in the execution report
+     */
+    public static void assertElementAttribute(WebDriver driver, By elementLocator, ElementAttributeType elementAttributeType,
+                                              String expectedValue, AssertionComparisonType assertionComparisonType, AssertionType assertionType,
+                                              String... customLogMessage) {
+        ValidationHelper.validateElementAttribute(ValidationHelper.ValidationCategory.HARD_ASSERT, driver, elementLocator, elementAttributeType.getValue(), expectedValue,
+                ValidationComparisonType.valueOf(assertionComparisonType.toString()),
+                ValidationType.valueOf(assertionType.toString()), customLogMessage);
+    }
+
+    /**
+     * Asserts webElement attribute equals expectedValue if AssertionType is
+     * POSITIVE, or does not equal expectedValue if AssertionType is NEGATIVE.
      *
      * @param driver                  the current instance of Selenium webdriver
      * @param elementLocator          the locator of the webElement under test (By
@@ -576,5 +617,19 @@ public class Assertions {
         STRICT_EYES,
         CONTENT_EYES,
         LAYOUT_EYES
+    }
+
+    public enum ElementAttributeType {
+        TEXT("text"), TAG_NAME("tagname"), SIZE("size"), SELECTED_TEXT("selectedtext");
+
+        private final String value;
+
+        ElementAttributeType(String type) {
+            this.value = type;
+        }
+
+        protected String getValue() {
+            return value;
+        }
     }
 }
