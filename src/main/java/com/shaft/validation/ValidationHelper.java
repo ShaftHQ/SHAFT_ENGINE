@@ -229,7 +229,7 @@ class ValidationHelper {
             discreetLoggingState = ReportManagerHelper.isDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
             actualValue = switch (browserAttribute.toLowerCase()) {
-                case "currenturl" -> BrowserActions.getCurrentURL(driver);
+                case "currenturl", "url" -> BrowserActions.getCurrentURL(driver);
                 case "pagesource" -> BrowserActions.getPageSource(driver);
                 case "title" -> BrowserActions.getCurrentWindowTitle(driver);
                 case "windowhandle" -> BrowserActions.getWindowHandle(driver);
@@ -308,10 +308,7 @@ class ValidationHelper {
             ReportManager.log(customMessage + "...");
         }
 
-        boolean expectedValue = false;
-        if (ValidationType.POSITIVE.equals(validationType)) {
-            expectedValue = true;
-        }
+        boolean expectedValue = ValidationType.POSITIVE.equals(validationType);
         boolean actualValue = FileActions.doesFileExist(fileFolderName, fileName, numberOfRetries);
 
         String filePrefix = "File '";
@@ -385,10 +382,7 @@ class ValidationHelper {
             ReportManager.log(customMessage + "...");
         }
 
-        boolean expectedValue = false;
-        if (ValidationType.POSITIVE.equals(validationType)) {
-            expectedValue = true;
-        }
+        boolean expectedValue = ValidationType.POSITIVE.equals(validationType);
         StringBuilder reportedExpectedValue = new StringBuilder();
         reportedExpectedValue.append("Response data should ");
         if (!expectedValue) {
@@ -518,7 +512,7 @@ class ValidationHelper {
             }
 
             if (validationComparisonOrComparativeRelationType != null) {
-                message.append(" Comparison Type [").append(validationComparisonOrComparativeRelationType.toString()).append("].");
+                message.append(" Comparison Type [").append(validationComparisonOrComparativeRelationType).append("].");
             }
 
             if (validationType != null) {
