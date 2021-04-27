@@ -15,7 +15,6 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
-@SuppressWarnings("unused")
 public class SikuliActions {
     private Screen screen;
     private App applicationWindow;
@@ -121,7 +120,6 @@ public class SikuliActions {
      *                      element
      * @return a self-reference to be used to chain actions
      */
-    @SuppressWarnings("SuspiciousRegexArgument")
     public SikuliActions typeSecure(byte[] targetElement, String text) {
         Pattern element = null;
         try {

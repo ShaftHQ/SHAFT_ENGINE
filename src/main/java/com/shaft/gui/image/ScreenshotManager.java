@@ -7,6 +7,7 @@ import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import org.openqa.selenium.Rectangle;
+import org.imgscalr.Scalr;
 import org.openqa.selenium.*;
 import org.sikuli.script.App;
 import org.sikuli.script.Pattern;
@@ -44,6 +45,7 @@ public class ScreenshotManager {
     private static final int RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION = 1;
     private static final Boolean CREATE_GIF = Boolean.valueOf(System.getProperty("createAnimatedGif").trim());
     private static final int GIF_FRAME_DELAY = Integer.parseInt(System.getProperty("animatedGif_frameDelay").trim());
+    private static final int GIF_SIZE = 1280;
     // TODO: parameterize the detailed gif value
     private static final Boolean DETAILED_GIF = true;
     private static final String DETAILED_GIF_REGEX = "(verify.*)|(assert.*)|(click.*)|(tap.*)|(key.*)|(navigate.*)";
@@ -535,7 +537,10 @@ public class ScreenshotManager {
 
                 // grab the output image type from the first image in the sequence
                 BufferedImage firstImage = ImageIO.read(new ByteArrayInputStream(screenshot));
-
+                
+                //scaling it down
+                firstImage = Scalr.resize(firstImage, Scalr.Method.BALANCED, GIF_SIZE);
+                
                 // create a new BufferedOutputStream
                 FileActions.createFile(SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME, gifFileName);
                 gifOutputStream.set(new FileImageOutputStream(new File(gifRelativePathWithFileName)));
@@ -625,8 +630,10 @@ public class ScreenshotManager {
     private static synchronized void appendToAnimatedGif(byte[] screenshot) {
         try {
             BufferedImage image;
-            if (screenshot != null) {
+            if (screenshot != null) {                
                 image = ImageIO.read(new ByteArrayInputStream(screenshot));
+            	//scaling it down
+                image = Scalr.resize(image, Scalr.Method.BALANCED, GIF_SIZE);
                 gifWriter.get().writeToSequence(overlayShaftEngineLogo(image));
             }
         } catch (NoSuchSessionException e) {

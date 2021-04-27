@@ -53,8 +53,7 @@ public class BrowserStack {
         String appUrl = "";
         try {
             appUrl = Objects.requireNonNull(RestActions.getResponseJSONValue(new RestActions(serviceUri).buildNewRequest(appUploadServiceName, RestActions.RequestType.POST)
-                            .setParameters(parameters)
-                            .setParametersType(RestActions.ParametersType.FORM)
+                            .setParameters(parameters, RestActions.ParametersType.FORM)
                             .setAuthentication(username, password, RequestBuilder.AuthenticationType.BASIC)
                             .performRequest(),
                     "app_url"));
