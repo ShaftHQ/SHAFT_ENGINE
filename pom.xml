@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.mohabmohie</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>5.2.20210413</version>
+    <version>5.2.20210427</version>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
     <url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
@@ -70,7 +70,7 @@
 
         <openpnp-opencv.version>4.5.1-2</openpnp-opencv.version>
         <applitools-eyes.version>4.14.0</applitools-eyes.version>
-        <sikuixapi.version>2.0.5</sikuixapi.version>
+        <sikulixapi.version>2.0.5</sikulixapi.version> <!-- Do not update before running the test locally -->
 
         <jave-all-deps.version>3.1.1</jave-all-deps.version>
         <video-recorder-testng.version>2.0</video-recorder-testng.version>
@@ -142,11 +142,11 @@
         </dependency>
 
         <!-- AI POWERED ELEMENT IDENTIFICATION / VISUAL VALIDATION -->
-        <dependency>
-            <groupId>org.openpnp</groupId>
-            <artifactId>opencv</artifactId>
-            <version>${openpnp-opencv.version}</version>
-        </dependency>
+        <!--        <dependency>-->
+        <!--            <groupId>org.openpnp</groupId>-->
+        <!--            <artifactId>opencv</artifactId>-->
+        <!--            <version>${openpnp-opencv.version}</version>-->
+        <!--        </dependency>-->
         <dependency>
             <groupId>com.applitools</groupId>
             <artifactId>eyes-images-java4</artifactId>
@@ -157,7 +157,7 @@
         <dependency>
             <groupId>com.sikulix</groupId>
             <artifactId>sikulixapi</artifactId>
-            <version>${sikuixapi.version}</version>
+            <version>${sikulixapi.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -196,11 +196,11 @@
         </dependency>
 
         <!-- EXCEL FILE MANIPULATION -->
-        <dependency>
-            <groupId>org.apache.poi</groupId>
-            <artifactId>poi</artifactId>
-            <version>${apachepoi.version}</version>
-        </dependency>
+        <!--        <dependency>-->
+        <!--            <groupId>org.apache.poi</groupId>-->
+        <!--            <artifactId>poi</artifactId>-->
+        <!--            <version>${apachepoi.version}</version>-->
+        <!--        </dependency>-->
         <dependency>
             <groupId>org.apache.poi</groupId>
             <artifactId>poi-ooxml</artifactId>

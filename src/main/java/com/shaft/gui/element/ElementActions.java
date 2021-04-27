@@ -103,58 +103,62 @@ public class ElementActions {
      *                       selector, name ...etc)
      */
     public static void click(WebDriver driver, By elementLocator) {
-        By internalElementLocator = elementLocator;
-        // Waits for the element to be clickable, and then clicks it.
-        if (identifyUniqueElement(driver, internalElementLocator)) {
-            // Override current locator with the aiGeneratedElementLocator
-            internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
-
-            String elementText = "";
-            try {
-                // attempting to read element text
-                elementText = readTextBasedOnSuccessfulLocationStrategy(driver, internalElementLocator,
-                        determineSuccessfulTextLocationStrategy(driver, internalElementLocator));
-                // adding hover before clicking an element to enable styles to show in the
-                // execution screenshots and to solve issues clicking on certain elements.
-                performHover(driver, internalElementLocator);
-            } catch (Exception e) {
-                ReportManagerHelper.logDiscrete(e);
-            }
-
-            List<Object> screenshot = takeScreenshot(driver, internalElementLocator, "click", null, true);
-            // takes screenshot before clicking the element out of view
-            // wait for element to be clickable
-            if (Boolean.FALSE.equals(ElementActionsHelper.waitForElementToBeClickable(driver, internalElementLocator))) {
-                failAction(driver, "element is not clickable", internalElementLocator);
-            }
-
-            try {
-                driver.findElement(internalElementLocator).click();
-            } catch (Exception exception1) {
-                try {
-                    ((JavascriptExecutor) driver).executeScript("arguments[arguments.length - 1].click();",
-                            driver.findElement(internalElementLocator));
-                } catch (Exception rootCauseException) {
-                    rootCauseException.initCause(exception1);
-                    ReportManagerHelper.log(exception1);
-                    ReportManagerHelper.log(rootCauseException);
-                    failAction(driver, internalElementLocator, rootCauseException);
-                }
-            }
-            // issue: if performing a navigation after clicking on the login button,
-            // navigation is triggered immediately and hence it fails.
-            // solution: wait for any possible navigation that may be triggered by this
-            // click action to conclude
-
-            // removed to enhance performance, and replaced with a process to assert after
-            // every navigation
-            if (elementText != null && !elementText.equals("")) {
-                passAction(driver, internalElementLocator, elementText.replaceAll("\n", " "), screenshot);
-            } else {
-                passAction(driver, internalElementLocator, screenshot);
-            }
+        if (BrowserFactory.isMobileNativeExecution()) {
+            new TouchActions(driver).tap(elementLocator);
         } else {
-            failAction(driver, internalElementLocator);
+            By internalElementLocator = elementLocator;
+            // Waits for the element to be clickable, and then clicks it.
+            if (identifyUniqueElement(driver, internalElementLocator)) {
+                // Override current locator with the aiGeneratedElementLocator
+                internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
+
+                String elementText = "";
+                try {
+                    // attempting to read element text
+                    elementText = readTextBasedOnSuccessfulLocationStrategy(driver, internalElementLocator,
+                            determineSuccessfulTextLocationStrategy(driver, internalElementLocator));
+                    // adding hover before clicking an element to enable styles to show in the
+                    // execution screenshots and to solve issues clicking on certain elements.
+                    performHover(driver, internalElementLocator);
+                } catch (Exception e) {
+                    ReportManagerHelper.logDiscrete(e);
+                }
+
+                List<Object> screenshot = takeScreenshot(driver, internalElementLocator, "click", null, true);
+                // takes screenshot before clicking the element out of view
+                // wait for element to be clickable
+                if (Boolean.FALSE.equals(ElementActionsHelper.waitForElementToBeClickable(driver, internalElementLocator))) {
+                    failAction(driver, "element is not clickable", internalElementLocator);
+                }
+
+                try {
+                    driver.findElement(internalElementLocator).click();
+                } catch (Exception exception1) {
+                    try {
+                        ((JavascriptExecutor) driver).executeScript("arguments[arguments.length - 1].click();",
+                                driver.findElement(internalElementLocator));
+                    } catch (Exception rootCauseException) {
+                        rootCauseException.initCause(exception1);
+                        ReportManagerHelper.log(exception1);
+                        ReportManagerHelper.log(rootCauseException);
+                        failAction(driver, internalElementLocator, rootCauseException);
+                    }
+                }
+                // issue: if performing a navigation after clicking on the login button,
+                // navigation is triggered immediately and hence it fails.
+                // solution: wait for any possible navigation that may be triggered by this
+                // click action to conclude
+
+                // removed to enhance performance, and replaced with a process to assert after
+                // every navigation
+                if (elementText != null && !elementText.equals("")) {
+                    passAction(driver, internalElementLocator, elementText.replaceAll("\n", " "), screenshot);
+                } else {
+                    passAction(driver, internalElementLocator, screenshot);
+                }
+            } else {
+                failAction(driver, internalElementLocator);
+            }
         }
     }
 
