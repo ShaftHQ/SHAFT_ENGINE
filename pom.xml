@@ -196,15 +196,21 @@
         </dependency>
 
         <!-- EXCEL FILE MANIPULATION -->
-        <!--        <dependency>-->
-        <!--            <groupId>org.apache.poi</groupId>-->
-        <!--            <artifactId>poi</artifactId>-->
-        <!--            <version>${apachepoi.version}</version>-->
-        <!--        </dependency>-->
+        <dependency>
+                   <groupId>org.apache.poi</groupId>
+                   <artifactId>poi</artifactId>
+                   <version>${apachepoi.version}</version>
+               </dependency>
         <dependency>
             <groupId>org.apache.poi</groupId>
             <artifactId>poi-ooxml</artifactId>
             <version>${apachepoi.version}</version>
+            <exclusions>
+            <exclusion>
+            	<groupId>xml-apis</groupId>
+            	<artifactId>xml-apis</artifactId>
+            </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- ALLURE REPORTING -->

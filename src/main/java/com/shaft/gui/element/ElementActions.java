@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
-@SuppressWarnings("unused")
 public class ElementActions {
     private static final String AI_REFERENCE_FILE_NAME = "aiAidedElementIdentificationReferenceDB.properties";
     private static final String OBFUSCATED_STRING = "•";
@@ -1489,7 +1488,6 @@ public class ElementActions {
         }
     }
 
-    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private static int getMatchingElementsCount(WebDriver driver, By elementLocator, Optional<Integer> numberOfAttempts, Optional<Boolean> checkForVisibility) {
         if (elementLocator == null) {
             return 0;

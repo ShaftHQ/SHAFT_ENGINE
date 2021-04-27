@@ -433,7 +433,6 @@ class ValidationHelper {
                 ValidationState.PASSED, null, null);
     }
 
-    @SuppressWarnings("SameParameterValue")
     private static void fail(ValidationCategory validationCategory, String expectedValue, String actualValue,
                              Object validationComparisonType, ValidationType validationType, Throwable failureReason, List<List<Object>> externalAttachments) {
         // reset state in case of failure to force reporting the failure
@@ -579,7 +578,6 @@ class ValidationHelper {
         }
     }
 
-    @SuppressWarnings("DuplicatedCode")
     private static void reportValidationResultOfElementAttribute(Object[] args) {
         String[] expectedAttributeStates = (String[]) args[0];
         String propertySeparator = (String) args[1];
@@ -622,7 +620,6 @@ class ValidationHelper {
         }
     }
 
-    @SuppressWarnings("DuplicatedCode")
     private static void reportValidationResultOfBrowserAttribute(Object[] args) {
         String[] expectedAttributeStates = (String[]) args[0];
         String propertySeparator = (String) args[1];
@@ -678,7 +675,6 @@ class ValidationHelper {
         }
     }
 
-    @SuppressWarnings("unused")
     protected enum ValidationComparisonType {
         EQUALS(1), CONTAINS(3), MATCHES(2), CASE_INSENSITIVE(4);
 
@@ -693,7 +689,6 @@ class ValidationHelper {
         }
     }
 
-    @SuppressWarnings("unused")
     protected enum VisualValidationEngine {
         EXACT_OPENCV,
         EXACT_EYES,
@@ -707,7 +702,6 @@ class ValidationHelper {
         SOFT_ASSERT
     }
 
-    @SuppressWarnings("unused")
     protected enum ComparativeRelationType {
         GREATER_THAN(">"), GREATER_THAN_OR_EQUALS(">="), LESS_THAN("<"), LESS_THAN_OR_EQUALS("<="), EQUALS("==");
 

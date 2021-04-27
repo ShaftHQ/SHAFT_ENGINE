@@ -21,7 +21,6 @@ public class AnimatedGifManager {
      * @param timeBetweenFramesMS the time between frames in milliseconds
      * @throws IOException if no gif ImageWriters are found
      */
-    @SuppressWarnings("SameParameterValue")
     protected AnimatedGifManager(ImageOutputStream outputStream, int imageType, int timeBetweenFramesMS) throws IOException {
         initialize(outputStream, imageType, timeBetweenFramesMS);
     }
@@ -76,7 +75,6 @@ public class AnimatedGifManager {
         gifWriter.get().endWriteSequence();
     }
 
-    @SuppressWarnings("ConstantConditions")
     private synchronized void initialize(ImageOutputStream outputStream, int imageType, int timeBetweenFramesMS) throws IOException {
         // my method to create a writer
         gifWriter.set(getWriter());

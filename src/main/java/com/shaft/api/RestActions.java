@@ -528,7 +528,6 @@ public class RestActions {
         return null;
     }
 
-    @SuppressWarnings("UnusedAssignment")
     private static int identifyBodyObjectType(Object body) {
         JSONParser parser = new JSONParser();
         try {

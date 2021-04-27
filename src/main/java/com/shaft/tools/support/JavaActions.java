@@ -5,7 +5,6 @@ import org.testng.Assert;
 
 import java.util.Base64;
 
-@SuppressWarnings("unused")
 public class JavaActions {
 
     private JavaActions() {
@@ -95,7 +94,6 @@ public class JavaActions {
 
     }
 
-    @SuppressWarnings("ConstantConditions")
     private static int compareTwoObjectsPositively(Object expectedValue, Object actualValue, int comparisonType) {
         switch (comparisonType) {
             case 1:
@@ -130,7 +128,6 @@ public class JavaActions {
         return 1;
     }
 
-    @SuppressWarnings("ConstantConditions")
     private static int compareTwoObjectsNegatively(Object expectedValue, Object actualValue, int comparisonType) {
         switch (comparisonType) {
             case 1:

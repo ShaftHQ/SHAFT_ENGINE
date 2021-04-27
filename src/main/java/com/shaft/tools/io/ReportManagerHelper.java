@@ -533,12 +533,12 @@ public class ReportManagerHelper {
      * @param logText the text that needs to be logged in this action
      */
     @Step("Action [{actionCounter}]: {logText}")
-    static void writeStepToReport(@SuppressWarnings("UnusedParameters") int actionCounter, String logText) {
+    static void writeStepToReport(int actionCounter, String logText) {
         createReportEntry(logText, false);
     }
 
     @Step("Action [{actionCounter}]: {logText}")
-    static void writeStepToReport(@SuppressWarnings("UnusedParameters") int actionCounter, String logText, List<List<Object>> attachments) {
+    static void writeStepToReport(int actionCounter, String logText, List<List<Object>> attachments) {
         createReportEntry(logText, false);
         if (attachments != null) {
             attachments.forEach(attachment -> {

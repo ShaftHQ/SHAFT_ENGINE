@@ -10,7 +10,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
-@SuppressWarnings("unused")
 public class RequestBuilder {
     private RestActions session;
     private Map<String, String> sessionHeaders;
