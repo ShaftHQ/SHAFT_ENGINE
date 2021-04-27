@@ -17,6 +17,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.Reporter;
 
 import java.io.*;
@@ -709,7 +710,11 @@ public class ReportManagerHelper {
         String allureVersion = System.getProperty(ALLURE_VERSION_PROPERTY_NAME);
         allureBinaryPath = allureExtractionLocation + "allure-" + allureVersion + File.separator + "bin" + File.separator + "allure";
         if (!FileActions.doesFileExist(allureBinaryPath)) {
-            FileActions.deleteFolder(allureExtractionLocation);
+            try {
+                FileActions.deleteFolder(allureExtractionLocation);
+            } catch (AssertionError e) {
+                Assert.fail("Couldn't clear the allure extraction directory. Kindly terminate any running java process or restart your machine to fix this issue.");
+            }
             // download allure binary
             URL allureArchive = FileActions.downloadFile(
                     "https://repo.maven.apache.org/maven2/io/qameta/allure/allure-commandline/" + allureVersion

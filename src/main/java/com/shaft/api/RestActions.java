@@ -758,7 +758,6 @@ public class RestActions {
      * @param value the value that will be put inside the key
      * @return self-reference to be used for chaining actions
      */
-    @Deprecated
     public RestActions addHeaderVariable(String key, String value) {
         sessionHeaders.put(key, value);
         return this;
