@@ -16,3 +16,6 @@
 ajcore*.txt
 debug.log
 /extent-reports/
+/target/
+/.classpath
+/.project

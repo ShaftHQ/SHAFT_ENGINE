@@ -1,6 +1,5 @@
 package com.shaft.tools.support;
 
-@SuppressWarnings("unused")
 public enum JavaScriptHelper {
     LOAD_JQUERY("""
             /** dynamically load jQuery */

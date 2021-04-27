@@ -237,7 +237,6 @@ public class ImageProcessingActions {
         }
     }
 
-    @SuppressWarnings("RegExpRedundantEscape")
     public static String formatElementLocatorToImagePath(By elementLocator) {
         String elementFileName = ReportManagerHelper.getCallingMethodFullName() + "_" + elementLocator.toString();
         return elementFileName.replaceAll("[\\[\\]\\'\\/:]", "").replaceAll("[\\W\\s]", "_").replaceAll("_{2}", "_")

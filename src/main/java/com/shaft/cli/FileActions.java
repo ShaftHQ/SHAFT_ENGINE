@@ -22,7 +22,6 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
-@SuppressWarnings("UnusedReturnValue")
 public class FileActions {
 
     private static final String ERROR_CANNOT_CREATE_DIRECTORY = "Could not create directory: ";
@@ -137,7 +136,6 @@ public class FileActions {
      *                                           afterwards
      * @return a string that holds the SHA256 checksum for the target file
      */
-    @SuppressWarnings("UnstableApiUsage")
     public static String getFileChecksum(TerminalActions terminalSession, String targetFileFolderPath,
                                          String targetFileName, String... pathToTempDirectoryOnRemoteMachine) {
 
@@ -482,7 +480,6 @@ public class FileActions {
         }
     }
 
-    @SuppressWarnings("UnusedReturnValue")
     public static boolean zipFiles(String srcFolder, String destZipFile) {
         boolean result = false;
         try {
@@ -496,7 +493,6 @@ public class FileActions {
         return result;
     }
 
-    @SuppressWarnings("UnusedReturnValue")
     public static File unpackArchive(URL url, String destinationFolderPath) {
         File targetDir = new File(destinationFolderPath);
         if (!targetDir.exists() && !targetDir.mkdirs()) {
