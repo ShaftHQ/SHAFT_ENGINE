@@ -8,8 +8,6 @@ import com.shaft.validation.Assertions;
 import org.openqa.selenium.WebDriver;
 import org.sikuli.script.App;
 import org.sikuli.script.Key;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 public class Test_sikulix {
@@ -28,6 +26,15 @@ public class Test_sikulix {
     }
 
     @Test
+    public void sampleWithSeleniumAndYoutube() {
+        WebDriver driver = BrowserFactory.getBrowser();
+        BrowserActions.navigateToURL(driver, "https://www.youtube.com/watch?v=6FbpNgZ8fZ8&t=2s");
+        String pathToTargetElementImage = System.getProperty("testDataFolderPath") + "sikulixElements/youtube.png";
+        ElementActions.performSikuliAction().click(pathToTargetElementImage);
+        Assertions.assertBrowserAttribute(driver, "url", "https://www.youtube.com/");
+    }
+
+    @Test
     public void sampleWithDesktopApplication() {
         String result = ElementActions.performSikuliAction(calculator).click(pathToCalculatorElementsFolder + "1.png")
                 .click(pathToCalculatorElementsFolder + "+.png")
@@ -37,13 +44,13 @@ public class Test_sikulix {
         Assertions.assertEquals("4", result);
     }
 
-    @BeforeClass
+    //@BeforeClass
     public void openApplication() {
         new TerminalActions().performTerminalCommand("calc");
         calculator = BrowserFactory.getSikuliApp("Calculator");
     }
 
-    @AfterClass
+    //@AfterClass
     public void closeApplication() {
         BrowserFactory.closeSikuliApp(calculator);
     }
