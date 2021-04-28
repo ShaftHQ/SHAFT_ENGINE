@@ -1,17 +1,36 @@
 package com.shaft.gui.element;
 
-import com.shaft.cli.FileActions;
-import com.shaft.gui.browser.BrowserFactory;
-import com.shaft.gui.image.ImageProcessingActions;
-import com.shaft.gui.image.ScreenshotManager;
-import com.shaft.gui.video.RecordManager;
-import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.ReportManagerHelper;
-import com.shaft.tools.support.JavaScriptHelper;
-import io.appium.java_client.AppiumDriver;
+import java.awt.HeadlessException;
+import java.awt.Toolkit;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.StringSelection;
+import java.awt.datatransfer.UnsupportedFlavorException;
+import java.io.IOException;
+import java.nio.file.FileSystems;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+
 import org.opencv.imgproc.Imgproc;
+import org.openqa.selenium.By;
+import org.openqa.selenium.ElementNotInteractableException;
+import org.openqa.selenium.InvalidArgumentException;
+import org.openqa.selenium.InvalidElementStateException;
+import org.openqa.selenium.JavascriptException;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.Keys;
 import org.openqa.selenium.NoSuchElementException;
-import org.openqa.selenium.*;
+import org.openqa.selenium.StaleElementReferenceException;
+import org.openqa.selenium.TimeoutException;
+import org.openqa.selenium.UnsupportedCommandException;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebDriverException;
+import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.remote.UnreachableBrowserException;
 import org.openqa.selenium.support.ui.FluentWait;
@@ -22,16 +41,16 @@ import org.sikuli.script.Pattern;
 import org.sikuli.script.Screen;
 import org.testng.Assert;
 
-import java.awt.*;
-import java.awt.datatransfer.DataFlavor;
-import java.awt.datatransfer.StringSelection;
-import java.awt.datatransfer.UnsupportedFlavorException;
-import java.io.IOException;
-import java.nio.file.FileSystems;
-import java.time.Duration;
-import java.util.List;
-import java.util.*;
-import java.util.concurrent.TimeUnit;
+import com.shaft.cli.FileActions;
+import com.shaft.gui.driver.DriverFactory;
+import com.shaft.gui.image.ImageProcessingActions;
+import com.shaft.gui.image.ScreenshotManager;
+import com.shaft.gui.video.RecordManager;
+import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
+import com.shaft.tools.support.JavaScriptHelper;
+
+import io.appium.java_client.AppiumDriver;
 
 public class ElementActions {
     private static final String AI_REFERENCE_FILE_NAME = "aiAidedElementIdentificationReferenceDB.properties";
@@ -102,7 +121,7 @@ public class ElementActions {
      *                       selector, name ...etc)
      */
     public static void click(WebDriver driver, By elementLocator) {
-        if (BrowserFactory.isMobileNativeExecution()) {
+        if (DriverFactory.isMobileNativeExecution()) {
             new TouchActions(driver).tap(elementLocator);
         } else {
             By internalElementLocator = elementLocator;
@@ -669,10 +688,10 @@ public class ElementActions {
 
             String elementText = driver.findElement(internalElementLocator).getText();
 
-            if (elementText.trim().equals("") && !BrowserFactory.isMobileNativeExecution()) {
+            if (elementText.trim().equals("") && !DriverFactory.isMobileNativeExecution()) {
                 elementText = driver.findElement(internalElementLocator).getAttribute(TextDetectionStrategy.CONTENT.getValue());
             }
-            if (elementText.trim().equals("") && !BrowserFactory.isMobileNativeExecution()) {
+            if (elementText.trim().equals("") && !DriverFactory.isMobileNativeExecution()) {
                 elementText = driver.findElement(internalElementLocator).getAttribute(TextDetectionStrategy.VALUE.getValue());
             }
             passAction(driver, internalElementLocator, elementText);
@@ -1102,7 +1121,7 @@ public class ElementActions {
      * @return a self-reference to be used to chain actions
      */
     public static ElementActions switchToDefaultContent() {
-        if (BrowserFactory.getActiveDriverSessions() > 0 && (lastUsedDriver != null)) {
+        if (DriverFactory.getActiveDriverSessions() > 0 && (lastUsedDriver != null)) {
             try {
                 lastUsedDriver.switchTo().defaultContent();
                 boolean discreetLoggingState = ReportManagerHelper.isDiscreteLogging();
@@ -1453,7 +1472,7 @@ public class ElementActions {
     }
 
     private static TextDetectionStrategy determineSuccessfulTextLocationStrategy(WebDriver driver, By elementLocator) {
-        if (BrowserFactory.isMobileNativeExecution()) {
+        if (DriverFactory.isMobileNativeExecution()) {
             return TextDetectionStrategy.TEXT;
         }
         String text = driver.findElement(elementLocator).getText().trim();

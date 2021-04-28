@@ -43,7 +43,7 @@ public class AlterSuiteListener implements IAlterSuiteListener {
     }
 
     private void renameDefaultSuiteAndTest(List<XmlSuite> suites) {
-        String prefix = "SHAFT_Engine: ";
+        String prefix = "SHAFT: ";
         // rename default suite and test
         suites.forEach(suite -> {
             if (suite.getName().trim().equalsIgnoreCase("default suite")

@@ -1,32 +1,7 @@
 package com.shaft.gui.image;
 
-import com.applitools.eyes.LogHandler;
-import com.applitools.eyes.MatchLevel;
-import com.applitools.eyes.TestResults;
-import com.applitools.eyes.exceptions.DiffsFoundException;
-import com.applitools.eyes.images.Eyes;
-import com.shaft.cli.FileActions;
-import com.shaft.gui.browser.BrowserFactory;
-import com.shaft.gui.element.ElementActions;
-import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.ReportManagerHelper;
-import com.shaft.validation.Assertions;
-import com.shaft.validation.Assertions.AssertionType;
-import com.shaft.validation.Assertions.ComparativeRelationType;
-import com.shaft.validation.Verifications;
-import nu.pattern.OpenCV;
-import org.opencv.core.*;
-import org.opencv.core.Point;
-import org.opencv.core.Core.MinMaxLocResult;
-import org.opencv.highgui.HighGui;
-import org.opencv.imgcodecs.Imgcodecs;
-import org.opencv.imgproc.Imgproc;
-import org.openqa.selenium.By;
-import org.openqa.selenium.WebDriver;
-import org.testng.Assert;
-
-import javax.imageio.ImageIO;
-import java.awt.*;
+import java.awt.Color;
+import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.io.ByteArrayOutputStream;
@@ -38,6 +13,39 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+
+import javax.imageio.ImageIO;
+
+import org.opencv.core.Core;
+import org.opencv.core.Core.MinMaxLocResult;
+import org.opencv.core.CvType;
+import org.opencv.core.Mat;
+import org.opencv.core.MatOfByte;
+import org.opencv.core.Point;
+import org.opencv.core.Scalar;
+import org.opencv.highgui.HighGui;
+import org.opencv.imgcodecs.Imgcodecs;
+import org.opencv.imgproc.Imgproc;
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
+import org.testng.Assert;
+
+import com.applitools.eyes.LogHandler;
+import com.applitools.eyes.MatchLevel;
+import com.applitools.eyes.TestResults;
+import com.applitools.eyes.exceptions.DiffsFoundException;
+import com.applitools.eyes.images.Eyes;
+import com.shaft.cli.FileActions;
+import com.shaft.gui.driver.DriverFactory;
+import com.shaft.gui.element.ElementActions;
+import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
+import com.shaft.validation.Assertions;
+import com.shaft.validation.Assertions.AssertionType;
+import com.shaft.validation.Assertions.ComparativeRelationType;
+import com.shaft.validation.Verifications;
+
+import nu.pattern.OpenCV;
 
 public class ImageProcessingActions {
     private static final String DIRECTORY_PROCESSING = "/processingDirectory/";
@@ -331,10 +339,10 @@ public class ImageProcessingActions {
         }
         eyes.setMatchLevel(targetMatchLevel);
         // Define the OS and hosting application to identify the baseline.
-        if (BrowserFactory.isMobileNativeExecution()) {
+        if (DriverFactory.isMobileNativeExecution()) {
             eyes.setHostOS(System.getProperty("mobile_platformName") + "_" + System.getProperty("mobile_platformVersion"));
             eyes.setHostApp("NativeMobileExecution");
-        } else if (BrowserFactory.isMobileWebExecution()) {
+        } else if (DriverFactory.isMobileWebExecution()) {
             eyes.setHostOS(System.getProperty("mobile_platformName") + "_" + System.getProperty("mobile_platformVersion"));
             eyes.setHostApp(System.getProperty("mobile_browserName"));
         } else {
