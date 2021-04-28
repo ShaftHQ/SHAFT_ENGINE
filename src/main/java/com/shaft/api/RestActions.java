@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.shaft.driver.ShaftDriver;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
@@ -47,7 +48,7 @@ import java.util.concurrent.TimeUnit;
 import static io.restassured.RestAssured.given;
 
 @SuppressWarnings("unused")
-public class RestActions {
+public class RestActions implements ShaftDriver {
     private static final String ARGUMENTSEPARATOR = "?";
     private static final String ERROR_NOT_FOUND = "Either actual value is \"null\" or couldn't find anything that matches with the desired ";
     private static final String ERROR_INCORRECT_JSONPATH = "Incorrect jsonPath ";

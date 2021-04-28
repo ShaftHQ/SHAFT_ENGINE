@@ -9,7 +9,7 @@ import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.support.ui.ExpectedCondition;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
-import com.shaft.gui.driver.DriverFactory;
+import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.tools.support.JavaScriptHelper;
 
@@ -36,7 +36,7 @@ public class JavaScriptWaitManager {
     public static void waitForLazyLoading() {
 //        RecordManager.startVideoRecording(jsWaitDriver.get());
         if (Boolean.TRUE.equals(WAIT_FOR_LAZY_LOADING)
-                && !DriverFactory.isMobileNativeExecution()) {
+                && !DriverFactoryHelper.isMobileNativeExecution()) {
             try {
                 waitForJQueryLoadIfDefined();
                 waitForAngularIfDefined();
