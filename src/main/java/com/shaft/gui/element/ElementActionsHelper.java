@@ -1,7 +1,8 @@
 package com.shaft.gui.element;
 
-import com.shaft.gui.browser.BrowserFactory;
-import com.shaft.tools.io.ReportManagerHelper;
+import java.time.Duration;
+import java.util.ArrayList;
+
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.interactions.Locatable;
@@ -9,8 +10,8 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.FluentWait;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
-import java.time.Duration;
-import java.util.ArrayList;
+import com.shaft.gui.driver.DriverFactory;
+import com.shaft.tools.io.ReportManagerHelper;
 
 class ElementActionsHelper {
     private static final int DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER = Integer
@@ -54,13 +55,13 @@ class ElementActionsHelper {
                     });
         } catch (org.openqa.selenium.TimeoutException e) {
             // In case the element was not found and the timeout expired
-            ReportManagerHelper.logDiscrete(e);
+            // ReportManagerHelper.logDiscrete(e);
             return 0;
         }
     }
 
     protected static boolean waitForElementToBeVisible(WebDriver driver, By elementLocator) {
-        if (FORCE_CHECK_FOR_ELEMENT_VISIBILITY && !BrowserFactory.isMobileNativeExecution()) {
+        if (FORCE_CHECK_FOR_ELEMENT_VISIBILITY && !DriverFactory.isMobileNativeExecution()) {
             ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
             expectedExceptions.add(org.openqa.selenium.NoSuchElementException.class);
             expectedExceptions.add(org.openqa.selenium.StaleElementReferenceException.class);
@@ -96,7 +97,7 @@ class ElementActionsHelper {
     }
 
     protected static boolean waitForElementToBeClickable(WebDriver driver, By elementLocator) {
-        if (!BrowserFactory.isMobileNativeExecution()) {
+        if (!DriverFactory.isMobileNativeExecution()) {
             try {
                 (new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER))
                         .until(ExpectedConditions.elementToBeClickable(elementLocator));

@@ -1,11 +1,11 @@
 package com.shaft.cucumber;
 
-import io.cucumber.java.en.When;
+import java.util.Objects;
+
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
-import java.util.Arrays;
-import java.util.Objects;
+import io.cucumber.java.en.When;
 
 public class ElementSteps {
     private final ThreadLocal<WebDriver> driver;
@@ -278,16 +278,16 @@ public class ElementSteps {
                 numberOfTries);
     }
 
-    private LocatorType getLocatorTypeFromName(String locatorType) {
-        int values = LocatorType.values().length;
-        for (int i = 0; i < values; i++) {
-            if (Arrays.asList(LocatorType.values()).get(i).getValue()
-                    .equalsIgnoreCase(locatorType.trim())) {
-                return Arrays.asList(LocatorType.values()).get(i);
-            }
-        }
-        return LocatorType.XPATH;
-    }
+//    private LocatorType getLocatorTypeFromName(String locatorType) {
+//        int values = LocatorType.values().length;
+//        for (int i = 0; i < values; i++) {
+//            if (Arrays.asList(LocatorType.values()).get(i).getValue()
+//                    .equalsIgnoreCase(locatorType.trim())) {
+//                return Arrays.asList(LocatorType.values()).get(i);
+//            }
+//        }
+//        return LocatorType.XPATH;
+//    }
 
     protected enum LocatorType {
         ID("id"), TAG_NAME("tagname"), CLASS_NAME("classname"), NAME("name"), LINK_TEXT("linktext"),

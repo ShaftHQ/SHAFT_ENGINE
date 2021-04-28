@@ -3,6 +3,7 @@ package com.shaft.gui.element;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.shaft.gui.browser.BrowserFactory;
+import com.shaft.gui.driver.DriverFactory;
 import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManager;
@@ -70,7 +71,7 @@ public class TouchActions {
     public TouchActions tap(String elementReferenceScreenshot) {
         List<Object> screenshot = ElementActions.takeScreenshot(driver, null, "tap", null, true);
 
-        if (BrowserFactory.isMobileNativeExecution()) {
+        if (DriverFactory.isMobileNativeExecution()) {
             byte[] currentScreenImage = ((AppiumDriver<MobileElement>) driver).getScreenshotAs(OutputType.BYTES);
             List<Integer> coordinates = ImageProcessingActions.findImageWithinCurrentPage(elementReferenceScreenshot, currentScreenImage, 1);
             PointerInput input = new PointerInput(PointerInput.Kind.TOUCH, "finger1");
@@ -110,7 +111,7 @@ public class TouchActions {
             internalElementLocator = ElementActions.updateLocatorWithAIGeneratedOne(internalElementLocator);
             String elementText = "";
             try {
-                if (BrowserFactory.isMobileNativeExecution()) {
+                if (DriverFactory.isMobileNativeExecution()) {
                     elementText = driver.findElement(internalElementLocator).getAttribute("text");
                 } else {
                     elementText = driver.findElement(internalElementLocator).getText();
@@ -344,7 +345,7 @@ public class TouchActions {
         }
         return this;
     }
-
+    
     /**
      * Attempts to scroll the element into view in case of native mobile elements.
      *
@@ -354,7 +355,20 @@ public class TouchActions {
      * @return a self-reference to be used to chain actions
      */
     public TouchActions swipeElementIntoView(By targetElementLocator, SwipeDirection swipeDirection) {
-        return swipeElementIntoView(targetElementLocator, swipeDirection, 0);
+        return swipeElementIntoView(targetElementLocator, swipeDirection, SwipeTechnique.TOUCH_ACTIONS, 0);
+    }
+
+    /**
+     * Attempts to scroll the element into view in case of native mobile elements.
+     *
+     * @param targetElementLocator the locator of the webElement under test (By xpath, id,
+     *                             selector, name ...etc)
+     * @param swipeDirection       SwipeDirection.DOWN, UP, RIGHT, or LEFT
+     * @param swipeTechnique		SwipeTechnique.TOUCH_ACTIONS, or UI_SELECTOR
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions swipeElementIntoView(By targetElementLocator, SwipeDirection swipeDirection, SwipeTechnique swipeTechnique) {
+        return swipeElementIntoView(targetElementLocator, swipeDirection, swipeTechnique, 0);
     }
 
     /**
@@ -363,16 +377,17 @@ public class TouchActions {
      * @param targetElementLocator            the locator of the webElement under test (By xpath, id,
      *                                        selector, name ...etc)
      * @param swipeDirection                  SwipeDirection.DOWN, UP, RIGHT, or LEFT
+     * @param swipeTechnique		SwipeTechnique.TOUCH_ACTIONS, or UI_SELECTOR
      * @param scrollableElementInstanceNumber in case of multiple scrollable views, insert the instance number here (starts with 0)
      * @return a self-reference to be used to chain actions
      */
-    public TouchActions swipeElementIntoView(By targetElementLocator, SwipeDirection swipeDirection, int scrollableElementInstanceNumber) {
+    public TouchActions swipeElementIntoView(By targetElementLocator, SwipeDirection swipeDirection, SwipeTechnique swipeTechnique, int scrollableElementInstanceNumber) {
         By internalElementLocator = targetElementLocator;
         internalElementLocator = ElementActions.updateLocatorWithAIGeneratedOne(internalElementLocator);
         try {
             if (driver instanceof AppiumDriver<?>) {
                 // appium native application
-                boolean isElementFound = attemptToSwipeElementIntoViewInNativeApp(internalElementLocator, swipeDirection, scrollableElementInstanceNumber);
+                boolean isElementFound = attemptToSwipeElementIntoViewInNativeApp(internalElementLocator, swipeDirection, swipeTechnique, scrollableElementInstanceNumber);
                 if (Boolean.FALSE.equals(isElementFound)) {
                     ElementActions.failAction(driver, internalElementLocator);
                 }
@@ -392,9 +407,11 @@ public class TouchActions {
         return this;
     }
 
-    private boolean attemptToSwipeElementIntoViewInNativeApp(By elementLocator, SwipeDirection swipeDirection, int scrollableElementInstanceNumber) {
+    private boolean attemptToSwipeElementIntoViewInNativeApp(By elementLocator, SwipeDirection swipeDirection, SwipeTechnique swipeTechnique, int scrollableElementInstanceNumber) {
         boolean isElementFound = false;
         int attemptsToFindElement = 0;
+        String lastPageSourceBeforeSwiping = "";
+
         do {
             // appium native device
             if (!driver.findElements(elementLocator).isEmpty()
@@ -405,113 +422,66 @@ public class TouchActions {
             } else {
                 // for the animated GIF:
                 ElementActions.takeScreenshot(driver, elementLocator, "swipeElementIntoView", null, true);
-                ReportManager.logDiscrete("Swiping to find Element.");
-                if (System.getProperty("targetOperatingSystem").equals("Android")) {
-                    By androidUIAutomator = MobileBy.AndroidUIAutomator("new UiScrollable(new UiSelector().scrollable(true)).scrollForward()");
-                    int scrollableElementsCount = ElementActions.getElementsCount(driver, androidUIAutomator);
-                    if (scrollableElementsCount == 1) {
-                        //this line will fluent wait for the scrollable element and initiate a one screen scroll
-                        ElementActions.identifyUniqueElement(driver, androidUIAutomator);
-                    } else {
-                        androidUIAutomator = MobileBy.AndroidUIAutomator("new UiScrollable(new UiSelector().scrollable(true).instance(" + scrollableElementInstanceNumber + ")).scrollForward()");
-                        driver.findElement(androidUIAutomator);
-                    }
-                } else {
-                    swipeScreen(swipeDirection);
+                
+//                String pageSourceBeforeSwiping = driver.getPageSource();
+                lastPageSourceBeforeSwiping = driver.getPageSource();
+                switch (swipeTechnique) {
+                case TOUCH_ACTIONS -> attemptTouchActionScroll(swipeDirection);
+                case UI_SELECTOR -> attemptUISelectorScroll(swipeDirection, scrollableElementInstanceNumber);
                 }
                 attemptsToFindElement++;
             }
-        } while (Boolean.FALSE.equals(isElementFound) && attemptsToFindElement < DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT);
+        } while (Boolean.FALSE.equals(isElementFound) && attemptsToFindElement < DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT && lastPageSourceBeforeSwiping != driver.getPageSource());
         // TODO: devise a way to break the loop when no further scrolling options are
         // available. do not use visual comparison which is the easy but costly way to
         // do it.
         return isElementFound;
     }
+    
+    private void attemptUISelectorScroll(SwipeDirection swipeDirection, int scrollableElementInstanceNumber) {
+    	ReportManager.logDiscrete("Swiping to find Element using UiSelector.");
+		int scrollingSpeed = 100;
+		String scrollDirection = "Forward";
+		ReportManager.logDiscrete("Swiping to find Element using UiSelector.");
+		By androidUIAutomator = MobileBy
+				.AndroidUIAutomator("new UiScrollable(new UiSelector().scrollable(true).instance("
+						+ scrollableElementInstanceNumber + ")).scroll" + scrollDirection + "(" + scrollingSpeed + ")");
+		ElementActions.getElementsCount(driver, androidUIAutomator);
+    }
 
     private void attemptTouchActionScroll(SwipeDirection swipeDirection) {
+    	ReportManager.logDiscrete("Swiping to find Element using TouchAction.");
         Dimension screenSize = driver.manage().window().getSize();
         Point startingPoint = new Point(0, 0);
         Point endingPoint = new Point(0, 0);
 
+        startingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight() / 2);
+        
         switch (swipeDirection) {
-            case DOWN -> {
-                startingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight() * 50 / 100);
-                endingPoint = new Point(screenSize.getWidth() / 2, 0);
-            }
-            case UP -> {
-                startingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight() * 50 / 100);
-                endingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight());
-            }
-            case RIGHT -> {
-                startingPoint = new Point(screenSize.getWidth() * 50 / 100, screenSize.getHeight() / 2);
-                endingPoint = new Point(0, screenSize.getHeight() / 2);
-            }
-            case LEFT -> {
-                startingPoint = new Point(screenSize.getWidth() * 50 / 100, screenSize.getHeight() / 2);
-                endingPoint = new Point(screenSize.getWidth(), screenSize.getHeight() / 2);
-            }
+            case DOWN -> endingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight() * 80/100);
+            case UP -> endingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight() * 20/100);
+            case LEFT -> endingPoint = new Point(screenSize.getWidth() * 80/100, screenSize.getHeight() / 2);
+            case RIGHT -> endingPoint = new Point(screenSize.getWidth() * 20/100, screenSize.getHeight() / 2);
         }
-        WaitOptions delay = WaitOptions.waitOptions(Duration.ofMillis(1000));
-        (new TouchAction<>((AppiumDriver<?>) driver)).press(PointOption.point(startingPoint)).waitAction(delay)
-                .moveTo(PointOption.point(endingPoint)).waitAction(delay).release().perform();
+        
+        WaitOptions delay = WaitOptions.waitOptions(Duration.ofMillis(300));
+        (new TouchAction<>((AppiumDriver<?>) driver))
+        		.press(PointOption.point(startingPoint))
+        		.waitAction(delay)
+                .moveTo(PointOption.point(endingPoint))
+                .release().perform();
     }
 
     /**
-     * Performs swipe from the center of screen
-     * Reference: http://appium.io/docs/en/writing-running-appium/tutorial/swipe/simple-screen/
+     * SwipeDirection; swiping UP means the screen will move downwards
      *
-     * @param dir the direction of swipe
-     * @version java-client: 7.3.0
-     **/
-    private void swipeScreen(SwipeDirection dir) {
-        // Animation default time:
-        //  - Android: 300 ms
-        //  - iOS: 200 ms
-        // final value depends on your app and could be greater
-        final int ANIMATION_TIME = 300; // ms
-
-        final int PRESS_TIME = 300; // ms
-
-        int edgeBorder = 10; // better avoid edges
-        PointOption pointOptionStart, pointOptionEnd;
-
-        // init screen variables
-        Dimension dims = driver.manage().window().getSize();
-
-        // init start point = center of screen
-        pointOptionStart = PointOption.point(dims.width / 2, dims.height / 2);
-
-        switch (dir) {
-            case DOWN -> pointOptionEnd = PointOption.point(dims.width / 2, dims.height - edgeBorder);
-            case UP -> pointOptionEnd = PointOption.point(dims.width / 2, edgeBorder);
-            case LEFT -> pointOptionEnd = PointOption.point(edgeBorder, dims.height / 2);
-            case RIGHT -> pointOptionEnd = PointOption.point(dims.width - edgeBorder, dims.height / 2);
-            default -> throw new IllegalArgumentException("swipeScreen(): dir: '" + dir + "' NOT supported");
-        }
-
-        // execute swipe using TouchAction
-        try {
-            (new TouchAction<>((AppiumDriver<?>) driver))
-                    .press(pointOptionStart)
-                    // a bit more reliable when we add small wait
-                    .waitAction(WaitOptions.waitOptions(Duration.ofMillis(PRESS_TIME)))
-                    .moveTo(pointOptionEnd)
-                    .release().perform();
-        } catch (Exception e) {
-            ReportManagerHelper.log(e);
-            return;
-        }
-
-        // always allow swipe action to complete
-        try {
-            Thread.sleep(ANIMATION_TIME);
-        } catch (InterruptedException e) {
-            // ignore
-        }
-    }
-
+     */
     public enum SwipeDirection {
         UP, DOWN, LEFT, RIGHT
+    }
+    
+    public enum SwipeTechnique {
+    	TOUCH_ACTIONS, UI_SELECTOR;
     }
 
     public enum KeyboardKeys {

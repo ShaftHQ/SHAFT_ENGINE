@@ -1,21 +1,32 @@
 package com.shaft.tools.listeners;
 
-import com.shaft.gui.browser.BrowserFactory;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+
+import org.testng.IInvokedMethod;
+import org.testng.IInvokedMethodListener;
+import org.testng.ITestNGMethod;
+import org.testng.ITestResult;
+import org.testng.Reporter;
+import org.testng.SkipException;
+import org.testng.internal.ConfigurationMethod;
+import org.testng.internal.ConstructorOrMethod;
+
+import com.shaft.gui.driver.DriverFactory;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.validation.Verifications;
+
 import io.qameta.allure.Issue;
 import io.qameta.allure.Issues;
 import io.qameta.allure.model.Link;
 import io.qameta.allure.util.AnnotationUtils;
-import org.testng.*;
-import org.testng.internal.ConfigurationMethod;
-import org.testng.internal.ConstructorOrMethod;
-
-import java.lang.reflect.Method;
-import java.util.*;
 
 public class InvokedMethodListener implements IInvokedMethodListener {
     private final List<List<String>> listOfOpenIssues = new ArrayList<>();
@@ -66,7 +77,7 @@ public class InvokedMethodListener implements IInvokedMethodListener {
             }
         }
         // implementing the new kill switch at the start of every test method
-        if (BrowserFactory.isKillSwitch()) {
+        if (DriverFactory.isKillSwitch()) {
             SkipException ex = new SkipException("Skipping Test: " + testResult.getName());
             ReportManagerHelper.log(ex);
             throw ex;
@@ -102,7 +113,7 @@ public class InvokedMethodListener implements IInvokedMethodListener {
         }
 
         // resetting scope and config
-        if (!BrowserFactory.isMobileNativeExecution()) {
+        if (!DriverFactory.isMobileNativeExecution()) {
             ElementActions.switchToDefaultContent();
         }
         ReportManagerHelper.setDiscreteLogging(Boolean.parseBoolean(System.getProperty("alwaysLogDiscreetly")));

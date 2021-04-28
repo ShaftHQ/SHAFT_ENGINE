@@ -1,19 +1,25 @@
 package com.shaft.gui.element;
 
-import com.shaft.gui.browser.BrowserFactory;
-import com.shaft.gui.image.ScreenshotManager;
-import com.shaft.gui.video.RecordManager;
-import com.shaft.tools.io.ReportManagerHelper;
-import org.apache.commons.io.IOUtils;
-import org.sikuli.basics.Settings;
-import org.sikuli.script.*;
-
-import javax.imageio.ImageIO;
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+
+import javax.imageio.ImageIO;
+
+import org.apache.commons.io.IOUtils;
+import org.sikuli.basics.Settings;
+import org.sikuli.script.App;
+import org.sikuli.script.FindFailed;
+import org.sikuli.script.Key;
+import org.sikuli.script.Pattern;
+import org.sikuli.script.Screen;
+
+import com.shaft.gui.driver.DriverFactory;
+import com.shaft.gui.image.ScreenshotManager;
+import com.shaft.gui.video.RecordManager;
+import com.shaft.tools.io.ReportManagerHelper;
 
 public class SikuliActions {
     private Screen screen;
@@ -351,7 +357,7 @@ public class SikuliActions {
     }
 
     private void initializeSikuliEngineForCurrentScreen() {
-        if (BrowserFactory.isWebExecution()) {
+        if (DriverFactory.isWebExecution()) {
             JavaScriptWaitManager.waitForLazyLoading();
         }
         Settings.setShowActions(false);
