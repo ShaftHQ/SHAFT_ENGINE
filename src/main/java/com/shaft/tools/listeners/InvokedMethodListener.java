@@ -16,7 +16,7 @@ import org.testng.SkipException;
 import org.testng.internal.ConfigurationMethod;
 import org.testng.internal.ConstructorOrMethod;
 
-import com.shaft.gui.driver.DriverFactory;
+import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
@@ -77,7 +77,7 @@ public class InvokedMethodListener implements IInvokedMethodListener {
             }
         }
         // implementing the new kill switch at the start of every test method
-        if (DriverFactory.isKillSwitch()) {
+        if (DriverFactoryHelper.isKillSwitch()) {
             SkipException ex = new SkipException("Skipping Test: " + testResult.getName());
             ReportManagerHelper.log(ex);
             throw ex;
@@ -113,7 +113,7 @@ public class InvokedMethodListener implements IInvokedMethodListener {
         }
 
         // resetting scope and config
-        if (!DriverFactory.isMobileNativeExecution()) {
+        if (!DriverFactoryHelper.isMobileNativeExecution()) {
             ElementActions.switchToDefaultContent();
         }
         ReportManagerHelper.setDiscreteLogging(Boolean.parseBoolean(System.getProperty("alwaysLogDiscreetly")));

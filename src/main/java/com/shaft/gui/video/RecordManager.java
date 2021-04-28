@@ -14,7 +14,7 @@ import org.openqa.selenium.WebDriverException;
 import com.automation.remarks.video.RecorderFactory;
 import com.automation.remarks.video.recorder.IVideoRecorder;
 import com.automation.remarks.video.recorder.VideoRecorder;
-import com.shaft.gui.driver.DriverFactory;
+import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 
@@ -43,7 +43,7 @@ public class RecordManager {
         if (Boolean.TRUE.equals(RECORD_VIDEO)
                 && !isRecordingStarted
                 && driver != null
-                && DriverFactory.isMobileNativeExecution()) {
+                && DriverFactoryHelper.isMobileNativeExecution()) {
             videoDriver.set(driver);
             try {
                 if (driver instanceof AndroidDriver) {

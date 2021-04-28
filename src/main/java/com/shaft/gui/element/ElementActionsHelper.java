@@ -10,7 +10,7 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.FluentWait;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
-import com.shaft.gui.driver.DriverFactory;
+import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.tools.io.ReportManagerHelper;
 
 class ElementActionsHelper {
@@ -61,7 +61,7 @@ class ElementActionsHelper {
     }
 
     protected static boolean waitForElementToBeVisible(WebDriver driver, By elementLocator) {
-        if (FORCE_CHECK_FOR_ELEMENT_VISIBILITY && !DriverFactory.isMobileNativeExecution()) {
+        if (FORCE_CHECK_FOR_ELEMENT_VISIBILITY && !DriverFactoryHelper.isMobileNativeExecution()) {
             ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
             expectedExceptions.add(org.openqa.selenium.NoSuchElementException.class);
             expectedExceptions.add(org.openqa.selenium.StaleElementReferenceException.class);
@@ -97,7 +97,7 @@ class ElementActionsHelper {
     }
 
     protected static boolean waitForElementToBeClickable(WebDriver driver, By elementLocator) {
-        if (!DriverFactory.isMobileNativeExecution()) {
+        if (!DriverFactoryHelper.isMobileNativeExecution()) {
             try {
                 (new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER))
                         .until(ExpectedConditions.elementToBeClickable(elementLocator));
