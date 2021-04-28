@@ -56,7 +56,7 @@ public class Test_AppiumNative {
 
     @AfterClass
     public void teardown() {
-        BrowserFactory.closeAllDrivers();
+        BrowserFactory.closeAllBrowsers();
         // extra code to switch between web and mobile execution in the pipeline
         System.setProperty("executionAddress", executionAddress);
         System.setProperty("targetOperatingSystem", targetOperatingSystem);

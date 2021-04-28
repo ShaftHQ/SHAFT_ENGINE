@@ -1,5 +1,6 @@
 package com.shaft.gui.browser;
 
+import com.shaft.gui.driver.DriverFactory;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.JavaScriptWaitManager;
 import com.shaft.gui.image.ScreenshotManager;
@@ -304,7 +305,7 @@ public class BrowserActions {
             try {
                 // TODO: handle session timeout while attempting to close empty window
                 String lastPageSource = driver.getPageSource();
-                BrowserFactory.closeDriver(driver.hashCode());
+                DriverFactory.closeDriver(driver.hashCode());
                 passAction(lastPageSource);
             } catch (WebDriverException rootCauseException) {
                 if (rootCauseException.getMessage() != null

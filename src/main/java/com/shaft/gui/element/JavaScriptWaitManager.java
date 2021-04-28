@@ -1,8 +1,7 @@
 package com.shaft.gui.element;
 
-import com.shaft.gui.browser.BrowserFactory;
-import com.shaft.tools.io.ReportManagerHelper;
-import com.shaft.tools.support.JavaScriptHelper;
+import java.util.Objects;
+
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.NoSuchSessionException;
 import org.openqa.selenium.WebDriver;
@@ -10,7 +9,9 @@ import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.support.ui.ExpectedCondition;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
-import java.util.Objects;
+import com.shaft.gui.driver.DriverFactory;
+import com.shaft.tools.io.ReportManagerHelper;
+import com.shaft.tools.support.JavaScriptHelper;
 
 public class JavaScriptWaitManager {
     private static final boolean WAIT_FOR_LAZY_LOADING = Boolean.parseBoolean(System.getProperty("waitForLazyLoading"));
@@ -35,7 +36,7 @@ public class JavaScriptWaitManager {
     public static void waitForLazyLoading() {
 //        RecordManager.startVideoRecording(jsWaitDriver.get());
         if (Boolean.TRUE.equals(WAIT_FOR_LAZY_LOADING)
-                && !BrowserFactory.isMobileNativeExecution()) {
+                && !DriverFactory.isMobileNativeExecution()) {
             try {
                 waitForJQueryLoadIfDefined();
                 waitForAngularIfDefined();

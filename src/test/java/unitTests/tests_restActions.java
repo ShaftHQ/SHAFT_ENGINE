@@ -39,7 +39,7 @@ public class tests_restActions {
     @Test
     public void validateUserEmail() {
         RestActions apiObject = new RestActions("https://jsonplaceholder.typicode.com");
-        Response users = apiObject.performRequest(RestActions.RequestType.GET, 200, "/users");
+        Response users = apiObject.buildNewRequest("/users", RequestType.GET).setTargetStatusCode(200).performRequest();
 
         Assertions.assertEquals("Leanne Graham", RestActions.getResponseBody(users), Assertions.AssertionComparisonType.CONTAINS,
                 Assertions.AssertionType.POSITIVE);

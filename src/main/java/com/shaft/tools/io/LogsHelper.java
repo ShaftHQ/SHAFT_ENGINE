@@ -2,6 +2,8 @@ package com.shaft.tools.io;
 
 import com.shaft.cli.FileActions;
 import com.shaft.gui.browser.BrowserFactory;
+import com.shaft.gui.driver.DriverFactory;
+
 import org.testng.annotations.AfterSuite;
 
 import java.text.SimpleDateFormat;
@@ -28,8 +30,8 @@ public class LogsHelper {
     }
 
     public void attachBrowserLogs() {
-        if (Boolean.FALSE.equals(BrowserFactory.isBrowsersListEmpty())) {
-            BrowserFactory.closeAllDrivers();
+        if (Boolean.FALSE.equals(DriverFactory.isDriversListEmpty())) {
+            BrowserFactory.closeAllBrowsers();
         } else {
             ReportManager.logDiscrete("There were no Web Browsers used for this test run.");
         }

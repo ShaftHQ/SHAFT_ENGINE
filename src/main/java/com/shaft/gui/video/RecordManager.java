@@ -1,22 +1,6 @@
 package com.shaft.gui.video;
 
-import com.automation.remarks.video.RecorderFactory;
-import com.automation.remarks.video.recorder.IVideoRecorder;
-import com.automation.remarks.video.recorder.VideoRecorder;
-import com.shaft.gui.browser.BrowserFactory;
-import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.ReportManagerHelper;
-import io.appium.java_client.MobileElement;
-import io.appium.java_client.android.AndroidDriver;
-import io.appium.java_client.ios.IOSDriver;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebDriverException;
-import ws.schild.jave.Encoder;
-import ws.schild.jave.EncoderException;
-import ws.schild.jave.MultimediaObject;
-import ws.schild.jave.encode.AudioAttributes;
-import ws.schild.jave.encode.EncodingAttributes;
-import ws.schild.jave.encode.VideoAttributes;
+import static com.automation.remarks.video.RecordingUtils.doVideoProcessing;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -24,7 +8,25 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.util.Base64;
 
-import static com.automation.remarks.video.RecordingUtils.doVideoProcessing;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebDriverException;
+
+import com.automation.remarks.video.RecorderFactory;
+import com.automation.remarks.video.recorder.IVideoRecorder;
+import com.automation.remarks.video.recorder.VideoRecorder;
+import com.shaft.gui.driver.DriverFactory;
+import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
+
+import io.appium.java_client.MobileElement;
+import io.appium.java_client.android.AndroidDriver;
+import io.appium.java_client.ios.IOSDriver;
+import ws.schild.jave.Encoder;
+import ws.schild.jave.EncoderException;
+import ws.schild.jave.MultimediaObject;
+import ws.schild.jave.encode.AudioAttributes;
+import ws.schild.jave.encode.EncodingAttributes;
+import ws.schild.jave.encode.VideoAttributes;
 
 public class RecordManager {
     private static final Boolean RECORD_VIDEO = Boolean.valueOf(System.getProperty("recordVideo").trim());
@@ -41,7 +43,7 @@ public class RecordManager {
         if (Boolean.TRUE.equals(RECORD_VIDEO)
                 && !isRecordingStarted
                 && driver != null
-                && BrowserFactory.isMobileNativeExecution()) {
+                && DriverFactory.isMobileNativeExecution()) {
             videoDriver.set(driver);
             try {
                 if (driver instanceof AndroidDriver) {

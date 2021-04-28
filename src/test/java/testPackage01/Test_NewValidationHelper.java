@@ -335,7 +335,7 @@ public class Test_NewValidationHelper {
 
     @AfterMethod(onlyForGroups = {"browserBasedTests"})
     public void closeBrowser() {
-        BrowserFactory.closeAllDrivers();
+        BrowserFactory.closeAllBrowsers();
     }
 
 }
