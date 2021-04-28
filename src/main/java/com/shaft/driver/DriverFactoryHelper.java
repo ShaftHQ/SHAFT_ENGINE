@@ -755,7 +755,7 @@ public class DriverFactoryHelper {
                 setLoggingPrefrences();
                 // set logging global preferences
             }
-            if (customDriverOptions != null) {
+            if (!isMobileExecution()) {
                 setDriverOptions(internalDriverName, customDriverOptions);
                 // set driver options with respect to the target driver name
             }
