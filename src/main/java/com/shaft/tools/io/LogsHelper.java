@@ -1,8 +1,8 @@
 package com.shaft.tools.io;
 
 import com.shaft.cli.FileActions;
+import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.gui.browser.BrowserFactory;
-import com.shaft.gui.driver.DriverFactory;
 
 import org.testng.annotations.AfterSuite;
 
@@ -30,7 +30,7 @@ public class LogsHelper {
     }
 
     public void attachBrowserLogs() {
-        if (Boolean.FALSE.equals(DriverFactory.isDriversListEmpty())) {
+        if (Boolean.FALSE.equals(DriverFactoryHelper.isDriversListEmpty())) {
             BrowserFactory.closeAllBrowsers();
         } else {
             ReportManager.logDiscrete("There were no Web Browsers used for this test run.");

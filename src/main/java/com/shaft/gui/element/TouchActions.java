@@ -2,8 +2,8 @@ package com.shaft.gui.element;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.gui.browser.BrowserFactory;
-import com.shaft.gui.driver.DriverFactory;
 import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManager;
@@ -71,7 +71,7 @@ public class TouchActions {
     public TouchActions tap(String elementReferenceScreenshot) {
         List<Object> screenshot = ElementActions.takeScreenshot(driver, null, "tap", null, true);
 
-        if (DriverFactory.isMobileNativeExecution()) {
+        if (DriverFactoryHelper.isMobileNativeExecution()) {
             byte[] currentScreenImage = ((AppiumDriver<MobileElement>) driver).getScreenshotAs(OutputType.BYTES);
             List<Integer> coordinates = ImageProcessingActions.findImageWithinCurrentPage(elementReferenceScreenshot, currentScreenImage, 1);
             PointerInput input = new PointerInput(PointerInput.Kind.TOUCH, "finger1");
@@ -111,7 +111,7 @@ public class TouchActions {
             internalElementLocator = ElementActions.updateLocatorWithAIGeneratedOne(internalElementLocator);
             String elementText = "";
             try {
-                if (DriverFactory.isMobileNativeExecution()) {
+                if (DriverFactoryHelper.isMobileNativeExecution()) {
                     elementText = driver.findElement(internalElementLocator).getAttribute("text");
                 } else {
                     elementText = driver.findElement(internalElementLocator).getText();

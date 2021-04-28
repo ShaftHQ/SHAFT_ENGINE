@@ -3,8 +3,8 @@ package com.shaft.gui.browser;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.WebDriver;
 
-import com.shaft.gui.driver.DriverFactory;
-import com.shaft.gui.driver.DriverFactory.DriverType;
+import com.shaft.driver.DriverFactory.DriverType;
+import com.shaft.driver.DriverFactoryHelper;
 
 public class BrowserFactory {
 	private BrowserFactory() {
@@ -17,7 +17,7 @@ public class BrowserFactory {
 	 * @return a new browser instance
 	 */
 	public static WebDriver getBrowser() {
-		return DriverFactory.getDriver();
+		return DriverFactoryHelper.getDriver();
 	}
 
 	/**
@@ -27,7 +27,7 @@ public class BrowserFactory {
 	 * @return a new browser instance
 	 */
 	public static WebDriver getBrowser(DriverType browserType) {
-		return DriverFactory.getDriver(browserType);
+		return DriverFactoryHelper.getDriver(browserType);
 	}
 
 	/**
@@ -39,14 +39,14 @@ public class BrowserFactory {
 	 * @return a new browser instance
 	 */
 	public static WebDriver getBrowser(DriverType browserType, MutableCapabilities customBrowserOptions) {
-		return DriverFactory.getDriver(browserType, customBrowserOptions);
+		return DriverFactoryHelper.getDriver(browserType, customBrowserOptions);
 	}
 	
 	/**
 	 * Close all open browser instances.
 	 */
 	public static synchronized void closeAllBrowsers() {
-		DriverFactory.closeAllDrivers();
+		DriverFactoryHelper.closeAllDrivers();
 	}
 	
 }

@@ -42,7 +42,7 @@ import org.sikuli.script.Screen;
 import org.testng.Assert;
 
 import com.shaft.cli.FileActions;
-import com.shaft.gui.driver.DriverFactory;
+import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
@@ -121,7 +121,7 @@ public class ElementActions {
      *                       selector, name ...etc)
      */
     public static void click(WebDriver driver, By elementLocator) {
-        if (DriverFactory.isMobileNativeExecution()) {
+        if (DriverFactoryHelper.isMobileNativeExecution()) {
             new TouchActions(driver).tap(elementLocator);
         } else {
             By internalElementLocator = elementLocator;
@@ -688,10 +688,10 @@ public class ElementActions {
 
             String elementText = driver.findElement(internalElementLocator).getText();
 
-            if (elementText.trim().equals("") && !DriverFactory.isMobileNativeExecution()) {
+            if (elementText.trim().equals("") && !DriverFactoryHelper.isMobileNativeExecution()) {
                 elementText = driver.findElement(internalElementLocator).getAttribute(TextDetectionStrategy.CONTENT.getValue());
             }
-            if (elementText.trim().equals("") && !DriverFactory.isMobileNativeExecution()) {
+            if (elementText.trim().equals("") && !DriverFactoryHelper.isMobileNativeExecution()) {
                 elementText = driver.findElement(internalElementLocator).getAttribute(TextDetectionStrategy.VALUE.getValue());
             }
             passAction(driver, internalElementLocator, elementText);
@@ -1121,7 +1121,7 @@ public class ElementActions {
      * @return a self-reference to be used to chain actions
      */
     public static ElementActions switchToDefaultContent() {
-        if (DriverFactory.getActiveDriverSessions() > 0 && (lastUsedDriver != null)) {
+        if (DriverFactoryHelper.getActiveDriverSessions() > 0 && (lastUsedDriver != null)) {
             try {
                 lastUsedDriver.switchTo().defaultContent();
                 boolean discreetLoggingState = ReportManagerHelper.isDiscreteLogging();
@@ -1472,7 +1472,7 @@ public class ElementActions {
     }
 
     private static TextDetectionStrategy determineSuccessfulTextLocationStrategy(WebDriver driver, By elementLocator) {
-        if (DriverFactory.isMobileNativeExecution()) {
+        if (DriverFactoryHelper.isMobileNativeExecution()) {
             return TextDetectionStrategy.TEXT;
         }
         String text = driver.findElement(elementLocator).getText().trim();

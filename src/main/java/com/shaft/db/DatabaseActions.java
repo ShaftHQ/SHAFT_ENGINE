@@ -1,5 +1,6 @@
 package com.shaft.db;
 
+import com.shaft.driver.ShaftDriver;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
@@ -11,7 +12,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Executors;
 
-public class DatabaseActions {
+public class DatabaseActions implements ShaftDriver {
     private DatabaseType dbType;
     private String dbServerIP;
     private String dbPort;

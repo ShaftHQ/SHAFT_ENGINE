@@ -16,12 +16,13 @@ import org.sikuli.script.Key;
 import org.sikuli.script.Pattern;
 import org.sikuli.script.Screen;
 
-import com.shaft.gui.driver.DriverFactory;
+import com.shaft.driver.DriverFactoryHelper;
+import com.shaft.driver.ShaftDriver;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManagerHelper;
 
-public class SikuliActions {
+public class SikuliActions implements ShaftDriver{
     private Screen screen;
     private App applicationWindow;
 
@@ -357,7 +358,7 @@ public class SikuliActions {
     }
 
     private void initializeSikuliEngineForCurrentScreen() {
-        if (DriverFactory.isWebExecution()) {
+        if (DriverFactoryHelper.isWebExecution()) {
             JavaScriptWaitManager.waitForLazyLoading();
         }
         Settings.setShowActions(false);

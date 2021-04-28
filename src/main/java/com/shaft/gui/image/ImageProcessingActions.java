@@ -36,7 +36,7 @@ import com.applitools.eyes.TestResults;
 import com.applitools.eyes.exceptions.DiffsFoundException;
 import com.applitools.eyes.images.Eyes;
 import com.shaft.cli.FileActions;
-import com.shaft.gui.driver.DriverFactory;
+import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
@@ -339,10 +339,10 @@ public class ImageProcessingActions {
         }
         eyes.setMatchLevel(targetMatchLevel);
         // Define the OS and hosting application to identify the baseline.
-        if (DriverFactory.isMobileNativeExecution()) {
+        if (DriverFactoryHelper.isMobileNativeExecution()) {
             eyes.setHostOS(System.getProperty("mobile_platformName") + "_" + System.getProperty("mobile_platformVersion"));
             eyes.setHostApp("NativeMobileExecution");
-        } else if (DriverFactory.isMobileWebExecution()) {
+        } else if (DriverFactoryHelper.isMobileWebExecution()) {
             eyes.setHostOS(System.getProperty("mobile_platformName") + "_" + System.getProperty("mobile_platformVersion"));
             eyes.setHostApp(System.getProperty("mobile_browserName"));
         } else {
