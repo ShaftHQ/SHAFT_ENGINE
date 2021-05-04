@@ -18,7 +18,6 @@ import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 
-import io.appium.java_client.MobileElement;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import ws.schild.jave.Encoder;
@@ -47,9 +46,9 @@ public class RecordManager {
             videoDriver.set(driver);
             try {
                 if (driver instanceof AndroidDriver) {
-                    ((AndroidDriver<MobileElement>) driver).startRecordingScreen();
+                	AndroidDriver.class.cast(driver).startRecordingScreen();
                 } else if (driver instanceof IOSDriver) {
-                    ((IOSDriver<MobileElement>) driver).startRecordingScreen();
+                	IOSDriver.class.cast(driver).startRecordingScreen();
                 }
                 ReportManager.logDiscrete("Started recording device screen");
                 isRecordingStarted = true;
@@ -90,9 +89,9 @@ public class RecordManager {
         } else if (Boolean.TRUE.equals(RECORD_VIDEO) && videoDriver.get() != null) {
             String base64EncodedRecording = "";
             if (videoDriver.get() instanceof AndroidDriver) {
-                base64EncodedRecording = ((AndroidDriver<MobileElement>) videoDriver.get()).stopRecordingScreen();
+                base64EncodedRecording = AndroidDriver.class.cast(videoDriver.get()).stopRecordingScreen();
             } else if (videoDriver.get() instanceof IOSDriver) {
-                base64EncodedRecording = ((IOSDriver<MobileElement>) videoDriver.get()).stopRecordingScreen();
+                base64EncodedRecording = IOSDriver.class.cast(videoDriver.get()).stopRecordingScreen();
             }
             ReportManagerHelper.attach("Video Recording", testMethodName,
                     new ByteArrayInputStream(Base64.getDecoder().decode(base64EncodedRecording)));
