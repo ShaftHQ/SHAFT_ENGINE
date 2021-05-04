@@ -10,8 +10,10 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.MobileBy;
+import io.appium.java_client.MobileDriver;
 import io.appium.java_client.MobileElement;
 import io.appium.java_client.TouchAction;
+import io.appium.java_client.ios.IOSDriver;
 import io.appium.java_client.touch.WaitOptions;
 import io.appium.java_client.touch.offset.ElementOption;
 import io.appium.java_client.touch.offset.PointOption;
@@ -46,7 +48,7 @@ public class TouchActions {
     }
 
     /**
-     * Sends a keypress via the device keyboard.
+     * Sends a keypress via the device soft keyboard.
      *
      * @param key the key that should be pressed
      * @return a self-reference to be used to chain actions
@@ -61,6 +63,21 @@ public class TouchActions {
         ElementActions.passAction(driver, null, key.name());
         return this;
     }
+    
+    /**
+     * Hides the device native soft keyboard.
+     * 
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions hideNativeKeyboard() {
+        try {
+            ((AppiumDriver<?>) driver).hideKeyboard();
+            ElementActions.passAction(driver, null);
+        } catch (Exception rootCauseException) {
+            ElementActions.failAction(driver, null, rootCauseException);
+        }
+        ElementActions.passAction(driver, null);
+        return this;    }
 
     /**
      * Taps an element once on a touch-enabled screen
@@ -72,7 +89,7 @@ public class TouchActions {
         List<Object> screenshot = ElementActions.takeScreenshot(driver, null, "tap", null, true);
 
         if (DriverFactoryHelper.isMobileNativeExecution()) {
-            byte[] currentScreenImage = ((AppiumDriver<MobileElement>) driver).getScreenshotAs(OutputType.BYTES);
+            byte[] currentScreenImage = AppiumDriver.class.cast(driver).getScreenshotAs(OutputType.BYTES);
             List<Integer> coordinates = ImageProcessingActions.findImageWithinCurrentPage(elementReferenceScreenshot, currentScreenImage, 1);
             PointerInput input = new PointerInput(PointerInput.Kind.TOUCH, "finger1");
             Sequence tap = new Sequence(input, 0);
@@ -237,7 +254,79 @@ public class TouchActions {
         }
         return this;
     }
-
+    
+    /**
+     * Send the currently active app to the background, and return after a certain number of seconds.
+     * 
+     * @param secondsToSpendInTheBackground number of seconds before returning back to the app
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions sendAppToBackground(int secondsToSpendInTheBackground) {
+    		if (DriverFactoryHelper.isMobileNativeExecution()) {
+    		MobileDriver.class.cast(driver).runAppInBackground(Duration.ofSeconds(secondsToSpendInTheBackground));
+    		ElementActions.passAction(driver, null);
+    		}else {
+                ElementActions.failAction(driver, null);
+    		}
+            return this;
+    }
+    
+    /**
+     * Send the currently active app to the background and leave the app deactivated.
+     * 
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions sendAppToBackground() {
+    	return sendAppToBackground(-1);
+    }
+    
+    /**
+     * Activates an app that has been previously deactivated or sent to the background.
+     * 
+     * @param appPackageName the full name for the app package that you want to activate. for example [com.apple.Preferences] or [io.appium.android.apis]
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions activateAppFromBackground(String appPackageName) {
+		if (DriverFactoryHelper.isMobileNativeExecution()) {
+			MobileDriver.class.cast(driver).activateApp(appPackageName);
+			ElementActions.passAction(driver, null);
+		}else {
+            ElementActions.failAction(driver, null);
+		}
+		return this;
+    }
+    
+    /**
+     * Close the app which was provided in the capabilities at session creation and quits the session. Then re-Launches the app and restarts the session.
+     * 
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions restartApp() {
+		if (DriverFactoryHelper.isMobileNativeExecution()) {
+	    	MobileDriver.class.cast(driver).closeApp();
+	    	MobileDriver.class.cast(driver).launchApp();
+			ElementActions.passAction(driver, null);
+		}else {
+	        ElementActions.failAction(driver, null);
+		}
+		return this;
+    }
+    
+    /**
+     * Resets the currently running app together with the session.
+     * 
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions resetApp() {
+		if (DriverFactoryHelper.isMobileNativeExecution()) {
+	    	MobileDriver.class.cast(driver).resetApp();
+			ElementActions.passAction(driver, null);
+		}else {
+	        ElementActions.failAction(driver, null);
+		}
+		return this;
+    }
+    
     /**
      * Swipes the sourceElement onto the destinationElement on a touch-enabled
      * screen
@@ -488,13 +577,13 @@ public class TouchActions {
         GO(ImmutableMap.of("action", "go")), DONE(ImmutableMap.of("action", "done")), SEARCH(ImmutableMap.of("action", "search")), SEND(ImmutableMap.of("action", "send")),
         NEXT(ImmutableMap.of("action", "next")), PREVIOUS(ImmutableMap.of("action", "previous")), NORMAL(ImmutableMap.of("action", "normal")), UNSPECIFIED(ImmutableMap.of("action", "unspecified")), NONE(ImmutableMap.of("action", "none"));
 
-        private final ImmutableMap value;
+        private final ImmutableMap<?,?> value;
 
-        KeyboardKeys(ImmutableMap type) {
+        KeyboardKeys(ImmutableMap<?,?> type) {
             this.value = type;
         }
 
-        protected ImmutableMap getValue() {
+        protected ImmutableMap<?,?> getValue() {
             return value;
         }
     }
