@@ -14,15 +14,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 
 import org.opencv.imgproc.Imgproc;
 import org.openqa.selenium.By;
 import org.openqa.selenium.ElementNotInteractableException;
 import org.openqa.selenium.InvalidArgumentException;
 import org.openqa.selenium.InvalidElementStateException;
-import org.openqa.selenium.JavascriptException;
-import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.StaleElementReferenceException;
@@ -48,8 +45,6 @@ import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
-import com.shaft.tools.support.JavaScriptHelper;
-
 import io.appium.java_client.AppiumDriver;
 
 public class ElementActions {
@@ -74,14 +69,11 @@ public class ElementActions {
             List<Integer> point = ImageProcessingActions.findImageWithinCurrentPage(referenceImagePath,
                     ScreenshotManager.takeFullPageScreenshot(driver), Imgproc.TM_CCORR_NORMED); // TM_CCOEFF
             if (point.size() == 2) {
-                WebElement targetElement = (WebElement) ((JavascriptExecutor) driver).executeScript(
-                        "return document.elementFromPoint(arguments[0], arguments[1])", point.get(0), point.get(1));
-
+                WebElement targetElement = ElementActionsHelper.getWebElementFromPointUsingJavascript(driver, point, false);
                 if (targetElement == null) {
                     // element may be outside viewport, attempt to scroll and find it using custom
                     // javascript
-                    targetElement = (WebElement) ((JavascriptExecutor) driver)
-                            .executeScript(JavaScriptHelper.ELEMENT_SCROLL_TO_VIEWPORT.getValue(), point.get(0), point.get(1));
+                	targetElement = ElementActionsHelper.getWebElementFromPointUsingJavascript(driver, point, true);
                 }
                 boolean initialLoggingState = ReportManagerHelper.isDiscreteLogging();
                 ReportManagerHelper.setDiscreteLogging(false);
@@ -89,7 +81,7 @@ public class ElementActions {
                         "New Element found using AI... Kindly update your element locator [" + elementLocator + "].");
                 ReportManagerHelper.setDiscreteLogging(initialLoggingState);
 
-                String newXpath = suggestNewXpath(driver, targetElement, elementLocator);
+                String newXpath = ElementActionsHelper.suggestNewXpathUsingJavascript(driver, targetElement, elementLocator);
                 if (newXpath != null) {
                     System.setProperty(hashedLocatorName, newXpath);
                 }
@@ -137,7 +129,7 @@ public class ElementActions {
                             determineSuccessfulTextLocationStrategy(driver, internalElementLocator));
                     // adding hover before clicking an element to enable styles to show in the
                     // execution screenshots and to solve issues clicking on certain elements.
-                    performHover(driver, internalElementLocator);
+                    ElementActionsHelper.performHoverUsingJavascript(driver, internalElementLocator);
                 } catch (Exception e) {
                     ReportManagerHelper.logDiscrete(e);
                 }
@@ -153,8 +145,7 @@ public class ElementActions {
                     driver.findElement(internalElementLocator).click();
                 } catch (Exception exception1) {
                     try {
-                        ((JavascriptExecutor) driver).executeScript("arguments[arguments.length - 1].click();",
-                                driver.findElement(internalElementLocator));
+                        ElementActionsHelper.clickUsingJavascript(driver, internalElementLocator);
                     } catch (Exception rootCauseException) {
                         rootCauseException.initCause(exception1);
                         ReportManagerHelper.log(exception1);
@@ -305,27 +296,12 @@ public class ElementActions {
             // replaced canFindUniqueElementForInternalUse, with countFoundElements for
             // destinationElement to bypass the check for element visibility
 
-            // define source and destination elements
-            WebElement sourceElement = driver.findElement(internalSourceElementLocator);
-            WebElement destinationElement = driver.findElement(internalDestinationElementLocator);
-
             // get source element start location
-            String startLocation = sourceElement.getLocation().toString();
+            String startLocation = driver.findElement(internalSourceElementLocator).getLocation().toString();
 
             // attempt to perform drag and drop
             try {
-                driver.manage().timeouts().setScriptTimeout(10, TimeUnit.SECONDS);
-                JavascriptExecutor js = (JavascriptExecutor) driver;
-
-                String jQueryLoader = JavaScriptHelper.LOAD_JQUERY.getValue();
-
-                js.executeAsyncScript(jQueryLoader /* , http://localhost:8080/jquery-1.7.2.js */);
-
-                String dragAndDropHelper = JavaScriptHelper.ELEMENT_DRAG_AND_DROP.getValue();
-
-                dragAndDropHelper = dragAndDropHelper + "$(arguments[0]).simulateDragDrop({dropTarget:arguments[1]});";
-
-                ((JavascriptExecutor) driver).executeScript(dragAndDropHelper, sourceElement, destinationElement);
+            	ElementActionsHelper.dragAndDropUsingJavascript(driver, sourceElementLocator, destinationElementLocator);
             } catch (Exception rootCauseException) {
                 ReportManagerHelper.log(rootCauseException);
                 failAction(driver, internalSourceElementLocator, rootCauseException);
@@ -418,7 +394,7 @@ public class ElementActions {
      */
     public static void executeNativeMobileCommand(WebDriver driver, String command, Map<String, String> parameters) {
         try {
-            ((JavascriptExecutor) driver).executeScript(command, parameters);
+        	ElementActionsHelper.executeNativeMobileCommandUsingJavascript(driver, command, parameters);
             passAction(driver, "Command: " + command + ", Parameters: " + parameters);
         } catch (Exception rootCauseException) {
             failAction(driver, null, rootCauseException);
@@ -745,7 +721,7 @@ public class ElementActions {
             internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
 
             try {
-                performHover(driver, internalElementLocator);
+            	ElementActionsHelper.performHoverUsingJavascript(driver, internalElementLocator);
             } catch (Exception rootCauseException) {
                 ReportManagerHelper.log(rootCauseException);
                 failAction(driver, internalElementLocator, rootCauseException);
@@ -1055,7 +1031,7 @@ public class ElementActions {
             // Override current locator with the aiGeneratedElementLocator
             internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
 
-            Boolean valueSetSuccessfully = internalSetValueUsingJavaScript(driver, internalElementLocator, value);
+            Boolean valueSetSuccessfully = ElementActionsHelper.setValueUsingJavascript(driver, internalElementLocator, value);
 
             if (Boolean.TRUE.equals(valueSetSuccessfully)) {
                 passAction(driver, internalElementLocator, value);
@@ -1082,8 +1058,7 @@ public class ElementActions {
             internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
 
             try {
-                ((JavascriptExecutor) driver).executeScript("arguments[0].submit();",
-                        driver.findElement(internalElementLocator));
+                ElementActionsHelper.submitFormUsingJavascript(driver, internalElementLocator);
                 passAction(driver, internalElementLocator);
             } catch (Exception rootCauseException) {
                 ReportManagerHelper.log(rootCauseException);
@@ -1253,9 +1228,7 @@ public class ElementActions {
                 failAction(driver, internalAbsoluteFilePath, internalElementLocator, e);
 
             } catch (ElementNotInteractableException exception1) {
-                ((JavascriptExecutor) driver).executeScript(
-                        "arguments[0].setAttribute('style', 'display:block !important;');",
-                        driver.findElement(internalElementLocator));
+            	ElementActionsHelper.changeWebElementVisibilityUsingJavascript(driver, internalElementLocator, true);
                 try {
                     driver.findElement(internalElementLocator).sendKeys(internalAbsoluteFilePath);
                 } catch (WebDriverException rootCauseException) {
@@ -1265,8 +1238,7 @@ public class ElementActions {
                     failAction(driver, internalAbsoluteFilePath, internalElementLocator, rootCauseException);
                 }
                 try {
-                    ((JavascriptExecutor) driver).executeScript("arguments[0].setAttribute('style', 'display:none');",
-                            driver.findElement(internalElementLocator));
+                	ElementActionsHelper.changeWebElementVisibilityUsingJavascript(driver, internalElementLocator, false);
                 } catch (NoSuchElementException | StaleElementReferenceException e) {
                     // this exception is sometimes thrown on firefox after the upload has been
                     // successful, since we don't have to return the style to what it was, then it's
@@ -1431,7 +1403,7 @@ public class ElementActions {
 
             // attempt clear using javascript
             if (!elementText.trim().equals("")) {
-                internalSetValueUsingJavaScript(driver, elementLocator, "");
+            	ElementActionsHelper.setValueUsingJavascript(driver, elementLocator, "");
             }
 
             elementText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator,
@@ -1465,7 +1437,7 @@ public class ElementActions {
         } else {
             // attempt once to type using javascript then confirm typing was successful
             // again
-            internalSetValueUsingJavaScript(driver, elementLocator, expectedText);
+        	ElementActionsHelper.setValueUsingJavascript(driver, elementLocator, expectedText);
             actualText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator, TextDetectionStrategy.VALUE);
             return actualText;
         }
@@ -1596,26 +1568,6 @@ public class ElementActions {
         return false;
     }
 
-    /**
-     * Used to force set the value of a certain element using javascript, bypassing
-     * regular visibility and element uniqueness checks
-     *
-     * @param driver         the current instance of Selenium webdriver
-     * @param elementLocator the locator of the webElement under test (By xpath, id,
-     *                       selector, name ...etc)
-     * @param value          the desired value that will be forced
-     */
-    private static boolean internalSetValueUsingJavaScript(WebDriver driver, By elementLocator, String value) {
-        try {
-            ((JavascriptExecutor) driver).executeScript("arguments[0].value='" + value + "';",
-                    driver.findElement(elementLocator));
-            return true;
-        } catch (Exception e) {
-            ReportManagerHelper.log(e);
-            return false;
-        }
-    }
-
     private static void passAction(WebDriver driver) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         passAction(driver, null, actionName, null, null);
@@ -1698,32 +1650,6 @@ public class ElementActions {
                 return false;
         }
         return true;
-    }
-
-    private static void performHover(WebDriver driver, By elementLocator) {
-        try {
-            String createMouseEvent = "var evObj = document.createEvent('MouseEvents');";
-            String dispatchMouseEvent = "arguments[arguments.length -1].dispatchEvent(evObj);";
-
-            String mouseEventFirstHalf = "evObj.initMouseEvent(\"";
-            String mouseEventSecondHalf = "\", true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);";
-
-            String javaScript = createMouseEvent + mouseEventFirstHalf + "mousemove" + mouseEventSecondHalf
-                    + dispatchMouseEvent;
-            ((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
-
-            javaScript = createMouseEvent + mouseEventFirstHalf + "mouseenter" + mouseEventSecondHalf + dispatchMouseEvent;
-            ((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
-
-            javaScript = createMouseEvent + mouseEventFirstHalf + "mouseover" + mouseEventSecondHalf + dispatchMouseEvent;
-            ((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
-
-            (new Actions(driver)).moveToElement(driver.findElement(elementLocator)).perform();
-        } catch (UnsupportedCommandException methodIsNotImplemented) {
-            // appium -> do nothing
-            ReportManagerHelper.log(methodIsNotImplemented);
-
-        }
     }
 
     private static void performType(WebDriver driver, By elementLocator, String text) {
@@ -1813,74 +1739,6 @@ public class ElementActions {
         ScreenshotManager.setAiGeneratedElementLocator(aiGeneratedElementLocator);
     }
 
-    private static String suggestNewXpath(WebDriver driver, WebElement targetElement, By deprecatedElementLocator) {
-        // attempt to find an optimal xpath for the targetElement
-        int maximumXpathNodes = 6;
-        String newXpath = "";
-        for (int i = 0; i < maximumXpathNodes; i++) {
-            String xpathFindingAlgorithm = JavaScriptHelper.ELEMENT_GET_XPATH.getValue();
-            /*
-             * $$GetIndex$$ $$GetId$$ $$GetName$$ $$GetType$$ $$GetClass$$ $$GetText$$
-             * $$MaxCount$$
-             */
-            String maxCount = String.valueOf(i);
-            String getId = String.valueOf(true);
-            String getIndex;
-            String getName;
-            String getType;
-            String getClass;
-            String getText;
-            getIndex = getName = getType = getClass = getText = String.valueOf(false);
-
-            if (i == 0) {
-                maxCount = String.valueOf(1);
-            } else if (i == 1 || i == 2) {
-                getName = String.valueOf(true);
-                getType = String.valueOf(true);
-                getText = String.valueOf(true);
-            } else if (i == 3 || i == 4) {
-                getName = String.valueOf(true);
-                getType = String.valueOf(true);
-                getClass = String.valueOf(true);
-                getText = String.valueOf(true);
-            } else {
-                getIndex = String.valueOf(true);
-                getName = String.valueOf(true);
-                getType = String.valueOf(true);
-                getText = String.valueOf(true);
-                getClass = String.valueOf(true);
-            }
-
-            xpathFindingAlgorithm = xpathFindingAlgorithm.replaceAll("\\$\\$MaxCount\\$\\$", maxCount)
-                    .replaceAll("\\$\\$GetId\\$\\$", getId).replaceAll("\\$\\$GetIndex\\$\\$", getIndex)
-                    .replaceAll("\\$\\$GetName\\$\\$", getName).replaceAll("\\$\\$GetType\\$\\$", getType)
-                    .replaceAll("\\$\\$GetClass\\$\\$", getClass).replaceAll("\\$\\$GetText\\$\\$", getText);
-
-            try {
-                newXpath = (String) ((JavascriptExecutor) driver).executeScript(xpathFindingAlgorithm, targetElement);
-                if (newXpath != null && driver.findElements(By.xpath(newXpath)).size() == 1) {
-                    // if unique element was found, break, else keep iterating
-                    break;
-                }
-            } catch (JavascriptException e) {
-                ReportManagerHelper.log(e);
-                ReportManager.log("Failed to suggest a new XPath for the target element with this deprecated locator ["
-                        + deprecatedElementLocator + "]");
-            }
-        }
-        if (newXpath != null) {
-            boolean initialLoggingState = ReportManagerHelper.isDiscreteLogging();
-            ReportManagerHelper.setDiscreteLogging(false);
-            ReportManager.log("New AI-Suggested XPath [" + newXpath.replace("\"", "'") + "]");
-            ReportManagerHelper.setDiscreteLogging(initialLoggingState);
-            return newXpath;
-        } else {
-            ReportManager.log("Failed to suggest a new XPath for the target element with this deprecated locator ["
-                    + deprecatedElementLocator + "]");
-            return null;
-        }
-    }
-
     private static String typeWrapper(WebDriver driver, By elementLocator, String targetText) {
         By internalElementLocator = elementLocator;
         if (identifyUniqueElement(driver, internalElementLocator)) {
@@ -1919,7 +1777,7 @@ public class ElementActions {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions executeNativeMobileCommand(String command, Map<String, String> parameters) {
-        ElementActions.executeNativeMobileCommand(lastUsedDriver, command, parameters);
+    	ElementActions.executeNativeMobileCommand(lastUsedDriver, command, parameters);
         return this;
     }
 
@@ -2212,7 +2070,7 @@ public class ElementActions {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions setValueUsingJavaScript(By elementLocator, String value) {
-        setValueUsingJavaScript(lastUsedDriver, elementLocator, value);
+    	setValueUsingJavaScript(lastUsedDriver, elementLocator, value);
         return this;
     }
 
