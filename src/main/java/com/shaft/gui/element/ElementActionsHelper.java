@@ -2,16 +2,24 @@ package com.shaft.gui.element;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptException;
+import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.interactions.Locatable;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.FluentWait;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 import com.shaft.driver.DriverFactoryHelper;
+import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
+import com.shaft.tools.support.JavaScriptHelper;
 
 class ElementActionsHelper {
     private static final int DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER = Integer
@@ -118,5 +126,164 @@ class ElementActionsHelper {
             return false;
         }
         return true;
+    }
+        
+    protected static WebElement getWebElementFromPointUsingJavascript(WebDriver driver, List<Integer> point, boolean scrollToElement) {
+    	if (DriverFactoryHelper.isWebExecution()) {
+    	if (Boolean.TRUE.equals(scrollToElement)) {
+    		return (WebElement) ((JavascriptExecutor) driver)
+            .executeScript(JavaScriptHelper.ELEMENT_SCROLL_TO_VIEWPORT.getValue(), point.get(0), point.get(1));
+    	}else {
+    	return (WebElement) ((JavascriptExecutor) driver).executeScript(
+                "return document.elementFromPoint(arguments[0], arguments[1])", point.get(0), point.get(1));
+    	}
+    	}else {
+    		return null;
+    	}
+    }
+    
+    protected static void clickUsingJavascript(WebDriver driver, By elementLocator) {
+    	if (DriverFactoryHelper.isWebExecution()) {
+    	((JavascriptExecutor) driver).executeScript("arguments[arguments.length - 1].click();", driver.findElement(elementLocator));
+    	}
+    }
+    
+    protected static void dragAndDropUsingJavascript(WebDriver driver, By sourceElementLocator, By destinationElementLocator) {
+    	if (DriverFactoryHelper.isWebExecution()) {
+    	JavascriptExecutor js = (JavascriptExecutor) driver;
+        String jQueryLoader = JavaScriptHelper.LOAD_JQUERY.getValue();
+        js.executeAsyncScript(jQueryLoader /* , http://localhost:8080/jquery-1.7.2.js */);
+        String dragAndDropHelper = JavaScriptHelper.ELEMENT_DRAG_AND_DROP.getValue();
+        dragAndDropHelper = dragAndDropHelper + "$(arguments[0]).simulateDragDrop({dropTarget:arguments[1]});";
+        ((JavascriptExecutor) driver).executeScript(dragAndDropHelper, driver.findElement(sourceElementLocator), driver.findElement(destinationElementLocator));
+    	}
+    }
+    
+    protected static void executeNativeMobileCommandUsingJavascript(WebDriver driver, String command, Map<String, String> parameters) {
+        ((JavascriptExecutor) driver).executeScript(command, parameters);
+    }
+    
+    protected static void submitFormUsingJavascript(WebDriver driver, By elementLocator) {
+    	if (DriverFactoryHelper.isWebExecution()) {
+        ((JavascriptExecutor) driver).executeScript("arguments[0].submit();",
+                driver.findElement(elementLocator));
+    	}
+    }
+    
+    protected static void changeWebElementVisibilityUsingJavascript(WebDriver driver, By elementLocator, boolean desiredIsVisibleState) {
+    	if (DriverFactoryHelper.isWebExecution()) {
+
+    	if (Boolean.TRUE.equals(desiredIsVisibleState)) {
+    		((JavascriptExecutor) driver).executeScript("arguments[0].setAttribute('style', 'display:block !important;');", driver.findElement(elementLocator));
+    	}else {
+    		((JavascriptExecutor) driver).executeScript("arguments[0].setAttribute('style', 'display:none');",driver.findElement(elementLocator));
+    	}
+    	}
+    }
+    
+    protected static boolean setValueUsingJavascript(WebDriver driver, By elementLocator, String value) {
+        try {
+        	if (DriverFactoryHelper.isWebExecution()) {
+            ((JavascriptExecutor) driver).executeScript("arguments[0].value='" + value + "';", driver.findElement(elementLocator));
+        	}
+            return true;
+        } catch (Exception e) {
+            ReportManagerHelper.log(e);
+            return false;
+        }
+    }
+    
+    protected static void performHoverUsingJavascript(WebDriver driver, By elementLocator) {
+    	if (DriverFactoryHelper.isWebExecution()) {
+            String createMouseEvent = "var evObj = document.createEvent('MouseEvents');";
+            String dispatchMouseEvent = "arguments[arguments.length -1].dispatchEvent(evObj);";
+
+            String mouseEventFirstHalf = "evObj.initMouseEvent(\"";
+            String mouseEventSecondHalf = "\", true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);";
+
+            String javaScript = createMouseEvent + mouseEventFirstHalf + "mousemove" + mouseEventSecondHalf
+                    + dispatchMouseEvent;
+            ((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
+
+            javaScript = createMouseEvent + mouseEventFirstHalf + "mouseenter" + mouseEventSecondHalf + dispatchMouseEvent;
+            ((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
+
+            javaScript = createMouseEvent + mouseEventFirstHalf + "mouseover" + mouseEventSecondHalf + dispatchMouseEvent;
+            ((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
+
+            (new Actions(driver)).moveToElement(driver.findElement(elementLocator)).perform();
+    	}
+    }
+    
+    protected static String suggestNewXpathUsingJavascript(WebDriver driver, WebElement targetElement, By deprecatedElementLocator) {
+    	if (DriverFactoryHelper.isWebExecution()) {
+        // attempt to find an optimal xpath for the targetElement
+        int maximumXpathNodes = 6;
+        String newXpath = "";
+        for (int i = 0; i < maximumXpathNodes; i++) {
+            String xpathFindingAlgorithm = JavaScriptHelper.ELEMENT_GET_XPATH.getValue();
+            /*
+             * $$GetIndex$$ $$GetId$$ $$GetName$$ $$GetType$$ $$GetClass$$ $$GetText$$
+             * $$MaxCount$$
+             */
+            String maxCount = String.valueOf(i);
+            String getId = String.valueOf(true);
+            String getIndex;
+            String getName;
+            String getType;
+            String getClass;
+            String getText;
+            getIndex = getName = getType = getClass = getText = String.valueOf(false);
+
+            if (i == 0) {
+                maxCount = String.valueOf(1);
+            } else if (i == 1 || i == 2) {
+                getName = String.valueOf(true);
+                getType = String.valueOf(true);
+                getText = String.valueOf(true);
+            } else if (i == 3 || i == 4) {
+                getName = String.valueOf(true);
+                getType = String.valueOf(true);
+                getClass = String.valueOf(true);
+                getText = String.valueOf(true);
+            } else {
+                getIndex = String.valueOf(true);
+                getName = String.valueOf(true);
+                getType = String.valueOf(true);
+                getText = String.valueOf(true);
+                getClass = String.valueOf(true);
+            }
+
+            xpathFindingAlgorithm = xpathFindingAlgorithm.replaceAll("\\$\\$MaxCount\\$\\$", maxCount)
+                    .replaceAll("\\$\\$GetId\\$\\$", getId).replaceAll("\\$\\$GetIndex\\$\\$", getIndex)
+                    .replaceAll("\\$\\$GetName\\$\\$", getName).replaceAll("\\$\\$GetType\\$\\$", getType)
+                    .replaceAll("\\$\\$GetClass\\$\\$", getClass).replaceAll("\\$\\$GetText\\$\\$", getText);
+
+            try {
+                newXpath = (String) ((JavascriptExecutor) driver).executeScript(xpathFindingAlgorithm, targetElement);
+                if (newXpath != null && driver.findElements(By.xpath(newXpath)).size() == 1) {
+                    // if unique element was found, break, else keep iterating
+                    break;
+                }
+            } catch (JavascriptException e) {
+                ReportManagerHelper.log(e);
+                ReportManager.log("Failed to suggest a new XPath for the target element with this deprecated locator ["
+                        + deprecatedElementLocator + "]");
+            }
+        }
+        if (newXpath != null) {
+            boolean initialLoggingState = ReportManagerHelper.isDiscreteLogging();
+            ReportManagerHelper.setDiscreteLogging(false);
+            ReportManager.log("New AI-Suggested XPath [" + newXpath.replace("\"", "'") + "]");
+            ReportManagerHelper.setDiscreteLogging(initialLoggingState);
+            return newXpath;
+        } else {
+            ReportManager.log("Failed to suggest a new XPath for the target element with this deprecated locator ["
+                    + deprecatedElementLocator + "]");
+            return null;
+        }
+    	} else {
+    		return null;
+    	}
     }
 }
