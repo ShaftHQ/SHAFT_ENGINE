@@ -50,7 +50,7 @@ public class BrowserStack {
         List<List<Object>> parameters = new ArrayList<>();
         parameters.add(apkFile);
         parameters.add(customID);
-        String appUrl = "";
+        var appUrl = "";
         try {
             appUrl = Objects.requireNonNull(RestActions.getResponseJSONValue(new RestActions(serviceUri).buildNewRequest(appUploadServiceName, RestActions.RequestType.POST)
                             .setParameters(parameters, RestActions.ParametersType.FORM)

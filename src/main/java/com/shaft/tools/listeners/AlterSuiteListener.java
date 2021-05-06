@@ -43,7 +43,7 @@ public class AlterSuiteListener implements IAlterSuiteListener {
     }
 
     private void renameDefaultSuiteAndTest(List<XmlSuite> suites) {
-        String prefix = "SHAFT: ";
+        var prefix = "SHAFT: ";
         // rename default suite and test
         suites.forEach(suite -> {
             if (suite.getName().trim().equalsIgnoreCase("default suite")
@@ -65,7 +65,7 @@ public class AlterSuiteListener implements IAlterSuiteListener {
 
     private void addLogsReporterToFirstTest(List<XmlSuite> suites) {
         // alter first test and add the afterSuiteMethod
-        XmlClass logsReporter = new XmlClass(LogsHelper.class.getName());
+    	var logsReporter = new XmlClass(LogsHelper.class.getName());
         suites.get(0).getTests().get(0).getClasses().add(logsReporter);
     }
 

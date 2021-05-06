@@ -36,7 +36,6 @@ import org.openqa.selenium.safari.SafariOptions;
 import org.sikuli.script.App;
 import org.testng.Assert;
 
-import com.google.common.collect.ImmutableMap;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
@@ -169,7 +168,7 @@ public class DriverFactoryHelper {
      */
     public static App getSikuliApp(String applicationName) {
         initializeSystemProperties(System.getProperty("targetBrowserName") == null);
-        App myapp = new App(applicationName);
+        var myapp = new App(applicationName);
         myapp.waitForWindow(Integer.parseInt(System.getProperty("browserNavigationTimeout")));
         myapp.focus();
         ReportManager.log("Opened app: [" + myapp.getName() + "]...");
@@ -279,8 +278,8 @@ public class DriverFactoryHelper {
                 if (entry.getKey().contains(String.valueOf(hashCode))) {
                     WebDriver targetDriver = entry.getValue().get(targetOperatingSystem);
                     attachWebDriverLogs(targetDriver);
-                    //attemptToCloseOrQuitDriver(targetDriver, false);
                     attemptToCloseOrQuitDriver(targetDriver, true);
+                    driver.remove();
                 }
             }
         }
@@ -303,7 +302,7 @@ public class DriverFactoryHelper {
 
     private static DriverType getDriverTypeFromName(String driverName) {
         int values = DriverType.values().length;
-        for (int i = 0; i < values; i++) {
+        for (var i = 0; i < values; i++) {
             if (Arrays.asList(DriverType.values()).get(i).getValue().equalsIgnoreCase(driverName.trim())) {
                 return Arrays.asList(DriverType.values()).get(i);
             }
@@ -314,7 +313,7 @@ public class DriverFactoryHelper {
 
     private static OperatingSystemType getOperatingSystemFromName(String operatingSystemName) {
         int values = OperatingSystemType.values().length;
-        for (int i = 0; i < values; i++) {
+        for (var i = 0; i < values; i++) {
             if (Arrays.asList(OperatingSystemType.values()).get(i).getValue()
                     .equalsIgnoreCase(operatingSystemName.trim())) {
                 return Arrays.asList(OperatingSystemType.values()).get(i);
@@ -329,8 +328,8 @@ public class DriverFactoryHelper {
      * and report in case they are not compatible
      */
     private static void checkDriverOSCrossCompatibility(String driverName) {
-        boolean isCompatibleDriver = false;
-        DriverType driverType = getDriverTypeFromName(driverName);
+        var isCompatibleDriver = false;
+        var driverType = getDriverTypeFromName(driverName);
 
         OperatingSystemType operatingSystem = getOperatingSystemFromName(targetOperatingSystem);
 
@@ -363,10 +362,7 @@ public class DriverFactoryHelper {
                     isCompatibleDriver = true;
                 }
                 break;
-            case FIREFOXOS:
-                // TODO: expected to fail > false positive
-                isCompatibleDriver = true;
-                break;
+
             default:
                 failAction("Unsupported Operating System [" + targetOperatingSystem + "].");
                 break;
@@ -400,10 +396,8 @@ public class DriverFactoryHelper {
 
     private static void setDriverOptions(String driverName, MutableCapabilities customDriverOptions) {
         String downloadsFolderPath = FileActions.getAbsolutePath(System.getProperty("downloadsFolderPath"));
-        DriverType driverType = getDriverTypeFromName(driverName);
+        var driverType = getDriverTypeFromName(driverName);
 
-        //                    chOptions.addArguments("enable-automation"); // https://stackoverflow.com/a/43840128/1689770
-        //chOptions.setExperimentalOption("excludeSwitches", new String[]{"enable-automation"});
         //https://github.com/GoogleChrome/chrome-launcher/blob/master/docs/chrome-flags-for-tools.md#--enable-automation
         switch (driverType) {
             case SELENIUM_FIREFOX -> {
@@ -419,7 +413,7 @@ public class DriverFactoryHelper {
                     ffOptions.addArguments("-headless");
                 }
                 ffOptions.addArguments("-foreground");
-                FirefoxProfile ffProfile = new FirefoxProfile();
+                var ffProfile = new FirefoxProfile();
                 ffProfile.setPreference("browser.download.dir", downloadsFolderPath);
                 ffProfile.setPreference("browser.download.folderList", 2);
                 ffProfile.setPreference("browser.helperApps.neverAsk.saveToDisk",
@@ -553,7 +547,7 @@ public class DriverFactoryHelper {
             initialLog = initialLog + ", Headless Execution";
         }
         ReportManager.log(initialLog + ".");
-        DriverType driverType = getDriverTypeFromName(driverName);
+        var driverType = getDriverTypeFromName(driverName);
 
         switch (driverType) {
             case SELENIUM_FIREFOX -> createNewLocalDriverInstanceForFirefox();
@@ -574,7 +568,7 @@ public class DriverFactoryHelper {
         } else {
             driverType = getDriverTypeFromName(driverName);
         }
-        StringBuilder initialLog = new StringBuilder();
+        var initialLog = new StringBuilder();
         initialLog.append("Attempting to run remotely on: [").append(targetOperatingSystem).append("]");
 
         if (!isMobileNativeExecution()) {
@@ -588,67 +582,15 @@ public class DriverFactoryHelper {
         }
         ReportManager.log(initialLog + ".");
 
-        DesiredCapabilities mobileDesiredCapabilities = new DesiredCapabilities();
+        var mobileDesiredCapabilities = new DesiredCapabilities();
         if (isMobileExecution()) {
             mobileDesiredCapabilities = setAppiumDesiredCapabilitiesList();
         }
 
         try {
-            switch (driverType) {
-                case SELENIUM_FIREFOX:
-                    driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), ffOptions));
-                    break;
-                case SELENIUM_INTERNET_EXPLORER:
-                    driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), ieOptions));
-                    break;
-                case SELENIUM_CHROME:
-                    driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), chOptions));
-                    break;
-                case SELENIUM_EDGE:
-                    driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), edOptions));
-                    break;
-                case SELENIUM_SAFARI:
-                    if (!isMobileExecution()) {
-                        driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), sfOptions));
-                    } else {
-                        driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
-                    }
-                    break;
-                case APPIUM_CHROME:
-                    ReportManager.log(WEBDRIVERMANAGER_MESSAGE);
-                    WebDriverManager.chromedriver().browserVersion(System.getProperty("MobileBrowserVersion")).setup();
-                    mobileDesiredCapabilities.setCapability("chromedriverExecutable",
-                            WebDriverManager.chromedriver().getDownloadedDriverPath());
-                    mobileDesiredCapabilities.setCapability("appium:chromeOptions", ImmutableMap.of("w3c", false));
-                    driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
-                    break;
-                case APPIUM_CHROMIUM:
-                    WebDriverManager.chromedriver().browserVersion(System.getProperty("MobileBrowserVersion")).setup();
-                    mobileDesiredCapabilities.setCapability("chromedriverExecutable",
-                            WebDriverManager.chromedriver().getDownloadedDriverPath());
-                    driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
-                    break;
-                case APPIUM_BROWSER:
-                case APPIUM_MOBILE_NATIVE:
-                    if ("Android".equals(targetOperatingSystem)) {
-                        driver.set(new AndroidDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
-                    } else if ("iOS".equals(targetOperatingSystem)) {
-                        driver.set(new IOSDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
-                    } else {
-                        driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
-                        // will break in case of firefoxOS
-                    }
-                    break;
-                default:
-                    failAction("Unsupported Driver Type [" + driverName + "].");
-                    break;
-            }
-            ReportManager.log("Successfully Opened [" + driverType.getValue() + "].");
-            storeDriverInstance(driverName);
-            ((RemoteWebDriver) driver.get()).setFileDetector(new LocalFileDetector());
+        		setValueToRemoteDriverInstance(driverName, driverType, mobileDesiredCapabilities);
         } catch (UnreachableBrowserException e) {
             killSwitch = true;
-//            ReportManager.log(e);
             failAction("Unreachable Browser, terminated test suite execution.", e);
         } catch (WebDriverException e) {
             ReportManagerHelper.log(e);
@@ -663,11 +605,64 @@ public class DriverFactoryHelper {
                 failAction("Unhandled Error.", e);
             }
         } catch (NoClassDefFoundError | MalformedURLException e) {
-//            ReportManager.log(e);
             failAction("Failed to create Remote WebDriver instance", e);
         }
         return driver.get();
     }
+
+private static void setValueToRemoteDriverInstance(String driverName, DriverType driverType, DesiredCapabilities mobileDesiredCapabilities) throws MalformedURLException{
+	 switch (driverType) {
+     case SELENIUM_FIREFOX:
+         driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), ffOptions));
+         break;
+     case SELENIUM_INTERNET_EXPLORER:
+         driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), ieOptions));
+         break;
+     case SELENIUM_CHROME:
+         driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), chOptions));
+         break;
+     case SELENIUM_EDGE:
+         driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), edOptions));
+         break;
+     case SELENIUM_SAFARI:
+         if (!isMobileExecution()) {
+             driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), sfOptions));
+         } else {
+             driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+         }
+         break;
+     case APPIUM_CHROME:
+         ReportManager.log(WEBDRIVERMANAGER_MESSAGE);
+         WebDriverManager.chromedriver().browserVersion(System.getProperty("MobileBrowserVersion")).setup();
+         mobileDesiredCapabilities.setCapability("chromedriverExecutable",
+                 WebDriverManager.chromedriver().getDownloadedDriverPath());
+         mobileDesiredCapabilities.setCapability("appium:chromeOptions", Map.of("w3c", false));
+         driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+         break;
+     case APPIUM_CHROMIUM:
+         WebDriverManager.chromedriver().browserVersion(System.getProperty("MobileBrowserVersion")).setup();
+         mobileDesiredCapabilities.setCapability("chromedriverExecutable",
+                 WebDriverManager.chromedriver().getDownloadedDriverPath());
+         driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+         break;
+     case APPIUM_BROWSER, APPIUM_MOBILE_NATIVE:
+         if ("Android".equals(targetOperatingSystem)) {
+             driver.set(new AndroidDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+         } else if ("iOS".equals(targetOperatingSystem)) {
+             driver.set(new IOSDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+         } else {
+             driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+             // will break in case of firefoxOS
+         }
+         break;
+     default:
+         failAction("Unsupported Driver Type [" + driverName + "].");
+         break;
+     }
+     ReportManager.log("Successfully Opened [" + driverType.getValue() + "].");
+     storeDriverInstance(driverName);
+     ((RemoteWebDriver) driver.get()).setFileDetector(new LocalFileDetector());
+}
 
     private static Platform getDesiredOperatingSystem() {
         OperatingSystemType operatingSystem = getOperatingSystemFromName(targetOperatingSystem);
@@ -704,7 +699,7 @@ public class DriverFactoryHelper {
     private static void attachWebDriverLogs(WebDriver driver) {
         try {
             driver.manage().logs().getAvailableLogTypes().forEach(logType -> {
-                        StringBuilder logBuilder = new StringBuilder();
+            			var logBuilder = new StringBuilder();
                         driver.manage().logs().get(logType).getAll().forEach(logEntry -> logBuilder.append(logEntry.toString()).append(System.lineSeparator()));
                         ReportManagerHelper.attach("Selenium WebDriver Logs", logType, logBuilder.toString());
                     }
@@ -715,7 +710,7 @@ public class DriverFactoryHelper {
     }
 
     private static DesiredCapabilities setAppiumDesiredCapabilitiesList() {
-        DesiredCapabilities desiredCapabilities = new DesiredCapabilities();
+    	var desiredCapabilities = new DesiredCapabilities();
 
         Map<String, String> caps = PropertyFileManager.getAppiumDesiredCapabilities();
         caps.forEach((capabilityName, value) -> {
@@ -792,7 +787,7 @@ public class DriverFactoryHelper {
         return driver.get();
     }
 
-    protected static void initializeSystemProperties(Boolean readPropertyFilesBeforeInitializing) {
+    protected static void initializeSystemProperties(boolean readPropertyFilesBeforeInitializing) {
         if (readPropertyFilesBeforeInitializing) {
             PropertyFileManager.readPropertyFiles();
         }

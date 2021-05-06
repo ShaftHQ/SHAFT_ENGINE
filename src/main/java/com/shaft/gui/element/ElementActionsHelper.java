@@ -63,7 +63,6 @@ class ElementActionsHelper {
                     });
         } catch (org.openqa.selenium.TimeoutException e) {
             // In case the element was not found and the timeout expired
-            // ReportManagerHelper.logDiscrete(e);
             return 0;
         }
     }
@@ -195,11 +194,11 @@ class ElementActionsHelper {
     
     protected static void performHoverUsingJavascript(WebDriver driver, By elementLocator) {
     	if (DriverFactoryHelper.isWebExecution()) {
-            String createMouseEvent = "var evObj = document.createEvent('MouseEvents');";
-            String dispatchMouseEvent = "arguments[arguments.length -1].dispatchEvent(evObj);";
+    		var createMouseEvent = "var evObj = document.createEvent('MouseEvents');";
+    		var dispatchMouseEvent = "arguments[arguments.length -1].dispatchEvent(evObj);";
 
-            String mouseEventFirstHalf = "evObj.initMouseEvent(\"";
-            String mouseEventSecondHalf = "\", true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);";
+    		var mouseEventFirstHalf = "evObj.initMouseEvent(\"";
+    		var mouseEventSecondHalf = "\", true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);";
 
             String javaScript = createMouseEvent + mouseEventFirstHalf + "mousemove" + mouseEventSecondHalf
                     + dispatchMouseEvent;
@@ -218,16 +217,16 @@ class ElementActionsHelper {
     protected static String suggestNewXpathUsingJavascript(WebDriver driver, WebElement targetElement, By deprecatedElementLocator) {
     	if (DriverFactoryHelper.isWebExecution()) {
         // attempt to find an optimal xpath for the targetElement
-        int maximumXpathNodes = 6;
-        String newXpath = "";
-        for (int i = 0; i < maximumXpathNodes; i++) {
+    	var maximumXpathNodes = 6;
+        var newXpath = "";
+        for (var i = 0; i < maximumXpathNodes; i++) {
             String xpathFindingAlgorithm = JavaScriptHelper.ELEMENT_GET_XPATH.getValue();
             /*
              * $$GetIndex$$ $$GetId$$ $$GetName$$ $$GetType$$ $$GetClass$$ $$GetText$$
              * $$MaxCount$$
              */
-            String maxCount = String.valueOf(i);
-            String getId = String.valueOf(true);
+            var maxCount = String.valueOf(i);
+            var getId = String.valueOf(true);
             String getIndex;
             String getName;
             String getType;
