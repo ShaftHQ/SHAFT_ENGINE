@@ -44,7 +44,7 @@ public class DriverFactory {
      */
     public static App getSikuliApp(String applicationName) {
         DriverFactoryHelper.initializeSystemProperties(System.getProperty("targetBrowserName") == null);
-        App myapp = new App(applicationName);
+        var myapp = new App(applicationName);
         myapp.waitForWindow(Integer.parseInt(System.getProperty("browserNavigationTimeout")));
         myapp.focus();
         ReportManager.log("Opened app: [" + myapp.getName() + "]...");

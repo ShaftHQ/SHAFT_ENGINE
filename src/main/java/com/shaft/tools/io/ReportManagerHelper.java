@@ -63,6 +63,10 @@ public class ReportManagerHelper {
     private static String extentReportFileName;
     private static String generateExtentReports;
 
+    private ReportManagerHelper() {
+        throw new IllegalStateException("Utility class");
+    }
+    
     public static String getExtentReportFileName() {
         return extentReportFileName;
     }
@@ -325,8 +329,8 @@ public class ReportManagerHelper {
 
     public static String getCallingMethodFullName() {
         StackTraceElement[] callingStack = Thread.currentThread().getStackTrace();
-        StringBuilder callingMethodFullName = new StringBuilder();
-        for (int i = 1; i < callingStack.length; i++) {
+        var callingMethodFullName = new StringBuilder();
+        for (var i = 1; i < callingStack.length; i++) {
             if (!callingStack[i].getClassName().contains("com.shaft")) {
                 callingMethodFullName.append(callingStack[i].getClassName());
                 if (!callingStack[i].getMethodName().isEmpty()) {
@@ -454,12 +458,12 @@ public class ReportManagerHelper {
     }
 
     protected static void logClosureActivitiesInitialization() {
-        String closureActivities = "Test Closure Activities";
+    	var closureActivities = "Test Closure Activities";
         createImportantReportEntry(closureActivities, true);
     }
 
     private static String formatStackTraceToLogEntry(Throwable t, boolean isCause) {
-        StringBuilder logBuilder = new StringBuilder();
+    	var logBuilder = new StringBuilder();
         if (t != null) {
             StackTraceElement[] trace = t.getStackTrace();
             if (isCause) {
@@ -493,7 +497,7 @@ public class ReportManagerHelper {
         fullLog += log;
     }
 
-    private static void createReportEntry(String logText, Boolean addToFullLog) {
+    private static void createReportEntry(String logText, boolean addToFullLog) {
         String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
         if (logText == null) {
             logText = "null";
@@ -560,11 +564,11 @@ public class ReportManagerHelper {
     }
 
     private static void createAttachment(String attachmentType, String attachmentName, InputStream attachmentContent) {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    	var baos = new ByteArrayOutputStream();
         try {
             attachmentContent.transferTo(baos);
         } catch (IOException e) {
-            String error = "Error while creating Attachment";
+        	var error = "Error while creating Attachment";
             slf4jLogger.info(error, e);
             Reporter.log(error, false);
         }
@@ -581,10 +585,6 @@ public class ReportManagerHelper {
             attachImageToExtentReport("image/png", new ByteArrayInputStream(attachmentContent.toByteArray()));
         } else if (attachmentType.toLowerCase().contains("recording")) {
             Allure.addAttachment(attachmentDescription, "video/mp4", new ByteArrayInputStream(attachmentContent.toByteArray()), ".mp4");
-            // attachmentDescription, "video/quicktime", attachmentContent, ".mov");
-            // attachmentDescription, "video/webm", attachmentContent, ".webm");
-            // attachmentDescription, "video/mp4", attachmentContent, ".mp4");
-            // attachmentDescription, "video/ogg", attachmentContent, ".ogg");
         } else if (attachmentType.toLowerCase().contains("gif")) {
             Allure.addAttachment(attachmentDescription, "image/gif", new ByteArrayInputStream(attachmentContent.toByteArray()), ".gif");
             attachImageToExtentReport("image/gif", new ByteArrayInputStream(attachmentContent.toByteArray()));
@@ -620,7 +620,7 @@ public class ReportManagerHelper {
             String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
 
             String theString;
-            BufferedReader br = new BufferedReader(
+            var br = new BufferedReader(
                     new InputStreamReader(new ByteArrayInputStream(attachmentContent.toByteArray()), StandardCharsets.UTF_8));
             theString = br.lines().collect(Collectors.joining(System.lineSeparator()));
             if (!theString.isEmpty()) {
@@ -634,7 +634,7 @@ public class ReportManagerHelper {
     private static void attachCodeBlockToExtentReport(String attachmentType, InputStream attachmentContent) {
         if (extentTest != null) {
             try {
-                String codeBlock = IOUtils.toString(attachmentContent, StandardCharsets.UTF_8.name());
+            	var codeBlock = IOUtils.toString(attachmentContent, StandardCharsets.UTF_8.name());
                 switch (attachmentType) {
                     case "text/json" -> extentTest.info(MarkupHelper.createCodeBlock(codeBlock, CodeLanguage.JSON));
                     case "text/xml" -> extentTest.info(MarkupHelper.createCodeBlock(codeBlock, CodeLanguage.XML));
@@ -649,7 +649,7 @@ public class ReportManagerHelper {
     private static void attachImageToExtentReport(String attachmentType, InputStream attachmentContent) {
         if (extentTest != null) {
             try {
-                String image = Base64.getEncoder().encodeToString(IOUtils.toByteArray(attachmentContent));
+            	var image = Base64.getEncoder().encodeToString(IOUtils.toByteArray(attachmentContent));
                 if (attachmentType.toLowerCase().contains("gif")) {
                     extentTest.addScreenCaptureFromBase64String(image);
                 } else {
@@ -672,11 +672,11 @@ public class ReportManagerHelper {
     private static void writeEnvironmentVariablesToAllureResultsDirectory() {
         // reads all environment variables and then formats and writes them to be read
         // by the Allure report
-        Properties props = System.getProperties();
-        StringBuilder propertiesFileBuilder = new StringBuilder();
+    	var props = System.getProperties();
+    	var propertiesFileBuilder = new StringBuilder();
         propertiesFileBuilder.append("<environment>");
         // read properties from any explicit properties files
-        for (int i = 0; i < props.size(); i++) {
+        for (var i = 0; i < props.size(); i++) {
             String propertyKey = ((String) (props.keySet().toArray())[i]).trim();
             String propertyValue = props.getProperty(propertyKey).trim();
 
@@ -760,9 +760,8 @@ public class ReportManagerHelper {
         }
     }
 
-    static Boolean isInternalStep() {
-        String callingMethodName = (new Throwable()).getStackTrace()[2].toString();
-
+    static boolean isInternalStep() {
+    	var callingMethodName = (new Throwable()).getStackTrace()[2].toString();
         return callingMethodName.contains("com.shaft");
     }
 
