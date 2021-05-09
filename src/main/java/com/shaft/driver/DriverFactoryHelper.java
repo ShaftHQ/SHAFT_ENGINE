@@ -40,12 +40,11 @@ import org.openqa.selenium.safari.SafariOptions;
 import org.sikuli.script.App;
 import org.testng.Assert;
 
-import com.google.common.collect.ImmutableMap;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;
+import com.microsoft.playwright.BrowserType.LaunchOptions;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
-import com.microsoft.playwright.BrowserType.LaunchOptions;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
@@ -622,19 +621,19 @@ public class DriverFactoryHelper {
 
 private static void setValueToRemoteDriverInstance(String driverName, DriverType driverType, DesiredCapabilities mobileDesiredCapabilities) throws MalformedURLException{
 	 switch (driverType) {
-     case SELENIUM_FIREFOX:
+     case DESKTOP_FIREFOX:
          driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), ffOptions));
          break;
-     case SELENIUM_INTERNET_EXPLORER:
+     case DESKTOP_INTERNET_EXPLORER:
          driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), ieOptions));
          break;
-     case SELENIUM_CHROME:
+     case DESKTOP_CHROME:
          driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), chOptions));
          break;
-     case SELENIUM_EDGE:
+     case DESKTOP_EDGE:
          driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), edOptions));
          break;
-     case SELENIUM_SAFARI:
+     case DESKTOP_SAFARI:
          if (!isMobileExecution()) {
              driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), sfOptions));
          } else {
