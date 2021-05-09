@@ -13,7 +13,7 @@ import org.testng.annotations.Test;
 public class Test_SelectedValue {
     @Test
     public void simpleSelect() {
-        WebDriver driver = BrowserFactory.getBrowser(DriverType.SELENIUM_CHROME);
+        WebDriver driver = BrowserFactory.getBrowser(DriverType.DESKTOP_CHROME);
         BrowserActions.navigateToURL(driver, "https://mdn.mozillademos.org/en-US/docs/Web/HTML/Element/select$samples/Basic_select?revision=1612304");
         By select = By.tagName("select");
         ElementActions.select(driver, select, "Third Value");
@@ -24,7 +24,7 @@ public class Test_SelectedValue {
 
     @Test
     public void multipleSelect() {
-        WebDriver driver = BrowserFactory.getBrowser(DriverType.SELENIUM_CHROME);
+        WebDriver driver = BrowserFactory.getBrowser(DriverType.DESKTOP_CHROME);
         BrowserActions.navigateToURL(driver, "https://mdn.mozillademos.org/en-US/docs/Web/HTML/Element/select$samples/Advanced_select_with_multiple_features?revision=1612304");
         By select = By.tagName("select");
         ElementActions.select(driver, select, "Dog");

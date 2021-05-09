@@ -4,6 +4,8 @@ import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.WebDriver;
 import org.sikuli.script.App;
 
+import com.microsoft.playwright.Page;
+import com.microsoft.playwright.BrowserType.LaunchOptions;
 import com.shaft.api.RestActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.db.DatabaseActions;
@@ -17,23 +19,68 @@ public class DriverFactory {
     }
 
     /**
-     * Read the target driver value from the execution.properties file
+     * Read the target Selenium WebDriver value from the execution.properties file
      *
-     * @return a new driver instance
+     * @return a new Selenium WebDriver instance
      */
     public static WebDriver getDriver() {
         return DriverFactoryHelper.getDriver();
     }
     
     /**
-     * Creates a new driver instance with custom driver options
+     * Creates a new Selenium WebDriver instance with custom driver type
+     *
+     * @param driverType          one of the supported driver types
+     * @return a new Selenium WebDriver instance
+     */
+    public static WebDriver getDriver(DriverType driverType) {
+        return DriverFactoryHelper.getDriver(driverType, null);
+    }
+    
+    /**
+     * Creates a new Selenium WebDriver instance with custom driver type and options
      *
      * @param driverType          one of the supported driver types
      * @param customDriverOptions the custom options that will be used to create this new driver instance, or null to use the default
-     * @return a new driver instance
+     * @return a new Selenium WebDriver instance
      */
     public static WebDriver getDriver(DriverType driverType, MutableCapabilities customDriverOptions) {
         return DriverFactoryHelper.getDriver(driverType, customDriverOptions);
+    }
+    
+    /**
+     * Creates a new PlayWright page with the value from the execution.properties file
+     * 
+     * @return a new PlayWright page instance
+     */
+    public static Page getPlaywrightDriver() {
+    	return DriverFactoryHelper.getPlaywrightDriver();
+    }
+    
+    /**
+     * Creates a new PlayWright page with custom driver type
+     * @param driverType          one of the supported driver types
+     * @return a new PlayWright page instance
+     */
+    public static Page getPlaywrightDriver(DriverType driverType) {
+    	return DriverFactoryHelper.getPlaywrightDriver(driverType);
+    }
+    
+    /**
+     * Creates a new PlayWright page with custom driver type and launch options
+     * @param driverType          one of the supported driver types
+     * @param launchOptions			custom launch options
+     * @return a new PlayWright page instance
+     */
+    public static Page getPlaywrightDriver(DriverType driverType, LaunchOptions launchOptions) {
+    	return DriverFactoryHelper.getPlaywrightDriver(driverType, launchOptions);
+    }
+    
+    /**
+     * Closes the current PlayWright instance terminating all open pages and browser contexts
+     */
+    public static void closePlayWrightDriver() {
+    	DriverFactoryHelper.closePlayWrightDriver();
     }
 
     /**
@@ -107,8 +154,8 @@ public class DriverFactory {
      * List of the supported driver types for execution
      */
     public enum DriverType {
-        SIKULI("SikuliActions"), DATABASE("DatabaseActions"), TERMINAL("TerminalActions"), API("RestActions"), SELENIUM_FIREFOX("MozillaFirefox"), SELENIUM_CHROME("GoogleChrome"), SELENIUM_SAFARI("Safari"),
-        SELENIUM_INTERNET_EXPLORER("MicrosoftInternetExplorer"), SELENIUM_EDGE("MicrosoftEdge"), APPIUM_CHROME("Chrome"),
+        SIKULI("SikuliActions"), DATABASE("DatabaseActions"), TERMINAL("TerminalActions"), API("RestActions"), DESKTOP_FIREFOX("MozillaFirefox"), DESKTOP_CHROME("GoogleChrome"), DESKTOP_SAFARI("Safari"),
+        DESKTOP_INTERNET_EXPLORER("MicrosoftInternetExplorer"), DESKTOP_EDGE("MicrosoftEdge"), DESKTOP_CHROMIUM("Chromium"), DESKTOP_WEBKIT("Webkit"), APPIUM_CHROME("Chrome"),
         APPIUM_CHROMIUM("Chromium"), APPIUM_BROWSER("Browser"), APPIUM_MOBILE_NATIVE("NativeMobileApp");
 
         private final String value;

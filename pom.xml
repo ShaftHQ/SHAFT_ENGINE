@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.mohabmohie</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>5.2.20210504</version>
+    <version>5.2.20210509</version>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
     <url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
@@ -33,6 +33,7 @@
         <selenium.version>4.0.0-alpha-7</selenium.version>
         <appium-selenium.version>3.141.59</appium-selenium.version>
         <appium-java-client.version>7.5.1</appium-java-client.version>
+        <playwright.version>1.10.0</playwright.version>
 
         <webdrivermanager.version>4.4.1</webdrivermanager.version>
         <allure-testng.version>2.13.9</allure-testng.version> <!-- UPDATE internal.properties -->
@@ -111,6 +112,14 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        
+        <!-- PLAYWRIGHT -->
+        		<!-- https://mvnrepository.com/artifact/com.microsoft.playwright/playwright -->
+		<dependency>
+			<groupId>com.microsoft.playwright</groupId>
+			<artifactId>playwright</artifactId>
+			<version>${playwright.version}</version>
+		</dependency>
 
         <!-- APPIUM -->
         <dependency>
@@ -151,6 +160,12 @@
             <groupId>com.applitools</groupId>
             <artifactId>eyes-images-java4</artifactId>
             <version>${applitools-eyes.version}</version>
+            <exclusions>
+            	<exclusion>
+            		<groupId>org.slf4j</groupId>
+            		<artifactId>slf4j-api</artifactId>
+            	</exclusion>
+            </exclusions>
         </dependency>
 
         <!-- VISUAL ELEMENT IDENTIFICATION -->
@@ -179,6 +194,10 @@
                     <groupId>log4j</groupId>
                     <artifactId>log4j</artifactId>
                 </exclusion>
+                <exclusion>
+                	<groupId>org.slf4j</groupId>
+                	<artifactId>slf4j-api</artifactId>
+                </exclusion>
             </exclusions>
         </dependency>
 
@@ -200,7 +219,13 @@
                    <groupId>org.apache.poi</groupId>
                    <artifactId>poi</artifactId>
                    <version>${apachepoi.version}</version>
-               </dependency>
+                   <exclusions>
+                   	<exclusion>
+                   		<groupId>org.slf4j</groupId>
+                   		<artifactId>slf4j-api</artifactId>
+                   	</exclusion>
+                   </exclusions>
+        </dependency>
         <dependency>
             <groupId>org.apache.poi</groupId>
             <artifactId>poi-ooxml</artifactId>
@@ -209,6 +234,10 @@
             <exclusion>
             	<groupId>xml-apis</groupId>
             	<artifactId>xml-apis</artifactId>
+            </exclusion>
+            <exclusion>
+            	<groupId>org.slf4j</groupId>
+            	<artifactId>slf4j-api</artifactId>
             </exclusion>
             </exclusions>
         </dependency>
@@ -396,6 +425,12 @@
             <groupId>org.slf4j</groupId>
             <artifactId>log4j-over-slf4j</artifactId>
             <version>1.7.30</version>
+            <exclusions>
+            	<exclusion>
+            		<groupId>org.slf4j</groupId>
+            		<artifactId>slf4j-api</artifactId>
+            	</exclusion>
+            </exclusions>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/com.google.guava/guava -->
