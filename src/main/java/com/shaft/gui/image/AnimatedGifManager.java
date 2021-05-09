@@ -51,12 +51,12 @@ public class AnimatedGifManager {
      */
     private static IIOMetadataNode getNode(IIOMetadataNode rootNode, String nodeName) {
         int nNodes = rootNode.getLength();
-        for (int i = 0; i < nNodes; i++) {
+        for (var i = 0; i < nNodes; i++) {
             if (rootNode.item(i).getNodeName().compareToIgnoreCase(nodeName) == 0) {
                 return ((IIOMetadataNode) rootNode.item(i));
             }
         }
-        IIOMetadataNode node = new IIOMetadataNode(nodeName);
+        var node = new IIOMetadataNode(nodeName);
         rootNode.appendChild(node);
         return (node);
     }
@@ -79,7 +79,7 @@ public class AnimatedGifManager {
         // my method to create a writer
         gifWriter.set(getWriter());
         imageWriteParam.set(gifWriter.get().getDefaultWriteParam());
-        ImageTypeSpecifier imageTypeSpecifier = ImageTypeSpecifier.createFromBufferedImageType(imageType);
+        var imageTypeSpecifier = ImageTypeSpecifier.createFromBufferedImageType(imageType);
 
         imageMetaData.set(gifWriter.get().getDefaultImageMetadata(imageTypeSpecifier, imageWriteParam.get()));
 
@@ -100,12 +100,12 @@ public class AnimatedGifManager {
 
         IIOMetadataNode appExtensionsNode = getNode(root, "ApplicationExtensions");
 
-        IIOMetadataNode child = new IIOMetadataNode("ApplicationExtension");
+        var child = new IIOMetadataNode("ApplicationExtension");
 
         child.setAttribute("applicationID", "NETSCAPE");
         child.setAttribute("authenticationCode", "2.0");
 
-        int loop = 0;
+        var loop = 0;
 
         child.setUserObject(new byte[]{0x1, (byte) (loop & 0xFF), (byte) ((loop >> 8) & 0xFF)});
         appExtensionsNode.appendChild(child);

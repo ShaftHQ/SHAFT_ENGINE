@@ -37,7 +37,7 @@ public class BrowserActions {
      */
     public static String getCurrentURL(WebDriver driver) {
         JavaScriptWaitManager.waitForLazyLoading();
-        String currentURL = "";
+        var currentURL = "";
         try {
             currentURL = driver.getCurrentUrl();
             passAction(driver, currentURL);
@@ -56,7 +56,7 @@ public class BrowserActions {
      */
     public static String getCurrentWindowTitle(WebDriver driver) {
         JavaScriptWaitManager.waitForLazyLoading();
-        String currentWindowTitle = "";
+        var currentWindowTitle = "";
         try {
             currentWindowTitle = driver.getTitle();
             passAction(driver, currentWindowTitle);
@@ -75,7 +75,7 @@ public class BrowserActions {
      */
     public static String getPageSource(WebDriver driver) {
         JavaScriptWaitManager.waitForLazyLoading();
-        String pageSource = "";
+        var pageSource = "";
         try {
             pageSource = driver.getPageSource();
             passAction(driver, pageSource);
@@ -94,7 +94,7 @@ public class BrowserActions {
      */
     public static String getWindowHandle(WebDriver driver) {
         JavaScriptWaitManager.waitForLazyLoading();
-        String windowHandle = "";
+        var windowHandle = "";
         try {
             windowHandle = driver.getWindowHandle();
             passAction(driver, windowHandle);
@@ -113,7 +113,7 @@ public class BrowserActions {
      */
     public static String getWindowPosition(WebDriver driver) {
         JavaScriptWaitManager.waitForLazyLoading();
-        String windowPosition = "";
+        var windowPosition = "";
         try {
             windowPosition = driver.manage().window().getPosition().toString();
             passAction(driver, windowPosition);
@@ -132,7 +132,7 @@ public class BrowserActions {
      */
     public static String getWindowSize(WebDriver driver) {
         JavaScriptWaitManager.waitForLazyLoading();
-        String windowSize = "";
+        var windowSize = "";
         try {
             windowSize = driver.manage().window().getSize().toString();
             passAction(driver, windowSize);
@@ -235,7 +235,7 @@ public class BrowserActions {
     public static void navigateBack(WebDriver driver) {
         JavaScriptWaitManager.waitForLazyLoading();
         String initialURL;
-        String newURL = "";
+        var newURL = "";
         try {
             initialURL = driver.getCurrentUrl();
             driver.navigate().back();
@@ -262,7 +262,7 @@ public class BrowserActions {
     public static void navigateForward(WebDriver driver) {
         JavaScriptWaitManager.waitForLazyLoading();
         String initialURL;
-        String newURL = "";
+        var newURL = "";
         try {
             initialURL = driver.getCurrentUrl();
             driver.navigate().forward();
@@ -333,8 +333,8 @@ public class BrowserActions {
     public static void maximizeWindow(WebDriver driver) {
         Dimension initialWindowSize;
         Dimension currentWindowSize;
-        int targetWidth = 1920;
-        int targetHeight = 1080;
+        var targetWidth = 1920;
+        var targetHeight = 1080;
 
         initialWindowSize = driver.manage().window().getSize();
         ReportManager.logDiscrete("Initial window size: " + initialWindowSize.toString());
@@ -565,7 +565,7 @@ public class BrowserActions {
         int targetWidth = width;
         int targetHeight = height;
         try {
-            Toolkit toolkit = Toolkit.getDefaultToolkit();
+        	var toolkit = Toolkit.getDefaultToolkit();
             if (Boolean.FALSE.equals(HEADLESS_EXECUTION)) {
                 targetWidth = (int) toolkit.getScreenSize().getWidth();
                 targetHeight = (int) toolkit.getScreenSize().getHeight();

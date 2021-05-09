@@ -56,7 +56,7 @@ public class DatabaseActions implements ShaftDriver {
      * @return a string value which represents the provided resultSet object
      */
     public static String getResult(ResultSet resultSet) {
-        String resultSetString = getResultStringValue(resultSet, false);
+    	var resultSetString = getResultStringValue(resultSet, false);
         passAction();
         return resultSetString;
     }
@@ -75,8 +75,8 @@ public class DatabaseActions implements ShaftDriver {
      */
     public static String getRow(ResultSet resultSet, String columnName, String knownCellValue) {
         String reportMessage = "Column Name: \"" + columnName + "\" | Cell Content: \"" + knownCellValue + "\"";
-        StringBuilder str = new StringBuilder();
-        boolean foundRow = false;
+        var str = new StringBuilder();
+        var foundRow = false;
 
         try {
             resultSet.beforeFirst();
@@ -86,10 +86,10 @@ public class DatabaseActions implements ShaftDriver {
                 int targetColumnID = resultSet.findColumn(columnName);
 
                 // read table data
-                for (int i = 1; i <= lastRowID; i++) {
+                for (var i = 1; i <= lastRowID; i++) {
                     resultSet.absolute(i);
                     if (String.valueOf(resultSet.getString(targetColumnID)).trim().equals(knownCellValue.trim())) {
-                        for (int j = 1; j <= columnsCount; j++) {
+                        for (var j = 1; j <= columnsCount; j++) {
                             str.append(resultSet.getString(j)).append("\t");
                         }
                         str.append("\n");
@@ -118,7 +118,7 @@ public class DatabaseActions implements ShaftDriver {
      * @return a string value which represents the data of the target column
      */
     public static String getColumn(ResultSet resultSet, String columnName) {
-        StringBuilder str = new StringBuilder();
+    	var str = new StringBuilder();
         try {
             resultSet.beforeFirst();
             if (resultSet.last()) {
@@ -126,7 +126,7 @@ public class DatabaseActions implements ShaftDriver {
                 int targetColumnID = resultSet.findColumn(columnName);
 
                 // read table data
-                for (int i = 1; i <= lastRowID; i++) {
+                for (var i = 1; i <= lastRowID; i++) {
                     resultSet.absolute(i);
                     str.append(resultSet.getString(targetColumnID)).append("\n");
                 }
@@ -148,7 +148,7 @@ public class DatabaseActions implements ShaftDriver {
      * the provided resultSet
      */
     public static int getRowCount(ResultSet resultSet) {
-        int rowCount = 0;
+    	var rowCount = 0;
         try {
             resultSet.beforeFirst();
             if (resultSet.last()) {
@@ -233,9 +233,9 @@ public class DatabaseActions implements ShaftDriver {
 
     private static StringBuilder readColumnHeaders(ResultSet resultSet, boolean readColumnNames, int columnsCount)
             throws SQLException {
-        StringBuilder str = new StringBuilder();
+    	var str = new StringBuilder();
         if (readColumnNames) {
-            for (int i = 1; i <= columnsCount; i++) {
+            for (var i = 1; i <= columnsCount; i++) {
                 str.append(resultSet.getMetaData().getColumnName(i));
                 if (i != columnsCount) {
                     str.append("\t");
@@ -248,10 +248,10 @@ public class DatabaseActions implements ShaftDriver {
 
     private static StringBuilder readColumnData(ResultSet resultSet, int columnsCount, int lastRowID)
             throws SQLException {
-        StringBuilder str = new StringBuilder();
-        for (int i = 1; i <= lastRowID; i++) {
+    	var str = new StringBuilder();
+        for (var i = 1; i <= lastRowID; i++) {
             resultSet.absolute(i);
-            for (int j = 1; j <= columnsCount; j++) {
+            for (var j = 1; j <= columnsCount; j++) {
                 str.append(resultSet.getString(j));
                 if (j != columnsCount) {
                     str.append("\t");
@@ -263,7 +263,7 @@ public class DatabaseActions implements ShaftDriver {
     }
 
     private static String getResultStringValue(ResultSet resultSet, boolean readColumnNames) {
-        StringBuilder str = new StringBuilder();
+    	var str = new StringBuilder();
         try {
             resultSet.beforeFirst();
             if (resultSet.last()) {
@@ -320,7 +320,7 @@ public class DatabaseActions implements ShaftDriver {
      * statements or (2) 0 for SQL statements that return nothing
      */
     public int executeUpdateQuery(String sql) {
-        int updatedRows = 0;
+    	var updatedRows = 0;
         try {
             updatedRows = createStatement(createConnection()).executeUpdate(sql);
             passAction(sql);
@@ -333,7 +333,7 @@ public class DatabaseActions implements ShaftDriver {
 
     private Connection createConnection() {
         Connection connection = null;
-        String connectionString = "";
+        var connectionString = "";
         try {
             switch (dbType) {
                 case MY_SQL -> connectionString = "jdbc:mysql://" + dbServerIP + ":" + dbPort + "/" + dbName;

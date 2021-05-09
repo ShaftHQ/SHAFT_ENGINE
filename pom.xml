@@ -224,6 +224,10 @@
                    		<groupId>org.slf4j</groupId>
                    		<artifactId>slf4j-api</artifactId>
                    	</exclusion>
+                   	<exclusion>
+                   		<groupId>org.slf4j</groupId>
+                   		<artifactId>jcl-over-slf4j</artifactId>
+                   	</exclusion>
                    </exclusions>
         </dependency>
         <dependency>
@@ -420,11 +424,10 @@
             <version>${org.slf4j.version}</version>
         </dependency>
 
-        <!-- https://mvnrepository.com/artifact/org.slf4j/log4j-over-slf4j -->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>log4j-over-slf4j</artifactId>
-            <version>1.7.30</version>
+            <version>${org.slf4j.version}</version>
             <exclusions>
             	<exclusion>
             		<groupId>org.slf4j</groupId>
@@ -433,7 +436,6 @@
             </exclusions>
         </dependency>
 
-        <!-- https://mvnrepository.com/artifact/com.google.guava/guava -->
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
