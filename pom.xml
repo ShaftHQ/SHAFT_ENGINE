@@ -321,11 +321,11 @@
             <artifactId>jsch</artifactId>
             <version>${jcraft-jsch.version}</version>
         </dependency>
-        <dependency>
+<!--         <dependency>
             <groupId>com.github.cverges</groupId>
             <artifactId>expect4j</artifactId>
             <version>${cverges-expect4j.version}</version>
-        </dependency>
+        </dependency> -->
 
         <!-- DATABASE CONNECTORS -->
         <dependency>
@@ -590,11 +590,6 @@
 		<repository>
 			<id>central</id>
 			<url>https://repo1.maven.org/maven2/</url>
-		</repository>
-		<repository>
-			<id>google-maven-central</id>
-			<name>GCS Maven Central mirror EU</name>
-			<url>https://maven-central-eu.storage-download.googleapis.com/maven2/</url>
 		</repository>
 	</repositories>
 
