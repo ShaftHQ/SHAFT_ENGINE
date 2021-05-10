@@ -1,5 +1,6 @@
 package com.shaft.validation;
 
+import com.shaft.api.RestActions;
 import com.shaft.api.RestActions.ComparisonType;
 import com.shaft.validation.ValidationHelper.ValidationComparisonType;
 import com.shaft.validation.ValidationHelper.ValidationType;
@@ -118,13 +119,13 @@ public class Assertions {
     /**
      * Asserts webElement attribute equals expectedValue.
      *
-     * @param driver                the current instance of Selenium webdriver
-     * @param elementLocator        the locator of the webElement under test (By xpath,
-     *                              id, selector, name ...etc)
-     * @param elementAttributeType  the desired attribute type of the webElement under test
-     * @param expectedValue         the expected value (test data) of this assertion
-     * @param customLogMessage      a custom message that will appended to this step in
-     *                              the execution report
+     * @param driver               the current instance of Selenium webdriver
+     * @param elementLocator       the locator of the webElement under test (By xpath,
+     *                             id, selector, name ...etc)
+     * @param elementAttributeType the desired attribute type of the webElement under test
+     * @param expectedValue        the expected value (test data) of this assertion
+     * @param customLogMessage     a custom message that will appended to this step in
+     *                             the execution report
      */
     public static void assertElementAttribute(WebDriver driver, By elementLocator, ElementAttributeType elementAttributeType,
                                               String expectedValue, String... customLogMessage) {
@@ -285,13 +286,13 @@ public class Assertions {
     /**
      * Asserts browser attribute equals expectedValue. Supports
      *
-     * @param driver                the current instance of Selenium webdriver
-     * @param browserAttributeType  the desired attribute type of the browser window
-     *                              under test
-     * @param expectedValue         the expected value (test data) of this
-     *                              assertion
-     * @param customLogMessage      a custom message that will appended to this
-     *                              step in the execution report
+     * @param driver               the current instance of Selenium webdriver
+     * @param browserAttributeType the desired attribute type of the browser window
+     *                             under test
+     * @param expectedValue        the expected value (test data) of this
+     *                             assertion
+     * @param customLogMessage     a custom message that will appended to this
+     *                             step in the execution report
      */
     public static void assertBrowserAttribute(WebDriver driver, BrowserAttributeType browserAttributeType, String expectedValue,
                                               String... customLogMessage) {
@@ -605,6 +606,25 @@ public class Assertions {
     public static void assertElementMatches(WebDriver driver, By elementLocator, VisualValidationEngine visualValidationEngine, AssertionType assertionType,
                                             String... customLogMessage) {
         ValidationHelper.validateElementMatches(ValidationHelper.ValidationCategory.HARD_ASSERT, driver, elementLocator, ValidationHelper.VisualValidationEngine.valueOf(visualValidationEngine.name()), ValidationType.valueOf(assertionType.toString()), customLogMessage);
+    }
+
+    /**
+     * Assert that two objects are equal
+     *
+     * @param response      the full response object
+     * @param JSONPath      JSONPath of the actual value of this assertion;
+     *                      the JSONPath expression that will be evaluated in order to
+     *                      extract the desired value [without the trailing $.], please
+     *                      refer to these urls for examples:
+     *                      https://support.smartbear.com/alertsite/docs/monitors/api/endpoint/jsonpath.html
+     *                      http://jsonpath.com/
+     * @param expectedValue the expected value (test data) of this assertion
+     */
+    public static void assertApiResponseEquals(Response response, String JSONPath, String expectedValue) {
+
+        Assertions.assertEquals(expectedValue,
+                RestActions.getResponseJSONValue(response, JSONPath),
+                "Assert That Value Of '" + JSONPath + "' Equals To: " + expectedValue);
     }
 
     public enum AssertionType {

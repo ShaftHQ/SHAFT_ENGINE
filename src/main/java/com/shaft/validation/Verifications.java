@@ -124,13 +124,13 @@ public class Verifications {
     /**
      * verifies webElement attribute equals expectedValue.
      *
-     * @param driver                the current instance of Selenium webdriver
-     * @param elementLocator        the locator of the webElement under test (By xpath,
-     *                              id, selector, name ...etc)
-     * @param elementAttributeType  the desired attribute type of the webElement under test
-     * @param expectedValue         the expected value (test data) of this verification
-     * @param customLogMessage      a custom message that will appended to this step in
-     *                              the execution report
+     * @param driver               the current instance of Selenium webdriver
+     * @param elementLocator       the locator of the webElement under test (By xpath,
+     *                             id, selector, name ...etc)
+     * @param elementAttributeType the desired attribute type of the webElement under test
+     * @param expectedValue        the expected value (test data) of this verification
+     * @param customLogMessage     a custom message that will appended to this step in
+     *                             the execution report
      */
     public static void verifyElementAttribute(WebDriver driver, By elementLocator, ElementAttributeType elementAttributeType,
                                               String expectedValue, String... customLogMessage) {
@@ -290,13 +290,13 @@ public class Verifications {
     /**
      * verifies browser attribute equals expectedValue. Supports
      *
-     * @param driver                the current instance of Selenium webdriver
-     * @param browserAttributeType  the desired attribute type of the browser window
-     *                              under test
-     * @param expectedValue         the expected value (test data) of this
-     *                              verification
-     * @param customLogMessage      a custom message that will appended to this
-     *                              step in the execution report
+     * @param driver               the current instance of Selenium webdriver
+     * @param browserAttributeType the desired attribute type of the browser window
+     *                             under test
+     * @param expectedValue        the expected value (test data) of this
+     *                             verification
+     * @param customLogMessage     a custom message that will appended to this
+     *                             step in the execution report
      */
     public static void verifyBrowserAttribute(WebDriver driver, BrowserAttributeType browserAttributeType, String expectedValue,
                                               String... customLogMessage) {
@@ -610,6 +610,25 @@ public class Verifications {
     public static void verifyElementMatches(WebDriver driver, By elementLocator, Verifications.VisualValidationEngine visualValidationEngine, Verifications.VerificationType verificationType,
                                             String... customLogMessage) {
         ValidationHelper.validateElementMatches(ValidationHelper.ValidationCategory.SOFT_ASSERT, driver, elementLocator, ValidationHelper.VisualValidationEngine.valueOf(visualValidationEngine.name()), ValidationHelper.ValidationType.valueOf(verificationType.toString()), customLogMessage);
+    }
+
+    /**
+     * Verify that two objects are equal
+     *
+     * @param response      the full response object
+     * @param JSONPath      JSONPath of the actual value of this Verification;
+     *                      the JSONPath expression that will be evaluated in order to
+     *                      extract the desired value [without the trailing $.], please
+     *                      refer to these urls for examples:
+     *                      https://support.smartbear.com/alertsite/docs/monitors/api/endpoint/jsonpath.html
+     *                      http://jsonpath.com/
+     * @param expectedValue the expected value (test data) of this Verification
+     */
+    public static void verifyApiResponseEquals(Response response, String JSONPath, String expectedValue) {
+
+        Verifications.verifyEquals(expectedValue,
+                RestActions.getResponseJSONValue(response, JSONPath),
+                "Verify That Value Of '" + JSONPath + "' Equals To: " + expectedValue);
     }
 
     public enum VerificationType {
