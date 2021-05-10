@@ -586,12 +586,17 @@
         </plugins>
     </build>
 
-    <!--    <repositories>-->
-    <!--        <repository>-->
-    <!--            <id>bintray-testng</id>-->
-    <!--            <url>https://dl.bintray.com/cbeust/maven/</url>-->
-    <!--        </repository>-->
-    <!--    </repositories>-->
+	<repositories>
+		<repository>
+			<id>central</id>
+			<url>https://repo1.maven.org/maven2/</url>
+		</repository>
+		<repository>
+			<id>google-maven-central</id>
+			<name>GCS Maven Central mirror EU</name>
+			<url>https://maven-central-eu.storage-download.googleapis.com/maven2/</url>
+		</repository>
+	</repositories>
 
     <!--    <repositories>-->
     <!-- <repository> -->
