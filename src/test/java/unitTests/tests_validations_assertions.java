@@ -1,5 +1,7 @@
 package unitTests;
 
+import com.shaft.api.RestActions;
+import com.shaft.api.RestActions.RequestType;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.ElementActions;
@@ -8,6 +10,9 @@ import com.shaft.validation.Assertions;
 import com.shaft.validation.Assertions.AssertionComparisonType;
 import com.shaft.validation.Assertions.AssertionType;
 import com.shaft.validation.Assertions.ComparativeRelationType;
+
+import io.restassured.response.Response;
+
 import com.shaft.validation.Verifications;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -394,6 +399,20 @@ public class tests_validations_assertions {
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
+    }
+    
+    @Test
+    public void assertApiResponseEquals_expectedToPass() {
+        RestActions apiObject = new RestActions("https://jsonplaceholder.typicode.com");
+        Response users = apiObject.buildNewRequest("/users", RequestType.GET).setTargetStatusCode(200).performRequest();
+
+        RestActions.getResponseJSONValueAsList(users, "$").forEach(user -> {
+            if (RestActions.getResponseJSONValue(user, "name").equals("Leanne Graham")) {
+            	
+               Verifications.verifyApiResponseEquals(user, "Sincere@april.biz", "email");
+               Assertions.assertApiResponseEquals(user, "Bret", "username");
+            }
+        });
     }
 
     @AfterMethod(onlyForGroups = {"WebBased"})
