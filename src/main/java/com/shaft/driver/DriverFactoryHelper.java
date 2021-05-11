@@ -927,16 +927,25 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
 		//This is how you attach the video, and you have to close the context for the video to be prepared
 		//I recommend creating the playwright instance with the DriverManager init phase, and destroying it in the afterSuite listener.
 		//I recommend that close browser should close the context, while close all drivers should terminate the playwright instance.
-		var videoPath = page.video().path().toString();
+			var video = page.video();
+			var videoPath = "";
+			if ( video !=null) {
+				videoPath = video.path().toString();
+			}else {
+				ReportManager.logDiscrete("Failed to find video recording.");
+			}
 		context.close();
 		browser.close();
 		playwright.close();
+		ReportManager.log("Successfully Closed PlayWright Driver.");
+		
+		if (videoPath!="") {
 		try {
 			ReportManagerHelper.attach("Video Recording", ReportManagerHelper.getTestMethodName(), new FileInputStream(videoPath));
 		} catch (FileNotFoundException e) {
 			ReportManagerHelper.log(e);
 		}
-		ReportManager.log("Successfully Closed PlayWright Driver.");
+		}
 		}
 	}
 }

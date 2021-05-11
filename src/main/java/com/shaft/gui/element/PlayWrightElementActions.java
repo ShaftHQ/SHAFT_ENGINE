@@ -15,6 +15,8 @@ import com.microsoft.playwright.Mouse.DownOptions;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Page.ClickOptions;
 import com.microsoft.playwright.Page.DblclickOptions;
+import com.microsoft.playwright.Page.WaitForLoadStateOptions;
+import com.microsoft.playwright.options.LoadState;
 import com.microsoft.playwright.options.MouseButton;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
@@ -658,9 +660,15 @@ public class PlayWrightElementActions {
         if (elementLocator == null) {
             return 0;
         }
-        //JavaScriptWaitManager.waitForLazyLoading();
 //        RecordManager.startVideoRecording(page);
-        return page.querySelectorAll(elementLocator).size();
+        int matchingElementCount = 0;
+        try {
+            page.waitForLoadState(LoadState.NETWORKIDLE, new WaitForLoadStateOptions());
+        	matchingElementCount = page.querySelectorAll(elementLocator).size();
+        }catch(Exception rootCauseException) {
+        	failAction(page, "", elementLocator, rootCauseException);
+        }
+        return matchingElementCount;
     }
 
     private static boolean identifyUniqueElement(Page page, String elementLocator,
