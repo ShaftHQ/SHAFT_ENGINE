@@ -15,9 +15,14 @@ public class GoogleSearch {
     // ExcelFileManager testDataReader = new
     // ExcelFileManager(System.getProperty("testDataFilePath"));
 
-    // String url = testDataReader.getCellData("URL");
+     String url = "https://www.google.com/ncr";
+     String urlAfterRedirection = "https://www.google.com";
+     
     public static By googleLogo_image = By.xpath("//img[@id='hplogo' or @alt='Google']");
+    String googleLogo_image_stringLocator = "xpath=//img[@id='hplogo' or @alt='Google']";
+    
     By searchBox_textField = By.xpath("//input[@id='lst-ib' or @class='lst' or @name='q']");
+    String searchBox_textField_stringLocator = "xpath=//input[@id='lst-ib' or @class='lst' or @name='q']";
 
     public GoogleSearch(WebDriver driver) {
         this.driver = driver;
@@ -28,9 +33,9 @@ public class GoogleSearch {
 
     public void navigateToURL() {
     	if(driver != null) {
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "https://www.google.com");
+        BrowserActions.navigateToURL(driver, url, urlAfterRedirection);
     	}else {
-    		
+    		page.navigate(url);
     	}
     }
 
@@ -39,7 +44,9 @@ public class GoogleSearch {
         ElementActions.type(driver, searchBox_textField, searchQuery);
         ElementActions.keyPress(driver, searchBox_textField, "Enter");
     	}else {
-    		
+    		ElementActions.performElementAction(page)
+    		.type(searchBox_textField_stringLocator, searchQuery)
+    		.keyPress(searchBox_textField_stringLocator, "Enter");
     	}
     }
 
@@ -73,7 +80,7 @@ public class GoogleSearch {
     	if(driver != null) {
         Assertions.assertElementExists(driver, googleLogo_image, AssertionType.POSITIVE);
     	}else {
-    		
+    		Assertions.assertEquals(true, ElementActions.performElementAction(page).isElementDisplayed(googleLogo_image_stringLocator.toString()));
     	}
     }
 

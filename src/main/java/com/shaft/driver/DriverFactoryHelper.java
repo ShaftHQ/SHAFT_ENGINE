@@ -904,7 +904,7 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
         browser = null;
         switch (driverType) {
             case DESKTOP_FIREFOX -> browser = playwright.firefox().launch(options);
-            case DESKTOP_CHROMIUM -> browser = playwright.chromium().launch(options);
+            case DESKTOP_CHROMIUM, DESKTOP_CHROME -> browser = playwright.chromium().launch(options);
             case DESKTOP_WEBKIT -> browser = playwright.webkit().launch(options);
             default -> failAction("Unsupported Driver Type [" + driverName + "].");
         }
@@ -912,7 +912,7 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
         // handle video recording
         var contextOptions = new Browser.NewContextOptions();
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("recordVideo").trim()))){
-        	contextOptions.setRecordVideoDir(Paths.get(System.getProperty("video.folder"))).setRecordVideoSize(1920, 1080);
+        	contextOptions.setRecordVideoDir(Paths.get(System.getProperty("video.folder")));
         }
         
 		// sets the context, a sub-browser like an in-private browsing session

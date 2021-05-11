@@ -1,13 +1,14 @@
 package com.shaft.tools.listeners;
 
+import org.testng.ISuite;
+import org.testng.ISuiteListener;
+
 import com.shaft.cli.FileActions;
-import com.shaft.gui.element.ElementActions;
+import com.shaft.gui.element.WebDriverElementActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ProjectStructureManager;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManagerHelper;
-import org.testng.ISuite;
-import org.testng.ISuiteListener;
 
 public class SuiteListener implements ISuiteListener {
 
@@ -16,7 +17,7 @@ public class SuiteListener implements ISuiteListener {
         // read existing elements that were identified by AI to keep the reference table
         if (Boolean.TRUE.equals(ScreenshotManager.getAiSupportedElementIdentification())
                 && FileActions.doesFileExist(ScreenshotManager.getAiAidedElementIdentificationFolderpath(),
-                ElementActions.getAiReferenceFileName(), 1)) {
+                		WebDriverElementActions.getAiReferenceFileName(), 1)) {
             PropertyFileManager.readPropertyFiles(ScreenshotManager.getAiAidedElementIdentificationFolderpath());
         }
         ProjectStructureManager.initialize();

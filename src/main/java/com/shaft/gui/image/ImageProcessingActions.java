@@ -37,7 +37,7 @@ import com.applitools.eyes.exceptions.DiffsFoundException;
 import com.applitools.eyes.images.Eyes;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactoryHelper;
-import com.shaft.gui.element.ElementActions;
+import com.shaft.gui.element.WebDriverElementActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.validation.Assertions;
@@ -287,7 +287,7 @@ public class ImageProcessingActions {
                 //TODO: if element locator was not found, attempt to use AI to find it
                 Boolean initialState = ScreenshotManager.getAiSupportedElementIdentification();
                 ScreenshotManager.setAiSupportedElementIdentification(true);
-                if (!doesReferenceFileExist || ElementActions.attemptToFindElementUsingAI(driver, elementLocator)) {
+                if (!doesReferenceFileExist || WebDriverElementActions.attemptToFindElementUsingAI(driver, elementLocator)) {
                     //pass: element found using AI and new locator suggested || first time element
                     if (!doesReferenceFileExist) {
                         ReportManager.logDiscrete("Passing the test and saving a reference image");

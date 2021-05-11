@@ -1,7 +1,7 @@
 package com.shaft.gui.browser;
 
 import com.shaft.driver.DriverFactoryHelper;
-import com.shaft.gui.element.ElementActions;
+import com.shaft.gui.element.WebDriverElementActions;
 import com.shaft.gui.element.JavaScriptWaitManager;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
@@ -205,7 +205,7 @@ public class BrowserActions {
                 // navigate to new url
                 navigateToNewURL(driver, initialURL, targetUrl, targetUrlAfterRedirection);
                 JavaScriptWaitManager.waitForLazyLoading();
-                if ((ElementActions.getElementsCount(driver, By.tagName("html")) == 1)
+                if ((WebDriverElementActions.getElementsCount(driver, By.tagName("html")) == 1)
                         && (!driver.getPageSource().equalsIgnoreCase(initialSource))) {
                     confirmThatWebsiteIsNotDown(driver, targetUrl);
                     passAction(driver, targetUrl);
@@ -216,7 +216,7 @@ public class BrowserActions {
                 // already on the same page
                 driver.navigate().refresh();
                 JavaScriptWaitManager.waitForLazyLoading();
-                if (ElementActions.getElementsCount(driver, By.tagName("html")) == 1) {
+                if (WebDriverElementActions.getElementsCount(driver, By.tagName("html")) == 1) {
                     confirmThatWebsiteIsNotDown(driver, targetUrl);
                     passAction(driver, targetUrl);
                 }
@@ -317,7 +317,7 @@ public class BrowserActions {
             } catch (Exception rootCauseException) {
                 failAction(rootCauseException);
             } finally {
-                ElementActions.setLastUsedDriver(null);
+                WebDriverElementActions.setLastUsedDriver(null);
             }
         } else {
             ReportManager.logDiscrete("Window is already closed and driver object is null.");

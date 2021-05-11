@@ -14,7 +14,9 @@ public class GoogleSearchResults {
     Page page = null;
 
     By resultsStats_label = By.id("appbar");
+    String resultsStats_label_stringLocator = "xpath=//div[@id='appbar']";
     By next_button = By.xpath("//span[text()='Next']");
+    String next_button_stringLocator = "xpath=//span[text()='Next']";
     By searchResult_box = By.xpath("//div[@class='srg']//div[@class='g']");
 
     public GoogleSearchResults(WebDriver driver) {
@@ -30,7 +32,7 @@ public class GoogleSearchResults {
         Assertions.assertElementAttribute(driver, resultsStats_label, "Text", "", AssertionComparisonType.EQUALS,
                 AssertionType.NEGATIVE);
     	}else {
-    		
+    		Assertions.assertEquals("",ElementActions.performElementAction(page).getText(resultsStats_label_stringLocator),AssertionComparisonType.EQUALS, AssertionType.NEGATIVE);
     	}
     }
 
@@ -46,7 +48,7 @@ public class GoogleSearchResults {
     	if(driver != null) {
         ElementActions.click(driver, next_button);
     	}else {
-    		
+    		ElementActions.performElementAction(page).click(next_button_stringLocator);
     	}
     }
 
