@@ -26,7 +26,7 @@ public class PlayWrightElementActions {
     private static final String OBFUSCATED_STRING = "•";
     private static Page lastUsedPage = null;
     
-    protected static void setLastUsedPage(Page page) {
+    public static void setLastUsedPage(Page page) {
     	PlayWrightElementActions.lastUsedPage=page;
     }
     

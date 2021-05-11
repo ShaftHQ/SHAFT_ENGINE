@@ -922,7 +922,7 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
 		return page;
 	}
 	
-	protected static void closePlayWrightDriver() {
+	public static void closePlayWrightDriver() {
 		if (playwright!=null) {
 		//This is how you attach the video, and you have to close the context for the video to be prepared
 		//I recommend creating the playwright instance with the DriverManager init phase, and destroying it in the afterSuite listener.

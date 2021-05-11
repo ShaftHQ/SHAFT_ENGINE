@@ -35,7 +35,7 @@ public class GoogleSearch {
     	if(driver != null) {
         BrowserActions.navigateToURL(driver, url, urlAfterRedirection);
     	}else {
-    		page.navigate(url);
+    		BrowserActions.performBrowserAction(page).navigateToURL(url, urlAfterRedirection);
     	}
     }
 
