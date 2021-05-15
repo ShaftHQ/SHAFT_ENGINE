@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v2.3.4
       #- name: Set up Zalenium
       #  run: docker-compose -f docker-compose_zalenium.yml up --force-recreate -d
       - name: Set up Native Selenium Grid
@@ -32,7 +32,7 @@ jobs:
         continue-on-error: true
         run: mvn test -DexecutionAddress="localhost:4444" -DtargetOperatingSystem="Linux-64" -DmaximumPerformanceMode="2" -DtargetBrowserName="GoogleChrome" -Dtest="!%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*]"
       - name: Get Allure history
-        uses: actions/checkout@v2
+        uses: actions/checkout@v2.3.4
         if: always()
         continue-on-error: true
         with:
