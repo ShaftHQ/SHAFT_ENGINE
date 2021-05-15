@@ -249,6 +249,18 @@ public class PlayWrightElementActions {
     public static int getElementsCount(Page page, String elementLocator) {
         return getMatchingElementsCount(page, elementLocator);
     }
+    
+    /**
+     * Returns the number of elements that match a certain elementLocator
+     *
+     * @param elementLocator the locator of the webElement under test (String xpath, id,
+     *                       selector, name ...etc)
+     * @return integer value that represents the number of elements that match the
+     * desired elementLocator
+     */
+    public int getElementsCount(String elementLocator) {
+        return getMatchingElementsCount(lastUsedPage, elementLocator);
+    }
 
 
     /**
@@ -261,6 +273,27 @@ public class PlayWrightElementActions {
      * @return the size of the webElement under test
      */
     public static String getSize(Page page, String elementLocator) {
+        if (identifyUniqueElement(page, elementLocator)) {
+            var boundingBox = page.querySelector(elementLocator).boundingBox();
+            String elementSize = boundingBox.width +" * "+boundingBox.height;
+            passAction(page, elementLocator, elementSize);
+            return elementSize;
+        } else {
+            failAction(page, "", elementLocator);
+            return null;
+        }
+    }
+    
+    /**
+     * Retrieves element size from the target element and returns it as a string
+     * value.
+     *
+     * @param elementLocator the locator of the webElement under test (String xpath, id,
+     *                       selector, name ...etc)
+     * @return the size of the webElement under test
+     */
+    public String getSize(String elementLocator) {
+    	var page = lastUsedPage;
         if (identifyUniqueElement(page, elementLocator)) {
             var boundingBox = page.querySelector(elementLocator).boundingBox();
             String elementSize = boundingBox.width +" * "+boundingBox.height;

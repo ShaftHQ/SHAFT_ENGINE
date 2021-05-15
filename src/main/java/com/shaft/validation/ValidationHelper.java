@@ -1,5 +1,6 @@
 package com.shaft.validation;
 
+import com.microsoft.playwright.Page;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.gui.browser.BrowserActions;
@@ -25,6 +26,9 @@ class ValidationHelper {
     private static final int ATTEMPTS_ELEMENTNOTFOUNDEXCEPTION_ELEMENTSHOULDNOTEXIST = 1;
     private static WebDriver lastUsedDriver = null;
     private static By lastUsedElementLocator = null;
+
+    private static Page lastUsedPage = null;
+    private static String lastUsedElementLocatorString = null;
     private static Boolean discreetLoggingState = Boolean.valueOf(System.getProperty("alwaysLogDiscreetly"));
     private static List<String> verificationFailuresList = new ArrayList<>();
     private static AssertionError verificationError = null;
@@ -89,6 +93,45 @@ class ValidationHelper {
             }
         }
     }
+    
+    protected static void validateElementExists(ValidationCategory validationCategory, Page page, String elementLocator, ValidationType validationType,
+            String... optionalCustomLogMessage) {
+    	for (String customMessage : optionalCustomLogMessage) {
+            ReportManager.log(customMessage + "...");
+        }
+        String[] expectedElementStates = {"Element Should Exist", "Element Should not Exist"};
+        String[] actualElementStates = {"Element Exists", "Element Doesn't Exists",
+                "Element Exists but is not unique"};
+        String locatorSeparator = ", locator '";
+
+        lastUsedPage = page;
+        lastUsedElementLocatorString = elementLocator;
+        int elementsCount = ElementActions.performElementAction(page).getElementsCount(elementLocator);
+
+        if (validationType.getValue()) {
+            // expecting a unique element to be present
+            final String expectedValue = expectedElementStates[0] + locatorSeparator + elementLocator + "'";
+            switch (elementsCount) {
+                case 0 -> fail(validationCategory, expectedValue,
+                        actualElementStates[1], ValidationComparisonType.EQUALS, validationType, null);
+                case 1 -> pass(validationCategory, expectedValue,
+                        actualElementStates[0], ValidationComparisonType.EQUALS, validationType);
+                default -> fail(validationCategory, expectedValue,
+                        actualElementStates[2], ValidationComparisonType.EQUALS, validationType, null);
+            }
+        } else {
+            // not expecting the element to be present
+            final String expectedValue = expectedElementStates[1] + locatorSeparator + elementLocator + "'";
+            switch (elementsCount) {
+                case 0 -> pass(validationCategory, expectedValue,
+                        actualElementStates[1], ValidationComparisonType.EQUALS, validationType);
+                case 1 -> fail(validationCategory, expectedValue,
+                        actualElementStates[0], ValidationComparisonType.EQUALS, validationType, null);
+                default -> fail(validationCategory, expectedValue,
+                        actualElementStates[2], ValidationComparisonType.EQUALS, validationType, null);
+            }
+        }
+    }
 
     protected static void validateElementExists(ValidationCategory validationCategory, WebDriver driver, By elementLocator, ValidationType validationType,
                                                 String... optionalCustomLogMessage) {
@@ -135,6 +178,57 @@ class ValidationHelper {
             }
         }
     }
+    
+	protected static void validateElementAttribute(ValidationCategory validationCategory, Page page,
+			String elementLocator, String elementAttribute, String expectedValue,
+			ValidationComparisonType validationComparisonType, ValidationType validationType,
+			String... optionalCustomLogMessage) {
+
+		for (String customMessage : optionalCustomLogMessage) {
+			ReportManager.log(customMessage + "...");
+		}
+
+		String[] expectedAttributeStates = { "Value Should be", "Value Should not be" };
+		String attributeSeparator = "' for the '";
+		String locatorSeparator = "' attribute, element locator '";
+
+		String actualValue;
+		try {
+			discreetLoggingState = ReportManagerHelper.isDiscreteLogging();
+			ReportManagerHelper.setDiscreteLogging(true);
+			actualValue = switch (elementAttribute.toLowerCase()) {
+			case "text" -> ElementActions.performElementAction(page).getText(elementLocator);
+			case "tagname" -> ElementActions.performElementAction(page).getAttribute(elementLocator, "tagName");
+			case "size" -> ElementActions.performElementAction(page).getSize(elementLocator);
+			case "selectedtext" -> ElementActions.performElementAction(page).getText(elementLocator);
+			default -> ElementActions.performElementAction(page).getAttribute(elementLocator, elementAttribute);
+			};
+			ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
+		} catch (AssertionError e) {
+			// force fail due to upstream failure
+			if (validationType.getValue()) {
+				fail(validationCategory,
+						expectedAttributeStates[0] + " '" + expectedValue + attributeSeparator + elementAttribute
+								+ locatorSeparator + elementLocator.toString() + "'",
+						"Failed to read the desired element attribute", validationComparisonType, validationType, e);
+			} else {
+				fail(validationCategory,
+						expectedAttributeStates[1] + " '" + expectedValue + attributeSeparator + elementAttribute
+								+ locatorSeparator + elementLocator.toString() + "'",
+						"Failed to read the desired element attribute", validationComparisonType, validationType, e);
+			}
+			return;
+		}
+
+		lastUsedPage = page;
+		lastUsedElementLocatorString = elementLocator;
+		int comparisonResult = JavaActions.compareTwoObjects(expectedValue, actualValue,
+				validationComparisonType.getValue(), validationType.getValue());
+
+		reportValidationResultOfElementAttribute(new Object[] { expectedAttributeStates, attributeSeparator,
+				locatorSeparator, comparisonResult, elementLocator, elementAttribute, expectedValue, actualValue,
+				validationComparisonType, validationType, validationCategory });
+	}
 
     protected static void validateElementAttribute(ValidationCategory validationCategory, WebDriver driver, By elementLocator, String elementAttribute,
                                                    String expectedValue, ValidationComparisonType validationComparisonType, ValidationType validationType,
@@ -519,7 +613,7 @@ class ValidationHelper {
             }
         }
 
-        // create a screenshot attachment if needed
+        // create a screenshot attachment if needed for webdriver
         if (expectedValue != null && expectedValue.toLowerCase().contains("locator")) {
             if (lastUsedDriver != null && lastUsedElementLocator != null) {
                 attachments.add(ScreenshotManager.captureScreenShot(lastUsedDriver, lastUsedElementLocator,
@@ -532,6 +626,20 @@ class ValidationHelper {
             lastUsedDriver = null;
             lastUsedElementLocator = null;
         }
+        
+     // create a screenshot attachment if needed for Playwright
+        if (expectedValue != null && expectedValue.toLowerCase().contains("locator")) {
+            if (lastUsedPage != null && lastUsedElementLocatorString != null) {
+                attachments.add(ScreenshotManager.captureScreenShot(lastUsedPage, lastUsedElementLocatorString, validationMethodName, validationState.getValue()));
+            } else if (lastUsedPage != null) {
+                attachments.add(ScreenshotManager.captureScreenShot(lastUsedPage, "", validationMethodName, validationState.getValue()));
+            }
+            // reset lastUsed variables
+            lastUsedPage = null;
+            lastUsedElementLocatorString = null;
+        }
+        
+        
 
         // handling changes as per validationCategory hard/soft
         switch (validationCategory) {
@@ -583,7 +691,7 @@ class ValidationHelper {
         String propertySeparator = (String) args[1];
         String locatorSeparator = (String) args[2];
         int comparisonResult = (int) args[3];
-        By elementLocator = (By) args[4];
+        var elementLocator = args[4];
         String propertyName = (String) args[5];
         String expectedValue = (String) args[6];
         String actualValue = (String) args[7];
