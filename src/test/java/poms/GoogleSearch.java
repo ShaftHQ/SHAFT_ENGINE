@@ -80,7 +80,7 @@ public class GoogleSearch {
     	if(driver != null) {
         Assertions.assertElementExists(driver, googleLogo_image, AssertionType.POSITIVE);
     	}else {
-    		Assertions.assertEquals(true, ElementActions.performElementAction(page).isElementDisplayed(googleLogo_image_stringLocator.toString()));
+            Assertions.assertElementExists(page, googleLogo_image_stringLocator, AssertionType.POSITIVE);
     	}
     }
 

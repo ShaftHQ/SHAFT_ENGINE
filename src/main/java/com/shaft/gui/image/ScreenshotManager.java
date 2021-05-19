@@ -47,6 +47,7 @@ import com.microsoft.playwright.Page.ScreenshotOptions;
 import com.shaft.cli.FileActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.JavaScriptWaitManager;
+import com.shaft.gui.element.PlayWrightElementActions;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
@@ -306,9 +307,22 @@ public class ScreenshotManager {
             return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
         }
     }
+    
+    public static byte[] takeFullPageScreenshot(Page page) {
+        try {
+            return ScreenshotHelper.makeFullScreenshot(page);
+        } catch (Exception e) {
+            ReportManagerHelper.log(e);
+            return page.screenshot();
+        }
+    }
 
     public static byte[] takeElementScreenshot(WebDriver driver, By targetElementLocator) {
         return takeElementScreenshot(driver, targetElementLocator, false);
+    }
+    
+    public static byte[] takeElementScreenshot(Page page, String targetElementLocator) {
+        return takeElementScreenshot(page, targetElementLocator, false);
     }
 
     public static synchronized void attachAnimatedGif() {
@@ -502,10 +516,12 @@ public class ScreenshotManager {
              * Prepare element style using javascript
              */
             ElementHandle elementHandle = null;
+            if (elementLocator !=null && !"".equals(elementLocator) && PlayWrightElementActions.getElementsCount(page, elementLocator)>0) {
+            	elementHandle= page.querySelector(elementLocator).asElement();
+            }
             String regularElementStyle = null;
             
             if (SCREENSHOT_PARAMS_HIGHLIGHTMETHOD.equals("JavaScript")) {
-            elementHandle = page.querySelector(elementLocator).asElement();
             regularElementStyle = elementHandle.getAttribute("style");
 
             if (regularElementStyle != null && !regularElementStyle.equals("")) {
@@ -540,7 +556,7 @@ public class ScreenshotManager {
 
             if (takeScreenshot && !SCREENSHOT_PARAMS_HIGHLIGHTMETHOD.equals("JavaScript") && elementHandle != null) {
             	var boundingBox = elementHandle.boundingBox();
-            	var elementLocation = new Rectangle(int.class.cast(boundingBox.x), int.class.cast(boundingBox.y), int.class.cast(boundingBox.height), int.class.cast(boundingBox.width));
+            	var elementLocation = new Rectangle((int)boundingBox.x, (int)boundingBox.y, (int)boundingBox.height, (int)boundingBox.width);
                 Color color;
                 if (globalPassFailStatus) {
                     color = new Color(165, 210, 165); // green
@@ -592,6 +608,28 @@ public class ScreenshotManager {
             ReportManagerHelper.log(e);
             if (returnRegularScreenshotInCaseOfFailure) {
                 return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+            } else {
+                return new byte[]{};
+            }
+        }
+    }
+    
+    private static byte[] takeElementScreenshot(Page page, String targetElementLocator, Boolean
+            returnRegularScreenshotInCaseOfFailure) {
+        try {
+            if (targetElementLocator != null && ElementActions.performElementAction(page).getElementsCount(targetElementLocator) == 1) {
+                return page.querySelector(targetElementLocator).screenshot();                		
+            } else {
+                if (returnRegularScreenshotInCaseOfFailure) {
+                    return page.screenshot();
+                } else {
+                    return new byte[]{};
+                }
+            }
+        } catch (Exception e) {
+            ReportManagerHelper.log(e);
+            if (returnRegularScreenshotInCaseOfFailure) {
+                return page.screenshot();
             } else {
                 return new byte[]{};
             }

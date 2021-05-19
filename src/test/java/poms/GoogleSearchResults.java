@@ -5,6 +5,7 @@ import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Assertions;
 import com.shaft.validation.Assertions.AssertionComparisonType;
 import com.shaft.validation.Assertions.AssertionType;
+import com.shaft.validation.Assertions.ElementAttributeType;
 import com.shaft.validation.Verifications;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -32,7 +33,8 @@ public class GoogleSearchResults {
         Assertions.assertElementAttribute(driver, resultsStats_label, "Text", "", AssertionComparisonType.EQUALS,
                 AssertionType.NEGATIVE);
     	}else {
-    		Assertions.assertEquals("",ElementActions.performElementAction(page).getText(resultsStats_label_stringLocator),AssertionComparisonType.EQUALS, AssertionType.NEGATIVE);
+            Assertions.assertElementAttribute(page, resultsStats_label_stringLocator, ElementAttributeType.TEXT, "", AssertionComparisonType.EQUALS,
+                    AssertionType.NEGATIVE);
     	}
     }
 

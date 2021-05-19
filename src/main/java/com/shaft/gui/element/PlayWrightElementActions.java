@@ -16,8 +16,10 @@ import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Page.ClickOptions;
 import com.microsoft.playwright.Page.DblclickOptions;
 import com.microsoft.playwright.Page.WaitForLoadStateOptions;
+import com.microsoft.playwright.Page.WaitForSelectorOptions;
 import com.microsoft.playwright.options.LoadState;
 import com.microsoft.playwright.options.MouseButton;
+import com.microsoft.playwright.options.WaitForSelectorState;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
@@ -697,6 +699,8 @@ public class PlayWrightElementActions {
         int matchingElementCount = 0;
         try {
             page.waitForLoadState(LoadState.NETWORKIDLE, new WaitForLoadStateOptions());
+            page.waitForSelector(elementLocator, new WaitForSelectorOptions().setState(WaitForSelectorState.ATTACHED).setTimeout(Double
+                    .parseDouble(System.getProperty("defaultElementIdentificationTimeout").trim())*1000));
         	matchingElementCount = page.querySelectorAll(elementLocator).size();
         }catch(Exception rootCauseException) {
         	failAction(page, "", elementLocator, rootCauseException);
@@ -1118,7 +1122,6 @@ public class PlayWrightElementActions {
             return false;
         }
     }
-
 
     public enum TextDetectionStrategy {
         TEXT("text"), CONTENT("textContent"), VALUE("value"), UNDEFINED("undefined");

@@ -1,5 +1,6 @@
 package com.shaft.validation;
 
+import com.microsoft.playwright.Page;
 import com.shaft.api.RestActions.ComparisonType;
 import com.shaft.validation.ValidationHelper.ValidationComparisonType;
 import com.shaft.validation.ValidationHelper.ValidationType;
@@ -199,6 +200,123 @@ public class Assertions {
                 ValidationType.valueOf(assertionType.toString()), customLogMessage);
     }
 
+
+    /**
+     * Asserts that the webElement found using the provided driver and locator
+     * exists.
+     *
+     * @param page           the current instance of Playwright
+     * @param elementLocator   the locator of the webElement under test (By xpath,
+     *                         id, selector, name ...etc)
+     * @param customLogMessage a custom message that will appended to this step in
+     *                         the execution report
+     */
+    public static void assertElementExists(Page page, String elementLocator, String... customLogMessage) {
+        ValidationHelper.validateElementExists(ValidationHelper.ValidationCategory.HARD_ASSERT, page, elementLocator, ValidationType.POSITIVE, customLogMessage);
+    }
+
+    /**
+     * Asserts that the webElement found using the provided driver and locator
+     * exists if AssertionType is POSITIVE, or does not exist if AssertionType is
+     * NEGATIVE.
+     *
+     * @param page           the current instance of Playwright
+     * @param elementLocator   the locator of the webElement under test (By xpath,
+     *                         id, selector, name ...etc)
+     * @param assertionType    AssertionType.POSITIVE, NEGATIVE
+     * @param customLogMessage a custom message that will appended to this step in
+     *                         the execution report
+     */
+    public static void assertElementExists(Page page, String elementLocator, AssertionType assertionType,
+                                           String... customLogMessage) {
+        ValidationHelper.validateElementExists(ValidationHelper.ValidationCategory.HARD_ASSERT, page, elementLocator, ValidationType.valueOf(assertionType.toString()),
+                customLogMessage);
+    }
+
+    /**
+     * Asserts webElement attribute equals expectedValue.
+     *
+     * @param page           the current instance of Playwright
+     * @param elementLocator        the locator of the webElement under test (By xpath,
+     *                              id, selector, name ...etc)
+     * @param elementAttributeType  the desired attribute type of the webElement under test
+     * @param expectedValue         the expected value (test data) of this assertion
+     * @param customLogMessage      a custom message that will appended to this step in
+     *                              the execution report
+     */
+    public static void assertElementAttributePage (Page page, String elementLocator, ElementAttributeType elementAttributeType,
+                                              String expectedValue, String... customLogMessage) {
+        ValidationHelper.validateElementAttribute(ValidationHelper.ValidationCategory.HARD_ASSERT, page, elementLocator, elementAttributeType.getValue(), expectedValue,
+                ValidationComparisonType.EQUALS, ValidationType.POSITIVE, customLogMessage);
+    }
+
+    /**
+     * Asserts webElement attribute equals expectedValue.
+     *
+     * @param page           the current instance of Playwright
+     * @param elementLocator   the locator of the webElement under test (By xpath,
+     *                         id, selector, name ...etc)
+     * @param elementAttribute the desired attribute of the webElement under test
+     * @param expectedValue    the expected value (test data) of this assertion
+     * @param customLogMessage a custom message that will appended to this step in
+     *                         the execution report
+     */
+    public static void assertElementAttribute(Page page, String elementLocator, String elementAttribute,
+                                              String expectedValue, String... customLogMessage) {
+        ValidationHelper.validateElementAttribute(ValidationHelper.ValidationCategory.HARD_ASSERT, page, elementLocator, elementAttribute, expectedValue,
+                ValidationComparisonType.EQUALS, ValidationType.POSITIVE, customLogMessage);
+    }
+
+    /**
+     * Asserts webElement attribute equals expectedValue if AssertionType is
+     * POSITIVE, or does not equal expectedValue if AssertionType is NEGATIVE.
+     *
+     * @param page           the current instance of Playwright
+     * @param elementLocator          the locator of the webElement under test (By
+     *                                xpath, id, selector, name ...etc)
+     * @param elementAttributeType    the desired attribute type of the webElement under
+     *                                test
+     * @param expectedValue           the expected value (test data) of this
+     *                                assertion
+     * @param assertionComparisonType AssertionComparisonType.EQUALS, CONTAINS,
+     *                                MATCHES, CASE_INSENSITIVE
+     * @param assertionType           AssertionType.POSITIVE, NEGATIVE
+     * @param customLogMessage        a custom message that will appended to this
+     *                                step in the execution report
+     */
+    public static void assertElementAttribute(Page page, String elementLocator, ElementAttributeType elementAttributeType,
+                                              String expectedValue, AssertionComparisonType assertionComparisonType, AssertionType assertionType,
+                                              String... customLogMessage) {
+        ValidationHelper.validateElementAttribute(ValidationHelper.ValidationCategory.HARD_ASSERT, page, elementLocator, elementAttributeType.getValue(), expectedValue,
+                ValidationComparisonType.valueOf(assertionComparisonType.toString()),
+                ValidationType.valueOf(assertionType.toString()), customLogMessage);
+    }
+
+    /**
+     * Asserts webElement attribute equals expectedValue if AssertionType is
+     * POSITIVE, or does not equal expectedValue if AssertionType is NEGATIVE.
+     *
+     * @param page           the current instance of Playwright
+     * @param elementLocator          the locator of the webElement under test (By
+     *                                xpath, id, selector, name ...etc)
+     * @param elementAttribute        the desired attribute of the webElement under
+     *                                test
+     * @param expectedValue           the expected value (test data) of this
+     *                                assertion
+     * @param assertionComparisonType AssertionComparisonType.EQUALS, CONTAINS,
+     *                                MATCHES, CASE_INSENSITIVE
+     * @param assertionType           AssertionType.POSITIVE, NEGATIVE
+     * @param customLogMessage        a custom message that will appended to this
+     *                                step in the execution report
+     */
+    public static void assertElementAttribute(Page page, String elementLocator, String elementAttribute,
+                                              String expectedValue, AssertionComparisonType assertionComparisonType, AssertionType assertionType,
+                                              String... customLogMessage) {
+        ValidationHelper.validateElementAttribute(ValidationHelper.ValidationCategory.HARD_ASSERT, page, elementLocator, elementAttribute, expectedValue,
+                ValidationComparisonType.valueOf(assertionComparisonType.toString()),
+                ValidationType.valueOf(assertionType.toString()), customLogMessage);
+    }
+
     /**
      * Asserts webElement CSSProperty equals expectedValue.
      *
@@ -281,7 +399,6 @@ public class Assertions {
                 ValidationType.valueOf(assertionType.toString()), customLogMessage);
     }
 
-
     /**
      * Asserts browser attribute equals expectedValue. Supports
      *
@@ -319,6 +436,84 @@ public class Assertions {
         ValidationHelper.validateBrowserAttribute(ValidationHelper.ValidationCategory.HARD_ASSERT, driver, browserAttributeType.getValue(), expectedValue, ValidationComparisonType.valueOf(assertionComparisonType.toString()),
                 ValidationType.valueOf(assertionType.toString()), customLogMessage);
     }
+
+    /*
+    * Asserts browser attribute equals expectedValue. Supports
+    * CurrentUrl, PageSource, Title, WindowHandle, WindowPosition, WindowSize
+    *
+     * @param page           the current instance of Playwright
+    * @param browserAttribute the desired attribute of the browser window
+    *                         under test
+    * @param expectedValue    the expected value (test data) of this
+    *                         assertion
+    * @param customLogMessage a custom message that will appended to this
+    *                         step in the execution report
+    */
+   public static void assertBrowserAttribute(Page page, String browserAttribute, String expectedValue,
+                                             String... customLogMessage) {
+       ValidationHelper.validateBrowserAttribute(ValidationHelper.ValidationCategory.HARD_ASSERT, page, browserAttribute, expectedValue, ValidationComparisonType.EQUALS,
+               ValidationType.POSITIVE, customLogMessage);
+   }
+
+   /**
+    * Asserts browser attribute equals expectedValue if AssertionType is POSITIVE,
+    * or does not equal expectedValue if AssertionType is NEGATIVE. Supports
+    * CurrentUrl, PageSource, Title, WindowHandle, WindowPosition, WindowSize
+    *
+     * @param page           the current instance of Playwright
+    * @param browserAttribute        the desired attribute of the browser window
+    *                                under test
+    * @param expectedValue           the expected value (test data) of this
+    *                                assertion
+    * @param assertionComparisonType AssertionComparisonType.EQUALS, CONTAINS,
+    *                                MATCHES, CASE_INSENSITIVE
+    * @param assertionType           AssertionType.POSITIVE, NEGATIVE
+    * @param customLogMessage        a custom message that will appended to this
+    *                                step in the execution report
+    */
+   public static void assertBrowserAttribute(Page page, String browserAttribute, String expectedValue,
+                                             AssertionComparisonType assertionComparisonType, AssertionType assertionType, String... customLogMessage) {
+       ValidationHelper.validateBrowserAttribute(ValidationHelper.ValidationCategory.HARD_ASSERT, page, browserAttribute, expectedValue, ValidationComparisonType.valueOf(assertionComparisonType.toString()),
+               ValidationType.valueOf(assertionType.toString()), customLogMessage);
+   }
+
+   /**
+    * Asserts browser attribute equals expectedValue. Supports
+    *
+     * @param page           the current instance of Playwright
+    * @param browserAttributeType  the desired attribute type of the browser window
+    *                              under test
+    * @param expectedValue         the expected value (test data) of this
+    *                              assertion
+    * @param customLogMessage      a custom message that will appended to this
+    *                              step in the execution report
+    */
+   public static void assertBrowserAttribute(Page page, BrowserAttributeType browserAttributeType, String expectedValue,
+                                             String... customLogMessage) {
+       ValidationHelper.validateBrowserAttribute(ValidationHelper.ValidationCategory.HARD_ASSERT, page, browserAttributeType.getValue(), expectedValue, ValidationComparisonType.EQUALS,
+               ValidationType.POSITIVE, customLogMessage);
+   }
+
+   /**
+    * Asserts browser attribute equals expectedValue if AssertionType is POSITIVE,
+    * or does not equal expectedValue if AssertionType is NEGATIVE. Supports
+    *
+     * @param page           the current instance of Playwright
+    * @param browserAttributeType    the desired attribute type of the browser window
+    *                                under test
+    * @param expectedValue           the expected value (test data) of this
+    *                                assertion
+    * @param assertionComparisonType AssertionComparisonType.EQUALS, CONTAINS,
+    *                                MATCHES, CASE_INSENSITIVE
+    * @param assertionType           AssertionType.POSITIVE, NEGATIVE
+    * @param customLogMessage        a custom message that will appended to this
+    *                                step in the execution report
+    */
+   public static void assertBrowserAttribute(Page page, BrowserAttributeType browserAttributeType, String expectedValue,
+                                             AssertionComparisonType assertionComparisonType, AssertionType assertionType, String... customLogMessage) {
+       ValidationHelper.validateBrowserAttribute(ValidationHelper.ValidationCategory.HARD_ASSERT, page, browserAttributeType.getValue(), expectedValue, ValidationComparisonType.valueOf(assertionComparisonType.toString()),
+               ValidationType.valueOf(assertionType.toString()), customLogMessage);
+   }
 
     /**
      * Asserts that the expectedValue is related to the actualValue using the
@@ -498,7 +693,6 @@ public class Assertions {
         ValidationHelper.validateJSONFileContent(ValidationHelper.ValidationCategory.HARD_ASSERT, response, referenceJsonFilePath, comparisonType, "", ValidationType.valueOf(assertionType.toString()), customLogMessage);
     }
 
-
     /**
      * Asserts that the target array extracted by parsing the API Response object
      * matches the expected referenceJsonFile.
@@ -605,6 +799,69 @@ public class Assertions {
     public static void assertElementMatches(WebDriver driver, By elementLocator, VisualValidationEngine visualValidationEngine, AssertionType assertionType,
                                             String... customLogMessage) {
         ValidationHelper.validateElementMatches(ValidationHelper.ValidationCategory.HARD_ASSERT, driver, elementLocator, ValidationHelper.VisualValidationEngine.valueOf(visualValidationEngine.name()), ValidationType.valueOf(assertionType.toString()), customLogMessage);
+    }
+
+
+    /**
+     * Asserts that the current image of the target element matches the expected reference image. Uses OpenCV natively.
+     *
+     * @param page           the current instance of Playwright
+     * @param elementLocator   the locator of the webElement under test (By xpath,
+     *                         id, selector, name ...etc)
+     * @param customLogMessage a custom message that will appended to this step in
+     *                         *                         the execution report
+     */
+    public static void assertElementMatches(Page page, String elementLocator,
+                                            String... customLogMessage) {
+        ValidationHelper.validateElementMatches(ValidationHelper.ValidationCategory.HARD_ASSERT, page, elementLocator, ValidationHelper.VisualValidationEngine.EXACT_OPENCV, ValidationType.POSITIVE, customLogMessage);
+    }
+
+    /**
+     * Asserts that the current image of the target element matches the expected reference image if AssertionType is POSITIVE, or
+     * doesn't match it if AssertionType is NEGATIVE. Uses OpenCV natively.
+     *
+     * @param page           the current instance of Playwright
+     * @param elementLocator   the locator of the webElement under test (By xpath,
+     *                         id, selector, name ...etc)
+     * @param assertionType    AssertionType.POSITIVE, NEGATIVE
+     * @param customLogMessage a custom message that will appended to this step in
+     *                         *                         the execution report
+     */
+    public static void assertElementMatches(Page page, String elementLocator, AssertionType assertionType,
+                                            String... customLogMessage) {
+        ValidationHelper.validateElementMatches(ValidationHelper.ValidationCategory.HARD_ASSERT, page, elementLocator, ValidationHelper.VisualValidationEngine.EXACT_OPENCV, ValidationType.valueOf(assertionType.toString()), customLogMessage);
+    }
+
+    /**
+     * Asserts that the current image of the target element matches the expected reference image using the desired VisualValidationEngine. Supports OpenCV natively, and Applitools Eyes. To use Eyes you need to configure your applitoolsApiKey in the path.properties file
+     *
+     * @param page           the current instance of Playwright
+     * @param elementLocator         the locator of the webElement under test (By xpath,
+     *                               id, selector, name ...etc)
+     * @param visualValidationEngine VisualValidationEngine.EXACT_OPENCV, EXACT_EYES, STRICT_EYES, CONTENT_EYES, LAYOUT_EYES
+     * @param customLogMessage       a custom message that will appended to this step in
+     *                               *                         the execution report
+     */
+    public static void assertElementMatches(Page page, String elementLocator, VisualValidationEngine visualValidationEngine,
+                                            String... customLogMessage) {
+        ValidationHelper.validateElementMatches(ValidationHelper.ValidationCategory.HARD_ASSERT, page, elementLocator, ValidationHelper.VisualValidationEngine.valueOf(visualValidationEngine.name()), ValidationType.POSITIVE, customLogMessage);
+    }
+
+    /**
+     * Asserts that the current image of the target element matches the expected reference image using the desired VisualValidationEngine if AssertionType is POSITIVE, or
+     * doesn't match it if AssertionType is NEGATIVE. Supports OpenCV natively, and Applitools Eyes. To use Eyes you need to configure your applitoolsApiKey in the path.properties file
+     *
+     * @param page           the current instance of Playwright
+     * @param elementLocator         the locator of the webElement under test (By xpath,
+     *                               id, selector, name ...etc)
+     * @param visualValidationEngine VisualValidationEngine.EXACT_OPENCV, EXACT_EYES, STRICT_EYES, CONTENT_EYES, LAYOUT_EYES
+     * @param assertionType          AssertionType.POSITIVE, NEGATIVE
+     * @param customLogMessage       a custom message that will appended to this step in
+     *                               *                         the execution report
+     */
+    public static void assertElementMatches(Page page, String elementLocator, VisualValidationEngine visualValidationEngine, AssertionType assertionType,
+                                            String... customLogMessage) {
+        ValidationHelper.validateElementMatches(ValidationHelper.ValidationCategory.HARD_ASSERT, page, elementLocator, ValidationHelper.VisualValidationEngine.valueOf(visualValidationEngine.name()), ValidationType.valueOf(assertionType.toString()), customLogMessage);
     }
 
     public enum AssertionType {

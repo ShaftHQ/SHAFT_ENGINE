@@ -355,6 +355,53 @@ class ValidationHelper {
                 validationComparisonType, validationType, validationCategory});
     }
 
+    protected static void validateBrowserAttribute(ValidationCategory validationCategory, Page page, String browserAttribute,
+                                                   String expectedValue, ValidationComparisonType validationComparisonType, ValidationType validationType,
+                                                   String... optionalCustomLogMessage) {
+
+        for (String customMessage : optionalCustomLogMessage) {
+            ReportManager.log(customMessage + "...");
+        }
+
+        String[] expectedAttributeStates = {"Value Should be", "Value Should not be"};
+        String attributeSeparator = "' for the '";
+        String attributeClosure = "' attribute";
+
+        String actualValue;
+        try {
+            discreetLoggingState = ReportManagerHelper.isDiscreteLogging();
+            ReportManagerHelper.setDiscreteLogging(true);
+            actualValue = switch (browserAttribute.toLowerCase()) {
+                case "currenturl", "url" -> BrowserActions.performBrowserAction(page).getCurrentURL();
+                case "pagesource" -> BrowserActions.performBrowserAction(page).getPageSource();
+                case "title" -> BrowserActions.performBrowserAction(page).getCurrentWindowTitle();
+                case "windowsize" -> BrowserActions.performBrowserAction(page).getWindowSize();
+                default -> "";
+            };
+            ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
+        } catch (AssertionError e) {
+            // force fail due to upstream failure
+            if (validationType.getValue()) {
+                fail(validationCategory, expectedAttributeStates[0] + " '" + expectedValue + attributeSeparator + browserAttribute
+                                + attributeClosure,
+                        "Failed to read the desired browser attribute", validationComparisonType, validationType, e);
+            } else {
+                fail(validationCategory, expectedAttributeStates[1] + " '" + expectedValue + attributeSeparator + browserAttribute
+                                + attributeClosure,
+                        "Failed to read the desired browser attribute", validationComparisonType, validationType, e);
+            }
+            return;
+        }
+
+        lastUsedPage = page;
+        int comparisonResult = JavaActions.compareTwoObjects(expectedValue, actualValue,
+                validationComparisonType.getValue(), validationType.getValue());
+
+        reportValidationResultOfBrowserAttribute(new Object[]{expectedAttributeStates, attributeSeparator,
+                attributeClosure, comparisonResult, null, browserAttribute, expectedValue, actualValue,
+                validationComparisonType, validationType, validationCategory});
+    }
+
     protected static void validateComparativeRelation(ValidationCategory validationCategory, Number expectedValue, Number actualValue,
                                                       ComparativeRelationType comparativeRelationType, ValidationType validationType,
                                                       String... optionalCustomLogMessage) {
@@ -462,6 +509,50 @@ class ValidationHelper {
             }
         } else {
             byte[] pageScreenshot = ScreenshotManager.takeFullPageScreenshot(driver);
+            List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Screenshot",
+                    pageScreenshot);
+            attachments.add(actualValueAttachment);
+
+            fail(validationCategory, reportedExpectedResult.toString(), "Element not found".toUpperCase(), visualValidationEngine, validationType, null, attachments);
+        }
+    }
+    
+    protected static void validateElementMatches(ValidationCategory validationCategory, Page page, String elementLocator, VisualValidationEngine visualValidationEngine, ValidationType validationType,
+                                                 String... optionalCustomLogMessage) {
+        for (String customMessage : optionalCustomLogMessage) {
+            ReportManager.log(customMessage + "...");
+        }
+
+        StringBuilder reportedExpectedResult = new StringBuilder();
+        reportedExpectedResult.append("Element should ");
+        Boolean expectedResult = validationType.getValue();
+        if (!expectedResult) {
+            reportedExpectedResult.append("not ");
+        }
+        reportedExpectedResult.append("match the reference screenshot");
+
+        List<List<Object>> attachments = new ArrayList<>();
+        byte[] referenceImage = ImageProcessingActions.getReferenceImage(elementLocator);
+        if (!Arrays.equals(new byte[0], referenceImage)) {
+            List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Reference Screenshot",
+                    referenceImage);
+            attachments.add(expectedValueAttachment);
+        }
+
+        if (ElementActions.performElementAction(page).getElementsCount(elementLocator) == 1) {
+            byte[] elementScreenshot = ScreenshotManager.takeElementScreenshot(page, elementLocator);
+            List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Screenshot",
+                    elementScreenshot);
+            attachments.add(actualValueAttachment);
+
+            Boolean actualResult = ImageProcessingActions.compareAgainstBaseline(page, elementLocator, elementScreenshot, ImageProcessingActions.VisualValidationEngine.valueOf(visualValidationEngine.name()));
+            if (expectedResult.equals(actualResult)) {
+                pass(validationCategory, reportedExpectedResult.toString(), String.valueOf(actualResult).toUpperCase(), visualValidationEngine, validationType, attachments);
+            } else {
+                fail(validationCategory, reportedExpectedResult.toString(), String.valueOf(actualResult).toUpperCase(), visualValidationEngine, validationType, null, attachments);
+            }
+        } else {
+            byte[] pageScreenshot = ScreenshotManager.takeFullPageScreenshot(page);
             List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Screenshot",
                     pageScreenshot);
             attachments.add(actualValueAttachment);
