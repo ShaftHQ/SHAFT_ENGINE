@@ -504,15 +504,13 @@ public class TouchActions {
         do {
             // appium native device
             if (!driver.findElements(elementLocator).isEmpty()
-                    && WebDriverElementActions.identifyUniqueElement(driver, elementLocator)) {
+                    && WebDriverElementActions.isElementDisplayed(driver, elementLocator)) {
                 // element is already on screen
                 isElementFound = true;
                 ReportManager.logDiscrete("Element found on screen.");
             } else {
                 // for the animated GIF:
                 WebDriverElementActions.takeScreenshot(driver, elementLocator, "swipeElementIntoView", null, true);
-                
-//                String pageSourceBeforeSwiping = driver.getPageSource();
                 lastPageSourceBeforeSwiping = driver.getPageSource();
                 switch (swipeTechnique) {
                 case TOUCH_ACTIONS -> attemptTouchActionScroll(swipeDirection);
