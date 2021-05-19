@@ -34,7 +34,6 @@ public class JavaScriptWaitManager {
      * Waits for jQuery, Angular, and/or Javascript if present on the current page.
      */
     public static void waitForLazyLoading() {
-//        RecordManager.startVideoRecording(jsWaitDriver.get());
         if (Boolean.TRUE.equals(WAIT_FOR_LAZY_LOADING)
                 && !DriverFactoryHelper.isMobileNativeExecution()) {
             try {

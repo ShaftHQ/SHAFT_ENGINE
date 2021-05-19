@@ -67,9 +67,9 @@ public class SikuliActions implements ShaftDriver{
             element = prepareElementPattern(targetElement);
             clearAndType(element, text);
         } catch (IOException | FindFailed rootCauseException) {
-            ElementActions.failAction(screen, applicationWindow, element, formatTextForReport(text), rootCauseException);
+            WebDriverElementActions.failAction(screen, applicationWindow, element, formatTextForReport(text), rootCauseException);
         }
-        ElementActions.passAction(screen, applicationWindow, element, formatTextForReport(text));
+        WebDriverElementActions.passAction(screen, applicationWindow, element, formatTextForReport(text));
         return this;
     }
 
@@ -99,9 +99,9 @@ public class SikuliActions implements ShaftDriver{
             element = prepareElementPattern(targetElement);
             screen.wait(element).type(text);
         } catch (IOException | FindFailed rootCauseException) {
-            ElementActions.failAction(screen, applicationWindow, element, formatTextForReport(text), rootCauseException);
+            WebDriverElementActions.failAction(screen, applicationWindow, element, formatTextForReport(text), rootCauseException);
         }
-        ElementActions.passAction(screen, applicationWindow, element, formatTextForReport(text));
+        WebDriverElementActions.passAction(screen, applicationWindow, element, formatTextForReport(text));
         return this;
     }
 
@@ -133,9 +133,9 @@ public class SikuliActions implements ShaftDriver{
             element = prepareElementPattern(targetElement);
             clearAndType(element, text);
         } catch (IOException | FindFailed rootCauseException) {
-            ElementActions.failAction(screen, applicationWindow, element, formatTextForReport(text), rootCauseException);
+            WebDriverElementActions.failAction(screen, applicationWindow, element, formatTextForReport(text), rootCauseException);
         }
-        ElementActions.passAction(screen, applicationWindow, element, formatTextForReport(text).replaceAll(".", "•"));
+        WebDriverElementActions.passAction(screen, applicationWindow, element, formatTextForReport(text).replaceAll(".", "•"));
         return this;
     }
 
@@ -163,9 +163,9 @@ public class SikuliActions implements ShaftDriver{
             elementText = screen.wait(element).getText();
             screen.wait(element).click();
         } catch (IOException | FindFailed rootCauseException) {
-            ElementActions.failAction(screen, applicationWindow, element, elementText, rootCauseException);
+            WebDriverElementActions.failAction(screen, applicationWindow, element, elementText, rootCauseException);
         }
-        ElementActions.passAction(screen, applicationWindow, element, formatTextForReport(elementText));
+        WebDriverElementActions.passAction(screen, applicationWindow, element, formatTextForReport(elementText));
         return this;
     }
 
@@ -192,9 +192,9 @@ public class SikuliActions implements ShaftDriver{
             element = prepareElementPattern(targetElement);
             elementText = screen.wait(element).getText().replace("\n", "").trim();
         } catch (IOException | FindFailed rootCauseException) {
-            ElementActions.failAction(screen, applicationWindow, element, null, rootCauseException);
+            WebDriverElementActions.failAction(screen, applicationWindow, element, null, rootCauseException);
         }
-        ElementActions.passAction(screen, applicationWindow, element, formatTextForReport(elementText));
+        WebDriverElementActions.passAction(screen, applicationWindow, element, formatTextForReport(elementText));
         return elementText;
     }
 
@@ -222,9 +222,9 @@ public class SikuliActions implements ShaftDriver{
             elementText = screen.wait(element).getText().replace("\n", "").trim();
             screen.wait(element).hover(element);
         } catch (IOException | FindFailed rootCauseException) {
-            ElementActions.failAction(screen, applicationWindow, element, elementText, rootCauseException);
+            WebDriverElementActions.failAction(screen, applicationWindow, element, elementText, rootCauseException);
         }
-        ElementActions.passAction(screen, applicationWindow, element, formatTextForReport(elementText));
+        WebDriverElementActions.passAction(screen, applicationWindow, element, formatTextForReport(elementText));
         return this;
     }
 
@@ -252,9 +252,9 @@ public class SikuliActions implements ShaftDriver{
             elementText = screen.wait(element).getText().replace("\n", "").trim();
             screen.wait(element).doubleClick(element);
         } catch (IOException | FindFailed rootCauseException) {
-            ElementActions.failAction(screen, applicationWindow, element, elementText, rootCauseException);
+            WebDriverElementActions.failAction(screen, applicationWindow, element, elementText, rootCauseException);
         }
-        ElementActions.passAction(screen, applicationWindow, element, formatTextForReport(elementText));
+        WebDriverElementActions.passAction(screen, applicationWindow, element, formatTextForReport(elementText));
         return this;
     }
 
@@ -282,9 +282,9 @@ public class SikuliActions implements ShaftDriver{
             elementText = screen.wait(element).getText().replace("\n", "").trim();
             screen.wait(element).rightClick(element);
         } catch (IOException | FindFailed rootCauseException) {
-            ElementActions.failAction(screen, applicationWindow, element, elementText, rootCauseException);
+            WebDriverElementActions.failAction(screen, applicationWindow, element, elementText, rootCauseException);
         }
-        ElementActions.passAction(screen, applicationWindow, element, formatTextForReport(elementText));
+        WebDriverElementActions.passAction(screen, applicationWindow, element, formatTextForReport(elementText));
         return this;
     }
 
@@ -316,9 +316,9 @@ public class SikuliActions implements ShaftDriver{
             elementText = screen.wait(draggableElementPattern).getText().replace("\n", "").trim();
             screen.wait(draggableElementPattern).dragDrop(draggableElementPattern, targetElementPattern);
         } catch (IOException | FindFailed rootCauseException) {
-            ElementActions.failAction(screen, applicationWindow, draggableElementPattern, elementText, rootCauseException);
+            WebDriverElementActions.failAction(screen, applicationWindow, draggableElementPattern, elementText, rootCauseException);
         }
-        ElementActions.passAction(screen, applicationWindow, draggableElementPattern, elementText);
+        WebDriverElementActions.passAction(screen, applicationWindow, draggableElementPattern, elementText);
         return this;
     }
 
@@ -341,7 +341,7 @@ public class SikuliActions implements ShaftDriver{
         try {
             return IOUtils.toByteArray(new FileInputStream(pathToTargetElementImage));
         } catch (IOException rootCauseException) {
-            ElementActions.failAction(null, "Failed to initialize SikuliAction; couldn't read the target Element Image", null, rootCauseException);
+            WebDriverElementActions.failAction(null, "Failed to initialize SikuliAction; couldn't read the target Element Image", null, rootCauseException);
             return new byte[0];
         }
     }

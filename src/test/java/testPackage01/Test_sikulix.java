@@ -1,15 +1,16 @@
 package testPackage01;
 
-import com.shaft.cli.TerminalActions;
-import com.shaft.driver.DriverFactoryHelper;
-import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.browser.BrowserFactory;
-import com.shaft.gui.element.ElementActions;
-import com.shaft.validation.Assertions;
 import org.openqa.selenium.WebDriver;
 import org.sikuli.script.App;
 import org.sikuli.script.Key;
 import org.testng.annotations.Test;
+
+import com.shaft.cli.TerminalActions;
+import com.shaft.driver.DriverFactory;
+import com.shaft.gui.browser.BrowserActions;
+import com.shaft.gui.browser.BrowserFactory;
+import com.shaft.gui.element.ElementActions;
+import com.shaft.validation.Assertions;
 
 public class Test_sikulix {
     App calculator;
@@ -48,12 +49,12 @@ public class Test_sikulix {
     //@BeforeClass
     public void openApplication() {
         new TerminalActions().performTerminalCommand("calc");
-        calculator = DriverFactoryHelper.getSikuliApp("Calculator");
+        calculator = DriverFactory.getSikuliApp("Calculator");
     }
 
     //@AfterClass
     public void closeApplication() {
-    	DriverFactoryHelper.closeSikuliApp(calculator);
+    	DriverFactory.closeSikuliApp(calculator);
     }
 
 }

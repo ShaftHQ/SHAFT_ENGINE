@@ -3,6 +3,9 @@ package com.shaft.gui.image;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.openqa.selenium.*;
 
+import com.microsoft.playwright.Page;
+import com.microsoft.playwright.Page.ScreenshotOptions;
+
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -15,6 +18,10 @@ public class ScreenshotHelper {
 
     private ScreenshotHelper() {
         throw new IllegalStateException("Utility class");
+    }
+    
+    protected static byte[] makeFullScreenshot(Page page) {
+    	return page.screenshot(new ScreenshotOptions().setFullPage(true));
     }
 
     protected static byte[] makeFullScreenshot(WebDriver driver, WebElement... skipElements) throws IOException {

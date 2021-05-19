@@ -22,7 +22,7 @@ public class Test_hover {
 
     @BeforeClass // Set-up method, to be run once before the first test
     public void beforeClass() {
-        driver = BrowserFactory.getBrowser(DriverType.SELENIUM_CHROME);
+        driver = BrowserFactory.getBrowser(DriverType.DESKTOP_CHROME);
     }
 
     @AfterClass
