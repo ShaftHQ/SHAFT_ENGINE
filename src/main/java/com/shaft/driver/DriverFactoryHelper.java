@@ -919,6 +919,7 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
 		context = browser.newContext(contextOptions);
 		// the actual tab/page that will be used for browser actions
 		page = context.newPage();
+		BrowserActions.performBrowserAction(page).maximizeWindow();
 		return page;
 	}
 	
