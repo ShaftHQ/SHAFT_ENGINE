@@ -808,6 +808,47 @@ public class Verifications {
                                             String... customLogMessage) {
         ValidationHelper.validateElementMatches(ValidationHelper.ValidationCategory.SOFT_ASSERT, driver, elementLocator, ValidationHelper.VisualValidationEngine.valueOf(visualValidationEngine.name()), ValidationHelper.ValidationType.valueOf(verificationType.toString()), customLogMessage);
     }
+    /**
+     * Verify that two objects are equal
+     *
+     * @param response         the full response object
+     * @param expectedValue    the expected value (test data) of this verification
+     * @param JSONPath         JSONPath of the actual value of this verification;
+     *                         the JSONPath expression that will be evaluated in
+     *                         order to extract the desired value [without the
+     *                         trailing $.], please refer to these urls for
+     *                         examples:
+     *                         https://support.smartbear.com/alertsite/docs/monitors/api/endpoint/jsonpath.html
+     *                         http://jsonpath.com/
+     * @param customLogMessage a custom message that will appended to this step in
+     *                         the execution report
+     */
+    public static void verifyApiResponseEquals(Response response, String expectedValue, String JSONPath, String... customLogMessage) {
+        ValidationHelper.validateEquals(ValidationHelper.ValidationCategory.SOFT_ASSERT, expectedValue,
+                RestActions.getResponseJSONValue(response, JSONPath), ValidationHelper.ValidationComparisonType.EQUALS,
+                ValidationHelper.ValidationType.POSITIVE, customLogMessage);
+    }
+
+    /**
+     * Verify that two objects are equal
+     *
+     * @param response         the full response object
+     * @param expectedValue    the expected value (test data) of this verification
+     * @param JSONPath         JSONPath of the actual value of this verification;
+     *                         the JSONPath expression that will be evaluated in
+     *                         order to extract the desired value [without the
+     *                         trailing $.], please refer to these urls for
+     *                         examples:
+     *                         https://support.smartbear.com/alertsite/docs/monitors/api/endpoint/jsonpath.html
+     *                         http://jsonpath.com/
+     * @param customLogMessage a custom message that will appended to this step in
+     *                         the execution report
+     */
+    public static void verifyApiResponseEquals(Object response, String expectedValue, String JSONPath, String... customLogMessage) {
+        ValidationHelper.validateEquals(ValidationHelper.ValidationCategory.SOFT_ASSERT, expectedValue,
+                RestActions.getResponseJSONValue(response, JSONPath), ValidationHelper.ValidationComparisonType.EQUALS,
+                ValidationHelper.ValidationType.POSITIVE, customLogMessage);
+    }
 
 
     /**

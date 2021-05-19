@@ -1,6 +1,7 @@
 package com.shaft.validation;
 
 import com.microsoft.playwright.Page;
+import com.shaft.api.RestActions;
 import com.shaft.api.RestActions.ComparisonType;
 import com.shaft.validation.ValidationHelper.ValidationComparisonType;
 import com.shaft.validation.ValidationHelper.ValidationType;
@@ -799,6 +800,45 @@ public class Assertions {
     public static void assertElementMatches(WebDriver driver, By elementLocator, VisualValidationEngine visualValidationEngine, AssertionType assertionType,
                                             String... customLogMessage) {
         ValidationHelper.validateElementMatches(ValidationHelper.ValidationCategory.HARD_ASSERT, driver, elementLocator, ValidationHelper.VisualValidationEngine.valueOf(visualValidationEngine.name()), ValidationType.valueOf(assertionType.toString()), customLogMessage);
+    }
+    /**
+     * Assert that two objects are equal
+     *
+     * @param response         the full response object
+     * @param expectedValue    the expected value (test data) of this assertion
+     * @param JSONPath         JSONPath of the actual value of this assertion; the
+     *                         JSONPath expression that will be evaluated in order
+     *                         to extract the desired value [without the trailing
+     *                         $.], please refer to these urls for examples:
+     *                         https://support.smartbear.com/alertsite/docs/monitors/api/endpoint/jsonpath.html
+     *                         http://jsonpath.com/
+     * @param customLogMessage a custom message that will appended to this step in
+     *                         the execution report
+     */
+    public static void assertApiResponseEquals(Response response, String expectedValue, String JSONPath, String... customLogMessage) {
+        ValidationHelper.validateEquals(ValidationHelper.ValidationCategory.HARD_ASSERT, expectedValue,
+                RestActions.getResponseJSONValue(response, JSONPath), ValidationComparisonType.EQUALS,
+                ValidationType.POSITIVE, customLogMessage);
+    }
+
+    /**
+     * Assert that two objects are equal
+     *
+     * @param response         the full response object
+     * @param expectedValue    the expected value (test data) of this assertion
+     * @param JSONPath         JSONPath of the actual value of this assertion; the
+     *                         JSONPath expression that will be evaluated in order
+     *                         to extract the desired value [without the trailing
+     *                         $.], please refer to these urls for examples:
+     *                         https://support.smartbear.com/alertsite/docs/monitors/api/endpoint/jsonpath.html
+     *                         http://jsonpath.com/
+     * @param customLogMessage a custom message that will appended to this step in
+     *                         the execution report
+     */
+    public static void assertApiResponseEquals(Object response, String expectedValue, String JSONPath, String... customLogMessage) {
+        ValidationHelper.validateEquals(ValidationHelper.ValidationCategory.HARD_ASSERT, expectedValue,
+                RestActions.getResponseJSONValue(response, JSONPath), ValidationComparisonType.EQUALS,
+                ValidationType.POSITIVE, customLogMessage);
     }
 
 
