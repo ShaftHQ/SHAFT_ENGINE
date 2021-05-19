@@ -32,6 +32,14 @@ public class PropertyFileManager {
      */
     public static synchronized void readPropertyFiles() {
         if (Boolean.TRUE.equals(readPropertyFiles)) {
+        	// delete internal.properties
+        	var isDiscrete = ReportManagerHelper.isDiscreteLogging();
+        	ReportManagerHelper.setDiscreteLogging(true);
+        	var internalPropertiesFilePath = "src/test/resources/Properties/internal.properties";
+        	if (FileActions.doesFileExist(internalPropertiesFilePath)) {
+        		FileActions.deleteFile(internalPropertiesFilePath);
+        	}
+        	
             // read base system properties
             Properties props = System.getProperties();
 
@@ -57,6 +65,7 @@ public class PropertyFileManager {
 
             setMobilePlatform();
             readPropertyFiles = false;
+        	ReportManagerHelper.setDiscreteLogging(isDiscrete);
         }
     }
 
@@ -82,7 +91,6 @@ public class PropertyFileManager {
 
     public static synchronized void readPropertyFiles(String propertiesFolderPath) {
         if (propertiesFolderPath != null) {
-            //propertiesFolderPath = propertiesFolderPath.replace("/", File.separator).replace("\\", File.separator);
             ReportManager.logDiscrete("Reading properties directory: " + propertiesFolderPath);
             try {
                 Properties properties = new Properties();

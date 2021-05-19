@@ -35,9 +35,10 @@ import com.applitools.eyes.MatchLevel;
 import com.applitools.eyes.TestResults;
 import com.applitools.eyes.exceptions.DiffsFoundException;
 import com.applitools.eyes.images.Eyes;
+import com.microsoft.playwright.Page;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactoryHelper;
-import com.shaft.gui.element.ElementActions;
+import com.shaft.gui.element.WebDriverElementActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.validation.Assertions;
@@ -245,13 +246,13 @@ public class ImageProcessingActions {
         }
     }
 
-    public static String formatElementLocatorToImagePath(By elementLocator) {
+    public static String formatElementLocatorToImagePath(Object elementLocator) {
         String elementFileName = ReportManagerHelper.getCallingMethodFullName() + "_" + elementLocator.toString();
         return elementFileName.replaceAll("[\\[\\]\\'\\/:]", "").replaceAll("[\\W\\s]", "_").replaceAll("_{2}", "_")
                 .replaceAll("_{2}", "_").replaceAll("contains", "_contains").replaceAll("_$", "");
     }
 
-    public static byte[] getReferenceImage(By elementLocator) {
+    public static byte[] getReferenceImage(Object elementLocator) {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
         String aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
         String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
@@ -287,7 +288,7 @@ public class ImageProcessingActions {
                 //TODO: if element locator was not found, attempt to use AI to find it
                 Boolean initialState = ScreenshotManager.getAiSupportedElementIdentification();
                 ScreenshotManager.setAiSupportedElementIdentification(true);
-                if (!doesReferenceFileExist || ElementActions.attemptToFindElementUsingAI(driver, elementLocator)) {
+                if (!doesReferenceFileExist || WebDriverElementActions.attemptToFindElementUsingAI(driver, elementLocator)) {
                     //pass: element found using AI and new locator suggested || first time element
                     if (!doesReferenceFileExist) {
                         ReportManager.logDiscrete("Passing the test and saving a reference image");
@@ -363,6 +364,107 @@ public class ImageProcessingActions {
         }
     }
 
+    public static synchronized Boolean compareAgainstBaseline(Page page, String elementLocator, byte[] elementScreenshot, VisualValidationEngine visualValidationEngine) {
+        String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
+
+        if (visualValidationEngine == VisualValidationEngine.EXACT_OPENCV) {
+            String aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
+            String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
+
+            boolean doesReferenceFileExist = FileActions.doesFileExist(referenceImagePath);
+
+            if (!Arrays.equals(elementScreenshot, new byte[]{})) {
+                if (!doesReferenceFileExist || !ImageProcessingActions.findImageWithinCurrentPage(referenceImagePath, elementScreenshot, Imgproc.TM_CCORR_NORMED).equals(Collections.emptyList())) {
+                    //pass: element found and matched || first time element
+                    if (!doesReferenceFileExist) {
+                        ReportManager.logDiscrete("Passing the test and saving a reference image");
+                        FileActions.writeToFile(aiFolderPath, hashedLocatorName + ".png", elementScreenshot);
+                    }
+                    return true;
+                } else {
+                    //fail: element doesn't match
+                    return false;
+                }
+            } else {
+                //TODO: if element locator was not found, attempt to use AI to find it
+                Boolean initialState = ScreenshotManager.getAiSupportedElementIdentification();
+                ScreenshotManager.setAiSupportedElementIdentification(true);
+                if (!doesReferenceFileExist) {
+                    //pass: element found using AI and new locator suggested || first time element
+                    if (!doesReferenceFileExist) {
+                        ReportManager.logDiscrete("Passing the test and saving a reference image");
+                        FileActions.writeToFile(aiFolderPath, hashedLocatorName + ".png", elementScreenshot);
+                    }
+                    ScreenshotManager.setAiSupportedElementIdentification(initialState);
+                    return true;
+                } else {
+                    //fail: element not found using AI
+                    ScreenshotManager.setAiSupportedElementIdentification(initialState);
+                    return false;
+                }
+            }
+        }//all the other cases of Eyes
+        Eyes eyes = new Eyes();
+        // Define global settings
+        eyes.setLogHandler(new LogHandler() {
+            @Override
+            public void open() {
+            }
+
+            @Override
+            public void onMessage(boolean b, String s) {
+                ReportManager.logDiscrete(s);
+            }
+
+            @Override
+            public void close() {
+            }
+        });
+        eyes.setApiKey(System.getProperty("applitoolsApiKey"));
+        MatchLevel targetMatchLevel = MatchLevel.STRICT;
+        switch (visualValidationEngine) {
+            // https://help.applitools.com/hc/en-us/articles/360007188591-Match-Levels
+            case EXACT_EYES:
+                targetMatchLevel = MatchLevel.EXACT;
+                break;
+            case STRICT_EYES:
+                targetMatchLevel = MatchLevel.STRICT;
+                break;
+            case CONTENT_EYES:
+                targetMatchLevel = MatchLevel.CONTENT;
+                break;
+            case LAYOUT_EYES:
+                targetMatchLevel = MatchLevel.LAYOUT;
+                break;
+            default:
+                break;
+        }
+        eyes.setMatchLevel(targetMatchLevel);
+        // Define the OS and hosting application to identify the baseline.
+        if (DriverFactoryHelper.isMobileNativeExecution()) {
+            eyes.setHostOS(System.getProperty("mobile_platformName") + "_" + System.getProperty("mobile_platformVersion"));
+            eyes.setHostApp("NativeMobileExecution");
+        } else if (DriverFactoryHelper.isMobileWebExecution()) {
+            eyes.setHostOS(System.getProperty("mobile_platformName") + "_" + System.getProperty("mobile_platformVersion"));
+            eyes.setHostApp(System.getProperty("mobile_browserName"));
+        } else {
+            eyes.setHostOS(System.getProperty("targetOperatingSystem"));
+            eyes.setHostApp(System.getProperty("targetBrowserName"));
+        }
+        try {
+            eyes.open("SHAFT_Engine", ReportManagerHelper.getCallingMethodFullName());
+            eyes.checkImage(elementScreenshot, hashedLocatorName);
+            TestResults eyesValidationResult = eyes.close();
+            ReportManager.logDiscrete("Successfully validated the element using AI; Applitools Eyes.");
+            return eyesValidationResult.isNew() || eyesValidationResult.isPassed();
+        } catch (DiffsFoundException e) {
+            ReportManagerHelper.log(e);
+            return false;
+        } finally {
+            eyes.abortIfNotClosed();
+        }
+    }
+    
     private static void compareImageFolders(File[] refrenceFiles, File[] testFiles, File[] testProcessingFiles,
                                             File refrenceProcessingFolder, File testProcessingFolder, double threshhold) throws IOException {
         // TODO: refactor to minimize File IO actions

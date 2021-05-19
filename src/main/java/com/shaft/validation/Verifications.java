@@ -1,5 +1,6 @@
 package com.shaft.validation;
 
+import com.microsoft.playwright.Page;
 import com.shaft.api.RestActions;
 import io.restassured.response.Response;
 import org.openqa.selenium.By;
@@ -205,6 +206,123 @@ public class Verifications {
                 ValidationHelper.ValidationType.valueOf(verificationType.toString()), customLogMessage);
     }
 
+
+    /**
+     * verifies that the webElement found using the provided driver and locator
+     * exists.
+     *
+     * @param page           the current instance of Playwright
+     * @param elementLocator   the locator of the webElement under test (By xpath,
+     *                         id, selector, name ...etc)
+     * @param customLogMessage a custom message that will appended to this step in
+     *                         the execution report
+     */
+    public static void verifyElementExists(Page page, String elementLocator, String... customLogMessage) {
+        ValidationHelper.validateElementExists(ValidationHelper.ValidationCategory.SOFT_ASSERT, page, elementLocator, ValidationHelper.ValidationType.POSITIVE, customLogMessage);
+    }
+
+    /**
+     * verifies that the webElement found using the provided driver and locator
+     * exists if verificationType is POSITIVE, or does not exist if verificationType is
+     * NEGATIVE.
+     *
+     * @param page           the current instance of Playwright
+     * @param elementLocator   the locator of the webElement under test (By xpath,
+     *                         id, selector, name ...etc)
+     * @param verificationType verificationType.POSITIVE, NEGATIVE
+     * @param customLogMessage a custom message that will appended to this step in
+     *                         the execution report
+     */
+    public static void verifyElementExists(Page page, String elementLocator, Verifications.VerificationType verificationType,
+                                           String... customLogMessage) {
+        ValidationHelper.validateElementExists(ValidationHelper.ValidationCategory.SOFT_ASSERT, page, elementLocator, ValidationHelper.ValidationType.valueOf(verificationType.toString()),
+                customLogMessage);
+    }
+
+    /**
+     * verifies webElement attribute equals expectedValue.
+     *
+     * @param page           the current instance of Playwright
+     * @param elementLocator        the locator of the webElement under test (By xpath,
+     *                              id, selector, name ...etc)
+     * @param elementAttributeType  the desired attribute type of the webElement under test
+     * @param expectedValue         the expected value (test data) of this verification
+     * @param customLogMessage      a custom message that will appended to this step in
+     *                              the execution report
+     */
+    public static void verifyElementAttribute(Page page, String elementLocator, ElementAttributeType elementAttributeType,
+                                              String expectedValue, String... customLogMessage) {
+        ValidationHelper.validateElementAttribute(ValidationHelper.ValidationCategory.SOFT_ASSERT, page, elementLocator, elementAttributeType.getValue(), expectedValue,
+                ValidationHelper.ValidationComparisonType.EQUALS, ValidationHelper.ValidationType.POSITIVE, customLogMessage);
+    }
+
+    /**
+     * verifies webElement attribute equals expectedValue.
+     *
+     * @param page           the current instance of Playwright
+     * @param elementLocator   the locator of the webElement under test (By xpath,
+     *                         id, selector, name ...etc)
+     * @param elementAttribute the desired attribute of the webElement under test
+     * @param expectedValue    the expected value (test data) of this verification
+     * @param customLogMessage a custom message that will appended to this step in
+     *                         the execution report
+     */
+    public static void verifyElementAttribute(Page page, String elementLocator, String elementAttribute,
+                                              String expectedValue, String... customLogMessage) {
+        ValidationHelper.validateElementAttribute(ValidationHelper.ValidationCategory.SOFT_ASSERT, page, elementLocator, elementAttribute, expectedValue,
+                ValidationHelper.ValidationComparisonType.EQUALS, ValidationHelper.ValidationType.POSITIVE, customLogMessage);
+    }
+
+    /**
+     * verifies webElement attribute equals expectedValue if verificationType is
+     * POSITIVE, or does not equal expectedValue if verificationType is NEGATIVE.
+     *
+     * @param page           the current instance of Playwright
+     * @param elementLocator             the locator of the webElement under test (By
+     *                                   xpath, id, selector, name ...etc)
+     * @param elementAttributeType       the desired attribute type of the webElement under
+     *                                   test
+     * @param expectedValue              the expected value (test data) of this
+     *                                   verification
+     * @param verificationComparisonType verificationComparisonType.EQUALS, CONTAINS,
+     *                                   MATCHES, CASE_INSENSITIVE
+     * @param verificationType           verificationType.POSITIVE, NEGATIVE
+     * @param customLogMessage           a custom message that will appended to this
+     *                                   step in the execution report
+     */
+    public static void verifyElementAttribute(Page page, String elementLocator, ElementAttributeType elementAttributeType,
+                                              String expectedValue, Verifications.VerificationComparisonType verificationComparisonType, Verifications.VerificationType verificationType,
+                                              String... customLogMessage) {
+        ValidationHelper.validateElementAttribute(ValidationHelper.ValidationCategory.SOFT_ASSERT, page, elementLocator, elementAttributeType.getValue(), expectedValue,
+                ValidationHelper.ValidationComparisonType.valueOf(verificationComparisonType.toString()),
+                ValidationHelper.ValidationType.valueOf(verificationType.toString()), customLogMessage);
+    }
+
+    /**
+     * verifies webElement attribute equals expectedValue if verificationType is
+     * POSITIVE, or does not equal expectedValue if verificationType is NEGATIVE.
+     *
+     * @param page           the current instance of Playwright
+     * @param elementLocator             the locator of the webElement under test (By
+     *                                   xpath, id, selector, name ...etc)
+     * @param elementAttribute           the desired attribute of the webElement under
+     *                                   test
+     * @param expectedValue              the expected value (test data) of this
+     *                                   verification
+     * @param verificationComparisonType verificationComparisonType.EQUALS, CONTAINS,
+     *                                   MATCHES, CASE_INSENSITIVE
+     * @param verificationType           verificationType.POSITIVE, NEGATIVE
+     * @param customLogMessage           a custom message that will appended to this
+     *                                   step in the execution report
+     */
+    public static void verifyElementAttribute(Page page, String elementLocator, String elementAttribute,
+                                              String expectedValue, Verifications.VerificationComparisonType verificationComparisonType, Verifications.VerificationType verificationType,
+                                              String... customLogMessage) {
+        ValidationHelper.validateElementAttribute(ValidationHelper.ValidationCategory.SOFT_ASSERT, page, elementLocator, elementAttribute, expectedValue,
+                ValidationHelper.ValidationComparisonType.valueOf(verificationComparisonType.toString()),
+                ValidationHelper.ValidationType.valueOf(verificationType.toString()), customLogMessage);
+    }
+
     /**
      * verifies webElement CSSProperty equals expectedValue.
      *
@@ -322,6 +440,85 @@ public class Verifications {
     public static void verifyBrowserAttribute(WebDriver driver, BrowserAttributeType browserAttributeType, String expectedValue,
                                               Verifications.VerificationComparisonType verificationComparisonType, Verifications.VerificationType verificationType, String... customLogMessage) {
         ValidationHelper.validateBrowserAttribute(ValidationHelper.ValidationCategory.SOFT_ASSERT, driver, browserAttributeType.getValue(), expectedValue, ValidationHelper.ValidationComparisonType.valueOf(verificationComparisonType.toString()),
+                ValidationHelper.ValidationType.valueOf(verificationType.toString()), customLogMessage);
+    }
+
+
+    /**
+     * verifies browser attribute equals expectedValue. Supports
+     * CurrentUrl, PageSource, Title, WindowHandle, WindowPosition, WindowSize
+     *
+     * @param page           the current instance of Playwright
+     * @param browserAttribute the desired attribute of the browser window
+     *                         under test
+     * @param expectedValue    the expected value (test data) of this
+     *                         verification
+     * @param customLogMessage a custom message that will appended to this
+     *                         step in the execution report
+     */
+    public static void verifyBrowserAttribute(Page page, String browserAttribute, String expectedValue,
+                                              String... customLogMessage) {
+        ValidationHelper.validateBrowserAttribute(ValidationHelper.ValidationCategory.SOFT_ASSERT, page, browserAttribute, expectedValue, ValidationHelper.ValidationComparisonType.EQUALS,
+                ValidationHelper.ValidationType.POSITIVE, customLogMessage);
+    }
+
+    /**
+     * verifies browser attribute equals expectedValue if verificationType is POSITIVE,
+     * or does not equal expectedValue if verificationType is NEGATIVE. Supports
+     * CurrentUrl, PageSource, Title, WindowHandle, WindowPosition, WindowSize
+     *
+     * @param page           the current instance of Playwright
+     * @param browserAttribute           the desired attribute of the browser window
+     *                                   under test
+     * @param expectedValue              the expected value (test data) of this
+     *                                   verification
+     * @param verificationComparisonType verificationComparisonType.EQUALS, CONTAINS,
+     *                                   MATCHES, CASE_INSENSITIVE
+     * @param verificationType           verificationType.POSITIVE, NEGATIVE
+     * @param customLogMessage           a custom message that will appended to this
+     *                                   step in the execution report
+     */
+    public static void verifyBrowserAttribute(Page page, String browserAttribute, String expectedValue,
+                                              Verifications.VerificationComparisonType verificationComparisonType, Verifications.VerificationType verificationType, String... customLogMessage) {
+        ValidationHelper.validateBrowserAttribute(ValidationHelper.ValidationCategory.SOFT_ASSERT, page, browserAttribute, expectedValue, ValidationHelper.ValidationComparisonType.valueOf(verificationComparisonType.toString()),
+                ValidationHelper.ValidationType.valueOf(verificationType.toString()), customLogMessage);
+    }
+
+    /**
+     * verifies browser attribute equals expectedValue. Supports
+     *
+     * @param page           the current instance of Playwright
+     * @param browserAttributeType  the desired attribute type of the browser window
+     *                              under test
+     * @param expectedValue         the expected value (test data) of this
+     *                              verification
+     * @param customLogMessage      a custom message that will appended to this
+     *                              step in the execution report
+     */
+    public static void verifyBrowserAttribute(Page page, BrowserAttributeType browserAttributeType, String expectedValue,
+                                              String... customLogMessage) {
+        ValidationHelper.validateBrowserAttribute(ValidationHelper.ValidationCategory.SOFT_ASSERT, page, browserAttributeType.getValue(), expectedValue, ValidationHelper.ValidationComparisonType.EQUALS,
+                ValidationHelper.ValidationType.POSITIVE, customLogMessage);
+    }
+
+    /**
+     * verifies browser attribute equals expectedValue if verificationType is POSITIVE,
+     * or does not equal expectedValue if verificationType is NEGATIVE. Supports
+     *
+     * @param page           the current instance of Playwright
+     * @param browserAttributeType       the desired attribute type of the browser window
+     *                                   under test
+     * @param expectedValue              the expected value (test data) of this
+     *                                   verification
+     * @param verificationComparisonType verificationComparisonType.EQUALS, CONTAINS,
+     *                                   MATCHES, CASE_INSENSITIVE
+     * @param verificationType           verificationType.POSITIVE, NEGATIVE
+     * @param customLogMessage           a custom message that will appended to this
+     *                                   step in the execution report
+     */
+    public static void verifyBrowserAttribute(Page page, BrowserAttributeType browserAttributeType, String expectedValue,
+                                              Verifications.VerificationComparisonType verificationComparisonType, Verifications.VerificationType verificationType, String... customLogMessage) {
+        ValidationHelper.validateBrowserAttribute(ValidationHelper.ValidationCategory.SOFT_ASSERT, page, browserAttributeType.getValue(), expectedValue, ValidationHelper.ValidationComparisonType.valueOf(verificationComparisonType.toString()),
                 ValidationHelper.ValidationType.valueOf(verificationType.toString()), customLogMessage);
     }
 
@@ -651,6 +848,69 @@ public class Verifications {
         ValidationHelper.validateEquals(ValidationHelper.ValidationCategory.SOFT_ASSERT, expectedValue,
                 RestActions.getResponseJSONValue(response, JSONPath), ValidationHelper.ValidationComparisonType.EQUALS,
                 ValidationHelper.ValidationType.POSITIVE, customLogMessage);
+    }
+
+
+    /**
+     * verifies that the current image of the target element matches the expected reference image. Uses OpenCV natively.
+     *
+     * @param page           the current instance of Playwright
+     * @param elementLocator   the locator of the webElement under test (By xpath,
+     *                         id, selector, name ...etc)
+     * @param customLogMessage a custom message that will appended to this step in
+     *                         *                         the execution report
+     */
+    public static void verifyElementMatches(Page page, String elementLocator,
+                                            String... customLogMessage) {
+        ValidationHelper.validateElementMatches(ValidationHelper.ValidationCategory.SOFT_ASSERT, page, elementLocator, ValidationHelper.VisualValidationEngine.EXACT_OPENCV, ValidationHelper.ValidationType.POSITIVE, customLogMessage);
+    }
+
+    /**
+     * verifies that the current image of the target element matches the expected reference image if verificationType is POSITIVE, or
+     * doesn't match it if verificationType is NEGATIVE. Uses OpenCV natively.
+     *
+     * @param page           the current instance of Playwright
+     * @param elementLocator   the locator of the webElement under test (By xpath,
+     *                         id, selector, name ...etc)
+     * @param verificationType verificationType.POSITIVE, NEGATIVE
+     * @param customLogMessage a custom message that will appended to this step in
+     *                         *                         the execution report
+     */
+    public static void verifyElementMatches(Page page, String elementLocator, Verifications.VerificationType verificationType,
+                                            String... customLogMessage) {
+        ValidationHelper.validateElementMatches(ValidationHelper.ValidationCategory.SOFT_ASSERT, page, elementLocator, ValidationHelper.VisualValidationEngine.EXACT_OPENCV, ValidationHelper.ValidationType.valueOf(verificationType.toString()), customLogMessage);
+    }
+
+    /**
+     * verifies that the current image of the target element matches the expected reference image using the desired VisualValidationEngine. Supports OpenCV natively, and Applitools Eyes. To use Eyes you need to configure your applitoolsApiKey in the path.properties file
+     *
+     * @param page           the current instance of Playwright
+     * @param elementLocator         the locator of the webElement under test (By xpath,
+     *                               id, selector, name ...etc)
+     * @param visualValidationEngine VisualValidationEngine.EXACT_OPENCV, EXACT_EYES, STRICT_EYES, CONTENT_EYES, LAYOUT_EYES
+     * @param customLogMessage       a custom message that will appended to this step in
+     *                               *                         the execution report
+     */
+    public static void verifyElementMatches(Page page, String elementLocator, Verifications.VisualValidationEngine visualValidationEngine,
+                                            String... customLogMessage) {
+        ValidationHelper.validateElementMatches(ValidationHelper.ValidationCategory.SOFT_ASSERT, page, elementLocator, ValidationHelper.VisualValidationEngine.valueOf(visualValidationEngine.name()), ValidationHelper.ValidationType.POSITIVE, customLogMessage);
+    }
+
+    /**
+     * verifies that the current image of the target element matches the expected reference image using the desired VisualValidationEngine if verificationType is POSITIVE, or
+     * doesn't match it if verificationType is NEGATIVE. Supports OpenCV natively, and Applitools Eyes. To use Eyes you need to configure your applitoolsApiKey in the path.properties file
+     *
+     * @param page           the current instance of Playwright
+     * @param elementLocator         the locator of the webElement under test (By xpath,
+     *                               id, selector, name ...etc)
+     * @param visualValidationEngine VisualValidationEngine.EXACT_OPENCV, EXACT_EYES, STRICT_EYES, CONTENT_EYES, LAYOUT_EYES
+     * @param verificationType       verificationType.POSITIVE, NEGATIVE
+     * @param customLogMessage       a custom message that will appended to this step in
+     *                               *                         the execution report
+     */
+    public static void verifyElementMatches(Page page, String elementLocator, Verifications.VisualValidationEngine visualValidationEngine, Verifications.VerificationType verificationType,
+                                            String... customLogMessage) {
+        ValidationHelper.validateElementMatches(ValidationHelper.ValidationCategory.SOFT_ASSERT, page, elementLocator, ValidationHelper.VisualValidationEngine.valueOf(visualValidationEngine.name()), ValidationHelper.ValidationType.valueOf(verificationType.toString()), customLogMessage);
     }
 
     public enum VerificationType {
