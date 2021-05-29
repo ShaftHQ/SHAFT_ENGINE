@@ -61,6 +61,7 @@ public class RestActions implements ShaftDriver {
     private final Map<String, String> sessionHeaders;
     private final Map<String, Object> sessionCookies;
     private String headerAuthorization;
+    private static final String GRAPHQL_END_POINT = "graphql";
 
     public RestActions(String serviceURI) {
         initializeSystemProperties(System.getProperty("apiConnectionTimeout") == null);
@@ -1117,6 +1118,64 @@ public class RestActions implements ShaftDriver {
         }
         return "";
     }
+
+    /**
+     * Perform Graphql Request using the "Query or Mutation" only
+     *
+     * @param base_URI The Base URI without "graphql". example: "https://api.example.com/"
+     * @param query
+     * @return Graphql Response
+     */
+    @SuppressWarnings("unchecked")
+    public static Response sendGraphqlRequest(String base_URI, String query) {
+
+        org.json.simple.JSONObject requestBody = new org.json.simple.JSONObject();
+        requestBody.put("query", query);
+
+        return buildNewRequest(base_URI, GRAPHQL_END_POINT, RestActions.RequestType.POST).setRequestBody(requestBody)
+                .setContentType(ContentType.JSON).performRequest();
+    }
+    /**
+     * Perform Graphql Request using the "Query or Mutation" and the Variables
+     *
+     * @param base_URI The Base URI without "graphql". example: "https://api.example.com/"
+     * @param query
+     * @param variables
+     * @return Graphql Response
+     */
+    @SuppressWarnings("unchecked")
+    public static Response sendGraphqlRequest(String base_URI, String query, String variables) {
+
+        org.json.simple.JSONObject requestBody = new org.json.simple.JSONObject();
+        requestBody.put("query", query);
+        requestBody.put("variables", variables);
+
+        return buildNewRequest(base_URI, GRAPHQL_END_POINT, RestActions.RequestType.POST).setRequestBody(requestBody)
+                .setContentType(ContentType.JSON).performRequest();
+    }
+
+    /**
+     * Perform Graphql Request using the "Query or Mutation", Variables, and fragments
+     *
+     * @param base_URI The Base URI without "graphql". example: "https://api.example.com/"
+     * @param query
+     * @param variables
+     * @param fragment
+     * @return Graphql Response
+     */
+    @SuppressWarnings("unchecked")
+    public static Response sendGraphqlRequest(String base_URI, String query, String variables, String fragment) {
+
+        org.json.simple.JSONObject requestBody = new org.json.simple.JSONObject();
+        requestBody.put("query", query);
+        requestBody.put("variables", variables);
+        requestBody.put("fragment", fragment);
+
+        return buildNewRequest(base_URI, GRAPHQL_END_POINT, RestActions.RequestType.POST).setRequestBody(requestBody)
+                .setContentType(ContentType.JSON).performRequest();
+    }
+
+
 
     public enum ComparisonType {
         EQUALS, CONTAINS
