@@ -1,8 +1,8 @@
 package com.shaft.gui.browser;
 
 import com.shaft.driver.DriverFactoryHelper;
-import com.shaft.gui.element.WebDriverElementActions;
 import com.shaft.gui.element.JavaScriptWaitManager;
+import com.shaft.gui.element.WebDriverElementActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManager;
@@ -495,7 +495,7 @@ public class WebDriverBrowserActions {
                 ReportManager.logDiscrete("skipping window maximization due to unknown error, marking step as passed.");
             }
         }
-        passAction(driver, "New screen size is now: " + currentWindowSize.toString());
+        passAction(driver, "New screen size is now: " + currentWindowSize);
     }
     
     /**
@@ -547,7 +547,7 @@ public class WebDriverBrowserActions {
             ReportManager.logDiscrete("skipping window resizing due to unknown error, marking step as passed.");
         }
 
-        passAction(driver, "New screen size is now: " + currentWindowSize.toString());
+        passAction(driver, "New screen size is now: " + currentWindowSize);
     }
     
     /**
@@ -662,7 +662,12 @@ public class WebDriverBrowserActions {
             failAction(driver, targetUrl, rootCauseException);
         }
 
+        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckNavigationWasSuccessful")))) {
+            checkNavigationWasSuccesssful(driver, initialURL, targetUrl, targetUrlAfterRedirection);
+        }
+    }
 
+    private static void checkNavigationWasSuccesssful(WebDriver driver, String initialURL, String targetUrl, String targetUrlAfterRedirection) {
         if (!targetUrl.equals(targetUrlAfterRedirection)) {
             try {
                 (new WebDriverWait(driver, NAVIGATION_TIMEOUT_INTEGER))
@@ -681,7 +686,6 @@ public class WebDriverBrowserActions {
                 failAction(driver, "Waited for " + NAVIGATION_TIMEOUT_INTEGER + " seconds to navigate to [" + targetUrlAfterRedirection + "] but ended up with [" + driver.getCurrentUrl() + "].", rootCauseException);
             }
         }
-
     }
 
     private static Dimension attemptMaximizeUsingSeleniumWebDriver(WebDriver driver, String executionAddress,
