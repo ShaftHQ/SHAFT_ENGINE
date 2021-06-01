@@ -1435,9 +1435,17 @@ public class WebDriverElementActions {
         if (DriverFactoryHelper.isMobileNativeExecution()) {
             return TextDetectionStrategy.TEXT;
         }
-        String text = driver.findElement(elementLocator).getText().trim();
-        String content = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.CONTENT.getValue()).trim();
+        String text = driver.findElement(elementLocator).getText();
+        String content = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.CONTENT.getValue());
         String value = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.VALUE.getValue());
+
+        if (text != null) {
+            text = text.trim();
+        }
+
+        if (content != null) {
+            content = content.trim();
+        }
 
         if (value != null) {
             value = value.trim();
