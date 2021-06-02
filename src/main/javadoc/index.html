@@ -623,6 +623,32 @@
 
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
+                                        <label class="col-md-4 control-label" for="forceCheckNavigationWasSuccessful">Force
+                                            check
+                                            navigation was successful
+                                        </label>
+                                        <div class="col-md-4" id="forceCheckNavigationWasSuccessful">
+                                            <div class="radio-inline">
+                                                <label for="forceCheckNavigationWasSuccessful-0">
+                                                    <input checked="checked" id="forceCheckNavigationWasSuccessful-0"
+                                                           name="forceCheckNavigationWasSuccessful" type="radio"
+                                                           value="true">
+                                                    Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="forceCheckNavigationWasSuccessful-1">
+                                                    <input id="forceCheckNavigationWasSuccessful-1"
+                                                           name="forceCheckNavigationWasSuccessful" type="radio"
+                                                           value="false">
+                                                    Disabled
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
                                         <label class="col-md-4 control-label" for="maximumPerformanceMode">Maximum
                                             Performance
                                             Mode
@@ -1913,6 +1939,7 @@
         const forceCheckForElementVisibility = $("input[name=forceCheckForElementVisibility]:checked").val();
         const forceCheckElementLocatorIsUnique = $("input[name=forceCheckElementLocatorIsUnique]:checked").val();
         const forceCheckTextWasTypedCorrectly = $("input[name=forceCheckTextWasTypedCorrectly]:checked").val();
+        const forceCheckNavigationWasSuccessful = $("input[name=forceCheckNavigationWasSuccessful]:checked").val();
         const maximumPerformanceMode = $("input[name=maximumPerformanceMode]:checked").val();
         const skipTestsWithLinkedIssues = $("input[name=skipTestsWithLinkedIssues]:checked").val();
         const aiPoweredSelfHealingElementIdentification = $("input[name=aiPoweredSelfHealingElementIdentification]:checked").val();
@@ -1924,6 +1951,7 @@
             'forceCheckForElementVisibility=' + forceCheckForElementVisibility + '\r\n' +
             'forceCheckElementLocatorIsUnique=' + forceCheckElementLocatorIsUnique + '\r\n' +
             'forceCheckTextWasTypedCorrectly=' + forceCheckTextWasTypedCorrectly + '\r\n' +
+            'forceCheckNavigationWasSuccessful=' + forceCheckNavigationWasSuccessful + '\r\n' +
             'maximumPerformanceMode=' + maximumPerformanceMode + '\r\n' +
             'skipTestsWithLinkedIssues=' + skipTestsWithLinkedIssues + '\r\n' +
             'aiPoweredSelfHealingElementIdentification=' + aiPoweredSelfHealingElementIdentification + '\r\n';

@@ -1,33 +1,16 @@
 package com.shaft.gui.element;
 
-import java.awt.HeadlessException;
-import java.awt.Toolkit;
-import java.awt.datatransfer.DataFlavor;
-import java.awt.datatransfer.StringSelection;
-import java.awt.datatransfer.UnsupportedFlavorException;
-import java.io.IOException;
-import java.nio.file.FileSystems;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
+import com.shaft.cli.FileActions;
+import com.shaft.driver.DriverFactoryHelper;
+import com.shaft.gui.image.ImageProcessingActions;
+import com.shaft.gui.image.ScreenshotManager;
+import com.shaft.gui.video.RecordManager;
+import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
+import io.appium.java_client.AppiumDriver;
 import org.opencv.imgproc.Imgproc;
-import org.openqa.selenium.By;
-import org.openqa.selenium.ElementNotInteractableException;
-import org.openqa.selenium.InvalidArgumentException;
-import org.openqa.selenium.InvalidElementStateException;
-import org.openqa.selenium.Keys;
 import org.openqa.selenium.NoSuchElementException;
-import org.openqa.selenium.StaleElementReferenceException;
-import org.openqa.selenium.TimeoutException;
-import org.openqa.selenium.UnsupportedCommandException;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebDriverException;
-import org.openqa.selenium.WebElement;
+import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.remote.UnreachableBrowserException;
 import org.openqa.selenium.support.ui.FluentWait;
@@ -38,14 +21,15 @@ import org.sikuli.script.Pattern;
 import org.sikuli.script.Screen;
 import org.testng.Assert;
 
-import com.shaft.cli.FileActions;
-import com.shaft.driver.DriverFactoryHelper;
-import com.shaft.gui.image.ImageProcessingActions;
-import com.shaft.gui.image.ScreenshotManager;
-import com.shaft.gui.video.RecordManager;
-import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.ReportManagerHelper;
-import io.appium.java_client.AppiumDriver;
+import java.awt.*;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.StringSelection;
+import java.awt.datatransfer.UnsupportedFlavorException;
+import java.io.IOException;
+import java.nio.file.FileSystems;
+import java.time.Duration;
+import java.util.List;
+import java.util.*;
 
 public class WebDriverElementActions {
     private static final String AI_REFERENCE_FILE_NAME = "aiAidedElementIdentificationReferenceDB.properties";
@@ -1451,9 +1435,17 @@ public class WebDriverElementActions {
         if (DriverFactoryHelper.isMobileNativeExecution()) {
             return TextDetectionStrategy.TEXT;
         }
-        String text = driver.findElement(elementLocator).getText().trim();
-        String content = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.CONTENT.getValue()).trim();
+        String text = driver.findElement(elementLocator).getText();
+        String content = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.CONTENT.getValue());
         String value = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.VALUE.getValue());
+
+        if (text != null) {
+            text = text.trim();
+        }
+
+        if (content != null) {
+            content = content.trim();
+        }
 
         if (value != null) {
             value = value.trim();
@@ -1749,8 +1741,13 @@ public class WebDriverElementActions {
             // Override current locator with the aiGeneratedElementLocator
             internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
 
-            TextDetectionStrategy successfulTextLocationStrategy = determineSuccessfulTextLocationStrategy(driver,
-                    internalElementLocator);
+            TextDetectionStrategy successfulTextLocationStrategy = TextDetectionStrategy.UNDEFINED;
+
+            if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckTextWasTypedCorrectly")))) {
+                successfulTextLocationStrategy = determineSuccessfulTextLocationStrategy(driver,
+                        internalElementLocator);
+            }
+
             if (!successfulTextLocationStrategy.equals(TextDetectionStrategy.UNDEFINED)) {
                 clearBeforeTyping(driver, internalElementLocator, successfulTextLocationStrategy);
             }
