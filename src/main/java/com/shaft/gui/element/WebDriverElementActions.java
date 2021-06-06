@@ -1687,6 +1687,9 @@ public class WebDriverElementActions {
             default:
                 break;
         }
+        if (actualText == null) {
+            return "";
+        }
         return actualText;
     }
 
