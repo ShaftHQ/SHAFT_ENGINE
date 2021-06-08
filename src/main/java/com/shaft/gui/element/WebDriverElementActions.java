@@ -1417,18 +1417,8 @@ public class WebDriverElementActions {
             updatedSuccessfulTextLocationStrategy = determineSuccessfulTextLocationStrategy(driver,
                     elementLocator);
         }
-        String actualText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator,
+        return readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator,
                 updatedSuccessfulTextLocationStrategy);
-
-        if (expectedText.equals(actualText) || OBFUSCATED_STRING.repeat(expectedText.length()).equals(actualText)) {
-            return expectedText;
-        } else {
-            // attempt once to type using javascript then confirm typing was successful
-            // again
-        	ElementActionsHelper.setValueUsingJavascript(driver, elementLocator, expectedText);
-            actualText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator, TextDetectionStrategy.VALUE);
-            return actualText;
-        }
     }
 
     private static TextDetectionStrategy determineSuccessfulTextLocationStrategy(WebDriver driver, By elementLocator) {
@@ -1439,24 +1429,12 @@ public class WebDriverElementActions {
         String content = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.CONTENT.getValue());
         String value = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.VALUE.getValue());
 
-        if (text != null) {
-            text = text.trim();
-        }
-
-        if (content != null) {
-            content = content.trim();
-        }
-
-        if (value != null) {
-            value = value.trim();
-        }
-
         TextDetectionStrategy successfulTextLocationStrategy;
-        if (!"".equals(text)) {
+        if (text != null && !"".equals(text.trim())) {
             successfulTextLocationStrategy = TextDetectionStrategy.TEXT;
-        } else if (!"".equals(content)) {
+        } else if (content != null && !"".equals(content.trim())) {
             successfulTextLocationStrategy = TextDetectionStrategy.CONTENT;
-        } else if (value != null && !"".equals(value)) {
+        } else if (value != null && !"".equals(value.trim())) {
             successfulTextLocationStrategy = TextDetectionStrategy.VALUE;
         } else {
             successfulTextLocationStrategy = TextDetectionStrategy.UNDEFINED;
@@ -1673,24 +1651,15 @@ public class WebDriverElementActions {
 
     private static String readTextBasedOnSuccessfulLocationStrategy(WebDriver driver, By elementLocator,
                                                                     TextDetectionStrategy successfulTextLocationStrategy) {
-        String actualText = "";
         switch (successfulTextLocationStrategy) {
             case TEXT:
-                actualText = driver.findElement(elementLocator).getText();
-                break;
+                return driver.findElement(elementLocator).getText();
             case CONTENT:
-                actualText = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.CONTENT.getValue());
-                break;
+                return driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.CONTENT.getValue());
             case VALUE:
-                actualText = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.VALUE.getValue());
-                break;
-            default:
-                break;
+                return driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.VALUE.getValue());
         }
-        if (actualText == null) {
-            return "";
-        }
-        return actualText;
+        return "";
     }
 
     private static String reportActionResult(WebDriver driver, String actionName, String testData, By elementLocator,
@@ -1758,7 +1727,20 @@ public class WebDriverElementActions {
                 performType(driver, internalElementLocator, targetText);
             }
             if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckTextWasTypedCorrectly")))) {
-                return confirmTypingWasSuccessful(driver, internalElementLocator, targetText, successfulTextLocationStrategy);
+                String actualText = confirmTypingWasSuccessful(driver, internalElementLocator, targetText, successfulTextLocationStrategy);
+                if (targetText.equals(actualText) || OBFUSCATED_STRING.repeat(targetText.length()).equals(actualText)) {
+                    return targetText;
+                } else {
+                    // attempt once to type using javascript then confirm typing was successful
+                    // again
+                    ElementActionsHelper.setValueUsingJavascript(driver, elementLocator, targetText);
+                    var textAfterSettingValueUsingJavascript = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator, TextDetectionStrategy.VALUE);
+
+                    if ("".equals(textAfterSettingValueUsingJavascript) && successfulTextLocationStrategy.equals(TextDetectionStrategy.UNDEFINED)) {
+                        return targetText;
+                    }
+                    return textAfterSettingValueUsingJavascript;
+                }
             } else {
                 return targetText;
             }
