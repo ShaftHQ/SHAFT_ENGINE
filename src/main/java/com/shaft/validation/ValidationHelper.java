@@ -10,6 +10,7 @@ import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.tools.support.JavaActions;
+import com.shaft.validation.ValidationEnums.*;
 import io.restassured.response.Response;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -48,7 +49,9 @@ class ValidationHelper {
 
     protected static void validateFail(ValidationCategory validationCategory, String... optionalCustomLogMessage) {
         for (String customMessage : optionalCustomLogMessage) {
-            ReportManager.log(customMessage + "...");
+            if (customMessage != null && !"".equals(customMessage.trim())) {
+                ReportManager.log(customMessage + "...");
+            }
         }
         fail(validationCategory, null, null, null, null, null);
     }
@@ -58,7 +61,9 @@ class ValidationHelper {
                                          String... optionalCustomLogMessage) {
 
         for (String customMessage : optionalCustomLogMessage) {
-            ReportManager.log(customMessage + "...");
+            if (customMessage != null && !"".equals(customMessage.trim())) {
+                ReportManager.log(customMessage + "...");
+            }
         }
 
         if (JavaActions.compareTwoObjects(expectedValue, actualValue, validationComparisonType.getValue(),
@@ -74,7 +79,9 @@ class ValidationHelper {
     protected static void validateNull(ValidationCategory validationCategory, Object object, ValidationType validationType, String... optionalCustomLogMessage) {
 
         for (String customMessage : optionalCustomLogMessage) {
-            ReportManager.log(customMessage + "...");
+            if (customMessage != null && !"".equals(customMessage.trim())) {
+                ReportManager.log(customMessage + "...");
+            }
         }
 
         if (validationType.getValue()) {
@@ -97,7 +104,9 @@ class ValidationHelper {
     protected static void validateElementExists(ValidationCategory validationCategory, Page page, String elementLocator, ValidationType validationType,
             String... optionalCustomLogMessage) {
     	for (String customMessage : optionalCustomLogMessage) {
-            ReportManager.log(customMessage + "...");
+            if (customMessage != null && !"".equals(customMessage.trim())) {
+                ReportManager.log(customMessage + "...");
+            }
         }
         String[] expectedElementStates = {"Element Should Exist", "Element Should not Exist"};
         String[] actualElementStates = {"Element Exists", "Element Doesn't Exists",
@@ -137,7 +146,9 @@ class ValidationHelper {
                                                 String... optionalCustomLogMessage) {
 
         for (String customMessage : optionalCustomLogMessage) {
-            ReportManager.log(customMessage + "...");
+            if (customMessage != null && !"".equals(customMessage.trim())) {
+                ReportManager.log(customMessage + "...");
+            }
         }
 
         int customAttempts = ATTEMPTS_ELEMENTNOTFOUNDEXCEPTION;
@@ -185,8 +196,10 @@ class ValidationHelper {
 			String... optionalCustomLogMessage) {
 
 		for (String customMessage : optionalCustomLogMessage) {
-			ReportManager.log(customMessage + "...");
-		}
+            if (customMessage != null && !"".equals(customMessage.trim())) {
+                ReportManager.log(customMessage + "...");
+            }
+        }
 
 		String[] expectedAttributeStates = { "Value Should be", "Value Should not be" };
 		String attributeSeparator = "' for the '";
@@ -207,15 +220,15 @@ class ValidationHelper {
 		} catch (AssertionError e) {
 			// force fail due to upstream failure
 			if (validationType.getValue()) {
-				fail(validationCategory,
-						expectedAttributeStates[0] + " '" + expectedValue + attributeSeparator + elementAttribute
-								+ locatorSeparator + elementLocator.toString() + "'",
-						"Failed to read the desired element attribute", validationComparisonType, validationType, e);
+                fail(validationCategory,
+                        expectedAttributeStates[0] + " '" + expectedValue + attributeSeparator + elementAttribute
+                                + locatorSeparator + elementLocator + "'",
+                        "Failed to read the desired element attribute", validationComparisonType, validationType, e);
 			} else {
-				fail(validationCategory,
-						expectedAttributeStates[1] + " '" + expectedValue + attributeSeparator + elementAttribute
-								+ locatorSeparator + elementLocator.toString() + "'",
-						"Failed to read the desired element attribute", validationComparisonType, validationType, e);
+                fail(validationCategory,
+                        expectedAttributeStates[1] + " '" + expectedValue + attributeSeparator + elementAttribute
+                                + locatorSeparator + elementLocator + "'",
+                        "Failed to read the desired element attribute", validationComparisonType, validationType, e);
 			}
 			return;
 		}
@@ -235,7 +248,9 @@ class ValidationHelper {
                                                    String... optionalCustomLogMessage) {
 
         for (String customMessage : optionalCustomLogMessage) {
-            ReportManager.log(customMessage + "...");
+            if (customMessage != null && !"".equals(customMessage.trim())) {
+                ReportManager.log(customMessage + "...");
+            }
         }
 
         String[] expectedAttributeStates = {"Value Should be", "Value Should not be"};
@@ -283,7 +298,9 @@ class ValidationHelper {
                                                      String... optionalCustomLogMessage) {
 
         for (String customMessage : optionalCustomLogMessage) {
-            ReportManager.log(customMessage + "...");
+            if (customMessage != null && !"".equals(customMessage.trim())) {
+                ReportManager.log(customMessage + "...");
+            }
         }
 
         String[] expectedAttributeStates = {"Value Should be", "Value Should not be"};
@@ -311,7 +328,9 @@ class ValidationHelper {
                                                    String... optionalCustomLogMessage) {
 
         for (String customMessage : optionalCustomLogMessage) {
-            ReportManager.log(customMessage + "...");
+            if (customMessage != null && !"".equals(customMessage.trim())) {
+                ReportManager.log(customMessage + "...");
+            }
         }
 
         String[] expectedAttributeStates = {"Value Should be", "Value Should not be"};
@@ -360,7 +379,9 @@ class ValidationHelper {
                                                    String... optionalCustomLogMessage) {
 
         for (String customMessage : optionalCustomLogMessage) {
-            ReportManager.log(customMessage + "...");
+            if (customMessage != null && !"".equals(customMessage.trim())) {
+                ReportManager.log(customMessage + "...");
+            }
         }
 
         String[] expectedAttributeStates = {"Value Should be", "Value Should not be"};
@@ -403,14 +424,16 @@ class ValidationHelper {
     }
 
     protected static void validateComparativeRelation(ValidationCategory validationCategory, Number expectedValue, Number actualValue,
-                                                      ComparativeRelationType comparativeRelationType, ValidationType validationType,
+                                                      NumbersComparativeRelation numbersComparativeRelation, ValidationType validationType,
                                                       String... optionalCustomLogMessage) {
 
         for (String customMessage : optionalCustomLogMessage) {
-            ReportManager.log(customMessage + "...");
+            if (customMessage != null && !"".equals(customMessage.trim())) {
+                ReportManager.log(customMessage + "...");
+            }
         }
 
-        Boolean comparisonState = switch (comparativeRelationType.getValue()) {
+        Boolean comparisonState = switch (numbersComparativeRelation.getValue()) {
             case ">" -> actualValue.floatValue() > expectedValue.floatValue();
             case ">=" -> actualValue.floatValue() >= expectedValue.floatValue();
             case "<" -> actualValue.floatValue() < expectedValue.floatValue();
@@ -420,15 +443,17 @@ class ValidationHelper {
         };
 
         if ((ValidationType.POSITIVE.equals(validationType) && comparisonState.equals(true)) || (ValidationType.NEGATIVE.equals(validationType) && comparisonState.equals(false))) {
-            pass(validationCategory, expectedValue, actualValue, comparativeRelationType, validationType);
+            pass(validationCategory, expectedValue, actualValue, numbersComparativeRelation, validationType);
         } else {
-            fail(validationCategory, expectedValue, actualValue, comparativeRelationType, validationType);
+            fail(validationCategory, expectedValue, actualValue, numbersComparativeRelation, validationType);
         }
     }
 
     protected static void validateTrue(ValidationCategory validationCategory, Boolean conditionalStatement, ValidationType validationType, String... optionalCustomLogMessage) {
         for (String customMessage : optionalCustomLogMessage) {
-            ReportManager.log(customMessage + "...");
+            if (customMessage != null && !"".equals(customMessage.trim())) {
+                ReportManager.log(customMessage + "...");
+            }
         }
 
         Boolean expectedValue = false;
@@ -446,7 +471,9 @@ class ValidationHelper {
     protected static void validateFileExists(ValidationCategory validationCategory, String fileFolderName, String fileName, int numberOfRetries,
                                              ValidationType validationType, String... optionalCustomLogMessage) {
         for (String customMessage : optionalCustomLogMessage) {
-            ReportManager.log(customMessage + "...");
+            if (customMessage != null && !"".equals(customMessage.trim())) {
+                ReportManager.log(customMessage + "...");
+            }
         }
 
         boolean expectedValue = ValidationType.POSITIVE.equals(validationType);
@@ -476,7 +503,9 @@ class ValidationHelper {
     protected static void validateElementMatches(ValidationCategory validationCategory, WebDriver driver, By elementLocator, VisualValidationEngine visualValidationEngine, ValidationType validationType,
                                                  String... optionalCustomLogMessage) {
         for (String customMessage : optionalCustomLogMessage) {
-            ReportManager.log(customMessage + "...");
+            if (customMessage != null && !"".equals(customMessage.trim())) {
+                ReportManager.log(customMessage + "...");
+            }
         }
 
         StringBuilder reportedExpectedResult = new StringBuilder();
@@ -520,7 +549,9 @@ class ValidationHelper {
     protected static void validateElementMatches(ValidationCategory validationCategory, Page page, String elementLocator, VisualValidationEngine visualValidationEngine, ValidationType validationType,
                                                  String... optionalCustomLogMessage) {
         for (String customMessage : optionalCustomLogMessage) {
-            ReportManager.log(customMessage + "...");
+            if (customMessage != null && !"".equals(customMessage.trim())) {
+                ReportManager.log(customMessage + "...");
+            }
         }
 
         StringBuilder reportedExpectedResult = new StringBuilder();
@@ -564,7 +595,9 @@ class ValidationHelper {
     protected static void validateJSONFileContent(ValidationCategory validationCategory, Response response, String referenceJsonFilePath,
                                                   RestActions.ComparisonType comparisonType, String jsonPathToTargetArray, ValidationType validationType, String... optionalCustomLogMessage) {
         for (String customMessage : optionalCustomLogMessage) {
-            ReportManager.log(customMessage + "...");
+            if (customMessage != null && !"".equals(customMessage.trim())) {
+                ReportManager.log(customMessage + "...");
+            }
         }
 
         boolean expectedValue = ValidationType.POSITIVE.equals(validationType);
@@ -658,12 +691,12 @@ class ValidationHelper {
 
         // get validation method name
         String validationMethodName = (new Throwable()).getStackTrace()[2].getMethodName();
-        String callingAssertionOrVerificationMethodName = (new Throwable()).getStackTrace()[3].getMethodName();
+//        String callingAssertionOrVerificationMethodName = (new Throwable()).getStackTrace()[3].getMethodName();
 
         if (validationMethodName.contains("reportValidationResult")) {
-            callingAssertionOrVerificationMethodName = (new Throwable()).getStackTrace()[4].getMethodName();
+            validationMethodName = (new Throwable()).getStackTrace()[3].getMethodName();
+//            validationMethodName = callingAssertionOrVerificationMethodName;
         }
-        validationMethodName = callingAssertionOrVerificationMethodName;
 
         validationMethodName = validationMethodName.substring(0, 1).toUpperCase() + validationMethodName.substring(1);
         if (validationMethodName.equals("ValidateFail")) {
@@ -705,7 +738,7 @@ class ValidationHelper {
         }
 
         // create a screenshot attachment if needed for webdriver
-        if (expectedValue != null && expectedValue.toLowerCase().contains("locator")) {
+        //if (expectedValue != null && expectedValue.toLowerCase().contains("locator")) {
             if (lastUsedDriver != null && lastUsedElementLocator != null) {
                 attachments.add(ScreenshotManager.captureScreenShot(lastUsedDriver, lastUsedElementLocator,
                         validationMethodName, validationState.getValue()));
@@ -716,7 +749,7 @@ class ValidationHelper {
             // reset lastUsed variables
             lastUsedDriver = null;
             lastUsedElementLocator = null;
-        }
+        //}
         
      // create a screenshot attachment if needed for Playwright
         if (expectedValue != null && expectedValue.toLowerCase().contains("locator")) {
@@ -859,74 +892,4 @@ class ValidationHelper {
             }
         }
     }
-
-    protected enum ValidationType {
-        POSITIVE(true), NEGATIVE(false);
-
-        private final Boolean value;
-
-        ValidationType(Boolean type) {
-            this.value = type;
-        }
-
-        protected boolean getValue() {
-            return value;
-        }
-    }
-
-    protected enum ValidationComparisonType {
-        EQUALS(1), CONTAINS(3), MATCHES(2), CASE_INSENSITIVE(4);
-
-        private final int value;
-
-        ValidationComparisonType(int type) {
-            this.value = type;
-        }
-
-        protected int getValue() {
-            return value;
-        }
-    }
-
-    protected enum VisualValidationEngine {
-        EXACT_OPENCV,
-        EXACT_EYES,
-        STRICT_EYES,
-        CONTENT_EYES,
-        LAYOUT_EYES
-    }
-
-    protected enum ValidationCategory {
-        HARD_ASSERT,
-        SOFT_ASSERT
-    }
-
-    protected enum ComparativeRelationType {
-        GREATER_THAN(">"), GREATER_THAN_OR_EQUALS(">="), LESS_THAN("<"), LESS_THAN_OR_EQUALS("<="), EQUALS("==");
-
-        private final String value;
-
-        ComparativeRelationType(String type) {
-            this.value = type;
-        }
-
-        protected String getValue() {
-            return value;
-        }
-    }
-
-    private enum ValidationState {
-        PASSED(true), FAILED(false);
-
-        private final Boolean value;
-
-        ValidationState(Boolean type) {
-            this.value = type;
-        }
-
-        protected boolean getValue() {
-            return value;
-        }
-    }
-
 }

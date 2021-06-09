@@ -648,11 +648,16 @@ public class WebDriverElementActions {
 
             String elementText = driver.findElement(internalElementLocator).getText();
 
-            if (elementText.trim().equals("") && !DriverFactoryHelper.isMobileNativeExecution()) {
+            if ((elementText == null || elementText.trim().equals("")) && !DriverFactoryHelper.isMobileNativeExecution()) {
                 elementText = driver.findElement(internalElementLocator).getAttribute(TextDetectionStrategy.CONTENT.getValue());
             }
-            if (elementText.trim().equals("") && !DriverFactoryHelper.isMobileNativeExecution()) {
+
+            if ((elementText == null || elementText.trim().equals("")) && !DriverFactoryHelper.isMobileNativeExecution()) {
                 elementText = driver.findElement(internalElementLocator).getAttribute(TextDetectionStrategy.VALUE.getValue());
+            }
+
+            if (elementText == null) {
+                elementText = "";
             }
             passAction(driver, internalElementLocator, elementText);
             return elementText;
@@ -1190,7 +1195,7 @@ public class WebDriverElementActions {
     }
 
     /**
-     * Types the required file path into an input[type='file'] button, to
+     * ValidationEnums the required file path into an input[type='file'] button, to
      * successfully upload the target file.
      *
      * @param driver           the current instance of Selenium webdriver
