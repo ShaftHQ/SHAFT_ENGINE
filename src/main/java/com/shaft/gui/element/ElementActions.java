@@ -1,14 +1,13 @@
 package com.shaft.gui.element;
 
-import java.util.List;
-import java.util.Map;
-
+import com.microsoft.playwright.Page;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
 import org.sikuli.script.App;
 
-import com.microsoft.playwright.Page;
+import java.util.List;
+import java.util.Map;
 
 public class ElementActions {
 
@@ -570,7 +569,7 @@ public class ElementActions {
 	}
 
 	/**
-	 * Types the required file path into an input[type='file'] button, to
+	 * ValidationEnums the required file path into an input[type='file'] button, to
 	 * successfully upload the target file.
 	 *
 	 * @param driver           the current instance of Selenium webdriver
@@ -983,7 +982,7 @@ public class ElementActions {
 	}
 
 	/**
-	 * Types the required file path into an input[type='file'] button, to
+	 * ValidationEnums the required file path into an input[type='file'] button, to
 	 * successfully upload the target file.
 	 *
 	 * @param elementLocator   the locator of the webElement under test (By xpath,
