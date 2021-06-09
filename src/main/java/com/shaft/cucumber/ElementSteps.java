@@ -1,11 +1,10 @@
 package com.shaft.cucumber;
 
-import java.util.Objects;
-
+import io.cucumber.java.en.When;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
-import io.cucumber.java.en.When;
+import java.util.Objects;
 
 public class ElementSteps {
     private final ThreadLocal<WebDriver> driver;
@@ -85,7 +84,7 @@ public class ElementSteps {
     }
 
     /**
-     * Types the required file path into an input[type='file'] button, to
+     * ValidationEnums the required file path into an input[type='file'] button, to
      * successfully upload the target file.
      *
      * @param absoluteFilePath the full path to the file that needs to be uploaded
