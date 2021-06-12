@@ -167,13 +167,13 @@ public class PlayWrightElementActions {
      */
     public static void dragAndDropByOffset(Page page, String sourceElementLocator, int xOffset, int yOffset) {
         if (identifyUniqueElement(page, sourceElementLocator)) {
-        	var sourceElementBox = page.querySelector(sourceElementLocator).boundingBox();
-        	var startLocation = String.valueOf(sourceElementBox);
+            var sourceElementBox = page.querySelector(sourceElementLocator).boundingBox();
+            var startLocation = String.valueOf(sourceElementBox);
 
-        	page.mouse().move(sourceElementBox.x +(sourceElementBox.width/2), sourceElementBox.y+(sourceElementBox.height/2));
-        	page.mouse().down(new DownOptions().setButton(MouseButton.LEFT));
-        	page.mouse().move(yOffset, xOffset);
-        	page.mouse().up();
+            page.mouse().move(sourceElementBox.x + (sourceElementBox.width / 2), sourceElementBox.y + (sourceElementBox.height / 2));
+            page.mouse().down(new DownOptions().setButton(MouseButton.LEFT));
+            page.mouse().move(xOffset, yOffset);
+            page.mouse().up();
             // get source element end location
             var endLocation = String.valueOf(page.querySelector(sourceElementLocator).boundingBox());
             var reportMessage = "Start point: " + startLocation + ", End point: " + endLocation;
@@ -375,7 +375,7 @@ public class PlayWrightElementActions {
      */
     public static void hoverAndClick(Page page, List<String> hoverElementLocators, String clickableElementLocator) {
         if (identifyUniqueElement(page, hoverElementLocators.get(0))) {
-            hoverElementLocators.forEach(hoverElementLocator -> page.hover(hoverElementLocator));
+            hoverElementLocators.forEach(page::hover);
             page.click(clickableElementLocator, new ClickOptions().setButton(MouseButton.LEFT));
             passAction(page, hoverElementLocators.get(0),"");
         } else {
@@ -1082,25 +1082,6 @@ public class PlayWrightElementActions {
         return this;
     }
 
-    /**
-     * Waits dynamically for a specific element's text to change from the initial
-     * value to a new unknown value. Waits for a specific number of retries
-     * multiplied String the default element identification timeout (in the POM.xml
-     * file)
-     *
-     * @param elementLocator the locator of the webElement under test (String xpath, id,
-     *                       selector, name ...etc)
-     * @param initialValue   the initial text value of the target webElement
-     * @param numberOfTries  the number of times to try and wait for the element
-     *                       text to change (default is 1)
-     * @return a self-reference to be used to chain actions
-     */
-    public PlayWrightElementActions waitForTextToChange(String elementLocator, String initialValue,
-                                              int numberOfTries) {
-        waitForTextToChange(elementLocator, initialValue,numberOfTries);
-        return this;
-    }
-    
     /**
      * Checks to see if an element is displayed
      *

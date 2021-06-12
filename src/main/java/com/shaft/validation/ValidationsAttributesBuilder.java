@@ -6,14 +6,14 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
 public class ValidationsAttributesBuilder {
-    ValidationEnums.ValidationCategory validationCategory = ValidationEnums.ValidationCategory.HARD_ASSERT;
+    ValidationEnums.ValidationCategory validationCategory;
     ValidationEnums.ValidationComparisonType validationComparisonType = ValidationEnums.ValidationComparisonType.EQUALS;
     ValidationEnums.ValidationType validationType = ValidationEnums.ValidationType.POSITIVE;
     String customLogMessage = "";
 
-    String validationMethod = "";
-    Object expectedValue = null;
-    Object actualValue = null;
+    String validationMethod;
+    Object expectedValue;
+    Object actualValue;
 
     WebDriver driver;
     By locator;

@@ -4,7 +4,7 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
 public class ValidationsBuilder {
-    ValidationEnums.ValidationCategory validationCategory = ValidationEnums.ValidationCategory.HARD_ASSERT;
+    ValidationEnums.ValidationCategory validationCategory;
     String validationMethod = "";
     Object expectedValue = null;
     Object actualValue = null;

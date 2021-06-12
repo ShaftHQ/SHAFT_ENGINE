@@ -144,7 +144,7 @@ public class WebDriverElementActions {
 
                 // removed to enhance performance, and replaced with a process to assert after
                 // every navigation
-                if (elementText != null && !elementText.equals("")) {
+                if (!elementText.equals("")) {
                     passAction(driver, internalElementLocator, elementText.replaceAll("\n", " "), screenshot);
                 } else {
                     passAction(driver, internalElementLocator, screenshot);
@@ -245,7 +245,7 @@ public class WebDriverElementActions {
                 WebDriverElementActions.failAction(driver, internalElementLocator, e);
             }
 
-            if (elementText != null && !elementText.equals("")) {
+            if (!elementText.equals("")) {
                 WebDriverElementActions.passAction(driver, internalElementLocator, elementText.replaceAll("\n", " "), screenshot);
             } else {
                 WebDriverElementActions.passAction(driver, internalElementLocator, screenshot);
@@ -1656,17 +1656,20 @@ public class WebDriverElementActions {
 
     private static String readTextBasedOnSuccessfulLocationStrategy(WebDriver driver, By elementLocator,
                                                                     TextDetectionStrategy successfulTextLocationStrategy) {
-        String temp = "";
+        String temp;
         switch (successfulTextLocationStrategy) {
-            case TEXT:
+            case TEXT -> {
                 temp = driver.findElement(elementLocator).getText();
                 return (temp == null) ? "" : temp;
-            case CONTENT:
+            }
+            case CONTENT -> {
                 temp = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.CONTENT.getValue());
                 return (temp == null) ? "" : temp;
-            case VALUE:
+            }
+            case VALUE -> {
                 temp = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.VALUE.getValue());
                 return (temp == null) ? "" : temp;
+            }
         }
         return "";
     }

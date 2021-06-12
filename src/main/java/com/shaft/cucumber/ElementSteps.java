@@ -277,17 +277,6 @@ public class ElementSteps {
                 numberOfTries);
     }
 
-//    private LocatorType getLocatorTypeFromName(String locatorType) {
-//        int values = LocatorType.values().length;
-//        for (int i = 0; i < values; i++) {
-//            if (Arrays.asList(LocatorType.values()).get(i).getValue()
-//                    .equalsIgnoreCase(locatorType.trim())) {
-//                return Arrays.asList(LocatorType.values()).get(i);
-//            }
-//        }
-//        return LocatorType.XPATH;
-//    }
-
     protected enum LocatorType {
         ID("id"), TAG_NAME("tagname"), CLASS_NAME("classname"), NAME("name"), LINK_TEXT("linktext"),
         PARTIAL_LINK_TEXT("partiallinktext"), CSS_SELECTOR("cssselector"), XPATH("xpath");

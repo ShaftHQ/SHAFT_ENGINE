@@ -184,10 +184,9 @@ class ValidationHelper {
             discreetLoggingState = ReportManagerHelper.isDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
             actualValue = switch (elementAttribute.toLowerCase()) {
-                case "text" -> ElementActions.performElementAction(page).getText(elementLocator);
+                case "text", "selectedtext" -> ElementActions.performElementAction(page).getText(elementLocator);
                 case "tagname" -> ElementActions.performElementAction(page).getAttribute(elementLocator, "tagName");
                 case "size" -> ElementActions.performElementAction(page).getSize(elementLocator);
-                case "selectedtext" -> ElementActions.performElementAction(page).getText(elementLocator);
                 default -> ElementActions.performElementAction(page).getAttribute(elementLocator, elementAttribute);
             };
             ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
