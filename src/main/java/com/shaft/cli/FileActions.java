@@ -583,6 +583,7 @@ public class FileActions {
     }
 
     private static String reportActionResult(String actionName, String testData, String log, Boolean passFailStatus) {
+        actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
             message = "File Action [" + actionName + "] successfully performed.";

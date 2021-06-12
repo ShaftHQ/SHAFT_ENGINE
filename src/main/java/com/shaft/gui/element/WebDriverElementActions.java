@@ -144,7 +144,7 @@ public class WebDriverElementActions {
 
                 // removed to enhance performance, and replaced with a process to assert after
                 // every navigation
-                if (elementText != null && !elementText.equals("")) {
+                if (!elementText.equals("")) {
                     passAction(driver, internalElementLocator, elementText.replaceAll("\n", " "), screenshot);
                 } else {
                     passAction(driver, internalElementLocator, screenshot);
@@ -245,7 +245,7 @@ public class WebDriverElementActions {
                 WebDriverElementActions.failAction(driver, internalElementLocator, e);
             }
 
-            if (elementText != null && !elementText.equals("")) {
+            if (!elementText.equals("")) {
                 WebDriverElementActions.passAction(driver, internalElementLocator, elementText.replaceAll("\n", " "), screenshot);
             } else {
                 WebDriverElementActions.passAction(driver, internalElementLocator, screenshot);
@@ -1656,19 +1656,27 @@ public class WebDriverElementActions {
 
     private static String readTextBasedOnSuccessfulLocationStrategy(WebDriver driver, By elementLocator,
                                                                     TextDetectionStrategy successfulTextLocationStrategy) {
+        String temp;
         switch (successfulTextLocationStrategy) {
-            case TEXT:
-                return driver.findElement(elementLocator).getText();
-            case CONTENT:
-                return driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.CONTENT.getValue());
-            case VALUE:
-                return driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.VALUE.getValue());
+            case TEXT -> {
+                temp = driver.findElement(elementLocator).getText();
+                return (temp == null) ? "" : temp;
+            }
+            case CONTENT -> {
+                temp = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.CONTENT.getValue());
+                return (temp == null) ? "" : temp;
+            }
+            case VALUE -> {
+                temp = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.VALUE.getValue());
+                return (temp == null) ? "" : temp;
+            }
         }
         return "";
     }
 
     private static String reportActionResult(WebDriver driver, String actionName, String testData, By elementLocator,
                                              List<Object> screenshot, Boolean passFailStatus) {
+        actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
             message = "Element Action [" + actionName + "] successfully performed.";
