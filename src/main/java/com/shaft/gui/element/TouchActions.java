@@ -3,17 +3,13 @@ package com.shaft.gui.element;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.shaft.driver.DriverFactoryHelper;
-import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.ReportManagerHelper;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.MobileBy;
 import io.appium.java_client.MobileDriver;
-import io.appium.java_client.MobileElement;
 import io.appium.java_client.TouchAction;
-import io.appium.java_client.ios.IOSDriver;
 import io.appium.java_client.touch.WaitOptions;
 import io.appium.java_client.touch.offset.ElementOption;
 import io.appium.java_client.touch.offset.PointOption;
@@ -89,7 +85,7 @@ public class TouchActions {
         List<Object> screenshot = WebDriverElementActions.takeScreenshot(driver, null, "tap", null, true);
 
         if (DriverFactoryHelper.isMobileNativeExecution()) {
-            byte[] currentScreenImage = AppiumDriver.class.cast(driver).getScreenshotAs(OutputType.BYTES);
+            byte[] currentScreenImage = ((AppiumDriver) driver).getScreenshotAs(OutputType.BYTES);
             List<Integer> coordinates = ImageProcessingActions.findImageWithinCurrentPage(elementReferenceScreenshot, currentScreenImage, 1);
             PointerInput input = new PointerInput(PointerInput.Kind.TOUCH, "finger1");
             Sequence tap = new Sequence(input, 0);
@@ -263,9 +259,9 @@ public class TouchActions {
      */
     public TouchActions sendAppToBackground(int secondsToSpendInTheBackground) {
     		if (DriverFactoryHelper.isMobileNativeExecution()) {
-    		MobileDriver.class.cast(driver).runAppInBackground(Duration.ofSeconds(secondsToSpendInTheBackground));
-    		WebDriverElementActions.passAction(driver, null);
-    		}else {
+                ((MobileDriver) driver).runAppInBackground(Duration.ofSeconds(secondsToSpendInTheBackground));
+                WebDriverElementActions.passAction(driver, null);
+            }else {
                 WebDriverElementActions.failAction(driver, null);
     		}
             return this;
@@ -288,9 +284,9 @@ public class TouchActions {
      */
     public TouchActions activateAppFromBackground(String appPackageName) {
 		if (DriverFactoryHelper.isMobileNativeExecution()) {
-			MobileDriver.class.cast(driver).activateApp(appPackageName);
-			WebDriverElementActions.passAction(driver, null);
-		}else {
+            ((MobileDriver) driver).activateApp(appPackageName);
+            WebDriverElementActions.passAction(driver, null);
+        }else {
             WebDriverElementActions.failAction(driver, null);
 		}
 		return this;
@@ -303,10 +299,10 @@ public class TouchActions {
      */
     public TouchActions restartApp() {
 		if (DriverFactoryHelper.isMobileNativeExecution()) {
-	    	MobileDriver.class.cast(driver).closeApp();
-	    	MobileDriver.class.cast(driver).launchApp();
-			WebDriverElementActions.passAction(driver, null);
-		}else {
+            ((MobileDriver) driver).closeApp();
+            ((MobileDriver) driver).launchApp();
+            WebDriverElementActions.passAction(driver, null);
+        }else {
 	        WebDriverElementActions.failAction(driver, null);
 		}
 		return this;
@@ -319,9 +315,9 @@ public class TouchActions {
      */
     public TouchActions resetApp() {
 		if (DriverFactoryHelper.isMobileNativeExecution()) {
-	    	MobileDriver.class.cast(driver).resetApp();
-			WebDriverElementActions.passAction(driver, null);
-		}else {
+            ((MobileDriver) driver).resetApp();
+            WebDriverElementActions.passAction(driver, null);
+        }else {
 	        WebDriverElementActions.failAction(driver, null);
 		}
 		return this;
@@ -513,12 +509,12 @@ public class TouchActions {
                 WebDriverElementActions.takeScreenshot(driver, elementLocator, "swipeElementIntoView", null, true);
                 lastPageSourceBeforeSwiping = driver.getPageSource();
                 switch (swipeTechnique) {
-                case TOUCH_ACTIONS -> attemptTouchActionScroll(swipeDirection);
-                case UI_SELECTOR -> attemptUISelectorScroll(swipeDirection, scrollableElementInstanceNumber);
+                    case TOUCH_ACTIONS -> attemptTouchActionScroll(swipeDirection);
+                    case UI_SELECTOR -> attemptUISelectorScroll(swipeDirection, scrollableElementInstanceNumber);
                 }
                 attemptsToFindElement++;
             }
-        } while (Boolean.FALSE.equals(isElementFound) && attemptsToFindElement < DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT && lastPageSourceBeforeSwiping != driver.getPageSource());
+        } while (Boolean.FALSE.equals(isElementFound) && attemptsToFindElement < DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT && !lastPageSourceBeforeSwiping.equals(driver.getPageSource()));
         // TODO: devise a way to break the loop when no further scrolling options are
         // available. do not use visual comparison which is the easy but costly way to
         // do it.
@@ -539,11 +535,9 @@ public class TouchActions {
     private void attemptTouchActionScroll(SwipeDirection swipeDirection) {
     	ReportManager.logDiscrete("Swiping to find Element using TouchAction.");
         Dimension screenSize = driver.manage().window().getSize();
-        Point startingPoint = new Point(0, 0);
+        Point startingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight() / 2);
         Point endingPoint = new Point(0, 0);
 
-        startingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight() / 2);
-        
         switch (swipeDirection) {
             case DOWN -> endingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight() * 80/100);
             case UP -> endingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight() * 20/100);
@@ -566,9 +560,9 @@ public class TouchActions {
     public enum SwipeDirection {
         UP, DOWN, LEFT, RIGHT
     }
-    
+
     public enum SwipeTechnique {
-    	TOUCH_ACTIONS, UI_SELECTOR;
+        TOUCH_ACTIONS, UI_SELECTOR
     }
 
     public enum KeyboardKeys {

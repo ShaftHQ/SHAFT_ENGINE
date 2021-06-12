@@ -115,6 +115,7 @@ public class TerminalActions implements ShaftDriver {
     }
 
     private static String reportActionResult(String actionName, String testData, String log, Boolean passFailStatus) {
+        actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
             message = "Terminal Action [" + actionName + "] successfully performed.";

@@ -109,6 +109,7 @@ public class BrowserStack {
     }
 
     private static String reportActionResult(String actionName, String testData, Boolean passFailStatus) {
+        actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
             message = "BrowserStack API Action [" + actionName + "] successfully performed.";

@@ -1,45 +1,5 @@
 package com.shaft.driver;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-
-import org.openqa.selenium.MutableCapabilities;
-import org.openqa.selenium.PageLoadStrategy;
-import org.openqa.selenium.Platform;
-import org.openqa.selenium.SessionNotCreatedException;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebDriverException;
-import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.chrome.ChromeOptions;
-import org.openqa.selenium.edge.EdgeDriver;
-import org.openqa.selenium.edge.EdgeOptions;
-import org.openqa.selenium.firefox.FirefoxDriver;
-import org.openqa.selenium.firefox.FirefoxOptions;
-import org.openqa.selenium.firefox.FirefoxProfile;
-import org.openqa.selenium.ie.InternetExplorerDriver;
-import org.openqa.selenium.ie.InternetExplorerOptions;
-import org.openqa.selenium.logging.LogType;
-import org.openqa.selenium.logging.LoggingPreferences;
-import org.openqa.selenium.remote.CapabilityType;
-import org.openqa.selenium.remote.DesiredCapabilities;
-import org.openqa.selenium.remote.LocalFileDetector;
-import org.openqa.selenium.remote.RemoteWebDriver;
-import org.openqa.selenium.remote.UnreachableBrowserException;
-import org.openqa.selenium.safari.SafariDriver;
-import org.openqa.selenium.safari.SafariOptions;
-import org.sikuli.script.App;
-import org.testng.Assert;
-
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.BrowserType.LaunchOptions;
@@ -56,12 +16,41 @@ import com.shaft.gui.element.JavaScriptWaitManager;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
-
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.MobileElement;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import io.github.bonigarcia.wdm.WebDriverManager;
+import org.openqa.selenium.*;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.edge.EdgeDriver;
+import org.openqa.selenium.edge.EdgeOptions;
+import org.openqa.selenium.firefox.FirefoxDriver;
+import org.openqa.selenium.firefox.FirefoxOptions;
+import org.openqa.selenium.firefox.FirefoxProfile;
+import org.openqa.selenium.ie.InternetExplorerDriver;
+import org.openqa.selenium.ie.InternetExplorerOptions;
+import org.openqa.selenium.logging.LogType;
+import org.openqa.selenium.logging.LoggingPreferences;
+import org.openqa.selenium.remote.*;
+import org.openqa.selenium.safari.SafariDriver;
+import org.openqa.selenium.safari.SafariOptions;
+import org.sikuli.script.App;
+import org.testng.Assert;
+
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 
 public class DriverFactoryHelper {
     // TODO: implement pass and fail actions to enable initial factory method screenshot and append it to animated GIF
@@ -930,23 +919,23 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
 		//I recommend that close browser should close the context, while close all drivers should terminate the playwright instance.
 			var video = page.video();
 			var videoPath = "";
-			if ( video !=null) {
-				videoPath = video.path().toString();
-			}else {
-				ReportManager.logDiscrete("Failed to find video recording.");
-			}
-		context.close();
-		browser.close();
-		playwright.close();
-		ReportManager.log("Successfully Closed PlayWright Driver.");
-		
-		if (videoPath!="") {
-		try {
-			ReportManagerHelper.attach("Video Recording", ReportManagerHelper.getTestMethodName(), new FileInputStream(videoPath));
-		} catch (FileNotFoundException e) {
-			ReportManagerHelper.log(e);
-		}
-		}
-		}
+            if (video != null) {
+                videoPath = video.path().toString();
+            } else {
+                ReportManager.logDiscrete("Failed to find video recording.");
+            }
+            context.close();
+            browser.close();
+            playwright.close();
+            ReportManager.log("Successfully Closed PlayWright Driver.");
+
+            if (!"".equals(videoPath)) {
+                try {
+                    ReportManagerHelper.attach("Video Recording", ReportManagerHelper.getTestMethodName(), new FileInputStream(videoPath));
+                } catch (FileNotFoundException e) {
+                    ReportManagerHelper.log(e);
+                }
+            }
+        }
 	}
 }

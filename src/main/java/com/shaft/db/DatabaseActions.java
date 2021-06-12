@@ -203,6 +203,7 @@ public class DatabaseActions implements ShaftDriver {
 
     private static String reportActionResult(String actionName, String testData, String queryResult,
                                              Boolean passFailStatus) {
+        actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
             message = "Database Action [" + actionName + "] successfully performed.";
@@ -390,7 +391,7 @@ public class DatabaseActions implements ShaftDriver {
         if (statement != null) {
             ReportManager.logDiscrete("Statement created successfully");
         } else {
-            failAction("Failed to create a statement with this string [" + connection.toString()
+            failAction("Failed to create a statement with this string [" + connection
                     + "] due to an unhandled exception.");
         }
 
