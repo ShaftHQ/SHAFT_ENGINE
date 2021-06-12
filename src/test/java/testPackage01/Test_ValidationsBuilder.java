@@ -7,6 +7,7 @@ import com.shaft.validation.Validations;
 import io.restassured.response.Response;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
+import org.testng.annotations.Test;
 
 public class Test_ValidationsBuilder {
     By googleLogo = By.xpath("//img[@alt='Google']");
@@ -35,14 +36,16 @@ public class Test_ValidationsBuilder {
                 .perform();
     }
 
-    //@Test
+    @Test
     public void elementExistsTest() {
         WebDriver driver = DriverFactory.getDriver();
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "https://www.google.com");
         Validations.assertThat().element(driver, googleLogo)
-                .exists().perform();
+                .exists()
+                .withCustomLogMessage("Checking to confirm that the google logo image exists")
+                .perform();
         Validations.verifyThat().element(driver, googleLogo)
-                .exists().negatively().withCustomLogMessage("Checking that Google Logo doesn't exist").perform();
+                .exists().negatively().withCustomLogMessage("Checking to confirm that the google logo image doesn't exist").perform();
         DriverFactory.closeAllDrivers();
     }
 

@@ -535,12 +535,12 @@ public class ReportManagerHelper {
      *
      * @param logText the text that needs to be logged in this action
      */
-    @Step("Action [{actionCounter}]: {logText}")
+    @Step("{logText}")
     static void writeStepToReport(int actionCounter, String logText) {
         createReportEntry(logText, false);
     }
 
-    @Step("Action [{actionCounter}]: {logText}")
+    @Step("{logText}")
     static void writeStepToReport(int actionCounter, String logText, List<List<Object>> attachments) {
         createReportEntry(logText, false);
         if (attachments != null) {
@@ -824,11 +824,10 @@ public class ReportManagerHelper {
         FileActions.deleteFile("generatedReport/");
     }
 
-
     public static void log(String logText, List<List<Object>> attachments) {
         if (isDiscreteLogging() && !logText.toLowerCase().contains("failed") && isInternalStep()) {
             createLogEntry(logText);
-            if (attachments != null) {
+            if (attachments != null && attachments.size() > 0) {
                 attachments.forEach(attachment -> {
                     if (attachment != null) {
                         if (attachment.get(2) instanceof String) {
@@ -845,6 +844,53 @@ public class ReportManagerHelper {
             writeStepToReport(actionCounter, logText, attachments);
             actionCounter++;
         }
+    }
+
+    public static void logNestedSteps(String logText, List<String> customLogMessages, List<List<Object>> attachments) {
+        if (customLogMessages != null && customLogMessages.size() > 0 && !"".equals(customLogMessages.get(0).trim())) {
+            String customLogText = customLogMessages.get(0);
+            if (logText.toLowerCase().contains("passed")) {
+                if (logText.toLowerCase().contains("verification")) {
+                    customLogText = "Verification Passed: " + customLogText;
+                } else {
+                    customLogText = "Assertion Passed: " + customLogText;
+                }
+            } else {
+                if (logText.toLowerCase().contains("verification")) {
+                    customLogText = "Verification Failed: " + customLogText;
+                } else {
+                    customLogText = "Assertion Failed: " + customLogText;
+                }
+            }
+            writeNestedStepsToReport(actionCounter, customLogText, logText, attachments);
+        } else {
+            writeStepToReport(actionCounter, logText, attachments);
+        }
+        actionCounter++;
+    }
+
+    //@Step("Action [{actionCounter}]: {customLog}")
+    @Step("{customLog}")
+    private static void writeNestedStepsToReport(int actionCounter, String customLog, String stepLog, List<List<Object>> attachments) {
+        createReportEntry(customLog, false);
+        if (attachments != null) {
+            attachments.forEach(attachment -> {
+                if (attachment != null && attachment.get(2).getClass().toString().toLowerCase().contains("string")
+                        && !attachment.get(2).getClass().toString().contains("StringInputStream")) {
+                    if (!attachment.get(2).toString().isEmpty()) {
+                        attach(attachment.get(0).toString(), attachment.get(1).toString(),
+                                attachment.get(2).toString());
+                    }
+                } else if (attachment != null) {
+                    if (attachment.get(2) instanceof byte[]) {
+                        attach(attachment.get(0).toString(), attachment.get(1).toString(), new ByteArrayInputStream((byte[]) attachment.get(2)));
+                    } else {
+                        attach(attachment.get(0).toString(), attachment.get(1).toString(), (InputStream) attachment.get(2));
+                    }
+                }
+            });
+        }
+        createReportEntry(stepLog, false);
     }
 
     /**
