@@ -7,7 +7,6 @@ import com.shaft.validation.Validations;
 import io.restassured.response.Response;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
-import org.testng.annotations.Test;
 
 public class Test_ValidationsBuilder {
     By googleLogo = By.xpath("//img[@alt='Google']");
@@ -36,7 +35,7 @@ public class Test_ValidationsBuilder {
                 .perform();
     }
 
-    @Test
+    //@Test
     public void elementExistsTest() {
         WebDriver driver = DriverFactory.getDriver();
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "https://www.google.com");
