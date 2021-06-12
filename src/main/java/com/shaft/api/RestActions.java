@@ -412,7 +412,7 @@ public class RestActions implements ShaftDriver {
 
     private static String reportActionResult(String actionName, String testData, Object requestBody, Response response,
                                              Boolean isDiscrete, List<Object> expectedFileBodyAttachment, Boolean passFailStatus) {
-
+        actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
             message = "API Action [" + actionName + "] successfully performed.";

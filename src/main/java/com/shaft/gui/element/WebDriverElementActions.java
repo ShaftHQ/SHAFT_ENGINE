@@ -1656,19 +1656,24 @@ public class WebDriverElementActions {
 
     private static String readTextBasedOnSuccessfulLocationStrategy(WebDriver driver, By elementLocator,
                                                                     TextDetectionStrategy successfulTextLocationStrategy) {
+        String temp = "";
         switch (successfulTextLocationStrategy) {
             case TEXT:
-                return driver.findElement(elementLocator).getText();
+                temp = driver.findElement(elementLocator).getText();
+                return (temp == null) ? "" : temp;
             case CONTENT:
-                return driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.CONTENT.getValue());
+                temp = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.CONTENT.getValue());
+                return (temp == null) ? "" : temp;
             case VALUE:
-                return driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.VALUE.getValue());
+                temp = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.VALUE.getValue());
+                return (temp == null) ? "" : temp;
         }
         return "";
     }
 
     private static String reportActionResult(WebDriver driver, String actionName, String testData, By elementLocator,
                                              List<Object> screenshot, Boolean passFailStatus) {
+        actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
             message = "Element Action [" + actionName + "] successfully performed.";

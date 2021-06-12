@@ -783,6 +783,7 @@ public class PlayWrightElementActions {
 
     private static String reportActionResult(Page page, String actionName, String testData, String elementLocator,
                                              List<Object> screenshot, Boolean passFailStatus) {
+        actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
             message = "Element Action [" + actionName + "] successfully performed.";
