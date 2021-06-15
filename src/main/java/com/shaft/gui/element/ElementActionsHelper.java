@@ -1,25 +1,20 @@
 package com.shaft.gui.element;
 
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
-import org.openqa.selenium.By;
-import org.openqa.selenium.JavascriptException;
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
+import com.shaft.driver.DriverFactoryHelper;
+import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
+import com.shaft.tools.support.JavaScriptHelper;
+import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.interactions.Locatable;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.FluentWait;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
-import com.shaft.driver.DriverFactoryHelper;
-import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.ReportManagerHelper;
-import com.shaft.tools.support.JavaScriptHelper;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 class ElementActionsHelper {
     private static final int DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER = Integer
@@ -50,6 +45,7 @@ class ElementActionsHelper {
         ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
         expectedExceptions.add(org.openqa.selenium.NoSuchElementException.class);
         expectedExceptions.add(org.openqa.selenium.StaleElementReferenceException.class);
+        expectedExceptions.add(org.openqa.selenium.ElementNotInteractableException.class);
 
         try {
             return new FluentWait<>(driver)
