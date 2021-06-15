@@ -739,11 +739,9 @@ public class WebDriverElementActions {
             // Override current locator with the aiGeneratedElementLocator
             hoverElementLocators.set(0, updateLocatorWithAIGeneratedOne(hoverElementLocators.get(0)));
 
-            hoverElementLocators.forEach(hoverElementLocator -> chainedHoverAndClickAction
-                    .moveToElement(driver.findElement(hoverElementLocator)));
+            hoverElementLocators.forEach(hoverElementLocator -> ElementActionsHelper.performHoverUsingJavascript(driver, hoverElementLocator));
             try {
-                chainedHoverAndClickAction.moveToElement(driver.findElement(clickableElementLocator))
-                        .click(driver.findElement(clickableElementLocator)).perform();
+                ElementActions.click(driver, clickableElementLocator);
             } catch (NoSuchElementException rootCauseException) {
                 ReportManagerHelper.log(rootCauseException);
                 failAction(driver, hoverElementLocators.get(0), rootCauseException);
