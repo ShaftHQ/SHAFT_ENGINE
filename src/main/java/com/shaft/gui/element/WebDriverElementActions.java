@@ -734,23 +734,8 @@ public class WebDriverElementActions {
      *                                xpath, id, selector, name ...etc)
      */
     public static void hoverAndClick(WebDriver driver, List<By> hoverElementLocators, By clickableElementLocator) {
-        Actions chainedHoverAndClickAction = new Actions(driver);
-        if (identifyUniqueElement(driver, hoverElementLocators.get(0))) {
-            // Override current locator with the aiGeneratedElementLocator
-            hoverElementLocators.set(0, updateLocatorWithAIGeneratedOne(hoverElementLocators.get(0)));
-
-            hoverElementLocators.forEach(hoverElementLocator -> chainedHoverAndClickAction
-                    .moveToElement(driver.findElement(hoverElementLocator)));
-            try {
-                chainedHoverAndClickAction.moveToElement(driver.findElement(clickableElementLocator))
-                        .click(driver.findElement(clickableElementLocator)).perform();
-            } catch (NoSuchElementException rootCauseException) {
-                ReportManagerHelper.log(rootCauseException);
-                failAction(driver, hoverElementLocators.get(0), rootCauseException);
-            }
-        } else {
-            failAction(driver, hoverElementLocators.get(0));
-        }
+        hoverElementLocators.forEach(hoverElementLocator -> ElementActions.hover(driver, hoverElementLocator));
+        ElementActions.click(driver, clickableElementLocator);
     }
 
     /**
