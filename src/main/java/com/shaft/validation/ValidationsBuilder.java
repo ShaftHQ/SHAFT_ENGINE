@@ -5,64 +5,45 @@ import org.openqa.selenium.WebDriver;
 
 public class ValidationsBuilder {
     ValidationEnums.ValidationCategory validationCategory;
-    String validationMethod = "";
-    Object expectedValue = null;
-    Object actualValue = null;
-    String folderRelativePath = "";
-    String fileName = "";
-    boolean condition = true;
+    String validationMethod;
+    ValidationEnums.ValidationType validationType;
+    boolean condition;
+    Object actualValue;
 
-    ValidationsBuilder(ValidationEnums.ValidationCategory validationCategory) {
+    public ValidationsBuilder(ValidationEnums.ValidationCategory validationCategory) {
         this.validationCategory = validationCategory;
     }
 
-    public ValidationsAttributesBuilder forceFail() {
-        validationMethod = "forceFail";
-        return new ValidationsAttributesBuilder(this);
-    }
-
-    public ValidationsAttributesBuilder objectsAreEqual(Object actualValue, Object expectedValue) {
-        validationMethod = "objectsAreEqual";
-        this.expectedValue = expectedValue;
+    public NativeValidationsBuilder object(Object actualValue) {
+        this.validationMethod = "objectsAreEqual";
         this.actualValue = actualValue;
-        return new ValidationsAttributesBuilder(this);
+        return new NativeValidationsBuilder(this);
     }
 
-    public ValidationsAttributesBuilder conditionIsTrue(boolean condition) {
-        validationMethod = "conditionIsTrue";
-        this.condition = condition;
-        return new ValidationsAttributesBuilder(this);
-    }
-
-    public ValidationsAttributesBuilder objectIsNull(Object actualValue) {
-        validationMethod = "objectIsNull";
+    public NumberValidationsBuilder number(Number actualValue) {
+        this.validationMethod = "comparativeRelationBetweenNumbers";
         this.actualValue = actualValue;
-        return new ValidationsAttributesBuilder(this);
+        return new NumberValidationsBuilder(this);
     }
 
-    public ValidationsAttributesBuilder comparativeRelationBetweenNumbers(Number actualValue, Number expectedValue) {
-        validationMethod = "comparativeRelationBetweenNumbers";
-        this.expectedValue = expectedValue;
-        this.actualValue = actualValue;
-        return new ValidationsAttributesBuilder(this);
+    public WebDriverElementValidationsBuilder element(WebDriver driver, By locator) {
+        return new WebDriverElementValidationsBuilder(validationCategory, driver, locator);
     }
 
-    public ValidationsAttributesBuilder fileExists(String folderRelativePath, String fileName) {
-        validationMethod = "fileExists";
-        this.folderRelativePath = folderRelativePath;
-        this.fileName = fileName;
-        return new ValidationsAttributesBuilder(this);
+    public WebDriverBrowserValidationsBuilder browser(WebDriver driver) {
+        return new WebDriverBrowserValidationsBuilder(validationCategory, driver);
     }
 
-    public WebElementValidationsBuilder element(WebDriver driver, By locator) {
-        return new WebElementValidationsBuilder(this, driver, locator);
+    public RestValidationsBuilder response(Object response) {
+        return new RestValidationsBuilder(validationCategory, response);
     }
 
-    public WebBrowserValidationsBuilder browser(WebDriver driver) {
-        return new WebBrowserValidationsBuilder(this, driver);
+    public FileValidationsBuilder file(String folderRelativePath, String fileName) {
+        return new FileValidationsBuilder(validationCategory, folderRelativePath, fileName);
     }
 
-    public JsonValidationsBuilder json(Object response) {
-        return new JsonValidationsBuilder(this, response);
+    public ValidationsExecutor forceFail() {
+        this.validationMethod = "forceFail";
+        return new ValidationsExecutor(this);
     }
 }

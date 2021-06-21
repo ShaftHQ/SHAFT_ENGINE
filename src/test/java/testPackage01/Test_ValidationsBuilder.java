@@ -1,9 +1,11 @@
 package testPackage01;
 
+import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.Validations;
+import io.restassured.builder.ResponseBuilder;
 import io.restassured.response.Response;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -12,110 +14,185 @@ public class Test_ValidationsBuilder {
     By googleLogo = By.xpath("//img[@alt='Google']");
 
     //@Test
-    public void test() {
-        Validations.verifyThat().forceFail().perform();
-        Validations.verifyThat().objectsAreEqual("", "").negatively().perform();
-        Validations.verifyThat().objectIsNull(null).withCustomLogMessage("no custom message here").perform();
-        Validations.assertThat().objectsAreEqual("", "").perform();
-    }
-
-    //@Test
-    public void numbersComparisonTest() {
-        Validations.verifyThat()
-                .comparativeRelationBetweenNumbers(1, 2)
-                .withNumbersComparisonRelation(ValidationEnums.NumbersComparativeRelation.LESS_THAN)
-                .perform();
-        Validations.verifyThat()
-                .comparativeRelationBetweenNumbers(1, 2)
-                .withNumbersComparisonRelation(ValidationEnums.NumbersComparativeRelation.GREATER_THAN_OR_EQUALS)
-                .perform();
-        Validations.assertThat()
-                .comparativeRelationBetweenNumbers(1, 2)
-                .withNumbersComparisonRelation(ValidationEnums.NumbersComparativeRelation.EQUALS)
-                .perform();
-    }
-
-    //@Test
-    public void elementExistsTest() {
-        WebDriver driver = DriverFactory.getDriver();
+    public void elementValidations() {
+        WebDriver driver;
+        driver = DriverFactory.getDriver();
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "https://www.google.com");
-        Validations.assertThat().element(driver, googleLogo)
+        Validations.assertThat()
+                .element(driver, googleLogo)
                 .exists()
-                .withCustomLogMessage("Checking to confirm that the google logo image exists")
+                .withCustomReportMessage("Check that google logo exists")
                 .perform();
-        Validations.verifyThat().element(driver, googleLogo)
-                .exists().negatively().withCustomLogMessage("Checking to confirm that the google logo image doesn't exist").perform();
-        DriverFactory.closeAllDrivers();
-    }
 
-    //@Test
-    public void elementAttributeTest() {
-        WebDriver driver = DriverFactory.getDriver();
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "https://www.google.com");
-        Validations.verifyThat()
-                .element(driver, googleLogo)
-                .attributeEquals(ValidationEnums.ElementAttribute.TEXT, "")
-                .withCaseInsensitiveComparison()
-                .negatively()
-                .perform();
         Validations.assertThat()
                 .element(driver, googleLogo)
-                .attributeEquals("src", "googlelogo")
-                .withContainsComparison()
+                .attribute("text")
+                .isEqualTo("")
+                .withCustomReportMessage("")
                 .perform();
+
+        Validations.verifyThat()
+                .element(driver, googleLogo)
+                .doesNotExist()
+                .withCustomReportMessage("Check that google logo does not exist")
+                .perform();
+
+        Validations.verifyThat()
+                .element(driver, googleLogo)
+                .matchesReferenceImage()
+                .perform();
+
+        Validations.verifyThat()
+                .element(driver, googleLogo)
+                .doesNotMatchReferenceImage(ValidationEnums.VisualValidationEngine.EXACT_OPENCV)
+                .perform();
+
+        Validations.verifyThat()
+                .element(driver, googleLogo)
+                .cssProperty("font-family")
+                .contains("arial")
+                .perform();
+
+        Validations.verifyThat()
+                .element(driver, googleLogo)
+                .attribute(ValidationEnums.ElementAttribute.TEXT)
+                .doesNotEqual("dummy text")
+                .withCustomReportMessage("Checking to confirm that google logo text doesn't contain dummy text")
+                .perform();
+
+        Validations.verifyThat()
+                .element(driver, googleLogo)
+                .exists()
+                .perform();
+
+        Validations.verifyThat()
+                .element(driver, googleLogo)
+                .attribute("text")
+                .contains("google")
+                .withCustomReportMessage("checking that the text attribute contains google")
+                .perform();
+
         DriverFactory.closeAllDrivers();
     }
 
     //@Test
-    public void elementCssProperty() {
-        WebDriver driver = DriverFactory.getDriver();
+    public void browserValidations() {
+        WebDriver driver;
+        driver = DriverFactory.getDriver();
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "https://www.google.com");
-        Validations.verifyThat()
-                .element(driver, googleLogo)
-                .cssPropertyEquals("font-family", "arial")
-                .withContainsComparison()
-                .negatively()
-                .perform();
         Validations.assertThat()
-                .element(driver, googleLogo)
-                .cssPropertyEquals("font-family", "Arial, Sans-Serif")
-                .withCaseInsensitiveComparison()
-                .perform();
-        DriverFactory.closeAllDrivers();
-    }
-
-    //@Test
-    public void browserAttribute() {
-        WebDriver driver = DriverFactory.getDriver();
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "https://www.google.com");
-
-        Validations.verifyThat()
                 .browser(driver)
-                .attributeEquals("url", "google")
-                .withContainsComparison()
-                .negatively()
-                .perform();
-
-        Validations.assertThat()
-                .browser(driver)
-                .attributeEquals(ValidationEnums.BrowserAttribute.CURRENT_URL, ".*google.*")
-                .withRegexMatchingComparison()
+                .attribute(ValidationEnums.BrowserAttribute.CURRENT_URL)
+                .contains("google")
                 .perform();
 
         DriverFactory.closeAllDrivers();
     }
 
     //@Test
-    public void jsonTest() {
-        Response response = null;
-        Validations.assertThat().json(response)
-                .responseEqualsFileContent("relative file path")
-                .withContainsComparison()
+    public void nativeValidations() {
+        Validations.verifyThat()
+                .forceFail()
+                .withCustomReportMessage("check that you can force fail a verification")
                 .perform();
 
-        Validations.verifyThat().json(response)
-                .jsonPathValueEquals("", "")
-                .negatively()
+        Validations.assertThat()
+                .object("")
+                .isNull()
+                .perform();
+
+        Validations.verifyThat()
+                .object(null)
+                .isNull()
+                .perform();
+
+        Validations.verifyThat()
+                .object(false)
+                .isEqualTo(false)
+                .perform();
+
+        Validations.verifyThat()
+                .object(false)
+                .isFalse()
+                .perform();
+
+        Validations.verifyThat()
+                .object("123")
+                .isEqualTo("123")
+                .perform();
+
+        Validations.verifyThat()
+                .object("123")
+                .doesNotEqual("123")
+                .perform();
+
+        Validations.verifyThat()
+                .object("123")
+                .doesNotContain("2")
+                .perform();
+    }
+
+    //@Test
+    public void numberValidations() {
+        Validations.assertThat()
+                .number(10)
+                .isEqualTo(10)
+                .withCustomReportMessage("check that 10 equals 10")
+                .perform();
+
+        Validations.verifyThat()
+                .number(10)
+                .isGreaterThan(9)
+                .withCustomReportMessage("check that 10 is greater than 9")
+                .perform();
+
+        Validations.verifyThat()
+                .number(10)
+                .isGreaterThanOrEquals(10)
+                .perform();
+
+        Validations.verifyThat()
+                .number(10)
+                .isLessThan(9)
+                .perform();
+
+        Validations.verifyThat()
+                .number(10)
+                .isLessThanOrEquals(10)
+                .perform();
+
+        Validations.verifyThat()
+                .number(10)
+                .doesNotEqual(10)
+                .perform();
+    }
+
+    //@Test
+    public void restValidations() {
+        String referenceJsonFilePath = System.getProperty("jsonFolderPath") + "specialCharacters.json";
+        Response response = (new ResponseBuilder()).setBody(FileActions.readFromFile(referenceJsonFilePath))
+                .setStatusCode(200).build();
+
+        Validations.verifyThat()
+                .response(response)
+                .isEqualToFileContent(referenceJsonFilePath)
+                .withCustomReportMessage("checking that the response is equal to the json file")
+                .perform();
+
+        Validations.verifyThat()
+                .response(response)
+                .extractedJsonValue("data.totalRows")
+                .isEqualTo("107")
+                .withCustomReportMessage("checking that data.totalRows is equal to 107")
+                .perform();
+    }
+
+    //@Test
+    public void fileValidations() {
+        Validations.assertThat()
+                .file("", "pom.xml")
+                .exists()
+                .withCustomReportMessage("checking that pom.xml exists")
                 .perform();
     }
 }
