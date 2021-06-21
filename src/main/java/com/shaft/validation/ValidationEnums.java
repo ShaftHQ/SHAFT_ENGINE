@@ -30,7 +30,7 @@ public class ValidationEnums {
         }
     }
 
-    protected enum VisualValidationEngine {
+    public enum VisualValidationEngine {
         EXACT_OPENCV,
         EXACT_EYES,
         STRICT_EYES,
