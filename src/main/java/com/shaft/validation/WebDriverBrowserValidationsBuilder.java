@@ -14,16 +14,16 @@ public class WebDriverBrowserValidationsBuilder {
         this.driver = driver;
     }
 
-    public ValidationsComparisonTypeManager attribute(String browserAttribute) {
+    public NativeValidationsBuilder attribute(String browserAttribute) {
         this.validationMethod = "browserAttributeEquals";
         this.browserAttribute = browserAttribute;
-        return new ValidationsComparisonTypeManager(this);
+        return new NativeValidationsBuilder(this);
     }
 
-    public ValidationsComparisonTypeManager attribute(ValidationEnums.BrowserAttribute browserAttribute) {
+    public NativeValidationsBuilder attribute(ValidationEnums.BrowserAttribute browserAttribute) {
         this.validationMethod = "browserAttributeEquals";
         this.browserAttribute = browserAttribute.getValue();
-        return new ValidationsComparisonTypeManager(this);
+        return new NativeValidationsBuilder(this);
     }
 
 }

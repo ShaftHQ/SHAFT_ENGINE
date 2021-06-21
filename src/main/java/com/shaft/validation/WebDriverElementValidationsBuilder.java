@@ -60,22 +60,22 @@ public class WebDriverElementValidationsBuilder {
         return new ValidationsExecutor(this);
     }
 
-    public ValidationsComparisonTypeManager attribute(String elementAttribute) {
+    public NativeValidationsBuilder attribute(String elementAttribute) {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = elementAttribute;
-        return new ValidationsComparisonTypeManager(this);
+        return new NativeValidationsBuilder(this);
     }
 
-    public ValidationsComparisonTypeManager attribute(ValidationEnums.ElementAttribute elementAttribute) {
+    public NativeValidationsBuilder attribute(ValidationEnums.ElementAttribute elementAttribute) {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = elementAttribute.getValue();
-        return new ValidationsComparisonTypeManager(this);
+        return new NativeValidationsBuilder(this);
     }
 
-    public ValidationsComparisonTypeManager cssProperty(String elementCssProperty) {
+    public NativeValidationsBuilder cssProperty(String elementCssProperty) {
         this.validationMethod = "elementCssPropertyEquals";
         this.elementCssProperty = elementCssProperty;
-        return new ValidationsComparisonTypeManager(this);
+        return new NativeValidationsBuilder(this);
     }
 
 

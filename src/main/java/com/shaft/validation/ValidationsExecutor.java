@@ -1,5 +1,7 @@
 package com.shaft.validation;
 
+import com.shaft.api.RestActions;
+import io.restassured.response.Response;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
@@ -23,6 +25,17 @@ public class ValidationsExecutor {
     boolean condition;
     Object actualValue;
 
+    ValidationEnums.NumbersComparativeRelation numbersComparativeRelation;
+
+    Object response;
+    String fileAbsolutePath;
+    RestActions.ComparisonType restComparisonType;
+
+    String jsonPath;
+
+    String folderRelativePath;
+    String fileName;
+
     public ValidationsExecutor(WebDriverElementValidationsBuilder webDriverElementValidationsBuilder) {
         this.validationCategory = webDriverElementValidationsBuilder.validationCategory;
         this.driver = webDriverElementValidationsBuilder.driver;
@@ -32,19 +45,22 @@ public class ValidationsExecutor {
         this.visualValidationEngine = webDriverElementValidationsBuilder.visualValidationEngine;
     }
 
-    public ValidationsExecutor(ValidationsComparisonTypeManager validationsComparisonTypeManager) {
-        this.validationCategory = validationsComparisonTypeManager.validationCategory;
-        this.driver = validationsComparisonTypeManager.driver;
-        this.locator = validationsComparisonTypeManager.locator;
-        this.validationType = validationsComparisonTypeManager.validationType;
-        this.validationMethod = validationsComparisonTypeManager.validationMethod;
+    public ValidationsExecutor(NativeValidationsBuilder nativeValidationsBuilder) {
+        this.validationCategory = nativeValidationsBuilder.validationCategory;
+        this.driver = nativeValidationsBuilder.driver;
+        this.locator = nativeValidationsBuilder.locator;
+        this.validationType = nativeValidationsBuilder.validationType;
+        this.validationMethod = nativeValidationsBuilder.validationMethod;
 
-        this.elementAttribute = validationsComparisonTypeManager.elementAttribute;
-        this.validationComparisonType = validationsComparisonTypeManager.validationComparisonType;
-        this.expectedValue = validationsComparisonTypeManager.expectedValue;
-        this.actualValue = validationsComparisonTypeManager.actualValue;
-        this.elementCssProperty = validationsComparisonTypeManager.elementCssProperty;
-        this.browserAttribute = validationsComparisonTypeManager.browserAttribute;
+        this.elementAttribute = nativeValidationsBuilder.elementAttribute;
+        this.validationComparisonType = nativeValidationsBuilder.validationComparisonType;
+        this.expectedValue = nativeValidationsBuilder.expectedValue;
+        this.actualValue = nativeValidationsBuilder.actualValue;
+        this.elementCssProperty = nativeValidationsBuilder.elementCssProperty;
+        this.browserAttribute = nativeValidationsBuilder.browserAttribute;
+
+        this.response = nativeValidationsBuilder.response;
+        this.jsonPath = nativeValidationsBuilder.jsonPath;
     }
 
     public ValidationsExecutor(ValidationsBuilder validationsBuilder) {
@@ -54,6 +70,36 @@ public class ValidationsExecutor {
 
         this.condition = validationsBuilder.condition;
         this.actualValue = validationsBuilder.actualValue;
+    }
+
+    public ValidationsExecutor(NumberValidationsBuilder numberValidationsBuilder) {
+        this.validationCategory = numberValidationsBuilder.validationCategory;
+        this.validationType = numberValidationsBuilder.validationType;
+        this.validationMethod = numberValidationsBuilder.validationMethod;
+
+        this.expectedValue = numberValidationsBuilder.expectedValue;
+        this.actualValue = numberValidationsBuilder.actualValue;
+
+        this.numbersComparativeRelation = numberValidationsBuilder.numbersComparativeRelation;
+    }
+
+    public ValidationsExecutor(RestValidationsBuilder restValidationsBuilder) {
+
+        this.validationCategory = restValidationsBuilder.validationCategory;
+        this.validationMethod = restValidationsBuilder.validationMethod;
+        this.validationType = restValidationsBuilder.validationType;
+        this.response = restValidationsBuilder.response;
+        this.fileAbsolutePath = restValidationsBuilder.fileAbsolutePath;
+        this.restComparisonType = restValidationsBuilder.restComparisonType;
+
+    }
+
+    public ValidationsExecutor(FileValidationsBuilder fileValidationsBuilder) {
+        this.validationCategory = fileValidationsBuilder.validationCategory;
+        this.validationMethod = fileValidationsBuilder.validationMethod;
+        this.validationType = fileValidationsBuilder.validationType;
+        this.folderRelativePath = fileValidationsBuilder.folderRelativePath;
+        this.fileName = fileValidationsBuilder.fileName;
     }
 
     public ValidationsExecutor withCustomReportMessage(String customReportMessage) {
@@ -94,18 +140,18 @@ public class ValidationsExecutor {
                         validationType, customReportMessage);
                 break;
             case "comparativeRelationBetweenNumbers":
-//                ValidationHelper.validateComparativeRelation(validationCategory, (Number) expectedValue, (Number) actualValue, numbersComparativeRelation, validationType, customReportMessage);
+                ValidationHelper.validateComparativeRelation(validationCategory, (Number) expectedValue, (Number) actualValue, numbersComparativeRelation, validationType, customReportMessage);
                 break;
             case "fileExists":
-//                ValidationHelper.validateFileExists(validationCategory, folderRelativePath, fileName, 5, validationType, customReportMessage);
+                ValidationHelper.validateFileExists(validationCategory, folderRelativePath, fileName, 5, validationType, customReportMessage);
                 break;
             case "responseEqualsFileContent":
-//                ValidationHelper.validateJSONFileContent(validationCategory, (Response) response, fileAbsolutePath, RestActions.ComparisonType.valueOf(validationComparisonType.name()), "", validationType, customReportMessage);
+                ValidationHelper.validateJSONFileContent(validationCategory, (Response) response, fileAbsolutePath, restComparisonType, "", validationType, customReportMessage);
                 break;
             case "jsonPathValueEquals":
-//                ValidationHelper.validateEquals(validationCategory, expectedValue,
-//                        RestActions.getResponseJSONValue(response, jsonPath), validationComparisonType,
-//                        validationType, customReportMessage);
+                ValidationHelper.validateEquals(validationCategory, expectedValue,
+                        RestActions.getResponseJSONValue(response, jsonPath), validationComparisonType,
+                        validationType, customReportMessage);
                 break;
             default:
                 break;

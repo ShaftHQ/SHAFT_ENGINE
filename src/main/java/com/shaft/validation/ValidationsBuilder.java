@@ -1,5 +1,8 @@
 package com.shaft.validation;
 
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
+
 public class ValidationsBuilder {
     ValidationEnums.ValidationCategory validationCategory;
     String validationMethod;
@@ -11,42 +14,36 @@ public class ValidationsBuilder {
         this.validationCategory = validationCategory;
     }
 
+    public NativeValidationsBuilder object(Object actualValue) {
+        this.validationMethod = "objectsAreEqual";
+        this.actualValue = actualValue;
+        return new NativeValidationsBuilder(this);
+    }
+
+    public NumberValidationsBuilder number(Number actualValue) {
+        this.validationMethod = "comparativeRelationBetweenNumbers";
+        this.actualValue = actualValue;
+        return new NumberValidationsBuilder(this);
+    }
+
+    public WebDriverElementValidationsBuilder element(WebDriver driver, By locator) {
+        return new WebDriverElementValidationsBuilder(validationCategory, driver, locator);
+    }
+
+    public WebDriverBrowserValidationsBuilder browser(WebDriver driver) {
+        return new WebDriverBrowserValidationsBuilder(validationCategory, driver);
+    }
+
+    public RestValidationsBuilder response(Object response) {
+        return new RestValidationsBuilder(validationCategory, response);
+    }
+
+    public FileValidationsBuilder file(String folderRelativePath, String fileName) {
+        return new FileValidationsBuilder(validationCategory, folderRelativePath, fileName);
+    }
+
     public ValidationsExecutor forceFail() {
         this.validationMethod = "forceFail";
         return new ValidationsExecutor(this);
-    }
-
-    public ValidationsExecutor conditionIsTrue(boolean condition) {
-        this.validationMethod = "conditionIsTrue";
-        this.validationType = ValidationEnums.ValidationType.POSITIVE;
-        this.condition = condition;
-        return new ValidationsExecutor(this);
-    }
-
-    public ValidationsExecutor conditionIsFalse(boolean condition) {
-        this.validationMethod = "conditionIsTrue";
-        this.validationType = ValidationEnums.ValidationType.NEGATIVE;
-        this.condition = condition;
-        return new ValidationsExecutor(this);
-    }
-
-    public ValidationsExecutor objectIsNull(Object actualValue) {
-        this.validationMethod = "objectIsNull";
-        this.validationType = ValidationEnums.ValidationType.POSITIVE;
-        this.actualValue = actualValue;
-        return new ValidationsExecutor(this);
-    }
-
-    public ValidationsExecutor objectIsNotNull(Object actualValue) {
-        this.validationMethod = "objectIsNull";
-        this.validationType = ValidationEnums.ValidationType.NEGATIVE;
-        this.actualValue = actualValue;
-        return new ValidationsExecutor(this);
-    }
-
-    public ValidationsComparisonTypeManager object(Object actualValue) {
-        this.validationMethod = "objectsAreEqual";
-        this.actualValue = actualValue;
-        return new ValidationsComparisonTypeManager(this);
     }
 }

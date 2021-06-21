@@ -3,7 +3,7 @@ package com.shaft.validation;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
-public class ValidationsComparisonTypeManager {
+public class NativeValidationsBuilder {
     ValidationEnums.ValidationCategory validationCategory;
     WebDriver driver;
     By locator;
@@ -19,7 +19,10 @@ public class ValidationsComparisonTypeManager {
     Object expectedValue;
     Object actualValue;
 
-    public ValidationsComparisonTypeManager(WebDriverElementValidationsBuilder webDriverElementValidationsBuilder) {
+    Object response;
+    String jsonPath;
+
+    public NativeValidationsBuilder(WebDriverElementValidationsBuilder webDriverElementValidationsBuilder) {
         this.validationCategory = webDriverElementValidationsBuilder.validationCategory;
         this.driver = webDriverElementValidationsBuilder.driver;
         this.locator = webDriverElementValidationsBuilder.locator;
@@ -28,17 +31,24 @@ public class ValidationsComparisonTypeManager {
         this.elementCssProperty = webDriverElementValidationsBuilder.elementCssProperty;
     }
 
-    public ValidationsComparisonTypeManager(WebDriverBrowserValidationsBuilder webDriverBrowserValidationsBuilder) {
+    public NativeValidationsBuilder(WebDriverBrowserValidationsBuilder webDriverBrowserValidationsBuilder) {
         this.validationCategory = webDriverBrowserValidationsBuilder.validationCategory;
         this.driver = webDriverBrowserValidationsBuilder.driver;
         this.validationMethod = webDriverBrowserValidationsBuilder.validationMethod;
         this.browserAttribute = webDriverBrowserValidationsBuilder.browserAttribute;
     }
 
-    public ValidationsComparisonTypeManager(ValidationsBuilder validationsBuilder) {
+    public NativeValidationsBuilder(ValidationsBuilder validationsBuilder) {
         this.validationCategory = validationsBuilder.validationCategory;
         this.validationMethod = validationsBuilder.validationMethod;
         this.actualValue = validationsBuilder.actualValue;
+    }
+
+    public NativeValidationsBuilder(RestValidationsBuilder restValidationsBuilder) {
+        this.validationCategory = restValidationsBuilder.validationCategory;
+        this.validationMethod = restValidationsBuilder.validationMethod;
+        this.jsonPath = restValidationsBuilder.jsonPath;
+        this.response = restValidationsBuilder.response;
     }
 
     public ValidationsExecutor isEqualTo(Object expectedValue) {
@@ -94,6 +104,34 @@ public class ValidationsComparisonTypeManager {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.CASE_INSENSITIVE;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
+        return new ValidationsExecutor(this);
+    }
+
+    public ValidationsExecutor isNull() {
+        this.expectedValue = null;
+        this.validationComparisonType = ValidationEnums.ValidationComparisonType.EQUALS;
+        this.validationType = ValidationEnums.ValidationType.POSITIVE;
+        return new ValidationsExecutor(this);
+    }
+
+    public ValidationsExecutor isNotNull() {
+        this.expectedValue = null;
+        this.validationComparisonType = ValidationEnums.ValidationComparisonType.EQUALS;
+        this.validationType = ValidationEnums.ValidationType.NEGATIVE;
+        return new ValidationsExecutor(this);
+    }
+
+    public ValidationsExecutor isTrue() {
+        this.expectedValue = true;
+        this.validationComparisonType = ValidationEnums.ValidationComparisonType.EQUALS;
+        this.validationType = ValidationEnums.ValidationType.POSITIVE;
+        return new ValidationsExecutor(this);
+    }
+
+    public ValidationsExecutor isFalse() {
+        this.expectedValue = false;
+        this.validationComparisonType = ValidationEnums.ValidationComparisonType.EQUALS;
+        this.validationType = ValidationEnums.ValidationType.POSITIVE;
         return new ValidationsExecutor(this);
     }
 }
