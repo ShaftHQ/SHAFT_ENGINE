@@ -1,68 +1,52 @@
 package com.shaft.validation;
 
-import org.openqa.selenium.By;
-import org.openqa.selenium.WebDriver;
-
 public class ValidationsBuilder {
     ValidationEnums.ValidationCategory validationCategory;
-    String validationMethod = "";
-    Object expectedValue = null;
-    Object actualValue = null;
-    String folderRelativePath = "";
-    String fileName = "";
-    boolean condition = true;
+    String validationMethod;
+    ValidationEnums.ValidationType validationType;
+    boolean condition;
+    Object actualValue;
 
-    ValidationsBuilder(ValidationEnums.ValidationCategory validationCategory) {
+    public ValidationsBuilder(ValidationEnums.ValidationCategory validationCategory) {
         this.validationCategory = validationCategory;
     }
 
-    public ValidationsAttributesBuilder forceFail() {
-        validationMethod = "forceFail";
-        return new ValidationsAttributesBuilder(this);
+    public ValidationsExecutor forceFail() {
+        this.validationMethod = "forceFail";
+        return new ValidationsExecutor(this);
     }
 
-    public ValidationsAttributesBuilder objectsAreEqual(Object actualValue, Object expectedValue) {
-        validationMethod = "objectsAreEqual";
-        this.expectedValue = expectedValue;
-        this.actualValue = actualValue;
-        return new ValidationsAttributesBuilder(this);
-    }
-
-    public ValidationsAttributesBuilder conditionIsTrue(boolean condition) {
-        validationMethod = "conditionIsTrue";
+    public ValidationsExecutor conditionIsTrue(boolean condition) {
+        this.validationMethod = "conditionIsTrue";
+        this.validationType = ValidationEnums.ValidationType.POSITIVE;
         this.condition = condition;
-        return new ValidationsAttributesBuilder(this);
+        return new ValidationsExecutor(this);
     }
 
-    public ValidationsAttributesBuilder objectIsNull(Object actualValue) {
-        validationMethod = "objectIsNull";
+    public ValidationsExecutor conditionIsFalse(boolean condition) {
+        this.validationMethod = "conditionIsTrue";
+        this.validationType = ValidationEnums.ValidationType.NEGATIVE;
+        this.condition = condition;
+        return new ValidationsExecutor(this);
+    }
+
+    public ValidationsExecutor objectIsNull(Object actualValue) {
+        this.validationMethod = "objectIsNull";
+        this.validationType = ValidationEnums.ValidationType.POSITIVE;
         this.actualValue = actualValue;
-        return new ValidationsAttributesBuilder(this);
+        return new ValidationsExecutor(this);
     }
 
-    public ValidationsAttributesBuilder comparativeRelationBetweenNumbers(Number actualValue, Number expectedValue) {
-        validationMethod = "comparativeRelationBetweenNumbers";
-        this.expectedValue = expectedValue;
+    public ValidationsExecutor objectIsNotNull(Object actualValue) {
+        this.validationMethod = "objectIsNull";
+        this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         this.actualValue = actualValue;
-        return new ValidationsAttributesBuilder(this);
+        return new ValidationsExecutor(this);
     }
 
-    public ValidationsAttributesBuilder fileExists(String folderRelativePath, String fileName) {
-        validationMethod = "fileExists";
-        this.folderRelativePath = folderRelativePath;
-        this.fileName = fileName;
-        return new ValidationsAttributesBuilder(this);
-    }
-
-    public WebElementValidationsBuilder element(WebDriver driver, By locator) {
-        return new WebElementValidationsBuilder(this, driver, locator);
-    }
-
-    public WebBrowserValidationsBuilder browser(WebDriver driver) {
-        return new WebBrowserValidationsBuilder(this, driver);
-    }
-
-    public JsonValidationsBuilder json(Object response) {
-        return new JsonValidationsBuilder(this, response);
+    public ValidationsComparisonTypeManager object(Object actualValue) {
+        this.validationMethod = "objectsAreEqual";
+        this.actualValue = actualValue;
+        return new ValidationsComparisonTypeManager(this);
     }
 }

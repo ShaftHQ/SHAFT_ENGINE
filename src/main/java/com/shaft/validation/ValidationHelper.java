@@ -713,7 +713,7 @@ class ValidationHelper {
         validationMethodName = validationMethodName.substring(0, 1).toUpperCase() + validationMethodName.substring(1);
         message.append(validationTypeString).append(" [").append(validationMethodName).append("] ");
         if (validationMethodName.equals("ValidateFail")) {
-            validationState = ValidationState.PASSED;
+            //validationState = ValidationState.PASSED;
             message.append(validationState).append(". ");
             message.append("Successfully force failed the test.");
         } else {
@@ -827,6 +827,7 @@ class ValidationHelper {
     }
 
     private static void processCustomLogMessage(String... optionalCustomLogMessage) {
+        ValidationHelper.optionalCustomLogMessage = new ArrayList<>();
         for (String customMessage : optionalCustomLogMessage) {
             if (customMessage != null && !"".equals(customMessage.trim())) {
                 ValidationHelper.optionalCustomLogMessage.add(customMessage);

@@ -2,120 +2,132 @@ package testPackage01;
 
 import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
+import com.shaft.validation.Assertions;
 import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.Validations;
-import io.restassured.response.Response;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
+import org.testng.annotations.Test;
 
 public class Test_ValidationsBuilder {
     By googleLogo = By.xpath("//img[@alt='Google']");
 
-    //@Test
-    public void test() {
-        Validations.verifyThat().forceFail().perform();
-        Validations.verifyThat().objectsAreEqual("", "").negatively().perform();
-        Validations.verifyThat().objectIsNull(null).withCustomLogMessage("no custom message here").perform();
-        Validations.assertThat().objectsAreEqual("", "").perform();
-    }
-
-    //@Test
-    public void numbersComparisonTest() {
-        Validations.verifyThat()
-                .comparativeRelationBetweenNumbers(1, 2)
-                .withNumbersComparisonRelation(ValidationEnums.NumbersComparativeRelation.LESS_THAN)
-                .perform();
-        Validations.verifyThat()
-                .comparativeRelationBetweenNumbers(1, 2)
-                .withNumbersComparisonRelation(ValidationEnums.NumbersComparativeRelation.GREATER_THAN_OR_EQUALS)
-                .perform();
-        Validations.assertThat()
-                .comparativeRelationBetweenNumbers(1, 2)
-                .withNumbersComparisonRelation(ValidationEnums.NumbersComparativeRelation.EQUALS)
-                .perform();
-    }
-
-    //@Test
-    public void elementExistsTest() {
-        WebDriver driver = DriverFactory.getDriver();
+    @Test
+    public void elementValidations() {
+        WebDriver driver;
+        driver = DriverFactory.getDriver();
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "https://www.google.com");
-        Validations.assertThat().element(driver, googleLogo)
+        Validations.assertThat(driver)
+                .element(googleLogo)
                 .exists()
-                .withCustomLogMessage("Checking to confirm that the google logo image exists")
+                .withCustomReportMessage("Check that google logo exists")
                 .perform();
-        Validations.verifyThat().element(driver, googleLogo)
-                .exists().negatively().withCustomLogMessage("Checking to confirm that the google logo image doesn't exist").perform();
+
+        Assertions.assertElementAttribute(driver, By.xpath(""), "text", "Google", Assertions.AssertionComparisonType.EQUALS, Assertions.AssertionType.POSITIVE);
+
+        Validations.assertThat(driver)
+                .element(googleLogo)
+                .attribute("text")
+                .isEqualTo("")
+                .withCustomReportMessage("")
+                .perform();
+
+        Validations.verifyThat(driver)
+                .element(googleLogo)
+                .doesNotExist()
+                .withCustomReportMessage("Check that google logo does not exist")
+                .perform();
+
+        Validations.verifyThat(driver)
+                .element(googleLogo)
+                .matchesReferenceImage()
+                .perform();
+
+        Validations.verifyThat(driver)
+                .element(googleLogo)
+                .doesNotMatchReferenceImage(ValidationEnums.VisualValidationEngine.EXACT_OPENCV)
+                .perform();
+
+        Validations.verifyThat(driver)
+                .element(googleLogo)
+                .cssProperty("font-family")
+                .contains("arial")
+                .perform();
+
+        Validations.verifyThat(driver)
+                .element(googleLogo)
+                .attribute(ValidationEnums.ElementAttribute.TEXT)
+                .doesNotEqual("dummy text")
+                .withCustomReportMessage("Checking to confirm that google logo text doesn't contain dummy text")
+                .perform();
+
+        Validations.verifyThat(driver)
+                .element(googleLogo)
+                .exists()
+                .perform();
+
+        Validations.verifyThat(driver)
+                .element(googleLogo)
+                .attribute("text")
+                .contains("google")
+                .withCustomReportMessage("checking that the text attribute contains google")
+                .perform();
+
         DriverFactory.closeAllDrivers();
     }
 
-    //@Test
-    public void elementAttributeTest() {
-        WebDriver driver = DriverFactory.getDriver();
+    @Test
+    public void browserValidations() {
+        WebDriver driver;
+        driver = DriverFactory.getDriver();
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "https://www.google.com");
-        Validations.verifyThat()
-                .element(driver, googleLogo)
-                .attributeEquals(ValidationEnums.ElementAttribute.TEXT, "")
-                .withCaseInsensitiveComparison()
-                .negatively()
-                .perform();
-        Validations.assertThat()
-                .element(driver, googleLogo)
-                .attributeEquals("src", "googlelogo")
-                .withContainsComparison()
-                .perform();
-        DriverFactory.closeAllDrivers();
-    }
-
-    //@Test
-    public void elementCssProperty() {
-        WebDriver driver = DriverFactory.getDriver();
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "https://www.google.com");
-        Validations.verifyThat()
-                .element(driver, googleLogo)
-                .cssPropertyEquals("font-family", "arial")
-                .withContainsComparison()
-                .negatively()
-                .perform();
-        Validations.assertThat()
-                .element(driver, googleLogo)
-                .cssPropertyEquals("font-family", "Arial, Sans-Serif")
-                .withCaseInsensitiveComparison()
-                .perform();
-        DriverFactory.closeAllDrivers();
-    }
-
-    //@Test
-    public void browserAttribute() {
-        WebDriver driver = DriverFactory.getDriver();
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "https://www.google.com");
-
-        Validations.verifyThat()
-                .browser(driver)
-                .attributeEquals("url", "google")
-                .withContainsComparison()
-                .negatively()
-                .perform();
-
-        Validations.assertThat()
-                .browser(driver)
-                .attributeEquals(ValidationEnums.BrowserAttribute.CURRENT_URL, ".*google.*")
-                .withRegexMatchingComparison()
+        Validations.assertThat(driver)
+                .browser()
+                .attribute(ValidationEnums.BrowserAttribute.CURRENT_URL)
+                .contains("google")
                 .perform();
 
         DriverFactory.closeAllDrivers();
     }
 
-    //@Test
-    public void jsonTest() {
-        Response response = null;
-        Validations.assertThat().json(response)
-                .responseEqualsFileContent("relative file path")
-                .withContainsComparison()
+    @Test
+    public void nativeValidations() {
+        Validations.verifyThat()
+                .forceFail()
+                .withCustomReportMessage("check that you can force fail a verification")
                 .perform();
 
-        Validations.verifyThat().json(response)
-                .jsonPathValueEquals("", "")
-                .negatively()
+        Validations.assertThat()
+                .conditionIsTrue(true)
+                .withCustomReportMessage("check that true is true")
+                .perform();
+
+        Validations.verifyThat()
+                .conditionIsFalse(false)
+                .perform();
+
+        Validations.verifyThat()
+                .objectIsNull(1)
+                .withCustomReportMessage("check that 1 is null, expected to fail")
+                .perform();
+
+        Validations.verifyThat()
+                .objectIsNotNull(null)
+                .perform();
+
+        Validations.verifyThat()
+                .object("123")
+                .isEqualTo("123")
+                .perform();
+
+        Validations.verifyThat()
+                .object("123")
+                .doesNotEqual("123")
+                .perform();
+
+        Validations.verifyThat()
+                .object("123")
+                .doesNotContain("2")
                 .perform();
     }
 }
