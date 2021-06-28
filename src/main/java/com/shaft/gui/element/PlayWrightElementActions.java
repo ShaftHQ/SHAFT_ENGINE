@@ -1,15 +1,5 @@
 package com.shaft.gui.element;
 
-import java.nio.file.FileSystems;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-
-import org.sikuli.script.App;
-import org.testng.Assert;
-
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.Mouse.DownOptions;
 import com.microsoft.playwright.Page;
@@ -23,6 +13,15 @@ import com.microsoft.playwright.options.WaitForSelectorState;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
+import org.sikuli.script.App;
+import org.testng.Assert;
+
+import java.nio.file.FileSystems;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 public class PlayWrightElementActions {
     private static final String OBFUSCATED_STRING = "•";
@@ -168,13 +167,13 @@ public class PlayWrightElementActions {
      */
     public static void dragAndDropByOffset(Page page, String sourceElementLocator, int xOffset, int yOffset) {
         if (identifyUniqueElement(page, sourceElementLocator)) {
-        	var sourceElementBox = page.querySelector(sourceElementLocator).boundingBox();
-        	var startLocation = String.valueOf(sourceElementBox);
+            var sourceElementBox = page.querySelector(sourceElementLocator).boundingBox();
+            var startLocation = String.valueOf(sourceElementBox);
 
-        	page.mouse().move(sourceElementBox.x +(sourceElementBox.width/2), sourceElementBox.y+(sourceElementBox.height/2));
-        	page.mouse().down(new DownOptions().setButton(MouseButton.LEFT));
-        	page.mouse().move(yOffset, xOffset);
-        	page.mouse().up();
+            page.mouse().move(sourceElementBox.x + (sourceElementBox.width / 2), sourceElementBox.y + (sourceElementBox.height / 2));
+            page.mouse().down(new DownOptions().setButton(MouseButton.LEFT));
+            page.mouse().move(xOffset, yOffset);
+            page.mouse().up();
             // get source element end location
             var endLocation = String.valueOf(page.querySelector(sourceElementLocator).boundingBox());
             var reportMessage = "Start point: " + startLocation + ", End point: " + endLocation;
@@ -376,7 +375,7 @@ public class PlayWrightElementActions {
      */
     public static void hoverAndClick(Page page, List<String> hoverElementLocators, String clickableElementLocator) {
         if (identifyUniqueElement(page, hoverElementLocators.get(0))) {
-            hoverElementLocators.forEach(hoverElementLocator -> page.hover(hoverElementLocator));
+            hoverElementLocators.forEach(page::hover);
             page.click(clickableElementLocator, new ClickOptions().setButton(MouseButton.LEFT));
             passAction(page, hoverElementLocators.get(0),"");
         } else {
@@ -534,10 +533,10 @@ public class PlayWrightElementActions {
     }
 
     /**
-     * Types the required file path into an input[type='file'] button, to
+     * ValidationEnums the required file path into an input[type='file'] button, to
      * successfully upload the target file.
      *
-     * @param page           the current instance of PlayWright
+     * @param page             the current instance of PlayWright
      * @param elementLocator   the locator of the webElement under test (String xpath,
      *                         id, selector, name ...etc)
      * @param absoluteFilePath the full path to the file that needs to be uploaded
@@ -596,7 +595,7 @@ public class PlayWrightElementActions {
                                                  boolean stateOfPresence) {
         ReportManager.logDiscrete("Waiting for element to be present; elementLocator [" + elementLocator + "], numberOfTries[" + numberOfTries + "], stateOfPresence[" + stateOfPresence + "]...");
         String reportMessage = "waited for the element's state of presence to be (" + stateOfPresence
-                + "). Element locator (" + elementLocator.toString() + ")";
+                + "). Element locator (" + elementLocator + ")";
         if (Boolean.compare(stateOfPresence, getMatchingElementsCount(page, elementLocator) >= 1) == 0) {
             passAction(page, elementLocator, reportMessage);
         } else {
@@ -655,7 +654,7 @@ public class PlayWrightElementActions {
         String value =null;
         
         if (valueObj !=null) {
-        value = String.class.cast(valueObj);
+            value = (String) valueObj;
         }
         
         if (value != null) {
@@ -774,7 +773,7 @@ public class PlayWrightElementActions {
                 actualText = page.querySelector(elementLocator).textContent();
                 break;
             case VALUE:
-                actualText = String.class.cast(page.querySelector(elementLocator).evaluate("node => node.value"));
+                actualText = (String) page.querySelector(elementLocator).evaluate("node => node.value");
                 break;
             default:
                 break;
@@ -784,6 +783,7 @@ public class PlayWrightElementActions {
 
     private static String reportActionResult(Page page, String actionName, String testData, String elementLocator,
                                              List<Object> screenshot, Boolean passFailStatus) {
+        actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
             message = "Element Action [" + actionName + "] successfully performed.";
@@ -993,9 +993,7 @@ public class PlayWrightElementActions {
     }
 
     /**
-     * Switches focus to a certain iFrame, is mainly used in coordination with
-     * {@link #switchToDefaultContent(Webpage)} to navigate inside any iFrame
-     * layer and go back to the main page
+     * Switches focus to a certain iFrame
      *
      * @param elementLocator the locator of the iFrame webElement under test (By
      *                       xpath, id, selector, name ...etc)
@@ -1036,7 +1034,7 @@ public class PlayWrightElementActions {
     }
 
     /**
-     * Types the required file path into an input[type='file'] button, to
+     * ValidationEnums the required file path into an input[type='file'] button, to
      * successfully upload the target file.
      *
      * @param elementLocator   the locator of the webElement under test (String xpath,
@@ -1085,28 +1083,8 @@ public class PlayWrightElementActions {
     }
 
     /**
-     * Waits dynamically for a specific element's text to change from the initial
-     * value to a new unknown value. Waits for a specific number of retries
-     * multiplied String the default element identification timeout (in the POM.xml
-     * file)
-     *
-     * @param elementLocator the locator of the webElement under test (String xpath, id,
-     *                       selector, name ...etc)
-     * @param initialValue   the initial text value of the target webElement
-     * @param numberOfTries  the number of times to try and wait for the element
-     *                       text to change (default is 1)
-     * @return a self-reference to be used to chain actions
-     */
-    public PlayWrightElementActions waitForTextToChange(String elementLocator, String initialValue,
-                                              int numberOfTries) {
-        waitForTextToChange(elementLocator, initialValue,numberOfTries);
-        return this;
-    }
-    
-    /**
      * Checks to see if an element is displayed
      *
-     * @param page         the current instance of PlayWright
      * @param elementLocator the locator of the webElement under test (String xpath, id,
      *                       selector, name ...etc)
      * @return boolean value, true if the element is displayed, and false if the

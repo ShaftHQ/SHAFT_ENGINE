@@ -1,11 +1,10 @@
 package com.shaft.cucumber;
 
-import java.util.Objects;
-
+import io.cucumber.java.en.When;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
-import io.cucumber.java.en.When;
+import java.util.Objects;
 
 public class ElementSteps {
     private final ThreadLocal<WebDriver> driver;
@@ -85,7 +84,7 @@ public class ElementSteps {
     }
 
     /**
-     * Types the required file path into an input[type='file'] button, to
+     * ValidationEnums the required file path into an input[type='file'] button, to
      * successfully upload the target file.
      *
      * @param absoluteFilePath the full path to the file that needs to be uploaded
@@ -277,17 +276,6 @@ public class ElementSteps {
         com.shaft.gui.element.ElementActions.waitForTextToChange(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue), initialValue,
                 numberOfTries);
     }
-
-//    private LocatorType getLocatorTypeFromName(String locatorType) {
-//        int values = LocatorType.values().length;
-//        for (int i = 0; i < values; i++) {
-//            if (Arrays.asList(LocatorType.values()).get(i).getValue()
-//                    .equalsIgnoreCase(locatorType.trim())) {
-//                return Arrays.asList(LocatorType.values()).get(i);
-//            }
-//        }
-//        return LocatorType.XPATH;
-//    }
 
     protected enum LocatorType {
         ID("id"), TAG_NAME("tagname"), CLASS_NAME("classname"), NAME("name"), LINK_TEXT("linktext"),

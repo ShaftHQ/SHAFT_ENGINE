@@ -1,26 +1,20 @@
 package com.shaft.gui.element;
 
-import java.io.ByteArrayInputStream;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
-
-import javax.imageio.ImageIO;
-
-import org.apache.commons.io.IOUtils;
-import org.sikuli.basics.Settings;
-import org.sikuli.script.App;
-import org.sikuli.script.FindFailed;
-import org.sikuli.script.Key;
-import org.sikuli.script.Pattern;
-import org.sikuli.script.Screen;
-
 import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.driver.ShaftDriver;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManagerHelper;
+import org.apache.commons.io.IOUtils;
+import org.sikuli.basics.Settings;
+import org.sikuli.script.*;
+
+import javax.imageio.ImageIO;
+import java.io.ByteArrayInputStream;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 
 public class SikuliActions implements ShaftDriver{
     private Screen screen;
@@ -74,7 +68,7 @@ public class SikuliActions implements ShaftDriver{
     }
 
     /**
-     * Types the required string into the target element.
+     * ValidationEnums the required string into the target element.
      *
      * @param pathToTargetElementImage relative path to the desired element image following this example "src/test/resources/DynamicObjectRepository/" + "sikuli_googleHome_searchBox_text.PNG"
      * @param text                     the target text that needs to be typed into the target
@@ -86,7 +80,7 @@ public class SikuliActions implements ShaftDriver{
     }
 
     /**
-     * Types the required string into the target element.
+     * ValidationEnums the required string into the target element.
      *
      * @param targetElement the image of the desired element in the form of a byte[]
      * @param text          the target text that needs to be typed into the target

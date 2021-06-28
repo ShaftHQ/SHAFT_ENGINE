@@ -177,12 +177,14 @@ public class RestActions implements ShaftDriver {
     }
 
     public static String getResponseJSONValue(Object response, String jsonPath) {
-        @SuppressWarnings("unchecked")
-        JSONObject obj = new JSONObject((HashMap<String, String>) response);
-
         String searchPool = "";
         try {
-            searchPool = JsonPath.from(obj.toString()).getString(jsonPath);
+            if (response instanceof HashMap) {
+                JSONObject obj = new JSONObject((HashMap<String, String>) response);
+                searchPool = JsonPath.from(obj.toString()).getString(jsonPath);
+            } else if (response instanceof Response) {
+                searchPool = ((Response) response).jsonPath().getString(jsonPath);
+            }
         } catch (ClassCastException rootCauseException) {
             ReportManager.log(ERROR_INCORRECT_JSONPATH + "[" + jsonPath + "]");
             failAction(jsonPath, rootCauseException);
@@ -413,7 +415,7 @@ public class RestActions implements ShaftDriver {
 
     private static String reportActionResult(String actionName, String testData, Object requestBody, Response response,
                                              Boolean isDiscrete, List<Object> expectedFileBodyAttachment, Boolean passFailStatus) {
-
+        actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
             message = "API Action [" + actionName + "] successfully performed.";

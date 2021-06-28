@@ -1,14 +1,5 @@
 package com.shaft.gui.browser;
 
-import java.awt.HeadlessException;
-import java.awt.Toolkit;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import org.openqa.selenium.Dimension;
-import org.testng.Assert;
-
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Page.NavigateOptions;
 import com.microsoft.playwright.options.LoadState;
@@ -19,6 +10,13 @@ import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.tools.support.JavaScriptHelper;
+import org.openqa.selenium.Dimension;
+import org.testng.Assert;
+
+import java.awt.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 public class PlayWrightBrowserActions {
     private static final Boolean HEADLESS_EXECUTION = Boolean.valueOf(System.getProperty("headlessExecution").trim());
@@ -374,8 +372,8 @@ public class PlayWrightBrowserActions {
 
         var viewportSize = page.viewportSize();
         initialWindowSize = new Dimension(viewportSize.width, viewportSize.height);
-        
-        ReportManager.logDiscrete("Initial window size: " + initialWindowSize.toString());
+
+        ReportManager.logDiscrete("Initial window size: " + initialWindowSize);
 
             // attempt resize using toolkit
             currentWindowSize = attemptMaximizeUsingToolkitAndJavascript(page, targetWidth, targetHeight);
@@ -384,7 +382,7 @@ public class PlayWrightBrowserActions {
                     || (currentWindowSize.width != targetWidth)) {
                 ReportManager.logDiscrete("skipping window maximization due to unknown error, marking step as passed.");
             }
-        passAction(page, "New screen size is now: " + currentWindowSize.toString());
+        passAction(page, "New screen size is now: " + currentWindowSize);
     }
     
     /**
@@ -411,7 +409,7 @@ public class PlayWrightBrowserActions {
 
         var viewportSize = page.viewportSize();
         initialWindowSize = new Dimension(viewportSize.width, viewportSize.height);
-        ReportManager.logDiscrete("Initial window size: " + initialWindowSize.toString());
+        ReportManager.logDiscrete("Initial window size: " + initialWindowSize);
 
         page.setViewportSize(width, height);
         // apparently we need to add +1 here to ensure that the new window size matches
@@ -419,7 +417,7 @@ public class PlayWrightBrowserActions {
 
         viewportSize = page.viewportSize();
         currentWindowSize = new Dimension(viewportSize.width, viewportSize.height);
-        ReportManager.logDiscrete("Window size after SWD: " + currentWindowSize.toString());
+        ReportManager.logDiscrete("Window size after SWD: " + currentWindowSize);
 
         if ((initialWindowSize.height == currentWindowSize.height)
                 && (initialWindowSize.width == currentWindowSize.width)) {
@@ -430,7 +428,7 @@ public class PlayWrightBrowserActions {
 
         	viewportSize = page.viewportSize();
             currentWindowSize = new Dimension(viewportSize.width, viewportSize.height);
-            ReportManager.logDiscrete("Window size after JavascriptExecutor: " + currentWindowSize.toString());
+            ReportManager.logDiscrete("Window size after JavascriptExecutor: " + currentWindowSize);
         }
 
         if ((initialWindowSize.height == currentWindowSize.height)
@@ -438,7 +436,7 @@ public class PlayWrightBrowserActions {
             ReportManager.logDiscrete("skipping window resizing due to unknown error, marking step as passed.");
         }
 
-        passAction(page, "New screen size is now: " + currentWindowSize.toString());
+        passAction(page, "New screen size is now: " + currentWindowSize);
     }
 
     private static void passAction(String testData) {
@@ -473,6 +471,7 @@ public class PlayWrightBrowserActions {
     private static String reportActionResult(Page page, String actionName, String testData,
                                              Boolean passFailStatus) {
 //        RecordManager.startVideoRecording(page);
+        actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
             message = "Browser Action [" + actionName + "] successfully performed.";

@@ -1,46 +1,5 @@
 package com.shaft.gui.image;
 
-import java.awt.AlphaComposite;
-import java.awt.Color;
-import java.awt.Graphics2D;
-import java.awt.Image;
-import java.awt.RenderingHints;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.FileSystems;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
-
-import javax.imageio.ImageIO;
-import javax.imageio.stream.FileImageOutputStream;
-import javax.imageio.stream.ImageOutputStream;
-
-import org.imgscalr.Scalr;
-import org.openqa.selenium.By;
-import org.openqa.selenium.JavascriptException;
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.NoSuchSessionException;
-import org.openqa.selenium.OutputType;
-import org.openqa.selenium.Rectangle;
-import org.openqa.selenium.StaleElementReferenceException;
-import org.openqa.selenium.TakesScreenshot;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebDriverException;
-import org.openqa.selenium.WebElement;
-import org.sikuli.script.App;
-import org.sikuli.script.Pattern;
-import org.sikuli.script.Screen;
-
 import com.microsoft.playwright.ElementHandle;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Page.ScreenshotOptions;
@@ -51,6 +10,23 @@ import com.shaft.gui.element.PlayWrightElementActions;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
+import org.imgscalr.Scalr;
+import org.openqa.selenium.Rectangle;
+import org.openqa.selenium.*;
+import org.sikuli.script.App;
+import org.sikuli.script.Pattern;
+import org.sikuli.script.Screen;
+
+import javax.imageio.ImageIO;
+import javax.imageio.stream.FileImageOutputStream;
+import javax.imageio.stream.ImageOutputStream;
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.io.*;
+import java.nio.file.FileSystems;
+import java.text.SimpleDateFormat;
+import java.util.List;
+import java.util.*;
 
 public class ScreenshotManager {
     private static final String SCREENSHOT_FOLDERPATH = System.getProperty("allureResultsFolderPath").trim()
@@ -129,16 +105,7 @@ public class ScreenshotManager {
         }
 
         return internalCaptureScreenShot(driver, null, actionName, globalPassFailAppendedText,
-                ("Always".equals(SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT))
-                        || ("ValidationPointsOnly".equals(SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT)
-                        && (actionName.toLowerCase().contains("assert")
-                        || actionName.toLowerCase().contains("verify")))
-                        || ("FailuresOnly".equals(SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT) && (!passFailStatus))
-                        || !passFailStatus);
-
-        // Note: Excluded the "Always" case as there will already be another screenshot
-        // taken by the browser/element action // reversed this option to be able to
-        // take a failure screenshot
+                takeScreenshot(actionName, passFailStatus));
     }
 
     /**
@@ -172,40 +139,36 @@ public class ScreenshotManager {
         }
 
         return internalCaptureScreenShot(driver, internalElementLocator, actionName, globalPassFailAppendedText,
-                (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always"))
-                        || (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly")
-                        && (actionName.toLowerCase().contains("assert")
-                        || actionName.toLowerCase().contains("verify")))
-                        || (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly") && (!passFailStatus))
-                        || !passFailStatus);
-        // Note: Excluded the "Always" case as there will already be another screenshot
-        // taken by the browser/element action // reversed this option to be able to
-        // take a failure screenshot
+                takeScreenshot(actionName, passFailStatus));
     }
-    
 
-	public static List<Object> captureScreenShot(Page page, String elementLocator, String actionName, boolean passFailStatus) {
-	        globalPassFailStatus = passFailStatus;
 
-	        if (passFailStatus) {
-	            globalPassFailAppendedText = "passed";
-	        } else {
-	            globalPassFailAppendedText = "failed";
-	        }
+    public static List<Object> captureScreenShot(Page page, String elementLocator, String actionName, boolean passFailStatus) {
+        globalPassFailStatus = passFailStatus;
 
-	        return internalCaptureScreenShot(page, elementLocator, actionName, globalPassFailAppendedText,
-	                (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always"))
-	                        || (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly")
-	                        && (actionName.toLowerCase().contains("assert")
-	                        || actionName.toLowerCase().contains("verify")))
-	                        || (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly") && (!passFailStatus))
-	                        || !passFailStatus);
-	        // Note: Excluded the "Always" case as there will already be another screenshot
-	        // taken by the browser/element action // reversed this option to be able to
-	        // take a failure screenshot
-	}
+        if (passFailStatus) {
+            globalPassFailAppendedText = "passed";
+        } else {
+            globalPassFailAppendedText = "failed";
+        }
 
-	public static synchronized List<Object> captureScreenShotUsingSikuliX(Screen screen, App applicationWindow, Pattern element, String actionName,
+        return internalCaptureScreenShot(page, elementLocator, actionName, globalPassFailAppendedText,
+                takeScreenshot(actionName, passFailStatus));
+    }
+
+    private static boolean takeScreenshot(String actionName, boolean passFailStatus) {
+        return (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always"))
+                || (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly")
+                && (actionName.toLowerCase().contains("assert")
+                || actionName.toLowerCase().contains("verify")
+                || actionName.toLowerCase().contains("validate")))
+                || (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly") && (!passFailStatus));
+        // take screen shot if set to always,
+        //OR if set to validation points only and actionName contains verify or assert
+        //OR if set to failures only and the test failed
+    }
+
+    public static synchronized List<Object> captureScreenShotUsingSikuliX(Screen screen, App applicationWindow, Pattern element, String actionName,
                                                                           boolean passFailStatus) {
 
         globalPassFailStatus = passFailStatus;
@@ -516,27 +479,27 @@ public class ScreenshotManager {
              * Prepare element style using javascript
              */
             ElementHandle elementHandle = null;
-            if (elementLocator !=null && !"".equals(elementLocator) && PlayWrightElementActions.getElementsCount(page, elementLocator)>0) {
-            	elementHandle= page.querySelector(elementLocator).asElement();
+            if (elementLocator != null && !"".equals(elementLocator) && PlayWrightElementActions.getElementsCount(page, elementLocator) > 0) {
+                elementHandle = page.querySelector(elementLocator).asElement();
             }
             String regularElementStyle = null;
-            
-            if (SCREENSHOT_PARAMS_HIGHLIGHTMETHOD.equals("JavaScript")) {
-            regularElementStyle = elementHandle.getAttribute("style");
 
-            if (regularElementStyle != null && !regularElementStyle.equals("")) {
-            	 page.evaluate("arguments[0].style.cssText = arguments[1];", Arrays.asList(elementHandle,regularElementStyle + setHighlightedElementStyle()));
-            } else {
-            	 page.evaluate("arguments[0].setAttribute('style', arguments[1]);", Arrays.asList(elementHandle, setHighlightedElementStyle()));
-            }
+            if (elementHandle != null && SCREENSHOT_PARAMS_HIGHLIGHTMETHOD.equals("JavaScript")) {
+                regularElementStyle = elementHandle.getAttribute("style");
+
+                if (regularElementStyle != null && !regularElementStyle.equals("")) {
+                    page.evaluate("arguments[0].style.cssText = arguments[1];", Arrays.asList(elementHandle, regularElementStyle + setHighlightedElementStyle()));
+                } else {
+                    page.evaluate("arguments[0].setAttribute('style', arguments[1]);", Arrays.asList(elementHandle, setHighlightedElementStyle()));
+                }
             }
 
             /*
              * Take the screenshot and store it as a file
              */
             byte[] src = takeScreenshot(page, elementLocator);
-                        
-            /**
+
+            /*
              * set screenshot name
              */
             testCaseName = ReportManagerHelper.getTestMethodName();

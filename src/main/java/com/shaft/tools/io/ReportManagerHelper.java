@@ -1,29 +1,5 @@
 package com.shaft.tools.io;
 
-import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.SystemUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.testng.Reporter;
-
 import com.aventstack.extentreports.ExtentReports;
 import com.aventstack.extentreports.ExtentTest;
 import com.aventstack.extentreports.MediaEntityBuilder;
@@ -35,9 +11,20 @@ import com.aventstack.extentreports.reporter.configuration.ViewName;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
-
 import io.qameta.allure.Allure;
 import io.qameta.allure.Step;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.SystemUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.testng.Reporter;
+
+import java.io.*;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class ReportManagerHelper {
     private static final String TIMESTAMP_FORMAT = "dd-MM-yyyy HH:mm:ss.SSSS aaa";
@@ -548,12 +535,12 @@ public class ReportManagerHelper {
      *
      * @param logText the text that needs to be logged in this action
      */
-    @Step("Action [{actionCounter}]: {logText}")
+    @Step("{logText}")
     static void writeStepToReport(int actionCounter, String logText) {
         createReportEntry(logText, false);
     }
 
-    @Step("Action [{actionCounter}]: {logText}")
+    @Step("{logText}")
     static void writeStepToReport(int actionCounter, String logText, List<List<Object>> attachments) {
         createReportEntry(logText, false);
         if (attachments != null) {
@@ -723,12 +710,12 @@ public class ReportManagerHelper {
         allureBinaryPath = allureExtractionLocation + "allure-" + allureVersion + File.separator + "bin" + File.separator + "allure";
         if (!FileActions.doesFileExist(allureBinaryPath)) {
             try {
-            	Runtime.getRuntime().exec("taskkill /F /IM java.exe");
+                //Runtime.getRuntime().exec("taskkill /F /IM java.exe");
                 FileActions.deleteFolder(allureExtractionLocation);
-            } catch (IOException | AssertionError e) {
-            	ReportManager.logDiscrete("Couldn't clear the allure extraction directory. Kindly terminate any running java process or restart your machine to fix this issue.");
+            } catch (AssertionError e) {
+                ReportManager.logDiscrete("Couldn't clear the allure extraction directory. Kindly terminate any running java process or restart your machine to fix this issue.");
                 ReportManagerHelper.log(e);
-			}
+            }
             // download allure binary
             URL allureArchive = FileActions.downloadFile(
                     "https://repo.maven.apache.org/maven2/io/qameta/allure/allure-commandline/" + allureVersion
@@ -837,11 +824,10 @@ public class ReportManagerHelper {
         FileActions.deleteFile("generatedReport/");
     }
 
-
     public static void log(String logText, List<List<Object>> attachments) {
         if (isDiscreteLogging() && !logText.toLowerCase().contains("failed") && isInternalStep()) {
             createLogEntry(logText);
-            if (attachments != null) {
+            if (attachments != null && attachments.size() > 0) {
                 attachments.forEach(attachment -> {
                     if (attachment != null) {
                         if (attachment.get(2) instanceof String) {
@@ -858,6 +844,53 @@ public class ReportManagerHelper {
             writeStepToReport(actionCounter, logText, attachments);
             actionCounter++;
         }
+    }
+
+    public static void logNestedSteps(String logText, List<String> customLogMessages, List<List<Object>> attachments) {
+        if (customLogMessages != null && customLogMessages.size() > 0 && !"".equals(customLogMessages.get(0).trim())) {
+            String customLogText = customLogMessages.get(0);
+            if (logText.toLowerCase().contains("passed")) {
+                if (logText.toLowerCase().contains("verification")) {
+                    customLogText = "Verification Passed: " + customLogText;
+                } else {
+                    customLogText = "Assertion Passed: " + customLogText;
+                }
+            } else {
+                if (logText.toLowerCase().contains("verification")) {
+                    customLogText = "Verification Failed: " + customLogText;
+                } else {
+                    customLogText = "Assertion Failed: " + customLogText;
+                }
+            }
+            writeNestedStepsToReport(actionCounter, customLogText, logText, attachments);
+        } else {
+            writeStepToReport(actionCounter, logText, attachments);
+        }
+        actionCounter++;
+    }
+
+    //@Step("Action [{actionCounter}]: {customLog}")
+    @Step("{customLog}")
+    private static void writeNestedStepsToReport(int actionCounter, String customLog, String stepLog, List<List<Object>> attachments) {
+        createReportEntry(customLog, false);
+        if (attachments != null) {
+            attachments.forEach(attachment -> {
+                if (attachment != null && attachment.get(2).getClass().toString().toLowerCase().contains("string")
+                        && !attachment.get(2).getClass().toString().contains("StringInputStream")) {
+                    if (!attachment.get(2).toString().isEmpty()) {
+                        attach(attachment.get(0).toString(), attachment.get(1).toString(),
+                                attachment.get(2).toString());
+                    }
+                } else if (attachment != null) {
+                    if (attachment.get(2) instanceof byte[]) {
+                        attach(attachment.get(0).toString(), attachment.get(1).toString(), new ByteArrayInputStream((byte[]) attachment.get(2)));
+                    } else {
+                        attach(attachment.get(0).toString(), attachment.get(1).toString(), (InputStream) attachment.get(2));
+                    }
+                }
+            });
+        }
+        createReportEntry(stepLog, false);
     }
 
     /**
