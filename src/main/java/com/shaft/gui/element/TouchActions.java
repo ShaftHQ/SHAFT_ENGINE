@@ -636,7 +636,7 @@ public class TouchActions {
     	} catch(Exception rootCauseException) {
             WebDriverElementActions.failAction(driver, null, rootCauseException);
         }
-        WebDriverElementActions.passAction(driver, null);
+        WebDriverElementActions.passAction(driver, null, zoomDirection.name());
     	return this;
     }
 
