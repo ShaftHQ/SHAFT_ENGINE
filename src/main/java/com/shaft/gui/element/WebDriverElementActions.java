@@ -1296,11 +1296,6 @@ public class WebDriverElementActions {
         failAction(driver, actionName, testData, elementLocator, null, rootCauseException);
     }
 
-    protected static void failAction(Screen screen, App applicationWindow, Pattern element, String testData, Exception... rootCauseException) {
-        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        failAction(null, actionName, testData, null, SikuliActions.prepareElementScreenshotAttachment(screen, applicationWindow, element, actionName, false), rootCauseException);
-    }
-
     protected static boolean identifyUniqueElement(WebDriver driver, By elementLocator) {
         return identifyUniqueElement(driver, elementLocator, true);
     }
@@ -1681,12 +1676,12 @@ public class WebDriverElementActions {
         if (screenshot != null && !screenshot.equals(new ArrayList<>())) {
             // screenshot taken before action (in case of click)
             attachments.add(screenshot);
-        } else if (driver != null && elementLocator != null) {
+        } else if (driver != null) {
             List<Object> newScreenshot = takeScreenshot(driver, elementLocator, actionName, testData, passFailStatus);
             if (newScreenshot != null && !newScreenshot.equals(new ArrayList<>())) {
                 attachments.add(newScreenshot);
             }
-        }
+        } 
 
         if (!attachments.equals(new ArrayList<>())) {
             ReportManagerHelper.log(message, attachments);
