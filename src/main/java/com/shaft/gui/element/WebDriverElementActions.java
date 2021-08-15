@@ -1296,6 +1296,11 @@ public class WebDriverElementActions {
         failAction(driver, actionName, testData, elementLocator, null, rootCauseException);
     }
 
+    protected static void failAction(Screen screen, App applicationWindow, Pattern element, String testData, Exception... rootCauseException) {
+        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+        failAction(null, actionName, testData, null, SikuliActions.prepareElementScreenshotAttachment(screen, applicationWindow, element, actionName, false), rootCauseException);
+    }
+
     protected static boolean identifyUniqueElement(WebDriver driver, By elementLocator) {
         return identifyUniqueElement(driver, elementLocator, true);
     }
