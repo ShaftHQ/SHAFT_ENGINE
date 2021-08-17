@@ -715,7 +715,7 @@ public class RestActions implements ShaftDriver {
         return sessionCookies;
     }
 
-    private RequestSpecBuilder initializeBuilder(Map<String, Object> sessionCookies, Map<String, String> sessionHeaders) {
+    private RequestSpecBuilder initializeBuilder(Map<String, Object> sessionCookies, Map<String, String> sessionHeaders, boolean appendDefaultContentCharsetToContentTypeIfUndefined) {
         RequestSpecBuilder builder = new RequestSpecBuilder();
 
         builder.addCookies(sessionCookies);
@@ -724,12 +724,11 @@ public class RestActions implements ShaftDriver {
         // fixing issue with non-unicode content being encoded with a non UTF-8 charset
         // adding timeouts
         builder.setConfig(
-                (new RestAssuredConfig()).encoderConfig((new EncoderConfig()).defaultContentCharset("UTF-8")).and()
+                (new RestAssuredConfig()).encoderConfig((new EncoderConfig()).defaultContentCharset("UTF-8").appendDefaultContentCharsetToContentTypeIfUndefined(appendDefaultContentCharsetToContentTypeIfUndefined)).and()
                         .httpClient(HttpClientConfig.httpClientConfig()
                                 .setParam("http.connection.timeout", HTTP_CONNECTION_TIMEOUT * 1000)
                                 .setParam("http.socket.timeout", HTTP_SOCKET_TIMEOUT * 1000)
                                 .setParam("http.connection-manager.timeout", HTTP_CONNECTION_MANAGER_TIMEOUT * 1000)));
-
         // timeouts documentation
         /*
          * CoreConnectionPNames.SO_TIMEOUT='http.socket.timeout': defines the socket
@@ -899,8 +898,8 @@ public class RestActions implements ShaftDriver {
     }
 
     protected RequestSpecification prepareRequestSpecs(List<List<Object>> parameters, ParametersType parametersType,
-                                                       Object body, ContentType contentType, Map<String, Object> sessionCookies, Map<String, String> sessionHeaders) {
-        RequestSpecBuilder builder = initializeBuilder(sessionCookies, sessionHeaders);
+                                                       Object body, ContentType contentType, Map<String, Object> sessionCookies, Map<String, String> sessionHeaders, boolean appendDefaultContentCharsetToContentTypeIfUndefined) {
+        RequestSpecBuilder builder = initializeBuilder(sessionCookies, sessionHeaders, appendDefaultContentCharsetToContentTypeIfUndefined);
 
         // set the default content type as part of the specs
         builder.setContentType(contentType);
@@ -1053,6 +1052,7 @@ public class RestActions implements ShaftDriver {
      *               time. Example: ContentType.ANY
      * @return Response; returns the full response object for further manipulation
      */
+    @Deprecated
     protected Response performRequest(Object[] params) {
         RequestType requestType = (RequestType) params[0];
         int targetStatusCode = (int) params[1];
@@ -1066,7 +1066,7 @@ public class RestActions implements ShaftDriver {
 
         String request = prepareRequestURL(serviceURI, urlArguments, serviceName);
 
-        RequestSpecification specs = prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders);
+        RequestSpecification specs = prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders, true);
 
         Response response = null;
         try {
