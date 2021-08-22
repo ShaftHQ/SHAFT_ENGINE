@@ -1122,6 +1122,17 @@ public class RestActions implements ShaftDriver {
     }
 
     /**
+     * private helper method for sendGraphqlRequest method without TOKEN
+     * @param base_URI_helperMethod
+     * @param requestBody_helperMethod
+     * @return Response object
+     */
+    private static Response graphqlRequestHelper(String base_URI_helperMethod, org.json.simple.JSONObject requestBody_helperMethod){
+        return buildNewRequest(base_URI_helperMethod, GRAPHQL_END_POINT, RestActions.RequestType.POST).setRequestBody(requestBody_helperMethod)
+                .setContentType(ContentType.JSON).performRequest();
+    }
+
+    /**
      * Perform Graphql Request using the "Query or Mutation" only
      *
      * @param base_URI The Base URI without "graphql". example: "https://api.example.com/"
@@ -1133,9 +1144,7 @@ public class RestActions implements ShaftDriver {
 
         org.json.simple.JSONObject requestBody = new org.json.simple.JSONObject();
         requestBody.put("query", query);
-
-        return buildNewRequest(base_URI, GRAPHQL_END_POINT, RestActions.RequestType.POST).setRequestBody(requestBody)
-                .setContentType(ContentType.JSON).performRequest();
+        return graphqlRequestHelper(base_URI,requestBody);
     }
     /**
      * Perform Graphql Request using the "Query or Mutation" and the Variables
@@ -1151,9 +1160,7 @@ public class RestActions implements ShaftDriver {
         org.json.simple.JSONObject requestBody = new org.json.simple.JSONObject();
         requestBody.put("query", query);
         requestBody.put("variables", variables);
-
-        return buildNewRequest(base_URI, GRAPHQL_END_POINT, RestActions.RequestType.POST).setRequestBody(requestBody)
-                .setContentType(ContentType.JSON).performRequest();
+        return graphqlRequestHelper(base_URI,requestBody);
     }
 
     /**
@@ -1172,12 +1179,8 @@ public class RestActions implements ShaftDriver {
         requestBody.put("query", query);
         requestBody.put("variables", variables);
         requestBody.put("fragment", fragment);
-
-        return buildNewRequest(base_URI, GRAPHQL_END_POINT, RestActions.RequestType.POST).setRequestBody(requestBody)
-                .setContentType(ContentType.JSON).performRequest();
+        return graphqlRequestHelper(base_URI,requestBody);
     }
-
-
 
     public enum ComparisonType {
         EQUALS, CONTAINS
