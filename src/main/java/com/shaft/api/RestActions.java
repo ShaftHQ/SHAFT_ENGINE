@@ -1127,7 +1127,8 @@ public class RestActions implements ShaftDriver {
      * @param requestBody_forHelperMethod the request body.
      * @return Response object
      */
-    private static Response graphqlRequestHelper(String base_URI_forHelperMethod, org.json.simple.JSONObject requestBody_forHelperMethod){
+    private static Response graphQlRequestHelper(String base_URI_forHelperMethod, org.json.simple.JSONObject requestBody_forHelperMethod){
+        ReportManager.logDiscrete("GraphQl Request is being Performed with the Following Parameters [Service URL: " +base_URI_forHelperMethod+"graphql | Request Body: "+ requestBody_forHelperMethod+"]");
         return buildNewRequest(base_URI_forHelperMethod, GRAPHQL_END_POINT, RestActions.RequestType.POST).setRequestBody(requestBody_forHelperMethod)
                 .setContentType(ContentType.JSON).performRequest();
     }
@@ -1139,11 +1140,11 @@ public class RestActions implements ShaftDriver {
      * @return Graphql Response
      */
     @SuppressWarnings("unchecked")
-    public static Response sendGraphqlRequest(String base_URI, String query) {
+    public static Response sendGraphQlRequest(String base_URI, String query) {
 
         org.json.simple.JSONObject requestBody = new org.json.simple.JSONObject();
         requestBody.put("query", query);
-        return graphqlRequestHelper(base_URI,requestBody);
+        return graphQlRequestHelper(base_URI,requestBody);
     }
     /**
      * Perform Graphql Request using Query and Variables - WITHOUT Header.
@@ -1153,12 +1154,12 @@ public class RestActions implements ShaftDriver {
      * @return Graphql Response
      */
     @SuppressWarnings("unchecked")
-    public static Response sendGraphqlRequest(String base_URI, String query, String variables) {
+    public static Response sendGraphQlRequest(String base_URI, String query, String variables) {
 
         org.json.simple.JSONObject requestBody = new org.json.simple.JSONObject();
         requestBody.put("query", query);
         requestBody.put("variables", variables);
-        return graphqlRequestHelper(base_URI,requestBody);
+        return graphQlRequestHelper(base_URI,requestBody);
     }
 
     /**
@@ -1170,13 +1171,13 @@ public class RestActions implements ShaftDriver {
      * @return Graphql Response
      */
     @SuppressWarnings("unchecked")
-    public static Response sendGraphqlRequest(String base_URI, String query, String variables, String fragment) {
+    public static Response sendGraphQlRequest(String base_URI, String query, String variables, String fragment) {
 
         org.json.simple.JSONObject requestBody = new org.json.simple.JSONObject();
         requestBody.put("query", query);
         requestBody.put("variables", variables);
         requestBody.put("fragment", fragment);
-        return graphqlRequestHelper(base_URI,requestBody);
+        return graphQlRequestHelper(base_URI,requestBody);
     }
 
     /**
@@ -1187,7 +1188,8 @@ public class RestActions implements ShaftDriver {
      * @param headerValue_forHelperMethod the value that will be put inside the key.
      * @return Response object
      */
-    private static Response graphqlRequestHelperWithHeader(String base_URI_forHelperMethod, org.json.simple.JSONObject requestBody_forHelperMethod, String headerKey_forHelperMethod, String headerValue_forHelperMethod){
+    private static Response graphQlRequestHelperWithHeader(String base_URI_forHelperMethod, org.json.simple.JSONObject requestBody_forHelperMethod, String headerKey_forHelperMethod, String headerValue_forHelperMethod){
+        ReportManager.logDiscrete("GraphQl Request is being Performed with the Following Parameters [Service URL: " +base_URI_forHelperMethod+ "graphql | Request Body: "+ requestBody_forHelperMethod+" | Header: \""+headerKey_forHelperMethod+"\":\""+headerValue_forHelperMethod+"\"]");
         return buildNewRequest(base_URI_forHelperMethod, GRAPHQL_END_POINT, RestActions.RequestType.POST).setRequestBody(requestBody_forHelperMethod)
                 .setContentType(ContentType.JSON).addHeader(headerKey_forHelperMethod,headerValue_forHelperMethod).performRequest();
     }
@@ -1201,11 +1203,11 @@ public class RestActions implements ShaftDriver {
      * @return Graphql Response
      */
     @SuppressWarnings("unchecked")
-    public static Response sendGraphqlRequestWithHeader(String base_URI, String query, String header_key, String header_value) {
+    public static Response sendGraphQlRequestWithHeader(String base_URI, String query, String header_key, String header_value) {
 
         org.json.simple.JSONObject requestBody = new org.json.simple.JSONObject();
         requestBody.put("query", query);
-        return graphqlRequestHelperWithHeader(base_URI,requestBody,header_key,header_value);
+        return graphQlRequestHelperWithHeader(base_URI,requestBody,header_key,header_value);
     }
     /**
      * Perform Graphql Request using Query and Variables - WITH Header.
@@ -1217,12 +1219,12 @@ public class RestActions implements ShaftDriver {
      * @return Graphql Response
      */
     @SuppressWarnings("unchecked")
-    public static Response sendGraphqlRequestWithHeader(String base_URI, String query, String variables, String header_key, String header_value) {
+    public static Response sendGraphQlRequestWithHeader(String base_URI, String query, String variables, String header_key, String header_value) {
 
         org.json.simple.JSONObject requestBody = new org.json.simple.JSONObject();
         requestBody.put("query", query);
         requestBody.put("variables", variables);
-        return graphqlRequestHelperWithHeader(base_URI,requestBody,header_key,header_value);
+        return graphQlRequestHelperWithHeader(base_URI,requestBody,header_key,header_value);
     }
 
     /**
@@ -1236,13 +1238,13 @@ public class RestActions implements ShaftDriver {
      * @return Graphql Response
      */
     @SuppressWarnings("unchecked")
-    public static Response sendGraphqlRequestWithHeader(String base_URI, String query, String variables, String fragment, String header_key, String header_value) {
+    public static Response sendGraphQlRequestWithHeader(String base_URI, String query, String variables, String fragment, String header_key, String header_value) {
 
         org.json.simple.JSONObject requestBody = new org.json.simple.JSONObject();
         requestBody.put("query", query);
         requestBody.put("variables", variables);
         requestBody.put("fragment", fragment);
-        return graphqlRequestHelperWithHeader(base_URI,requestBody, header_key, header_value);
+        return graphQlRequestHelperWithHeader(base_URI,requestBody, header_key, header_value);
     }
 
 
