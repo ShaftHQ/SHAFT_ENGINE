@@ -497,6 +497,58 @@
 
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
+                                        <label class="col-md-4 control-label" for="retryMaximumNumberOfAttempts">Automatically Retry Failed Tests
+                                        </label>
+                                        <div class="col-md-4" id="retryMaximumNumberOfAttempts">
+                                            <div class="radio-inline">
+                                                <label for="retryMaximumNumberOfAttempts-0">
+                                                    <input checked="checked" id="retryMaximumNumberOfAttempts-0"
+                                                           name="retryMaximumNumberOfAttempts"
+                                                           type="radio" value="0"> Disabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="retryMaximumNumberOfAttempts-1">
+                                                    <input id="retryMaximumNumberOfAttempts-1"
+                                                           name="retryMaximumNumberOfAttempts" type="radio" value="1">
+                                                    1
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="retryMaximumNumberOfAttempts-2">
+                                                    <input id="retryMaximumNumberOfAttempts-2"
+                                                           name="retryMaximumNumberOfAttempts" type="radio" value="2">
+                                                    2
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="retryMaximumNumberOfAttempts-3">
+                                                    <input id="retryMaximumNumberOfAttempts-3"
+                                                           name="retryMaximumNumberOfAttempts" type="radio" value="3">
+                                                    3
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="retryMaximumNumberOfAttempts-4">
+                                                    <input id="retryMaximumNumberOfAttempts-4"
+                                                           name="retryMaximumNumberOfAttempts" type="radio" value="4">
+                                                    4
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="retryMaximumNumberOfAttempts-5">
+                                                    <input id="retryMaximumNumberOfAttempts-5"
+                                                           name="retryMaximumNumberOfAttempts" type="radio" value="5">
+                                                    5 Retry Attempts
+                                                </label>
+                                            </div>
+                                            <span class="help-block">• If a test method fails it will be re-executed for up to the desired number of times or until the test passes.
+                                            <br/>• If a test method fails 5 times then it probably won't pass if re-executed so this feature is locked to that maximum number of attempts.</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
                                         <label class="col-md-4 control-label" for="browserObjectSingleton">Singleton
                                             Browser
                                         </label>
@@ -1935,6 +1987,7 @@
 
 <script>
     function generatePlatformFlags() {
+        const retryMaximumNumberOfAttempts = $("input[name=retryMaximumNumberOfAttempts]:checked").val();
         const browserObjectSingleton = $("input[name=browserObjectSingleton]:checked").val();
         const autoMaximizeBrowserWindow = $("input[name=autoMaximizeBrowserWindow]:checked").val();
         const forceCheckForElementVisibility = $("input[name=forceCheckForElementVisibility]:checked").val();
@@ -1947,6 +2000,7 @@
 
         // This variable stores all the data.
         let data =
+            'retryMaximumNumberOfAttempts=' + retryMaximumNumberOfAttempts + '\r\n' +
             'browserObjectSingleton=' + browserObjectSingleton + '\r\n' +
             'autoMaximizeBrowserWindow=' + autoMaximizeBrowserWindow + '\r\n' +
             'forceCheckForElementVisibility=' + forceCheckForElementVisibility + '\r\n' +
