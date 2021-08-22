@@ -1122,21 +1122,20 @@ public class RestActions implements ShaftDriver {
     }
 
     /**
-     * private helper method for sendGraphqlRequest method without TOKEN
-     * @param base_URI_helperMethod
-     * @param requestBody_helperMethod
+     * private helper method for sendGraphqlRequest() method - WITHOUT TOKEN.
+     * @param base_URI_forHelperMethod The Base URI without "graphql". example:: "https://api.example.com/"
+     * @param requestBody_forHelperMethod the request body.
      * @return Response object
      */
-    private static Response graphqlRequestHelper(String base_URI_helperMethod, org.json.simple.JSONObject requestBody_helperMethod){
-        return buildNewRequest(base_URI_helperMethod, GRAPHQL_END_POINT, RestActions.RequestType.POST).setRequestBody(requestBody_helperMethod)
+    private static Response graphqlRequestHelper(String base_URI_forHelperMethod, org.json.simple.JSONObject requestBody_forHelperMethod){
+        return buildNewRequest(base_URI_forHelperMethod, GRAPHQL_END_POINT, RestActions.RequestType.POST).setRequestBody(requestBody_forHelperMethod)
                 .setContentType(ContentType.JSON).performRequest();
     }
 
     /**
-     * Perform Graphql Request using the "Query or Mutation" only
-     *
-     * @param base_URI The Base URI without "graphql". example: "https://api.example.com/"
-     * @param query
+     * Perform Graphql Request using Query - WITHOUT Header.
+     * @param base_URI The Base URI without "graphql". example:: "https://api.example.com/"
+     * @param query graphql query or mutation.
      * @return Graphql Response
      */
     @SuppressWarnings("unchecked")
@@ -1147,11 +1146,10 @@ public class RestActions implements ShaftDriver {
         return graphqlRequestHelper(base_URI,requestBody);
     }
     /**
-     * Perform Graphql Request using the "Query or Mutation" and the Variables
-     *
-     * @param base_URI The Base URI without "graphql". example: "https://api.example.com/"
-     * @param query
-     * @param variables
+     * Perform Graphql Request using Query and Variables - WITHOUT Header.
+     * @param base_URI The Base URI without "graphql". example:: "https://api.example.com/"
+     * @param query graphql query or mutation.
+     * @param variables graphql variables; dynamic values of the query. please refer to this url for examples:: https://graphql.org/learn/queries/#variables
      * @return Graphql Response
      */
     @SuppressWarnings("unchecked")
@@ -1164,12 +1162,11 @@ public class RestActions implements ShaftDriver {
     }
 
     /**
-     * Perform Graphql Request using the "Query or Mutation", Variables, and fragments
-     *
-     * @param base_URI The Base URI without "graphql". example: "https://api.example.com/"
-     * @param query
-     * @param variables
-     * @param fragment
+     * Perform Graphql Request using Query, Variables, and Fragments - WITHOUT Header.
+     * @param base_URI The Base URI without "graphql". example:: "https://api.example.com/"
+     * @param query graphql query or mutation.
+     * @param variables graphql variables; dynamic values of the query. please refer to this url for examples:: https://graphql.org/learn/queries/#variables
+     * @param fragment graphql fragment; reusable units let you construct sets of fields, and then include them in queries where you need to. please refer to this url for examples:: https://graphql.org/learn/queries/#fragments
      * @return Graphql Response
      */
     @SuppressWarnings("unchecked")
@@ -1181,6 +1178,74 @@ public class RestActions implements ShaftDriver {
         requestBody.put("fragment", fragment);
         return graphqlRequestHelper(base_URI,requestBody);
     }
+
+    /**
+     * private helper method for sendGraphqlRequest method WITH Header.
+     * @param base_URI_forHelperMethod The Base URI without "graphql". example:: "https://api.example.com/"
+     * @param requestBody_forHelperMethod the request body.
+     * @param headerKey_forHelperMethod the name of the header that you want to add.
+     * @param headerValue_forHelperMethod the value that will be put inside the key.
+     * @return Response object
+     */
+    private static Response graphqlRequestHelperWithHeader(String base_URI_forHelperMethod, org.json.simple.JSONObject requestBody_forHelperMethod, String headerKey_forHelperMethod, String headerValue_forHelperMethod){
+        return buildNewRequest(base_URI_forHelperMethod, GRAPHQL_END_POINT, RestActions.RequestType.POST).setRequestBody(requestBody_forHelperMethod)
+                .setContentType(ContentType.JSON).addHeader(headerKey_forHelperMethod,headerValue_forHelperMethod).performRequest();
+    }
+
+    /**
+     * Perform Graphql Request using Query - WITH Header.
+     * @param base_URI The Base URI without "graphql". example:: "https://api.example.com/"
+     * @param query graphql query or mutation.
+     * @param header_key the name of the header that you want to add. example:: "Authorization"
+     * @param header_value the value that will be put inside the key. example:: "bearer ${token}"
+     * @return Graphql Response
+     */
+    @SuppressWarnings("unchecked")
+    public static Response sendGraphqlRequestWithHeader(String base_URI, String query, String header_key, String header_value) {
+
+        org.json.simple.JSONObject requestBody = new org.json.simple.JSONObject();
+        requestBody.put("query", query);
+        return graphqlRequestHelperWithHeader(base_URI,requestBody,header_key,header_value);
+    }
+    /**
+     * Perform Graphql Request using Query and Variables - WITH Header.
+     * @param base_URI The Base URI without "graphql". example:: "https://api.example.com/"
+     * @param query graphql query or mutation.
+     * @param variables graphql variables; dynamic values of the query. please refer to this url for examples:: https://graphql.org/learn/queries/#variables
+     * @param header_key the name of the header that you want to add. example:: "Authorization"
+     * @param header_value the value that will be put inside the key. example:: "bearer ${token}"
+     * @return Graphql Response
+     */
+    @SuppressWarnings("unchecked")
+    public static Response sendGraphqlRequestWithHeader(String base_URI, String query, String variables, String header_key, String header_value) {
+
+        org.json.simple.JSONObject requestBody = new org.json.simple.JSONObject();
+        requestBody.put("query", query);
+        requestBody.put("variables", variables);
+        return graphqlRequestHelperWithHeader(base_URI,requestBody,header_key,header_value);
+    }
+
+    /**
+     * Perform Graphql Request using Query, Variables, and Fragments - WITH Header.
+     * @param base_URI The Base URI without "graphql". example:: "https://api.example.com/"
+     * @param query graphql query or mutation.
+     * @param variables graphql variables; dynamic values of the query. please refer to this url for examples:: https://graphql.org/learn/queries/#variables
+     * @param fragment graphql fragment; reusable units let you construct sets of fields, and then include them in queries where you need to. please refer to this url for examples:: https://graphql.org/learn/queries/#fragments
+     * @param header_key the name of the header that you want to add. example:: "Authorization"
+     * @param header_value the value that will be put inside the key. example:: "bearer ${token}"
+     * @return Graphql Response
+     */
+    @SuppressWarnings("unchecked")
+    public static Response sendGraphqlRequestWithHeader(String base_URI, String query, String variables, String fragment, String header_key, String header_value) {
+
+        org.json.simple.JSONObject requestBody = new org.json.simple.JSONObject();
+        requestBody.put("query", query);
+        requestBody.put("variables", variables);
+        requestBody.put("fragment", fragment);
+        return graphqlRequestHelperWithHeader(base_URI,requestBody, header_key, header_value);
+    }
+
+
 
     public enum ComparisonType {
         EQUALS, CONTAINS

@@ -10,14 +10,12 @@ public class Test_sendGraphqlRequest {
     String spacex_base_uri = "https://api.spacex.land/";
     @Test
     public void sendGraphqlRequestUsingQuery(){
-
         String query = "{company {ceo}}";
         Response response = RestActions.sendGraphqlRequest(spacex_base_uri,query);
         Assertions.assertApiResponseEquals(response,"Elon Musk","data.company.ceo");
     }
     @Test
     public void sendGraphqlRequestUsingMutationAndVariables(){
-
         String mutation = """
                 mutation ($name: String, $rocket: String) {
                   insert_users(objects: {name: $name, rocket: $rocket}) {
@@ -28,9 +26,8 @@ public class Test_sendGraphqlRequest {
                   }
                 }""";
         String variables = """
-                {"name": "test","rocket": "test"}""";
+                {"name": "sherlock holmes","rocket": "221B Baker Street"}""";
         Response response = RestActions.sendGraphqlRequest(spacex_base_uri,mutation,variables);
-
-        Assertions.assertApiResponseEquals(response,"test","data.insert_users.returning[0].name");
+        Assertions.assertApiResponseEquals(response,"sherlock holmes","data.insert_users.returning[0].name");
     }
 }
