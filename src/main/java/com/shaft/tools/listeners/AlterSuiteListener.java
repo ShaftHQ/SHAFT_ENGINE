@@ -4,19 +4,29 @@ import com.shaft.tools.io.LogsHelper;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import org.testng.IAlterSuiteListener;
+import org.testng.IAnnotationTransformer;
+import org.testng.IRetryAnalyzer;
+import org.testng.ITestResult;
+import org.testng.annotations.ITestAnnotation;
 import org.testng.xml.XmlClass;
 import org.testng.xml.XmlSuite;
 import org.testng.xml.XmlSuite.ParallelMode;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
 import java.util.List;
 
-public class AlterSuiteListener implements IAlterSuiteListener {
+public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, IAnnotationTransformer {
+
+    private int retryCount = 0;
+    private static int retryMaximumNumberOfAttempts = 0;
 
     @Override
     public void alter(List<XmlSuite> suites) {
         addListeners(suites);
         //TODO: manage slf4j log patterns
         PropertyFileManager.readPropertyFiles();
+        retryMaximumNumberOfAttempts = Integer.parseInt(System.getProperty("retryMaximumNumberOfAttempts"));
         setExecutionProperties(suites);
         renameDefaultSuiteAndTest(suites);
         addLogsReporterToFirstTest(suites);
@@ -75,5 +85,26 @@ public class AlterSuiteListener implements IAlterSuiteListener {
             suite.addListener("com.shaft.tools.listeners.SuiteListener");
         });
 
+    }
+
+    @Override
+    public boolean retry(ITestResult iTestResult) {
+        if (!iTestResult.isSuccess()) {                      //Check if test not succeed
+            if (retryCount < retryMaximumNumberOfAttempts) {                            //Check if maxtry count is reached
+                retryCount++;                                     //Increase the maxTry count by 1
+                iTestResult.setStatus(ITestResult.FAILURE);  //Mark test as failed
+                return true;                                 //Tells TestNG to re-run the test
+            } else {
+                iTestResult.setStatus(ITestResult.FAILURE);  //If maxCount reached,test marked as failed
+            }
+        } else {
+            iTestResult.setStatus(ITestResult.SUCCESS);      //If test passes, TestNG marks it as passed
+        }
+        return false;
+    }
+
+    @Override
+    public void transform(ITestAnnotation annotation, Class testClass, Constructor testConstructor, Method testMethod) {
+        annotation.setRetryAnalyzer(AlterSuiteListener.class);
     }
 }
