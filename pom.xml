@@ -36,7 +36,7 @@
         <webdrivermanager.version>4.4.3</webdrivermanager.version>
         <allure-testng.version>2.14.0</allure-testng.version> <!-- UPDATE internal.properties -->
         <extentreports.version>5.0.8</extentreports.version>
-        <aspectj.version>1.9.6</aspectj.version> <!-- 1.9.5 DO NOT UPDATE (Search and replace) -->
+        <aspectj.version>1.9.8.M1</aspectj.version> <!-- 1.9.6 DO NOT UPDATE (Search and replace) -->
 
         <rest-assured.version>4.4.0</rest-assured.version>
         <json-simple.version>1.1.1</json-simple.version>
@@ -454,8 +454,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${maven-compiler-plugin.version}</version>
                 <configuration>
-                    <source>15</source>
-                    <target>15</target>
+                    <source>16</source>
+                    <target>16</target>
                     <encoding>UTF-8</encoding>
                     <maxmem>10240m</maxmem>
                     <meminitial>1024m</meminitial>
@@ -469,7 +469,7 @@
                     <dependency>
                         <groupId>org.aspectj</groupId>
                         <artifactId>aspectjweaver</artifactId>
-                        <version>1.9.6</version>
+                        <version>1.9.8.M1</version>
                     </dependency>
                 </dependencies>
                 <configuration>
@@ -478,7 +478,7 @@
                     <encoding>UTF-8</encoding>
                     <argLine>
                         -Dtestng.dtd.http=true
-                        -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.6/aspectjweaver-1.9.6.jar"
+                        -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.8.M1/aspectjweaver-1.9.8.M1.jar"
                     </argLine>
                     <properties>
                         <property>
