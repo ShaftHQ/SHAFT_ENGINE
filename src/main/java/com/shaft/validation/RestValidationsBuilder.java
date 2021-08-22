@@ -4,13 +4,13 @@ import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 
 public class RestValidationsBuilder {
-    ValidationEnums.ValidationCategory validationCategory;
-    String validationMethod;
-    ValidationEnums.ValidationType validationType;
-    Object response;
-    String fileAbsolutePath;
-    RestActions.ComparisonType restComparisonType;
-    String jsonPath;
+    protected ValidationEnums.ValidationCategory validationCategory;
+    protected String validationMethod;
+    protected ValidationEnums.ValidationType validationType;
+    protected Object response;
+    protected String fileAbsolutePath;
+    protected RestActions.ComparisonType restComparisonType;
+    protected String jsonPath;
 
     public RestValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, Object response) {
         this.validationCategory = validationCategory;
