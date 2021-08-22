@@ -27,7 +27,7 @@
 
 ### SHAFT_ENGINE is:
 - A Test Automation Engine.
-- A source controlled Java 15 Maven project that is easily and regularly extended and enhanced with new features.
+- A source controlled Java 16 Maven project that is easily and regularly extended and enhanced with new features.
 - Provides an easily understandable and user-friendly syntax for writing simple, robust, maintainable, and extendable tests.
 - Provides support for Fluent, Data-Driven, Keyword-Driven, and Modular test design powered by TestNG.
 - Provides support for RPA, UAT, and BDD using Cucumber.
