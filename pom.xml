@@ -2,7 +2,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.mohabmohie</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>5.3.20210621</version>
+    <version>5.3.20210822</version>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
     <url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
@@ -31,12 +31,12 @@
         <selenium.version>4.0.0-alpha-7</selenium.version>
         <appium-selenium.version>3.141.59</appium-selenium.version>
         <appium-java-client.version>7.5.1</appium-java-client.version>
-        <playwright.version>1.12.1</playwright.version>
+        <playwright.version>1.14.0</playwright.version>
 
         <webdrivermanager.version>4.4.3</webdrivermanager.version>
         <allure-testng.version>2.14.0</allure-testng.version> <!-- UPDATE internal.properties -->
         <extentreports.version>5.0.8</extentreports.version>
-        <aspectj.version>1.9.6</aspectj.version> <!-- 1.9.5 DO NOT UPDATE (Search and replace) -->
+        <aspectj.version>1.9.8.M1</aspectj.version> <!-- 1.9.6 DO NOT UPDATE (Search and replace) -->
 
         <rest-assured.version>4.4.0</rest-assured.version>
         <json-simple.version>1.1.1</json-simple.version>
@@ -45,13 +45,13 @@
 
         <testng.version>7.4.0</testng.version>
 
-        <mysql-connector-java.version>8.0.25</mysql-connector-java.version>
+        <mysql-connector-java.version>8.0.26</mysql-connector-java.version>
         <mssql-jdbc.version>9.3.1.jre15-preview</mssql-jdbc.version>
         <postgresql.version>9.1-901-1.jdbc4</postgresql.version>
         <!-- <ojdbc8.version>19.3.0.0</ojdbc8.version> -->
 
         <apachepoi.version>5.0.0</apachepoi.version>
-        <org.slf4j.version>1.7.31</org.slf4j.version>
+        <org.slf4j.version>1.7.32</org.slf4j.version>
 
         <maven-resources-plugin.version>3.2.0</maven-resources-plugin.version>
         <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
@@ -64,7 +64,7 @@
 
         <jcraft-jsch.version>0.1.55</jcraft-jsch.version>
 
-        <cucumber.version>6.10.4</cucumber.version>
+        <cucumber.version>6.11.0</cucumber.version>
         <cverges-expect4j.version>1.9</cverges-expect4j.version>
 
         <openpnp-opencv.version>4.5.1-2</openpnp-opencv.version>
@@ -433,6 +433,13 @@
             <artifactId>guava</artifactId>
             <version>30.1.1-jre</version>
         </dependency>
+
+        <!-- https://mvnrepository.com/artifact/org.projectlombok/lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.20</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -454,8 +461,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${maven-compiler-plugin.version}</version>
                 <configuration>
-                    <source>15</source>
-                    <target>15</target>
+                    <source>16</source>
+                    <target>16</target>
                     <encoding>UTF-8</encoding>
                     <maxmem>10240m</maxmem>
                     <meminitial>1024m</meminitial>
@@ -469,7 +476,7 @@
                     <dependency>
                         <groupId>org.aspectj</groupId>
                         <artifactId>aspectjweaver</artifactId>
-                        <version>1.9.6</version>
+                        <version>1.9.8.M1</version>
                     </dependency>
                 </dependencies>
                 <configuration>
@@ -478,7 +485,7 @@
                     <encoding>UTF-8</encoding>
                     <argLine>
                         -Dtestng.dtd.http=true
-                        -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.6/aspectjweaver-1.9.6.jar"
+                        -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.8.M1/aspectjweaver-1.9.8.M1.jar"
                     </argLine>
                     <properties>
                         <property>

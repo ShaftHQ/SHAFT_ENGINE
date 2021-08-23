@@ -162,7 +162,8 @@ public class ScreenshotManager {
                 && (actionName.toLowerCase().contains("assert")
                 || actionName.toLowerCase().contains("verify")
                 || actionName.toLowerCase().contains("validate")))
-                || (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly") && (!passFailStatus));
+                || (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly") && (!passFailStatus))
+                || (!passFailStatus);
         // take screen shot if set to always,
         //OR if set to validation points only and actionName contains verify or assert
         //OR if set to failures only and the test failed
@@ -182,7 +183,7 @@ public class ScreenshotManager {
                 || ("ValidationPointsOnly".equals(SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT)
                 && (actionName.toLowerCase().contains("assert")
                 || actionName.toLowerCase().contains("verify")))
-                || ("FailuresOnly".equals(SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT) && (!passFailStatus))
+//                || ("FailuresOnly".equals(SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT) && (!passFailStatus))
                 || !passFailStatus;
 
         if (takeScreenshot || (CREATE_GIF && (DETAILED_GIF || actionName.matches(DETAILED_GIF_REGEX)))) {
@@ -219,7 +220,6 @@ public class ScreenshotManager {
                         src = baos.toByteArray();
                         break;
                     default:
-                        src = null;
                         break;
                 }
             } catch (IOException e) {
