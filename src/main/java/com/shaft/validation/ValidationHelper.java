@@ -750,32 +750,33 @@ class ValidationHelper {
             }
         }
 
-        // create a screenshot attachment if needed for webdriver
-        //if (expectedValue != null && expectedValue.toLowerCase().contains("locator")) {
-        if (lastUsedDriver != null && lastUsedElementLocator != null) {
-            attachments.add(ScreenshotManager.captureScreenShot(lastUsedDriver, lastUsedElementLocator,
-                    validationMethodName, validationState.getValue()));
-        } else if (lastUsedDriver != null) {
-            attachments.add(ScreenshotManager.captureScreenShot(lastUsedDriver, validationMethodName,
-                    validationState.getValue()));
-        }
-        // reset lastUsed variables
-        lastUsedDriver = null;
-        lastUsedElementLocator = null;
-        //}
-
-        // create a screenshot attachment if needed for Playwright
-        if (expectedValue != null && expectedValue.toLowerCase().contains("locator")) {
-            if (lastUsedPage != null && lastUsedElementLocatorString != null) {
+        if (lastUsedDriver != null) {
+            // create a screenshot attachment if needed for webdriver
+            //if (expectedValue != null && expectedValue.toLowerCase().contains("locator")) {
+            if (lastUsedElementLocator != null) {
+                attachments.add(ScreenshotManager.captureScreenShot(lastUsedDriver, lastUsedElementLocator,
+                        validationMethodName, validationState.getValue()));
+            } else {
+                attachments.add(ScreenshotManager.captureScreenShot(lastUsedDriver, validationMethodName,
+                        validationState.getValue()));
+            }
+            // reset lastUsed variables
+            lastUsedDriver = null;
+            lastUsedElementLocator = null;
+            //}
+        } else if (lastUsedPage != null) {
+            // create a screenshot attachment if needed for Playwright
+//        if (expectedValue != null && expectedValue.toLowerCase().contains("locator")) {
+            if (lastUsedElementLocatorString != null) {
                 attachments.add(ScreenshotManager.captureScreenShot(lastUsedPage, lastUsedElementLocatorString, validationMethodName, validationState.getValue()));
-            } else if (lastUsedPage != null) {
+            } else {
                 attachments.add(ScreenshotManager.captureScreenShot(lastUsedPage, "", validationMethodName, validationState.getValue()));
             }
             // reset lastUsed variables
             lastUsedPage = null;
             lastUsedElementLocatorString = null;
+//        }
         }
-
 
         // handling changes as per validationCategory hard/soft
         switch (validationCategory) {
