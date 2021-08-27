@@ -18,8 +18,8 @@ public class GoogleSearch {
      String url = "https://www.google.com/ncr";
      String urlAfterRedirection = "https://www.google.com";
      
-    public static By googleLogo_image = By.xpath("//img[@id='hplogo' or @alt='Google']");
-    String googleLogo_image_stringLocator = "xpath=//img[@id='hplogo' or @alt='Google']";
+    public static By googleLogo_image = By.xpath("//*[@id='hplogo' or @alt='Google']");
+    String googleLogo_image_stringLocator = "xpath=//*[@id='hplogo' or @alt='Google']";
     
     By searchBox_textField = By.xpath("//input[@id='lst-ib' or @class='lst' or @name='q']");
     String searchBox_textField_stringLocator = "xpath=//input[@id='lst-ib' or @class='lst' or @name='q']";
