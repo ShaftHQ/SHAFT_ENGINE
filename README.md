@@ -1,4 +1,4 @@
-# SHAFT_ENGINE
+# SHAFT: Unified Test Automation Engine
 <img src="src/main/resources/images/shaft.png" alt="SHAFT_ENGINE" style="display:block; margin-left:auto; margin-right:auto;"/>
 
 ### Badges:<!-- Badges provided by https://shields.io/ -->
@@ -42,4 +42,4 @@
 ### To contribute to SHAFT join our Slack Channel, for support using SHAFT join our Facebook group:
 <a href="https://join.slack.com/t/automatest-workspace/shared_invite/zt-oii5i2gg-0ZGnih_Y34NjK7QqDn01Dw" target="_blank"><img src="https://a.slack-edge.com/80588/marketing/img/icons/icon_slack_hash_colored.png" alt="automatest-workspace" width="50" height="50"/></a>  <a href="https://www.facebook.com/groups/Automatest" target="_blank"><img src="https://facebookbrand.com/wp-content/uploads/2019/04/f_logo_RGB-Hex-Blue_512.png" alt="Automatest" width="50" height="50"/></a>
 
-####Stop Reinventing the wheel! Start using SHAFT!
+#### Stop Reinventing the wheel! Start using SHAFT!
