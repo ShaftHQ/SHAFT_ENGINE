@@ -33,7 +33,7 @@
         <appium-java-client.version>7.5.1</appium-java-client.version>
         <playwright.version>1.14.1</playwright.version>
 
-        <webdrivermanager.version>4.4.3</webdrivermanager.version>
+        <webdrivermanager.version>5.0.0</webdrivermanager.version>
         <allure-testng.version>2.14.0</allure-testng.version> <!-- UPDATE internal.properties -->
         <extentreports.version>5.0.8</extentreports.version>
         <aspectj.version>1.9.8.M1</aspectj.version> <!-- 1.9.6 DO NOT UPDATE (Search and replace) -->
