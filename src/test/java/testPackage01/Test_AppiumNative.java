@@ -44,8 +44,8 @@ public class Test_AppiumNative {
         System.setProperty("mobile_automationName", "Appium");
 
         // local appium server
-        //System.setProperty("executionAddress", "0.0.0.0:4723");
-        //System.setProperty("mobile_app", FileActions.getAbsolutePath("src/test/resources/", "JUMIA_v7.1.1.apk"));
+//        System.setProperty("executionAddress", "0.0.0.0:4723");
+//        System.setProperty("mobile_app", "src/test/resources/JUMIA_v7.1.1.apk");
 
         // remote browserstack server
         BrowserStack.setupNativeAppExecution("mohabmohie1", "7E7PgzBtwk4sWLUcF8Y5",

@@ -206,14 +206,14 @@ public class RequestBuilder {
             String reportMessage = session.prepareReportMessage(response, targetStatusCode, requestType, serviceName,
                     contentType, urlArguments);
             if (!"".equals(reportMessage) && Boolean.TRUE.equals(responseStatus)) {
-                RestActions.passAction(reportMessage, requestBody, response);
+                RestActions.passAction(reportMessage, requestBody, specs, response);
             } else {
-                RestActions.failAction(reportMessage, requestBody, response);
+                RestActions.failAction(reportMessage, requestBody, specs, response);
             }
         } catch (Exception rootCauseException) {
             ReportManagerHelper.log(rootCauseException);
             if (response != null) {
-                RestActions.failAction(request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", requestBody,
+                RestActions.failAction(request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", requestBody,specs,
                         response, rootCauseException);
             } else {
                 RestActions.failAction(request, rootCauseException);
