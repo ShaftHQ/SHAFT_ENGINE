@@ -86,6 +86,11 @@ public class PropertyFileManager {
                 appiumDesiredCapabilities.put(String.valueOf(key), String.valueOf(value));
             }
         });
+        var app = appiumDesiredCapabilities.get("mobile_app");
+        if (app!= null && !app.isEmpty() &&
+                (app.startsWith("src\\") || app.startsWith("src/"))){
+            appiumDesiredCapabilities.put("mobile_app", FileActions.getAbsolutePath(app));
+        }
         return appiumDesiredCapabilities;
     }
 

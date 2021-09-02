@@ -25,7 +25,9 @@ import io.restassured.path.json.exception.JsonPathException;
 import io.restassured.path.xml.element.Node;
 import io.restassured.path.xml.element.NodeChildren;
 import io.restassured.response.Response;
+import io.restassured.specification.QueryableRequestSpecification;
 import io.restassured.specification.RequestSpecification;
+import io.restassured.specification.SpecificationQuerier;
 import org.apache.commons.io.IOUtils;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -75,14 +77,14 @@ public class RestActions implements ShaftDriver {
         return new RequestBuilder(new RestActions(serviceURI), serviceName, requestType);
     }
 
-    private static void passAction(String actionName, String testData, Object requestBody, Response response,
+    private static void passAction(String actionName, String testData, Object requestBody, RequestSpecification specs, Response response,
                                    Boolean isDiscrete, List<Object> expectedFileBodyAttachment) {
-        reportActionResult(actionName, testData, requestBody, response, isDiscrete, expectedFileBodyAttachment, true);
+        reportActionResult(actionName, testData, requestBody, specs, response, isDiscrete, expectedFileBodyAttachment, true);
     }
 
-    private static void failAction(String actionName, String testData, Object requestBody, Response response,
+    private static void failAction(String actionName, String testData, Object requestBody, RequestSpecification specs, Response response,
                                    Throwable... rootCauseException) {
-        String message = reportActionResult(actionName, testData, requestBody, response, false, null, false);
+        String message = reportActionResult(actionName, testData, requestBody, specs, response, false, null, false);
         if (rootCauseException != null && rootCauseException.length >= 1) {
             Assert.fail(message, rootCauseException[0]);
         } else {
@@ -92,17 +94,17 @@ public class RestActions implements ShaftDriver {
 
     protected static void passAction(String testData) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        passAction(actionName, testData, null, null, true, null);
+        passAction(actionName, testData, null, null, null, true, null);
     }
 
     protected static void passAction(String testData, List<Object> expectedFileBodyAttachment) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        passAction(actionName, testData, null, null, true, expectedFileBodyAttachment);
+        passAction(actionName, testData, null, null,null, true, expectedFileBodyAttachment);
     }
 
-    static void passAction(String testData, Object requestBody, Response response) {
+    static void passAction(String testData, Object requestBody, RequestSpecification specs, Response response) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        passAction(actionName, testData, requestBody, response, false, null);
+        passAction(actionName, testData, requestBody, specs, response, false, null);
     }
 
     public static InputStream parseBodyToJson(Response response) {
@@ -179,11 +181,11 @@ public class RestActions implements ShaftDriver {
     public static String getResponseJSONValue(Object response, String jsonPath) {
         String searchPool = "";
         try {
-            if (response instanceof HashMap) {
-                JSONObject obj = new JSONObject((HashMap<String, String>) response);
+            if (response instanceof HashMap hashMapResponse) {
+                JSONObject obj = new JSONObject(hashMapResponse);
                 searchPool = JsonPath.from(obj.toString()).getString(jsonPath);
-            } else if (response instanceof Response) {
-                searchPool = ((Response) response).jsonPath().getString(jsonPath);
+            } else if (response instanceof Response responseObject) {
+                searchPool = responseObject.jsonPath().getString(jsonPath);
             }
         } catch (ClassCastException rootCauseException) {
             ReportManager.log(ERROR_INCORRECT_JSONPATH + "[" + jsonPath + "]");
@@ -402,18 +404,18 @@ public class RestActions implements ShaftDriver {
         return new RequestBuilder(this, serviceName, requestType);
     }
 
-    protected static void failAction(String testData, Object requestBody, Response response,
+    protected static void failAction(String testData, Object requestBody, RequestSpecification specs, Response response,
                                      Throwable... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        failAction(actionName, testData, requestBody, response, rootCauseException);
+        failAction(actionName, testData, requestBody, specs, response, rootCauseException);
     }
 
     protected static void failAction(String testData, Throwable... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        failAction(actionName, testData, null, null, rootCauseException);
+        failAction(actionName, testData, null, null, null, rootCauseException);
     }
 
-    private static String reportActionResult(String actionName, String testData, Object requestBody, Response response,
+    private static String reportActionResult(String actionName, String testData, Object requestBody, RequestSpecification specs, Response response,
                                              Boolean isDiscrete, List<Object> expectedFileBodyAttachment, Boolean passFailStatus) {
         actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
@@ -424,7 +426,7 @@ public class RestActions implements ShaftDriver {
         }
 
         List<List<Object>> attachments = new ArrayList<>();
-        if (testData != null && !testData.isEmpty() && testData.length() >= 500) {
+        if (testData != null && testData.length() >= 500) {
             List<Object> actualValueAttachment = Arrays.asList("API Action Test Data - " + actionName, "Actual Value",
                     testData);
             attachments.add(actualValueAttachment);
@@ -440,6 +442,7 @@ public class RestActions implements ShaftDriver {
             reportResponseBody(response, true);
             ReportManager.logDiscrete(message);
         } else {
+            attachments.add(reportRequestSpecs(specs));
             if (requestBody != null && !requestBody.equals(new JsonObject())) {
                 attachments.add(reportRequestBody(requestBody));
             }
@@ -454,6 +457,64 @@ public class RestActions implements ShaftDriver {
 
         }
         return message;
+    }
+
+    private static List<Object> reportRequestSpecs(RequestSpecification specs) {
+        List<Object> requestSpecsAttachment = new ArrayList<>();
+        requestSpecsAttachment.add("API Request");
+        requestSpecsAttachment.add("Specifications");
+
+        StringBuilder builder = new StringBuilder();
+        QueryableRequestSpecification queryableRequestSpecification = SpecificationQuerier.query(specs);
+
+        var headers = queryableRequestSpecification.getHeaders().asList();
+        if (headers!=null && !headers.isEmpty()) {
+            builder.append("Headers:")
+                    .append(System.lineSeparator())
+                    .append("_______________")
+                    .append(System.lineSeparator())
+                    .append(System.lineSeparator());
+            for (var header : headers) {
+                builder.append(header.getName())
+                        .append("=")
+                        .append(header.getValue())
+                        .append(System.lineSeparator());
+            }
+            builder.append(System.lineSeparator());
+        }
+
+        var formParams = queryableRequestSpecification.getFormParams();
+        if (formParams!=null && !formParams.isEmpty()) {
+            builder.append("Form Parameters:")
+                    .append(System.lineSeparator())
+                    .append("_______________")
+                    .append(System.lineSeparator())
+                    .append(System.lineSeparator());
+            for (String key : formParams.keySet()) {
+                builder.append(key)
+                        .append("=")
+                        .append(formParams.get(key))
+                        .append(System.lineSeparator());
+            }
+            builder.append(System.lineSeparator());
+        }
+
+        var queryParams = queryableRequestSpecification.getQueryParams();
+        if (queryParams!=null && !queryParams.isEmpty()) {
+            builder.append("Query Parameters:")
+                    .append(System.lineSeparator())
+                    .append("_______________")
+                    .append(System.lineSeparator())
+                    .append(System.lineSeparator());
+            for (String key : queryParams.keySet()) {
+                builder.append(key)
+                        .append("=")
+                        .append(queryParams.get(key))
+                        .append(System.lineSeparator());
+            }
+        }
+        requestSpecsAttachment.add(builder);
+        return requestSpecsAttachment;
     }
 
     private static List<Object> reportRequestBody(Object requestBody) {
@@ -1083,14 +1144,14 @@ public class RestActions implements ShaftDriver {
             String reportMessage = prepareReportMessage(response, targetStatusCode, requestType, serviceName,
                     contentType, urlArguments);
             if (!"".equals(reportMessage) && Boolean.TRUE.equals(responseStatus)) {
-                passAction(reportMessage, requestBody, response);
+                passAction(reportMessage, requestBody, specs, response);
             } else {
-                failAction(reportMessage, requestBody, response);
+                failAction(reportMessage, requestBody, specs, response);
             }
         } catch (Exception rootCauseException) {
             ReportManagerHelper.log(rootCauseException);
             if (response != null) {
-                failAction(request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", requestBody,
+                failAction(request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", requestBody,specs,
                         response, rootCauseException);
             } else {
                 failAction(request, rootCauseException);

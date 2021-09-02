@@ -3,7 +3,6 @@ package com.shaft.tools.io;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.gui.browser.BrowserFactory;
-
 import org.testng.annotations.AfterSuite;
 
 import java.text.SimpleDateFormat;
@@ -45,7 +44,7 @@ public class LogsHelper {
 
     private void attachExtentReport() {
         ReportManagerHelper.extentReportsFlush();
-        if (FileActions.doesFileExist(ReportManagerHelper.getExtentReportFileName())) {
+        if (Boolean.parseBoolean(System.getProperty("generateExtentReports").trim()) && FileActions.doesFileExist(ReportManagerHelper.getExtentReportFileName())) {
             ReportManagerHelper.attach("HTML", "Extent Emailable Execution Report", FileActions.readFromFile(ReportManagerHelper.getExtentReportFileName()));
         }
     }
