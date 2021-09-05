@@ -1670,7 +1670,7 @@ public class WebDriverElementActions {
         }
 
         List<List<Object>> attachments = new ArrayList<>();
-        if (testData != null && !testData.isEmpty() && testData.length() >= 500) {
+        if (testData != null && testData.length() >= 500) {
             List<Object> actualValueAttachment = Arrays.asList("Element Action Test Data - " + actionName,
                     "Actual Value", testData);
             attachments.add(actualValueAttachment);
@@ -1757,7 +1757,7 @@ public class WebDriverElementActions {
             this.value = strategy;
         }
 
-        protected String getValue() {
+        String getValue() {
             return value;
         }
     }

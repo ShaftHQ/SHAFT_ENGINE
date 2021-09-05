@@ -592,7 +592,7 @@ public class FileActions {
         }
 
         List<List<Object>> attachments = new ArrayList<>();
-        if (testData != null && !testData.isEmpty() && testData.length() >= 500) {
+        if (testData != null && testData.length() >= 500) {
             List<Object> actualValueAttachment = Arrays.asList("File Action Test Data - " + actionName, "Actual Value",
                     testData);
             attachments.add(actualValueAttachment);
@@ -758,6 +758,8 @@ public class FileActions {
             for (Enumeration<? extends ZipEntry> entries = zipFile.entries(); entries.hasMoreElements(); ) {
                 ZipEntry entry = entries.nextElement();
                 File file = new File(targetDir, File.separator + entry.getName());
+                if (!file.toPath().normalize().startsWith(targetDir.toPath()))
+                    throw new IOException("Bad zip entry");
                 if (buildDirectory(file.getParentFile())) {
                     throw new IOException(ERROR_CANNOT_CREATE_DIRECTORY + file.getParentFile());
                 }
