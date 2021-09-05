@@ -76,7 +76,7 @@ public class JSONFileManager {
     public List<?> getTestDataAsList(String jsonPath) {
         Object testData = getTestData(cleanJsonPath(jsonPath), DataType.LIST);
         if (testData != null) {
-            return List.class.cast(testData);
+            return (List<?>) testData;
         } else {
             return null;
         }
@@ -91,7 +91,7 @@ public class JSONFileManager {
     public Map<?,?> getTestDataAsMap(String jsonPath) {
         Object testData = getTestData(cleanJsonPath(jsonPath), DataType.MAP);
         if (testData != null) {
-            return Map.class.cast(testData);
+            return (Map<?,?>) testData;
         } else {
             return null;
         }

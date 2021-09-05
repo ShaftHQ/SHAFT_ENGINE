@@ -625,7 +625,7 @@ public class WebDriverBrowserActions {
         }
 
         List<List<Object>> attachments = new ArrayList<>();
-        if (testData != null && !testData.isEmpty() && testData.length() >= 500) {
+        if (testData != null && testData.length() >= 500) {
             List<Object> actualValueAttachment = Arrays.asList("Browser Action Test Data - " + actionName,
                     "Actual Value", testData);
             attachments.add(actualValueAttachment);
