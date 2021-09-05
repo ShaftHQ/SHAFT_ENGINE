@@ -45,10 +45,10 @@ public class RecordManager {
                 && DriverFactoryHelper.isMobileNativeExecution()) {
             videoDriver.set(driver);
             try {
-                if (driver instanceof AndroidDriver) {
-                	AndroidDriver.class.cast(driver).startRecordingScreen();
-                } else if (driver instanceof IOSDriver) {
-                	IOSDriver.class.cast(driver).startRecordingScreen();
+                if (driver instanceof AndroidDriver androidDriver) {
+                    androidDriver.startRecordingScreen();
+                } else if (driver instanceof IOSDriver iosDriver) {
+                    iosDriver.startRecordingScreen();
                 }
                 ReportManager.logDiscrete("Started recording device screen");
                 isRecordingStarted = true;
@@ -88,10 +88,10 @@ public class RecordManager {
             recorder.set(null);
         } else if (Boolean.TRUE.equals(RECORD_VIDEO) && videoDriver.get() != null) {
             String base64EncodedRecording = "";
-            if (videoDriver.get() instanceof AndroidDriver) {
-                base64EncodedRecording = AndroidDriver.class.cast(videoDriver.get()).stopRecordingScreen();
-            } else if (videoDriver.get() instanceof IOSDriver) {
-                base64EncodedRecording = IOSDriver.class.cast(videoDriver.get()).stopRecordingScreen();
+            if (videoDriver.get() instanceof AndroidDriver androidDriver) {
+                base64EncodedRecording = androidDriver.stopRecordingScreen();
+            } else if (videoDriver.get() instanceof IOSDriver iosDriver) {
+                base64EncodedRecording = iosDriver.stopRecordingScreen();
             }
             ReportManagerHelper.attach("Video Recording", testMethodName,
                     new ByteArrayInputStream(Base64.getDecoder().decode(base64EncodedRecording)));
