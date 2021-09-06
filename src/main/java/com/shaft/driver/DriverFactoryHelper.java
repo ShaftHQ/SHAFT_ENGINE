@@ -339,7 +339,7 @@ public class DriverFactoryHelper {
                 }
                 break;
             case LINUX:
-                if (driverType.equals(DriverType.DESKTOP_FIREFOX) || driverType.equals(DriverType.DESKTOP_CHROME)) {
+                if (driverType.equals(DriverType.DESKTOP_FIREFOX) || driverType.equals(DriverType.DESKTOP_CHROME) || driverType.equals(DriverType.DESKTOP_EDGE)) {
                     isCompatibleDriver = true;
                 }
                 break;
