@@ -23,10 +23,10 @@ jobs:
           java-version: '16'
           distribution: 'zulu'
       - name: Run all tests
-          uses: reactivecircus/android-emulator-runner@v2
-          with:
-            api-level: 29
-            script: mvn test -DexecutionAddress="localhost:4723" -DtargetOperatingSystem="Android" -Dmobile_automationName="Appium" -Dmobile_app="src/test/resources/JUMIA_v7.1.1.apk" -Dtest="%regex[.*Appium.*]"
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 29
+          script: mvn test -DexecutionAddress="localhost:4723" -DtargetOperatingSystem="Android" -Dmobile_automationName="Appium" -Dmobile_app="src/test/resources/JUMIA_v7.1.1.apk" -Dtest="%regex[.*Appium.*]"
       - name: Get Allure history
         continue-on-error: true
         uses: actions/checkout@v2.3.4
