@@ -893,8 +893,8 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
         browser = null;
         switch (driverType) {
             case DESKTOP_FIREFOX -> browser = playwright.firefox().launch(options);
-            case DESKTOP_CHROMIUM, DESKTOP_CHROME -> browser = playwright.chromium().launch(options);
-            case DESKTOP_WEBKIT -> browser = playwright.webkit().launch(options);
+            case DESKTOP_CHROMIUM, DESKTOP_CHROME, DESKTOP_EDGE -> browser = playwright.chromium().launch(options);
+            case DESKTOP_WEBKIT, DESKTOP_SAFARI -> browser = playwright.webkit().launch(options);
             default -> failAction("Unsupported Driver Type [" + driverName + "].");
         }
         
