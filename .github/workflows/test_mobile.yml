@@ -22,6 +22,13 @@ jobs:
         with:
           java-version: '16'
           distribution: 'zulu'
+      - name: Start the Appium Server
+        run: ./node_modules/.bin/appium --log-timestamp --log-no-colors --allow-insecure chromedriver_autodownload > appium.log &
+      - name: Poll for Appium Server to Start
+        run: |
+          until $(curl --output /dev/null --silent --head --fail http://127.0.0.1:4723/wd/hub/sessions); do
+            sleep 5
+          done
       - name: Run all tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
