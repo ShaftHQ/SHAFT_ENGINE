@@ -1,6 +1,6 @@
 package testPackage01;
 
-import com.shaft.api.BrowserStack;
+import com.shaft.cli.TerminalActions;
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.TouchActions;
 import com.shaft.validation.Assertions;
@@ -44,13 +44,14 @@ public class Test_AppiumNative {
         System.setProperty("mobile_automationName", "Appium");
 
         // local appium server
-//        System.setProperty("executionAddress", "0.0.0.0:4723");
-//        System.setProperty("mobile_app", "src/test/resources/JUMIA_v7.1.1.apk");
+        System.setProperty("executionAddress", "0.0.0.0:4723");
+        System.setProperty("mobile_app", "src/test/resources/JUMIA_v7.1.1.apk");
 
         // remote browserstack server
-        BrowserStack.setupNativeAppExecution("mohabmohie1", "7E7PgzBtwk4sWLUcF8Y5",
-                "Google Pixel 3", "9.0", "src/test/resources/JUMIA_v7.1.1.apk", "JUMIA");
+//        BrowserStack.setupNativeAppExecution("mohabmohie1", "7E7PgzBtwk4sWLUcF8Y5",
+//                "Google Pixel 3", "9.0", "src/test/resources/JUMIA_v7.1.1.apk", "JUMIA");
 
+        new TerminalActions();
         driver = BrowserFactory.getBrowser();
     }
 
