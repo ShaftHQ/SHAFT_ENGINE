@@ -1,7 +1,7 @@
 # https://github.com/zalando/zalenium
-# docker-compose -f docker-compose_zalenium.yml up --force-recreate --remove-orphans
-# docker-compose -f docker-compose_zalenium.yml reset
-# docker-compose -f docker-compose_zalenium.yml down
+# docker-compose -f zalenium.yml up --force-recreate --remove-orphans
+# docker-compose -f zalenium.yml reset
+# docker-compose -f zalenium.yml down
 # http://localhost:4444/grid/admin/live?only_active_sessions=true&refresh=10
 # http://localhost:4444/dashboard/
 # http://localhost:4444/dashboard/cleanup?action=doReset
