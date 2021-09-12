@@ -1566,15 +1566,18 @@ public class WebDriverElementActions {
         try {
             switch (action.toLowerCase()) {
                 case "copy":
-                    (Toolkit.getDefaultToolkit().getSystemClipboard())
-                            .setContents((new StringSelection(getText(driver, elementLocator))), null);
+//                    (Toolkit.getDefaultToolkit().getSystemClipboard())
+//                            .setContents((new StringSelection(getText(driver, elementLocator))), null);
+                    (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "c")).perform();
                     break;
                 case "paste":
-                    pasteFromClipboard(driver, elementLocator);
+//                    pasteFromClipboard(driver, elementLocator);
+                    (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "v")).perform();
                     break;
                 case "cut":
-                    (Toolkit.getDefaultToolkit().getSystemClipboard())
-                            .setContents((new StringSelection(getText(driver, elementLocator))), null);
+//                    (Toolkit.getDefaultToolkit().getSystemClipboard())
+//                            .setContents((new StringSelection(getText(driver, elementLocator))), null);
+                    (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "x")).perform();
                     type(driver, elementLocator, "");
                     break;
                 case "select all":
