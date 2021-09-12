@@ -31,7 +31,7 @@ jobs:
         if: runner.os == 'Linux'
         run: docker ps
       - name: Run tests on Linux/MacOS
-        continue-on-error: true
+        if: runner.os != 'Windows'
         run: |
           if [ "$RUNNER_OS" == "Linux" ]; then
                mvn test -DexecutionAddress="localhost:4444" -DtargetOperatingSystem="Linux-64" -DmaximumPerformanceMode="2" -DtargetBrowserName="GoogleChrome" -Dtest="!%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*]"
@@ -43,7 +43,6 @@ jobs:
           fi
       - name: Run tests on Windows
         if: runner.os == 'Windows'
-        continue-on-error: true
         run: mvn test -DexecutionAddress="local" -DtargetOperatingSystem="Windows-64" -DmaximumPerformanceMode="2" -DtargetBrowserName="MicrosoftEdge" -Dtest="!%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*]"
       - name: Get Allure history
         continue-on-error: true
@@ -64,6 +63,7 @@ jobs:
           allure_history: allure-history
           subfolder: allure
       - name: Deploy Allure report to Github Pages
+        if: always()
         continue-on-error: true
         uses: peaceiris/actions-gh-pages@v3.8.0
         with:

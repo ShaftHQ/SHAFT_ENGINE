@@ -60,6 +60,7 @@ jobs:
           subfolder: allure
       - name: Deploy Allure report to Github Pages
         continue-on-error: true
+        if: always()
         uses: peaceiris/actions-gh-pages@v3.8.0
         with:
           personal_token: ${{ secrets.GITHUB_TOKEN }}
