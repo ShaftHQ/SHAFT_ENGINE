@@ -64,9 +64,11 @@ jobs:
         uses: peaceiris/actions-gh-pages@v3.8.0
         with:
           personal_token: ${{ secrets.GITHUB_TOKEN }}
+          deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
           publish_dir: allure-history/allure
           destination_dir: allure
           publish_branch: gh-pages
+          force_orphan: true
       - name: Post the link to the Allure report
         continue-on-error: true
         if: always()
