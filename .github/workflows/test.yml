@@ -74,7 +74,6 @@ jobs:
           publish_dir: allure-history/allure
           destination_dir: allure
           publish_branch: gh-pages
-          force_orphan: true
       - name: Post the link to the Allure report
         continue-on-error: true
         if: always()
