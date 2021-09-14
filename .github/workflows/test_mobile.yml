@@ -36,6 +36,8 @@ jobs:
             sleep 5
           done
       - name: Run all tests
+        continue-on-error: true
+        if: always()
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 29
