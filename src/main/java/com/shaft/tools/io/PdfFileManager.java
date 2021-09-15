@@ -37,19 +37,28 @@ public class PdfFileManager {
 		file = new File(url);
 	}
 
+	public enum DeleteFileAfterValidationStatus {
+		TRUE, FALSE
+	}
+
 	/**
-	 * @param startPageNumber the starting page for the document to be validated
-	 * @param endPageNumber   the ending page for the document to be validated
+	 * @param startPageNumber                 the starting page for the document to
+	 *                                        be validated
+	 * @param endPageNumber                   the ending page for the document to be
+	 *                                        validated
+	 * @param deleteFileAfterValidationStatus the status of deleting the file after
+	 *                                        get the document text
 	 * @return returns the pdf content in string so that can be validated
 	 */
-	public String readPDFContentFromDownloadedPDF(int startPageNumber, int endPageNumber) {
+	public String readPDFContentFromDownloadedPDF(int startPageNumber, int endPageNumber,
+			DeleteFileAfterValidationStatus deleteFileAfterValidationStatus) {
 
 		stream = readFileInputStream(file);
 		parser = parseStreamDocument(stream);
 
 		cosDoc = getParsedDocument(parser);
 		String content = getPdfText(cosDoc, startPageNumber, endPageNumber);
-		closeStreamAndDeleteFile(file, stream);
+		closeStreamAndDeleteFile(file, stream, deleteFileAfterValidationStatus);
 
 		return content;
 	}
@@ -133,7 +142,8 @@ public class PdfFileManager {
 		return content;
 	}
 
-	private void closeStreamAndDeleteFile(File file, RandomAccessBufferedFileInputStream stream) {
+	private void closeStreamAndDeleteFile(File file, RandomAccessBufferedFileInputStream stream,
+			DeleteFileAfterValidationStatus deleteFileAfterValidation) {
 		try {
 			stream.close();
 		} catch (IOException e) {
@@ -141,14 +151,22 @@ public class PdfFileManager {
 			ReportManager.log("Couldn't close the stream, check if it already opened.");
 			Assert.fail("Couldn't close the stream, check if it already opened.");
 		}
+
 		// Delete the file from target folder for next run
-		try {
-			FileUtils.forceDelete(file);
-		} catch (IOException e) {
-			ReportManagerHelper.log(e);
-			ReportManager.log("Couldn't find the file, File directory may be null or file is not found.");
-			Assert.fail("Couldn't find the file, File directory may be null or file is not found.");
+
+		switch (deleteFileAfterValidation) {
+		case TRUE:
+			try {
+				FileUtils.forceDelete(file);
+			} catch (IOException e) {
+				ReportManagerHelper.log(e);
+				ReportManager.log("Couldn't find the file, File directory may be null or file is not found.");
+				Assert.fail("Couldn't find the file, File directory may be null or file is not found.");
+			}
+		default:
+			break;
 		}
+
 	}
 
 	// Will implement same for preview pdf file
