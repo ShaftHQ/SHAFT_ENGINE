@@ -1328,24 +1328,42 @@
 
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
-                                        <label class="col-md-4 control-label" for="recordVideo">Record Video</label>
-                                        <div class="col-md-4" id="recordVideo">
+                                        <label class="col-md-4 control-label" for="videoParams_recordVideo">Record
+                                            Video</label>
+                                        <div class="col-md-4" id="videoParams_recordVideo">
                                             <div class="radio-inline">
-                                                <label for="recordVideo-0">
-                                                    <input id="recordVideo-0" name="recordVideo"
+                                                <label for="videoParams_recordVideo-0">
+                                                    <input checked="checked" id="videoParams_recordVideo-0"
+                                                           name="videoParams_recordVideo"
                                                            type="radio"
                                                            value="true">
                                                     Enabled
                                                 </label>
                                             </div>
                                             <div class="radio-inline">
-                                                <label for="recordVideo-1">
-                                                    <input checked="checked" id="recordVideo-1" name="recordVideo"
+                                                <label for="videoParams_recordVideo-1">
+                                                    <input id="videoParams_recordVideo-1" name="videoParams_recordVideo"
                                                            type="radio"
                                                            value="false"> Disabled
                                                 </label>
                                             </div>
-                                            <span class="help-block">• This only works for local non-headless execution.</span>
+                                            <span class="help-block">• This feature does not work for remote web browser execution, or headless execution.</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Select Basic -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label"
+                                               for="videoParams_scope">Recorded Video Scope
+                                        </label>
+                                        <div class="col-md-4">
+                                            <select class="form-control" id="videoParams_scope"
+                                                    name="videoParams_scope">
+                                                <option selected value="DriverSession">Driver Session</option>
+                                                <option value="TestMethod">Test Method</option>
+                                            </select>
+                                            <span class="help-block">• Driver Session will attach one video whenever you end the driver session in the after method or after class.
+                                            <br/>• Test Method will attach one video for every test method.</span>
                                         </div>
                                     </div>
 
@@ -2074,7 +2092,8 @@
         const screenshotParams_watermarkOpacity = $("input[name=screenshotParams_watermarkOpacity]").val();
         const createAnimatedGif = $("input[name=createAnimatedGif]:checked").val();
         const animatedGif_frameDelay = $("input[name=animatedGif_frameDelay]").val();
-        const recordVideo = $("input[name=recordVideo]:checked").val();
+        const videoParams_recordVideo = $("input[name=videoParams_recordVideo]:checked").val();
+        const videoParams_scope = $("select[name=videoParams_scope]").val();
 
         // This variable stores all the data.
         let data =
@@ -2087,7 +2106,8 @@
             'screenshotParams_watermarkOpacity=' + screenshotParams_watermarkOpacity + '\r\n' +
             'createAnimatedGif=' + createAnimatedGif + '\r\n' +
             'animatedGif_frameDelay=' + animatedGif_frameDelay + '\r\n' +
-            'recordVideo=' + recordVideo + '\r\n';
+            'videoParams_recordVideo=' + videoParams_recordVideo + '\r\n' +
+            'videoParams_scope=' + videoParams_scope + '\r\n';
 
         downloadFile(data, 'VisualValidations.properties');
     }

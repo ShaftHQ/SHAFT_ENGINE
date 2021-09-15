@@ -13,6 +13,7 @@ import com.shaft.db.DatabaseActions.DatabaseType;
 import com.shaft.driver.DriverFactory.DriverType;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.JavaScriptWaitManager;
+import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
@@ -222,6 +223,9 @@ public class DriverFactoryHelper {
      * Close all open driver instances.
      */
     protected static synchronized void closeAllDrivers() {
+        if (System.getProperty("videoParams_scope").trim().equals("DriverSession")) {
+            RecordManager.attachVideoRecording();
+        }
         if (!drivers.entrySet().isEmpty()) {
             for (Entry<String, Map<String, WebDriver>> entry : drivers.entrySet()) {
                 for (Entry<String, WebDriver> driverEntry : entry.getValue().entrySet()) {
@@ -271,6 +275,9 @@ public class DriverFactoryHelper {
      * @param hashCode of the target driver instance that will be closed
      */
     public static synchronized void closeDriver(int hashCode) {
+        if (System.getProperty("videoParams_scope").trim().equals("DriverSession")) {
+            RecordManager.attachVideoRecording();
+        }
         if (!drivers.entrySet().isEmpty()) {
             for (Entry<String, Map<String, WebDriver>> entry : drivers.entrySet()) {
                 if (entry.getKey().contains(String.valueOf(hashCode))) {
@@ -696,6 +703,7 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
 
     private static void attachWebDriverLogs(WebDriver driver) {
         try {
+            //todo: optionally disable capturing logs
             driver.manage().logs().getAvailableLogTypes().forEach(logType -> {
             			var logBuilder = new StringBuilder();
                         driver.manage().logs().get(logType).getAll().forEach(logEntry -> logBuilder.append(logEntry.toString()).append(System.lineSeparator()));
@@ -897,20 +905,20 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
             case DESKTOP_WEBKIT, DESKTOP_SAFARI -> browser = playwright.webkit().launch(options);
             default -> failAction("Unsupported Driver Type [" + driverName + "].");
         }
-        
+
         // handle video recording
         var contextOptions = new Browser.NewContextOptions();
-        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("recordVideo").trim()))){
-        	contextOptions.setRecordVideoDir(Paths.get(System.getProperty("video.folder")));
+        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("videoParams_recordVideo").trim()))) {
+            contextOptions.setRecordVideoDir(Paths.get(System.getProperty("video.folder")));
         }
-        
-		// sets the context, a sub-browser like an in-private browsing session
-		context = browser.newContext(contextOptions);
-		// the actual tab/page that will be used for browser actions
-		page = context.newPage();
-		BrowserActions.performBrowserAction(page).maximizeWindow();
-		return page;
-	}
+
+        // sets the context, a sub-browser like an in-private browsing session
+        context = browser.newContext(contextOptions);
+        // the actual tab/page that will be used for browser actions
+        page = context.newPage();
+        BrowserActions.performBrowserAction(page).maximizeWindow();
+        return page;
+    }
 	
 	public static void closePlayWrightDriver() {
 		if (playwright!=null) {
