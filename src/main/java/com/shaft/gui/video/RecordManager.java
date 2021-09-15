@@ -52,7 +52,7 @@ public class RecordManager {
                 isRecordingStarted = true;
             } catch (WebDriverException exception) {
                 ReportManager.logDiscrete("Failed to start recording device screen");
-                ReportManagerHelper.log(exception);
+//                ReportManagerHelper.log(exception);
             }
         } else {
             startVideoRecording();
