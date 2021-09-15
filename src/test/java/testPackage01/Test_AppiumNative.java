@@ -1,9 +1,9 @@
 package testPackage01;
 
-import com.shaft.cli.TerminalActions;
+import com.shaft.api.BrowserStack;
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.TouchActions;
-import com.shaft.validation.Assertions;
+import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.testng.annotations.AfterClass;
@@ -24,17 +24,30 @@ public class Test_AppiumNative {
     private WebDriver driver;
 
     @Test
-    public void searchJumia() {
+    public void assertThatSearchIsDisplayed() {
         new TouchActions(driver)
                 .tap(egypt)
-                .tap(english)
+                .tap(english);
+        Validations.assertThat()
+                .element(driver, search)
+                .exists()
+                .perform();
+    }
+
+    @Test(dependsOnMethods = {"assertThatSearchIsDisplayed"})
+    public void searchJumia() {
+        new TouchActions(driver)
                 .tap(search)
                 .performElementAction()
                 .type(search, "Batman")
                 .performTouchAction()
                 .nativeKeyboardKeyPress(TouchActions.KeyboardKeys.SEARCH)
                 .swipeElementIntoView(scrollable_element, TouchActions.SwipeDirection.DOWN);
-        Assertions.assertElementMatches(driver, scrollable_element, "Asserting that the scrollable element is displayed");
+        Validations.assertThat()
+                .element(driver, scrollable_element)
+                .matchesReferenceImage()
+                .withCustomReportMessage("Asserting that the scrollable element is displayed")
+                .perform();
     }
 
     @BeforeClass
@@ -44,14 +57,17 @@ public class Test_AppiumNative {
         System.setProperty("mobile_automationName", "Appium");
 
         // local appium server
-        System.setProperty("executionAddress", "0.0.0.0:4723");
-        System.setProperty("mobile_app", "src/test/resources/JUMIA_v7.1.1.apk");
+//        System.setProperty("executionAddress", "0.0.0.0:4723");
+//        System.setProperty("mobile_app", "src/test/resources/JUMIA_v7.1.1.apk");
 
-        // remote browserstack server
+        // remote browserstack server (new apk version)
 //        BrowserStack.setupNativeAppExecution("mohabmohie1", "7E7PgzBtwk4sWLUcF8Y5",
-//                "Google Pixel 3", "9.0", "src/test/resources/JUMIA_v7.1.1.apk", "JUMIA");
+//                "Google Pixel 3", "9.0", "src/test/resources/TestDataFiles/com.jumia.android_2021-09-01.apk", "JUMIA");
 
-        new TerminalActions();
+        // remote browserstack server (existing apk version)
+        BrowserStack.setupNativeAppExecution("mohabmohie1", "7E7PgzBtwk4sWLUcF8Y5",
+                "Google Pixel 3", "9.0", "bs://e33a88cf53cad4eeb079e0eece633efcf93e1015");
+
         driver = BrowserFactory.getBrowser();
     }
 
