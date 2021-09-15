@@ -1411,6 +1411,29 @@
 
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
+                                        <label class="col-md-4 control-label" for="captureWebDriverLogs">WebDriver
+                                            Logs</label>
+                                        <div class="col-md-4" id="captureWebDriverLogs">
+                                            <div class="radio-inline">
+                                                <label for="captureWebDriverLogs-0">
+                                                    <input id="captureWebDriverLogs-0" name="captureWebDriverLogs"
+                                                           type="radio"
+                                                           value="true"> Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="captureWebDriverLogs-1">
+                                                    <input checked="checked" id="captureWebDriverLogs-1"
+                                                           name="captureWebDriverLogs" type="radio" value="false">
+                                                    Disabled
+                                                </label>
+                                            </div>
+                                            <span class="help-block">• Automatically capture all WebDriver logs from any Selenium/Appium test execution and attach them to the report.</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
                                         <label class="col-md-4 control-label" for="alwaysLogDiscreetly">Discrete
                                             Logging</label>
                                         <div class="col-md-4" id="alwaysLogDiscreetly">
@@ -2119,6 +2142,7 @@
     function generateReporting() {
         // Get the data from each element on the form.
         const defaultLogLevel = $("select[name=defaultLogLevel]").val();
+        const captureWebDriverLogs = $("input[name=captureWebDriverLogs]:checked").val();
         const alwaysLogDiscreetly = $("input[name=alwaysLogDiscreetly]:checked").val();
         const debugMode = $("input[name=debugMode]:checked").val();
         const cleanAllureResultsDirectoryBeforeExecution = $("input[name=cleanAllureResultsDirectoryBeforeExecution]:checked").val();
@@ -2130,6 +2154,7 @@
         // This variable stores all the data.
         let data =
             'org.slf4j.simpleLogger.defaultLogLevel=' + defaultLogLevel + '\r\n' +
+            'captureWebDriverLogs=' + captureWebDriverLogs + '\r\n' +
             'alwaysLogDiscreetly=' + alwaysLogDiscreetly + '\r\n' +
             'debugMode=' + debugMode + '\r\n' +
             'cleanAllureResultsDirectoryBeforeExecution=' + cleanAllureResultsDirectoryBeforeExecution + '\r\n' +

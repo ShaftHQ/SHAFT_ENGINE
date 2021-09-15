@@ -702,16 +702,17 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
     }
 
     private static void attachWebDriverLogs(WebDriver driver) {
-        try {
-            //todo: optionally disable capturing logs
-            driver.manage().logs().getAvailableLogTypes().forEach(logType -> {
-            			var logBuilder = new StringBuilder();
-                        driver.manage().logs().get(logType).getAll().forEach(logEntry -> logBuilder.append(logEntry.toString()).append(System.lineSeparator()));
-                        ReportManagerHelper.attach("Selenium WebDriver Logs", logType, logBuilder.toString());
-                    }
-            );
-        } catch (WebDriverException e) {
-            // exception when the defined logging is not supported
+        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("captureWebDriverLogs").trim()))) {
+            try {
+                driver.manage().logs().getAvailableLogTypes().forEach(logType -> {
+                            var logBuilder = new StringBuilder();
+                            driver.manage().logs().get(logType).getAll().forEach(logEntry -> logBuilder.append(logEntry.toString()).append(System.lineSeparator()));
+                            ReportManagerHelper.attach("Selenium WebDriver Logs", logType, logBuilder.toString());
+                        }
+                );
+            } catch (WebDriverException e) {
+                // exception when the defined logging is not supported
+            }
         }
     }
 
