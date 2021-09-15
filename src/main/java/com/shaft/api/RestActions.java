@@ -461,59 +461,61 @@ public class RestActions implements ShaftDriver {
 
     private static List<Object> reportRequestSpecs(RequestSpecification specs) {
         List<Object> requestSpecsAttachment = new ArrayList<>();
-        requestSpecsAttachment.add("API Request");
-        requestSpecsAttachment.add("Specifications");
+        if (specs != null) {
+            requestSpecsAttachment.add("API Request");
+            requestSpecsAttachment.add("Specifications");
 
-        StringBuilder builder = new StringBuilder();
-        QueryableRequestSpecification queryableRequestSpecification = SpecificationQuerier.query(specs);
+            StringBuilder builder = new StringBuilder();
+            QueryableRequestSpecification queryableRequestSpecification = SpecificationQuerier.query(specs);
 
-        var headers = queryableRequestSpecification.getHeaders().asList();
-        if (headers!=null && !headers.isEmpty()) {
-            builder.append("Headers:")
-                    .append(System.lineSeparator())
-                    .append("_______________")
-                    .append(System.lineSeparator())
-                    .append(System.lineSeparator());
-            for (var header : headers) {
-                builder.append(header.getName())
-                        .append("=")
-                        .append(header.getValue())
+            var headers = queryableRequestSpecification.getHeaders().asList();
+            if (headers != null && !headers.isEmpty()) {
+                builder.append("Headers:")
+                        .append(System.lineSeparator())
+                        .append("_______________")
+                        .append(System.lineSeparator())
                         .append(System.lineSeparator());
+                for (var header : headers) {
+                    builder.append(header.getName())
+                            .append("=")
+                            .append(header.getValue())
+                            .append(System.lineSeparator());
+                }
+                builder.append(System.lineSeparator());
             }
-            builder.append(System.lineSeparator());
-        }
 
-        var formParams = queryableRequestSpecification.getFormParams();
-        if (formParams!=null && !formParams.isEmpty()) {
-            builder.append("Form Parameters:")
-                    .append(System.lineSeparator())
-                    .append("_______________")
-                    .append(System.lineSeparator())
-                    .append(System.lineSeparator());
-            for (String key : formParams.keySet()) {
-                builder.append(key)
-                        .append("=")
-                        .append(formParams.get(key))
+            var formParams = queryableRequestSpecification.getFormParams();
+            if (formParams != null && !formParams.isEmpty()) {
+                builder.append("Form Parameters:")
+                        .append(System.lineSeparator())
+                        .append("_______________")
+                        .append(System.lineSeparator())
                         .append(System.lineSeparator());
+                for (String key : formParams.keySet()) {
+                    builder.append(key)
+                            .append("=")
+                            .append(formParams.get(key))
+                            .append(System.lineSeparator());
+                }
+                builder.append(System.lineSeparator());
             }
-            builder.append(System.lineSeparator());
-        }
 
-        var queryParams = queryableRequestSpecification.getQueryParams();
-        if (queryParams!=null && !queryParams.isEmpty()) {
-            builder.append("Query Parameters:")
-                    .append(System.lineSeparator())
-                    .append("_______________")
-                    .append(System.lineSeparator())
-                    .append(System.lineSeparator());
-            for (String key : queryParams.keySet()) {
-                builder.append(key)
-                        .append("=")
-                        .append(queryParams.get(key))
+            var queryParams = queryableRequestSpecification.getQueryParams();
+            if (queryParams != null && !queryParams.isEmpty()) {
+                builder.append("Query Parameters:")
+                        .append(System.lineSeparator())
+                        .append("_______________")
+                        .append(System.lineSeparator())
                         .append(System.lineSeparator());
+                for (String key : queryParams.keySet()) {
+                    builder.append(key)
+                            .append("=")
+                            .append(queryParams.get(key))
+                            .append(System.lineSeparator());
+                }
             }
+            requestSpecsAttachment.add(builder);
         }
-        requestSpecsAttachment.add(builder);
         return requestSpecsAttachment;
     }
 
