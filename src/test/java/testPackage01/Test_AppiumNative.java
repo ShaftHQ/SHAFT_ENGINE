@@ -11,10 +11,10 @@ import org.testng.annotations.Test;
 
 public class Test_AppiumNative {
     // extra code to switch between web and mobile execution in the pipeline
-    private final String executionAddress = System.getProperty("executionAddress");
-    private final String targetOperatingSystem = System.getProperty("targetOperatingSystem");
-    private final String mobile_automationName = System.getProperty("mobile_automationName");
-    private final String mobile_app = System.getProperty("mobile_app");
+//    private final String executionAddress = System.getProperty("executionAddress");
+//    private final String targetOperatingSystem = System.getProperty("targetOperatingSystem");
+//    private final String mobile_automationName = System.getProperty("mobile_automationName");
+//    private final String mobile_app = System.getProperty("mobile_app");
 
     private final By egypt = By.xpath("//android.widget.TextView[@text='Egypt']");
     private final By english = By.xpath("//android.widget.TextView[@text='English']");
@@ -52,12 +52,12 @@ public class Test_AppiumNative {
     @BeforeClass
     public void setup() {
         // common attributes
-        System.setProperty("targetOperatingSystem", "Android");
-        System.setProperty("mobile_automationName", "Appium");
+//        System.setProperty("targetOperatingSystem", "Android");
+//        System.setProperty("mobile_automationName", "Appium");
 
         // local appium server (for local and github actions execution)
-        System.setProperty("executionAddress", "0.0.0.0:4723");
-        System.setProperty("mobile_app", "src/test/resources/TestDataFiles/com.jumia.android_2021-09-01.apk");
+//        System.setProperty("executionAddress", "0.0.0.0:4723");
+//        System.setProperty("mobile_app", "src/test/resources/TestDataFiles/com.jumia.android_2021-09-01.apk");
 
         // remote browserstack server (new apk version)
 //        BrowserStack.setupNativeAppExecution("mohabmohie1", "7E7PgzBtwk4sWLUcF8Y5",
@@ -74,9 +74,9 @@ public class Test_AppiumNative {
     public void teardown() {
         BrowserFactory.closeAllBrowsers();
         // extra code to switch between web and mobile execution in the pipeline
-        System.setProperty("executionAddress", executionAddress);
-        System.setProperty("targetOperatingSystem", targetOperatingSystem);
-        System.setProperty("mobile_automationName", mobile_automationName);
-        System.setProperty("mobile_app", mobile_app);
+//        System.setProperty("executionAddress", executionAddress);
+//        System.setProperty("targetOperatingSystem", targetOperatingSystem);
+//        System.setProperty("mobile_automationName", mobile_automationName);
+//        System.setProperty("mobile_app", mobile_app);
     }
 }
