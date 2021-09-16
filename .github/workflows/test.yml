@@ -94,7 +94,7 @@ jobs:
         run: |
           iwr -useb get.scoop.sh | iex
           scoop install allure
-          ./generate_allure_report_with_history.sh
+          Bash generate_allure_report_with_history.sh
 
       - name: Deploy Allure report to Github Pages
         if: always()
