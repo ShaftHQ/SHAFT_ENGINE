@@ -72,7 +72,7 @@ jobs:
           INPUT_KEEP_REPORTS: 20
           INPUT_GITHUB_REPO: ${{ github.repository }}
           INPUT_GITHUB_REPO_OWNER: MohabMohie
-          GITHUB_WORKSPACE: $GITHUB_WORKSPACE
+          GITHUB_WORKSPACE: ${{ github.workspace }}
           INPUT_GITHUB_RUN_NUM: ${{ github.run_number }}
         run: |
           if [ "$RUNNER_OS" == "macOS" ]; then

@@ -64,8 +64,8 @@ jobs:
 #          allure_report: allure-report
 #          allure_history: allure-history
 #          subfolder: allure
-      - name: Generate Allure Report
-        if: always()
+      - name: Generate Allure Report on Linux/MacOS
+        if: runner.os != 'Windows'
         continue-on-error: true
         env:
           INPUT_GH_PAGES: gh-pages
@@ -76,18 +76,36 @@ jobs:
           INPUT_KEEP_REPORTS: 20
           INPUT_GITHUB_REPO: ${{ github.repository }}
           INPUT_GITHUB_REPO_OWNER: MohabMohie
-          GITHUB_WORKSPACE: $GITHUB_WORKSPACE
+          GITHUB_WORKSPACE: ${{ github.workspace }}
           INPUT_GITHUB_RUN_NUM: ${{ github.run_number }}
         run: |
           if [ "$RUNNER_OS" == "macOS" ]; then
                 brew install allure
           else
                 sudo apt-add-repository ppa:qameta/allure
-                sudo apt-get update
                 sudo apt-get install allure
           fi
 
           sh generate_allure_report_with_history.sh
+
+      - name: Generate Allure Report on Windows
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        env:
+          INPUT_GH_PAGES: gh-pages
+          INPUT_ALLURE_RESULTS: allure-results
+          INPUT_ALLURE_REPORT: allure-report
+          INPUT_ALLURE_HISTORY: allure-history
+          INPUT_SUBFOLDER: allure/${{ runner.os }}/Web
+          INPUT_KEEP_REPORTS: 20
+          INPUT_GITHUB_REPO: ${{ github.repository }}
+          INPUT_GITHUB_REPO_OWNER: MohabMohie
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+          INPUT_GITHUB_RUN_NUM: ${{ github.run_number }}
+        run: |
+          iwr -useb get.scoop.sh | iex
+          scoop install allure
+          ./generate_allure_report_with_history.sh
 
       - name: Deploy Allure report to Github Pages
         if: always()
