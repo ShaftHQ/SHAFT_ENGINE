@@ -74,7 +74,8 @@ jobs:
           INPUT_GITHUB_RUN_NUM: ${{ github.run_number }}
         run: |
           npm install -g allure-commandline --save-dev
-          ./generate_allure_report_with_history.sh
+          chmod +x generate_allure_report_with_history.sh
+          sh generate_allure_report_with_history.sh
 
       - name: Generate Allure Report on Windows
         if: runner.os == 'Windows'
