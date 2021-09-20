@@ -31,6 +31,7 @@ public class BrowserStack {
      * @return appURL for the newly uploaded app file on BrowserStack to be used for future tests
      */
     public static String setupNativeAppExecution(String username, String password, String deviceName, String osVersion, String relativePathToAppFile, String appName) {
+        System.setProperty("apiSocketTimeout", "600"); //increasing socket timeout to 10 minutes to upload a new app file
         ReportManager.logDiscrete("Setting up BrowserStack configuration for new native app version...");
         String testData = "Username: " + username + ", Password: " + password + ", Device Name: " + deviceName + ", OS Version: " + osVersion + ", Relative Path to App File: " + relativePathToAppFile + ", App Name: " + appName;
 

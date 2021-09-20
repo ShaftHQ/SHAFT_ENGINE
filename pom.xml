@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.mohabmohie</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>5.3.20210902</version>
+    <version>5.3.20210915</version>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
     <url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
@@ -29,13 +29,13 @@
 
     <properties>
         <!-- Dependencies and Plug-ins Version Numbers Parameters -->
-        <selenium.version>4.0.0-alpha-7</selenium.version>
+        <selenium.version>4.0.0-rc-1</selenium.version>
         <appium-selenium.version>3.141.59</appium-selenium.version>
         <appium-java-client.version>7.5.1</appium-java-client.version>
         <playwright.version>1.14.1</playwright.version>
 
-        <webdrivermanager.version>5.0.1</webdrivermanager.version>
-        <allure-testng.version>2.14.0</allure-testng.version> <!-- UPDATE internal.properties -->
+        <webdrivermanager.version>5.0.2</webdrivermanager.version>
+        <allure-testng.version>2.15.0</allure-testng.version> <!-- UPDATE internal.properties -->
         <extentreports.version>5.0.8</extentreports.version>
         <aspectj.version>1.9.8.M1</aspectj.version> <!-- 1.9.6 DO NOT UPDATE (Search and replace) -->
 
@@ -59,7 +59,7 @@
         <maven-surefire-plugin.version>3.0.0-M5</maven-surefire-plugin.version>
         <maven-shade-plugin.version>3.2.1</maven-shade-plugin.version>
         <maven-jar-plugin.version>3.2.0</maven-jar-plugin.version>
-        <maven-javadoc-plugin.version>3.3.0</maven-javadoc-plugin.version>
+        <maven-javadoc-plugin.version>3.3.1</maven-javadoc-plugin.version>
         <maven-scm-publish-plugin.version>3.1.0</maven-scm-publish-plugin.version>
         <maven-source-plugin.version>3.2.1</maven-source-plugin.version>
 

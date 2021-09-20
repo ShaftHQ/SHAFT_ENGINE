@@ -18,6 +18,7 @@ import org.testng.Assert;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 class ValidationHelper {
     //TODO: implement element attribute and element exists validations for sikuli actions
@@ -767,11 +768,7 @@ class ValidationHelper {
         } else if (lastUsedPage != null) {
             // create a screenshot attachment if needed for Playwright
 //        if (expectedValue != null && expectedValue.toLowerCase().contains("locator")) {
-            if (lastUsedElementLocatorString != null) {
-                attachments.add(ScreenshotManager.captureScreenShot(lastUsedPage, lastUsedElementLocatorString, validationMethodName, validationState.getValue()));
-            } else {
-                attachments.add(ScreenshotManager.captureScreenShot(lastUsedPage, "", validationMethodName, validationState.getValue()));
-            }
+            attachments.add(ScreenshotManager.captureScreenShot(lastUsedPage, Objects.requireNonNullElse(lastUsedElementLocatorString, ""), validationMethodName, validationState.getValue()));
             // reset lastUsed variables
             lastUsedPage = null;
             lastUsedElementLocatorString = null;

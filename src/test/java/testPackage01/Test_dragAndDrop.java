@@ -39,7 +39,7 @@ public class Test_dragAndDrop {
         BrowserActions.navigateToURL(driver, "https://jqueryui.com/resources/demos/draggable/default.html");
         By dragTargetLocator = By.id("draggable");
 
-        ElementActions.dragAndDropByOffset(driver, dragTargetLocator, 1000, 100);
+        ElementActions.dragAndDropByOffset(driver, dragTargetLocator, 100, 50);
 
     }
 
