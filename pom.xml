@@ -34,7 +34,7 @@
         <playwright.version>1.14.1</playwright.version>
 
         <webdrivermanager.version>5.0.2</webdrivermanager.version>
-        <allure-testng.version>2.14.0</allure-testng.version> <!-- UPDATE internal.properties -->
+        <allure-testng.version>2.15.0</allure-testng.version> <!-- UPDATE internal.properties -->
         <extentreports.version>5.0.8</extentreports.version>
         <aspectj.version>1.9.8.M1</aspectj.version> <!-- 1.9.6 DO NOT UPDATE (Search and replace) -->
 
@@ -73,9 +73,9 @@
 
         <jave-all-deps.version>3.1.1</jave-all-deps.version>
         <video-recorder-testng.version>2.0</video-recorder-testng.version>
-	
+
 		<pdfbox.version>2.0.24</pdfbox.version>
- 
+
         <!-- Build Commands-->
         <installToLocalRepository>mvn clean install -DskipTests</installToLocalRepository>
         <publishJavaDocs>mvn resources:resources javadoc:javadoc scm-publish:publish-scm</publishJavaDocs>
@@ -274,8 +274,8 @@
             <artifactId>extentreports</artifactId>
             <version>${extentreports.version}</version>
         </dependency>
-	    
-		<!-- PDF Validation -->
+
+        <!-- PDF Validation -->
         <dependency>
             <groupId>org.apache.pdfbox</groupId>
             <artifactId>pdfbox</artifactId>
