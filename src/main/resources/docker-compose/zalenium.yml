@@ -1,0 +1,39 @@
+# https://github.com/zalando/zalenium
+# docker-compose -f zalenium.yml up --force-recreate --remove-orphans
+# docker-compose -f zalenium.yml reset
+# docker-compose -f zalenium.yml down
+# http://localhost:4444/grid/admin/live?only_active_sessions=true&refresh=10
+# http://localhost:4444/dashboard/
+# http://localhost:4444/dashboard/cleanup?action=doReset
+# http://localhost:4444/dashboard/cleanup?action=doCleanup
+# http://localhost:4444/grid/console
+
+version: '3.7'
+services:
+   zalenium:
+      image: dosel/zalenium
+      hostname: zalenium
+      ports:
+      - 4444:4444
+      - 8000:8000 # port for remote debugging zalenium code
+      volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/videos:/home/seluser/videos
+      environment:
+      - PULL_SELENIUM_IMAGE=true
+      - ZALENIUM_PROXY_CLEANUP_TIMEOUT=1800
+      privileged: true
+      command:
+      - start
+      - --desiredContainers
+      - '4'
+      - --maxDockerSeleniumContainers
+      - '10'
+      - --videoRecordingEnabled
+      - 'true'
+      - --sendAnonymousUsageInfo
+      - 'false'
+      - --screenWidth
+      - '1920'
+      - --screenHeight
+      - '1080'

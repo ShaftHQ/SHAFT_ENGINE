@@ -124,7 +124,7 @@ public class TerminalActions implements ShaftDriver {
         }
 
         List<List<Object>> attachments = new ArrayList<>();
-        if (testData != null && !testData.isEmpty() && testData.length() >= 500) {
+        if (testData != null && testData.length() >= 500) {
             List<Object> actualValueAttachment = Arrays.asList("Terminal Action Test Data - " + actionName,
                     "Actual Value", testData);
             attachments.add(actualValueAttachment);

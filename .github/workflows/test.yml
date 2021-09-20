@@ -1,4 +1,4 @@
-name: Ubuntu - Test
+name: Desktop Browsers Tests
 
 on:
   push:
@@ -10,58 +10,124 @@ on:
     - cron: '00 1 * * *'
 
 jobs:
-  build:
-    name: Test on Ubuntu
-    runs-on: [ubuntu-latest]
-
+  browser:
+    name: Run Browser-based Tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macOS-latest]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2.3.4
-      #- name: Set up Zalenium
-      #  run: docker-compose -f docker-compose_zalenium.yml up --force-recreate -d
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v2.4.0
+        with:
+          node-version: '16'
       - name: Set up Native Selenium Grid
-        run: docker-compose -f docker-compose_native.yml up --scale chrome=4 --remove-orphans -d
+        if: runner.os == 'Linux'
+        run: docker-compose -f src/main/resources/docker-compose/selenium3.yml up --remove-orphans -d
       - name: Set up JDK 16
         uses: actions/setup-java@v2
         with:
           java-version: '16'
           distribution: 'zulu'
       - name: Check running containers
+        if: runner.os == 'Linux'
         run: docker ps
-      - name: Run all tests
+      - name: Run tests on Linux/MacOS
+        if: runner.os != 'Windows'
         continue-on-error: true
-        run: mvn test -DexecutionAddress="localhost:4444" -DtargetOperatingSystem="Linux-64" -DmaximumPerformanceMode="2" -DtargetBrowserName="GoogleChrome" -Dtest="!%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*]"
+        run: |
+          if [ "$RUNNER_OS" == "Linux" ]; then
+               mvn test -DexecutionAddress="localhost:4444" -DtargetOperatingSystem="Linux-64" -DmaximumPerformanceMode="2" -DtargetBrowserName="GoogleChrome" -Dtest="!%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*]"
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+               mvn test -DexecutionAddress="local" -DtargetOperatingSystem="Mac-64" -DmaximumPerformanceMode="2" -DtargetBrowserName="Safari" -Dtest="!%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*]"
+          else
+               echo "$RUNNER_OS not supported"
+               exit 1
+          fi
+      - name: Run tests on Windows
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        run: mvn test -DexecutionAddress="local" -DtargetOperatingSystem="Windows-64" -DmaximumPerformanceMode="2" -DtargetBrowserName="MicrosoftEdge" -Dtest="!%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*]"
       - name: Get Allure history
+        continue-on-error: true
         uses: actions/checkout@v2.3.4
         if: always()
-        continue-on-error: true
         with:
           ref: gh-pages
           path: gh-pages
-      - name: Generate Allure Report with history
+
+      - name: Generate Allure Report on Linux
         uses: simple-elf/allure-report-action@master
-        if: always()
+        if: runner.os == 'Linux'
         id: allure-report
         with:
-          allure_results: allure-results
           gh_pages: gh-pages
+          allure_results: allure-results
           allure_report: allure-report
           allure_history: allure-history
-          subfolder: allure
+          subfolder: allure/${{ runner.os }}/Web
+          keep_reports: 20
+          github_repo: ${{ github.repository }}
+          github_repo_owner: MohabMohie
+          github_run_num: ${{ github.run_number }}
+
+      - name: Generate Allure Report on MacOS
+        if: runner.os == 'macOS'
+        continue-on-error: true
+        env:
+          INPUT_GH_PAGES: gh-pages
+          INPUT_ALLURE_RESULTS: allure-results
+          INPUT_ALLURE_REPORT: allure-report
+          INPUT_ALLURE_HISTORY: allure-history
+          INPUT_SUBFOLDER: allure/${{ runner.os }}/Web
+          INPUT_KEEP_REPORTS: 20
+          INPUT_GITHUB_REPO: ${{ github.repository }}
+          INPUT_GITHUB_REPO_OWNER: MohabMohie
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+          INPUT_GITHUB_RUN_NUM: ${{ github.run_number }}
+        run: |
+          npm install -g allure-commandline --save-dev
+          chmod +x generate_allure_report_with_history.sh
+          sh generate_allure_report_with_history.sh
+
+      - name: Generate Allure Report on Windows
+        if: runner.os == 'Windows'
+        continue-on-error: true
+        env:
+          INPUT_GH_PAGES: gh-pages
+          INPUT_ALLURE_RESULTS: allure-results
+          INPUT_ALLURE_REPORT: allure-report
+          INPUT_ALLURE_HISTORY: allure-history
+          INPUT_SUBFOLDER: allure/${{ runner.os }}/Web
+          INPUT_KEEP_REPORTS: 20
+          INPUT_GITHUB_REPO: ${{ github.repository }}
+          INPUT_GITHUB_REPO_OWNER: MohabMohie
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+          INPUT_GITHUB_RUN_NUM: ${{ github.run_number }}
+        run: |
+          iwr -useb get.scoop.sh | iex
+          scoop install allure
+          Bash generate_allure_report_with_history.sh
+
       - name: Deploy Allure report to Github Pages
+        if: always()
+        continue-on-error: true
         uses: peaceiris/actions-gh-pages@v3.8.0
         with:
-          personal_token: ${{ secrets.GITHUB_TOKEN }}
+          personal_token: ${{ secrets.PERSONAL_TOKEN }}
+#          deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
           publish_dir: allure-history/allure
           destination_dir: allure
           publish_branch: gh-pages
       - name: Post the link to the Allure report
-        if: always()
         continue-on-error: true
+        if: always()
         uses: Sibz/github-status-action@v1.1.5
         with: 
             authToken: ${{secrets.GITHUB_TOKEN}}
             context: 'Allure Test Execution Report'
             state: 'success'
             sha: ${{ github.event.pull_request.head.sha }}
-            target_url: https://mohabmohie.github.io/SHAFT_ENGINE/allure/${{ github.run_number }}
+            target_url: https://mohabmohie.github.io/SHAFT_ENGINE/allure/${{ runner.os }}/Web/${{ github.run_number }}

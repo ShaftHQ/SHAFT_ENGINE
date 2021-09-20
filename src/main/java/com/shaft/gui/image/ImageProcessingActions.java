@@ -326,9 +326,6 @@ public class ImageProcessingActions {
             case EXACT_EYES:
                 targetMatchLevel = MatchLevel.EXACT;
                 break;
-            case STRICT_EYES:
-                targetMatchLevel = MatchLevel.STRICT;
-                break;
             case CONTENT_EYES:
                 targetMatchLevel = MatchLevel.CONTENT;
                 break;
@@ -391,10 +388,8 @@ public class ImageProcessingActions {
                 ScreenshotManager.setAiSupportedElementIdentification(true);
                 if (!doesReferenceFileExist) {
                     //pass: element found using AI and new locator suggested || first time element
-                    if (!doesReferenceFileExist) {
-                        ReportManager.logDiscrete("Passing the test and saving a reference image");
-                        FileActions.writeToFile(aiFolderPath, hashedLocatorName + ".png", elementScreenshot);
-                    }
+                    ReportManager.logDiscrete("Passing the test and saving a reference image");
+                    FileActions.writeToFile(aiFolderPath, hashedLocatorName + ".png", elementScreenshot);
                     ScreenshotManager.setAiSupportedElementIdentification(initialState);
                     return true;
                 } else {
@@ -426,9 +421,6 @@ public class ImageProcessingActions {
             // https://help.applitools.com/hc/en-us/articles/360007188591-Match-Levels
             case EXACT_EYES:
                 targetMatchLevel = MatchLevel.EXACT;
-                break;
-            case STRICT_EYES:
-                targetMatchLevel = MatchLevel.STRICT;
                 break;
             case CONTENT_EYES:
                 targetMatchLevel = MatchLevel.CONTENT;

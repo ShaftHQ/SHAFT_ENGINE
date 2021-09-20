@@ -198,7 +198,7 @@ public class WebDriverElementActions {
             internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
 
             boolean wasActionPerformed;
-            if (!System.getProperty("targetOperatingSystem").equals("Mac-64")) {
+            if (System.getProperty("targetOperatingSystem").equals("Mac-64")) {
                 wasActionPerformed = performClipboardActionsForMac(driver, action);
             } else {
                 wasActionPerformed = performClipboardActions(driver, internalElementLocator, action);
@@ -1566,15 +1566,18 @@ public class WebDriverElementActions {
         try {
             switch (action.toLowerCase()) {
                 case "copy":
-                    (Toolkit.getDefaultToolkit().getSystemClipboard())
-                            .setContents((new StringSelection(getText(driver, elementLocator))), null);
+//                    (Toolkit.getDefaultToolkit().getSystemClipboard())
+//                            .setContents((new StringSelection(getText(driver, elementLocator))), null);
+                    (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "c")).perform();
                     break;
                 case "paste":
-                    pasteFromClipboard(driver, elementLocator);
+//                    pasteFromClipboard(driver, elementLocator);
+                    (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "v")).perform();
                     break;
                 case "cut":
-                    (Toolkit.getDefaultToolkit().getSystemClipboard())
-                            .setContents((new StringSelection(getText(driver, elementLocator))), null);
+//                    (Toolkit.getDefaultToolkit().getSystemClipboard())
+//                            .setContents((new StringSelection(getText(driver, elementLocator))), null);
+                    (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "x")).perform();
                     type(driver, elementLocator, "");
                     break;
                 case "select all":
@@ -1596,16 +1599,16 @@ public class WebDriverElementActions {
     private static Boolean performClipboardActionsForMac(WebDriver driver, String action) {
         switch (action.toLowerCase()) {
             case "copy":
-                (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "c")).perform();
+                (new Actions(driver)).sendKeys(Keys.chord(Keys.COMMAND, "c")).perform();
                 break;
             case "paste":
-                (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "v")).perform();
+                (new Actions(driver)).sendKeys(Keys.chord(Keys.COMMAND, "v")).perform();
                 break;
             case "cut":
-                (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "x")).perform();
+                (new Actions(driver)).sendKeys(Keys.chord(Keys.COMMAND, "x")).perform();
                 break;
             case "select all":
-                (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "a")).perform();
+                (new Actions(driver)).sendKeys(Keys.chord(Keys.COMMAND, "a")).perform();
                 break;
             case "unselect":
                 (new Actions(driver)).sendKeys(Keys.ESCAPE).perform();
@@ -1670,7 +1673,7 @@ public class WebDriverElementActions {
         }
 
         List<List<Object>> attachments = new ArrayList<>();
-        if (testData != null && !testData.isEmpty() && testData.length() >= 500) {
+        if (testData != null && testData.length() >= 500) {
             List<Object> actualValueAttachment = Arrays.asList("Element Action Test Data - " + actionName,
                     "Actual Value", testData);
             attachments.add(actualValueAttachment);
@@ -1757,7 +1760,7 @@ public class WebDriverElementActions {
             this.value = strategy;
         }
 
-        protected String getValue() {
+        String getValue() {
             return value;
         }
     }
