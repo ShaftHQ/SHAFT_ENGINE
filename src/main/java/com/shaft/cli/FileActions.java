@@ -1,35 +1,9 @@
 package com.shaft.cli;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.JarURLConnection;
-import java.net.URL;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.List;
-import java.util.Objects;
-import java.util.concurrent.TimeUnit;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
-import java.util.zip.ZipOutputStream;
-
+import com.google.common.hash.Hashing;
+import com.shaft.tools.io.PropertyFileManager;
+import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
@@ -37,10 +11,16 @@ import org.apache.commons.lang3.SystemUtils;
 import org.sikuli.basics.FileManager;
 import org.testng.Assert;
 
-import com.google.common.hash.Hashing;
-import com.shaft.tools.io.PropertyFileManager;
-import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.ReportManagerHelper;
+import java.io.*;
+import java.net.JarURLConnection;
+import java.net.URL;
+import java.nio.file.*;
+import java.util.*;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
+import java.util.zip.ZipOutputStream;
 
 public class FileActions {
 
@@ -345,7 +325,7 @@ public class FileActions {
 
             if (Boolean.FALSE.equals(doesFileExit)) {
                 try {
-                    Thread.sleep(TimeUnit.SECONDS.toMillis(Long.parseLong(System.getProperty("fileTimeout"))));
+                    Thread.sleep(500);
                 } catch (Exception e1) {
                     ReportManagerHelper.log(e1);
                 }
