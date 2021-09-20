@@ -1,9 +1,8 @@
-<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.mohabmohie</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>5.3.20210902</version>
+    <version>5.3.20210915</version>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
     <url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
@@ -29,12 +28,12 @@
 
     <properties>
         <!-- Dependencies and Plug-ins Version Numbers Parameters -->
-        <selenium.version>4.0.0-alpha-7</selenium.version>
+        <selenium.version>4.0.0-rc-1</selenium.version>
         <appium-selenium.version>3.141.59</appium-selenium.version>
         <appium-java-client.version>7.5.1</appium-java-client.version>
         <playwright.version>1.14.1</playwright.version>
 
-        <webdrivermanager.version>5.0.1</webdrivermanager.version>
+        <webdrivermanager.version>5.0.2</webdrivermanager.version>
         <allure-testng.version>2.14.0</allure-testng.version> <!-- UPDATE internal.properties -->
         <extentreports.version>5.0.8</extentreports.version>
         <aspectj.version>1.9.8.M1</aspectj.version> <!-- 1.9.6 DO NOT UPDATE (Search and replace) -->
@@ -59,7 +58,7 @@
         <maven-surefire-plugin.version>3.0.0-M5</maven-surefire-plugin.version>
         <maven-shade-plugin.version>3.2.1</maven-shade-plugin.version>
         <maven-jar-plugin.version>3.2.0</maven-jar-plugin.version>
-        <maven-javadoc-plugin.version>3.3.0</maven-javadoc-plugin.version>
+        <maven-javadoc-plugin.version>3.3.1</maven-javadoc-plugin.version>
         <maven-scm-publish-plugin.version>3.1.0</maven-scm-publish-plugin.version>
         <maven-source-plugin.version>3.2.1</maven-source-plugin.version>
 
@@ -74,9 +73,9 @@
 
         <jave-all-deps.version>3.1.1</jave-all-deps.version>
         <video-recorder-testng.version>2.0</video-recorder-testng.version>
-
-        <pdfbox.version>2.0.24</pdfbox.version>
-
+	
+		<pdfbox.version>2.0.24</pdfbox.version>
+ 
         <!-- Build Commands-->
         <installToLocalRepository>mvn clean install -DskipTests</installToLocalRepository>
         <publishJavaDocs>mvn resources:resources javadoc:javadoc scm-publish:publish-scm</publishJavaDocs>
@@ -113,14 +112,14 @@
                 </exclusion>
             </exclusions>
         </dependency>
-
+        
         <!-- PLAYWRIGHT -->
-        <!-- https://mvnrepository.com/artifact/com.microsoft.playwright/playwright -->
-        <dependency>
-            <groupId>com.microsoft.playwright</groupId>
-            <artifactId>playwright</artifactId>
-            <version>${playwright.version}</version>
-        </dependency>
+        		<!-- https://mvnrepository.com/artifact/com.microsoft.playwright/playwright -->
+		<dependency>
+			<groupId>com.microsoft.playwright</groupId>
+			<artifactId>playwright</artifactId>
+			<version>${playwright.version}</version>
+		</dependency>
 
         <!-- APPIUM -->
         <dependency>
@@ -162,10 +161,10 @@
             <artifactId>eyes-images-java4</artifactId>
             <version>${applitools-eyes.version}</version>
             <exclusions>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-api</artifactId>
-                </exclusion>
+            	<exclusion>
+            		<groupId>org.slf4j</groupId>
+            		<artifactId>slf4j-api</artifactId>
+            	</exclusion>
             </exclusions>
         </dependency>
 
@@ -196,8 +195,8 @@
                     <artifactId>log4j</artifactId>
                 </exclusion>
                 <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-api</artifactId>
+                	<groupId>org.slf4j</groupId>
+                	<artifactId>slf4j-api</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
@@ -217,33 +216,33 @@
 
         <!-- EXCEL FILE MANIPULATION -->
         <dependency>
-            <groupId>org.apache.poi</groupId>
-            <artifactId>poi</artifactId>
-            <version>${apachepoi.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-api</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>jcl-over-slf4j</artifactId>
-                </exclusion>
-            </exclusions>
+                   <groupId>org.apache.poi</groupId>
+                   <artifactId>poi</artifactId>
+                   <version>${apachepoi.version}</version>
+                   <exclusions>
+                   	<exclusion>
+                   		<groupId>org.slf4j</groupId>
+                   		<artifactId>slf4j-api</artifactId>
+                   	</exclusion>
+                   	<exclusion>
+                   		<groupId>org.slf4j</groupId>
+                   		<artifactId>jcl-over-slf4j</artifactId>
+                   	</exclusion>
+                   </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.poi</groupId>
             <artifactId>poi-ooxml</artifactId>
             <version>${apachepoi.version}</version>
             <exclusions>
-                <exclusion>
-                    <groupId>xml-apis</groupId>
-                    <artifactId>xml-apis</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-api</artifactId>
-                </exclusion>
+            <exclusion>
+            	<groupId>xml-apis</groupId>
+            	<artifactId>xml-apis</artifactId>
+            </exclusion>
+            <exclusion>
+            	<groupId>org.slf4j</groupId>
+            	<artifactId>slf4j-api</artifactId>
+            </exclusion>
             </exclusions>
         </dependency>
 
@@ -275,8 +274,8 @@
             <artifactId>extentreports</artifactId>
             <version>${extentreports.version}</version>
         </dependency>
-
-        <!-- PDF Validation -->
+	    
+		<!-- PDF Validation -->
         <dependency>
             <groupId>org.apache.pdfbox</groupId>
             <artifactId>pdfbox</artifactId>
@@ -331,11 +330,11 @@
             <artifactId>jsch</artifactId>
             <version>${jcraft-jsch.version}</version>
         </dependency>
-        <!--         <dependency>
-                    <groupId>com.github.cverges</groupId>
-                    <artifactId>expect4j</artifactId>
-                    <version>${cverges-expect4j.version}</version>
-                </dependency> -->
+<!--         <dependency>
+            <groupId>com.github.cverges</groupId>
+            <artifactId>expect4j</artifactId>
+            <version>${cverges-expect4j.version}</version>
+        </dependency> -->
 
         <!-- DATABASE CONNECTORS -->
         <dependency>
@@ -431,10 +430,10 @@
             <artifactId>log4j-over-slf4j</artifactId>
             <version>${org.slf4j.version}</version>
             <exclusions>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-api</artifactId>
-                </exclusion>
+            	<exclusion>
+            		<groupId>org.slf4j</groupId>
+            		<artifactId>slf4j-api</artifactId>
+            	</exclusion>
             </exclusions>
         </dependency>
 
@@ -504,9 +503,7 @@
                         </property>
                         <property>
                             <name>listener</name>
-                            <value>
-                                com.shaft.tools.listeners.AlterSuiteListener,com.shaft.tools.listeners.SuiteListener,com.shaft.tools.listeners.InvokedMethodListener,com.shaft.tools.listeners.CucumberFeatureListener
-                            </value>
+                            <value>com.shaft.tools.listeners.AlterSuiteListener,com.shaft.tools.listeners.SuiteListener,com.shaft.tools.listeners.InvokedMethodListener,com.shaft.tools.listeners.CucumberFeatureListener</value>
                         </property>
                     </properties>
                 </configuration>
@@ -605,12 +602,12 @@
         </plugins>
     </build>
 
-    <repositories>
-        <repository>
-            <id>central</id>
-            <url>https://repo1.maven.org/maven2/</url>
-        </repository>
-    </repositories>
+	<repositories>
+		<repository>
+			<id>central</id>
+			<url>https://repo1.maven.org/maven2/</url>
+		</repository>
+	</repositories>
 
     <!--    <repositories>-->
     <!-- <repository> -->

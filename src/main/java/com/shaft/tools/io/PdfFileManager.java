@@ -11,6 +11,8 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.testng.Assert;
 
+import com.shaft.cli.FileActions;
+
 public class PdfFileManager {
 
 	private RandomAccessBufferedFileInputStream stream = null;
@@ -29,12 +31,21 @@ public class PdfFileManager {
 	 * @param milliSecondsToWait the time in milliseconds needed to wait on the
 	 *                           document to be downloaded successfully to the
 	 *                           target folder path
+	 * @param numberOfRetries    the retries that will be executed to check if the
+	 *                           file exist, will try every 5 seconds
 	 */
-	public PdfFileManager(String url, int milliSecondsToWait) {
-		// Waiting for file to download
-		waitOnDocumentToBeReady(milliSecondsToWait);
+	public PdfFileManager(String folderName, String fileName, int numberOfRetries) {
 
-		file = new File(url);
+		Boolean doesFileExist = FileActions.doesFileExist(folderName, fileName, numberOfRetries);
+
+		file = new File(FileActions.getAbsolutePath(folderName, fileName));
+
+		if (!doesFileExist) {
+			ReportManager.log("Couldn't find the provided file [" + file
+					+ "]. It might need to wait more to download or the path isn't correct");
+			Assert.fail("Couldn't find the provided file [" + file
+					+ "]. It might need to wait more to download or the path isn't correct");
+		}
 	}
 
 	public enum DeleteFileAfterValidationStatus {
@@ -63,14 +74,16 @@ public class PdfFileManager {
 		return content;
 	}
 
-	private void waitOnDocumentToBeReady(int milliSeconds) {
-		try {
-			Thread.sleep(milliSeconds);
-		} catch (InterruptedException e) {
-			ReportManagerHelper.log(e);
-			ReportManager.log("Waiting for file to download has been interrupted.");
-			Assert.fail("Waiting for file to download has been interrupted.");
-		}
+	public String readPDFContentFromDownloadedPDF(DeleteFileAfterValidationStatus deleteFileAfterValidationStatus) {
+
+		stream = readFileInputStream(file);
+		parser = parseStreamDocument(stream);
+
+		cosDoc = getParsedDocument(parser);
+		String content = getPdfText(cosDoc);
+		closeStreamAndDeleteFile(file, stream, deleteFileAfterValidationStatus);
+
+		return content;
 	}
 
 	private RandomAccessBufferedFileInputStream readFileInputStream(File file) {
@@ -129,6 +142,29 @@ public class PdfFileManager {
 
 		strip.setStartPage(startPageNumber);
 		strip.setEndPage(endPageNumber);
+		PDDocument pdDoc = new PDDocument(cosDoc);
+
+		String content = null;
+		try {
+			content = strip.getText(pdDoc);
+		} catch (IOException e) {
+			ReportManagerHelper.log(e);
+			ReportManager.log("Couldn't get document text. Document state is invalid or it is encrypted.");
+			Assert.fail("Couldn't get document text. Document state is invalid or it is encrypted.");
+		}
+		return content;
+	}
+
+	private String getPdfText(COSDocument cosDoc) {
+		try {
+			strip = new PDFTextStripper();
+			strip.setSortByPosition(true);
+		} catch (IOException e) {
+			ReportManagerHelper.log(e);
+			ReportManager.log("Couldn't load PDFTextStripper properties.");
+			Assert.fail("Couldn't load PDFTextStripper properties.");
+		}
+
 		PDDocument pdDoc = new PDDocument(cosDoc);
 
 		String content = null;
