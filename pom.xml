@@ -74,6 +74,8 @@
         <jave-all-deps.version>3.1.1</jave-all-deps.version>
         <video-recorder-testng.version>2.0</video-recorder-testng.version>
 
+		<pdfbox.version>2.0.24</pdfbox.version>
+
         <!-- Build Commands-->
         <installToLocalRepository>mvn clean install -DskipTests</installToLocalRepository>
         <publishJavaDocs>mvn resources:resources javadoc:javadoc scm-publish:publish-scm</publishJavaDocs>
@@ -271,6 +273,13 @@
             <groupId>com.aventstack</groupId>
             <artifactId>extentreports</artifactId>
             <version>${extentreports.version}</version>
+        </dependency>
+
+        <!-- PDF Validation -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>${pdfbox.version}</version>
         </dependency>
 
         <!-- REST ASSURED -->
