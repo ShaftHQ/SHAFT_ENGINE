@@ -12,7 +12,11 @@
 ### Important Links:
 - Configuration Manager ⚙️: https://mohabmohie.github.io/SHAFT_ENGINE/
 - Javadocs 📚: https://mohabmohie.github.io/SHAFT_ENGINE/apidocs/index.html
-- Latest Test Execution Report 📊: https://mohabmohie.github.io/SHAFT_ENGINE/allure/index.html
+- Latest Test Execution Reports 📊:
+  - Web/Windows/Edge: https://mohabmohie.github.io/SHAFT_ENGINE/allure/Windows/Web/index.html
+  - Web/Mac/Safari: https://mohabmohie.github.io/SHAFT_ENGINE/allure/macOS/Web/index.html
+  - Web/Linux/Firefox: https://mohabmohie.github.io/SHAFT_ENGINE/allure/Linux/Web/index.html
+  - Native/Android: https://mohabmohie.github.io/SHAFT_ENGINE/allure/MobileNative/Android/index.html
 - Sample project using SHAFT_Engine ✈️: https://github.com/MohabMohie/using_SHAFT_ENGINE
 
 ### What is SHAFT?
