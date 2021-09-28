@@ -23,7 +23,7 @@ jobs:
           java-version: '16'
           distribution: 'zulu'
       - name: Setup Node.js environment
-        uses: actions/setup-node@v2.4.0
+        uses: actions/setup-node@v2.4.1
         with:
           node-version: '16'
       - name: Set up Appium
