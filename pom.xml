@@ -2,7 +2,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.mohabmohie</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>5.3.20210915</version>
+    <version>5.3.20210930</version>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
     <url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
@@ -28,7 +28,7 @@
 
     <properties>
         <!-- Dependencies and Plug-ins Version Numbers Parameters -->
-        <selenium.version>4.0.0-rc-1</selenium.version>
+        <selenium.version>4.0.0-rc-2</selenium.version>
         <appium-selenium.version>3.141.59</appium-selenium.version>
         <appium-java-client.version>7.5.1</appium-java-client.version>
         <playwright.version>1.15.0</playwright.version>
@@ -104,7 +104,7 @@
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-java</artifactId>
             <version>${appium-selenium.version}</version>
-            <!--<version>${selenium.version}</version>-->
+<!--            <version>${selenium.version}</version>-->
             <exclusions>
                 <exclusion>
                     <groupId>com.google.guava</groupId>
@@ -470,8 +470,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${maven-compiler-plugin.version}</version>
                 <configuration>
-                    <source>16</source>
-                    <target>16</target>
+                    <source>17</source>
+                    <target>17</target>
                     <encoding>UTF-8</encoding>
                     <maxmem>10240m</maxmem>
                     <meminitial>1024m</meminitial>
