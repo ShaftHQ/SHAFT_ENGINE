@@ -41,7 +41,7 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 29
-          target: playstore
+          target: default
           arch: x86_64
           script: mvn test -DexecutionAddress="localhost:4723" -DtargetOperatingSystem="Android" -Dmobile_automationName="Appium" -Dmobile_app="src/test/resources/TestDataFiles/com.jumia.android_2021-09-01.apk" -Dtest="%regex[.*Appium.*]"
       - name: Get Allure history
