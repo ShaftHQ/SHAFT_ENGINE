@@ -1205,7 +1205,7 @@ public class WebDriverElementActions {
                 //this happens when the file path doesn't exist
                 failAction(driver, internalAbsoluteFilePath, internalElementLocator, e);
 
-            } catch (ElementNotInteractableException exception1) {
+            } catch (ElementNotInteractableException|NoSuchElementException exception1) {
             	ElementActionsHelper.changeWebElementVisibilityUsingJavascript(driver, internalElementLocator, true);
                 try {
                     driver.findElement(internalElementLocator).sendKeys(internalAbsoluteFilePath);

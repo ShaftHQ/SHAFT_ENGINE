@@ -199,12 +199,6 @@ public class Test_NewValidationHelper {
     }
 
     @Test(groups = {"browserBasedTests"})
-    public void f19() {
-        Assertions.assertElementAttribute(driver, By.tagName("h1"), "tagname", "h", Assertions.AssertionComparisonType.CONTAINS,
-                Assertions.AssertionType.POSITIVE);
-    }
-
-    @Test(groups = {"browserBasedTests"})
     public void f20() {
         Assertions.assertElementAttribute(driver, By.tagName("h1"), "size", "a", Assertions.AssertionComparisonType.CONTAINS,
                 Assertions.AssertionType.NEGATIVE);

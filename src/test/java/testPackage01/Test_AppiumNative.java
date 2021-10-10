@@ -56,12 +56,12 @@ public class Test_AppiumNative {
 //        System.setProperty("mobile_automationName", "Appium");
 
         // local appium server (for local and github actions execution)
-//        System.setProperty("executionAddress", "0.0.0.0:4723");
-//        System.setProperty("mobile_app", "src/test/resources/TestDataFiles/com.jumia.android_2021-09-01.apk");
+        System.setProperty("executionAddress", "0.0.0.0:4723");
+        System.setProperty("mobile_app", "src/test/resources/TestDataFiles/jumia-7-9-3.apk");
 
         // remote browserstack server (new apk version)
 //        BrowserStack.setupNativeAppExecution("mohabmohie1", "7E7PgzBtwk4sWLUcF8Y5",
-//                "Google Pixel 3", "9.0", "src/test/resources/TestDataFiles/com.jumia.android_2021-09-01.apk", "JUMIA");
+//                "Google Pixel 3", "9.0", "src/test/resources/TestDataFiles/jumia-7-9-3.apk", "JUMIA");
 
         // remote browserstack server (existing apk version)
 //        BrowserStack.setupNativeAppExecution("mohabmohie1", "7E7PgzBtwk4sWLUcF8Y5",
