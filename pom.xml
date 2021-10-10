@@ -36,7 +36,7 @@
         <webdrivermanager.version>5.0.3</webdrivermanager.version>
         <allure-testng.version>2.15.0</allure-testng.version> <!-- UPDATE internal.properties -->
         <extentreports.version>5.0.9</extentreports.version>
-        <aspectj.version>1.9.8.M1</aspectj.version> <!-- 1.9.6 DO NOT UPDATE (Search and replace) -->
+        <aspectj.version>1.9.8.RC1</aspectj.version> <!-- 1.9.6 DO NOT UPDATE (Search and replace) -->
 
         <rest-assured.version>4.4.0</rest-assured.version>
         <json-simple.version>1.1.1</json-simple.version>
@@ -64,7 +64,7 @@
 
         <jcraft-jsch.version>0.1.55</jcraft-jsch.version>
 
-        <cucumber.version>6.11.0</cucumber.version>
+        <cucumber.version>7.0.0</cucumber.version>
         <cverges-expect4j.version>1.9</cverges-expect4j.version>
 
         <openpnp-opencv.version>4.5.1-2</openpnp-opencv.version>
@@ -447,7 +447,7 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.20</version>
+            <version>1.18.22</version>
         </dependency>
     </dependencies>
 
@@ -485,7 +485,7 @@
                     <dependency>
                         <groupId>org.aspectj</groupId>
                         <artifactId>aspectjweaver</artifactId>
-                        <version>1.9.8.M1</version>
+                        <version>1.9.8.RC1</version>
                     </dependency>
                 </dependencies>
                 <configuration>
