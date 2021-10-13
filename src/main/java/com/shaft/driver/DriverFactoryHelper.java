@@ -554,13 +554,17 @@ public class DriverFactoryHelper {
         ReportManager.log(initialLog + ".");
         var driverType = getDriverTypeFromName(driverName);
 
-        switch (driverType) {
-            case DESKTOP_FIREFOX -> createNewLocalDriverInstanceForFirefox();
-            case DESKTOP_INTERNET_EXPLORER -> createNewLocalDriverInstanceForInternetExplorer();
-            case DESKTOP_CHROME -> createNewLocalDriverInstanceForChrome();
-            case DESKTOP_EDGE -> createNewLocalDriverInstanceForEdge();
-            case DESKTOP_SAFARI -> createNewLocalDriverInstanceForSafari();
-            default -> failAction("Unsupported Driver Type [" + driverName + "].");
+        try {
+            switch (driverType) {
+                case DESKTOP_FIREFOX -> createNewLocalDriverInstanceForFirefox();
+                case DESKTOP_INTERNET_EXPLORER -> createNewLocalDriverInstanceForInternetExplorer();
+                case DESKTOP_CHROME -> createNewLocalDriverInstanceForChrome();
+                case DESKTOP_EDGE -> createNewLocalDriverInstanceForEdge();
+                case DESKTOP_SAFARI -> createNewLocalDriverInstanceForSafari();
+                default -> failAction("Unsupported Driver Type [" + driverName + "].");
+            }
+        }catch (SessionNotCreatedException exception){
+            failAction("Failed to create new Browser Session", exception);
         }
         return driver.get();
     }
