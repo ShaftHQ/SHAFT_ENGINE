@@ -30,7 +30,7 @@
         <!-- Dependencies and Plug-ins Version Numbers Parameters -->
         <selenium.version>4.0.0</selenium.version>
         <appium-selenium.version>3.141.59</appium-selenium.version>
-        <appium-java-client.version>7.5.1</appium-java-client.version>
+        <appium-java-client.version>7.6.0</appium-java-client.version>
         <playwright.version>1.15.2</playwright.version>
 
         <webdrivermanager.version>5.0.3</webdrivermanager.version>
