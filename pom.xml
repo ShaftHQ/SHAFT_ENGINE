@@ -31,7 +31,7 @@
         <selenium.version>4.0.0-rc-2</selenium.version>
         <appium-selenium.version>3.141.59</appium-selenium.version>
         <appium-java-client.version>7.6.0</appium-java-client.version>
-        <playwright.version>1.15.2</playwright.version>
+        <playwright.version>1.16.0</playwright.version>
 
         <webdrivermanager.version>5.0.3</webdrivermanager.version>
         <allure-testng.version>2.15.0</allure-testng.version> <!-- UPDATE internal.properties -->
