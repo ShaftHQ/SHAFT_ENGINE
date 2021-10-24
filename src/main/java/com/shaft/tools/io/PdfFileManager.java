@@ -19,24 +19,11 @@ public class PdfFileManager {
 	private PDFParser parser = null;
 	private COSDocument cosDoc = null;
 	private PDFTextStripper strip = null;
-	private File file;
+	private final File file;
 
-	/**
-	 * Validates the downloaded pdf document from the site under test
-	 * 
-	 * @param url                the path of the downloaded pdf file (usually will
-	 *                           be target/downloadedFiles/your-file.pdf), usually
-	 *                           will be in "target/downloadedFiles/" for the
-	 *                           project
-	 * @param milliSecondsToWait the time in milliseconds needed to wait on the
-	 *                           document to be downloaded successfully to the
-	 *                           target folder path
-	 * @param numberOfRetries    the retries that will be executed to check if the
-	 *                           file exist, will try every 5 seconds
-	 */
 	public PdfFileManager(String folderName, String fileName, int numberOfRetries) {
 
-		Boolean doesFileExist = FileActions.doesFileExist(folderName, fileName, numberOfRetries);
+		boolean doesFileExist = FileActions.doesFileExist(folderName, fileName, numberOfRetries);
 
 		file = new File(FileActions.getAbsolutePath(folderName, fileName));
 
@@ -190,8 +177,7 @@ public class PdfFileManager {
 
 		// Delete the file from target folder for next run
 
-		switch (deleteFileAfterValidation) {
-		case TRUE:
+		if (deleteFileAfterValidation == DeleteFileAfterValidationStatus.TRUE) {
 			try {
 				FileUtils.forceDelete(file);
 			} catch (IOException e) {
@@ -199,8 +185,6 @@ public class PdfFileManager {
 				ReportManager.log("Couldn't find the file, File directory may be null or file is not found.");
 				Assert.fail("Couldn't find the file, File directory may be null or file is not found.");
 			}
-		default:
-			break;
 		}
 
 	}

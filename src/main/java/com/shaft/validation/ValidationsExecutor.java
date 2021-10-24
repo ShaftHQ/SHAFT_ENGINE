@@ -6,11 +6,11 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
 public class ValidationsExecutor {
-    private ValidationEnums.ValidationCategory validationCategory;
+    private final ValidationEnums.ValidationCategory validationCategory;
     private WebDriver driver;
     private By locator;
-    private ValidationEnums.ValidationType validationType;
-    private String validationMethod;
+    private final ValidationEnums.ValidationType validationType;
+    private final String validationMethod;
     private String customReportMessage = "";
 
     private ValidationEnums.VisualValidationEngine visualValidationEngine;

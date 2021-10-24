@@ -668,7 +668,7 @@ public class TouchActions {
             this.value = type;
         }
 
-        protected ImmutableMap<?,?> getValue() {
+        private ImmutableMap<?,?> getValue() {
             return value;
         }
     }

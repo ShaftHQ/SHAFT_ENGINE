@@ -89,7 +89,7 @@ class ElementActionsHelper {
             }
             if (Boolean.FALSE.equals(driver.findElement(elementLocator).isDisplayed())) {
                 try {
-                    new WebDriverWait(driver, (long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER * ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION).until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
+                    new WebDriverWait(driver, Duration.ofSeconds((long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER * ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION)).until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
                 } catch (org.openqa.selenium.TimeoutException e) {
                     ReportManagerHelper.logDiscrete(e);
                     return false;
@@ -102,7 +102,7 @@ class ElementActionsHelper {
     protected static boolean waitForElementToBeClickable(WebDriver driver, By elementLocator) {
         if (!DriverFactoryHelper.isMobileNativeExecution()) {
             try {
-                (new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER))
+                (new WebDriverWait(driver, Duration.ofSeconds(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER)))
                         .until(ExpectedConditions.elementToBeClickable(elementLocator));
             } catch (org.openqa.selenium.TimeoutException e) {
                 ReportManagerHelper.logDiscrete(e);
@@ -114,7 +114,7 @@ class ElementActionsHelper {
 
     protected static boolean waitForElementTextToBeNot(WebDriver driver, By elementLocator, String textShouldNotBe) {
         try {
-            (new WebDriverWait(driver, DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER))
+            (new WebDriverWait(driver, Duration.ofSeconds(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER)))
                     .until(ExpectedConditions.not(ExpectedConditions.textToBe(elementLocator, textShouldNotBe)));
         } catch (org.openqa.selenium.TimeoutException e) {
             ReportManagerHelper.logDiscrete(e);
