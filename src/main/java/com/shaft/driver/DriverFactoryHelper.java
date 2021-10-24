@@ -478,8 +478,8 @@ public class DriverFactoryHelper {
                 chOptions.setCapability(CapabilityType.ACCEPT_INSECURE_CERTS, true);
                 chOptions.setCapability(CapabilityType.ACCEPT_SSL_CERTS, true);
                 chOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL); // https://www.skptricks.com/2018/08/timed-out-receiving-message-from-renderer-selenium.html
-                chOptions.setPageLoadTimeout(Duration.ofSeconds((long) PAGE_LOAD_TIMEOUT));
-                chOptions.setScriptTimeout(Duration.ofSeconds((long) SCRIPT_TIMEOUT));
+                chOptions.setPageLoadTimeout(Duration.ofSeconds(PAGE_LOAD_TIMEOUT));
+                chOptions.setScriptTimeout(Duration.ofSeconds(SCRIPT_TIMEOUT));
                 if (Boolean.TRUE.equals(WAIT_IMPLICITLY)) {
                     chOptions.setImplicitWaitTimeout(Duration.ofSeconds(IMPLICIT_WAIT_TIMEOUT));
                 }

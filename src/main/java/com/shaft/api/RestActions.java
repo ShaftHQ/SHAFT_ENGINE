@@ -532,23 +532,19 @@ public class RestActions implements ShaftDriver {
             } else {
                 requestBodyAttachment.add("API Request");
                 switch (identifyBodyObjectType(requestBody)) {
-                    case 1:
-                        // json
-                        requestBodyAttachment.add("JSON Body");
-                        break;
-                    case 2:
-                        // xml
-                        requestBodyAttachment.add("XML Body");
-                        break;
-                    case 3:
-                    case 4:
-                        // I don't remember... may be binary
-                        // binary... probably
-                        requestBodyAttachment.add("Body");
-                        break;
-                    default:
-                        // unreachable code
-                        break;
+                    case 1 ->
+                            // json
+                            requestBodyAttachment.add("JSON Body");
+                    case 2 ->
+                            // xml
+                            requestBodyAttachment.add("XML Body");
+                    case 3, 4 ->
+                            // I don't remember... may be binary
+                            // binary... probably
+                            requestBodyAttachment.add("Body");
+                    default -> {
+                    }
+                    // unreachable code
                 }
                 requestBodyAttachment.add(parseBodyToJson(requestBody));
                 return requestBodyAttachment;
@@ -570,23 +566,19 @@ public class RestActions implements ShaftDriver {
             } else {
                 responseBodyAttachment.add("API Response");
                 switch (identifyBodyObjectType(responseBody)) {
-                    case 1:
-                        // json
-                        responseBodyAttachment.add("JSON Body");
-                        break;
-                    case 2:
-                        // xml
-                        responseBodyAttachment.add("XML Body");
-                        break;
-                    case 3:
-                    case 4:
-                        // I don't remember... may be binary
-                        // binary... probably
-                        responseBodyAttachment.add("Body");
-                        break;
-                    default:
-                        // unreachable code
-                        break;
+                    case 1 ->
+                            // json
+                            responseBodyAttachment.add("JSON Body");
+                    case 2 ->
+                            // xml
+                            responseBodyAttachment.add("XML Body");
+                    case 3, 4 ->
+                            // I don't remember... may be binary
+                            // binary... probably
+                            responseBodyAttachment.add("Body");
+                    default -> {
+                    }
+                    // unreachable code
                 }
                 responseBodyAttachment.add(parseBodyToJson(responseBody));
                 return responseBodyAttachment;

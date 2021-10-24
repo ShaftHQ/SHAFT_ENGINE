@@ -766,17 +766,11 @@ public class PlayWrightElementActions {
                                                                     TextDetectionStrategy successfulTextLocationStrategy) {
         String actualText = "";
         switch (successfulTextLocationStrategy) {
-            case TEXT:
-                actualText = page.querySelector(elementLocator).innerText();
-                break;
-            case CONTENT:
-                actualText = page.querySelector(elementLocator).textContent();
-                break;
-            case VALUE:
-                actualText = (String) page.querySelector(elementLocator).evaluate("node => node.value");
-                break;
-            default:
-                break;
+            case TEXT -> actualText = page.querySelector(elementLocator).innerText();
+            case CONTENT -> actualText = page.querySelector(elementLocator).textContent();
+            case VALUE -> actualText = (String) page.querySelector(elementLocator).evaluate("node => node.value");
+            default -> {
+            }
         }
         return actualText;
     }
