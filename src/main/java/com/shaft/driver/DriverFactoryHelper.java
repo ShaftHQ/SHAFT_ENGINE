@@ -726,6 +726,10 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
                 return Platform.LINUX;
             case MACOS:
                 return Platform.MAC;
+            case ANDROID:
+                return Platform.ANDROID;
+            case IOS:
+                return Platform.IOS;
             default:
                 ReportManager.log(
                         "Unsupported Operating System [" + targetOperatingSystem + "], setting target platform to [ANY].");

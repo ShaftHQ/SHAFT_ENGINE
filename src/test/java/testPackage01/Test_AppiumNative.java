@@ -59,9 +59,9 @@ public class Test_AppiumNative {
         System.setProperty("mobile_automationName", "UIAutomator2");
 
         // local appium server (for local and github actions execution)
-        System.setProperty("executionAddress", "0.0.0.0:4723");
-        System.setProperty("mobile_app", "src/test/resources/TestDataFiles/jumia-7-9-3.apk");
-        driver = DriverFactory.getDriver();
+//        System.setProperty("executionAddress", "0.0.0.0:4723");
+//        System.setProperty("mobile_app", "src/test/resources/TestDataFiles/jumia-7-9-3.apk");
+//        driver = DriverFactory.getDriver();
 
         // remote browserstack server (new apk version)
 //        System.setProperty("browserStack.appName", "JUMIA");
@@ -69,8 +69,8 @@ public class Test_AppiumNative {
 //        driver = DriverFactory.getBrowserStackDriver();
 
         // remote browserstack server (existing apk version)
-//        System.setProperty("browserStack.appUrl", "bs://a66c4f868f65cfdd76ff17554e5f9c650c7773ce");
-//        driver = DriverFactory.getBrowserStackDriver();
+        System.setProperty("browserStack.appUrl", "bs://a66c4f868f65cfdd76ff17554e5f9c650c7773ce");
+        driver = DriverFactory.getBrowserStackDriver();
     }
 
     @AfterClass
