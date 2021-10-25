@@ -1,12 +1,10 @@
 package testPackage01;
 
-import com.shaft.api.BrowserStack;
 import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.TouchActions;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
-import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.WebDriver;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
