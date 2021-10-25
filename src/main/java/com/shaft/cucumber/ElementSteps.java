@@ -287,7 +287,7 @@ public class ElementSteps {
             this.value = type;
         }
 
-        protected String getValue() {
+        private String getValue() {
             return value;
         }
     }

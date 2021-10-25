@@ -21,7 +21,7 @@
 
 ### What is SHAFT?
 - A Unified Test Automation Engine.<br/><img src="src/main/resources/images/engine.png" alt="Generic Test Automation Architecture" style="display:block; margin-left:auto; margin-right:auto;"/>
-- A source controlled Java 16 Maven project that is easily and regularly extended and enhanced with new features.
+- A source controlled Java Maven project that is easily and regularly extended and enhanced with new features.
 - Provides an easily understandable and user-friendly syntax for writing simple, robust, reliable, maintainable, and scalable tests.
 - Fully documented with standard JavaDocs.
 - Provides an online Configuration Manager to effortlessly set up your tests.
