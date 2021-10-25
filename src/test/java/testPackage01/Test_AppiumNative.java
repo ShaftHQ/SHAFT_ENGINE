@@ -59,22 +59,18 @@ public class Test_AppiumNative {
         System.setProperty("mobile_automationName", "UIAutomator2");
 
         // local appium server (for local and github actions execution)
-//        System.setProperty("executionAddress", "0.0.0.0:4723");
-//        System.setProperty("mobile_app", "src/test/resources/TestDataFiles/jumia-7-9-3.apk");
+        System.setProperty("executionAddress", "0.0.0.0:4723");
+        System.setProperty("mobile_app", "src/test/resources/TestDataFiles/jumia-7-9-3.apk");
+        driver = DriverFactory.getDriver();
 
         // remote browserstack server (new apk version)
-//        BrowserStack.setupNativeAppExecution("mohabmohie1", "7E7PgzBtwk4sWLUcF8Y5",
-//                "Google Pixel 3", "9.0", "src/test/resources/TestDataFiles/jumia-7-9-3.apk", "JUMIA");
+//        System.setProperty("browserStack.appName", "JUMIA");
+//        System.setProperty("browserStack.appRelativeFilePath", "src/test/resources/TestDataFiles/jumia-7-9-3.apk");
+//        driver = DriverFactory.getBrowserStackDriver();
 
         // remote browserstack server (existing apk version)
-        var browserStackOptions = BrowserStack.setupNativeAppExecution("mohabmohie1", "7E7PgzBtwk4sWLUcF8Y5",
-                "Google Pixel 5", "11.0", "bs://a66c4f868f65cfdd76ff17554e5f9c650c7773ce");
-
-        driver = BrowserFactory.getBrowser(DriverFactory.DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
-        /**
-         * DriverFactory.getBrowserStackDriver();
-         * Add browserStack properties to the mobile properties file or create a separate one?
-         */
+//        System.setProperty("browserStack.appUrl", "bs://a66c4f868f65cfdd76ff17554e5f9c650c7773ce");
+//        driver = DriverFactory.getBrowserStackDriver();
     }
 
     @AfterClass

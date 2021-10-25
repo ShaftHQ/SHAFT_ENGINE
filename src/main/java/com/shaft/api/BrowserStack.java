@@ -32,7 +32,7 @@ public class BrowserStack {
      * @param appName               Name of your APK (excluding version number). This will be used as your CustomID so that you can keep uploading new versions of the same app and run your tests against them.
      * @return appURL for the newly uploaded app file on BrowserStack to be used for future tests
      */
-    public static String setupNativeAppExecution(String username, String password, String deviceName, String osVersion, String relativePathToAppFile, String appName) {
+    public static MutableCapabilities setupNativeAppExecution(String username, String password, String deviceName, String osVersion, String relativePathToAppFile, String appName) {
         System.setProperty("apiSocketTimeout", "600"); //increasing socket timeout to 10 minutes to upload a new app file
         ReportManager.logDiscrete("Setting up BrowserStack configuration for new native app version...");
         String testData = "Username: " + username + ", Password: " + password + ", Device Name: " + deviceName + ", OS Version: " + osVersion + ", Relative Path to App File: " + relativePathToAppFile + ", App Name: " + appName;
@@ -65,10 +65,10 @@ public class BrowserStack {
             failAction(testData, exception);
         }
         // set properties
-        setBrowserStackProperties(username, password, deviceName, osVersion, appUrl);
+        MutableCapabilities browserStackCapabilities = setBrowserStackProperties(username, password, deviceName, osVersion, appUrl);
         testData = testData + ", App URL: " + appUrl;
         passAction(testData);
-        return appUrl;
+        return browserStackCapabilities;
     }
 
     /**
@@ -98,13 +98,11 @@ public class BrowserStack {
 
         MutableCapabilities browserStackCapabilities = new MutableCapabilities();
         HashMap<String, Object> browserstackOptions = new HashMap<String, Object>();
-        browserstackOptions.put("appiumVersion", "1.21.0");
-        browserstackOptions.put("acceptInsecureCerts", "true");
-        browserstackOptions.put("debug", "true");
-        browserstackOptions.put("networkLogs", "true");
+        browserstackOptions.put("appiumVersion", System.getProperty("browserStack.appiumVersion"));
+        browserstackOptions.put("acceptInsecureCerts", System.getProperty("browserStack.acceptInsecureCerts"));
+        browserstackOptions.put("debug", System.getProperty("browserStack.debug"));
+        browserstackOptions.put("networkLogs", System.getProperty("browserStack.networkLogs"));
         browserStackCapabilities.setCapability("bstack:options", browserstackOptions);
-        // BrowserStack capability builder - https://www.browserstack.com/app-automate/capabilities?tag=w3c
-
         return browserStackCapabilities;
     }
   
