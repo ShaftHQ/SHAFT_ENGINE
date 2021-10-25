@@ -161,18 +161,17 @@ public class PropertyFileManager {
         String maximumPerformanceMode = System.getProperty("maximumPerformanceMode");
         switch (maximumPerformanceMode) {
             case "true", "1", "2" -> {
-                System.setProperty("aiPoweredSelfHealingElementIdentification", String.valueOf(false));
-                System.setProperty("autoMaximizeBrowserWindow", String.valueOf(true));
                 System.setProperty("forceCheckForElementVisibility", String.valueOf(false));
                 System.setProperty("forceCheckElementLocatorIsUnique", String.valueOf(false));
-                System.setProperty("screenshotParams_whenToTakeAScreenshot", "ValidationPointsOnly");
-                System.setProperty("screenshotParams_highlightElements", String.valueOf(true));
-                System.setProperty("screenshotParams_highlightMethod", "AI");
-                System.setProperty("screenshotParams_screenshotType", "Regular");
-                System.setProperty("screenshotParams_watermark", String.valueOf(true));
+                System.setProperty("forceCheckTextWasTypedCorrectly", String.valueOf(false));
+                System.setProperty("aiPoweredSelfHealingElementIdentification", String.valueOf(false));
+                System.setProperty("captureWebDriverLogs", String.valueOf(false));
+                System.setProperty("debugMode", String.valueOf(false));
+                System.setProperty("waitImplicitly", String.valueOf(false));
+                System.setProperty("waitForLazyLoading", String.valueOf(false));
+                System.setProperty("screenshotParams_whenToTakeAScreenshot=", "ValidationPointsOnly");
                 System.setProperty("createAnimatedGif", String.valueOf(false));
                 System.setProperty("videoParams_recordVideo", String.valueOf(false));
-                System.setProperty("debugMode", String.valueOf(false));
                 System.setProperty("headlessExecution", String.valueOf(false));
                 if (maximumPerformanceMode.equals("2")) System.setProperty("headlessExecution", String.valueOf(true));
             }
