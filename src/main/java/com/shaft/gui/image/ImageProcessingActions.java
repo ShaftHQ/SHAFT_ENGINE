@@ -323,17 +323,11 @@ public class ImageProcessingActions {
         MatchLevel targetMatchLevel = MatchLevel.STRICT;
         switch (visualValidationEngine) {
             // https://help.applitools.com/hc/en-us/articles/360007188591-Match-Levels
-            case EXACT_EYES:
-                targetMatchLevel = MatchLevel.EXACT;
-                break;
-            case CONTENT_EYES:
-                targetMatchLevel = MatchLevel.CONTENT;
-                break;
-            case LAYOUT_EYES:
-                targetMatchLevel = MatchLevel.LAYOUT;
-                break;
-            default:
-                break;
+            case EXACT_EYES -> targetMatchLevel = MatchLevel.EXACT;
+            case CONTENT_EYES -> targetMatchLevel = MatchLevel.CONTENT;
+            case LAYOUT_EYES -> targetMatchLevel = MatchLevel.LAYOUT;
+            default -> {
+            }
         }
         eyes.setMatchLevel(targetMatchLevel);
         // Define the OS and hosting application to identify the baseline.
@@ -419,17 +413,11 @@ public class ImageProcessingActions {
         MatchLevel targetMatchLevel = MatchLevel.STRICT;
         switch (visualValidationEngine) {
             // https://help.applitools.com/hc/en-us/articles/360007188591-Match-Levels
-            case EXACT_EYES:
-                targetMatchLevel = MatchLevel.EXACT;
-                break;
-            case CONTENT_EYES:
-                targetMatchLevel = MatchLevel.CONTENT;
-                break;
-            case LAYOUT_EYES:
-                targetMatchLevel = MatchLevel.LAYOUT;
-                break;
-            default:
-                break;
+            case EXACT_EYES -> targetMatchLevel = MatchLevel.EXACT;
+            case CONTENT_EYES -> targetMatchLevel = MatchLevel.CONTENT;
+            case LAYOUT_EYES -> targetMatchLevel = MatchLevel.LAYOUT;
+            default -> {
+            }
         }
         eyes.setMatchLevel(targetMatchLevel);
         // Define the OS and hosting application to identify the baseline.

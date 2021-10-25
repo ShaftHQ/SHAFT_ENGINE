@@ -1,16 +1,16 @@
 package com.shaft.driver;
 
-import org.openqa.selenium.MutableCapabilities;
-import org.openqa.selenium.WebDriver;
-import org.sikuli.script.App;
-
-import com.microsoft.playwright.Page;
 import com.microsoft.playwright.BrowserType.LaunchOptions;
+import com.microsoft.playwright.Page;
+import com.shaft.api.BrowserStack;
 import com.shaft.api.RestActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.db.DatabaseActions;
 import com.shaft.db.DatabaseActions.DatabaseType;
 import com.shaft.tools.io.ReportManager;
+import org.openqa.selenium.MutableCapabilities;
+import org.openqa.selenium.WebDriver;
+import org.sikuli.script.App;
 
 public class DriverFactory {
 
@@ -46,6 +46,23 @@ public class DriverFactory {
      */
     public static WebDriver getDriver(DriverType driverType, MutableCapabilities customDriverOptions) {
         return DriverFactoryHelper.getDriver(driverType, customDriverOptions);
+    }
+
+    /**
+     * Creates a new Selenium WebDriver instance using BrowserStack, use this to test Native Mobile apps over BrowserStack
+     * @return a new Selenium WebDriver instance using BrowserStack
+     */
+    public static WebDriver getBrowserStackDriver() {
+        MutableCapabilities browserStackOptions = new MutableCapabilities();
+        String appUrl = System.getProperty("browserStack.appUrl");
+        if ("".equals(appUrl)){
+            browserStackOptions= BrowserStack.setupNativeAppExecution(System.getProperty("browserStack.username"), System.getProperty("browserStack.accessKey"),
+                    System.getProperty("browserStack.deviceName"), System.getProperty("browserStack.platformVersion"), System.getProperty("browserStack.appRelativeFilePath"), System.getProperty("browserStack.appName"));
+        }else{
+            browserStackOptions= BrowserStack.setupNativeAppExecution(System.getProperty("browserStack.username"), System.getProperty("browserStack.accessKey"),
+                    System.getProperty("browserStack.deviceName"), System.getProperty("browserStack.platformVersion"), appUrl);
+        }
+        return DriverFactoryHelper.getDriver(DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
     }
     
     /**

@@ -1,5 +1,6 @@
 package com.shaft.gui.element;
 
+import java.time.Duration;
 import java.util.Objects;
 
 import org.openqa.selenium.JavascriptExecutor;
@@ -74,7 +75,7 @@ public class JavaScriptWaitManager {
                 while ((!jqueryReady) && (tryCounter < 5)) {
                     try {
                         // Wait for jQuery to load
-                        (new WebDriverWait(jsWaitDriver.get(), WAIT_DURATION_INTEGER)).until(jQueryLoad);
+                        (new WebDriverWait(jsWaitDriver.get(), Duration.ofSeconds(WAIT_DURATION_INTEGER))).until(jQueryLoad);
                     } catch (NullPointerException e) {
                         // do nothing
                     }
@@ -103,7 +104,7 @@ public class JavaScriptWaitManager {
             int tryCounter = 0;
             while ((!angularReady) && (tryCounter < 5)) {
                 // Wait for Angular to load
-                (new WebDriverWait(jsWaitDriver.get(), WAIT_DURATION_INTEGER)).until(angularLoad);
+                (new WebDriverWait(jsWaitDriver.get(), Duration.ofSeconds(WAIT_DURATION_INTEGER))).until(angularLoad);
 //                ExpectedCondition<Boolean> finalAngularLoad = angularLoad;
 //                (new WebDriverWait(jsWaitDriver.get(), WAIT_DURATION)).until(waitDriver-> finalAngularLoad);
                 // More Wait for stability (Optional)
@@ -133,7 +134,7 @@ public class JavaScriptWaitManager {
             while ((!jsReady) && (tryCounter < 5)) {
                 // Wait for Javascript to load
                 try {
-                    (new WebDriverWait(jsWaitDriver.get(), WAIT_DURATION_INTEGER)).until(jsLoad);
+                    (new WebDriverWait(jsWaitDriver.get(), Duration.ofSeconds(WAIT_DURATION_INTEGER))).until(jsLoad);
                 } catch (org.openqa.selenium.TimeoutException e) {
                     //do nothing
                     //TODO: confirm that this fixed the timeout issue on the grid
