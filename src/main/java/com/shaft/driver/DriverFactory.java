@@ -1,18 +1,16 @@
 package com.shaft.driver;
 
-import com.shaft.api.BrowserStack;
-import com.shaft.gui.browser.BrowserFactory;
-import org.openqa.selenium.MutableCapabilities;
-import org.openqa.selenium.WebDriver;
-import org.sikuli.script.App;
-
-import com.microsoft.playwright.Page;
 import com.microsoft.playwright.BrowserType.LaunchOptions;
+import com.microsoft.playwright.Page;
+import com.shaft.api.BrowserStack;
 import com.shaft.api.RestActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.db.DatabaseActions;
 import com.shaft.db.DatabaseActions.DatabaseType;
 import com.shaft.tools.io.ReportManager;
+import org.openqa.selenium.MutableCapabilities;
+import org.openqa.selenium.WebDriver;
+import org.sikuli.script.App;
 
 public class DriverFactory {
 
