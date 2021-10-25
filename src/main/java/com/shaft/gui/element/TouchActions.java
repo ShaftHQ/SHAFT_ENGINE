@@ -23,7 +23,7 @@ import static java.util.Arrays.asList;
 import java.time.Duration;
 import java.util.List;
 
-@SuppressWarnings("unused")
+@SuppressWarnings({"unused", "rawtypes"})
 public class TouchActions {
     private static final int DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT = 10;
     private final WebDriver driver;
@@ -53,12 +53,11 @@ public class TouchActions {
      */
     public TouchActions nativeKeyboardKeyPress(KeyboardKeys key) {
         try {
-            ((JavascriptExecutor) driver).executeScript("mobile: performEditorAction", key.getValue());
+            ((AppiumDriver)driver).executeScript("mobile: performEditorAction", key.getValue());
             WebDriverElementActions.passAction(driver, null, key.name());
         } catch (Exception rootCauseException) {
             WebDriverElementActions.failAction(driver, null, rootCauseException);
         }
-        WebDriverElementActions.passAction(driver, null, key.name());
         return this;
     }
     
@@ -516,7 +515,16 @@ public class TouchActions {
                 }
                 attemptsToFindElement++;
             }
-        } while (Boolean.FALSE.equals(isElementFound) && attemptsToFindElement < DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT && !lastPageSourceBeforeSwiping.equals(driver.getPageSource()));
+
+            //attempting to change scrolling method if page source was not changed
+            if (lastPageSourceBeforeSwiping.equals(driver.getPageSource())){
+                if (swipeTechnique.equals(SwipeTechnique.TOUCH_ACTIONS)){
+                    swipeTechnique = SwipeTechnique.UI_SELECTOR;
+                }else{
+                    swipeTechnique = SwipeTechnique.TOUCH_ACTIONS;
+                }
+            }
+        } while (Boolean.FALSE.equals(isElementFound) && attemptsToFindElement < DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT);
         // TODO: devise a way to break the loop when no further scrolling options are
         // available. do not use visual comparison which is the easy but costly way to
         // do it.
@@ -668,7 +676,7 @@ public class TouchActions {
             this.value = type;
         }
 
-        protected ImmutableMap<?,?> getValue() {
+        private ImmutableMap<?,?> getValue() {
             return value;
         }
     }
