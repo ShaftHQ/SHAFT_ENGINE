@@ -87,6 +87,8 @@ public class DriverFactoryHelper {
     private static SafariOptions sfOptions;
     private static EdgeOptions edOptions;
     private static InternetExplorerOptions ieOptions;
+    private static DesiredCapabilities appiumCapabilities;
+
     // kill-switch
     private static boolean killSwitch = false;
 
@@ -513,6 +515,9 @@ public class DriverFactoryHelper {
                     sfOptions.setImplicitWaitTimeout(Duration.ofSeconds(IMPLICIT_WAIT_TIMEOUT));
                 }
             }
+            case APPIUM_MOBILE_NATIVE -> {
+                appiumCapabilities = new DesiredCapabilities(customDriverOptions);
+            }
             default -> failAction("Unsupported Driver Type [" + driverName + "].");
         }
     }
@@ -625,13 +630,17 @@ public class DriverFactoryHelper {
         }
         ReportManager.log(initialLog + ".");
 
-        var mobileDesiredCapabilities = new DesiredCapabilities();
+
         if (isMobileExecution()) {
-            mobileDesiredCapabilities = setAppiumDesiredCapabilitiesList();
+            if (appiumCapabilities == null) {
+                appiumCapabilities = setAppiumDesiredCapabilitiesList();
+            }else{
+                appiumCapabilities.merge(setAppiumDesiredCapabilitiesList());
+            }
         }
 
         try {
-        		setValueToRemoteDriverInstance(driverName, driverType, mobileDesiredCapabilities);
+        		setValueToRemoteDriverInstance(driverName, driverType, appiumCapabilities);
         } catch (UnreachableBrowserException e) {
             killSwitch = true;
             failAction("Unreachable Browser, terminated test suite execution.", e);
@@ -679,7 +688,7 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
          WebDriverManager.chromedriver().browserVersion(System.getProperty("MobileBrowserVersion")).setup();
          mobileDesiredCapabilities.setCapability("chromedriverExecutable",
                  WebDriverManager.chromedriver().getDownloadedDriverPath());
-         mobileDesiredCapabilities.setCapability("appium:chromeOptions", Map.of("w3c", false));
+//         mobileDesiredCapabilities.setCapability("appium:chromeOptions", Map.of("w3c", false));
          driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
          break;
      case APPIUM_CHROMIUM:
@@ -795,10 +804,10 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
                 setLoggingPrefrences();
                 // set logging global preferences
             }
-            if (!isMobileExecution()) {
+//            if (!isMobileExecution()) {
                 setDriverOptions(internalDriverName, customDriverOptions);
                 // set driver options with respect to the target driver name
-            }
+//            }
             if (Boolean.TRUE.equals(DRIVER_OBJECT_SINGLETON)) {
                 closeAllDrivers();
             }

@@ -2,15 +2,17 @@ package com.shaft.api;
 
 import com.shaft.cli.FileActions;
 import com.shaft.tools.io.ReportManager;
+import org.openqa.selenium.MutableCapabilities;
 import org.testng.Assert;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 
 public class BrowserStack {
-    private static final String hubUrl = "hub.browserstack.com";
+    private static final String hubUrl = "hub-cloud.browserstack.com";
     private static final String serviceUri = "https://api-cloud.browserstack.com/";
     private static final String appUploadServiceName = "app-automate/upload";
 
@@ -79,21 +81,31 @@ public class BrowserStack {
      * @param osVersion  Version of the Target operating system
      * @param appUrl     Url of the target app that was previously uploaded to be tested via BrowserStack
      */
-    public static void setupNativeAppExecution(String username, String password, String deviceName, String osVersion, String appUrl) {
+    public static MutableCapabilities setupNativeAppExecution(String username, String password, String deviceName, String osVersion, String appUrl) {
         ReportManager.logDiscrete("Setting up BrowserStack configuration for existing native app version...");
         String testData = "Username: " + username + ", Password: " + password + ", Device Name: " + deviceName + ", OS Version: " + osVersion + ", App URL: " + appUrl;
         // set properties
-        setBrowserStackProperties(username, password, deviceName, osVersion, appUrl);
+        MutableCapabilities browserStackCapabilities = setBrowserStackProperties(username, password, deviceName, osVersion, appUrl);
         passAction(testData);
+        return browserStackCapabilities;
     }
 
-    private static void setBrowserStackProperties(String username, String password, String deviceName, String osVersion, String appUrl) {
-        System.setProperty("executionAddress", hubUrl);
-        System.setProperty("mobile_browserstack.user", username);
-        System.setProperty("mobile_browserstack.key", password);
-        System.setProperty("mobile_device", deviceName);
-        System.setProperty("mobile_os_version", osVersion);
+    private static MutableCapabilities setBrowserStackProperties(String username, String password, String deviceName, String osVersion, String appUrl) {
+        System.setProperty("executionAddress", username+":"+password+"@"+hubUrl);
+        System.setProperty("mobile_deviceName", deviceName);
+        System.setProperty("mobile_platformVersion", osVersion);
         System.setProperty("mobile_app", appUrl);
+
+        MutableCapabilities browserStackCapabilities = new MutableCapabilities();
+        HashMap<String, Object> browserstackOptions = new HashMap<String, Object>();
+        browserstackOptions.put("appiumVersion", "1.21.0");
+        browserstackOptions.put("acceptInsecureCerts", "true");
+        browserstackOptions.put("debug", "true");
+        browserstackOptions.put("networkLogs", "true");
+        browserStackCapabilities.setCapability("bstack:options", browserstackOptions);
+        // BrowserStack capability builder - https://www.browserstack.com/app-automate/capabilities?tag=w3c
+
+        return browserStackCapabilities;
     }
   
     private static void passAction(String testData) {
