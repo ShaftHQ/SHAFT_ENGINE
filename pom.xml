@@ -32,8 +32,7 @@
         <appium-selenium.version>3.141.59</appium-selenium.version>
         <appium-java-client.version>7.6.0</appium-java-client.version>
         <appium-java-client-snapshot.version>master-SNAPSHOT</appium-java-client-snapshot.version>
-
-        <playwright.version>1.15.2</playwright.version>
+        <playwright.version>1.16.0</playwright.version>
 
         <webdrivermanager.version>5.0.3</webdrivermanager.version>
         <allure-testng.version>2.15.0</allure-testng.version> <!-- UPDATE internal.properties -->
@@ -47,8 +46,8 @@
 
         <testng.version>7.4.0</testng.version>
 
-        <mysql-connector-java.version>8.0.26</mysql-connector-java.version>
         <mssql-jdbc.version>9.4.0.jre16</mssql-jdbc.version>
+        <mysql-connector-java.version>8.0.27</mysql-connector-java.version>
         <postgresql.version>9.1-901-1.jdbc4</postgresql.version>
         <!-- <ojdbc8.version>19.3.0.0</ojdbc8.version> -->
 

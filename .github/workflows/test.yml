@@ -18,7 +18,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macOS-latest]
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v2.3.4
+        uses: actions/checkout@v2.3.5
       - name: Setup Node.js environment
         uses: actions/setup-node@v2.4.1
         with:
@@ -52,7 +52,7 @@ jobs:
         run: mvn test -DexecutionAddress="local" -DtargetOperatingSystem="Windows-64" -DmaximumPerformanceMode="2" -DtargetBrowserName="MicrosoftEdge" -Dtest="!%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*]"
       - name: Get Allure history
         continue-on-error: true
-        uses: actions/checkout@v2.3.4
+        uses: actions/checkout@v2.3.5
         if: always()
         with:
           ref: gh-pages
