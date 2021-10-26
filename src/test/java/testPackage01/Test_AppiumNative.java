@@ -56,12 +56,19 @@ public class Test_AppiumNative {
         System.setProperty("mobile_app", "src/test/resources/TestDataFiles/jumia-7-9-3.apk");
         driver = DriverFactory.getDriver();
 
-        // remote browserstack server (new apk version)
+        // remote browserstack server (new app version)
+//        System.setProperty("browserStack.platformVersion", "11.0");
+//        System.setProperty("browserStack.deviceName", "Google Pixel 5");
 //        System.setProperty("browserStack.appName", "JUMIA");
 //        System.setProperty("browserStack.appRelativeFilePath", "src/test/resources/TestDataFiles/jumia-7-9-3.apk");
+        //        System.setProperty("browserStack.appUrl", "");
 //        driver = DriverFactory.getBrowserStackDriver();
 
-        // remote browserstack server (existing apk version)
+        // remote browserstack server (existing app version)
+//                System.setProperty("browserStack.platformVersion", "11.0");
+//        System.setProperty("browserStack.deviceName", "Google Pixel 5");
+//        System.setProperty("browserStack.appName", "");
+//        System.setProperty("browserStack.appRelativeFilePath", "");
 //        System.setProperty("browserStack.appUrl", "bs://a66c4f868f65cfdd76ff17554e5f9c650c7773ce");
 //        driver = DriverFactory.getBrowserStackDriver();
     }

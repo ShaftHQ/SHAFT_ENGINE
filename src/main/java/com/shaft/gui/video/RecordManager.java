@@ -47,9 +47,9 @@ public class RecordManager {
             videoDriver.set(driver);
             try {
                 if (driver instanceof AndroidDriver androidDriver) {
-                    androidDriver.startRecordingScreen(new AndroidStartScreenRecordingOptions().withVideoSize("540x960").withBitRate(2000000).withTimeLimit(Duration.parse("PT30M")));
+                    androidDriver.startRecordingScreen(new AndroidStartScreenRecordingOptions().withVideoSize("540x960").withBitRate(2000000).withTimeLimit(Duration.ofMinutes(30)));
                 } else if (driver instanceof IOSDriver iosDriver) {
-                    iosDriver.startRecordingScreen(new IOSStartScreenRecordingOptions().withVideoScale("480p").withFps(15).withVideoQuality(IOSStartScreenRecordingOptions.VideoQuality.MEDIUM).withTimeLimit(Duration.parse("PT30M")));
+                    iosDriver.startRecordingScreen(new IOSStartScreenRecordingOptions().withVideoType("libx264").withVideoQuality(IOSStartScreenRecordingOptions.VideoQuality.MEDIUM).withTimeLimit(Duration.ofMinutes(30)));
                 }
                 ReportManager.logDiscrete("Started recording device screen");
                 isRecordingStarted = true;

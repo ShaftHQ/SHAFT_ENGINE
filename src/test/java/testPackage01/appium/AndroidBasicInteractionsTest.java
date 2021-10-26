@@ -52,13 +52,13 @@ public class AndroidBasicInteractionsTest {
     @BeforeClass
     public void setup() {
         // common attributes
-        System.setProperty("targetOperatingSystem", "Android");
-        System.setProperty("mobile_automationName", "UIAutomator2");
+//        System.setProperty("targetOperatingSystem", "Android");
+//        System.setProperty("mobile_automationName", "UIAutomator2");
         System.setProperty("mobile_appWaitActivity","*");
 
         // local appium server (for local and github actions execution)
-        System.setProperty("executionAddress", "0.0.0.0:4723");
-        System.setProperty("mobile_app", "src/test/resources/TestDataFiles/apps/ApiDemos-debug.apk");
+//        System.setProperty("executionAddress", "0.0.0.0:4723");
+//        System.setProperty("mobile_app", "src/test/resources/TestDataFiles/apps/ApiDemos-debug.apk");
         driver = DriverFactory.getDriver();
     }
 
