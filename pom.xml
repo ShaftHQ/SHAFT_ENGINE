@@ -2,7 +2,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.mohabmohie</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>5.3.20210621</version>
+    <version>5.4.20211025-BETA</version>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
     <url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
@@ -28,15 +28,16 @@
 
     <properties>
         <!-- Dependencies and Plug-ins Version Numbers Parameters -->
-        <selenium.version>4.0.0-alpha-7</selenium.version>
+        <selenium.version>4.0.0</selenium.version>
         <appium-selenium.version>3.141.59</appium-selenium.version>
-        <appium-java-client.version>7.5.1</appium-java-client.version>
-        <playwright.version>1.13.0</playwright.version>
+        <appium-java-client.version>7.6.0</appium-java-client.version>
+        <appium-java-client-snapshot.version>master-SNAPSHOT</appium-java-client-snapshot.version>
+        <playwright.version>1.16.0</playwright.version>
 
-        <webdrivermanager.version>4.4.3</webdrivermanager.version>
-        <allure-testng.version>2.14.0</allure-testng.version> <!-- UPDATE internal.properties -->
-        <extentreports.version>5.0.8</extentreports.version>
-        <aspectj.version>1.9.6</aspectj.version> <!-- 1.9.5 DO NOT UPDATE (Search and replace) -->
+        <webdrivermanager.version>5.0.3</webdrivermanager.version>
+        <allure-testng.version>2.15.0</allure-testng.version> <!-- UPDATE internal.properties -->
+        <extentreports.version>5.0.9</extentreports.version>
+        <aspectj.version>1.9.8.RC1</aspectj.version> <!-- 1.9.6 DO NOT UPDATE (Search and replace) -->
 
         <rest-assured.version>4.4.0</rest-assured.version>
         <json-simple.version>1.1.1</json-simple.version>
@@ -45,8 +46,8 @@
 
         <testng.version>7.4.0</testng.version>
 
-        <mysql-connector-java.version>8.0.26</mysql-connector-java.version>
-        <mssql-jdbc.version>9.3.1.jre15-preview</mssql-jdbc.version>
+        <mssql-jdbc.version>9.4.0.jre16</mssql-jdbc.version>
+        <mysql-connector-java.version>8.0.27</mysql-connector-java.version>
         <postgresql.version>9.1-901-1.jdbc4</postgresql.version>
         <!-- <ojdbc8.version>19.3.0.0</ojdbc8.version> -->
 
@@ -58,13 +59,13 @@
         <maven-surefire-plugin.version>3.0.0-M5</maven-surefire-plugin.version>
         <maven-shade-plugin.version>3.2.1</maven-shade-plugin.version>
         <maven-jar-plugin.version>3.2.0</maven-jar-plugin.version>
-        <maven-javadoc-plugin.version>3.3.0</maven-javadoc-plugin.version>
+        <maven-javadoc-plugin.version>3.3.1</maven-javadoc-plugin.version>
         <maven-scm-publish-plugin.version>3.1.0</maven-scm-publish-plugin.version>
         <maven-source-plugin.version>3.2.1</maven-source-plugin.version>
 
         <jcraft-jsch.version>0.1.55</jcraft-jsch.version>
 
-        <cucumber.version>6.11.0</cucumber.version>
+        <cucumber.version>7.0.0</cucumber.version>
         <cverges-expect4j.version>1.9</cverges-expect4j.version>
 
         <openpnp-opencv.version>4.5.1-2</openpnp-opencv.version>
@@ -73,6 +74,8 @@
 
         <jave-all-deps.version>3.1.1</jave-all-deps.version>
         <video-recorder-testng.version>2.0</video-recorder-testng.version>
+
+		<pdfbox.version>2.0.24</pdfbox.version>
 
         <!-- Build Commands-->
         <installToLocalRepository>mvn clean install -DskipTests</installToLocalRepository>
@@ -101,8 +104,8 @@
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-java</artifactId>
-            <version>${appium-selenium.version}</version>
-            <!--<version>${selenium.version}</version>-->
+<!--            <version>${appium-selenium.version}</version>-->
+            <version>${selenium.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.google.guava</groupId>
@@ -110,7 +113,14 @@
                 </exclusion>
             </exclusions>
         </dependency>
-        
+        <!-- https://mvnrepository.com/artifact/io.netty/netty-handler -->
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-handler</artifactId>
+            <version>4.1.69.Final</version>
+        </dependency>
+
+
         <!-- PLAYWRIGHT -->
         		<!-- https://mvnrepository.com/artifact/com.microsoft.playwright/playwright -->
 		<dependency>
@@ -120,10 +130,39 @@
 		</dependency>
 
         <!-- APPIUM -->
+<!--        <dependency>-->
+<!--            <groupId>io.appium</groupId>-->
+<!--            <artifactId>java-client</artifactId>-->
+<!--            <version>${appium-java-client.version}</version>-->
+<!--            <exclusions>-->
+<!--                <exclusion>-->
+<!--                    <groupId>org.seleniumhq.selenium</groupId>-->
+<!--                    <artifactId>selenium-java</artifactId>-->
+<!--                </exclusion>-->
+<!--                <exclusion>-->
+<!--                    <groupId>org.seleniumhq.selenium</groupId>-->
+<!--                    <artifactId>selenium-support</artifactId>-->
+<!--                </exclusion>-->
+<!--                <exclusion>-->
+<!--                    <groupId>org.seleniumhq.selenium</groupId>-->
+<!--                    <artifactId>selenium-api</artifactId>-->
+<!--                </exclusion>-->
+<!--                <exclusion>-->
+<!--                    <groupId>org.slf4j</groupId>-->
+<!--                    <artifactId>slf4j-api</artifactId>-->
+<!--                </exclusion>-->
+<!--                <exclusion>-->
+<!--                    <groupId>commons-logging</groupId>-->
+<!--                    <artifactId>commons-logging</artifactId>-->
+<!--                </exclusion>-->
+<!--            </exclusions>-->
+<!--        </dependency>-->
+
+        <!-- APPIUM -->
         <dependency>
-            <groupId>io.appium</groupId>
+            <groupId>com.github.appium</groupId>
             <artifactId>java-client</artifactId>
-            <version>${appium-java-client.version}</version>
+            <version>ac625c3d7035a7f77e268cf7c6b6877e185f1dea</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.seleniumhq.selenium</groupId>
@@ -271,6 +310,13 @@
             <groupId>com.aventstack</groupId>
             <artifactId>extentreports</artifactId>
             <version>${extentreports.version}</version>
+        </dependency>
+
+        <!-- PDF Validation -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>${pdfbox.version}</version>
         </dependency>
 
         <!-- REST ASSURED -->
@@ -431,7 +477,14 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>30.1.1-jre</version>
+            <version>31.0.1-jre</version>
+        </dependency>
+
+        <!-- https://mvnrepository.com/artifact/org.projectlombok/lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.22</version>
         </dependency>
     </dependencies>
 
@@ -454,8 +507,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${maven-compiler-plugin.version}</version>
                 <configuration>
-                    <source>15</source>
-                    <target>15</target>
+                    <source>17</source>
+                    <target>17</target>
                     <encoding>UTF-8</encoding>
                     <maxmem>10240m</maxmem>
                     <meminitial>1024m</meminitial>
@@ -469,7 +522,7 @@
                     <dependency>
                         <groupId>org.aspectj</groupId>
                         <artifactId>aspectjweaver</artifactId>
-                        <version>1.9.6</version>
+                        <version>${aspectj.version}</version>
                     </dependency>
                 </dependencies>
                 <configuration>
@@ -478,7 +531,7 @@
                     <encoding>UTF-8</encoding>
                     <argLine>
                         -Dtestng.dtd.http=true
-                        -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/1.9.6/aspectjweaver-1.9.6.jar"
+                        -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"
                     </argLine>
                     <properties>
                         <property>
@@ -591,6 +644,10 @@
 			<id>central</id>
 			<url>https://repo1.maven.org/maven2/</url>
 		</repository>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
 	</repositories>
 
     <!--    <repositories>-->

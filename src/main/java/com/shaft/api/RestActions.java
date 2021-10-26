@@ -25,7 +25,9 @@ import io.restassured.path.json.exception.JsonPathException;
 import io.restassured.path.xml.element.Node;
 import io.restassured.path.xml.element.NodeChildren;
 import io.restassured.response.Response;
+import io.restassured.specification.QueryableRequestSpecification;
 import io.restassured.specification.RequestSpecification;
+import io.restassured.specification.SpecificationQuerier;
 import org.apache.commons.io.IOUtils;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -61,6 +63,7 @@ public class RestActions implements ShaftDriver {
     private final Map<String, String> sessionHeaders;
     private final Map<String, Object> sessionCookies;
     private String headerAuthorization;
+    private static final String GRAPHQL_END_POINT = "graphql";
 
     public RestActions(String serviceURI) {
         initializeSystemProperties(System.getProperty("apiConnectionTimeout") == null);
@@ -74,14 +77,14 @@ public class RestActions implements ShaftDriver {
         return new RequestBuilder(new RestActions(serviceURI), serviceName, requestType);
     }
 
-    private static void passAction(String actionName, String testData, Object requestBody, Response response,
+    private static void passAction(String actionName, String testData, Object requestBody, RequestSpecification specs, Response response,
                                    Boolean isDiscrete, List<Object> expectedFileBodyAttachment) {
-        reportActionResult(actionName, testData, requestBody, response, isDiscrete, expectedFileBodyAttachment, true);
+        reportActionResult(actionName, testData, requestBody, specs, response, isDiscrete, expectedFileBodyAttachment, true);
     }
 
-    private static void failAction(String actionName, String testData, Object requestBody, Response response,
+    private static void failAction(String actionName, String testData, Object requestBody, RequestSpecification specs, Response response,
                                    Throwable... rootCauseException) {
-        String message = reportActionResult(actionName, testData, requestBody, response, false, null, false);
+        String message = reportActionResult(actionName, testData, requestBody, specs, response, false, null, false);
         if (rootCauseException != null && rootCauseException.length >= 1) {
             Assert.fail(message, rootCauseException[0]);
         } else {
@@ -91,17 +94,17 @@ public class RestActions implements ShaftDriver {
 
     protected static void passAction(String testData) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        passAction(actionName, testData, null, null, true, null);
+        passAction(actionName, testData, null, null, null, true, null);
     }
 
     protected static void passAction(String testData, List<Object> expectedFileBodyAttachment) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        passAction(actionName, testData, null, null, true, expectedFileBodyAttachment);
+        passAction(actionName, testData, null, null,null, true, expectedFileBodyAttachment);
     }
 
-    static void passAction(String testData, Object requestBody, Response response) {
+    static void passAction(String testData, Object requestBody, RequestSpecification specs, Response response) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        passAction(actionName, testData, requestBody, response, false, null);
+        passAction(actionName, testData, requestBody, specs, response, false, null);
     }
 
     public static InputStream parseBodyToJson(Response response) {
@@ -178,11 +181,11 @@ public class RestActions implements ShaftDriver {
     public static String getResponseJSONValue(Object response, String jsonPath) {
         String searchPool = "";
         try {
-            if (response instanceof HashMap) {
-                JSONObject obj = new JSONObject((HashMap<String, String>) response);
+            if (response instanceof HashMap hashMapResponse) {
+                JSONObject obj = new JSONObject(hashMapResponse);
                 searchPool = JsonPath.from(obj.toString()).getString(jsonPath);
-            } else if (response instanceof Response) {
-                searchPool = ((Response) response).jsonPath().getString(jsonPath);
+            } else if (response instanceof Response responseObject) {
+                searchPool = responseObject.jsonPath().getString(jsonPath);
             }
         } catch (ClassCastException rootCauseException) {
             ReportManager.log(ERROR_INCORRECT_JSONPATH + "[" + jsonPath + "]");
@@ -401,18 +404,18 @@ public class RestActions implements ShaftDriver {
         return new RequestBuilder(this, serviceName, requestType);
     }
 
-    protected static void failAction(String testData, Object requestBody, Response response,
+    protected static void failAction(String testData, Object requestBody, RequestSpecification specs, Response response,
                                      Throwable... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        failAction(actionName, testData, requestBody, response, rootCauseException);
+        failAction(actionName, testData, requestBody, specs, response, rootCauseException);
     }
 
     protected static void failAction(String testData, Throwable... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        failAction(actionName, testData, null, null, rootCauseException);
+        failAction(actionName, testData, null, null, null, rootCauseException);
     }
 
-    private static String reportActionResult(String actionName, String testData, Object requestBody, Response response,
+    private static String reportActionResult(String actionName, String testData, Object requestBody, RequestSpecification specs, Response response,
                                              Boolean isDiscrete, List<Object> expectedFileBodyAttachment, Boolean passFailStatus) {
         actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
@@ -423,7 +426,7 @@ public class RestActions implements ShaftDriver {
         }
 
         List<List<Object>> attachments = new ArrayList<>();
-        if (testData != null && !testData.isEmpty() && testData.length() >= 500) {
+        if (testData != null && testData.length() >= 500) {
             List<Object> actualValueAttachment = Arrays.asList("API Action Test Data - " + actionName, "Actual Value",
                     testData);
             attachments.add(actualValueAttachment);
@@ -439,6 +442,7 @@ public class RestActions implements ShaftDriver {
             reportResponseBody(response, true);
             ReportManager.logDiscrete(message);
         } else {
+            attachments.add(reportRequestSpecs(specs));
             if (requestBody != null && !requestBody.equals(new JsonObject())) {
                 attachments.add(reportRequestBody(requestBody));
             }
@@ -455,6 +459,66 @@ public class RestActions implements ShaftDriver {
         return message;
     }
 
+    private static List<Object> reportRequestSpecs(RequestSpecification specs) {
+        List<Object> requestSpecsAttachment = new ArrayList<>();
+        if (specs != null) {
+            requestSpecsAttachment.add("API Request");
+            requestSpecsAttachment.add("Specifications");
+
+            StringBuilder builder = new StringBuilder();
+            QueryableRequestSpecification queryableRequestSpecification = SpecificationQuerier.query(specs);
+
+            var headers = queryableRequestSpecification.getHeaders().asList();
+            if (headers != null && !headers.isEmpty()) {
+                builder.append("Headers:")
+                        .append(System.lineSeparator())
+                        .append("_______________")
+                        .append(System.lineSeparator())
+                        .append(System.lineSeparator());
+                for (var header : headers) {
+                    builder.append(header.getName())
+                            .append("=")
+                            .append(header.getValue())
+                            .append(System.lineSeparator());
+                }
+                builder.append(System.lineSeparator());
+            }
+
+            var formParams = queryableRequestSpecification.getFormParams();
+            if (formParams != null && !formParams.isEmpty()) {
+                builder.append("Form Parameters:")
+                        .append(System.lineSeparator())
+                        .append("_______________")
+                        .append(System.lineSeparator())
+                        .append(System.lineSeparator());
+                for (String key : formParams.keySet()) {
+                    builder.append(key)
+                            .append("=")
+                            .append(formParams.get(key))
+                            .append(System.lineSeparator());
+                }
+                builder.append(System.lineSeparator());
+            }
+
+            var queryParams = queryableRequestSpecification.getQueryParams();
+            if (queryParams != null && !queryParams.isEmpty()) {
+                builder.append("Query Parameters:")
+                        .append(System.lineSeparator())
+                        .append("_______________")
+                        .append(System.lineSeparator())
+                        .append(System.lineSeparator());
+                for (String key : queryParams.keySet()) {
+                    builder.append(key)
+                            .append("=")
+                            .append(queryParams.get(key))
+                            .append(System.lineSeparator());
+                }
+            }
+            requestSpecsAttachment.add(builder);
+        }
+        return requestSpecsAttachment;
+    }
+
     private static List<Object> reportRequestBody(Object requestBody) {
         List<Object> requestBodyAttachment = new ArrayList<>();
         if (requestBody.toString() != null && !requestBody.toString().equals("")) {
@@ -468,23 +532,19 @@ public class RestActions implements ShaftDriver {
             } else {
                 requestBodyAttachment.add("API Request");
                 switch (identifyBodyObjectType(requestBody)) {
-                    case 1:
-                        // json
-                        requestBodyAttachment.add("JSON Body");
-                        break;
-                    case 2:
-                        // xml
-                        requestBodyAttachment.add("XML Body");
-                        break;
-                    case 3:
-                    case 4:
-                        // I don't remember... may be binary
-                        // binary... probably
-                        requestBodyAttachment.add("Body");
-                        break;
-                    default:
-                        // unreachable code
-                        break;
+                    case 1 ->
+                            // json
+                            requestBodyAttachment.add("JSON Body");
+                    case 2 ->
+                            // xml
+                            requestBodyAttachment.add("XML Body");
+                    case 3, 4 ->
+                            // I don't remember... may be binary
+                            // binary... probably
+                            requestBodyAttachment.add("Body");
+                    default -> {
+                    }
+                    // unreachable code
                 }
                 requestBodyAttachment.add(parseBodyToJson(requestBody));
                 return requestBodyAttachment;
@@ -506,23 +566,19 @@ public class RestActions implements ShaftDriver {
             } else {
                 responseBodyAttachment.add("API Response");
                 switch (identifyBodyObjectType(responseBody)) {
-                    case 1:
-                        // json
-                        responseBodyAttachment.add("JSON Body");
-                        break;
-                    case 2:
-                        // xml
-                        responseBodyAttachment.add("XML Body");
-                        break;
-                    case 3:
-                    case 4:
-                        // I don't remember... may be binary
-                        // binary... probably
-                        responseBodyAttachment.add("Body");
-                        break;
-                    default:
-                        // unreachable code
-                        break;
+                    case 1 ->
+                            // json
+                            responseBodyAttachment.add("JSON Body");
+                    case 2 ->
+                            // xml
+                            responseBodyAttachment.add("XML Body");
+                    case 3, 4 ->
+                            // I don't remember... may be binary
+                            // binary... probably
+                            responseBodyAttachment.add("Body");
+                    default -> {
+                    }
+                    // unreachable code
                 }
                 responseBodyAttachment.add(parseBodyToJson(responseBody));
                 return responseBodyAttachment;
@@ -715,7 +771,7 @@ public class RestActions implements ShaftDriver {
         return sessionCookies;
     }
 
-    private RequestSpecBuilder initializeBuilder(Map<String, Object> sessionCookies, Map<String, String> sessionHeaders) {
+    private RequestSpecBuilder initializeBuilder(Map<String, Object> sessionCookies, Map<String, String> sessionHeaders, boolean appendDefaultContentCharsetToContentTypeIfUndefined) {
         RequestSpecBuilder builder = new RequestSpecBuilder();
 
         builder.addCookies(sessionCookies);
@@ -724,12 +780,11 @@ public class RestActions implements ShaftDriver {
         // fixing issue with non-unicode content being encoded with a non UTF-8 charset
         // adding timeouts
         builder.setConfig(
-                (new RestAssuredConfig()).encoderConfig((new EncoderConfig()).defaultContentCharset("UTF-8")).and()
+                (new RestAssuredConfig()).encoderConfig((new EncoderConfig()).defaultContentCharset("UTF-8").appendDefaultContentCharsetToContentTypeIfUndefined(appendDefaultContentCharsetToContentTypeIfUndefined)).and()
                         .httpClient(HttpClientConfig.httpClientConfig()
                                 .setParam("http.connection.timeout", HTTP_CONNECTION_TIMEOUT * 1000)
                                 .setParam("http.socket.timeout", HTTP_SOCKET_TIMEOUT * 1000)
                                 .setParam("http.connection-manager.timeout", HTTP_CONNECTION_MANAGER_TIMEOUT * 1000)));
-
         // timeouts documentation
         /*
          * CoreConnectionPNames.SO_TIMEOUT='http.socket.timeout': defines the socket
@@ -899,8 +954,8 @@ public class RestActions implements ShaftDriver {
     }
 
     protected RequestSpecification prepareRequestSpecs(List<List<Object>> parameters, ParametersType parametersType,
-                                                       Object body, ContentType contentType, Map<String, Object> sessionCookies, Map<String, String> sessionHeaders) {
-        RequestSpecBuilder builder = initializeBuilder(sessionCookies, sessionHeaders);
+                                                       Object body, ContentType contentType, Map<String, Object> sessionCookies, Map<String, String> sessionHeaders, boolean appendDefaultContentCharsetToContentTypeIfUndefined) {
+        RequestSpecBuilder builder = initializeBuilder(sessionCookies, sessionHeaders, appendDefaultContentCharsetToContentTypeIfUndefined);
 
         // set the default content type as part of the specs
         builder.setContentType(contentType);
@@ -1053,6 +1108,7 @@ public class RestActions implements ShaftDriver {
      *               time. Example: ContentType.ANY
      * @return Response; returns the full response object for further manipulation
      */
+    @Deprecated
     protected Response performRequest(Object[] params) {
         RequestType requestType = (RequestType) params[0];
         int targetStatusCode = (int) params[1];
@@ -1066,7 +1122,7 @@ public class RestActions implements ShaftDriver {
 
         String request = prepareRequestURL(serviceURI, urlArguments, serviceName);
 
-        RequestSpecification specs = prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders);
+        RequestSpecification specs = prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders, true);
 
         Response response = null;
         try {
@@ -1082,14 +1138,14 @@ public class RestActions implements ShaftDriver {
             String reportMessage = prepareReportMessage(response, targetStatusCode, requestType, serviceName,
                     contentType, urlArguments);
             if (!"".equals(reportMessage) && Boolean.TRUE.equals(responseStatus)) {
-                passAction(reportMessage, requestBody, response);
+                passAction(reportMessage, requestBody, specs, response);
             } else {
-                failAction(reportMessage, requestBody, response);
+                failAction(reportMessage, requestBody, specs, response);
             }
         } catch (Exception rootCauseException) {
             ReportManagerHelper.log(rootCauseException);
             if (response != null) {
-                failAction(request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", requestBody,
+                failAction(request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", requestBody,specs,
                         response, rootCauseException);
             } else {
                 failAction(request, rootCauseException);
@@ -1119,6 +1175,134 @@ public class RestActions implements ShaftDriver {
         }
         return "";
     }
+
+    /**
+     * private helper method for sendGraphqlRequest() method - WITHOUT TOKEN.
+     * @param base_URI_forHelperMethod The Base URI without "graphql". example:: "https://api.example.com/"
+     * @param requestBody_forHelperMethod the request body.
+     * @return Response object
+     */
+    private static Response graphQlRequestHelper(String base_URI_forHelperMethod, org.json.simple.JSONObject requestBody_forHelperMethod){
+        ReportManager.logDiscrete("GraphQl Request is being Performed with the Following Parameters [Service URL: " +base_URI_forHelperMethod+"graphql | Request Body: "+ requestBody_forHelperMethod+"]");
+        return buildNewRequest(base_URI_forHelperMethod, GRAPHQL_END_POINT, RestActions.RequestType.POST).setRequestBody(requestBody_forHelperMethod)
+                .setContentType(ContentType.JSON).performRequest();
+    }
+
+    /**
+     * Perform Graphql Request using Query - WITHOUT Header.
+     * @param base_URI The Base URI without "graphql". example:: "https://api.example.com/"
+     * @param query graphql query or mutation.
+     * @return Graphql Response
+     */
+    @SuppressWarnings("unchecked")
+    public static Response sendGraphQlRequest(String base_URI, String query) {
+
+        org.json.simple.JSONObject requestBody = new org.json.simple.JSONObject();
+        requestBody.put("query", query);
+        return graphQlRequestHelper(base_URI,requestBody);
+    }
+    /**
+     * Perform Graphql Request using Query and Variables - WITHOUT Header.
+     * @param base_URI The Base URI without "graphql". example:: "https://api.example.com/"
+     * @param query graphql query or mutation.
+     * @param variables graphql variables; dynamic values of the query. please refer to this url for examples:: https://graphql.org/learn/queries/#variables
+     * @return Graphql Response
+     */
+    @SuppressWarnings("unchecked")
+    public static Response sendGraphQlRequest(String base_URI, String query, String variables) {
+
+        org.json.simple.JSONObject requestBody = new org.json.simple.JSONObject();
+        requestBody.put("query", query);
+        requestBody.put("variables", variables);
+        return graphQlRequestHelper(base_URI,requestBody);
+    }
+
+    /**
+     * Perform Graphql Request using Query, Variables, and Fragments - WITHOUT Header.
+     * @param base_URI The Base URI without "graphql". example:: "https://api.example.com/"
+     * @param query graphql query or mutation.
+     * @param variables graphql variables; dynamic values of the query. please refer to this url for examples:: https://graphql.org/learn/queries/#variables
+     * @param fragment graphql fragment; reusable units let you construct sets of fields, and then include them in queries where you need to. please refer to this url for examples:: https://graphql.org/learn/queries/#fragments
+     * @return Graphql Response
+     */
+    @SuppressWarnings("unchecked")
+    public static Response sendGraphQlRequest(String base_URI, String query, String variables, String fragment) {
+
+        org.json.simple.JSONObject requestBody = new org.json.simple.JSONObject();
+        requestBody.put("query", query);
+        requestBody.put("variables", variables);
+        requestBody.put("fragment", fragment);
+        return graphQlRequestHelper(base_URI,requestBody);
+    }
+
+    /**
+     * private helper method for sendGraphqlRequest method WITH Header.
+     * @param base_URI_forHelperMethod The Base URI without "graphql". example:: "https://api.example.com/"
+     * @param requestBody_forHelperMethod the request body.
+     * @param headerKey_forHelperMethod the name of the header that you want to add.
+     * @param headerValue_forHelperMethod the value that will be put inside the key.
+     * @return Response object
+     */
+    private static Response graphQlRequestHelperWithHeader(String base_URI_forHelperMethod, org.json.simple.JSONObject requestBody_forHelperMethod, String headerKey_forHelperMethod, String headerValue_forHelperMethod){
+        ReportManager.logDiscrete("GraphQl Request is being Performed with the Following Parameters [Service URL: " +base_URI_forHelperMethod+ "graphql | Request Body: "+ requestBody_forHelperMethod+" | Header: \""+headerKey_forHelperMethod+"\":\""+headerValue_forHelperMethod+"\"]");
+        return buildNewRequest(base_URI_forHelperMethod, GRAPHQL_END_POINT, RestActions.RequestType.POST).setRequestBody(requestBody_forHelperMethod)
+                .setContentType(ContentType.JSON).addHeader(headerKey_forHelperMethod,headerValue_forHelperMethod).performRequest();
+    }
+
+    /**
+     * Perform Graphql Request using Query - WITH Header.
+     * @param base_URI The Base URI without "graphql". example:: "https://api.example.com/"
+     * @param query graphql query or mutation.
+     * @param header_key the name of the header that you want to add. example:: "Authorization"
+     * @param header_value the value that will be put inside the key. example:: "bearer ${token}"
+     * @return Graphql Response
+     */
+    @SuppressWarnings("unchecked")
+    public static Response sendGraphQlRequestWithHeader(String base_URI, String query, String header_key, String header_value) {
+
+        org.json.simple.JSONObject requestBody = new org.json.simple.JSONObject();
+        requestBody.put("query", query);
+        return graphQlRequestHelperWithHeader(base_URI,requestBody,header_key,header_value);
+    }
+    /**
+     * Perform Graphql Request using Query and Variables - WITH Header.
+     * @param base_URI The Base URI without "graphql". example:: "https://api.example.com/"
+     * @param query graphql query or mutation.
+     * @param variables graphql variables; dynamic values of the query. please refer to this url for examples:: https://graphql.org/learn/queries/#variables
+     * @param header_key the name of the header that you want to add. example:: "Authorization"
+     * @param header_value the value that will be put inside the key. example:: "bearer ${token}"
+     * @return Graphql Response
+     */
+    @SuppressWarnings("unchecked")
+    public static Response sendGraphQlRequestWithHeader(String base_URI, String query, String variables, String header_key, String header_value) {
+
+        org.json.simple.JSONObject requestBody = new org.json.simple.JSONObject();
+        requestBody.put("query", query);
+        requestBody.put("variables", variables);
+        return graphQlRequestHelperWithHeader(base_URI,requestBody,header_key,header_value);
+    }
+
+    /**
+     * Perform Graphql Request using Query, Variables, and Fragments - WITH Header.
+     * @param base_URI The Base URI without "graphql". example:: "https://api.example.com/"
+     * @param query graphql query or mutation.
+     * @param variables graphql variables; dynamic values of the query. please refer to this url for examples:: https://graphql.org/learn/queries/#variables
+     * @param fragment graphql fragment; reusable units let you construct sets of fields, and then include them in queries where you need to. please refer to this url for examples:: https://graphql.org/learn/queries/#fragments
+     * @param header_key the name of the header that you want to add. example:: "Authorization"
+     * @param header_value the value that will be put inside the key. example:: "bearer ${token}"
+     * @return Graphql Response
+     */
+    @SuppressWarnings("unchecked")
+    public static Response sendGraphQlRequestWithHeader(String base_URI, String query, String variables, String fragment, String header_key, String header_value) {
+
+        org.json.simple.JSONObject requestBody = new org.json.simple.JSONObject();
+        requestBody.put("query", query);
+        requestBody.put("variables", variables);
+        requestBody.put("fragment", fragment);
+        return graphQlRequestHelperWithHeader(base_URI,requestBody, header_key, header_value);
+    }
+
+
 
     public enum ComparisonType {
         EQUALS, CONTAINS

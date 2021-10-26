@@ -18,10 +18,12 @@ import org.openqa.selenium.interactions.Pause;
 import org.openqa.selenium.interactions.PointerInput;
 import org.openqa.selenium.interactions.Sequence;
 
+import static java.util.Arrays.asList;
+
 import java.time.Duration;
 import java.util.List;
 
-@SuppressWarnings("unused")
+@SuppressWarnings({"unused", "rawtypes"})
 public class TouchActions {
     private static final int DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT = 10;
     private final WebDriver driver;
@@ -51,12 +53,11 @@ public class TouchActions {
      */
     public TouchActions nativeKeyboardKeyPress(KeyboardKeys key) {
         try {
-            ((JavascriptExecutor) driver).executeScript("mobile: performEditorAction", key.getValue());
+            ((AppiumDriver)driver).executeScript("mobile: performEditorAction", key.getValue());
             WebDriverElementActions.passAction(driver, null, key.name());
         } catch (Exception rootCauseException) {
             WebDriverElementActions.failAction(driver, null, rootCauseException);
         }
-        WebDriverElementActions.passAction(driver, null, key.name());
         return this;
     }
     
@@ -514,7 +515,16 @@ public class TouchActions {
                 }
                 attemptsToFindElement++;
             }
-        } while (Boolean.FALSE.equals(isElementFound) && attemptsToFindElement < DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT && !lastPageSourceBeforeSwiping.equals(driver.getPageSource()));
+
+            //attempting to change scrolling method if page source was not changed
+            if (lastPageSourceBeforeSwiping.equals(driver.getPageSource())){
+                if (swipeTechnique.equals(SwipeTechnique.TOUCH_ACTIONS)){
+                    swipeTechnique = SwipeTechnique.UI_SELECTOR;
+                }else{
+                    swipeTechnique = SwipeTechnique.TOUCH_ACTIONS;
+                }
+            }
+        } while (Boolean.FALSE.equals(isElementFound) && attemptsToFindElement < DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT);
         // TODO: devise a way to break the loop when no further scrolling options are
         // available. do not use visual comparison which is the easy but costly way to
         // do it.
@@ -552,6 +562,97 @@ public class TouchActions {
                 .moveTo(PointOption.point(endingPoint))
                 .release().perform();
     }
+    
+    
+   
+    @SuppressWarnings("unchecked")
+    private void attemptPinchToZoomIn()
+    {
+
+    	PointerInput finger = new PointerInput(PointerInput.Kind.TOUCH, "finger");
+        PointerInput finger2 = new PointerInput(PointerInput.Kind.TOUCH, "finger2");
+
+        Dimension size = driver.manage().window().getSize();
+        Point source = new Point(size.getWidth(), size.getHeight());
+
+        Sequence pinchAndZoom1 = new Sequence(finger, 0);
+        pinchAndZoom1.addAction(finger.createPointerMove(Duration.ofMillis(0),
+                PointerInput.Origin.viewport(), source.x / 2, source.y / 2))
+        .addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()))
+        .addAction(new Pause(finger, Duration.ofMillis(110)))
+        .addAction(finger.createPointerMove(Duration.ofMillis(600),
+                PointerInput.Origin.viewport(), source.x / 3, source.y / 3))
+        .addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+
+
+        Sequence pinchAndZoom2 = new Sequence(finger2, 0);
+        pinchAndZoom2.addAction(finger2.createPointerMove(Duration.ofMillis(0),
+                PointerInput.Origin.viewport(), source.x / 2, source.y / 2))
+        .addAction(finger2.createPointerDown(PointerInput.MouseButton.LEFT.asArg()))
+        .addAction(finger2.createPointerMove(Duration.ofMillis(600),
+                PointerInput.Origin.viewport(), source.x * 3 / 4, source.y * 3 / 4))
+        .addAction(finger2.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+
+        ((AppiumDriver<WebElement>) driver).perform(asList(pinchAndZoom1, pinchAndZoom2));
+    }
+
+    
+    @SuppressWarnings("unchecked")
+    private void attemptPinchToZoomOut()
+    {
+
+    	PointerInput finger = new PointerInput(PointerInput.Kind.TOUCH, "finger");
+        PointerInput finger2 = new PointerInput(PointerInput.Kind.TOUCH, "finger2");
+
+        Dimension size = driver.manage().window().getSize();
+        Point source = new Point(size.getWidth(), size.getHeight());
+
+        Sequence pinchAndZoom1 = new Sequence(finger, 0);
+        pinchAndZoom1
+        .addAction(finger.createPointerMove(Duration.ofMillis(0),
+                PointerInput.Origin.viewport(), source.x / 3, source.y / 3))
+        .addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()))
+        .addAction(new Pause(finger, Duration.ofMillis(110)))
+        .addAction(finger.createPointerMove(Duration.ofMillis(600),
+                PointerInput.Origin.viewport(), source.x / 2, source.y / 2 ))
+        .addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+
+
+        Sequence pinchAndZoom2 = new Sequence(finger2, 0);
+        pinchAndZoom2.addAction(finger2.createPointerMove(Duration.ofMillis(0),
+                PointerInput.Origin.viewport(), source.x * 3 / 4, source.y * 3 / 4 ))
+        .addAction(finger2.createPointerDown(PointerInput.MouseButton.LEFT.asArg()))
+        .addAction(new Pause(finger, Duration.ofMillis(100)))
+        .addAction(finger2.createPointerMove(Duration.ofMillis(600),
+                PointerInput.Origin.viewport(), source.x / 2 , source.y / 2))
+        .addAction(finger2.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+
+        ((AppiumDriver<WebElement>) driver).perform(asList(pinchAndZoom1, pinchAndZoom2));
+    }
+
+    /**
+     * Attempts to zoom the current screen IN/ OUT in case of zoom enabled screen.
+     * @param zoomDirection       ZoomDirection.IN or OUT
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions pinchToZoom(ZoomDirection zoomDirection) {
+    	try {
+    	switch (zoomDirection) {
+    		case IN -> attemptPinchToZoomIn();
+    		case OUT -> attemptPinchToZoomOut();
+    	}
+    	} catch(Exception rootCauseException) {
+            WebDriverElementActions.failAction(driver, null, rootCauseException);
+        }
+        WebDriverElementActions.passAction(driver, null, zoomDirection.name());
+    	return this;
+    }
+
+   
+     public enum ZoomDirection {
+            IN, OUT
+        }
+
 
     /**
      * SwipeDirection; swiping UP means the screen will move downwards
@@ -575,7 +676,7 @@ public class TouchActions {
             this.value = type;
         }
 
-        protected ImmutableMap<?,?> getValue() {
+        private ImmutableMap<?,?> getValue() {
             return value;
         }
     }

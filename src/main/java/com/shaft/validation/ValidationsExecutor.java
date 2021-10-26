@@ -6,35 +6,35 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
 public class ValidationsExecutor {
-    ValidationEnums.ValidationCategory validationCategory;
-    WebDriver driver;
-    By locator;
-    ValidationEnums.ValidationType validationType;
-    String validationMethod;
-    String customReportMessage = "";
+    private final ValidationEnums.ValidationCategory validationCategory;
+    private WebDriver driver;
+    private By locator;
+    private final ValidationEnums.ValidationType validationType;
+    private final String validationMethod;
+    private String customReportMessage = "";
 
-    ValidationEnums.VisualValidationEngine visualValidationEngine;
+    private ValidationEnums.VisualValidationEngine visualValidationEngine;
 
-    String elementAttribute;
-    String elementCssProperty;
-    String browserAttribute;
+    private String elementAttribute;
+    private String elementCssProperty;
+    private String browserAttribute;
 
-    ValidationEnums.ValidationComparisonType validationComparisonType;
-    Object expectedValue;
+    private ValidationEnums.ValidationComparisonType validationComparisonType;
+    private Object expectedValue;
 
-    boolean condition;
-    Object actualValue;
+    private boolean condition;
+    private Object actualValue;
 
-    ValidationEnums.NumbersComparativeRelation numbersComparativeRelation;
+    private ValidationEnums.NumbersComparativeRelation numbersComparativeRelation;
 
-    Object response;
-    String fileAbsolutePath;
-    RestActions.ComparisonType restComparisonType;
+    private Object response;
+    private String fileAbsolutePath;
+    private RestActions.ComparisonType restComparisonType;
 
-    String jsonPath;
+    private String jsonPath;
 
-    String folderRelativePath;
-    String fileName;
+    private String folderRelativePath;
+    private String fileName;
 
     public ValidationsExecutor(WebDriverElementValidationsBuilder webDriverElementValidationsBuilder) {
         this.validationCategory = webDriverElementValidationsBuilder.validationCategory;
@@ -102,59 +102,41 @@ public class ValidationsExecutor {
         this.fileName = fileValidationsBuilder.fileName;
     }
 
+    /**
+     * Set a customized business-readable message that will appear in the execution report instead of the technical log message which will be nested under it
+     * @param customReportMessage the message that you would like to describe this validation in the execution report
+     * @return the current ValidationsExecutor object so that you can call the perform() method and execute this validation
+     */
     public ValidationsExecutor withCustomReportMessage(String customReportMessage) {
         this.customReportMessage = customReportMessage;
         return this;
     }
 
+    /**
+     * Execute this validation
+     */
     public void perform() {
         switch (validationMethod) {
-            case "forceFail":
-                ValidationHelper.validateFail(validationCategory, customReportMessage);
-                break;
-            case "objectsAreEqual":
-                ValidationHelper.validateEquals(validationCategory, expectedValue, actualValue, validationComparisonType, validationType, customReportMessage);
-                break;
-            case "objectIsNull":
-                ValidationHelper.validateNull(validationCategory, actualValue, validationType, customReportMessage);
-                break;
-            case "conditionIsTrue":
-                ValidationHelper.validateTrue(validationCategory, condition, validationType, customReportMessage);
-                break;
-            case "elementExists":
-                ValidationHelper.validateElementExists(validationCategory, driver, locator, validationType, customReportMessage);
-                break;
-            case "elementMatches":
-                ValidationHelper.validateElementMatches(validationCategory, driver, locator, visualValidationEngine, validationType, customReportMessage);
-                break;
-            case "elementAttributeEquals":
-                ValidationHelper.validateElementAttribute(validationCategory, driver, locator, elementAttribute, String.valueOf(expectedValue),
-                        validationComparisonType, validationType, customReportMessage);
-                break;
-            case "elementCssPropertyEquals":
-                ValidationHelper.validateElementCSSProperty(validationCategory, driver, locator, elementCssProperty, String.valueOf(expectedValue),
-                        validationComparisonType, validationType, customReportMessage);
-                break;
-            case "browserAttributeEquals":
-                ValidationHelper.validateBrowserAttribute(validationCategory, driver, browserAttribute, String.valueOf(expectedValue), validationComparisonType,
-                        validationType, customReportMessage);
-                break;
-            case "comparativeRelationBetweenNumbers":
-                ValidationHelper.validateComparativeRelation(validationCategory, (Number) expectedValue, (Number) actualValue, numbersComparativeRelation, validationType, customReportMessage);
-                break;
-            case "fileExists":
-                ValidationHelper.validateFileExists(validationCategory, folderRelativePath, fileName, 5, validationType, customReportMessage);
-                break;
-            case "responseEqualsFileContent":
-                ValidationHelper.validateJSONFileContent(validationCategory, (Response) response, fileAbsolutePath, restComparisonType, "", validationType, customReportMessage);
-                break;
-            case "jsonPathValueEquals":
-                ValidationHelper.validateEquals(validationCategory, expectedValue,
-                        RestActions.getResponseJSONValue(response, jsonPath), validationComparisonType,
-                        validationType, customReportMessage);
-                break;
-            default:
-                break;
+            case "forceFail" -> ValidationHelper.validateFail(validationCategory, customReportMessage);
+            case "objectsAreEqual" -> ValidationHelper.validateEquals(validationCategory, expectedValue, actualValue, validationComparisonType, validationType, customReportMessage);
+            case "objectIsNull" -> ValidationHelper.validateNull(validationCategory, actualValue, validationType, customReportMessage);
+            case "conditionIsTrue" -> ValidationHelper.validateTrue(validationCategory, condition, validationType, customReportMessage);
+            case "elementExists" -> ValidationHelper.validateElementExists(validationCategory, driver, locator, validationType, customReportMessage);
+            case "elementMatches" -> ValidationHelper.validateElementMatches(validationCategory, driver, locator, visualValidationEngine, validationType, customReportMessage);
+            case "elementAttributeEquals" -> ValidationHelper.validateElementAttribute(validationCategory, driver, locator, elementAttribute, String.valueOf(expectedValue),
+                    validationComparisonType, validationType, customReportMessage);
+            case "elementCssPropertyEquals" -> ValidationHelper.validateElementCSSProperty(validationCategory, driver, locator, elementCssProperty, String.valueOf(expectedValue),
+                    validationComparisonType, validationType, customReportMessage);
+            case "browserAttributeEquals" -> ValidationHelper.validateBrowserAttribute(validationCategory, driver, browserAttribute, String.valueOf(expectedValue), validationComparisonType,
+                    validationType, customReportMessage);
+            case "comparativeRelationBetweenNumbers" -> ValidationHelper.validateComparativeRelation(validationCategory, (Number) expectedValue, (Number) actualValue, numbersComparativeRelation, validationType, customReportMessage);
+            case "fileExists" -> ValidationHelper.validateFileExists(validationCategory, folderRelativePath, fileName, 5, validationType, customReportMessage);
+            case "responseEqualsFileContent" -> ValidationHelper.validateJSONFileContent(validationCategory, (Response) response, fileAbsolutePath, restComparisonType, "", validationType, customReportMessage);
+            case "jsonPathValueEquals" -> ValidationHelper.validateEquals(validationCategory, expectedValue,
+                    RestActions.getResponseJSONValue(response, jsonPath), validationComparisonType,
+                    validationType, customReportMessage);
+            default -> {
+            }
         }
     }
 }

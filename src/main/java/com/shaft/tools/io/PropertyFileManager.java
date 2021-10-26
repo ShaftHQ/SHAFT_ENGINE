@@ -86,6 +86,11 @@ public class PropertyFileManager {
                 appiumDesiredCapabilities.put(String.valueOf(key), String.valueOf(value));
             }
         });
+        var app = appiumDesiredCapabilities.get("mobile_app");
+        if (app!= null && !app.isEmpty() &&
+                (app.startsWith("src\\") || app.startsWith("src/"))){
+            appiumDesiredCapabilities.put("mobile_app", FileActions.getAbsolutePath(app));
+        }
         return appiumDesiredCapabilities;
     }
 
@@ -166,7 +171,7 @@ public class PropertyFileManager {
                 System.setProperty("screenshotParams_screenshotType", "Regular");
                 System.setProperty("screenshotParams_watermark", String.valueOf(true));
                 System.setProperty("createAnimatedGif", String.valueOf(false));
-                System.setProperty("recordVideo", String.valueOf(false));
+                System.setProperty("videoParams_recordVideo", String.valueOf(false));
                 System.setProperty("debugMode", String.valueOf(false));
                 System.setProperty("headlessExecution", String.valueOf(false));
                 if (maximumPerformanceMode.equals("2")) System.setProperty("headlessExecution", String.valueOf(true));

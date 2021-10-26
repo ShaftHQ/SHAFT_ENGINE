@@ -36,6 +36,9 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
 
     private void handleTestRunFinished(TestRunFinished event) {
         ElementActions.switchToDefaultContent();
+        if(Boolean.parseBoolean(System.getProperty("generateExtentReports").trim())){
+            ReportManagerHelper.extentReportsReset();
+        }
     }
 
     private void handleTestSourceParsed(TestSourceParsed event) {
@@ -62,8 +65,7 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
                 cleanScenarioSteps.append(((HookTestStep) testStep).getHookType().name()).append(System.lineSeparator());
             }
 
-            if (testStep instanceof PickleStepTestStep) {
-            	var pickleStepTestStep = (PickleStepTestStep) testStep;
+            if (testStep instanceof PickleStepTestStep pickleStepTestStep) {
                 scenarioSteps.append("<b style=\"color:ForestGreen;\">")
                         .append(pickleStepTestStep.getStep().getKeyword())
                         .append("</b>")
@@ -80,6 +82,9 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
         }
         ReportManagerHelper.setTestCaseName(testCase.getName());
         ReportManagerHelper.setTestCaseDescription(scenarioSteps.toString());
+        if (Boolean.parseBoolean(System.getProperty("generateExtentReports").trim())){
+            ReportManagerHelper.extentReportsCreateTest(testCase.getName(), scenarioSteps.toString());
+        }
         ReportManagerHelper.logScenarioInformation(testCase.getKeyword(), testCase.getName(), cleanScenarioSteps.toString());
     }
 
@@ -101,13 +106,11 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
     private void handleTestStepStarted(TestStepStarted event) {
     	var testStep = event.getTestStep();
 
-        if (testStep instanceof HookTestStep) {
-        	var hookTestStep = (HookTestStep) testStep;
+        if (testStep instanceof HookTestStep hookTestStep) {
             ReportManager.logDiscrete("Scenario Hook: " + hookTestStep.getHookType().name());
         }
 
-        if (testStep instanceof PickleStepTestStep) {
-        	var pickleStepTestStep = (PickleStepTestStep) testStep;
+        if (testStep instanceof PickleStepTestStep pickleStepTestStep) {
             ReportManager.logDiscrete("Scenario Step: " + pickleStepTestStep.getStep().getKeyword() + pickleStepTestStep.getStep().getText());
         }
     }

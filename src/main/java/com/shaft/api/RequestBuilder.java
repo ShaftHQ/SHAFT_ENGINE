@@ -29,6 +29,7 @@ public class RequestBuilder {
     private String authenticationUsername;
     private String authenticationPassword;
 
+    private boolean appendDefaultContentCharsetToContentTypeIfUndefined;
 
     /**
      * Start building a new API request.
@@ -62,6 +63,7 @@ public class RequestBuilder {
         this.targetStatusCode = 200;
         this.contentType = ContentType.ANY;
         this.authenticationType = AuthenticationType.NONE;
+        this.appendDefaultContentCharsetToContentTypeIfUndefined = true;
     }
 
     /**
@@ -123,6 +125,19 @@ public class RequestBuilder {
     }
 
     /**
+     * Tells whether REST Assured should automatically append the content charset to the content-type header if not defined explicitly.
+     * Note that this does not affect multipart form data.
+     * Default is true.
+     *
+     * @param appendDefaultContentCharsetToContentTypeIfUndefined Whether REST Assured should automatically append the content charset to the content-type header if not defined explicitly.
+     * @return a self-reference to be used to continue building your API request
+     */
+    public RequestBuilder appendDefaultContentCharsetToContentTypeIfUndefined(boolean appendDefaultContentCharsetToContentTypeIfUndefined) {
+        this.appendDefaultContentCharsetToContentTypeIfUndefined = appendDefaultContentCharsetToContentTypeIfUndefined;
+        return this;
+    }
+
+    /**
      * Append a header to the current session to be used in the current and all the following requests. This feature is commonly used for authentication tokens.
      *
      * @param key   the name of the header that you want to add
@@ -168,7 +183,7 @@ public class RequestBuilder {
      */
     public Response performRequest() {
         String request = session.prepareRequestURL(serviceURI, urlArguments, serviceName);
-        RequestSpecification specs = session.prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders);
+        RequestSpecification specs = session.prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders, appendDefaultContentCharsetToContentTypeIfUndefined);
 
         switch (this.authenticationType) {
             case BASIC -> specs.auth().preemptive().basic(this.authenticationUsername, this.authenticationPassword);
@@ -191,14 +206,14 @@ public class RequestBuilder {
             String reportMessage = session.prepareReportMessage(response, targetStatusCode, requestType, serviceName,
                     contentType, urlArguments);
             if (!"".equals(reportMessage) && Boolean.TRUE.equals(responseStatus)) {
-                RestActions.passAction(reportMessage, requestBody, response);
+                RestActions.passAction(reportMessage, requestBody, specs, response);
             } else {
-                RestActions.failAction(reportMessage, requestBody, response);
+                RestActions.failAction(reportMessage, requestBody, specs, response);
             }
         } catch (Exception rootCauseException) {
             ReportManagerHelper.log(rootCauseException);
             if (response != null) {
-                RestActions.failAction(request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", requestBody,
+                RestActions.failAction(request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", requestBody,specs,
                         response, rootCauseException);
             } else {
                 RestActions.failAction(request, rootCauseException);

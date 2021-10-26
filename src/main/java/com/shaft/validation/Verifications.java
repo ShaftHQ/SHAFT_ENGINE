@@ -922,7 +922,7 @@ public class Verifications {
             this.value = type;
         }
 
-        protected boolean getValue() {
+        private boolean getValue() {
             return value;
         }
     }
@@ -936,7 +936,7 @@ public class Verifications {
             this.value = type;
         }
 
-        protected int getValue() {
+        private int getValue() {
             return value;
         }
     }
@@ -950,7 +950,7 @@ public class Verifications {
             this.value = type;
         }
 
-        protected String getValue() {
+        private String getValue() {
             return value;
         }
     }
@@ -972,7 +972,7 @@ public class Verifications {
             this.value = type;
         }
 
-        protected String getValue() {
+        private String getValue() {
             return value;
         }
     }
@@ -986,7 +986,7 @@ public class Verifications {
             this.value = type;
         }
 
-        protected String getValue() {
+        private String getValue() {
             return value;
         }
     }

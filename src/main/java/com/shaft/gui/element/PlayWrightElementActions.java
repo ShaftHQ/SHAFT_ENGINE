@@ -766,17 +766,11 @@ public class PlayWrightElementActions {
                                                                     TextDetectionStrategy successfulTextLocationStrategy) {
         String actualText = "";
         switch (successfulTextLocationStrategy) {
-            case TEXT:
-                actualText = page.querySelector(elementLocator).innerText();
-                break;
-            case CONTENT:
-                actualText = page.querySelector(elementLocator).textContent();
-                break;
-            case VALUE:
-                actualText = (String) page.querySelector(elementLocator).evaluate("node => node.value");
-                break;
-            default:
-                break;
+            case TEXT -> actualText = page.querySelector(elementLocator).innerText();
+            case CONTENT -> actualText = page.querySelector(elementLocator).textContent();
+            case VALUE -> actualText = (String) page.querySelector(elementLocator).evaluate("node => node.value");
+            default -> {
+            }
         }
         return actualText;
     }
@@ -792,7 +786,7 @@ public class PlayWrightElementActions {
         }
 
         List<List<Object>> attachments = new ArrayList<>();
-        if (testData != null && !testData.isEmpty() && testData.length() >= 500) {
+        if (testData != null && testData.length() >= 500) {
             List<Object> actualValueAttachment = Arrays.asList("Element Action Test Data - " + actionName,
                     "Actual Value", testData);
             attachments.add(actualValueAttachment);
@@ -1110,7 +1104,7 @@ public class PlayWrightElementActions {
             this.value = strategy;
         }
 
-        protected String getValue() {
+        String getValue() {
             return value;
         }
     }

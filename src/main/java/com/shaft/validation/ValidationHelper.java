@@ -18,6 +18,7 @@ import org.testng.Assert;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 class ValidationHelper {
     //TODO: implement element attribute and element exists validations for sikuli actions
@@ -750,36 +751,33 @@ class ValidationHelper {
             }
         }
 
-        // create a screenshot attachment if needed for webdriver
-        //if (expectedValue != null && expectedValue.toLowerCase().contains("locator")) {
-        if (lastUsedDriver != null && lastUsedElementLocator != null) {
-            attachments.add(ScreenshotManager.captureScreenShot(lastUsedDriver, lastUsedElementLocator,
-                    validationMethodName, validationState.getValue()));
-        } else if (lastUsedDriver != null) {
-            attachments.add(ScreenshotManager.captureScreenShot(lastUsedDriver, validationMethodName,
-                    validationState.getValue()));
-        }
-        // reset lastUsed variables
-        lastUsedDriver = null;
-        lastUsedElementLocator = null;
-        //}
-
-        // create a screenshot attachment if needed for Playwright
-        if (expectedValue != null && expectedValue.toLowerCase().contains("locator")) {
-            if (lastUsedPage != null && lastUsedElementLocatorString != null) {
-                attachments.add(ScreenshotManager.captureScreenShot(lastUsedPage, lastUsedElementLocatorString, validationMethodName, validationState.getValue()));
-            } else if (lastUsedPage != null) {
-                attachments.add(ScreenshotManager.captureScreenShot(lastUsedPage, "", validationMethodName, validationState.getValue()));
+        if (lastUsedDriver != null) {
+            // create a screenshot attachment if needed for webdriver
+            //if (expectedValue != null && expectedValue.toLowerCase().contains("locator")) {
+            if (lastUsedElementLocator != null) {
+                attachments.add(ScreenshotManager.captureScreenShot(lastUsedDriver, lastUsedElementLocator,
+                        validationMethodName, validationState.getValue()));
+            } else {
+                attachments.add(ScreenshotManager.captureScreenShot(lastUsedDriver, validationMethodName,
+                        validationState.getValue()));
             }
+            // reset lastUsed variables
+            lastUsedDriver = null;
+            lastUsedElementLocator = null;
+            //}
+        } else if (lastUsedPage != null) {
+            // create a screenshot attachment if needed for Playwright
+//        if (expectedValue != null && expectedValue.toLowerCase().contains("locator")) {
+            attachments.add(ScreenshotManager.captureScreenShot(lastUsedPage, Objects.requireNonNullElse(lastUsedElementLocatorString, ""), validationMethodName, validationState.getValue()));
             // reset lastUsed variables
             lastUsedPage = null;
             lastUsedElementLocatorString = null;
+//        }
         }
-
 
         // handling changes as per validationCategory hard/soft
         switch (validationCategory) {
-            case HARD_ASSERT:
+            case HARD_ASSERT -> {
                 // create the log entry with or without attachments
                 if (!attachments.isEmpty()) {
                     //ReportManagerHelper.log(message.toString(), attachments);
@@ -797,8 +795,8 @@ class ValidationHelper {
                         Assert.fail(message.toString());
                     }
                 }
-                break;
-            case SOFT_ASSERT:
+            }
+            case SOFT_ASSERT -> {
                 // handle failure reason in case of soft assert
                 if (failureReason != null) {
                     List<Object> failureReasonAttachment = Arrays.asList("Validation Test Data", "Failure Reason",
@@ -820,9 +818,9 @@ class ValidationHelper {
                     verificationFailuresList.add(message.toString());
                     verificationError = new AssertionError(String.join("\nAND ", verificationFailuresList));
                 }
-                break;
-            default:
-                break;
+            }
+            default -> {
+            }
         }
     }
 

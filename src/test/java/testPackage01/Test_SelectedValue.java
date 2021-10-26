@@ -11,10 +11,11 @@ import org.openqa.selenium.WebDriver;
 import org.testng.annotations.Test;
 
 public class Test_SelectedValue {
+    String baseURL = "https://yari-demos.prod.mdn.mozit.cloud/en-US/docs/Web/HTML/Element/select/_sample_.";
     @Test
     public void simpleSelect() {
         WebDriver driver = BrowserFactory.getBrowser(DriverType.DESKTOP_CHROME);
-        BrowserActions.navigateToURL(driver, "https://mdn.mozillademos.org/en-US/docs/Web/HTML/Element/select$samples/Basic_select?revision=1612304");
+        BrowserActions.navigateToURL(driver, baseURL+"Basic_select.html");
         By select = By.tagName("select");
         ElementActions.select(driver, select, "Third Value");
         ReportManager.log(ElementActions.getSelectedText(driver, select));
@@ -25,7 +26,7 @@ public class Test_SelectedValue {
     @Test
     public void multipleSelect() {
         WebDriver driver = BrowserFactory.getBrowser(DriverType.DESKTOP_CHROME);
-        BrowserActions.navigateToURL(driver, "https://mdn.mozillademos.org/en-US/docs/Web/HTML/Element/select$samples/Advanced_select_with_multiple_features?revision=1612304");
+        BrowserActions.navigateToURL(driver, baseURL+"Advanced_select_with_multiple_features.html");
         By select = By.tagName("select");
         ElementActions.select(driver, select, "Dog");
         ElementActions.select(driver, select, "Cat");
