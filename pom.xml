@@ -162,7 +162,7 @@
         <dependency>
             <groupId>com.github.appium</groupId>
             <artifactId>java-client</artifactId>
-            <version>ac625c3d7035a7f77e268cf7c6b6877e185f1dea</version>
+            <version>7.6.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.seleniumhq.selenium</groupId>
