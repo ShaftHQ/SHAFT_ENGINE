@@ -5,6 +5,8 @@ import io.restassured.response.Response;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
+import java.io.File;
+
 public class ValidationsExecutor {
     ValidationEnums.ValidationCategory validationCategory;
     WebDriver driver;
@@ -30,7 +32,7 @@ public class ValidationsExecutor {
     Object response;
     String fileAbsolutePath;
     RestActions.ComparisonType restComparisonType;
-
+    File fileRelativePathObject;
     String jsonPath;
 
     String folderRelativePath;
@@ -90,6 +92,8 @@ public class ValidationsExecutor {
         this.validationType = restValidationsBuilder.validationType;
         this.response = restValidationsBuilder.response;
         this.fileAbsolutePath = restValidationsBuilder.fileAbsolutePath;
+        this.fileRelativePathObject = restValidationsBuilder.fileRelativePathObject;
+
         this.restComparisonType = restValidationsBuilder.restComparisonType;
 
     }
@@ -152,6 +156,9 @@ public class ValidationsExecutor {
                 ValidationHelper.validateEquals(validationCategory, expectedValue,
                         RestActions.getResponseJSONValue(response, jsonPath), validationComparisonType,
                         validationType, customReportMessage);
+                break;
+            case "checkResponseSchema":
+                ValidationHelper.validateResponseFileSchema(validationCategory, (Response) response, fileRelativePathObject, restComparisonType, "", validationType, customReportMessage);
                 break;
             default:
                 break;

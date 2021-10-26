@@ -3,6 +3,8 @@ package com.shaft.validation;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 
+import java.io.File;
+
 public class RestValidationsBuilder {
     ValidationEnums.ValidationCategory validationCategory;
     String validationMethod;
@@ -11,6 +13,7 @@ public class RestValidationsBuilder {
     String fileAbsolutePath;
     RestActions.ComparisonType restComparisonType;
     String jsonPath;
+    File fileRelativePathObject;
 
     public RestValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, Object response) {
         this.validationCategory = validationCategory;
@@ -46,6 +49,14 @@ public class RestValidationsBuilder {
         this.fileAbsolutePath = FileActions.getAbsolutePath(fileRelativePath);
         this.restComparisonType = RestActions.ComparisonType.CONTAINS;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
+        return new ValidationsExecutor(this);
+    }
+
+    public ValidationsExecutor checkResponseSchema(String fileRelativePath) {
+        this.validationMethod = "checkResponseSchema";
+        this.fileRelativePathObject = new File(fileRelativePath);
+        this.restComparisonType = RestActions.ComparisonType.EQUALS;
+        this.validationType = ValidationEnums.ValidationType.POSITIVE;
         return new ValidationsExecutor(this);
     }
 
