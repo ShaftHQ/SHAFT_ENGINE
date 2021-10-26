@@ -833,6 +833,8 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
                     BrowserActions.maximizeWindow(driver.get());
                 }
             }
+            // start session recording
+            RecordManager.startVideoRecording(driver.get());
         } catch (NullPointerException e) {
             ReportManagerHelper.log(e);
             ReportManager.log("Unhandled Exception with Driver Type [" + internalDriverName + "].");

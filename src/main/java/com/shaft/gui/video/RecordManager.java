@@ -9,6 +9,7 @@ import com.shaft.tools.io.ReportManagerHelper;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.android.AndroidStartScreenRecordingOptions;
 import io.appium.java_client.ios.IOSDriver;
+import io.appium.java_client.ios.IOSStartScreenRecordingOptions;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
 import ws.schild.jave.Encoder;
@@ -48,13 +49,12 @@ public class RecordManager {
                 if (driver instanceof AndroidDriver androidDriver) {
                     androidDriver.startRecordingScreen(new AndroidStartScreenRecordingOptions().withVideoSize("540x960").withBitRate(2000000).withTimeLimit(Duration.parse("PT30M")));
                 } else if (driver instanceof IOSDriver iosDriver) {
-                    iosDriver.startRecordingScreen();
+                    iosDriver.startRecordingScreen(new IOSStartScreenRecordingOptions().withVideoScale("480p").withFps(15).withVideoQuality(IOSStartScreenRecordingOptions.VideoQuality.MEDIUM).withTimeLimit(Duration.parse("PT30M")));
                 }
                 ReportManager.logDiscrete("Started recording device screen");
                 isRecordingStarted = true;
             } catch (WebDriverException exception) {
                 ReportManager.logDiscrete("Failed to start recording device screen");
-//                ReportManagerHelper.log(exception);
             }
         } else {
             startVideoRecording();
@@ -97,6 +97,7 @@ public class RecordManager {
                     new ByteArrayInputStream(Base64.getDecoder().decode(base64EncodedRecording)));
 
             videoDriver.set(null);
+            isRecordingStarted = false;
         }
     }
 
