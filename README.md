@@ -10,14 +10,14 @@
  [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/MohabMohie/SHAFT_Engine/Ubuntu%20-%20Test?label=Ubuntu%20-%20Test&style=for-the-badge)](https://github.com/MohabMohie/SHAFT_ENGINE/actions?query=workflow%3A%22Ubuntu+-+Test%22)
 
 ### Important Links:
-- Configuration Manager ⚙️: https://mohabmohie.github.io/SHAFT_ENGINE/
-- Javadocs 📚: https://mohabmohie.github.io/SHAFT_ENGINE/apidocs/index.html
-- Latest Test Execution Reports 📊:
-  - Windows/Edge: https://mohabmohie.github.io/SHAFT_ENGINE/allure/Windows/Web/index.html
-  - Mac/Safari: https://mohabmohie.github.io/SHAFT_ENGINE/allure/macOS/Web/index.html
-  - Linux/Firefox: https://mohabmohie.github.io/SHAFT_ENGINE/allure/Linux/Web/index.html
-  - Native/Android: https://mohabmohie.github.io/SHAFT_ENGINE/allure/MobileNative/Android/index.html
-- Sample project using SHAFT_Engine ✈️: https://github.com/MohabMohie/using_SHAFT_ENGINE
+- ⚙️  [Configuration Manager](https://mohabmohie.github.io/SHAFT_ENGINE/)
+- 👤  [User Guide](https://mohabmohie.github.io/SHAFT_Engine_Docusaurus/)
+- 📚  [Javadocs](https://mohabmohie.github.io/SHAFT_ENGINE/apidocs/index.html)
+- 📊  Latest Test Execution Reports:
+  - [Windows/Edge](https://mohabmohie.github.io/SHAFT_ENGINE/allure/Windows/Web/index.html) - [Mac/Safari](https://mohabmohie.github.io/SHAFT_ENGINE/allure/macOS/Web/index.html) - [Linux/Firefox](https://mohabmohie.github.io/SHAFT_ENGINE/allure/Linux/Web/index.html) - [Native/Android](https://mohabmohie.github.io/SHAFT_ENGINE/allure/MobileNative/Android/index.html)
+- ✈️  Related Projects:
+  - [using SHAFT_Engine](https://github.com/MohabMohie/using_SHAFT_ENGINE)
+  - [User Guide](https://github.com/MohabMohie/SHAFT_Engine_Docusaurus)
 
 ### What is SHAFT?
 - A Unified Test Automation Engine.<br/><img src="src/main/resources/images/engine.png" alt="Generic Test Automation Architecture" style="display:block; margin-left:auto; margin-right:auto;"/>
