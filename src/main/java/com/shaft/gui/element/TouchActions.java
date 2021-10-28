@@ -30,7 +30,6 @@ public class TouchActions {
 
     public TouchActions(WebDriver driver) {
         this.driver = driver;
-        RecordManager.startVideoRecording(driver);
     }
 
     /**

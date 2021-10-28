@@ -1447,7 +1447,6 @@ public class WebDriverElementActions {
             return 0;
         }
         JavaScriptWaitManager.waitForLazyLoading();
-        RecordManager.startVideoRecording(driver);
 
         if (elementLocator.equals(By.tagName("html")) || Boolean.FALSE.equals(ScreenshotManager.getAiSupportedElementIdentification())) {
             if (numberOfAttempts.isEmpty() && checkForVisibility.isEmpty()) {
