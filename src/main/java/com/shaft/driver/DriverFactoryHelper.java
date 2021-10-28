@@ -458,6 +458,8 @@ public class DriverFactoryHelper {
                 if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
                     // https://developers.google.com/web/updates/2017/04/headless-chrome
                     chOptions.addArguments("--headless"); // only if you are ACTUALLY running headless
+                    // https://stackoverflow.com/questions/43541925/how-can-i-set-the-browser-window-size-when-using-google-chrome-headless
+                    chOptions.addArguments("--window-size=1920,1080");
                 }
                 if (Boolean.TRUE.equals(AUTO_MAXIMIZE) && !isMobileWebExecution() && !OperatingSystemType.MACOS.equals(getOperatingSystemFromName(targetOperatingSystem))) {
                     chOptions.addArguments("--start-maximized");
@@ -831,6 +833,8 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
                     BrowserActions.maximizeWindow(driver.get());
                 }
             }
+            // start session recording
+            RecordManager.startVideoRecording(driver.get());
         } catch (NullPointerException e) {
             ReportManagerHelper.log(e);
             ReportManager.log("Unhandled Exception with Driver Type [" + internalDriverName + "].");

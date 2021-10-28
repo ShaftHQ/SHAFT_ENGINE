@@ -125,6 +125,17 @@ public class RequestBuilder {
     }
 
     /**
+     * Sets the content type for the API request that you're currently building. By default this value is set to ContentType.ANY but you can change it by calling this method.
+     *
+     * @param contentType String value representing IANA content-type.
+     * @return a self-reference to be used to continue building your API request
+     */
+    public RequestBuilder setContentType(String contentType) {
+        this.contentType = ContentType.fromContentType(contentType);
+        return this;
+    }
+
+    /**
      * Tells whether REST Assured should automatically append the content charset to the content-type header if not defined explicitly.
      * Note that this does not affect multipart form data.
      * Default is true.
