@@ -616,7 +616,6 @@ public class WebDriverBrowserActions {
 
     private static String reportActionResult(WebDriver driver, String actionName, String testData,
                                              Boolean passFailStatus) {
-        RecordManager.startVideoRecording(driver);
         actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
