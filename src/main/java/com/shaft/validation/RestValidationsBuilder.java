@@ -3,7 +3,6 @@ package com.shaft.validation;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 
-import java.io.File;
 
 public class RestValidationsBuilder {
     protected ValidationEnums.ValidationCategory validationCategory;
