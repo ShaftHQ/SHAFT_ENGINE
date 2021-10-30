@@ -18,7 +18,6 @@ import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import io.appium.java_client.AppiumDriver;
-import io.appium.java_client.MobileElement;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import io.github.bonigarcia.wdm.WebDriverManager;
@@ -682,7 +681,7 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
          if (!isMobileExecution()) {
              driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), sfOptions));
          } else {
-             driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+             driver.set(new AppiumDriver(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
          }
          break;
      case APPIUM_CHROME:
@@ -691,21 +690,21 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
          mobileDesiredCapabilities.setCapability("chromedriverExecutable",
                  WebDriverManager.chromedriver().getDownloadedDriverPath());
 //         mobileDesiredCapabilities.setCapability("appium:chromeOptions", Map.of("w3c", false));
-         driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+         driver.set(new AppiumDriver(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
          break;
      case APPIUM_CHROMIUM:
          WebDriverManager.chromedriver().browserVersion(System.getProperty("MobileBrowserVersion")).setup();
          mobileDesiredCapabilities.setCapability("chromedriverExecutable",
                  WebDriverManager.chromedriver().getDownloadedDriverPath());
-         driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+         driver.set(new AppiumDriver(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
          break;
      case APPIUM_BROWSER, APPIUM_MOBILE_NATIVE:
          if ("Android".equals(targetOperatingSystem)) {
-             driver.set(new AndroidDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+             driver.set(new AndroidDriver(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
          } else if ("iOS".equals(targetOperatingSystem)) {
-             driver.set(new IOSDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+             driver.set(new IOSDriver(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
          } else {
-             driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+             driver.set(new AppiumDriver(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
              // will break in case of firefoxOS
          }
          break;
