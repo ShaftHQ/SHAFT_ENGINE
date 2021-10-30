@@ -4,10 +4,10 @@ import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.gui.image.ScreenshotManager;
-import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
-import io.appium.java_client.AppiumDriver;
+import io.appium.java_client.android.AndroidDriver;
+import io.appium.java_client.ios.IOSDriver;
 import org.opencv.imgproc.Imgproc;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.*;
@@ -489,12 +489,14 @@ public class WebDriverElementActions {
      */
     public static String getContext(WebDriver driver) {
         String context = "";
-        if (driver instanceof AppiumDriver<?>) {
-            context = ((AppiumDriver<?>) driver).getContext();
-            WebDriverElementActions.passAction(driver);
+        if (driver instanceof AndroidDriver androidDriver) {
+            context = androidDriver.getContext();
+        }else if (driver instanceof IOSDriver iosDriver){
+            context = iosDriver.getContext();
         } else {
             WebDriverElementActions.failAction(driver, null);
         }
+        WebDriverElementActions.passAction(driver);
         return context;
     }
 
@@ -507,12 +509,14 @@ public class WebDriverElementActions {
      */
     public static List<String> getContextHandles(WebDriver driver) {
         List<String> windowHandles = new ArrayList<>();
-        if (driver instanceof AppiumDriver<?>) {
-            windowHandles.addAll(((AppiumDriver<?>) driver).getContextHandles());
-            WebDriverElementActions.passAction(driver);
+        if (driver instanceof AndroidDriver androidDriver) {
+            windowHandles.addAll(androidDriver.getContextHandles());
+        }else if (driver instanceof IOSDriver iosDriver){
+            windowHandles.addAll(iosDriver.getContextHandles());
         } else {
             WebDriverElementActions.failAction(driver, null);
         }
+            WebDriverElementActions.passAction(driver);
         return windowHandles;
     }
 
@@ -976,12 +980,14 @@ public class WebDriverElementActions {
      *                ElementActions.getContext(WebDriver driver)
      */
     public static void setContext(WebDriver driver, String context) {
-        if (driver instanceof AppiumDriver<?>) {
-            ((AppiumDriver<?>) driver).context(context);
-            WebDriverElementActions.passAction(driver, context);
+        if (driver instanceof AndroidDriver androidDriver) {
+            androidDriver.context(context);
+        }else if (driver instanceof IOSDriver iosDriver){
+            iosDriver.context(context);
         } else {
             WebDriverElementActions.failAction(driver, context, null);
         }
+            WebDriverElementActions.passAction(driver, context);
     }
 
     public static void setLastUsedDriver(WebDriver driver) {
