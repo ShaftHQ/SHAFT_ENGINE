@@ -148,8 +148,15 @@ public class ImageProcessingActions {
                 xPos = elementLocation.getX(),
                 yPos = elementLocation.getY();
 
-        // IOS Repositioning
-        if(System.getProperty("targetOperatingSystem").equals("iOS") || System.getProperty("targetOperatingSystem").equals("Mac-64")){
+        // IOS | Mac | Linux scaled | -> Repositioning
+        if(System.getProperty("targetOperatingSystem").equals("iOS")
+                || System.getProperty("targetOperatingSystem").equals("Mac-64")
+                || (
+                        System.getProperty("targetOperatingSystem").equals("Linux-64")
+                        && !System.getProperty("screenshotParams_scalingFactor").isEmpty()
+                        && !System.getProperty("screenshotParams_scalingFactor").equals("1")
+                    )
+        ){
             elementHeight *= 2;
             elementWidth *= 2;
             xPos *= 2;
@@ -173,7 +180,7 @@ public class ImageProcessingActions {
 
         // Windows Browser Repositioning
         if(System.getProperty("targetOperatingSystem").equals("Windows-64") && !System.getProperty("screenshotParams_scalingFactor").isEmpty()){
-            double scalingFactor= Double.parseDouble(System.getProperty("screenshotParams_scalingFactor"));
+            double scalingFactor = Double.parseDouble(System.getProperty("screenshotParams_scalingFactor"));
             elementHeight *= scalingFactor;
             elementWidth *= scalingFactor;
             xPos *= scalingFactor;
