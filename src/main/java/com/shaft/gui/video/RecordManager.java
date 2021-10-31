@@ -13,7 +13,7 @@ import io.appium.java_client.ios.IOSStartScreenRecordingOptions;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
 import ws.schild.jave.Encoder;
-import ws.schild.jave.EncoderException;
+import ws.schild.jave.EncoderException;a
 import ws.schild.jave.MultimediaObject;
 import ws.schild.jave.encode.AudioAttributes;
 import ws.schild.jave.encode.EncodingAttributes;
