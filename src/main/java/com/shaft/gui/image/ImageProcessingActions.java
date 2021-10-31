@@ -144,16 +144,32 @@ public class ImageProcessingActions {
 
         int  outlineThickness = 5;
         double           xPos = elementLocation.getX(),
-                         yPos = elementLocation.getY(),
-                 elementWidth = elementLocation.getWidth(),
+                yPos = elementLocation.getY(),
+                elementWidth = elementLocation.getWidth(),
                 elementHeight = elementLocation.getHeight();
 
         //IOS Repositioning
-        if(System.getProperty("targetOperatingSystem").equals("iOS")) {
+        if(System.getProperty("targetOperatingSystem").equals("iOS") ||
+                System.getProperty("targetOperatingSystem").equals("Mac-64")) {
+            xPos *= 2;
+            yPos *= 2;
+            elementWidth *= 2;
             elementHeight *= 2;
-             elementWidth *= 2;
-                     xPos *= 2;
-                     yPos *= 2;
+        }
+
+        //IOS Browser Repositioning
+        if(System.getProperty("targetOperatingSystem").equals("iOS") && System.getProperty("mobile_browserName").equals("Safari") ){
+            yPos +=elementHeight+2*outlineThickness;
+        }
+
+        //Android Browser Repositioning
+        if(System.getProperty("targetOperatingSystem").equals("Android") && System.getProperty("mobile_appPackage").equals("com.android.chrome")){
+            yPos+=2*outlineThickness;
+        }
+
+        //MacOS Browser Repositioning
+        if(System.getProperty("targetOperatingSystem").equals("Mac-64")){
+            yPos+=2*outlineThickness;
         }
 
         Point startPoint = new Point(xPos - outlineThickness,yPos - outlineThickness);
@@ -454,7 +470,7 @@ public class ImageProcessingActions {
             eyes.abortIfNotClosed();
         }
     }
-    
+
     private static void compareImageFolders(File[] refrenceFiles, File[] testFiles, File[] testProcessingFiles,
                                             File refrenceProcessingFolder, File testProcessingFolder, double threshhold) throws IOException {
         // TODO: refactor to minimize File IO actions
