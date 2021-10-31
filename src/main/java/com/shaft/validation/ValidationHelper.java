@@ -777,7 +777,7 @@ class ValidationHelper {
 
         // handling changes as per validationCategory hard/soft
         switch (validationCategory) {
-            case HARD_ASSERT:
+            case HARD_ASSERT -> {
                 // create the log entry with or without attachments
                 if (!attachments.isEmpty()) {
                     //ReportManagerHelper.log(message.toString(), attachments);
@@ -795,8 +795,8 @@ class ValidationHelper {
                         Assert.fail(message.toString());
                     }
                 }
-                break;
-            case SOFT_ASSERT:
+            }
+            case SOFT_ASSERT -> {
                 // handle failure reason in case of soft assert
                 if (failureReason != null) {
                     List<Object> failureReasonAttachment = Arrays.asList("Validation Test Data", "Failure Reason",
@@ -818,9 +818,9 @@ class ValidationHelper {
                     verificationFailuresList.add(message.toString());
                     verificationError = new AssertionError(String.join("\nAND ", verificationFailuresList));
                 }
-                break;
-            default:
-                break;
+            }
+            default -> {
+            }
         }
     }
 

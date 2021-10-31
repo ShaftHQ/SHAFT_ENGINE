@@ -23,7 +23,7 @@ public class RequestBuilder {
     private List<List<Object>> parameters = null;
     private RestActions.ParametersType parametersType = null;
     private Object requestBody = null;
-    private ContentType contentType = null;
+    private String contentType = null;
 
     private AuthenticationType authenticationType;
     private String authenticationUsername;
@@ -61,7 +61,7 @@ public class RequestBuilder {
         this.requestType = requestType;
         this.serviceName = serviceName;
         this.targetStatusCode = 200;
-        this.contentType = ContentType.ANY;
+        this.contentType = ContentType.ANY.toString();
         this.authenticationType = AuthenticationType.NONE;
         this.appendDefaultContentCharsetToContentTypeIfUndefined = true;
     }
@@ -120,6 +120,17 @@ public class RequestBuilder {
      * @return a self-reference to be used to continue building your API request
      */
     public RequestBuilder setContentType(ContentType contentType) {
+        this.contentType = contentType.toString();
+        return this;
+    }
+
+    /**
+     * Sets the content type for the API request that you're currently building. By default this value is set to ContentType.ANY but you can change it by calling this method.
+     *
+     * @param contentType String value representing IANA content-type.
+     * @return a self-reference to be used to continue building your API request
+     */
+    public RequestBuilder setContentType(String contentType) {
         this.contentType = contentType;
         return this;
     }

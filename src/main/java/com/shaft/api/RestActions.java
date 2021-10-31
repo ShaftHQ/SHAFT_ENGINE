@@ -532,23 +532,19 @@ public class RestActions implements ShaftDriver {
             } else {
                 requestBodyAttachment.add("API Request");
                 switch (identifyBodyObjectType(requestBody)) {
-                    case 1:
-                        // json
-                        requestBodyAttachment.add("JSON Body");
-                        break;
-                    case 2:
-                        // xml
-                        requestBodyAttachment.add("XML Body");
-                        break;
-                    case 3:
-                    case 4:
-                        // I don't remember... may be binary
-                        // binary... probably
-                        requestBodyAttachment.add("Body");
-                        break;
-                    default:
-                        // unreachable code
-                        break;
+                    case 1 ->
+                            // json
+                            requestBodyAttachment.add("JSON Body");
+                    case 2 ->
+                            // xml
+                            requestBodyAttachment.add("XML Body");
+                    case 3, 4 ->
+                            // I don't remember... may be binary
+                            // binary... probably
+                            requestBodyAttachment.add("Body");
+                    default -> {
+                    }
+                    // unreachable code
                 }
                 requestBodyAttachment.add(parseBodyToJson(requestBody));
                 return requestBodyAttachment;
@@ -570,23 +566,19 @@ public class RestActions implements ShaftDriver {
             } else {
                 responseBodyAttachment.add("API Response");
                 switch (identifyBodyObjectType(responseBody)) {
-                    case 1:
-                        // json
-                        responseBodyAttachment.add("JSON Body");
-                        break;
-                    case 2:
-                        // xml
-                        responseBodyAttachment.add("XML Body");
-                        break;
-                    case 3:
-                    case 4:
-                        // I don't remember... may be binary
-                        // binary... probably
-                        responseBodyAttachment.add("Body");
-                        break;
-                    default:
-                        // unreachable code
-                        break;
+                    case 1 ->
+                            // json
+                            responseBodyAttachment.add("JSON Body");
+                    case 2 ->
+                            // xml
+                            responseBodyAttachment.add("XML Body");
+                    case 3, 4 ->
+                            // I don't remember... may be binary
+                            // binary... probably
+                            responseBodyAttachment.add("Body");
+                    default -> {
+                    }
+                    // unreachable code
                 }
                 responseBodyAttachment.add(parseBodyToJson(responseBody));
                 return responseBodyAttachment;
@@ -839,7 +831,7 @@ public class RestActions implements ShaftDriver {
     @Deprecated
     public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName) {
         return performRequest(
-                new Object[]{requestType, targetStatusCode, serviceName, null, null, null, null, ContentType.ANY});
+                new Object[]{requestType, targetStatusCode, serviceName, null, null, null, null, ContentType.ANY.toString()});
     }
 
     /**
@@ -857,7 +849,7 @@ public class RestActions implements ShaftDriver {
     public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName,
                                    String urlArguments) {
         return performRequest(new Object[]{requestType, targetStatusCode, serviceName, urlArguments, null, null, null,
-                ContentType.ANY});
+                ContentType.ANY.toString()});
     }
 
     /**
@@ -876,7 +868,7 @@ public class RestActions implements ShaftDriver {
     public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName,
                                    ContentType contentType) {
         return performRequest(
-                new Object[]{requestType, targetStatusCode, serviceName, null, null, null, null, contentType});
+                new Object[]{requestType, targetStatusCode, serviceName, null, null, null, null, contentType.toString()});
     }
 
     /**
@@ -898,7 +890,7 @@ public class RestActions implements ShaftDriver {
     public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName,
                                    ContentType contentType, String urlArguments) {
         return performRequest(new Object[]{requestType, targetStatusCode, serviceName, urlArguments, null, null, null,
-                contentType});
+                contentType.toString()});
     }
 
     /**
@@ -922,7 +914,7 @@ public class RestActions implements ShaftDriver {
     public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName,
                                    List<List<Object>> parameters, ParametersType parametersType, ContentType contentType) {
         return performRequest(new Object[]{requestType, targetStatusCode, serviceName, null, parameters,
-                parametersType, null, contentType});
+                parametersType, null, contentType.toString()});
     }
 
     /**
@@ -950,7 +942,7 @@ public class RestActions implements ShaftDriver {
     public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName,
                                    Object requestBody, ContentType contentType) {
         return performRequest(
-                new Object[]{requestType, targetStatusCode, serviceName, null, null, null, requestBody, contentType});
+                new Object[]{requestType, targetStatusCode, serviceName, null, null, null, requestBody, contentType.toString()});
     }
 
     protected String prepareRequestURL(String serviceURI, String urlArguments, String serviceName) {
@@ -962,7 +954,7 @@ public class RestActions implements ShaftDriver {
     }
 
     protected RequestSpecification prepareRequestSpecs(List<List<Object>> parameters, ParametersType parametersType,
-                                                       Object body, ContentType contentType, Map<String, Object> sessionCookies, Map<String, String> sessionHeaders, boolean appendDefaultContentCharsetToContentTypeIfUndefined) {
+                                                       Object body, String contentType, Map<String, Object> sessionCookies, Map<String, String> sessionHeaders, boolean appendDefaultContentCharsetToContentTypeIfUndefined) {
         RequestSpecBuilder builder = initializeBuilder(sessionCookies, sessionHeaders, appendDefaultContentCharsetToContentTypeIfUndefined);
 
         // set the default content type as part of the specs
@@ -976,11 +968,11 @@ public class RestActions implements ShaftDriver {
         return builder.build();
     }
 
-    private void prepareRequestBody(RequestSpecBuilder builder, Object body, ContentType contentType) {
+    private void prepareRequestBody(RequestSpecBuilder builder, Object body, String contentType) {
         try {
             switch (contentType) {
-                case JSON -> builder.setBody(body, ObjectMapperType.GSON);
-                case XML -> builder.setBody(body, ObjectMapperType.JAXB);
+                case "application/json", "application/javascript", "text/javascript", "text/json" -> builder.setBody(body, ObjectMapperType.GSON);
+                case "application/xml", "text/xml", "application/xhtml+xml" -> builder.setBody(body, ObjectMapperType.JAXB);
                 default -> builder.setBody(body);
             }
         } catch (Exception rootCauseException) {
@@ -1126,7 +1118,7 @@ public class RestActions implements ShaftDriver {
         List<List<Object>> parameters = (List<List<Object>>) params[4];
         ParametersType parametersType = (ParametersType) params[5];
         Object requestBody = params[6];
-        ContentType contentType = (ContentType) params[7];
+        String contentType = (String) params[7];
 
         String request = prepareRequestURL(serviceURI, urlArguments, serviceName);
 
@@ -1163,7 +1155,7 @@ public class RestActions implements ShaftDriver {
     }
 
     String prepareReportMessage(Response response, int targetStatusCode, RequestType requestType,
-                                String serviceName, ContentType contentType, String urlArguments) {
+                                String serviceName, String contentType, String urlArguments) {
         if (response != null) {
             extractCookiesFromResponse(response);
             extractHeadersFromResponse(response);

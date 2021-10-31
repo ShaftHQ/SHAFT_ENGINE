@@ -16,6 +16,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import org.testng.Assert;
 
 import java.awt.*;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -327,7 +328,7 @@ public class WebDriverBrowserActions {
             initialURL = driver.getCurrentUrl();
             driver.navigate().back();
             JavaScriptWaitManager.waitForLazyLoading();
-            (new WebDriverWait(driver, NAVIGATION_TIMEOUT_INTEGER))
+            (new WebDriverWait(driver, Duration.ofSeconds(NAVIGATION_TIMEOUT_INTEGER)))
                     .until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
             newURL = driver.getCurrentUrl();
             if (!newURL.equals(initialURL)) {
@@ -362,7 +363,7 @@ public class WebDriverBrowserActions {
             initialURL = driver.getCurrentUrl();
             driver.navigate().forward();
             JavaScriptWaitManager.waitForLazyLoading();
-            (new WebDriverWait(driver, NAVIGATION_TIMEOUT_INTEGER))
+            (new WebDriverWait(driver, Duration.ofSeconds(NAVIGATION_TIMEOUT_INTEGER)))
                     .until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
             newURL = driver.getCurrentUrl();
             if (!newURL.equals(initialURL)) {
@@ -615,7 +616,6 @@ public class WebDriverBrowserActions {
 
     private static String reportActionResult(WebDriver driver, String actionName, String testData,
                                              Boolean passFailStatus) {
-        RecordManager.startVideoRecording(driver);
         actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
@@ -671,16 +671,16 @@ public class WebDriverBrowserActions {
     private static void checkNavigationWasSuccesssful(WebDriver driver, String initialURL, String targetUrl, String targetUrlAfterRedirection) {
         if (!targetUrl.equals(targetUrlAfterRedirection)) {
             try {
-                (new WebDriverWait(driver, NAVIGATION_TIMEOUT_INTEGER))
+                (new WebDriverWait(driver, Duration.ofSeconds(NAVIGATION_TIMEOUT_INTEGER)))
                         .until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
             } catch (TimeoutException rootCauseException) {
                 failAction(driver, "Waited for " + NAVIGATION_TIMEOUT_INTEGER + " seconds to navigate away from [" + initialURL + "] but didn't.", rootCauseException);
             }
         } else {
             try {
-                (new WebDriverWait(driver, NAVIGATION_TIMEOUT_INTEGER))
+                (new WebDriverWait(driver, Duration.ofSeconds(NAVIGATION_TIMEOUT_INTEGER)))
                         .until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
-                (new WebDriverWait(driver, NAVIGATION_TIMEOUT_INTEGER))
+                (new WebDriverWait(driver, Duration.ofSeconds(NAVIGATION_TIMEOUT_INTEGER)))
                         .until(ExpectedConditions.urlContains(targetUrlAfterRedirection));
 
             } catch (TimeoutException rootCauseException) {
