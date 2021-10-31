@@ -142,12 +142,22 @@ public class ImageProcessingActions {
         loadOpenCV();
         Mat img = Imgcodecs.imdecode(new MatOfByte(targetScreenshot), Imgcodecs.IMREAD_COLOR);
 
-        int outlineThickness = 5;
+        int  outlineThickness = 5;
+        double           xPos = elementLocation.getX(),
+                         yPos = elementLocation.getY(),
+                 elementWidth = elementLocation.getWidth(),
+                elementHeight = elementLocation.getHeight();
 
-        Point startPoint = new Point((double) elementLocation.getX() - outlineThickness,
-                (double) elementLocation.getY() - outlineThickness);
-        Point endPoint = new Point((double) elementLocation.getX() + elementLocation.getWidth() + outlineThickness,
-                (double) elementLocation.getY() + elementLocation.getHeight() + outlineThickness);
+        //IOS Repositioning
+        if(System.getProperty("targetOperatingSystem").equals("iOS")) {
+            elementHeight *= 2;
+             elementWidth *= 2;
+                     xPos *= 2;
+                     yPos *= 2;
+        }
+
+        Point startPoint = new Point(xPos - outlineThickness,yPos - outlineThickness);
+        Point   endPoint = new Point(xPos + elementWidth + outlineThickness,yPos + elementHeight + outlineThickness);
 
         // BGR color
         Scalar highlightColorScalar = new Scalar(highlightColor.getBlue(), highlightColor.getGreen(),
