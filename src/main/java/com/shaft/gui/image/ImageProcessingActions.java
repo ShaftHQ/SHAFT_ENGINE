@@ -172,11 +172,12 @@ public class ImageProcessingActions {
         }
 
         // Windows Browser Repositioning
-        if(System.getProperty("targetOperatingSystem").equals("Windows-64")){
-            elementHeight *= 1.25;
-            elementWidth *= 1.25;
-            xPos *= 1.25;
-            yPos *= 1.25;
+        if(System.getProperty("targetOperatingSystem").equals("Windows-64") && !System.getProperty("screenshotParams_scalingFactor").isEmpty()){
+            double scalingFactor= Double.parseDouble(System.getProperty("screenshotParams_scalingFactor"));
+            elementHeight *= scalingFactor;
+            elementWidth *= scalingFactor;
+            xPos *= scalingFactor;
+            yPos *= scalingFactor;
         }
 
         Point startPoint = new Point(xPos - outlineThickness,yPos - outlineThickness);

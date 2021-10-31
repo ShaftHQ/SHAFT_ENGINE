@@ -1110,6 +1110,24 @@
                                     <!-- Form Name -->
                                     <!-- <legend>&nbsp;Visual Validations:</legend>-->
 
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label"
+                                               for="screenshotParams_scalingFactor">Scaling
+                                            Factor
+                                        </label>
+                                        <div class="col-md-4">
+                                            <div class="input-group">
+                                                <input class="form-control input-md"
+                                                       id="screenshotParams_scalingFactor"
+                                                       max="5" min="1" name="screenshotParams_scalingFactor"
+                                                       step="0.05"
+                                                       type="number" value="1">
+                                            </div>
+                                            <span class="help-block">• A number between 1 and 5.00 where 1 means unscaled and 5.00 means 500% scaled.
+                                                                <br/>• Windows browsers only.</span>
+                                        </div>
+                                    </div>
                                     <!-- Select Basic -->
                                     <div class="form-group">
                                         <label class="col-md-4 control-label"
@@ -2096,6 +2114,7 @@
 <script>
     function generateVisualValidations() {
         // Get the data from each element on the form.
+        const screenshotParams_scalingFactor = $("input[name=screenshotParams_scalingFactor]").val();
         const screenshotParams_whenToTakeAScreenshot = $("select[name=screenshotParams_whenToTakeAScreenshot]").val();
         const screenshotParams_screenshotType = $("input[name=screenshotParams_screenshotType]:checked").val();
         const screenshotParams_highlightElements = $("input[name=screenshotParams_highlightElements]:checked").val();
@@ -2110,6 +2129,7 @@
 
         // This variable stores all the data.
         let data =
+            'screenshotParams_scalingFactor=' + screenshotParams_scalingFactor + '\r\n' +
             'screenshotParams_whenToTakeAScreenshot=' + screenshotParams_whenToTakeAScreenshot + '\r\n' +
             'screenshotParams_screenshotType=' + screenshotParams_screenshotType + '\r\n' +
             'screenshotParams_highlightElements=' + screenshotParams_highlightElements + '\r\n' +
