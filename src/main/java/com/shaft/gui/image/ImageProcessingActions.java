@@ -142,34 +142,41 @@ public class ImageProcessingActions {
         loadOpenCV();
         Mat img = Imgcodecs.imdecode(new MatOfByte(targetScreenshot), Imgcodecs.IMREAD_COLOR);
 
-        int  outlineThickness = 5;
-        double           xPos = elementLocation.getX(),
-                yPos = elementLocation.getY(),
+        int    outlineThickness = 5;
+        double    elementHeight = elementLocation.getHeight(),
                 elementWidth = elementLocation.getWidth(),
-                elementHeight = elementLocation.getHeight();
+                xPos = elementLocation.getX(),
+                yPos = elementLocation.getY();
 
         //IOS Repositioning
-        if(System.getProperty("targetOperatingSystem").equals("iOS") ||
-                System.getProperty("targetOperatingSystem").equals("Mac-64")) {
+        if(System.getProperty("targetOperatingSystem").equals("iOS") || System.getProperty("targetOperatingSystem").equals("Mac-64")){
+            elementHeight *= 2;
+            elementWidth *= 2;
             xPos *= 2;
             yPos *= 2;
-            elementWidth *= 2;
-            elementHeight *= 2;
         }
 
         //IOS Browser Repositioning
         if(System.getProperty("targetOperatingSystem").equals("iOS") && System.getProperty("mobile_browserName").equals("Safari") ){
-            yPos +=elementHeight+2*outlineThickness;
+            yPos += elementHeight + 2 * outlineThickness;
         }
 
         //Android Browser Repositioning
         if(System.getProperty("targetOperatingSystem").equals("Android") && System.getProperty("mobile_appPackage").equals("com.android.chrome")){
-            yPos+=2*outlineThickness;
+            yPos += 2 * outlineThickness;
         }
 
         //MacOS Browser Repositioning
         if(System.getProperty("targetOperatingSystem").equals("Mac-64")){
-            yPos+=2*outlineThickness;
+            yPos += 2 * outlineThickness;
+        }
+
+        //Windows Browser Repositioning
+        if(System.getProperty("targetOperatingSystem").equals("Windows-64")){
+            elementHeight *= 1.25;
+            elementWidth *= 1.25;
+            xPos *= 1.25;
+            yPos *= 1.25;
         }
 
         Point startPoint = new Point(xPos - outlineThickness,yPos - outlineThickness);
