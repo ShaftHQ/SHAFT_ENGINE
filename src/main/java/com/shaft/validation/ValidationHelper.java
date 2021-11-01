@@ -15,10 +15,13 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.testng.Assert;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+
+import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchema;
 
 class ValidationHelper {
     //TODO: implement element attribute and element exists validations for sikuli actions
@@ -601,6 +604,44 @@ class ValidationHelper {
             fail(validationCategory, reportedExpectedValue.toString(), String.valueOf(comparisonResult).toUpperCase(), comparisonType, validationType, null, attachments);
         }
     }
+
+    protected static void validateResponseFileSchema(ValidationCategory validationCategory, Response response,  String referenceJsonFilePath,
+                                                     RestActions.ComparisonType comparisonType, String jsonPathToTargetArray, ValidationType validationType, String... optionalCustomLogMessage) {
+
+        processCustomLogMessage(optionalCustomLogMessage);
+        boolean expectedValue = ValidationType.POSITIVE.equals(validationType);
+        StringBuilder reportedExpectedValue = new StringBuilder();
+        reportedExpectedValue.append("Response data should ");
+        if (!expectedValue) {
+            reportedExpectedValue.append("not ");
+        }
+        reportedExpectedValue.append("match the JSON File in this path '").append(referenceJsonFilePath).append("'");
+        if (!jsonPathToTargetArray.equals("")) {
+            reportedExpectedValue.append(", with path to Target Array '").append(jsonPathToTargetArray).append("'");
+        }
+
+        var validatableResponse = response.then().body(matchesJsonSchema(new File(referenceJsonFilePath)));
+        var responseAfter = validatableResponse.extract().response();
+
+        Boolean comparisonResult = response.equals(responseAfter);
+
+        // prepare attachments
+        List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected JSON Value",
+                RestActions.parseBodyToJson(FileActions.readFromFile(referenceJsonFilePath)));
+        List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual JSON Value",
+                RestActions.parseBodyToJson(response));
+
+        List<List<Object>> attachments = new ArrayList<>();
+        attachments.add(expectedValueAttachment);
+        attachments.add(actualValueAttachment);
+
+        if ((comparisonResult && expectedValue) || (!comparisonResult && !expectedValue)) {
+            pass(validationCategory, reportedExpectedValue.toString(), String.valueOf(comparisonResult).toUpperCase(), comparisonType, validationType, attachments);
+        } else {
+            fail(validationCategory, reportedExpectedValue.toString(), String.valueOf(comparisonResult).toUpperCase(), comparisonType, validationType, null, attachments);
+        }
+    }
+
 
     private static void reportValidationResultOfElementAttribute(Object[] args) {
         String[] expectedAttributeStates = (String[]) args[0];
