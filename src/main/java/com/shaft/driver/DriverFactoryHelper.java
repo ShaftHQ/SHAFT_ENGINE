@@ -475,6 +475,7 @@ public class DriverFactoryHelper {
                 options.addArguments("--disable-dev-shm-usage"); //https://stackoverflow.com/a/50725918/1689770
                 options.addArguments("--disable-browser-side-navigation"); //https://stackoverflow.com/a/49123152/1689770
                 options.addArguments("--disable-gpu"); //https://stackoverflow.com/questions/51959986/how-to-solve-selenium-chromedriver-timed-out-receiving-message-from-renderer-exc
+                options.addArguments("--remote-debugging-port=9222"); //https://stackoverflow.com/questions/50642308/webdriverexception-unknown-error-devtoolsactiveport-file-doesnt-exist-while-t/60168019#60168019
                 Map<String, Object> chromePreferences = new HashMap<>();
                 chromePreferences.put("profile.default_content_settings.popups", 0);
                 chromePreferences.put("download.prompt_for_download", "false");
