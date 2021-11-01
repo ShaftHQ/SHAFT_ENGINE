@@ -153,6 +153,7 @@ public class ImageProcessingActions {
                 || System.getProperty("targetOperatingSystem").equals("Mac-64")
                 || (
                         System.getProperty("targetOperatingSystem").equals("Linux-64")
+                        && System.getProperty("screenshotParams_scalingFactor") != null
                         && !System.getProperty("screenshotParams_scalingFactor").isEmpty()
                         && !System.getProperty("screenshotParams_scalingFactor").equals("1")
                     )
@@ -179,7 +180,9 @@ public class ImageProcessingActions {
         }
 
         // Windows Browser Repositioning
-        if(System.getProperty("targetOperatingSystem").equals("Windows-64") && !System.getProperty("screenshotParams_scalingFactor").isEmpty()){
+        if(System.getProperty("targetOperatingSystem").equals("Windows-64")
+                && System.getProperty("screenshotParams_scalingFactor")!=null
+                && !System.getProperty("screenshotParams_scalingFactor").isEmpty()){
             double scalingFactor = Double.parseDouble(System.getProperty("screenshotParams_scalingFactor"));
             elementHeight *= scalingFactor;
             elementWidth *= scalingFactor;
