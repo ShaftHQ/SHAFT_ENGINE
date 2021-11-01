@@ -176,19 +176,21 @@ public class ReportManagerHelper {
         ReportManagerHelper.debugMode = debugMode;
     }
 
-    public static void prepareAllureReportingEnvironment() {
-        ReportManager.logDiscrete("Preparing Allure Reporting Environment...");
-        boolean discreteLoggingState = isDiscreteLogging();
+    public static void initializeAllureReportingEnvironment() {
+        ReportManager.logDiscrete("Initializing Allure Reporting Environment...");
+        System.setProperty("disableLogging", "true");
+//        boolean discreteLoggingState = isDiscreteLogging();
         allureResultsFolderPath = System.getProperty("allureResultsFolderPath").trim();
         if (System.getProperty("executionAddress").trim().equals("local")
                 || (System.getProperty("mobile_platformName") != null && !System.getProperty("mobile_platformName").trim().equals(""))) {
-            setDiscreteLogging(true);
+//            setDiscreteLogging(true);
             cleanAllureResultsDirectory();
             downloadAndExtractAllureBinaries();
             writeGenerateReportShellFilesToProjectDirectory();
         }
         writeEnvironmentVariablesToAllureResultsDirectory();
-        setDiscreteLogging(discreteLoggingState);
+//        setDiscreteLogging(discreteLoggingState);
+        System.setProperty("disableLogging", "false");
     }
 
     public static void logEngineVersion() {
@@ -380,8 +382,13 @@ public class ReportManagerHelper {
         return Boolean.parseBoolean(generateExtentReports);
     }
 
-    public static void initializeExtentReports() {
+    public static void initializeExtentReportingEnvironment() {
         if (Boolean.TRUE.equals(generateExtentReports())) {
+            ReportManager.logDiscrete("Initializing Extent Reporting Environment...");
+            System.setProperty("disableLogging", "true");
+
+//            boolean discreteLoggingState = isDiscreteLogging();
+//            setDiscreteLogging(true);
             extentReportsFolderPath = System.getProperty("extentReportsFolderPath").trim();
             cleanExtentReportsDirectory();
             extentReportFileName = extentReportsFolderPath + "ExtentReports_" + (new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa")).format(System.currentTimeMillis()) + ".html";
@@ -395,6 +402,8 @@ public class ReportManagerHelper {
             spark.config().setTheme(Theme.STANDARD);
             spark.config().setDocumentTitle("Extent Reports");
             spark.config().setReportName("Extent Reports - Powered by SHAFT_Engine");
+//            setDiscreteLogging(discreteLoggingState);
+            System.setProperty("disableLogging", "false");
         }
     }
 
@@ -456,11 +465,6 @@ public class ReportManagerHelper {
         }
     }
 
-    protected static void logClosureActivitiesInitialization() {
-    	var closureActivities = "Test Closure Activities";
-        createImportantReportEntry(closureActivities, true);
-    }
-
     private static String formatStackTraceToLogEntry(Throwable t, boolean isCause) {
     	var logBuilder = new StringBuilder();
         if (t != null) {
@@ -478,13 +482,15 @@ public class ReportManagerHelper {
     }
 
     static void createLogEntry(String logText) {
-        String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
-        if (logText == null) {
-            logText = "null";
+        if (!Boolean.valueOf(System.getProperty("disableLogging"))) {
+            String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
+            if (logText == null) {
+                logText = "null";
+            }
+            String log = REPORT_MANAGER_PREFIX + logText.trim() + " @" + timestamp;
+            slf4jLogger.info(log);
+            Reporter.log(log, false);
         }
-        String log = REPORT_MANAGER_PREFIX + logText.trim() + " @" + timestamp;
-        slf4jLogger.info(log);
-        Reporter.log(log, false);
     }
 
     /**
@@ -497,19 +503,21 @@ public class ReportManagerHelper {
     }
 
     private static void createReportEntry(String logText, boolean addToFullLog) {
-        String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
-        if (logText == null) {
-            logText = "null";
-        }
-        String log = REPORT_MANAGER_PREFIX + logText.trim() + " @" + timestamp;
-        Reporter.log(log, true);
-        if (extentTest != null && !logText.contains("created attachment") && !logText.contains("<html")) {
-            extentTest.info(logText);
-        }
+        if (!Boolean.valueOf(System.getProperty("disableLogging"))) {
+            String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
+            if (logText == null) {
+                logText = "null";
+            }
+            String log = REPORT_MANAGER_PREFIX + logText.trim() + " @" + timestamp;
+            Reporter.log(log, true);
+            if (extentTest != null && !logText.contains("created attachment") && !logText.contains("<html")) {
+                extentTest.info(logText);
+            }
 
-        if (addToFullLog) {
-            appendToFullLog(log);
-            appendToFullLog(System.lineSeparator());
+            if (addToFullLog) {
+                appendToFullLog(log);
+                appendToFullLog(System.lineSeparator());
+            }
         }
     }
 
@@ -598,6 +606,10 @@ public class ReportManagerHelper {
         } else if (attachmentType.toLowerCase().contains("json") || attachmentName.toLowerCase().contains("json")) {
             Allure.addAttachment(attachmentDescription, "text/json", new ByteArrayInputStream(attachmentContent.toByteArray()), ".json");
             attachCodeBlockToExtentReport("text/json", new ByteArrayInputStream(attachmentContent.toByteArray()));
+        } else if (attachmentType.toLowerCase().contains("properties")) {
+            Allure.addAttachment(attachmentDescription, "text/plain", new ByteArrayInputStream(attachmentContent.toByteArray()), ".properties");
+        } else if (attachmentType.toLowerCase().contains("link")) {
+            Allure.addAttachment(attachmentDescription, "text/uri-list", new ByteArrayInputStream(attachmentContent.toByteArray()), ".uri");
         } else if (attachmentType.toLowerCase().contains("engine logs")) {
             Allure.addAttachment(attachmentDescription, "text/plain", new ByteArrayInputStream(attachmentContent.toByteArray()), ".txt");
         } else {
@@ -606,10 +618,11 @@ public class ReportManagerHelper {
     }
 
     private static synchronized void logAttachmentAction(String attachmentType, String attachmentName, ByteArrayOutputStream attachmentContent) {
-        if (!(attachmentType.equals(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE) && attachmentName.equals("Execution log"))) {
-            createReportEntry("Successfully created attachment [" + attachmentType + " - " + attachmentName + "]",
-                    false);
-        }
+        createLogEntry("Successfully created attachment [" + attachmentType + " - " + attachmentName + "]");
+//        if (!(attachmentType.equals(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE) && attachmentName.equals("Execution log"))) {
+//            createReportEntry("Successfully created attachment [" + attachmentType + " - " + attachmentName + "]",
+//                    false);
+//        }
 
         if (debugMode && !attachmentType.contains(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE)
                 && !attachmentType.equalsIgnoreCase("Selenium WebDriver Logs")

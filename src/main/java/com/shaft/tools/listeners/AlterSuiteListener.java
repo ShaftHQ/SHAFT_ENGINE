@@ -3,6 +3,7 @@ package com.shaft.tools.listeners;
 import com.shaft.tools.io.LogsHelper;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
 import org.testng.IAlterSuiteListener;
 import org.testng.IAnnotationTransformer;
 import org.testng.IRetryAnalyzer;
@@ -25,7 +26,11 @@ public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, 
     public void alter(List<XmlSuite> suites) {
         addListeners(suites);
         //TODO: manage slf4j log patterns
+        System.setProperty("disableLogging","true");
         PropertyFileManager.readPropertyFiles();
+        System.setProperty("disableLogging","false");
+        ReportManagerHelper.logEngineVersion();
+
         retryMaximumNumberOfAttempts = Integer.parseInt(System.getProperty("retryMaximumNumberOfAttempts"));
         setExecutionProperties(suites);
         renameDefaultSuiteAndTest(suites);
@@ -82,7 +87,7 @@ public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, 
     private void addListeners(List<XmlSuite> suites) {
         suites.forEach(suite -> {
             suite.addListener("com.shaft.tools.listeners.InvokedMethodListener");
-            suite.addListener("com.shaft.tools.listeners.SuiteListener");
+//            suite.addListener("com.shaft.tools.listeners.SuiteListener");
         });
 
     }

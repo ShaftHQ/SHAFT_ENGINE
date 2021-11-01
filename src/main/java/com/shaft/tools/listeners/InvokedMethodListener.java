@@ -92,7 +92,8 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 
     @Override
     public void afterInvocation(IInvokedMethod method, ITestResult testResult) {
-        if (!method.getTestMethod().getQualifiedName().contains("closureActivities")) {
+        if (!method.getTestMethod().getQualifiedName().contains("setupActivities")
+        && !method.getTestMethod().getQualifiedName().contains("teardownActivities")) {
             if (System.getProperty("videoParams_scope").trim().equals("TestMethod")) {
                 RecordManager.attachVideoRecording();
             }
