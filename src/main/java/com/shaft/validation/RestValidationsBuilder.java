@@ -3,6 +3,7 @@ package com.shaft.validation;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 
+
 public class RestValidationsBuilder {
     protected ValidationEnums.ValidationCategory validationCategory;
     protected String validationMethod;
@@ -81,5 +82,18 @@ public class RestValidationsBuilder {
         this.validationMethod = "jsonPathValueEquals";
         this.jsonPath = jsonPath;
         return new NativeValidationsBuilder(this);
+    }
+
+    /**
+     * Use this to check if the content of the provided actual response object matches the schema for the expected file content
+     * @param fileRelativePath relative path to the target expected response file
+     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     */
+    public ValidationsExecutor checkResponseSchema(String fileRelativePath) {
+        this.validationMethod = "checkResponseSchema";
+        this.fileAbsolutePath = FileActions.getAbsolutePath(fileRelativePath);
+        this.restComparisonType = RestActions.ComparisonType.EQUALS;
+        this.validationType = ValidationEnums.ValidationType.POSITIVE;
+        return new ValidationsExecutor(this);
     }
 }
