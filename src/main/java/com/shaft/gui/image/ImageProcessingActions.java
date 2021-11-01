@@ -142,12 +142,53 @@ public class ImageProcessingActions {
         loadOpenCV();
         Mat img = Imgcodecs.imdecode(new MatOfByte(targetScreenshot), Imgcodecs.IMREAD_COLOR);
 
-        int outlineThickness = 5;
+        int    outlineThickness = 5;
+        double    elementHeight = elementLocation.getHeight(),
+                elementWidth = elementLocation.getWidth(),
+                xPos = elementLocation.getX(),
+                yPos = elementLocation.getY();
 
-        Point startPoint = new Point((double) elementLocation.getX() - outlineThickness,
-                (double) elementLocation.getY() - outlineThickness);
-        Point endPoint = new Point((double) elementLocation.getX() + elementLocation.getWidth() + outlineThickness,
-                (double) elementLocation.getY() + elementLocation.getHeight() + outlineThickness);
+        // IOS Native | MacOS Browser | Linux Browser scaled | -> Repositioning
+        if(System.getProperty("targetOperatingSystem").equals("iOS")
+                || System.getProperty("targetOperatingSystem").equals("Mac-64")
+                || (
+                        System.getProperty("targetOperatingSystem").equals("Linux-64")
+                        && !System.getProperty("screenshotParams_scalingFactor").isEmpty()
+                        && !System.getProperty("screenshotParams_scalingFactor").equals("1")
+                    )
+        ){
+            elementHeight *= 2;
+            elementWidth *= 2;
+            xPos *= 2;
+            yPos *= 2;
+        }
+
+        // IOS Browser Repositioning
+        if(System.getProperty("targetOperatingSystem").equals("iOS") && System.getProperty("mobile_browserName").equals("Safari") ){
+            yPos += elementHeight + 2 * outlineThickness;
+        }
+
+        // Android Browser Repositioning
+        if(System.getProperty("targetOperatingSystem").equals("Android") && System.getProperty("mobile_appPackage").equals("com.android.chrome")){
+            yPos += 2 * outlineThickness;
+        }
+
+        // MacOS Browser Repositioning
+        if(System.getProperty("targetOperatingSystem").equals("Mac-64")){
+            yPos += 2 * outlineThickness;
+        }
+
+        // Windows Browser Repositioning
+        if(System.getProperty("targetOperatingSystem").equals("Windows-64") && !System.getProperty("screenshotParams_scalingFactor").isEmpty()){
+            double scalingFactor = Double.parseDouble(System.getProperty("screenshotParams_scalingFactor"));
+            elementHeight *= scalingFactor;
+            elementWidth *= scalingFactor;
+            xPos *= scalingFactor;
+            yPos *= scalingFactor;
+        }
+
+        Point startPoint = new Point(xPos - outlineThickness,yPos - outlineThickness);
+        Point   endPoint = new Point(xPos + elementWidth + outlineThickness,yPos + elementHeight + outlineThickness);
 
         // BGR color
         Scalar highlightColorScalar = new Scalar(highlightColor.getBlue(), highlightColor.getGreen(),
@@ -444,7 +485,7 @@ public class ImageProcessingActions {
             eyes.abortIfNotClosed();
         }
     }
-    
+
     private static void compareImageFolders(File[] refrenceFiles, File[] testFiles, File[] testProcessingFiles,
                                             File refrenceProcessingFolder, File testProcessingFolder, double threshhold) throws IOException {
         // TODO: refactor to minimize File IO actions
