@@ -53,14 +53,22 @@ public class DriverFactory {
      * @return a new Selenium WebDriver instance using BrowserStack
      */
     public static WebDriver getBrowserStackDriver() {
-        MutableCapabilities browserStackOptions = new MutableCapabilities();
+        return getBrowserStackDriver(new MutableCapabilities());
+    }
+
+    /**
+     * Creates a new Selenium WebDriver instance using BrowserStack, use this to test Native Mobile apps over BrowserStack
+     * @param browserStackOptions custom browserstack options to be merged with the default in the browserStack.properties file
+     * @return
+     */
+    public static WebDriver getBrowserStackDriver(MutableCapabilities browserStackOptions){
         String appUrl = System.getProperty("browserStack.appUrl");
         if ("".equals(appUrl)){
-            browserStackOptions= BrowserStack.setupNativeAppExecution(System.getProperty("browserStack.username"), System.getProperty("browserStack.accessKey"),
-                    System.getProperty("browserStack.deviceName"), System.getProperty("browserStack.platformVersion"), System.getProperty("browserStack.appRelativeFilePath"), System.getProperty("browserStack.appName"));
+            browserStackOptions.merge(BrowserStack.setupNativeAppExecution(System.getProperty("browserStack.username"), System.getProperty("browserStack.accessKey"),
+                    System.getProperty("browserStack.deviceName"), System.getProperty("browserStack.platformVersion"), System.getProperty("browserStack.appRelativeFilePath"), System.getProperty("browserStack.appName")));
         }else{
-            browserStackOptions= BrowserStack.setupNativeAppExecution(System.getProperty("browserStack.username"), System.getProperty("browserStack.accessKey"),
-                    System.getProperty("browserStack.deviceName"), System.getProperty("browserStack.platformVersion"), appUrl);
+            browserStackOptions.merge(BrowserStack.setupNativeAppExecution(System.getProperty("browserStack.username"), System.getProperty("browserStack.accessKey"),
+                    System.getProperty("browserStack.deviceName"), System.getProperty("browserStack.platformVersion"), appUrl));
         }
         return DriverFactoryHelper.getDriver(DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
     }

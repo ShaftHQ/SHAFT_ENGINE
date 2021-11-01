@@ -4,7 +4,7 @@ import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Validations;
-import io.appium.java_client.MobileBy;
+import io.appium.java_client.AppiumBy;
 import org.openqa.selenium.WebDriver;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -15,13 +15,14 @@ public class IOSBasicInteractionsTest {
 
     @Test
     public void test() {
-        ElementActions.performTouchAction(driver).tap(MobileBy.AccessibilityId("Text Button"));
+        ElementActions.performTouchAction(driver).tap(AppiumBy.accessibilityId("Text Button"));
         System.setProperty("forceCheckTextWasTypedCorrectly","false");
-        ElementActions.type(driver, MobileBy.AccessibilityId("Text Input"), "hello@browserstack.com"+"\n");
+        ElementActions.type(driver, AppiumBy.accessibilityId("Text Input"), "hello@browserstack.com"+"\n");
         Validations.assertThat()
-                .element(driver, MobileBy.AccessibilityId("Text Output"))
+                .element(driver, AppiumBy.accessibilityId("Text Output"))
                 .text()
-                .isEqualTo("hello@browserstack.com");
+                .isEqualTo("hello@browserstack.com")
+                .perform();
     }
 
     @BeforeClass
