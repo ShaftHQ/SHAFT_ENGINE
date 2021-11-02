@@ -90,10 +90,12 @@ public class LogsHelper {
     private void attachPropertyFiles() {
         ReportManager.logDiscrete("Initializing Custom Properties...");
         System.setProperty("disableLogging", "true");
-        var propertyFiles = Arrays.asList(FileActions.listFilesInDirectory(System.getProperty("propertiesFolderPath")).split(System.lineSeparator()));
-        propertyFiles.forEach(file->{
-            ReportManagerHelper.attach("Properties", file.replace(".properties",""), FileActions.readFromFile(System.getProperty("propertiesFolderPath")+File.separator +file));
-        });
+        if (FileActions.doesFileExist(System.getProperty("propertiesFolderPath"))) {
+            var propertyFiles = Arrays.asList(FileActions.listFilesInDirectory(System.getProperty("propertiesFolderPath")).split(System.lineSeparator()));
+            propertyFiles.forEach(file -> {
+                ReportManagerHelper.attach("Properties", file.replace(".properties", ""), FileActions.readFromFile(System.getProperty("propertiesFolderPath") + File.separator + file));
+            });
+        }
         System.setProperty("disableLogging", "false");
     }
 
