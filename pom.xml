@@ -31,7 +31,7 @@
         <selenium.version>4.0.0</selenium.version>
         <appium-selenium.version>3.141.59</appium-selenium.version>
         <appium-java-client.version>7.6.0</appium-java-client.version>
-        <appium-java-client-snapshot.version>c8d451e14db89f2fa19c5cfa6a38420d5fde71d1</appium-java-client-snapshot.version>
+        <appium-java-client-snapshot.version>8.0.0-beta</appium-java-client-snapshot.version>
         <playwright.version>1.16.1</playwright.version>
 
         <webdrivermanager.version>5.0.3</webdrivermanager.version>
