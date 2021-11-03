@@ -18,9 +18,9 @@ public class Test_JsonActions {
     @Test
     public void f() throws IOException, ParseException, JSONException {
         String expectedResponse = new String(
-                Files.readAllBytes(Paths.get(System.getProperty("testDataFolderPath") + "subFolder/JsonFileTest2.json")));
+                Files.readAllBytes(Paths.get(System.getProperty("testDataFolderPath") + "JsonFileTest2.json")));
         String actualResponse = new String(
-                Files.readAllBytes(Paths.get(System.getProperty("testDataFolderPath") + "subFolder/JsonFileTest.json")));
+                Files.readAllBytes(Paths.get(System.getProperty("testDataFolderPath") + "JsonFileTest.json")));
 
         JSONObject expectedJsonObject = (JSONObject) (new JSONParser()).parse(expectedResponse);
         JSONObject actualJsonObject = (JSONObject) (new JSONParser()).parse(actualResponse);
