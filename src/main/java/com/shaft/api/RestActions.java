@@ -8,7 +8,7 @@ import com.shaft.driver.ShaftDriver;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
-import com.shaft.validation.Assertions;
+import com.shaft.validation.Validations;
 import eu.medsea.mimeutil.MimeUtil;
 import eu.medsea.mimeutil.MimeUtil2;
 import io.restassured.builder.MultiPartSpecBuilder;
@@ -1067,8 +1067,10 @@ public class RestActions implements ShaftDriver {
             boolean discreetLoggingState = ReportManagerHelper.isDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
             ReportManager.log("Response status code: [" + response.getStatusCode() + "], status line: [" + response.getStatusLine() + "]");
-            Assertions.assertEquals(targetStatusCode, response.getStatusCode(),
-                    "Evaluating the actual response status code against the expected one...");
+            Validations.assertThat().number(response.getStatusCode())
+                            .isEqualTo(targetStatusCode)
+                                    .withCustomReportMessage("Evaluating the actual response status code against the expected one...")
+                                            .perform();
             ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
             return true;
         } catch (AssertionError rootCauseException) {

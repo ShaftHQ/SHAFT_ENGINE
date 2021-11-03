@@ -22,6 +22,9 @@ public class NativeValidationsBuilder {
     protected Object response;
     protected String jsonPath;
 
+    protected String folderRelativePath;
+    protected String fileName;
+
     public NativeValidationsBuilder(WebDriverElementValidationsBuilder webDriverElementValidationsBuilder) {
         this.validationCategory = webDriverElementValidationsBuilder.validationCategory;
         this.driver = webDriverElementValidationsBuilder.driver;
@@ -49,6 +52,13 @@ public class NativeValidationsBuilder {
         this.validationMethod = restValidationsBuilder.validationMethod;
         this.jsonPath = restValidationsBuilder.jsonPath;
         this.response = restValidationsBuilder.response;
+    }
+
+    public NativeValidationsBuilder(FileValidationsBuilder fileValidationsBuilder) {
+        this.validationCategory = fileValidationsBuilder.validationCategory;
+        this.validationMethod = fileValidationsBuilder.validationMethod;
+        this.folderRelativePath = fileValidationsBuilder.folderRelativePath;
+        this.fileName = fileValidationsBuilder.fileName;
     }
 
     /**

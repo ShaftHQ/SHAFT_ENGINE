@@ -32,4 +32,22 @@ public class FileValidationsBuilder {
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         return new ValidationsExecutor(this);
     }
+
+    /**
+     * Use this to calculate and check a certain file checksum to confirm if it has the exact same content or not
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    public NativeValidationsBuilder checksum() {
+        this.validationMethod = "fileChecksum";
+        return new NativeValidationsBuilder(this);
+    }
+
+    /**
+     * Use this to attempt to read and validate a certain file content (works for PDF and TEXT files)
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    public NativeValidationsBuilder content(){
+        this.validationMethod = "fileContent";
+        return new NativeValidationsBuilder(this);
+    }
 }

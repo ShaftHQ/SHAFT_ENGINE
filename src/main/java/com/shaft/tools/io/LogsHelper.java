@@ -62,28 +62,27 @@ public class LogsHelper {
     private void attachImportantLinks() {
         ReportManager.logDiscrete("Initializing Important Links...");
         System.setProperty("disableLogging", "true");
-        var str = new StringBuilder();
-        str.append("#SHAFT: Important Links");
-        str.append(System.lineSeparator());
-        str.append("===========================");
-        str.append(System.lineSeparator());
-        str.append("#\uD83D\uDC68\u200D\uD83D\uDCBB️ GitHub - Home");
-        str.append(System.lineSeparator());
-        str.append("https://github.com/MohabMohie/SHAFT_ENGINE");
-        str.append(System.lineSeparator());
-        str.append("#⚙️ Configuration Manager:");
-        str.append(System.lineSeparator());
-        str.append("https://mohabmohie.github.io/SHAFT_ENGINE/");
-        str.append(System.lineSeparator());
-        str.append("#\uD83D\uDC64 User Guide:");
-        str.append(System.lineSeparator());
-        str.append("https://mohabmohie.github.io/SHAFT_Engine_Docusaurus/");
-        str.append(System.lineSeparator());
-        str.append("#\uD83D\uDCDA Javadocs");
-        str.append(System.lineSeparator());
-        str.append("https://mohabmohie.github.io/SHAFT_ENGINE/apidocs/index.html");
+        String importantLinks = "#SHAFT: Important Links" +
+                System.lineSeparator() +
+                "===========================" +
+                System.lineSeparator() +
+                "#\uD83D\uDC68\u200D\uD83D\uDCBB️ GitHub - Home" +
+                System.lineSeparator() +
+                "https://github.com/MohabMohie/SHAFT_ENGINE" +
+                System.lineSeparator() +
+                "#⚙️ Configuration Manager:" +
+                System.lineSeparator() +
+                "https://mohabmohie.github.io/SHAFT_ENGINE/" +
+                System.lineSeparator() +
+                "#\uD83D\uDC64 User Guide:" +
+                System.lineSeparator() +
+                "https://mohabmohie.github.io/SHAFT_Engine_Docusaurus/" +
+                System.lineSeparator() +
+                "#\uD83D\uDCDA Javadocs" +
+                System.lineSeparator() +
+                "https://mohabmohie.github.io/SHAFT_ENGINE/apidocs/index.html";
 
-        ReportManagerHelper.attach("SHAFT Links", "Important", str.toString());
+        ReportManagerHelper.attach("SHAFT Links", "Important", importantLinks);
         System.setProperty("disableLogging", "false");
     }
 
@@ -92,9 +91,7 @@ public class LogsHelper {
         System.setProperty("disableLogging", "true");
         if (FileActions.doesFileExist(System.getProperty("propertiesFolderPath"))) {
             var propertyFiles = Arrays.asList(FileActions.listFilesInDirectory(System.getProperty("propertiesFolderPath")).split(System.lineSeparator()));
-            propertyFiles.forEach(file -> {
-                ReportManagerHelper.attach("Properties", file.replace(".properties", ""), FileActions.readFromFile(System.getProperty("propertiesFolderPath") + File.separator + file));
-            });
+            propertyFiles.forEach(file -> ReportManagerHelper.attach("Properties", file.replace(".properties", ""), FileActions.readFromFile(System.getProperty("propertiesFolderPath") + File.separator + file)));
         }
         System.setProperty("disableLogging", "false");
     }
