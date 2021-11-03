@@ -4,7 +4,6 @@ import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.gui.element.JavaScriptWaitManager;
 import com.shaft.gui.element.WebDriverElementActions;
 import com.shaft.gui.image.ScreenshotManager;
-import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.tools.support.JavaScriptHelper;

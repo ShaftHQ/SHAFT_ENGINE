@@ -1,9 +1,6 @@
 package com.shaft.tools.io;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.Optional;
-
+import com.shaft.cli.FileActions;
 import org.apache.commons.io.FileUtils;
 import org.apache.pdfbox.cos.COSDocument;
 import org.apache.pdfbox.io.RandomAccessBufferedFileInputStream;
@@ -12,7 +9,8 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.testng.Assert;
 
-import com.shaft.cli.FileActions;
+import java.io.File;
+import java.io.IOException;
 
 public class PdfFileManager {
 

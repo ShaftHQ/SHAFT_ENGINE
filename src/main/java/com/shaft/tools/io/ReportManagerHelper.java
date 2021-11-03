@@ -386,9 +386,6 @@ public class ReportManagerHelper {
         if (Boolean.TRUE.equals(generateExtentReports())) {
             ReportManager.logDiscrete("Initializing Extent Reporting Environment...");
             System.setProperty("disableLogging", "true");
-
-//            boolean discreteLoggingState = isDiscreteLogging();
-//            setDiscreteLogging(true);
             extentReportsFolderPath = System.getProperty("extentReportsFolderPath").trim();
             cleanExtentReportsDirectory();
             extentReportFileName = extentReportsFolderPath + "ExtentReports_" + (new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa")).format(System.currentTimeMillis()) + ".html";
@@ -402,7 +399,6 @@ public class ReportManagerHelper {
             spark.config().setTheme(Theme.STANDARD);
             spark.config().setDocumentTitle("Extent Reports");
             spark.config().setReportName("Extent Reports - Powered by SHAFT_Engine");
-//            setDiscreteLogging(discreteLoggingState);
             System.setProperty("disableLogging", "false");
         }
     }
@@ -482,7 +478,7 @@ public class ReportManagerHelper {
     }
 
     static void createLogEntry(String logText) {
-        if (!Boolean.valueOf(System.getProperty("disableLogging"))) {
+        if (!Boolean.parseBoolean(System.getProperty("disableLogging"))) {
             String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
             if (logText == null) {
                 logText = "null";
@@ -503,7 +499,7 @@ public class ReportManagerHelper {
     }
 
     private static void createReportEntry(String logText, boolean addToFullLog) {
-        if (!Boolean.valueOf(System.getProperty("disableLogging"))) {
+        if (!Boolean.parseBoolean(System.getProperty("disableLogging"))) {
             String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
             if (logText == null) {
                 logText = "null";
@@ -619,11 +615,6 @@ public class ReportManagerHelper {
 
     private static synchronized void logAttachmentAction(String attachmentType, String attachmentName, ByteArrayOutputStream attachmentContent) {
         createLogEntry("Successfully created attachment [" + attachmentType + " - " + attachmentName + "]");
-//        if (!(attachmentType.equals(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE) && attachmentName.equals("Execution log"))) {
-//            createReportEntry("Successfully created attachment [" + attachmentType + " - " + attachmentName + "]",
-//                    false);
-//        }
-
         if (debugMode && !attachmentType.contains(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE)
                 && !attachmentType.equalsIgnoreCase("Selenium WebDriver Logs")
                 && !attachmentType.toLowerCase().contains("screenshot")

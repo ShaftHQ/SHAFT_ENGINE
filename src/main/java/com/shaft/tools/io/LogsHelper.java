@@ -16,12 +16,6 @@ public class LogsHelper {
     //TODO: migrate invokedMethodListener, SuiteListener to annotations here?
     @BeforeSuite
     public void setupActivities(ITestContext testContext){
-//        // read existing elements that were identified by AI to keep the reference table
-//        if (Boolean.TRUE.equals(ScreenshotManager.getAiSupportedElementIdentification())
-//                && FileActions.doesFileExist(ScreenshotManager.getAiAidedElementIdentificationFolderpath(),
-//                WebDriverElementActions.getAiReferenceFileName(), 1)) {
-//            PropertyFileManager.readPropertyFiles(ScreenshotManager.getAiAidedElementIdentificationFolderpath());
-//        }
         ProjectStructureManager.initialize();
         ReportManagerHelper.initializeAllureReportingEnvironment();
         ReportManagerHelper.initializeExtentReportingEnvironment();
