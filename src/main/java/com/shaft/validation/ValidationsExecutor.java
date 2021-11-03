@@ -39,6 +39,8 @@ public class ValidationsExecutor {
     private String folderRelativePath;
     private String fileName;
 
+    protected StringBuilder reportMessageBuilder;
+
     public ValidationsExecutor(WebDriverElementValidationsBuilder webDriverElementValidationsBuilder) {
         this.validationCategory = webDriverElementValidationsBuilder.validationCategory;
         this.driver = webDriverElementValidationsBuilder.driver;
@@ -46,6 +48,8 @@ public class ValidationsExecutor {
         this.validationType = webDriverElementValidationsBuilder.validationType;
         this.validationMethod = webDriverElementValidationsBuilder.validationMethod;
         this.visualValidationEngine = webDriverElementValidationsBuilder.visualValidationEngine;
+
+        this.reportMessageBuilder = webDriverElementValidationsBuilder.reportMessageBuilder;
     }
 
     public ValidationsExecutor(NativeValidationsBuilder nativeValidationsBuilder) {
@@ -67,6 +71,8 @@ public class ValidationsExecutor {
 
         this.folderRelativePath = nativeValidationsBuilder.folderRelativePath;
         this.fileName = nativeValidationsBuilder.fileName;
+
+        this.reportMessageBuilder = nativeValidationsBuilder.reportMessageBuilder;
     }
 
     public ValidationsExecutor(ValidationsBuilder validationsBuilder) {
@@ -76,6 +82,8 @@ public class ValidationsExecutor {
 
         this.condition = validationsBuilder.condition;
         this.actualValue = validationsBuilder.actualValue;
+
+        this.reportMessageBuilder = validationsBuilder.reportMessageBuilder;
     }
 
     public ValidationsExecutor(NumberValidationsBuilder numberValidationsBuilder) {
@@ -87,6 +95,8 @@ public class ValidationsExecutor {
         this.actualValue = numberValidationsBuilder.actualValue;
 
         this.numbersComparativeRelation = numberValidationsBuilder.numbersComparativeRelation;
+
+        this.reportMessageBuilder = numberValidationsBuilder.reportMessageBuilder;
     }
 
     public ValidationsExecutor(RestValidationsBuilder restValidationsBuilder) {
@@ -98,6 +108,7 @@ public class ValidationsExecutor {
         this.fileAbsolutePath = restValidationsBuilder.fileAbsolutePath;
         this.restComparisonType = restValidationsBuilder.restComparisonType;
 
+        this.reportMessageBuilder = restValidationsBuilder.reportMessageBuilder;
     }
 
     public ValidationsExecutor(FileValidationsBuilder fileValidationsBuilder) {
@@ -106,6 +117,8 @@ public class ValidationsExecutor {
         this.validationType = fileValidationsBuilder.validationType;
         this.folderRelativePath = fileValidationsBuilder.folderRelativePath;
         this.fileName = fileValidationsBuilder.fileName;
+
+        this.reportMessageBuilder = fileValidationsBuilder.reportMessageBuilder;
     }
 
     /**
@@ -122,6 +135,9 @@ public class ValidationsExecutor {
      * Execute this validation
      */
     public void perform() {
+        if ("".equals(customReportMessage)){
+            customReportMessage = reportMessageBuilder.toString();
+        }
         switch (validationMethod) {
             case "forceFail" -> ValidationsHelper.validateFail(validationCategory, customReportMessage);
             case "objectsAreEqual" -> ValidationsHelper.validateEquals(validationCategory, expectedValue, actualValue, validationComparisonType, validationType, customReportMessage);

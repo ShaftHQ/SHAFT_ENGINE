@@ -7,10 +7,14 @@ public class FileValidationsBuilder {
     protected String folderRelativePath;
     protected String fileName;
 
-    public FileValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, String folderRelativePath, String fileName) {
+    protected StringBuilder reportMessageBuilder;
+
+    public FileValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, String folderRelativePath, String fileName, StringBuilder reportMessageBuilder) {
         this.validationCategory = validationCategory;
         this.folderRelativePath = folderRelativePath;
         this.fileName = fileName;
+
+        this.reportMessageBuilder = reportMessageBuilder;
     }
 
     /**
@@ -20,6 +24,7 @@ public class FileValidationsBuilder {
     public ValidationsExecutor exists() {
         this.validationMethod = "fileExists";
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
+        reportMessageBuilder.append("exists.");
         return new ValidationsExecutor(this);
     }
 
@@ -30,6 +35,7 @@ public class FileValidationsBuilder {
     public ValidationsExecutor doesNotExist() {
         this.validationMethod = "fileExists";
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
+        reportMessageBuilder.append("does not exist.");
         return new ValidationsExecutor(this);
     }
 
@@ -39,6 +45,7 @@ public class FileValidationsBuilder {
      */
     public NativeValidationsBuilder checksum() {
         this.validationMethod = "fileChecksum";
+        reportMessageBuilder.append("checksum ");
         return new NativeValidationsBuilder(this);
     }
 
@@ -48,6 +55,7 @@ public class FileValidationsBuilder {
      */
     public NativeValidationsBuilder content(){
         this.validationMethod = "fileContent";
+        reportMessageBuilder.append("content ");
         return new NativeValidationsBuilder(this);
     }
 }

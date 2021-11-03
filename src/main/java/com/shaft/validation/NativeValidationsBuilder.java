@@ -25,6 +25,8 @@ public class NativeValidationsBuilder {
     protected String folderRelativePath;
     protected String fileName;
 
+    protected StringBuilder reportMessageBuilder;
+
     public NativeValidationsBuilder(WebDriverElementValidationsBuilder webDriverElementValidationsBuilder) {
         this.validationCategory = webDriverElementValidationsBuilder.validationCategory;
         this.driver = webDriverElementValidationsBuilder.driver;
@@ -32,6 +34,8 @@ public class NativeValidationsBuilder {
         this.validationMethod = webDriverElementValidationsBuilder.validationMethod;
         this.elementAttribute = webDriverElementValidationsBuilder.elementAttribute;
         this.elementCssProperty = webDriverElementValidationsBuilder.elementCssProperty;
+
+        this.reportMessageBuilder = webDriverElementValidationsBuilder.reportMessageBuilder;
     }
 
     public NativeValidationsBuilder(WebDriverBrowserValidationsBuilder webDriverBrowserValidationsBuilder) {
@@ -39,12 +43,16 @@ public class NativeValidationsBuilder {
         this.driver = webDriverBrowserValidationsBuilder.driver;
         this.validationMethod = webDriverBrowserValidationsBuilder.validationMethod;
         this.browserAttribute = webDriverBrowserValidationsBuilder.browserAttribute;
+
+        this.reportMessageBuilder = webDriverBrowserValidationsBuilder.reportMessageBuilder;
     }
 
     public NativeValidationsBuilder(ValidationsBuilder validationsBuilder) {
         this.validationCategory = validationsBuilder.validationCategory;
         this.validationMethod = validationsBuilder.validationMethod;
         this.actualValue = validationsBuilder.actualValue;
+
+        this.reportMessageBuilder = validationsBuilder.reportMessageBuilder;
     }
 
     public NativeValidationsBuilder(RestValidationsBuilder restValidationsBuilder) {
@@ -52,6 +60,8 @@ public class NativeValidationsBuilder {
         this.validationMethod = restValidationsBuilder.validationMethod;
         this.jsonPath = restValidationsBuilder.jsonPath;
         this.response = restValidationsBuilder.response;
+
+        this.reportMessageBuilder = restValidationsBuilder.reportMessageBuilder;
     }
 
     public NativeValidationsBuilder(FileValidationsBuilder fileValidationsBuilder) {
@@ -59,6 +69,8 @@ public class NativeValidationsBuilder {
         this.validationMethod = fileValidationsBuilder.validationMethod;
         this.folderRelativePath = fileValidationsBuilder.folderRelativePath;
         this.fileName = fileValidationsBuilder.fileName;
+
+        this.reportMessageBuilder = fileValidationsBuilder.reportMessageBuilder;
     }
 
     /**
@@ -70,6 +82,7 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
+        reportMessageBuilder.append("is equal to [").append(expectedValue).append("].");
         return new ValidationsExecutor(this);
     }
 
@@ -82,6 +95,7 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
+        reportMessageBuilder.append("does not equal [").append(expectedValue).append("].");
         return new ValidationsExecutor(this);
     }
 
@@ -94,6 +108,7 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.CONTAINS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
+        reportMessageBuilder.append("contains [").append(expectedValue).append("].");
         return new ValidationsExecutor(this);
     }
 
@@ -106,6 +121,7 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.CONTAINS;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
+        reportMessageBuilder.append("does not contain [").append(expectedValue).append("].");
         return new ValidationsExecutor(this);
     }
 
@@ -118,6 +134,7 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.MATCHES;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
+        reportMessageBuilder.append("matches this regular expression [").append(expectedValue).append("].");
         return new ValidationsExecutor(this);
     }
 
@@ -130,6 +147,7 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.MATCHES;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
+        reportMessageBuilder.append("does not match this regular expression [").append(expectedValue).append("].");
         return new ValidationsExecutor(this);
     }
 
@@ -142,6 +160,7 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.CASE_INSENSITIVE;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
+        reportMessageBuilder.append("equals [").append(expectedValue).append("], ignoring case sensitivity.");
         return new ValidationsExecutor(this);
     }
 
@@ -154,6 +173,7 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.CASE_INSENSITIVE;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
+        reportMessageBuilder.append("does not equal [").append(expectedValue).append("], ignoring case sensitivity.");
         return new ValidationsExecutor(this);
     }
 
@@ -165,6 +185,7 @@ public class NativeValidationsBuilder {
         this.expectedValue = null;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
+        reportMessageBuilder.append("is NULL.");
         return new ValidationsExecutor(this);
     }
 
@@ -176,6 +197,7 @@ public class NativeValidationsBuilder {
         this.expectedValue = null;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
+        reportMessageBuilder.append("is not NULL.");
         return new ValidationsExecutor(this);
     }
 
@@ -187,6 +209,7 @@ public class NativeValidationsBuilder {
         this.expectedValue = true;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
+        reportMessageBuilder.append("is TRUE.");
         return new ValidationsExecutor(this);
     }
 
@@ -198,6 +221,7 @@ public class NativeValidationsBuilder {
         this.expectedValue = false;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
+        reportMessageBuilder.append("is FALSE.");
         return new ValidationsExecutor(this);
     }
 }
