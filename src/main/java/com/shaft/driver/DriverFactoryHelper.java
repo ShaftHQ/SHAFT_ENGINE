@@ -511,9 +511,7 @@ public class DriverFactoryHelper {
                     sfOptions.setImplicitWaitTimeout(Duration.ofSeconds(IMPLICIT_WAIT_TIMEOUT));
                 }
             }
-            case APPIUM_MOBILE_NATIVE -> {
-                appiumCapabilities = new DesiredCapabilities(customDriverOptions);
-            }
+            case APPIUM_MOBILE_NATIVE -> appiumCapabilities = new DesiredCapabilities(customDriverOptions);
             default -> failAction("Unsupported Driver Type [" + driverName + "].");
         }
     }

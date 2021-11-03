@@ -24,6 +24,8 @@ import static java.util.Arrays.asList;
 
 @SuppressWarnings({"unused", "rawtypes"})
 public class TouchActions {
+    // TODO: migrate away from all deprecated methods
+    // https://github.com/appium/java-client/blob/087df2052abc177cea446825c48e3ab297a8ad6b/docs/v7-to-v8-migration-guide.md#touch-actions
     private static final int DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT = 10;
     private final WebDriver driver;
 
@@ -314,6 +316,7 @@ public class TouchActions {
      * 
      * @return a self-reference to be used to chain actions
      */
+    @Deprecated(forRemoval = true)
     public TouchActions restartApp() {
 		if (DriverFactoryHelper.isMobileNativeExecution()) {
             if (driver instanceof AndroidDriver androidDriver){
@@ -337,6 +340,7 @@ public class TouchActions {
      * 
      * @return a self-reference to be used to chain actions
      */
+    @Deprecated(forRemoval = true)
     public TouchActions resetApp() {
 		if (DriverFactoryHelper.isMobileNativeExecution()) {
             if (driver instanceof AndroidDriver androidDriver){

@@ -19,7 +19,7 @@ public class Test_MatchJsonSchema {
 
         Validations.assertThat()
                 .response(res)
-                .checkResponseSchema(System.getProperty("jsonFolderPath") + "schema.json")
+                .matchesSchema(System.getProperty("testDataFolderPath") + "schema.json")
                 .perform();
 
     }

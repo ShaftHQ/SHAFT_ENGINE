@@ -97,7 +97,7 @@ public class BrowserStack {
         System.setProperty("mobile_app", appUrl);
 
         MutableCapabilities browserStackCapabilities = new MutableCapabilities();
-        HashMap<String, Object> browserstackOptions = new HashMap<String, Object>();
+        HashMap<String, Object> browserstackOptions = new HashMap<>();
         browserstackOptions.put("appiumVersion", System.getProperty("browserStack.appiumVersion"));
         browserstackOptions.put("acceptInsecureCerts", System.getProperty("browserStack.acceptInsecureCerts"));
         browserstackOptions.put("debug", System.getProperty("browserStack.debug"));

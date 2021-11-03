@@ -15,6 +15,7 @@ public class PropertyFileManager {
     private static final String OS_LINUX = "Linux-64";
     private static final String OS_MAC = "Mac-64";
     private static final String DEFAULT_PROPERTIES_FOLDER_PATH = "src/main/resources/defaultProperties";
+    private static final String CUSTOM_PROPERTIES_FOLDER_PATH = "src/main/resources/properties";
     private static final String CUSTOM_PROPERTIES_FOLDER_PROPERTY_NAME = "propertiesFolderPath";
     private static Boolean readPropertyFiles = true;
 
@@ -32,14 +33,18 @@ public class PropertyFileManager {
      */
     public static synchronized void readPropertyFiles() {
         if (Boolean.TRUE.equals(readPropertyFiles)) {
-        	// delete internal.properties
-        	var isDiscrete = ReportManagerHelper.isDiscreteLogging();
+            var isDiscrete = ReportManagerHelper.isDiscreteLogging();
         	ReportManagerHelper.setDiscreteLogging(true);
-        	var internalPropertiesFilePath = "src/test/resources/Properties/internal.properties";
-        	if (FileActions.doesFileExist(internalPropertiesFilePath)) {
-        		FileActions.deleteFile(internalPropertiesFilePath);
-        	}
-        	
+
+            // migrate folder structure
+            ProjectStructureManager.migrateToNewStructure();
+
+            // delete internal.properties old and new folder structure
+            var internalPropertiesFilePath = "src/main/resources/properties/internal.properties";
+                if (FileActions.doesFileExist(internalPropertiesFilePath)) {
+                    FileActions.deleteFile(FileActions.getAbsolutePath(internalPropertiesFilePath));
+                }
+
             // read base system properties
             Properties props = System.getProperties();
 
@@ -55,7 +60,7 @@ public class PropertyFileManager {
 
             // read properties form the base properties file
             String basePropertiesPath = System.getProperty(CUSTOM_PROPERTIES_FOLDER_PROPERTY_NAME);
-            readPropertyFiles(Objects.requireNonNullElse(basePropertiesPath, "src/test/resources/Properties"));
+            readPropertyFiles(Objects.requireNonNullElse(basePropertiesPath, CUSTOM_PROPERTIES_FOLDER_PATH));
 
             // This section set the default properties values for Execution/path/pattern
             readPropertyFiles(getDefaultPropertiesFolderPath());

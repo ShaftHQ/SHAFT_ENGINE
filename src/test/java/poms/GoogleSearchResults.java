@@ -6,6 +6,7 @@ import com.shaft.validation.Assertions;
 import com.shaft.validation.Assertions.AssertionComparisonType;
 import com.shaft.validation.Assertions.AssertionType;
 import com.shaft.validation.Assertions.ElementAttributeType;
+import com.shaft.validation.Validations;
 import com.shaft.validation.Verifications;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -30,8 +31,11 @@ public class GoogleSearchResults {
 
     public void assertResultsStatsExistsAndIsNotEmpty() {
     	if(driver != null) {
-        Assertions.assertElementAttribute(driver, resultsStats_label, "Text", "", AssertionComparisonType.EQUALS,
-                AssertionType.NEGATIVE);
+            Validations.assertThat()
+                    .element(driver, resultsStats_label)
+                    .text()
+                    .doesNotEqual("")
+                    .perform();
     	}else {
             Assertions.assertElementAttribute(page, resultsStats_label_stringLocator, ElementAttributeType.TEXT, "", AssertionComparisonType.EQUALS,
                     AssertionType.NEGATIVE);
