@@ -60,11 +60,6 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
     	var scenarioSteps = new StringBuilder();
         var cleanScenarioSteps = new StringBuilder();
         testCase.getTestSteps().forEach(testStep -> {
-            if (testStep instanceof HookTestStep) {
-                scenarioSteps.append(((HookTestStep) testStep).getHookType().name()).append("<br/>");
-                cleanScenarioSteps.append(((HookTestStep) testStep).getHookType().name()).append(System.lineSeparator());
-            }
-
             if (testStep instanceof PickleStepTestStep pickleStepTestStep) {
                 scenarioSteps.append("<b style=\"color:ForestGreen;\">")
                         .append(pickleStepTestStep.getStep().getKeyword())

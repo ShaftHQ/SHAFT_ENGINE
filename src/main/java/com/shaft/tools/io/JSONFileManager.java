@@ -1,5 +1,6 @@
 package com.shaft.tools.io;
 
+import com.shaft.cli.FileActions;
 import io.restassured.path.json.JsonPath;
 import io.restassured.path.json.exception.JsonPathException;
 import org.testng.Assert;
@@ -131,7 +132,7 @@ public class JSONFileManager {
     private void initializeReader() {
         this.reader = null;
         try {
-            reader = new FileReader(jsonFilePath);
+            reader = new FileReader(FileActions.getAbsolutePath(jsonFilePath));
         } catch (FileNotFoundException rootCauseException) {
             ReportManagerHelper.log(rootCauseException);
             ReportManager.log("Couldn't find the desired file. [" + jsonFilePath + "].");

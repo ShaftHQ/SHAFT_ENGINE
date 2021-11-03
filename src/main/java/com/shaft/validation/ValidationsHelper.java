@@ -23,7 +23,7 @@ import java.util.Objects;
 
 import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchema;
 
-class ValidationHelper {
+public class ValidationsHelper {
     //TODO: implement element attribute and element exists validations for sikuli actions
     private static final int ATTEMPTS_ELEMENTNOTFOUNDEXCEPTION = Integer
             .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
@@ -37,15 +37,15 @@ class ValidationHelper {
     private static List<String> verificationFailuresList = new ArrayList<>();
     private static AssertionError verificationError = null;
 
-    private ValidationHelper() {
+    private ValidationsHelper() {
         throw new IllegalStateException("Utility class");
     }
 
-    protected static AssertionError getVerificationErrorToForceFail() {
+    public static AssertionError getVerificationErrorToForceFail() {
         return verificationError;
     }
 
-    protected static void resetVerificationStateAfterFailing() {
+    public static void resetVerificationStateAfterFailing() {
         verificationFailuresList = new ArrayList<>();
         verificationError = null;
     }
@@ -416,6 +416,33 @@ class ValidationHelper {
     }
 
     protected static void validateFileExists(ValidationCategory validationCategory, String fileFolderName, String fileName, int numberOfRetries,
+                                             ValidationType validationType, String... optionalCustomLogMessage) {
+        processCustomLogMessage(optionalCustomLogMessage);
+        boolean expectedValue = ValidationType.POSITIVE.equals(validationType);
+        boolean actualValue = FileActions.doesFileExist(fileFolderName, fileName, numberOfRetries);
+
+        String filePrefix = "File '";
+        String[] expectedAttributeStates = {"' should exist, after up to '", "' should not exist, after up to '"};
+        String numberOfRetriesPostfix = "' retries";
+
+        String reportedExpectedValue = filePrefix + fileFolderName + fileName + expectedAttributeStates[0] + numberOfRetries + numberOfRetriesPostfix;
+        if (!expectedValue) {
+            reportedExpectedValue = filePrefix + fileFolderName + fileName + expectedAttributeStates[1] + numberOfRetries + numberOfRetriesPostfix;
+        }
+
+        String reportedActualValue = "File exists";
+        if (!actualValue) {
+            reportedActualValue = "File does not exist";
+        }
+
+        if ((expectedValue && actualValue) || (!expectedValue && !actualValue)) {
+            pass(validationCategory, reportedExpectedValue, reportedActualValue, null, validationType);
+        } else {
+            fail(validationCategory, reportedExpectedValue, reportedActualValue, null, validationType, null);
+        }
+    }
+
+    protected static void validateFileContentEquals(ValidationCategory validationCategory, String fileFolderName, String fileName, int numberOfRetries,
                                              ValidationType validationType, String... optionalCustomLogMessage) {
         processCustomLogMessage(optionalCustomLogMessage);
         boolean expectedValue = ValidationType.POSITIVE.equals(validationType);
@@ -866,10 +893,10 @@ class ValidationHelper {
     }
 
     private static void processCustomLogMessage(String... optionalCustomLogMessage) {
-        ValidationHelper.optionalCustomLogMessage = new ArrayList<>();
+        ValidationsHelper.optionalCustomLogMessage = new ArrayList<>();
         for (String customMessage : optionalCustomLogMessage) {
             if (customMessage != null && !"".equals(customMessage.trim())) {
-                ValidationHelper.optionalCustomLogMessage.add(customMessage);
+                ValidationsHelper.optionalCustomLogMessage.add(customMessage);
                 //ReportManager.log(customMessage + "...");
             }
         }

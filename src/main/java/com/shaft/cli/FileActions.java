@@ -136,6 +136,7 @@ public class FileActions {
      *                                           afterwards
      * @return a string that holds the SHA256 checksum for the target file
      */
+    @SuppressWarnings("UnstableApiUsage")
     public static String getFileChecksum(TerminalActions terminalSession, String targetFileFolderPath,
                                          String targetFileName, String... pathToTempDirectoryOnRemoteMachine) {
 

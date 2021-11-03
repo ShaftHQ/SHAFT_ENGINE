@@ -1,35 +1,5 @@
 package com.shaft.gui.image;
 
-import java.awt.Color;
-import java.awt.Image;
-import java.awt.image.BufferedImage;
-import java.awt.image.DataBuffer;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.nio.file.FileSystems;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-
-import javax.imageio.ImageIO;
-
-import org.opencv.core.Core;
-import org.opencv.core.Core.MinMaxLocResult;
-import org.opencv.core.CvType;
-import org.opencv.core.Mat;
-import org.opencv.core.MatOfByte;
-import org.opencv.core.Point;
-import org.opencv.core.Scalar;
-import org.opencv.highgui.HighGui;
-import org.opencv.imgcodecs.Imgcodecs;
-import org.opencv.imgproc.Imgproc;
-import org.openqa.selenium.By;
-import org.openqa.selenium.WebDriver;
-import org.testng.Assert;
-
 import com.applitools.eyes.LogHandler;
 import com.applitools.eyes.MatchLevel;
 import com.applitools.eyes.TestResults;
@@ -41,12 +11,31 @@ import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.gui.element.WebDriverElementActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
-import com.shaft.validation.Assertions;
-import com.shaft.validation.Assertions.AssertionType;
-import com.shaft.validation.Assertions.ComparativeRelationType;
-import com.shaft.validation.Verifications;
-
+import com.shaft.validation.Validations;
 import nu.pattern.OpenCV;
+import org.opencv.core.*;
+import org.opencv.core.Point;
+import org.opencv.core.Core.MinMaxLocResult;
+import org.opencv.highgui.HighGui;
+import org.opencv.imgcodecs.Imgcodecs;
+import org.opencv.imgproc.Imgproc;
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
+import org.testng.Assert;
+
+import javax.imageio.ImageIO;
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBuffer;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.nio.file.FileSystems;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 
 public class ImageProcessingActions {
     private static final String DIRECTORY_PROCESSING = "/processingDirectory/";
@@ -547,8 +536,10 @@ public class ImageProcessingActions {
             try {
                 // add to pass/fail counter depending on assertion result, without logging
                 ReportManagerHelper.setDiscreteLogging(true);
-                Assertions.assertComparativeRelation(threshhold, percentage,
-                        ComparativeRelationType.GREATER_THAN_OR_EQUALS, AssertionType.POSITIVE);
+                Validations.assertThat()
+                            .number(percentage)
+                            .isGreaterThanOrEquals(threshhold)
+                            .perform();
                 ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
                 passedImagesCount++;
             } catch (AssertionError e) {
@@ -562,7 +553,10 @@ public class ImageProcessingActions {
                 failedImagesCount++;
             }
 
-            Verifications.verifyComparativeRelation(threshhold, percentage, Verifications.ComparativeRelationType.GREATER_THAN_OR_EQUALS, Verifications.VerificationType.POSITIVE);
+            Validations.verifyThat()
+                    .number(percentage)
+                    .isGreaterThanOrEquals(threshhold)
+                    .perform();
         }
 
         ReportManager.log("[" + passedImagesCount + "] images passed, and [" + failedImagesCount

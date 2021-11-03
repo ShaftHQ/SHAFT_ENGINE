@@ -1,9 +1,9 @@
-/target/*
-/allure-results/*
-/allure-report/*
-/test-output/*
-/dependency-reduced-pom.xml
-/b.sh
+/target/
+/allure-results/
+/allure-report/
+/extent-reports/
+/test-output/
+/reports/
 /generatedReport_*.zip
 /generatedReport/
 /generate_allure_report.sh
@@ -15,8 +15,7 @@
 *.iml
 ajcore*.txt
 debug.log
-/extent-reports/
-/target/
 /.classpath
 /.project
 /bin/
+/src/main/resources/properties/

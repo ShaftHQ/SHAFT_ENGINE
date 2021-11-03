@@ -59,7 +59,7 @@ public class DriverFactory {
     /**
      * Creates a new Selenium WebDriver instance using BrowserStack, use this to test Native Mobile apps over BrowserStack
      * @param browserStackOptions custom browserstack options to be merged with the default in the browserStack.properties file
-     * @return
+     * @return a new Selenium WebDriver instance using BrowserStack
      */
     public static WebDriver getBrowserStackDriver(MutableCapabilities browserStackOptions){
         String appUrl = System.getProperty("browserStack.appUrl");

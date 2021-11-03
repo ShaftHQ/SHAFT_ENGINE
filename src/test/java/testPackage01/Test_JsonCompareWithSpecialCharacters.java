@@ -12,7 +12,7 @@ import org.testng.annotations.Test;
 public class Test_JsonCompareWithSpecialCharacters {
     @Test
     public void specialCharacters() {
-        String referenceJsonFilePath = System.getProperty("jsonFolderPath") + "specialCharacters.json";
+        String referenceJsonFilePath = System.getProperty("testDataFolderPath") + "specialCharacters.json";
         Response response = (new ResponseBuilder()).setBody(FileActions.readFromFile(referenceJsonFilePath))
                 .setStatusCode(200).build();
         Verifications.verifyJSONFileContent(response, referenceJsonFilePath, ComparisonType.EQUALS,
@@ -21,7 +21,7 @@ public class Test_JsonCompareWithSpecialCharacters {
 
     @Test
     public void specialCharacters_assertion() {
-        String referenceJsonFilePath = System.getProperty("jsonFolderPath") + "specialCharacters.json";
+        String referenceJsonFilePath = System.getProperty("testDataFolderPath") + "specialCharacters.json";
         Response response = (new ResponseBuilder()).setBody(FileActions.readFromFile(referenceJsonFilePath))
                 .setStatusCode(200).build();
         Assertions.assertJSONFileContent(response, referenceJsonFilePath, ComparisonType.CONTAINS, Assertions.AssertionType.POSITIVE, "trying out the log message");

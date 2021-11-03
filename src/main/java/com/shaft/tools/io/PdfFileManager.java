@@ -1,8 +1,6 @@
 package com.shaft.tools.io;
 
-import java.io.File;
-import java.io.IOException;
-
+import com.shaft.cli.FileActions;
 import org.apache.commons.io.FileUtils;
 import org.apache.pdfbox.cos.COSDocument;
 import org.apache.pdfbox.io.RandomAccessBufferedFileInputStream;
@@ -11,7 +9,8 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.testng.Assert;
 
-import com.shaft.cli.FileActions;
+import java.io.File;
+import java.io.IOException;
 
 public class PdfFileManager {
 
@@ -59,6 +58,40 @@ public class PdfFileManager {
 		closeStreamAndDeleteFile(file, stream, deleteFileAfterValidationStatus);
 
 		return content;
+	}
+
+	/**
+	 * Read PDF file content given relative path and optionally delete the file after reading it
+	 * @param relativeFilePath relative path to the PDF file
+	 * @param deleteFileAfterReading optional boolean to delete the file after reading it or not, default is to leave the file as is
+	 * @return a string value representing the entire content of the pdf file
+	 */
+	public static String readFileContent(String relativeFilePath, boolean... deleteFileAfterReading){
+		if (FileActions.doesFileExist(relativeFilePath)) {
+			try {
+				var randomAccessBufferedFileInputStream = new RandomAccessBufferedFileInputStream(new File(FileActions.getAbsolutePath(relativeFilePath)));
+				var pdfParser = new PDFParser(randomAccessBufferedFileInputStream);
+				pdfParser.parse();
+				var pdfTextStripper = new PDFTextStripper();
+				pdfTextStripper.setSortByPosition(true);
+				var fileContent = pdfTextStripper.getText(new PDDocument(pdfParser.getDocument()));
+				randomAccessBufferedFileInputStream.close();
+
+				if (deleteFileAfterReading!=null
+						&& deleteFileAfterReading.length>0
+						&& deleteFileAfterReading[0]){
+					FileActions.deleteFile(relativeFilePath);
+				}
+				return fileContent;
+			}catch (java.io.IOException e) {
+				ReportManagerHelper.log(e);
+				Assert.fail("Failed to read this PDF file ["+relativeFilePath+"].");
+			}
+
+		}else {
+			Assert.fail("This PDF file ["+relativeFilePath+"] doesn't exist.");
+		}
+		return "";
 	}
 
 	public String readPDFContentFromDownloadedPDF(DeleteFileAfterValidationStatus deleteFileAfterValidationStatus) {
