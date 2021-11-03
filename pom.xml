@@ -52,7 +52,7 @@
         <postgresql.version>9.1-901-1.jdbc4</postgresql.version>
         <!-- <ojdbc8.version>19.3.0.0</ojdbc8.version> -->
 
-        <apachepoi.version>5.0.0</apachepoi.version>
+        <apachepoi.version>5.1.0</apachepoi.version>
         <org.slf4j.version>1.7.32</org.slf4j.version>
 
         <maven-resources-plugin.version>3.2.0</maven-resources-plugin.version>
@@ -118,7 +118,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-handler</artifactId>
-            <version>4.1.69.Final</version>
+            <version>4.1.70.Final</version>
         </dependency>
 
 
