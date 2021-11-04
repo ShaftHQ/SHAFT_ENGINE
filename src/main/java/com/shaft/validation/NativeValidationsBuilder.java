@@ -87,6 +87,17 @@ public class NativeValidationsBuilder {
     }
 
     /**
+     * Overrides the default object method equals and is the same as calling isEqualTo(expectedValue).perform();
+     * @param expectedValue the test data / expected value for the object under test
+     * @return boolean value true if passed and throws AssertionError if failed (return value can be safely ignored)
+     */
+    @Override
+    public boolean equals(Object expectedValue){
+        isEqualTo(expectedValue).perform();
+        return true;
+    }
+
+    /**
      * Use this to check that the actual object is not equal to the expected value
      * @param expectedValue the test data / expected value for the object under test
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation

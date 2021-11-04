@@ -40,7 +40,7 @@ public class WebDriverElementValidationsBuilder {
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
     public ValidationsExecutor doesNotExist() {
-        this.validationType = ValidationEnums.ValidationType.POSITIVE;
+        this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         this.validationMethod = "elementExists";
         reportMessageBuilder.append("does not exist.");
         return new ValidationsExecutor(this);
