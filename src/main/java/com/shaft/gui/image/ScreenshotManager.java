@@ -392,7 +392,7 @@ public class ScreenshotManager {
                  */
                 if (takeScreenshot && Boolean.TRUE.equals(SCREENSHOT_PARAMS_HIGHLIGHTELEMENTS) && internalElementLocator != null
                         && (ElementActions.getElementsCount(driver, internalElementLocator,
-                        RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1)) {
+                        RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) >= 1)) {
 
                     if ("JavaScript".equals(SCREENSHOT_PARAMS_HIGHLIGHTMETHOD)) {
                         element = driver.findElement(internalElementLocator);
@@ -400,7 +400,6 @@ public class ScreenshotManager {
                         regularElementStyle = highlightElementAndReturnDefaultStyle(element, js,
                                 setHighlightedElementStyle());
                     } else {
-                        // TODO: AI rect isn't in the proper location on Windows
                         // default to using AI
                         elementLocation = driver.findElement(internalElementLocator).getRect();
                     }
