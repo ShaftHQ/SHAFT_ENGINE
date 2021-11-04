@@ -6,6 +6,7 @@ import org.openqa.selenium.WebDriver;
 import com.shaft.driver.DriverFactory;
 import com.shaft.driver.DriverFactory.DriverType;
 
+@Deprecated
 public class BrowserFactory {
 	private BrowserFactory() {
 		throw new IllegalStateException("Utility class");
