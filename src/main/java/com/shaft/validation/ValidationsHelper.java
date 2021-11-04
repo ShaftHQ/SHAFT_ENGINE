@@ -767,11 +767,9 @@ public class ValidationsHelper {
         var stacktrace = (new Throwable()).getStackTrace();
         // get validation method name
         String validationMethodName = stacktrace[2].getMethodName();
-//        String callingAssertionOrVerificationMethodName = stacktrace[3].getMethodName();
 
         if (validationMethodName.contains("reportValidationResult")) {
             validationMethodName = stacktrace[3].getMethodName();
-//            validationMethodName = callingAssertionOrVerificationMethodName;
         }
 
         String validationTypeString = "Assertion";
@@ -821,7 +819,6 @@ public class ValidationsHelper {
 
         if (lastUsedDriver != null) {
             // create a screenshot attachment if needed for webdriver
-            //if (expectedValue != null && expectedValue.toLowerCase().contains("locator")) {
             if (lastUsedElementLocator != null) {
                 attachments.add(ScreenshotManager.captureScreenShot(lastUsedDriver, lastUsedElementLocator,
                         validationMethodName, validationState.getValue()));

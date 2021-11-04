@@ -13,6 +13,7 @@ import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.remote.UnreachableBrowserException;
+import org.openqa.selenium.support.locators.RelativeLocator;
 import org.openqa.selenium.support.ui.FluentWait;
 import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.UnexpectedTagNameException;
@@ -1509,31 +1510,39 @@ public class WebDriverElementActions {
         internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
 
         int matchingElementsCount = getMatchingElementsCount(driver, elementLocator, Optional.empty(), Optional.of(checkForVisibility));
-        if (internalElementLocator != null) {
-            // unique element found
-            switch (matchingElementsCount) {
-                case 0 -> failAction(driver, "zero elements found matching this locator \"" + internalElementLocator + "\".", internalElementLocator);
-                case 1 -> {
-                    if (checkForVisibility
-                            && !internalElementLocator.toString().contains("input[@type='file']")
-                            && !internalElementLocator.equals(By.tagName("html"))
-                            && Boolean.FALSE.equals(ElementActionsHelper.waitForElementToBeVisible(driver, elementLocator))) {
-                        failAction(driver, "element is not visible.", elementLocator);
-                    }
-                    return true;
-                }
-                default -> {
-                    if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckElementLocatorIsUnique")))) {
-                        failAction(driver, "multiple elements found matching this locator \"" + internalElementLocator + "\".",
-                                internalElementLocator);
-                    }
-                    return true;
-                }
+        if (elementLocator instanceof RelativeLocator.RelativeBy relativeLocator){
+            if (matchingElementsCount >=1) {
+                return true;
+            }else{
+                return false;
             }
-        } else {
-            failAction(driver, "element locator is NULL.", null);
+        }else {
+            if (internalElementLocator != null) {
+                // unique element found
+                switch (matchingElementsCount) {
+                    case 0 -> failAction(driver, "zero elements found matching this locator \"" + internalElementLocator + "\".", internalElementLocator);
+                    case 1 -> {
+                        if (checkForVisibility
+                                && !internalElementLocator.toString().contains("input[@type='file']")
+                                && !internalElementLocator.equals(By.tagName("html"))
+                                && Boolean.FALSE.equals(ElementActionsHelper.waitForElementToBeVisible(driver, elementLocator))) {
+                            failAction(driver, "element is not visible.", elementLocator);
+                        }
+                        return true;
+                    }
+                    default -> {
+                        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckElementLocatorIsUnique")))) {
+                            failAction(driver, "multiple elements found matching this locator \"" + internalElementLocator + "\".",
+                                    internalElementLocator);
+                        }
+                        return true;
+                    }
+                }
+            } else {
+                failAction(driver, "element locator is NULL.", null);
+            }
+            return false;
         }
-        return false;
     }
 
     private static void passAction(WebDriver driver) {
