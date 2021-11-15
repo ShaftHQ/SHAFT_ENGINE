@@ -17,7 +17,7 @@ public class Test_uploadFile {
     @Test
     public void uploadFile_visibleUploadInput() {
         BrowserActions.navigateToURL(driver.get(), "http://demo.guru99.com/test/upload/");
-        ElementActions.typeFileLocationForUpload(driver.get(), By.id("uploadfile_0"), FileActions.getAbsolutePath("src/main/resources/images/", "shaft.png"));
+        ElementActions.typeFileLocationForUpload(driver.get(), By.id("uploadfile_0"), "src/main/resources/images/shaft.png");
         new ElementActions(driver.get()).click(By.id("terms")).click(By.id("submitbutton"));
         Assertions.assertElementAttribute(driver.get(), By.id("res"), "Text", "1 file", Assertions.AssertionComparisonType.CONTAINS, Assertions.AssertionType.POSITIVE);
     }
