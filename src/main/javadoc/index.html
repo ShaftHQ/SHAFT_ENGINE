@@ -691,6 +691,30 @@
 
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
+                                        <label class="col-md-4 control-label" for="clickUsingJavascriptWhenWebDriverClickFails">Click using JavaScript if WebDriver Click Fails
+                                        </label>
+                                        <div class="col-md-4" id="clickUsingJavascriptWhenWebDriverClickFails">
+                                            <div class="radio-inline">
+                                                <label for="clickUsingJavascriptWhenWebDriverClickFails-0">
+                                                    <input id="clickUsingJavascriptWhenWebDriverClickFails-0"
+                                                           name="clickUsingJavascriptWhenWebDriverClickFails" type="radio"
+                                                           value="true">
+                                                    Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="clickUsingJavascriptWhenWebDriverClickFails-1">
+                                                    <input checked="checked" id="clickUsingJavascriptWhenWebDriverClickFails-1"
+                                                           name="clickUsingJavascriptWhenWebDriverClickFails" type="radio"
+                                                           value="false">
+                                                    Disabled
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
                                         <label class="col-md-4 control-label" for="maximumPerformanceMode">Maximum
                                             Performance
                                             Mode
@@ -2066,6 +2090,7 @@
         const forceCheckElementLocatorIsUnique = $("input[name=forceCheckElementLocatorIsUnique]:checked").val();
         const forceCheckTextWasTypedCorrectly = $("input[name=forceCheckTextWasTypedCorrectly]:checked").val();
         const forceCheckNavigationWasSuccessful = $("input[name=forceCheckNavigationWasSuccessful]:checked").val();
+        const clickUsingJavascriptWhenWebDriverClickFails = $("input[name=clickUsingJavascriptWhenWebDriverClickFails]:checked").val();
         const maximumPerformanceMode = $("input[name=maximumPerformanceMode]:checked").val();
         const skipTestsWithLinkedIssues = $("input[name=skipTestsWithLinkedIssues]:checked").val();
         const aiPoweredSelfHealingElementIdentification = $("input[name=aiPoweredSelfHealingElementIdentification]:checked").val();
@@ -2079,6 +2104,7 @@
             'forceCheckElementLocatorIsUnique=' + forceCheckElementLocatorIsUnique + '\r\n' +
             'forceCheckTextWasTypedCorrectly=' + forceCheckTextWasTypedCorrectly + '\r\n' +
             'forceCheckNavigationWasSuccessful=' + forceCheckNavigationWasSuccessful + '\r\n' +
+            'clickUsingJavascriptWhenWebDriverClickFails=' + clickUsingJavascriptWhenWebDriverClickFails + '\r\n' +
             'maximumPerformanceMode=' + maximumPerformanceMode + '\r\n' +
             'skipTestsWithLinkedIssues=' + skipTestsWithLinkedIssues + '\r\n' +
             'aiPoweredSelfHealingElementIdentification=' + aiPoweredSelfHealingElementIdentification + '\r\n';

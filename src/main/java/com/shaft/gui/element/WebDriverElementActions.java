@@ -34,7 +34,8 @@ import java.util.*;
 public class WebDriverElementActions {
     private static final String AI_REFERENCE_FILE_NAME = "aiAidedElementIdentificationReferenceDB.properties";
     private static final String OBFUSCATED_STRING = "•";
-    private static final boolean CAPTURE_CLICKED_ELEMENT_TEXT = Boolean.valueOf(System.getProperty("captureClickedElementText"));
+    private static final boolean CAPTURE_CLICKED_ELEMENT_TEXT = Boolean.parseBoolean(System.getProperty("captureClickedElementText"));
+    private static final boolean CLICK_USING_JAVASCRIPT_WHEN_WEB_DRIVER_CLICK_FAILS = Boolean.parseBoolean(System.getProperty("clickUsingJavascriptWhenWebDriverClickFails"));
     private static WebDriver lastUsedDriver = null;
     private static By aiGeneratedElementLocator = null;
 
@@ -131,14 +132,19 @@ public class WebDriverElementActions {
                 try {
                     driver.findElement(internalElementLocator).click();
                 } catch (Exception exception1) {
+                    if (CLICK_USING_JAVASCRIPT_WHEN_WEB_DRIVER_CLICK_FAILS) {
                         try {
-                                ElementActionsHelper.clickUsingJavascript(driver, internalElementLocator);
+                            ElementActionsHelper.clickUsingJavascript(driver, internalElementLocator);
                         } catch (Exception rootCauseException) {
                             rootCauseException.initCause(exception1);
                             ReportManagerHelper.log(exception1);
                             ReportManagerHelper.log(rootCauseException);
                             failAction(driver, internalElementLocator, rootCauseException);
                         }
+                    }else{
+                        ReportManagerHelper.log(exception1);
+                        failAction(driver, internalElementLocator, exception1);
+                    }
                 }
                 // issue: if performing a navigation after clicking on the login button,
                 // navigation is triggered immediately and hence it fails.
