@@ -128,14 +128,14 @@ public class WebDriverElementActions {
                 try {
                     driver.findElement(internalElementLocator).click();
                 } catch (Exception exception1) {
-                    try {
-                        ElementActionsHelper.clickUsingJavascript(driver, internalElementLocator);
-                    } catch (Exception rootCauseException) {
-                        rootCauseException.initCause(exception1);
-                        ReportManagerHelper.log(exception1);
-                        ReportManagerHelper.log(rootCauseException);
-                        failAction(driver, internalElementLocator, rootCauseException);
-                    }
+                        try {
+                                ElementActionsHelper.clickUsingJavascript(driver, internalElementLocator);
+                        } catch (Exception rootCauseException) {
+                            rootCauseException.initCause(exception1);
+                            ReportManagerHelper.log(exception1);
+                            ReportManagerHelper.log(rootCauseException);
+                            failAction(driver, internalElementLocator, rootCauseException);
+                        }
                 }
                 // issue: if performing a navigation after clicking on the login button,
                 // navigation is triggered immediately and hence it fails.
@@ -1522,12 +1522,6 @@ public class WebDriverElementActions {
                 switch (matchingElementsCount) {
                     case 0 -> failAction(driver, "zero elements found matching this locator \"" + internalElementLocator + "\".", internalElementLocator);
                     case 1 -> {
-                        if (checkForVisibility
-                                && !internalElementLocator.toString().contains("input[@type='file']")
-                                && !internalElementLocator.equals(By.tagName("html"))
-                                && Boolean.FALSE.equals(ElementActionsHelper.waitForElementToBeVisible(driver, elementLocator))) {
-                            failAction(driver, "element is not visible.", elementLocator);
-                        }
                         return true;
                     }
                     default -> {

@@ -4,6 +4,7 @@ import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.tools.support.JavaScriptHelper;
+import io.cucumber.java.hu.De;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.interactions.Locatable;
@@ -42,10 +43,17 @@ class ElementActionsHelper {
     }
 
     protected static int waitForElementPresence(WebDriver driver, By elementLocator, int numberOfAttempts, boolean checkForVisibility) {
+        boolean validToCheckForVisibility = checkForVisibility && !elementLocator.toString().contains("input[@type='file']")
+                && !elementLocator.equals(By.tagName("html"));
+
         ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
         expectedExceptions.add(org.openqa.selenium.NoSuchElementException.class);
         expectedExceptions.add(org.openqa.selenium.StaleElementReferenceException.class);
         expectedExceptions.add(org.openqa.selenium.ElementNotInteractableException.class);
+        if (validToCheckForVisibility){
+            expectedExceptions.add(org.openqa.selenium.ElementNotVisibleException.class);
+        }
+        expectedExceptions.add(org.openqa.selenium.WebDriverException.class);
 
         try {
             return new FluentWait<>(driver)
@@ -54,15 +62,22 @@ class ElementActionsHelper {
                     .pollingEvery(Duration.ofSeconds(ELEMENT_IDENTIFICATION_POLLING_DELAY))
                     .ignoreAll(expectedExceptions)
                     .until(nestedDriver -> {
-                        nestedDriver.findElement(elementLocator);
+                        if (validToCheckForVisibility){
+//                            nestedDriver.findElement(elementLocator).isDisplayed();
+                            ((Locatable) driver.findElement(elementLocator)).getCoordinates().inViewPort();
+                        }else {
+                            nestedDriver.findElement(elementLocator);
+                        }
                         return nestedDriver.findElements(elementLocator).size();
                     });
         } catch (org.openqa.selenium.TimeoutException e) {
-            // In case the element was not found and the timeout expired
+            // In case the element was not found / not visible and the timeout expired
+            ReportManagerHelper.logDiscrete(e);
             return 0;
         }
     }
 
+    @Deprecated(forRemoval = true)
     protected static boolean waitForElementToBeVisible(WebDriver driver, By elementLocator) {
         if (FORCE_CHECK_FOR_ELEMENT_VISIBILITY && !DriverFactoryHelper.isMobileNativeExecution()) {
             ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
