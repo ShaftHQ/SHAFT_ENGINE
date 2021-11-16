@@ -202,7 +202,8 @@ class ElementActionsHelper {
             return false;
         }
     }
-    
+
+    @Deprecated(forRemoval = true)
     protected static void performHoverUsingJavascript(WebDriver driver, By elementLocator) {
     	if (DriverFactoryHelper.isWebExecution()) {
     		var createMouseEvent = "var evObj = document.createEvent('MouseEvents');";
@@ -221,7 +222,7 @@ class ElementActionsHelper {
             javaScript = createMouseEvent + mouseEventFirstHalf + "mouseover" + mouseEventSecondHalf + dispatchMouseEvent;
             ((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
 
-            (new Actions(driver)).moveToElement(driver.findElement(elementLocator)).perform();
+//            (new Actions(driver)).moveToElement(driver.findElement(elementLocator)).perform();
     	}
     }
     

@@ -34,6 +34,7 @@ import java.util.*;
 public class WebDriverElementActions {
     private static final String AI_REFERENCE_FILE_NAME = "aiAidedElementIdentificationReferenceDB.properties";
     private static final String OBFUSCATED_STRING = "•";
+    private static final boolean CAPTURE_CLICKED_ELEMENT_TEXT = Boolean.valueOf(System.getProperty("captureClickedElementText"));
     private static WebDriver lastUsedDriver = null;
     private static By aiGeneratedElementLocator = null;
 
@@ -108,12 +109,14 @@ public class WebDriverElementActions {
 
                 String elementText = "";
                 try {
-                    // attempting to read element text
-                    elementText = readTextBasedOnSuccessfulLocationStrategy(driver, internalElementLocator,
-                            determineSuccessfulTextLocationStrategy(driver, internalElementLocator));
+                    if (CAPTURE_CLICKED_ELEMENT_TEXT) {
+                        // attempting to read element text
+                        elementText = readTextBasedOnSuccessfulLocationStrategy(driver, internalElementLocator,
+                                determineSuccessfulTextLocationStrategy(driver, internalElementLocator));
+                    }
                     // adding hover before clicking an element to enable styles to show in the
                     // execution screenshots and to solve issues clicking on certain elements.
-                    ElementActionsHelper.performHoverUsingJavascript(driver, internalElementLocator);
+                    (new Actions(driver)).moveToElement(driver.findElement(elementLocator)).perform();
                 } catch (Exception e) {
                     ReportManagerHelper.logDiscrete(e);
                 }
@@ -144,11 +147,10 @@ public class WebDriverElementActions {
 
                 // removed to enhance performance, and replaced with a process to assert after
                 // every navigation
-                if (!elementText.equals("")) {
-                    passAction(driver, internalElementLocator, elementText.replaceAll("\n", " "), screenshot);
-                } else {
-                    passAction(driver, internalElementLocator, screenshot);
+                if (elementText.equals("")){
+                    elementText = internalElementLocator.toString();
                 }
+                passAction(driver, internalElementLocator, elementText.replaceAll("\n", " "), screenshot);
             } else {
                 failAction(driver, internalElementLocator);
             }
@@ -714,7 +716,7 @@ public class WebDriverElementActions {
             internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
 
             try {
-            	ElementActionsHelper.performHoverUsingJavascript(driver, internalElementLocator);
+                (new Actions(driver)).moveToElement(driver.findElement(elementLocator)).perform();
             } catch (Exception rootCauseException) {
                 ReportManagerHelper.log(rootCauseException);
                 failAction(driver, internalElementLocator, rootCauseException);
@@ -803,8 +805,7 @@ public class WebDriverElementActions {
      */
     public static boolean isElementDisplayed(WebDriver driver, By elementLocator) {
         By internalElementLocator = elementLocator;
-        if (identifyUniqueElement(driver, internalElementLocator
-                , false)) {
+        if (identifyUniqueElementIgnoringVisibility(driver, internalElementLocator)) {
             // Override current locator with the aiGeneratedElementLocator
             internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
 
@@ -1010,8 +1011,7 @@ public class WebDriverElementActions {
      */
     public static void setValueUsingJavaScript(WebDriver driver, By elementLocator, String value) {
         By internalElementLocator = elementLocator;
-        if (identifyUniqueElement(driver, internalElementLocator
-                , false)) {
+        if (identifyUniqueElementIgnoringVisibility(driver, internalElementLocator)) {
             // Override current locator with the aiGeneratedElementLocator
             internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
 
@@ -1036,8 +1036,7 @@ public class WebDriverElementActions {
      */
     public static void submitFormUsingJavaScript(WebDriver driver, By elementLocator) {
         By internalElementLocator = elementLocator;
-        if (identifyUniqueElement(driver, internalElementLocator
-                , false)) {
+        if (identifyUniqueElementIgnoringVisibility(driver, internalElementLocator)) {
             // Override current locator with the aiGeneratedElementLocator
             internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
 
@@ -1197,8 +1196,7 @@ public class WebDriverElementActions {
     public static void typeFileLocationForUpload(WebDriver driver, By elementLocator, String absoluteFilePath) {
         String internalAbsoluteFilePath = absoluteFilePath.replace("/", FileSystems.getDefault().getSeparator());
         By internalElementLocator = elementLocator;
-        if (identifyUniqueElement(driver, internalElementLocator
-                , false)) {
+        if (identifyUniqueElementIgnoringVisibility(driver, internalElementLocator)) {
             // Override current locator with the aiGeneratedElementLocator
             internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
 
@@ -1309,6 +1307,10 @@ public class WebDriverElementActions {
 
     protected static boolean identifyUniqueElement(WebDriver driver, By elementLocator) {
         return identifyUniqueElement(driver, elementLocator, true);
+    }
+
+    protected static boolean identifyUniqueElementIgnoringVisibility(WebDriver driver, By elementLocator) {
+        return identifyUniqueElement(driver, elementLocator, false);
     }
 
     protected static void passAction(WebDriver driver, By elementLocator) {
@@ -1483,7 +1485,7 @@ public class WebDriverElementActions {
         if (previouslyIdentifiedXpath != null && Boolean.TRUE.equals(ScreenshotManager.getAiSupportedElementIdentification())) {
             internalElementLocator = aiGeneratedElementLocator;
         }
-        int matchingElementsCount = ElementActionsHelper.waitForElementPresence(driver, internalElementLocator, numberOfAttempts, true);
+        int matchingElementsCount = ElementActionsHelper.waitForElementPresence(driver, internalElementLocator, numberOfAttempts);
 
         if (matchingElementsCount == 0
                 && Boolean.TRUE.equals(attemptToFindElementUsingAI(driver, internalElementLocator))) {
