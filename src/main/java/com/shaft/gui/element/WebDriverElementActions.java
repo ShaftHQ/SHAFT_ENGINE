@@ -36,6 +36,7 @@ public class WebDriverElementActions {
     private static final String OBFUSCATED_STRING = "•";
     private static final boolean CAPTURE_CLICKED_ELEMENT_TEXT = Boolean.parseBoolean(System.getProperty("captureClickedElementText"));
     private static final boolean CLICK_USING_JAVASCRIPT_WHEN_WEB_DRIVER_CLICK_FAILS = Boolean.parseBoolean(System.getProperty("clickUsingJavascriptWhenWebDriverClickFails"));
+    private static final boolean ATTEMPT_CLEAR_BEFORE_TYPING_USING_BACKSPACE = Boolean.parseBoolean(System.getProperty("attemptClearBeforeTypingUsingBackspace"));;
     private static WebDriver lastUsedDriver = null;
     private static By aiGeneratedElementLocator = null;
 
@@ -1382,31 +1383,28 @@ public class WebDriverElementActions {
         try {
             // attempt clear using clear
             driver.findElement(elementLocator).clear();
-
-            String elementText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator,
-                    successfulTextLocationStrategy);
-
-            // attempt clear using sendKeys
-            if (!elementText.trim().equals("")) {
-                driver.findElement(elementLocator).sendKeys("");
-            }
-            elementText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator,
-                    successfulTextLocationStrategy);
-
-            // attempt clear using javascript
-            if (!elementText.trim().equals("")) {
-            	ElementActionsHelper.setValueUsingJavascript(driver, elementLocator, "");
-            }
-
-            elementText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator,
-                    successfulTextLocationStrategy);
+//
+//            // attempt clear using sendKeys
+//            if (!elementText.trim().equals("")) {
+//                driver.findElement(elementLocator).sendKeys("");
+//            }
+//            elementText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator,
+//                    successfulTextLocationStrategy);
+//
+//            // attempt clear using javascript
+//            if (!elementText.trim().equals("")) {
+//            	ElementActionsHelper.setValueUsingJavascript(driver, elementLocator, "");
+//            }
+//
+//            elementText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator,
+//                    successfulTextLocationStrategy);
             // attempt clear using letter by letter backspace
-            if (!elementText.trim().equals("")) {
-                driver.findElement(elementLocator).sendKeys("");
-                for (int i = 0; i < elementText.length(); i++) {
+            if (ATTEMPT_CLEAR_BEFORE_TYPING_USING_BACKSPACE) {
+                String elementText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator,
+                        successfulTextLocationStrategy);
+                for (var character:elementText.toCharArray()) {
                     driver.findElement(elementLocator).sendKeys(Keys.BACK_SPACE);
                 }
-
             }
         } catch (InvalidElementStateException e) {
             // this was seen in case of attempting to type in an invalid element (an image)
@@ -1736,9 +1734,9 @@ public class WebDriverElementActions {
                         internalElementLocator);
             }
 
-            if (!successfulTextLocationStrategy.equals(TextDetectionStrategy.UNDEFINED)) {
+//            if (!successfulTextLocationStrategy.equals(TextDetectionStrategy.UNDEFINED)) {
                 clearBeforeTyping(driver, internalElementLocator, successfulTextLocationStrategy);
-            }
+//            }
             if (!"".equals(targetText)) {
                 performType(driver, internalElementLocator, targetText);
             }

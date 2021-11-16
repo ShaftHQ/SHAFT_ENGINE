@@ -665,6 +665,30 @@
 
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
+                                        <label class="col-md-4 control-label" for="attemptClearBeforeTypingUsingBackspace">Attempt clearing text before typing using backspace
+                                        </label>
+                                        <div class="col-md-4" id="attemptClearBeforeTypingUsingBackspace">
+                                            <div class="radio-inline">
+                                                <label for="attemptClearBeforeTypingUsingBackspace-0">
+                                                    <input id="attemptClearBeforeTypingUsingBackspace-0"
+                                                           name="attemptClearBeforeTypingUsingBackspace" type="radio"
+                                                           value="true">
+                                                    Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="attemptClearBeforeTypingUsingBackspace-1">
+                                                    <input checked="checked" id="attemptClearBeforeTypingUsingBackspace-1"
+                                                           name="attemptClearBeforeTypingUsingBackspace" type="radio"
+                                                           value="false">
+                                                    Disabled
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
                                         <label class="col-md-4 control-label" for="forceCheckNavigationWasSuccessful">Force
                                             check
                                             navigation was successful
@@ -2089,6 +2113,7 @@
         const forceCheckForElementVisibility = $("input[name=forceCheckForElementVisibility]:checked").val();
         const forceCheckElementLocatorIsUnique = $("input[name=forceCheckElementLocatorIsUnique]:checked").val();
         const forceCheckTextWasTypedCorrectly = $("input[name=forceCheckTextWasTypedCorrectly]:checked").val();
+        const attemptClearBeforeTypingUsingBackspace = $("input[name=attemptClearBeforeTypingUsingBackspace]:checked").val();
         const forceCheckNavigationWasSuccessful = $("input[name=forceCheckNavigationWasSuccessful]:checked").val();
         const clickUsingJavascriptWhenWebDriverClickFails = $("input[name=clickUsingJavascriptWhenWebDriverClickFails]:checked").val();
         const maximumPerformanceMode = $("input[name=maximumPerformanceMode]:checked").val();
@@ -2103,6 +2128,7 @@
             'forceCheckForElementVisibility=' + forceCheckForElementVisibility + '\r\n' +
             'forceCheckElementLocatorIsUnique=' + forceCheckElementLocatorIsUnique + '\r\n' +
             'forceCheckTextWasTypedCorrectly=' + forceCheckTextWasTypedCorrectly + '\r\n' +
+            'attemptClearBeforeTypingUsingBackspace=' + attemptClearBeforeTypingUsingBackspace + '\r\n' +
             'forceCheckNavigationWasSuccessful=' + forceCheckNavigationWasSuccessful + '\r\n' +
             'clickUsingJavascriptWhenWebDriverClickFails=' + clickUsingJavascriptWhenWebDriverClickFails + '\r\n' +
             'maximumPerformanceMode=' + maximumPerformanceMode + '\r\n' +
