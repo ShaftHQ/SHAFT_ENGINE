@@ -10,9 +10,7 @@ import io.appium.java_client.android.Activity;
 import io.appium.java_client.android.AndroidDriver;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
+import org.testng.annotations.*;
 
 public class AndroidBasicInteractionsTest {
     private WebDriver driver;
@@ -79,7 +77,7 @@ public class AndroidBasicInteractionsTest {
         ElementActions.performTouchAction(driver).tap(By.id("android:id/button1"));
     }
 
-    @BeforeClass
+    @BeforeMethod
     public void setup() {
         // common attributes
         System.setProperty("targetOperatingSystem", "Android");
@@ -92,7 +90,7 @@ public class AndroidBasicInteractionsTest {
         driver = DriverFactory.getDriver();
     }
 
-    @AfterClass
+    @AfterMethod
     public void teardown() {
         BrowserFactory.closeAllBrowsers();
     }
