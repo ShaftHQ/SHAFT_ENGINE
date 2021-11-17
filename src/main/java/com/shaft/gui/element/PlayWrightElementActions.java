@@ -478,7 +478,7 @@ public class PlayWrightElementActions {
     public static Page switchToIframe(Page page, String elementLocator) {
         if (identifyUniqueElement(page, elementLocator)) {
             var frame = page.frame(elementLocator).page();
-            boolean discreetLoggingState = ReportManagerHelper.isDiscreteLogging();
+            boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
             passAction(page);
             ReportManagerHelper.setDiscreteLogging(discreetLoggingState);

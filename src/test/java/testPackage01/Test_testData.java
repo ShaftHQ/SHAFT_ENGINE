@@ -7,7 +7,7 @@ import org.testng.annotations.Test;
 public class Test_testData {
     @Test
     public void f() {
-        System.setProperty("testDataFilePath", "src/test/resources/TestDataFiles/testSuite01/TestData.xlsx");
+        System.setProperty("testDataFilePath", System.getProperty("testDataFolderPath")+"testSuite01/TestData.xlsx");
         ExcelFileManager testDataReader = new ExcelFileManager(System.getProperty("testDataFilePath"));
 
         ReportManager.log("Last Column Number is: [" + testDataReader.getLastColumnNumber() + "]. Zero-based.");

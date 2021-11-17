@@ -26,7 +26,7 @@ public class ProjectStructureManager {
     }
 
     public static void migrateToNewStructure(){
-        var isDiscrete = ReportManagerHelper.isDiscreteLogging();
+        var isDiscrete = ReportManagerHelper.getDiscreteLogging();
         ReportManagerHelper.setDiscreteLogging(true);
         if (FileActions.doesFileExist("src/test/resources/Properties")) {
             var directoriesToBeMoved = Arrays.asList("src/test/resources/Properties", "src/test/resources/DynamicObjectRepository");
