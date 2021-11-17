@@ -5,6 +5,7 @@ import com.google.common.collect.ImmutableMap;
 import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
 import io.appium.java_client.AppiumBy;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.android.AndroidDriver;
@@ -601,18 +602,21 @@ public class TouchActions {
         boolean canStillScroll = true;
 
         do {
+            var isDiscrete = ReportManagerHelper.getDiscreteLogging();
+            ReportManagerHelper.setDiscreteLogging(true);
             // appium native device
             if (!driver.findElements(targetElementLocator).isEmpty()
                     && WebDriverElementActions.isElementDisplayed(driver, targetElementLocator)) {
+                ReportManagerHelper.setDiscreteLogging(isDiscrete);
                 // element is already on screen
                 isElementFound = true;
                 ReportManager.logDiscrete("Element found on screen.");
             } else {
+                ReportManagerHelper.setDiscreteLogging(isDiscrete);
                 // for the animated GIF:
-                WebDriverElementActions.takeScreenshot(driver, targetElementLocator, "swipeElementIntoView", null, true);
+                WebDriverElementActions.takeScreenshot(driver, null, "swipeElementIntoView", null, true);
                 canStillScroll = attemptW3cCompliantActionsScroll(swipeDirection, scrollableElementLocator, targetElementLocator);
             }
-
         } while (Boolean.FALSE.equals(isElementFound) && Boolean.TRUE.equals(canStillScroll));
         return isElementFound;
     }
