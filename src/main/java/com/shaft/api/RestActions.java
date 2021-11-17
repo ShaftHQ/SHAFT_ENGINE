@@ -56,6 +56,7 @@ public class RestActions implements ShaftDriver {
     private static final String ERROR_INCORRECT_JSONPATH = "Incorrect jsonPath ";
     private static final String ERROR_INCORRECT_XMLPATH = "Incorrect xmlPath ";
     private static final String ERROR_FAILED_TO_PARSE_JSON = "Failed to parse the JSON document";
+    private static boolean AUTOMATICALLY_ASSERT_RESPONSE_STATUS_CODE = true;
     private static int HTTP_SOCKET_TIMEOUT;
     private static int HTTP_CONNECTION_TIMEOUT;
     private static int HTTP_CONNECTION_MANAGER_TIMEOUT;
@@ -757,6 +758,8 @@ public class RestActions implements ShaftDriver {
         HTTP_CONNECTION_MANAGER_TIMEOUT = Integer
                 .parseInt(System.getProperty("apiConnectionManagerTimeout"));
 
+        AUTOMATICALLY_ASSERT_RESPONSE_STATUS_CODE = Boolean.parseBoolean(System.getProperty("automaticallyAssertResponseStatusCode"));
+
     }
 
     protected String getServiceURI() {
@@ -1066,11 +1069,13 @@ public class RestActions implements ShaftDriver {
         try {
             boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
-            ReportManager.log("Response status code: [" + response.getStatusCode() + "], status line: [" + response.getStatusLine() + "]");
-            Validations.assertThat().number(response.getStatusCode())
-                            .isEqualTo(targetStatusCode)
-                                    .withCustomReportMessage("Evaluating the actual response status code against the expected one...")
-                                            .perform();
+            ReportManager.logDiscrete("Response status code: [" + response.getStatusCode() + "], status line: [" + response.getStatusLine() + "]");
+            if (AUTOMATICALLY_ASSERT_RESPONSE_STATUS_CODE) {
+                Validations.assertThat().number(response.getStatusCode())
+                        .isEqualTo(targetStatusCode)
+                        .withCustomReportMessage("Evaluating the actual response status code against the expected one...")
+                        .perform();
+            }
             ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
             return true;
         } catch (AssertionError rootCauseException) {
