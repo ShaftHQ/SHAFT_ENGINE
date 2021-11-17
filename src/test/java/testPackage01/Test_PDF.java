@@ -8,7 +8,7 @@ public class Test_PDF {
 
 	@Test
 	public void testPDF1() {
-		var actualFile = PdfFileManager.readFileContent("src/test/resources/TestDataFiles/sample.pdf");
+		var actualFile = PdfFileManager.readFileContent(System.getProperty("testDataFolderPath")+"sample.pdf");
 		var expectedData = "A Simple PDF File";
 		Validations.assertThat()
 				.object(actualFile)
@@ -21,7 +21,7 @@ public class Test_PDF {
 	public void testPDF2(){
 		var expectedData = "A Simple PDF File";
 		Validations.assertThat()
-				.file("src/test/resources/TestDataFiles/", "sample.pdf")
+				.file(System.getProperty("testDataFolderPath"), "sample.pdf")
 				.content()
 				.contains(expectedData)
 				.withCustomReportMessage("Checking to see that the pdf file contains [" + expectedData + "]")

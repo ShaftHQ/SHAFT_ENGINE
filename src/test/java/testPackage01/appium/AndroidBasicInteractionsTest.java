@@ -10,9 +10,7 @@ import io.appium.java_client.android.Activity;
 import io.appium.java_client.android.AndroidDriver;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
+import org.testng.annotations.*;
 
 public class AndroidBasicInteractionsTest {
     private WebDriver driver;
@@ -32,7 +30,7 @@ public class AndroidBasicInteractionsTest {
                 .perform();
     }
 
-    //@Test
+//    @Test
     public void scrollToElement_insideScrollableElement(){
         By scrollableElement = By.xpath("(//android.widget.TextView[@content-desc=\"The Android platform is a software stack for mobile devices including an operating system, middleware and key applications. Developers can create applications for the platform using the Android SDK. Applications are written using the Java programming language and run on Dalvik, a custom virtual machine designed for embedded use which runs on top of a Linux kernel. If you want to know how to develop applications for Android, you're in the right place. This site provides a variety of documentation that will help you learn about Android and develop mobile applications for the platform. An early look at the the Android SDK is also available. It includes sample projects with source code, development tools, an emulator, and of course all the libraries you'll need to build an Android application. What would it take to build a better mobile phone?\"])[4]");
         By targetElement = AppiumBy.accessibilityId("ImageButton");
@@ -79,7 +77,7 @@ public class AndroidBasicInteractionsTest {
         ElementActions.performTouchAction(driver).tap(By.id("android:id/button1"));
     }
 
-    @BeforeClass
+    @BeforeMethod
     public void setup() {
         // common attributes
         System.setProperty("targetOperatingSystem", "Android");
@@ -92,7 +90,7 @@ public class AndroidBasicInteractionsTest {
         driver = DriverFactory.getDriver();
     }
 
-    @AfterClass
+    @AfterMethod
     public void teardown() {
         BrowserFactory.closeAllBrowsers();
     }

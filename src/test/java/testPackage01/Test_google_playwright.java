@@ -46,7 +46,7 @@ public class Test_google_playwright {
 
     @BeforeClass // Set-up method, to be run once before the first test
     public void beforeClass() {
-        System.setProperty("testDataFilePath", "src/test/resources/TestDataFiles/testSuite01/TestData.xlsx");
+        System.setProperty("testDataFilePath", System.getProperty("testDataFolderPath")+"testSuite01/TestData.xlsx");
         testDataReader = new ExcelFileManager(System.getProperty("testDataFilePath"));
         page = DriverFactory.getPlaywrightDriver();
     }
