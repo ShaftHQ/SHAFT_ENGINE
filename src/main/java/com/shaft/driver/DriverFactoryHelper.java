@@ -461,7 +461,7 @@ public class DriverFactoryHelper {
                 options.setHeadless(HEADLESS_EXECUTION);
                 if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
                     // https://developers.google.com/web/updates/2017/04/headless-chrome
-                    options.addArguments("--headless"); // only if you are ACTUALLY running headless
+//                    options.addArguments("--headless"); // only if you are ACTUALLY running headless
                     // https://stackoverflow.com/questions/43541925/how-can-i-set-the-browser-window-size-when-using-google-chrome-headless
                     options.addArguments("--window-size=1920,1080");
                 }
@@ -573,7 +573,7 @@ public class DriverFactoryHelper {
             driver.set(new SafariDriver(sfOptions));
         } catch (SessionNotCreatedException e) {
             ReportManagerHelper.log(e);
-            failAction("Failed to create a session on" + DriverType.DESKTOP_SAFARI);
+            failAction("Failed to create a session on " + DriverType.DESKTOP_SAFARI);
         }
         storeDriverInstance(DriverType.DESKTOP_SAFARI.getValue());
         ReportManager.log("Successfully Opened Safari.");

@@ -33,7 +33,7 @@ public class PropertyFileManager {
      */
     public static synchronized void readPropertyFiles() {
         if (Boolean.TRUE.equals(readPropertyFiles)) {
-            var isDiscrete = ReportManagerHelper.isDiscreteLogging();
+            var isDiscrete = ReportManagerHelper.getDiscreteLogging();
         	ReportManagerHelper.setDiscreteLogging(true);
 
             // migrate folder structure
@@ -170,6 +170,7 @@ public class PropertyFileManager {
                 System.setProperty("autoMaximizeBrowserWindow", String.valueOf(true));
                 System.setProperty("forceCheckForElementVisibility", String.valueOf(false));
                 System.setProperty("forceCheckElementLocatorIsUnique", String.valueOf(false));
+                System.setProperty("forceCheckTextWasTypedCorrectly", String.valueOf(false));
                 System.setProperty("screenshotParams_whenToTakeAScreenshot", "ValidationPointsOnly");
                 System.setProperty("screenshotParams_highlightElements", String.valueOf(true));
                 System.setProperty("screenshotParams_highlightMethod", "AI");
@@ -178,6 +179,7 @@ public class PropertyFileManager {
                 System.setProperty("createAnimatedGif", String.valueOf(false));
                 System.setProperty("videoParams_recordVideo", String.valueOf(false));
                 System.setProperty("debugMode", String.valueOf(false));
+                System.setProperty("captureClickedElementText", String.valueOf(false));
                 System.setProperty("headlessExecution", String.valueOf(false));
                 if (maximumPerformanceMode.equals("2")) System.setProperty("headlessExecution", String.valueOf(true));
             }

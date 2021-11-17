@@ -146,7 +146,7 @@ public class ReportManagerHelper {
     /**
      * @return the discreteLogging
      */
-    public static boolean isDiscreteLogging() {
+    public static boolean getDiscreteLogging() {
         return discreteLogging;
     }
 
@@ -319,7 +319,7 @@ public class ReportManagerHelper {
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateAllureReportArchive").trim()))
                 && System.getProperty("executionAddress").trim().equals("local")) {
             ReportManager.logDiscrete("Generating Allure Report Archive...");
-            boolean discreteLoggingState = isDiscreteLogging();
+            boolean discreteLoggingState = getDiscreteLogging();
             setDiscreteLogging(true);
             writeOpenReportShellFilesToGeneratedDirectory();
             writeAllureReportToGeneratedDirectory();
@@ -829,7 +829,7 @@ public class ReportManagerHelper {
     }
 
     public static void log(String logText, List<List<Object>> attachments) {
-        if (isDiscreteLogging() && !logText.toLowerCase().contains("failed") && isInternalStep()) {
+        if (getDiscreteLogging() && !logText.toLowerCase().contains("failed") && isInternalStep()) {
             createLogEntry(logText);
             if (attachments != null && attachments.size() > 0) {
                 attachments.forEach(attachment -> {

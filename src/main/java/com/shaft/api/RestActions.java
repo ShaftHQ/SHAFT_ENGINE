@@ -434,7 +434,7 @@ public class RestActions implements ShaftDriver {
             message = message + " With the following test data [" + testData + "].";
         }
 
-        Boolean initialLoggingState = ReportManagerHelper.isDiscreteLogging();
+        Boolean initialLoggingState = ReportManagerHelper.getDiscreteLogging();
         if (Boolean.TRUE.equals(isDiscrete)) {
             if (requestBody != null && !requestBody.equals(new JsonObject())) {
                 reportRequestBody(requestBody);
@@ -522,7 +522,7 @@ public class RestActions implements ShaftDriver {
     private static List<Object> reportRequestBody(Object requestBody) {
         List<Object> requestBodyAttachment = new ArrayList<>();
         if (requestBody.toString() != null && !requestBody.toString().equals("")) {
-            if (ReportManagerHelper.isDiscreteLogging()) {
+            if (ReportManagerHelper.getDiscreteLogging()) {
                 try {
                     ReportManager.logDiscrete("API Request - REST Body:\n"
                             + IOUtils.toString(parseBodyToJson(requestBody), StandardCharsets.UTF_8));
@@ -1064,7 +1064,7 @@ public class RestActions implements ShaftDriver {
 
     protected boolean evaluateResponseStatusCode(Response response, int targetStatusCode) {
         try {
-            boolean discreetLoggingState = ReportManagerHelper.isDiscreteLogging();
+            boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
             ReportManager.log("Response status code: [" + response.getStatusCode() + "], status line: [" + response.getStatusLine() + "]");
             Validations.assertThat().number(response.getStatusCode())

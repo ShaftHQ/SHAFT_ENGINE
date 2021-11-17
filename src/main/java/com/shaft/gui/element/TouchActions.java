@@ -5,6 +5,7 @@ import com.google.common.collect.ImmutableMap;
 import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
 import io.appium.java_client.AppiumBy;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.android.AndroidDriver;
@@ -27,6 +28,7 @@ public class TouchActions {
     // TODO: migrate away from all deprecated methods
     // https://github.com/appium/java-client/blob/087df2052abc177cea446825c48e3ab297a8ad6b/docs/v7-to-v8-migration-guide.md#touch-actions
     private static final int DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT = 10;
+    private static final boolean CAPTURE_CLICKED_ELEMENT_TEXT = Boolean.valueOf(System.getProperty("captureClickedElementText"));
     private final WebDriver driver;
 
     public TouchActions(WebDriver driver) {
@@ -129,15 +131,17 @@ public class TouchActions {
             // Override current locator with the aiGeneratedElementLocator
             internalElementLocator = WebDriverElementActions.updateLocatorWithAIGeneratedOne(internalElementLocator);
             String elementText = "";
-            try {
-                if (DriverFactoryHelper.isMobileNativeExecution()) {
+            if (CAPTURE_CLICKED_ELEMENT_TEXT) {
+                try {
+                    if (DriverFactoryHelper.isMobileNativeExecution()){
                     elementText = driver.findElement(internalElementLocator).getAttribute("text");
-                } else {
+                } else{
                     elementText = driver.findElement(internalElementLocator).getText();
                 }
-            } catch (Exception e) {
+            } catch(Exception e){
                 // do nothing
             }
+        }
             List<Object> screenshot = WebDriverElementActions.takeScreenshot(driver, internalElementLocator, "tap", null, true);
             // takes screenshot before clicking the element out of view
 
@@ -152,11 +156,10 @@ public class TouchActions {
                 WebDriverElementActions.failAction(driver, internalElementLocator, e);
             }
 
-            if (elementText != null && !elementText.equals("")) {
-                WebDriverElementActions.passAction(driver, internalElementLocator, elementText.replaceAll("\n", " "), screenshot);
-            } else {
-                WebDriverElementActions.passAction(driver, internalElementLocator, screenshot);
+            if (elementText == null || elementText.equals("")){
+                elementText = internalElementLocator.toString();
             }
+            WebDriverElementActions.passAction(driver, internalElementLocator, elementText.replaceAll("\n", " "), screenshot);
         } else {
             WebDriverElementActions.failAction(driver, internalElementLocator);
         }
@@ -599,18 +602,21 @@ public class TouchActions {
         boolean canStillScroll = true;
 
         do {
+            var isDiscrete = ReportManagerHelper.getDiscreteLogging();
+            ReportManagerHelper.setDiscreteLogging(true);
             // appium native device
             if (!driver.findElements(targetElementLocator).isEmpty()
                     && WebDriverElementActions.isElementDisplayed(driver, targetElementLocator)) {
+                ReportManagerHelper.setDiscreteLogging(isDiscrete);
                 // element is already on screen
                 isElementFound = true;
                 ReportManager.logDiscrete("Element found on screen.");
             } else {
+                ReportManagerHelper.setDiscreteLogging(isDiscrete);
                 // for the animated GIF:
-                WebDriverElementActions.takeScreenshot(driver, targetElementLocator, "swipeElementIntoView", null, true);
+                WebDriverElementActions.takeScreenshot(driver, null, "swipeElementIntoView", null, true);
                 canStillScroll = attemptW3cCompliantActionsScroll(swipeDirection, scrollableElementLocator, targetElementLocator);
             }
-
         } while (Boolean.FALSE.equals(isElementFound) && Boolean.TRUE.equals(canStillScroll));
         return isElementFound;
     }
@@ -634,17 +640,28 @@ public class TouchActions {
         var scrollParameters =  new HashMap<>();
 
         if (scrollableElementLocator!=null) {
-            scrollParameters.put(
-                    "elementId", ((RemoteWebElement) driver.findElement(scrollableElementLocator)).getId()
-            );
+            //scrolling inside an element
+            var element = ((RemoteWebElement) driver.findElement(scrollableElementLocator));
+            var elementRectangle = element.getRect();
+            scrollParameters.putAll(ImmutableMap.of(
+                    "elementId", element.getId(),
+                    "left", 0,
+                    "top", 0,
+                    "width", elementRectangle.getWidth(),
+                    "height", elementRectangle.getHeight()
+            ));
+        }else{
+            //scrolling inside the screen
+            scrollParameters.putAll(ImmutableMap.of(
+                    "left", 0,
+                    "top", 100,
+                    "width", screenSize.getWidth(),
+                    "height", screenSize.getHeight()
+            ));
         }
 
         if (driver instanceof AndroidDriver androidDriver){
             scrollParameters.putAll(ImmutableMap.of(
-                    "left", 0,
-                    "top", 0,
-                    "width", screenSize.getWidth(),
-                    "height", screenSize.getHeight(),
                     "direction", swipeDirection.toString(),
                     "percent", 0.9
             ));
