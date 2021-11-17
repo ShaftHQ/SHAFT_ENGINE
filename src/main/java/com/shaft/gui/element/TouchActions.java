@@ -640,17 +640,28 @@ public class TouchActions {
         var scrollParameters =  new HashMap<>();
 
         if (scrollableElementLocator!=null) {
-            scrollParameters.put(
-                    "elementId", ((RemoteWebElement) driver.findElement(scrollableElementLocator)).getId()
-            );
+            //scrolling inside an element
+            var element = ((RemoteWebElement) driver.findElement(scrollableElementLocator));
+            var elementRectangle = element.getRect();
+            scrollParameters.putAll(ImmutableMap.of(
+                    "elementId", element.getId(),
+                    "left", 0,
+                    "top", 0,
+                    "width", elementRectangle.getWidth(),
+                    "height", elementRectangle.getHeight()
+            ));
+        }else{
+            //scrolling inside the screen
+            scrollParameters.putAll(ImmutableMap.of(
+                    "left", 0,
+                    "top", 100,
+                    "width", screenSize.getWidth(),
+                    "height", screenSize.getHeight()
+            ));
         }
 
         if (driver instanceof AndroidDriver androidDriver){
             scrollParameters.putAll(ImmutableMap.of(
-                    "left", 0,
-                    "top", 0,
-                    "width", screenSize.getWidth(),
-                    "height", screenSize.getHeight(),
                     "direction", swipeDirection.toString(),
                     "percent", 0.9
             ));
