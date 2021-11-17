@@ -38,7 +38,7 @@ public class Test_RelativeLocators {
         Validations.assertThat()
                 .element(driver.get(), firstSearchResultRelatively)
                 .text()
-                .contains("GitHub - MohabMohie/SHAFT_ENGINE")
+                .contains("Wikipedia")
                 .perform();
 
     }
