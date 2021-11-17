@@ -38,7 +38,7 @@ public class Test_RelativeLocators {
         Validations.assertThat()
                 .element(driver.get(), firstSearchResultRelatively)
                 .text()
-                .contains("Wikipedia")
+                .doesNotEqual("")
                 .perform();
 
     }

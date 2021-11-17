@@ -2,6 +2,7 @@ package com.shaft.validation;
 
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.support.locators.RelativeLocator;
 
 public class ValidationsBuilder {
     protected ValidationEnums.ValidationCategory validationCategory;
@@ -53,7 +54,11 @@ public class ValidationsBuilder {
      * @return a WebDriverElementValidationsBuilder object to continue building your validation
      */
     public WebDriverElementValidationsBuilder element(WebDriver driver, By locator) {
-        reportMessageBuilder.append("the element found by [").append(locator).append("] ");
+        var stringLocator = locator.toString();
+        if (locator instanceof RelativeLocator.RelativeBy relativeLocator){
+            stringLocator = "Relative Locator: "+relativeLocator.getRemoteParameters().value().toString();
+        }
+        reportMessageBuilder.append("the element found by [").append(stringLocator).append("] ");
         return new WebDriverElementValidationsBuilder(validationCategory, driver, locator, reportMessageBuilder);
     }
 
