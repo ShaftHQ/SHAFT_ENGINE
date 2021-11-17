@@ -23,11 +23,48 @@ public class AndroidBasicInteractionsTest {
         By targetElement = AppiumBy.accessibilityId("ImageButton");
         ElementActions.performTouchAction(driver)
                         .tap(AppiumBy.accessibilityId("Views"))
-                        .swipeElementIntoView(targetElement, TouchActions.SwipeDirection.DOWN);
+                .swipeElementIntoView(targetElement, TouchActions.SwipeDirection.DOWN);
         Validations.assertThat()
                 .element(driver, targetElement)
                 .exists()
                 .perform();
+    }
+
+    @Test
+    public void scrollInExpandableLists_verticalScrolling(){
+        ElementActions.performTouchAction(driver)
+                .tap(AppiumBy.accessibilityId("Views"))
+                .tap(AppiumBy.accessibilityId("Expandable Lists"))
+                .tap(AppiumBy.accessibilityId("3. Simple Adapter"))
+                .swipeElementIntoView(By.xpath("//android.widget.TextView[@text='Group 18']"), TouchActions.SwipeDirection.DOWN)
+                .tap(By.xpath("//android.widget.TextView[@text='Group 18']"))
+                .swipeElementIntoView(By.xpath("//android.widget.TextView[@text='Child 13']"), TouchActions.SwipeDirection.DOWN)
+                .swipeElementIntoView(By.xpath("//android.widget.TextView[@text='Group 1']"), TouchActions.SwipeDirection.UP);
+    }
+
+    @Test
+    public void scrollInExpandableLists_verticalScrolling_insideElement(){
+        ElementActions.performTouchAction(driver)
+                .tap(AppiumBy.accessibilityId("Views"))
+                .swipeElementIntoView(AppiumBy.accessibilityId("Splitting Touches across Views"), TouchActions.SwipeDirection.DOWN)
+                .tap(AppiumBy.accessibilityId("Splitting Touches across Views"))
+                .swipeElementIntoView(By.id("io.appium.android.apis:id/list1"), By.xpath("//android.widget.ListView[1]/android.widget.TextView[@text='Blue']"), TouchActions.SwipeDirection.DOWN)
+                .tap(By.xpath("//android.widget.ListView[1]/android.widget.TextView[@text='Blue']"))
+                .swipeElementIntoView(By.id("io.appium.android.apis:id/list1"), By.xpath("//android.widget.ListView[1]/android.widget.TextView[@text='Abbaye de Belloc']"), TouchActions.SwipeDirection.UP)
+                .tap(By.xpath("//android.widget.ListView[1]/android.widget.TextView[@text='Abbaye de Belloc']"));
+    }
+
+    @Test
+    public void scrollInExpandableLists_horizontalScrolling_insideElement(){
+        ElementActions.performTouchAction(driver)
+                .tap(AppiumBy.accessibilityId("Views"))
+                .swipeElementIntoView(AppiumBy.accessibilityId("Tabs"), TouchActions.SwipeDirection.DOWN)
+                .tap(AppiumBy.accessibilityId("Tabs"))
+                .tap(AppiumBy.accessibilityId("5. Scrollable"))
+                .swipeElementIntoView(By.xpath("//android.widget.HorizontalScrollView"), By.xpath("//android.widget.HorizontalScrollView//android.widget.TextView[@text='TAB 12']"), TouchActions.SwipeDirection.RIGHT)
+                .tap(By.xpath("//android.widget.HorizontalScrollView//android.widget.TextView[@text='TAB 12']"))
+                .swipeElementIntoView(By.xpath("//android.widget.HorizontalScrollView"), By.xpath("//android.widget.HorizontalScrollView//android.widget.TextView[@text='TAB 1']"), TouchActions.SwipeDirection.LEFT)
+                .tap(By.xpath("//android.widget.HorizontalScrollView//android.widget.TextView[@text='TAB 1']"));
     }
 
 //    @Test
@@ -40,10 +77,6 @@ public class AndroidBasicInteractionsTest {
                 .tap(AppiumBy.accessibilityId("ScrollBars"))
                 .tap(AppiumBy.accessibilityId("3. Style"))
                 .swipeElementIntoView(scrollableElement, targetElement, TouchActions.SwipeDirection.DOWN);
-        Validations.assertThat()
-                .element(driver, targetElement)
-                .exists()
-                .perform();
     }
 
     @Test
