@@ -4,6 +4,7 @@ import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.tools.support.JavaScriptHelper;
+import io.appium.java_client.AppiumDriver;
 import io.cucumber.java.hu.De;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Actions;
@@ -63,8 +64,11 @@ class ElementActionsHelper {
                     .ignoreAll(expectedExceptions)
                     .until(nestedDriver -> {
                         if (validToCheckForVisibility){
-//                            nestedDriver.findElement(elementLocator).isDisplayed();
-                            ((Locatable) driver.findElement(elementLocator)).getCoordinates().inViewPort();
+                            if (!(driver instanceof AppiumDriver)){
+                                ((Locatable) driver.findElement(elementLocator)).getCoordinates().inViewPort();
+                            }else {
+                                nestedDriver.findElement(elementLocator).isDisplayed();
+                            }
                         }else {
                             nestedDriver.findElement(elementLocator);
                         }

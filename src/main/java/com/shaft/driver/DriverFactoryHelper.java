@@ -573,7 +573,7 @@ public class DriverFactoryHelper {
             driver.set(new SafariDriver(sfOptions));
         } catch (SessionNotCreatedException e) {
             ReportManagerHelper.log(e);
-            failAction("Failed to create a session on" + DriverType.DESKTOP_SAFARI);
+            failAction("Failed to create a session on " + DriverType.DESKTOP_SAFARI);
         }
         storeDriverInstance(DriverType.DESKTOP_SAFARI.getValue());
         ReportManager.log("Successfully Opened Safari.");
