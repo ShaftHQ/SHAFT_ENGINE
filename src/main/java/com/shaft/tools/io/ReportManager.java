@@ -14,7 +14,7 @@ public class ReportManager {
      * @param logText the text that will be logged by action
      */
     public static void log(String logText) {
-            if (isDiscreteLogging() && !logText.toLowerCase().contains("failed") && isInternalStep()) {
+            if (getDiscreteLogging() && !logText.toLowerCase().contains("failed") && isInternalStep()) {
                 createLogEntry(logText);
             } else {
                 writeStepToReport(actionCounter, logText);

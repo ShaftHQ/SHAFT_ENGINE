@@ -62,7 +62,7 @@ public class WebDriverElementActions {
                     // javascript
                 	targetElement = ElementActionsHelper.getWebElementFromPointUsingJavascript(driver, point, true);
                 }
-                boolean initialLoggingState = ReportManagerHelper.isDiscreteLogging();
+                boolean initialLoggingState = ReportManagerHelper.getDiscreteLogging();
                 ReportManagerHelper.setDiscreteLogging(false);
                 ReportManager.log(
                         "New Element found using AI... Kindly update your element locator [" + elementLocator + "].");
@@ -1069,7 +1069,7 @@ public class WebDriverElementActions {
     public static void switchToDefaultContent(WebDriver driver) {
         try {
             driver.switchTo().defaultContent();
-            boolean discreetLoggingState = ReportManagerHelper.isDiscreteLogging();
+            boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
             passAction(driver);
             ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
@@ -1089,7 +1089,7 @@ public class WebDriverElementActions {
         if (DriverFactoryHelper.getActiveDriverSessions() > 0 && (lastUsedDriver != null)) {
             try {
                 lastUsedDriver.switchTo().defaultContent();
-                boolean discreetLoggingState = ReportManagerHelper.isDiscreteLogging();
+                boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
                 ReportManagerHelper.setDiscreteLogging(true);
                 passAction(lastUsedDriver);
                 ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
@@ -1119,7 +1119,7 @@ public class WebDriverElementActions {
 
             driver.switchTo().frame(driver.findElement(internalElementLocator));
             // note to self: remove internalElementLocator in case of bug in screenshot manager
-            boolean discreetLoggingState = ReportManagerHelper.isDiscreteLogging();
+            boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
             passAction(driver);
             ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
@@ -1496,7 +1496,7 @@ public class WebDriverElementActions {
             matchingElementsCount = 1;
         } else if (matchingElementsCount == 1) {
             if (previouslyIdentifiedXpath != null) {
-                boolean initialLoggingState = ReportManagerHelper.isDiscreteLogging();
+                boolean initialLoggingState = ReportManagerHelper.getDiscreteLogging();
                 ReportManagerHelper.setDiscreteLogging(false);
                 ReportManager
                         .log("Element was previously found using AI... Kindly update your element locator from ["

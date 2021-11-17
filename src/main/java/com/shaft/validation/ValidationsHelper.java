@@ -185,7 +185,7 @@ public class ValidationsHelper {
 
         String actualValue;
         try {
-            discreetLoggingState = ReportManagerHelper.isDiscreteLogging();
+            discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
             actualValue = switch (elementAttribute.toLowerCase()) {
                 case "text", "selectedtext" -> ElementActions.performElementAction(page).getText(elementLocator);
@@ -231,7 +231,7 @@ public class ValidationsHelper {
 
         String actualValue;
         try {
-            discreetLoggingState = ReportManagerHelper.isDiscreteLogging();
+            discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
             actualValue = switch (elementAttribute.toLowerCase()) {
                 case "text" -> ElementActions.getText(driver, elementLocator);
@@ -274,7 +274,7 @@ public class ValidationsHelper {
         String propertySeparator = "' for the '";
         String locatorSeparator = "' CSS property, element locator '";
 
-        discreetLoggingState = ReportManagerHelper.isDiscreteLogging();
+        discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
         ReportManagerHelper.setDiscreteLogging(true);
         String actualValue = ElementActions.getCSSProperty(driver, elementLocator, propertyName);
         ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
@@ -301,7 +301,7 @@ public class ValidationsHelper {
 
         String actualValue;
         try {
-            discreetLoggingState = ReportManagerHelper.isDiscreteLogging();
+            discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
             actualValue = switch (browserAttribute.toLowerCase()) {
                 case "currenturl", "url" -> BrowserActions.getCurrentURL(driver);
@@ -347,7 +347,7 @@ public class ValidationsHelper {
 
         String actualValue;
         try {
-            discreetLoggingState = ReportManagerHelper.isDiscreteLogging();
+            discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
             actualValue = switch (browserAttribute.toLowerCase()) {
                 case "currenturl", "url" -> BrowserActions.performBrowserAction(page).getCurrentURL();

@@ -524,7 +524,7 @@ public class FileActions {
                                    int readTimeout) {
         if (targetFileURL != null && destinationFilePath != null) {
             // force logging
-            boolean initialLoggingState = ReportManagerHelper.isDiscreteLogging();
+            boolean initialLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(false);
             try {
                 ReportManager.log("Downloading a file from this url [" + targetFileURL + "] to this directory ["

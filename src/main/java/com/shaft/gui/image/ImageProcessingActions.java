@@ -532,7 +532,7 @@ public class ImageProcessingActions {
                             + relatedReferenceFileName + "] match by [" + percentage + "] percent.",
                     Arrays.asList(referenceScreenshotAttachment, testScreenshotAttachment));
 
-            boolean discreetLoggingState = ReportManagerHelper.isDiscreteLogging();
+            boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
             try {
                 // add to pass/fail counter depending on assertion result, without logging
                 ReportManagerHelper.setDiscreteLogging(true);

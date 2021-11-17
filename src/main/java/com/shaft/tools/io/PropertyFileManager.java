@@ -33,7 +33,7 @@ public class PropertyFileManager {
      */
     public static synchronized void readPropertyFiles() {
         if (Boolean.TRUE.equals(readPropertyFiles)) {
-            var isDiscrete = ReportManagerHelper.isDiscreteLogging();
+            var isDiscrete = ReportManagerHelper.getDiscreteLogging();
         	ReportManagerHelper.setDiscreteLogging(true);
 
             // migrate folder structure

@@ -5,9 +5,7 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.tools.support.JavaScriptHelper;
 import io.appium.java_client.AppiumDriver;
-import io.cucumber.java.hu.De;
 import org.openqa.selenium.*;
-import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.interactions.Locatable;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.FluentWait;
@@ -287,7 +285,7 @@ class ElementActionsHelper {
             }
         }
         if (newXpath != null) {
-            boolean initialLoggingState = ReportManagerHelper.isDiscreteLogging();
+            boolean initialLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(false);
             ReportManager.log("New AI-Suggested XPath [" + newXpath.replace("\"", "'") + "]");
             ReportManagerHelper.setDiscreteLogging(initialLoggingState);
