@@ -600,9 +600,8 @@ public class TouchActions {
     private boolean attemptToSwipeElementIntoViewInNativeApp(By scrollableElementLocator, By targetElementLocator, SwipeDirection swipeDirection) {
         boolean isElementFound = false;
         boolean canStillScroll = true;
-
+        var isDiscrete = ReportManagerHelper.getDiscreteLogging();
         do {
-            var isDiscrete = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
             // appium native device
             if (!driver.findElements(targetElementLocator).isEmpty()
@@ -618,6 +617,17 @@ public class TouchActions {
                 canStillScroll = attemptW3cCompliantActionsScroll(swipeDirection, scrollableElementLocator, targetElementLocator);
             }
         } while (Boolean.FALSE.equals(isElementFound) && Boolean.TRUE.equals(canStillScroll));
+
+        //final check after reaching the end of the scrollable area
+        ReportManagerHelper.setDiscreteLogging(true);
+        if (Boolean.FALSE.equals(isElementFound)
+            && !driver.findElements(targetElementLocator).isEmpty()
+            && WebDriverElementActions.isElementDisplayed(driver, targetElementLocator)){
+                ReportManagerHelper.setDiscreteLogging(isDiscrete);
+                // element is already on screen
+                isElementFound = true;
+                ReportManager.logDiscrete("Element found on screen.");
+        }
         return isElementFound;
     }
     
@@ -651,10 +661,14 @@ public class TouchActions {
                     "height", elementRectangle.getHeight()
             ));
         }else{
+            switch (swipeDirection){
+                case UP -> scrollParameters.putAll(ImmutableMap.of("left", 0, "top", screenSize.getHeight() - 100));
+                case DOWN -> scrollParameters.putAll(ImmutableMap.of("left", 0, "top", 100));
+                case LEFT -> scrollParameters.putAll(ImmutableMap.of("left", screenSize.getWidth() - 100, "top", 0));
+                case RIGHT -> scrollParameters.putAll(ImmutableMap.of("left", 100, "top", 0));
+            }
             //scrolling inside the screen
             scrollParameters.putAll(ImmutableMap.of(
-                    "left", 0,
-                    "top", 100,
                     "width", screenSize.getWidth(),
                     "height", screenSize.getHeight()
             ));
