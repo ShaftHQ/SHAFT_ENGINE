@@ -18,8 +18,10 @@ import org.openqa.selenium.interactions.Sequence;
 import org.openqa.selenium.remote.RemoteWebElement;
 
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static java.util.Arrays.asList;
 
@@ -126,10 +128,9 @@ public class TouchActions {
      * @return a self-reference to be used to chain actions
      */
     public TouchActions tap(By elementLocator) {
-        By internalElementLocator = elementLocator;
+        // Override current locator with the aiGeneratedElementLocator
+        By internalElementLocator = WebDriverElementActions.updateLocatorWithAIGeneratedOne(elementLocator);
         if (WebDriverElementActions.identifyUniqueElement(driver, internalElementLocator)) {
-            // Override current locator with the aiGeneratedElementLocator
-            internalElementLocator = WebDriverElementActions.updateLocatorWithAIGeneratedOne(internalElementLocator);
             String elementText = "";
             if (CAPTURE_CLICKED_ELEMENT_TEXT) {
                 try {
@@ -601,17 +602,16 @@ public class TouchActions {
         boolean isElementFound = false;
         boolean canStillScroll = true;
         var isDiscrete = ReportManagerHelper.getDiscreteLogging();
+        ReportManagerHelper.setDiscreteLogging(true);
+
         do {
-            ReportManagerHelper.setDiscreteLogging(true);
             // appium native device
             if (!driver.findElements(targetElementLocator).isEmpty()
                     && WebDriverElementActions.isElementDisplayed(driver, targetElementLocator)) {
-                ReportManagerHelper.setDiscreteLogging(isDiscrete);
                 // element is already on screen
                 isElementFound = true;
                 ReportManager.logDiscrete("Element found on screen.");
             } else {
-                ReportManagerHelper.setDiscreteLogging(isDiscrete);
                 // for the animated GIF:
                 WebDriverElementActions.takeScreenshot(driver, null, "swipeElementIntoView", null, true);
                 canStillScroll = attemptW3cCompliantActionsScroll(swipeDirection, scrollableElementLocator, targetElementLocator);
@@ -619,15 +619,14 @@ public class TouchActions {
         } while (Boolean.FALSE.equals(isElementFound) && Boolean.TRUE.equals(canStillScroll));
 
         //final check after reaching the end of the scrollable area
-        ReportManagerHelper.setDiscreteLogging(true);
         if (Boolean.FALSE.equals(isElementFound)
             && !driver.findElements(targetElementLocator).isEmpty()
             && WebDriverElementActions.isElementDisplayed(driver, targetElementLocator)){
-                ReportManagerHelper.setDiscreteLogging(isDiscrete);
                 // element is already on screen
                 isElementFound = true;
                 ReportManager.logDiscrete("Element found on screen.");
         }
+        ReportManagerHelper.setDiscreteLogging(isDiscrete);
         return isElementFound;
     }
     
@@ -643,7 +642,13 @@ public class TouchActions {
     }
 
     private boolean attemptW3cCompliantActionsScroll(SwipeDirection swipeDirection, By scrollableElementLocator, By targetElementLocator) {
-    	ReportManager.logDiscrete("Swiping to find Element using W3C Compliant Actions.");
+    	var logMessage = "Swiping to find Element using W3C Compliant Actions. SwipeDirection ["+swipeDirection+"], TargetElementLocator ["+targetElementLocator+"]";
+        if (scrollableElementLocator != null){
+            logMessage += ", inside ScrollableElement ["+scrollableElementLocator+"]";
+        }
+        logMessage += ".";
+        ReportManager.logDiscrete(logMessage);
+
         Dimension screenSize = driver.manage().window().getSize();
         boolean canScrollMore = true;
 
@@ -651,33 +656,34 @@ public class TouchActions {
 
         if (scrollableElementLocator!=null) {
             //scrolling inside an element
-            var element = ((RemoteWebElement) driver.findElement(scrollableElementLocator));
-            var elementRectangle = element.getRect();
+            Rectangle elementRectangle = ((RemoteWebElement) driver.findElement(scrollableElementLocator)).getRect();
             scrollParameters.putAll(ImmutableMap.of(
-                    "elementId", element.getId(),
-                    "left", 0,
-                    "top", 0,
-                    "width", elementRectangle.getWidth(),
-                    "height", elementRectangle.getHeight()
+                    "height", elementRectangle.getHeight() *90/100
             ));
+            //percent 0.5 works for UP/DOWN, optimized to 0.8 to scroll faster and introduced delay 1000ms after every scroll action to increase stability
+            switch (swipeDirection){
+                case UP -> scrollParameters.putAll(ImmutableMap.of("percent", 0.8, "height", elementRectangle.getHeight() *90/100, "width", elementRectangle.getWidth(), "left", elementRectangle.getX(), "top", elementRectangle.getHeight() - 100));
+                case DOWN -> scrollParameters.putAll(ImmutableMap.of("percent", 0.8, "height", elementRectangle.getHeight() *90/100, "width", elementRectangle.getWidth(), "left", elementRectangle.getX(), "top", 100));
+                case RIGHT -> scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth()*70/100, "left", 100, "top", elementRectangle.getY()));
+                case LEFT -> scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth(), "left", elementRectangle.getX()+(elementRectangle.getWidth() *50/100), "top", elementRectangle.getY()));
+            }
         }else{
+            //scrolling inside the screen
+            scrollParameters.putAll(ImmutableMap.of(
+                    "width", screenSize.getWidth(), "height", screenSize.getHeight() *90/100,
+                    "percent", 0.8
+            ));
             switch (swipeDirection){
                 case UP -> scrollParameters.putAll(ImmutableMap.of("left", 0, "top", screenSize.getHeight() - 100));
                 case DOWN -> scrollParameters.putAll(ImmutableMap.of("left", 0, "top", 100));
-                case LEFT -> scrollParameters.putAll(ImmutableMap.of("left", screenSize.getWidth() - 100, "top", 0));
-                case RIGHT -> scrollParameters.putAll(ImmutableMap.of("left", 100, "top", 0));
+//                case RIGHT -> scrollParameters.putAll(ImmutableMap.of("left", 100, "top", 0));
+//                case LEFT -> scrollParameters.putAll(ImmutableMap.of("left", screenSize.getWidth() - 100, "top", 0));
             }
-            //scrolling inside the screen
-            scrollParameters.putAll(ImmutableMap.of(
-                    "width", screenSize.getWidth(),
-                    "height", screenSize.getHeight()
-            ));
         }
 
         if (driver instanceof AndroidDriver androidDriver){
             scrollParameters.putAll(ImmutableMap.of(
-                    "direction", swipeDirection.toString(),
-                    "percent", 0.9
+                    "direction", swipeDirection.toString()
             ));
             canScrollMore = (Boolean) ((JavascriptExecutor) androidDriver).executeScript("mobile: scrollGesture", scrollParameters);
         } else if (driver instanceof IOSDriver iosDriver) {
@@ -686,6 +692,19 @@ public class TouchActions {
             ));
             canScrollMore = (Boolean) ((JavascriptExecutor) iosDriver).executeScript("mobile: scroll", scrollParameters);
         }
+        var logMessageAfter = "Attempted to scroll using these parameters: ["+scrollParameters+"]";
+        if (canScrollMore){
+            logMessageAfter += ", there is still more room to keep scrolling.";
+        }else{
+            logMessageAfter += ", there is no more room to keep scrolling.";
+        }
+        try {
+            //insert delay for scrolling to finish
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        ReportManager.logDiscrete(logMessageAfter);
         return canScrollMore;
     }
     
