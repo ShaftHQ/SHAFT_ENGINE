@@ -64,11 +64,12 @@ public class DriverFactory {
     public static WebDriver getBrowserStackDriver(MutableCapabilities browserStackOptions){
         String appUrl = System.getProperty("browserStack.appUrl");
         if ("".equals(appUrl)){
-            browserStackOptions.merge(BrowserStack.setupNativeAppExecution(System.getProperty("browserStack.username"), System.getProperty("browserStack.accessKey"),
-                    System.getProperty("browserStack.deviceName"), System.getProperty("browserStack.platformVersion"), System.getProperty("browserStack.appRelativeFilePath"), System.getProperty("browserStack.appName")));
+            //TODO: there is a bug in the merge method and it doesn't respect the capabilities at all
+            browserStackOptions = BrowserStack.setupNativeAppExecution(System.getProperty("browserStack.username"), System.getProperty("browserStack.accessKey"),
+                    System.getProperty("browserStack.deviceName"), System.getProperty("browserStack.platformVersion"), System.getProperty("browserStack.appRelativeFilePath"), System.getProperty("browserStack.appName")).merge(browserStackOptions);
         }else{
-            browserStackOptions.merge(BrowserStack.setupNativeAppExecution(System.getProperty("browserStack.username"), System.getProperty("browserStack.accessKey"),
-                    System.getProperty("browserStack.deviceName"), System.getProperty("browserStack.platformVersion"), appUrl));
+            browserStackOptions = BrowserStack.setupNativeAppExecution(System.getProperty("browserStack.username"), System.getProperty("browserStack.accessKey"),
+                    System.getProperty("browserStack.deviceName"), System.getProperty("browserStack.platformVersion"), appUrl).merge(browserStackOptions);
         }
         return DriverFactoryHelper.getDriver(DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
     }
