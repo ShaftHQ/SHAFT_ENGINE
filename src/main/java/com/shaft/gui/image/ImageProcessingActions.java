@@ -15,7 +15,6 @@ import com.shaft.validation.Validations;
 import nu.pattern.OpenCV;
 import org.opencv.core.*;
 import org.opencv.core.Point;
-import org.opencv.core.Core.MinMaxLocResult;
 import org.opencv.highgui.HighGui;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
@@ -211,7 +210,38 @@ public class ImageProcessingActions {
             } else {
                 loadOpenCV();
                 Mat img = Imgcodecs.imdecode(new MatOfByte(currentPageScreenshot), Imgcodecs.IMREAD_COLOR);
+                Mat img_processed = Imgcodecs.imdecode(new MatOfByte(currentPageScreenshot), Imgcodecs.IMREAD_COLOR);
+
+                // https://answers.opencv.org/question/41498/detecting-image-in-another-image-image-comparison/
                 Mat templ = Imgcodecs.imread(referenceImagePath, Imgcodecs.IMREAD_COLOR);
+                Mat templ_processed = Imgcodecs.imread(referenceImagePath, Imgcodecs.IMREAD_COLOR);
+
+                // https://stackoverflow.com/questions/9480013/image-processing-to-improve-tesseract-ocr-accuracy
+                // Upscaling the image (it's recommended if you’re working with images that have a DPI of less than 300 dpi):
+                Imgproc.resize(templ_processed, templ_processed, templ_processed.size(), 4, 4, Imgproc.INTER_CUBIC);
+
+                // Converting image to grayscale:
+                Imgproc.cvtColor(img_processed, img_processed, Imgproc.COLOR_BGR2GRAY);
+                Imgproc.cvtColor(templ_processed, templ_processed, Imgproc.COLOR_BGR2GRAY);
+
+                // sharpening template image
+                // https://www.geeksforgeeks.org/image-processing-using-opencv-in-java-set-14-sharpness-enhancement/
+                Imgproc.GaussianBlur(img_processed, img_processed, new Size(0, 0), 10);
+                Core.addWeighted(img_processed, 1.5, img_processed, -0.5, 0, img_processed);
+
+                Imgproc.GaussianBlur(templ_processed, templ_processed, new Size(0, 0), 10);
+                Core.addWeighted(templ_processed, 1.5, templ_processed, -0.5, 0, templ_processed);
+
+                // eroding_dilating
+                // https://www.tutorialspoint.com/java_dip/eroding_dilating.htm
+                int erosion_size = 5;
+                int dilation_size = 5;
+                Mat element = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new  Size(2*erosion_size + 1, 2*erosion_size+1));
+                Imgproc.erode(img_processed, img_processed, element);
+                Imgproc.erode(templ_processed, templ_processed, element);
+                Mat element1 = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new  Size(2*dilation_size + 1, 2*dilation_size+1));
+                Imgproc.dilate(img_processed, img_processed, element1);
+                Imgproc.dilate(templ_processed, templ_processed, element1);
 
                 // / Create the result matrix
                 int resultCols = img.cols() - templ.cols() + 1;
@@ -221,13 +251,13 @@ public class ImageProcessingActions {
 
                 // / Do the Matching and Normalize
                 try {
-                    Imgproc.matchTemplate(img, templ, result, matchMethod);
+                    Imgproc.matchTemplate(img_processed, templ_processed, result, matchMethod);
                     Core.normalize(result, result, 0, 1, Core.NORM_MINMAX, -1, new Mat());
 
                     // / Localizing the best match with minMaxLoc
-                    MinMaxLocResult mmr = Core.minMaxLoc(result);
+                    Core.MinMaxLocResult mmr = Core.minMaxLoc(result);
 
-                    Point matchLoc;
+                    org.opencv.core.Point matchLoc;
                     if (matchMethod == Imgproc.TM_SQDIFF || matchMethod == Imgproc.TM_SQDIFF_NORMED) {
                         matchLoc = mmr.minLoc;
                     } else {
