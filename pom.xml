@@ -170,6 +170,12 @@
 
         <!-- VISUAL ELEMENT IDENTIFICATION -->
         <dependency>
+            <groupId>org.openpnp</groupId>
+            <artifactId>opencv</artifactId>
+            <version>${openpnp-opencv.version}</version>
+        </dependency>
+
+        <dependency>
             <groupId>com.sikulix</groupId>
             <artifactId>sikulixapi</artifactId>
             <version>${sikulixapi.version}</version>

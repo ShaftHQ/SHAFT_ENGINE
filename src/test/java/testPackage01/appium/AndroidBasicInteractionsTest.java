@@ -72,10 +72,18 @@ public class AndroidBasicInteractionsTest {
                 .tap(By.xpath("//android.widget.HorizontalScrollView//android.widget.TextView[@text='TAB 1']"));
     }
 
+    @Test
+    public void visualElementIdentification_samedpi() {
+        ElementActions.performTouchAction(driver).tap("src/main/resources/dynamicObjectRepository/content.png");
+        Validations.assertThat()
+                .element(driver, AppiumBy.accessibilityId("Assets"))
+                .exists()
+                .perform();
+    }
 
     @Test
-    public void visualElementIdentification() {
-        ElementActions.performTouchAction(driver).tap("src/main/resources/dynamicObjectRepository/content.png");
+    public void visualElementIdentification_requiresProcessing() {
+        ElementActions.performTouchAction(driver).tap("src/main/resources/dynamicObjectRepository/content2.png");
         Validations.assertThat()
                 .element(driver, AppiumBy.accessibilityId("Assets"))
                 .exists()
