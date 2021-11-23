@@ -1,7 +1,7 @@
 package testPackage01.appium;
 
+import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactory;
-import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.TouchActions;
 import com.shaft.validation.Validations;
@@ -10,7 +10,12 @@ import io.appium.java_client.android.Activity;
 import io.appium.java_client.android.AndroidDriver;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
-import org.testng.annotations.*;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
+
+import java.io.UnsupportedEncodingException;
+import java.util.Base64;
 
 public class AndroidBasicInteractionsTest {
     private WebDriver driver;
@@ -65,6 +70,16 @@ public class AndroidBasicInteractionsTest {
                 .tap(By.xpath("//android.widget.HorizontalScrollView//android.widget.TextView[@text='TAB 12']"))
                 .swipeElementIntoView(By.xpath("//android.widget.HorizontalScrollView"), By.xpath("//android.widget.HorizontalScrollView//android.widget.TextView[@text='TAB 1']"), TouchActions.SwipeDirection.LEFT)
                 .tap(By.xpath("//android.widget.HorizontalScrollView//android.widget.TextView[@text='TAB 1']"));
+    }
+
+
+    @Test
+    public void visualElementIdentification() {
+        ElementActions.performTouchAction(driver).tap("src/main/resources/dynamicObjectRepository/content.png");
+        Validations.assertThat()
+                .element(driver, AppiumBy.accessibilityId("Assets"))
+                .exists()
+                .perform();
     }
 
     @Test

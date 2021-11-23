@@ -210,8 +210,8 @@ public class ImageProcessingActions {
                 return Collections.emptyList();
             } else {
                 loadOpenCV();
-                Mat img = Imgcodecs.imdecode(new MatOfByte(currentPageScreenshot), Imgcodecs.IMREAD_COLOR);
-                Mat templ = Imgcodecs.imread(referenceImagePath, Imgcodecs.IMREAD_COLOR);
+                Mat img = Imgcodecs.imdecode(new MatOfByte(currentPageScreenshot), Imgcodecs.IMREAD_ANYDEPTH);
+                Mat templ = Imgcodecs.imread(referenceImagePath, Imgcodecs.IMREAD_ANYDEPTH);
 
                 // / Create the result matrix
                 int resultCols = img.cols() - templ.cols() + 1;
