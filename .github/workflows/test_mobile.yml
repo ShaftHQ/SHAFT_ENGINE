@@ -40,17 +40,12 @@ jobs:
         if: always()
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 31
-          target: google_apis
-          arch: x86_64
+          api-level: 30
+          target: aosp_atd
+          arch: x86
           profile: Galaxy Nexus
-          cores: 2
-          ram-size: 2048M
-          sdcard-path-or-size: 100M
-          avd-name: test
           force-avd-creation: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          disable-animations: true
           channel: canary
           script: mvn test -DexecutionAddress="localhost:4723" -DtargetOperatingSystem="Android" -Dmobile_automationName="UIAutomator2" -Dmobile_app="src/test/resources/TestDataFiles/apps/ApiDemos-debug.apk" -Dtest="%regex[.*Android.*]"
       - name: Get Allure history
