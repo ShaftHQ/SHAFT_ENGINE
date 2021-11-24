@@ -12,7 +12,8 @@ on:
 jobs:
   mobile:
     name: Run Mobile-based Tests on MacOS
-    runs-on: [macOS-latest]
+    runs-on: macos-11
+    timeout-minutes: 30
 
     steps:
       - name: Checkout Code
@@ -29,7 +30,7 @@ jobs:
       - name: Set up Appium
         run: npm install appium
       - name: Run Appium Server
-        run: ./node_modules/.bin/appium --log-timestamp --log-no-colors > appium.log &
+        run: ./node_modules/.bin/appium --log-timestamp &
       - name: Poll for Appium Server to Start
         run: |
           until $(curl --output /dev/null --silent --head --fail http://localhost:4723/wd/hub/sessions); do
@@ -40,9 +41,13 @@ jobs:
         if: always()
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 29
-          target: default
-          arch: x86_64
+          api-level: 30
+          target: aosp_atd
+          arch: x86
+          profile: Galaxy Nexus
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          channel: canary
           script: mvn test -DexecutionAddress="localhost:4723" -DtargetOperatingSystem="Android" -Dmobile_automationName="UIAutomator2" -Dmobile_app="src/test/resources/TestDataFiles/apps/ApiDemos-debug.apk" -Dtest="%regex[.*Android.*]"
       - name: Get Allure history
         continue-on-error: true
