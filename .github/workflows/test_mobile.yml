@@ -27,9 +27,9 @@ jobs:
         with:
           node-version: '16'
       - name: Set up Appium
-        run: npm install appium --loglevel verbose
+        run: npm install appium
       - name: Run Appium Server
-        run: ./node_modules/.bin/appium --log-timestamp
+        run: ./node_modules/.bin/appium --log-timestamp &
       - name: Poll for Appium Server to Start
         run: |
           until $(curl --output /dev/null --silent --head --fail http://localhost:4723/wd/hub/sessions); do
