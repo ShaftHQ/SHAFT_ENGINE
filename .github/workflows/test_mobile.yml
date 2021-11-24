@@ -27,23 +27,55 @@ jobs:
         with:
           node-version: '16'
       - name: Set up Appium
-        run: npm install appium
+        run: npm install appium --loglevel verbose
       - name: Run Appium Server
-        run: ./node_modules/.bin/appium --log-timestamp --log-no-colors > appium.log &
+        run: ./node_modules/.bin/appium --log-timestamp
       - name: Poll for Appium Server to Start
         run: |
           until $(curl --output /dev/null --silent --head --fail http://localhost:4723/wd/hub/sessions); do
             sleep 5
           done
+
+      - name: Gradle cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*') }}-${{ hashFiles('**/gradle/wrapper/gradle-wrapper.properties') }}-${{ hashFiles('**/buildSrc/**/*.kt') }}
+
+      - name: AVD cache
+        uses: actions/cache@v2
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-${{ matrix.api-level }}
+
+      - name: create AVD and generate snapshot for caching
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: false
+          script: echo "Generated AVD snapshot for caching."
+
       - name: Run all tests
         continue-on-error: true
         if: always()
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 29
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: mvn test -DexecutionAddress="localhost:4723" -DtargetOperatingSystem="Android" -Dmobile_automationName="UIAutomator2" -Dmobile_app="src/test/resources/TestDataFiles/apps/ApiDemos-debug.apk" -Dtest="%regex[.*Android.*]"
           target: default
           arch: x86_64
-          script: mvn test -DexecutionAddress="localhost:4723" -DtargetOperatingSystem="Android" -Dmobile_automationName="UIAutomator2" -Dmobile_app="src/test/resources/TestDataFiles/apps/ApiDemos-debug.apk" -Dtest="%regex[.*Android.*]"
+
       - name: Get Allure history
         continue-on-error: true
         uses: actions/checkout@v2.4.0
