@@ -35,41 +35,6 @@ jobs:
           until $(curl --output /dev/null --silent --head --fail http://localhost:4723/wd/hub/sessions); do
             sleep 5
           done
-
-      - name: Gradle cache
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*') }}-${{ hashFiles('**/gradle/wrapper/gradle-wrapper.properties') }}-${{ hashFiles('**/buildSrc/**/*.kt') }}
-
-      - name: AVD cache
-        uses: actions/cache@v2
-        id: avd-cache
-        with:
-          path: |
-            ~/.android/avd/*
-            ~/.android/adb*
-          key: avd-${{ matrix.api-level }}
-
-      - name: create AVD and generate snapshot for caching
-        if: steps.avd-cache.outputs.cache-hit != 'true'
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 31
-          target: google_apis
-          arch: x86_64
-          profile: Galaxy Nexus
-          cores: 2
-          sdcard-path-or-size: 100M
-          avd-name: test
-          force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          disable-animations: false
-          channel: canary
-          script: echo "Generated AVD snapshot for caching."
-
       - name: Run all tests
         continue-on-error: true
         if: always()
@@ -88,7 +53,6 @@ jobs:
           disable-animations: true
           channel: canary
           script: mvn test -DexecutionAddress="localhost:4723" -DtargetOperatingSystem="Android" -Dmobile_automationName="UIAutomator2" -Dmobile_app="src/test/resources/TestDataFiles/apps/ApiDemos-debug.apk" -Dtest="%regex[.*Android.*]"
-
       - name: Get Allure history
         continue-on-error: true
         uses: actions/checkout@v2.4.0
