@@ -59,10 +59,9 @@ jobs:
         with:
           api-level: 29
           force-avd-creation: false
-          emulator-options: -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: false
-          target: default
-          arch: x86_64
+          target: google_apis
+          arch: x86
           script: echo "Generated AVD snapshot for caching."
 
       - name: Run all tests
@@ -72,10 +71,9 @@ jobs:
         with:
           api-level: 29
           force-avd-creation: false
-          emulator-options: -no-snapshot-save -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          disable-animations: true
-          target: default
-          arch: x86_64
+          disable-animations: false
+          target: google_apis
+          arch: x86
           script: mvn test -DexecutionAddress="localhost:4723" -DtargetOperatingSystem="Android" -Dmobile_automationName="UIAutomator2" -Dmobile_app="src/test/resources/TestDataFiles/apps/ApiDemos-debug.apk" -Dtest="%regex[.*Android.*]"
 
       - name: Get Allure history
