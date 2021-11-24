@@ -12,7 +12,8 @@ on:
 jobs:
   mobile:
     name: Run Mobile-based Tests on MacOS
-    runs-on: [macOS-latest]
+    runs-on: macos-11
+    timeout-minutes: 30
 
     steps:
       - name: Checkout Code
