@@ -168,9 +168,6 @@ public class PropertyFileManager {
             case "true", "1", "2" -> {
                 System.setProperty("aiPoweredSelfHealingElementIdentification", String.valueOf(false));
                 System.setProperty("autoMaximizeBrowserWindow", String.valueOf(true));
-                System.setProperty("forceCheckForElementVisibility", String.valueOf(false));
-                System.setProperty("forceCheckElementLocatorIsUnique", String.valueOf(false));
-                System.setProperty("forceCheckTextWasTypedCorrectly", String.valueOf(false));
                 System.setProperty("screenshotParams_whenToTakeAScreenshot", "ValidationPointsOnly");
                 System.setProperty("screenshotParams_highlightElements", String.valueOf(true));
                 System.setProperty("screenshotParams_highlightMethod", "AI");
