@@ -136,6 +136,7 @@ public class FileActions {
      *                                           afterwards
      * @return a string that holds the SHA256 checksum for the target file
      */
+    @SuppressWarnings("UnstableApiUsage")
     public static String getFileChecksum(TerminalActions terminalSession, String targetFileFolderPath,
                                          String targetFileName, String... pathToTempDirectoryOnRemoteMachine) {
 
@@ -523,7 +524,7 @@ public class FileActions {
                                    int readTimeout) {
         if (targetFileURL != null && destinationFilePath != null) {
             // force logging
-            boolean initialLoggingState = ReportManagerHelper.isDiscreteLogging();
+            boolean initialLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(false);
             try {
                 ReportManager.log("Downloading a file from this url [" + targetFileURL + "] to this directory ["

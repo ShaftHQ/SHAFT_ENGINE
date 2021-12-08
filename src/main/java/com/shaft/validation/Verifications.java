@@ -6,6 +6,7 @@ import io.restassured.response.Response;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
+@Deprecated(forRemoval = true)
 public class Verifications {
 
     private Verifications() {
@@ -13,11 +14,11 @@ public class Verifications {
     }
 
     public static AssertionError getVerificationErrorToForceFail() {
-        return ValidationHelper.getVerificationErrorToForceFail();
+        return ValidationsHelper.getVerificationErrorToForceFail();
     }
 
     public static void resetVerificationStateAfterFailing() {
-        ValidationHelper.resetVerificationStateAfterFailing();
+        ValidationsHelper.resetVerificationStateAfterFailing();
     }
 
     /**
@@ -27,7 +28,7 @@ public class Verifications {
      *                         the execution report
      */
     public static void verifyFail(String... customLogMessage) {
-        ValidationHelper.validateFail(ValidationEnums.ValidationCategory.SOFT_ASSERT, customLogMessage);
+        ValidationsHelper.validateFail(ValidationEnums.ValidationCategory.SOFT_ASSERT, customLogMessage);
     }
 
     /**
@@ -39,7 +40,7 @@ public class Verifications {
      *                         the execution report
      */
     public static void verifyEquals(Object expectedValue, Object actualValue, String... customLogMessage) {
-        ValidationHelper.validateEquals(ValidationEnums.ValidationCategory.SOFT_ASSERT, expectedValue, actualValue, ValidationEnums.ValidationComparisonType.EQUALS, ValidationEnums.ValidationType.POSITIVE,
+        ValidationsHelper.validateEquals(ValidationEnums.ValidationCategory.SOFT_ASSERT, expectedValue, actualValue, ValidationEnums.ValidationComparisonType.EQUALS, ValidationEnums.ValidationType.POSITIVE,
                 customLogMessage);
     }
 
@@ -60,7 +61,7 @@ public class Verifications {
     public static void verifyEquals(Object expectedValue, Object actualValue,
                                     Verifications.VerificationComparisonType verificationComparisonType, Verifications.VerificationType verificationType, String... customLogMessage) {
 
-        ValidationHelper.validateEquals(ValidationEnums.ValidationCategory.SOFT_ASSERT, expectedValue, actualValue,
+        ValidationsHelper.validateEquals(ValidationEnums.ValidationCategory.SOFT_ASSERT, expectedValue, actualValue,
                 ValidationEnums.ValidationComparisonType.valueOf(verificationComparisonType.toString()),
                 ValidationEnums.ValidationType.valueOf(verificationType.toString()), customLogMessage);
 
@@ -74,7 +75,7 @@ public class Verifications {
      *                         the execution report
      */
     public static void verifyNull(Object object, String... customLogMessage) {
-        ValidationHelper.validateNull(ValidationEnums.ValidationCategory.SOFT_ASSERT, object, ValidationEnums.ValidationType.POSITIVE, customLogMessage);
+        ValidationsHelper.validateNull(ValidationEnums.ValidationCategory.SOFT_ASSERT, object, ValidationEnums.ValidationType.POSITIVE, customLogMessage);
     }
 
     /**
@@ -87,7 +88,7 @@ public class Verifications {
      *                         the execution report
      */
     public static void verifyNull(Object object, Verifications.VerificationType verificationType, String... customLogMessage) {
-        ValidationHelper.validateNull(ValidationEnums.ValidationCategory.SOFT_ASSERT, object, ValidationEnums.ValidationType.valueOf(verificationType.toString()), customLogMessage);
+        ValidationsHelper.validateNull(ValidationEnums.ValidationCategory.SOFT_ASSERT, object, ValidationEnums.ValidationType.valueOf(verificationType.toString()), customLogMessage);
     }
 
     /**
@@ -101,7 +102,7 @@ public class Verifications {
      *                         the execution report
      */
     public static void verifyElementExists(WebDriver driver, By elementLocator, String... customLogMessage) {
-        ValidationHelper.validateElementExists(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, elementLocator, ValidationEnums.ValidationType.POSITIVE, customLogMessage);
+        ValidationsHelper.validateElementExists(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, elementLocator, ValidationEnums.ValidationType.POSITIVE, customLogMessage);
     }
 
     /**
@@ -118,7 +119,7 @@ public class Verifications {
      */
     public static void verifyElementExists(WebDriver driver, By elementLocator, Verifications.VerificationType verificationType,
                                            String... customLogMessage) {
-        ValidationHelper.validateElementExists(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, elementLocator, ValidationEnums.ValidationType.valueOf(verificationType.toString()),
+        ValidationsHelper.validateElementExists(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, elementLocator, ValidationEnums.ValidationType.valueOf(verificationType.toString()),
                 customLogMessage);
     }
 
@@ -135,7 +136,7 @@ public class Verifications {
      */
     public static void verifyElementAttribute(WebDriver driver, By elementLocator, ElementAttributeType elementAttributeType,
                                               String expectedValue, String... customLogMessage) {
-        ValidationHelper.validateElementAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, elementLocator, elementAttributeType.getValue(), expectedValue,
+        ValidationsHelper.validateElementAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, elementLocator, elementAttributeType.getValue(), expectedValue,
                 ValidationEnums.ValidationComparisonType.EQUALS, ValidationEnums.ValidationType.POSITIVE, customLogMessage);
     }
 
@@ -152,7 +153,7 @@ public class Verifications {
      */
     public static void verifyElementAttribute(WebDriver driver, By elementLocator, String elementAttribute,
                                               String expectedValue, String... customLogMessage) {
-        ValidationHelper.validateElementAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, elementLocator, elementAttribute, expectedValue,
+        ValidationsHelper.validateElementAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, elementLocator, elementAttribute, expectedValue,
                 ValidationEnums.ValidationComparisonType.EQUALS, ValidationEnums.ValidationType.POSITIVE, customLogMessage);
     }
 
@@ -176,7 +177,7 @@ public class Verifications {
     public static void verifyElementAttribute(WebDriver driver, By elementLocator, ElementAttributeType elementAttributeType,
                                               String expectedValue, Verifications.VerificationComparisonType verificationComparisonType, Verifications.VerificationType verificationType,
                                               String... customLogMessage) {
-        ValidationHelper.validateElementAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, elementLocator, elementAttributeType.getValue(), expectedValue,
+        ValidationsHelper.validateElementAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, elementLocator, elementAttributeType.getValue(), expectedValue,
                 ValidationEnums.ValidationComparisonType.valueOf(verificationComparisonType.toString()),
                 ValidationEnums.ValidationType.valueOf(verificationType.toString()), customLogMessage);
     }
@@ -201,7 +202,7 @@ public class Verifications {
     public static void verifyElementAttribute(WebDriver driver, By elementLocator, String elementAttribute,
                                               String expectedValue, Verifications.VerificationComparisonType verificationComparisonType, Verifications.VerificationType verificationType,
                                               String... customLogMessage) {
-        ValidationHelper.validateElementAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, elementLocator, elementAttribute, expectedValue,
+        ValidationsHelper.validateElementAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, elementLocator, elementAttribute, expectedValue,
                 ValidationEnums.ValidationComparisonType.valueOf(verificationComparisonType.toString()),
                 ValidationEnums.ValidationType.valueOf(verificationType.toString()), customLogMessage);
     }
@@ -218,7 +219,7 @@ public class Verifications {
      *                         the execution report
      */
     public static void verifyElementExists(Page page, String elementLocator, String... customLogMessage) {
-        ValidationHelper.validateElementExists(ValidationEnums.ValidationCategory.SOFT_ASSERT, page, elementLocator, ValidationEnums.ValidationType.POSITIVE, customLogMessage);
+        ValidationsHelper.validateElementExists(ValidationEnums.ValidationCategory.SOFT_ASSERT, page, elementLocator, ValidationEnums.ValidationType.POSITIVE, customLogMessage);
     }
 
     /**
@@ -235,7 +236,7 @@ public class Verifications {
      */
     public static void verifyElementExists(Page page, String elementLocator, Verifications.VerificationType verificationType,
                                            String... customLogMessage) {
-        ValidationHelper.validateElementExists(ValidationEnums.ValidationCategory.SOFT_ASSERT, page, elementLocator, ValidationEnums.ValidationType.valueOf(verificationType.toString()),
+        ValidationsHelper.validateElementExists(ValidationEnums.ValidationCategory.SOFT_ASSERT, page, elementLocator, ValidationEnums.ValidationType.valueOf(verificationType.toString()),
                 customLogMessage);
     }
 
@@ -252,7 +253,7 @@ public class Verifications {
      */
     public static void verifyElementAttribute(Page page, String elementLocator, ElementAttributeType elementAttributeType,
                                               String expectedValue, String... customLogMessage) {
-        ValidationHelper.validateElementAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, page, elementLocator, elementAttributeType.getValue(), expectedValue,
+        ValidationsHelper.validateElementAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, page, elementLocator, elementAttributeType.getValue(), expectedValue,
                 ValidationEnums.ValidationComparisonType.EQUALS, ValidationEnums.ValidationType.POSITIVE, customLogMessage);
     }
 
@@ -269,7 +270,7 @@ public class Verifications {
      */
     public static void verifyElementAttribute(Page page, String elementLocator, String elementAttribute,
                                               String expectedValue, String... customLogMessage) {
-        ValidationHelper.validateElementAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, page, elementLocator, elementAttribute, expectedValue,
+        ValidationsHelper.validateElementAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, page, elementLocator, elementAttribute, expectedValue,
                 ValidationEnums.ValidationComparisonType.EQUALS, ValidationEnums.ValidationType.POSITIVE, customLogMessage);
     }
 
@@ -293,7 +294,7 @@ public class Verifications {
     public static void verifyElementAttribute(Page page, String elementLocator, ElementAttributeType elementAttributeType,
                                               String expectedValue, Verifications.VerificationComparisonType verificationComparisonType, Verifications.VerificationType verificationType,
                                               String... customLogMessage) {
-        ValidationHelper.validateElementAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, page, elementLocator, elementAttributeType.getValue(), expectedValue,
+        ValidationsHelper.validateElementAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, page, elementLocator, elementAttributeType.getValue(), expectedValue,
                 ValidationEnums.ValidationComparisonType.valueOf(verificationComparisonType.toString()),
                 ValidationEnums.ValidationType.valueOf(verificationType.toString()), customLogMessage);
     }
@@ -318,7 +319,7 @@ public class Verifications {
     public static void verifyElementAttribute(Page page, String elementLocator, String elementAttribute,
                                               String expectedValue, Verifications.VerificationComparisonType verificationComparisonType, Verifications.VerificationType verificationType,
                                               String... customLogMessage) {
-        ValidationHelper.validateElementAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, page, elementLocator, elementAttribute, expectedValue,
+        ValidationsHelper.validateElementAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, page, elementLocator, elementAttribute, expectedValue,
                 ValidationEnums.ValidationComparisonType.valueOf(verificationComparisonType.toString()),
                 ValidationEnums.ValidationType.valueOf(verificationType.toString()), customLogMessage);
     }
@@ -336,7 +337,7 @@ public class Verifications {
      */
     public static void verifyElementCSSProperty(WebDriver driver, By elementLocator, String propertyName,
                                                 String expectedValue, String... customLogMessage) {
-        ValidationHelper.validateElementCSSProperty(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, elementLocator, propertyName, expectedValue,
+        ValidationsHelper.validateElementCSSProperty(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, elementLocator, propertyName, expectedValue,
                 ValidationEnums.ValidationComparisonType.EQUALS, ValidationEnums.ValidationType.POSITIVE, customLogMessage);
     }
 
@@ -360,7 +361,7 @@ public class Verifications {
     public static void verifyElementCSSProperty(WebDriver driver, By elementLocator, String propertyName,
                                                 String expectedValue, Verifications.VerificationComparisonType verificationComparisonType, Verifications.VerificationType verificationType,
                                                 String... customLogMessage) {
-        ValidationHelper.validateElementCSSProperty(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, elementLocator, propertyName, expectedValue,
+        ValidationsHelper.validateElementCSSProperty(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, elementLocator, propertyName, expectedValue,
                 ValidationEnums.ValidationComparisonType.valueOf(verificationComparisonType.toString()),
                 ValidationEnums.ValidationType.valueOf(verificationType.toString()), customLogMessage);
     }
@@ -379,7 +380,7 @@ public class Verifications {
      */
     public static void verifyBrowserAttribute(WebDriver driver, String browserAttribute, String expectedValue,
                                               String... customLogMessage) {
-        ValidationHelper.validateBrowserAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, browserAttribute, expectedValue, ValidationEnums.ValidationComparisonType.EQUALS,
+        ValidationsHelper.validateBrowserAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, browserAttribute, expectedValue, ValidationEnums.ValidationComparisonType.EQUALS,
                 ValidationEnums.ValidationType.POSITIVE, customLogMessage);
     }
 
@@ -401,7 +402,7 @@ public class Verifications {
      */
     public static void verifyBrowserAttribute(WebDriver driver, String browserAttribute, String expectedValue,
                                               Verifications.VerificationComparisonType verificationComparisonType, Verifications.VerificationType verificationType, String... customLogMessage) {
-        ValidationHelper.validateBrowserAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, browserAttribute, expectedValue, ValidationEnums.ValidationComparisonType.valueOf(verificationComparisonType.toString()),
+        ValidationsHelper.validateBrowserAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, browserAttribute, expectedValue, ValidationEnums.ValidationComparisonType.valueOf(verificationComparisonType.toString()),
                 ValidationEnums.ValidationType.valueOf(verificationType.toString()), customLogMessage);
     }
 
@@ -418,7 +419,7 @@ public class Verifications {
      */
     public static void verifyBrowserAttribute(WebDriver driver, BrowserAttributeType browserAttributeType, String expectedValue,
                                               String... customLogMessage) {
-        ValidationHelper.validateBrowserAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, browserAttributeType.getValue(), expectedValue, ValidationEnums.ValidationComparisonType.EQUALS,
+        ValidationsHelper.validateBrowserAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, browserAttributeType.getValue(), expectedValue, ValidationEnums.ValidationComparisonType.EQUALS,
                 ValidationEnums.ValidationType.POSITIVE, customLogMessage);
     }
 
@@ -439,7 +440,7 @@ public class Verifications {
      */
     public static void verifyBrowserAttribute(WebDriver driver, BrowserAttributeType browserAttributeType, String expectedValue,
                                               Verifications.VerificationComparisonType verificationComparisonType, Verifications.VerificationType verificationType, String... customLogMessage) {
-        ValidationHelper.validateBrowserAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, browserAttributeType.getValue(), expectedValue, ValidationEnums.ValidationComparisonType.valueOf(verificationComparisonType.toString()),
+        ValidationsHelper.validateBrowserAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, browserAttributeType.getValue(), expectedValue, ValidationEnums.ValidationComparisonType.valueOf(verificationComparisonType.toString()),
                 ValidationEnums.ValidationType.valueOf(verificationType.toString()), customLogMessage);
     }
 
@@ -458,7 +459,7 @@ public class Verifications {
      */
     public static void verifyBrowserAttribute(Page page, String browserAttribute, String expectedValue,
                                               String... customLogMessage) {
-        ValidationHelper.validateBrowserAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, page, browserAttribute, expectedValue, ValidationEnums.ValidationComparisonType.EQUALS,
+        ValidationsHelper.validateBrowserAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, page, browserAttribute, expectedValue, ValidationEnums.ValidationComparisonType.EQUALS,
                 ValidationEnums.ValidationType.POSITIVE, customLogMessage);
     }
 
@@ -480,7 +481,7 @@ public class Verifications {
      */
     public static void verifyBrowserAttribute(Page page, String browserAttribute, String expectedValue,
                                               Verifications.VerificationComparisonType verificationComparisonType, Verifications.VerificationType verificationType, String... customLogMessage) {
-        ValidationHelper.validateBrowserAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, page, browserAttribute, expectedValue, ValidationEnums.ValidationComparisonType.valueOf(verificationComparisonType.toString()),
+        ValidationsHelper.validateBrowserAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, page, browserAttribute, expectedValue, ValidationEnums.ValidationComparisonType.valueOf(verificationComparisonType.toString()),
                 ValidationEnums.ValidationType.valueOf(verificationType.toString()), customLogMessage);
     }
 
@@ -497,7 +498,7 @@ public class Verifications {
      */
     public static void verifyBrowserAttribute(Page page, BrowserAttributeType browserAttributeType, String expectedValue,
                                               String... customLogMessage) {
-        ValidationHelper.validateBrowserAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, page, browserAttributeType.getValue(), expectedValue, ValidationEnums.ValidationComparisonType.EQUALS,
+        ValidationsHelper.validateBrowserAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, page, browserAttributeType.getValue(), expectedValue, ValidationEnums.ValidationComparisonType.EQUALS,
                 ValidationEnums.ValidationType.POSITIVE, customLogMessage);
     }
 
@@ -518,7 +519,7 @@ public class Verifications {
      */
     public static void verifyBrowserAttribute(Page page, BrowserAttributeType browserAttributeType, String expectedValue,
                                               Verifications.VerificationComparisonType verificationComparisonType, Verifications.VerificationType verificationType, String... customLogMessage) {
-        ValidationHelper.validateBrowserAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, page, browserAttributeType.getValue(), expectedValue, ValidationEnums.ValidationComparisonType.valueOf(verificationComparisonType.toString()),
+        ValidationsHelper.validateBrowserAttribute(ValidationEnums.ValidationCategory.SOFT_ASSERT, page, browserAttributeType.getValue(), expectedValue, ValidationEnums.ValidationComparisonType.valueOf(verificationComparisonType.toString()),
                 ValidationEnums.ValidationType.valueOf(verificationType.toString()), customLogMessage);
     }
 
@@ -538,7 +539,7 @@ public class Verifications {
      */
     public static void verifyComparativeRelation(Number expectedValue, Number actualValue,
                                                  Verifications.ComparativeRelationType comparativeRelationType, String... customLogMessage) {
-        ValidationHelper.validateComparativeRelation(ValidationEnums.ValidationCategory.SOFT_ASSERT, expectedValue, actualValue, ValidationEnums.NumbersComparativeRelation.valueOf(comparativeRelationType.toString()), ValidationEnums.ValidationType.POSITIVE, customLogMessage);
+        ValidationsHelper.validateComparativeRelation(ValidationEnums.ValidationCategory.SOFT_ASSERT, expectedValue, actualValue, ValidationEnums.NumbersComparativeRelation.valueOf(comparativeRelationType.toString()), ValidationEnums.ValidationType.POSITIVE, customLogMessage);
     }
 
     /**
@@ -559,7 +560,7 @@ public class Verifications {
      */
     public static void verifyComparativeRelation(Number expectedValue, Number actualValue,
                                                  Verifications.ComparativeRelationType comparativeRelationType, Verifications.VerificationType verificationType, String... customLogMessage) {
-        ValidationHelper.validateComparativeRelation(ValidationEnums.ValidationCategory.SOFT_ASSERT, expectedValue, actualValue, ValidationEnums.NumbersComparativeRelation.valueOf(comparativeRelationType.toString()), ValidationEnums.ValidationType.valueOf(verificationType.toString()), customLogMessage);
+        ValidationsHelper.validateComparativeRelation(ValidationEnums.ValidationCategory.SOFT_ASSERT, expectedValue, actualValue, ValidationEnums.NumbersComparativeRelation.valueOf(comparativeRelationType.toString()), ValidationEnums.ValidationType.valueOf(verificationType.toString()), customLogMessage);
     }
 
     /**
@@ -575,7 +576,7 @@ public class Verifications {
      */
     public static void verifyFileExists(String fileFolderName, String fileName,
                                         String... customLogMessage) {
-        ValidationHelper.validateFileExists(ValidationEnums.ValidationCategory.SOFT_ASSERT, fileFolderName, fileName, 1, ValidationEnums.ValidationType.POSITIVE, customLogMessage);
+        ValidationsHelper.validateFileExists(ValidationEnums.ValidationCategory.SOFT_ASSERT, fileFolderName, fileName, 1, ValidationEnums.ValidationType.POSITIVE, customLogMessage);
     }
 
     /**
@@ -593,7 +594,7 @@ public class Verifications {
      */
     public static void verifyFileExists(String fileFolderName, String fileName, int numberOfRetries,
                                         String... customLogMessage) {
-        ValidationHelper.validateFileExists(ValidationEnums.ValidationCategory.SOFT_ASSERT, fileFolderName, fileName, numberOfRetries, ValidationEnums.ValidationType.POSITIVE, customLogMessage);
+        ValidationsHelper.validateFileExists(ValidationEnums.ValidationCategory.SOFT_ASSERT, fileFolderName, fileName, numberOfRetries, ValidationEnums.ValidationType.POSITIVE, customLogMessage);
     }
 
     /**
@@ -613,7 +614,7 @@ public class Verifications {
      */
     public static void verifyFileExists(String fileFolderName, String fileName, int numberOfRetries,
                                         Verifications.VerificationType verificationType, String... customLogMessage) {
-        ValidationHelper.validateFileExists(ValidationEnums.ValidationCategory.SOFT_ASSERT, fileFolderName, fileName, numberOfRetries, ValidationEnums.ValidationType.valueOf(verificationType.toString()), customLogMessage);
+        ValidationsHelper.validateFileExists(ValidationEnums.ValidationCategory.SOFT_ASSERT, fileFolderName, fileName, numberOfRetries, ValidationEnums.ValidationType.valueOf(verificationType.toString()), customLogMessage);
     }
 
     /**
@@ -625,7 +626,7 @@ public class Verifications {
      *                             step in the execution report
      */
     public static void verifyTrue(Boolean conditionalStatement, String... customLogMessage) {
-        ValidationHelper.validateTrue(ValidationEnums.ValidationCategory.SOFT_ASSERT, conditionalStatement, ValidationEnums.ValidationType.POSITIVE, customLogMessage);
+        ValidationsHelper.validateTrue(ValidationEnums.ValidationCategory.SOFT_ASSERT, conditionalStatement, ValidationEnums.ValidationType.POSITIVE, customLogMessage);
     }
 
     /**
@@ -639,7 +640,7 @@ public class Verifications {
      *                             step in the execution report
      */
     public static void verifyTrue(Boolean conditionalStatement, Verifications.VerificationType verificationType, String... customLogMessage) {
-        ValidationHelper.validateTrue(ValidationEnums.ValidationCategory.SOFT_ASSERT, conditionalStatement, ValidationEnums.ValidationType.valueOf(verificationType.toString()), customLogMessage);
+        ValidationsHelper.validateTrue(ValidationEnums.ValidationCategory.SOFT_ASSERT, conditionalStatement, ValidationEnums.ValidationType.valueOf(verificationType.toString()), customLogMessage);
     }
 
     /**
@@ -655,7 +656,7 @@ public class Verifications {
      *                              step in the execution report
      */
     public static void verifyJSONFileContent(Response response, String referenceJsonFilePath, String... customLogMessage) {
-        ValidationHelper.validateJSONFileContent(ValidationEnums.ValidationCategory.SOFT_ASSERT, response, referenceJsonFilePath, RestActions.ComparisonType.EQUALS, "", ValidationEnums.ValidationType.POSITIVE, customLogMessage);
+        ValidationsHelper.validateJSONFileContent(ValidationEnums.ValidationCategory.SOFT_ASSERT, response, referenceJsonFilePath, RestActions.ComparisonType.EQUALS, "", ValidationEnums.ValidationType.POSITIVE, customLogMessage);
     }
 
     /**
@@ -675,7 +676,7 @@ public class Verifications {
      */
     public static void verifyJSONFileContent(Response response, String referenceJsonFilePath,
                                              RestActions.ComparisonType comparisonType, String... customLogMessage) {
-        ValidationHelper.validateJSONFileContent(ValidationEnums.ValidationCategory.SOFT_ASSERT, response, referenceJsonFilePath, comparisonType, "", ValidationEnums.ValidationType.POSITIVE, customLogMessage);
+        ValidationsHelper.validateJSONFileContent(ValidationEnums.ValidationCategory.SOFT_ASSERT, response, referenceJsonFilePath, comparisonType, "", ValidationEnums.ValidationType.POSITIVE, customLogMessage);
     }
 
     /**
@@ -697,7 +698,7 @@ public class Verifications {
      */
     public static void verifyJSONFileContent(Response response, String referenceJsonFilePath,
                                              RestActions.ComparisonType comparisonType, Verifications.VerificationType verificationType, String... customLogMessage) {
-        ValidationHelper.validateJSONFileContent(ValidationEnums.ValidationCategory.SOFT_ASSERT, response, referenceJsonFilePath, comparisonType, "", ValidationEnums.ValidationType.valueOf(verificationType.toString()), customLogMessage);
+        ValidationsHelper.validateJSONFileContent(ValidationEnums.ValidationCategory.SOFT_ASSERT, response, referenceJsonFilePath, comparisonType, "", ValidationEnums.ValidationType.valueOf(verificationType.toString()), customLogMessage);
     }
 
 
@@ -720,7 +721,7 @@ public class Verifications {
      */
     public static void verifyJSONFileContent(Response response, String referenceJsonFilePath,
                                              RestActions.ComparisonType comparisonType, String jsonPathToTargetArray, String... customLogMessage) {
-        ValidationHelper.validateJSONFileContent(ValidationEnums.ValidationCategory.SOFT_ASSERT, response, referenceJsonFilePath, comparisonType, jsonPathToTargetArray, ValidationEnums.ValidationType.POSITIVE, customLogMessage);
+        ValidationsHelper.validateJSONFileContent(ValidationEnums.ValidationCategory.SOFT_ASSERT, response, referenceJsonFilePath, comparisonType, jsonPathToTargetArray, ValidationEnums.ValidationType.POSITIVE, customLogMessage);
     }
 
     /**
@@ -744,7 +745,7 @@ public class Verifications {
      */
     public static void verifyJSONFileContent(Response response, String referenceJsonFilePath,
                                              RestActions.ComparisonType comparisonType, String jsonPathToTargetArray, Verifications.VerificationType verificationType, String... customLogMessage) {
-        ValidationHelper.validateJSONFileContent(ValidationEnums.ValidationCategory.SOFT_ASSERT, response, referenceJsonFilePath, comparisonType, jsonPathToTargetArray, ValidationEnums.ValidationType.valueOf(verificationType.toString()), customLogMessage);
+        ValidationsHelper.validateJSONFileContent(ValidationEnums.ValidationCategory.SOFT_ASSERT, response, referenceJsonFilePath, comparisonType, jsonPathToTargetArray, ValidationEnums.ValidationType.valueOf(verificationType.toString()), customLogMessage);
     }
 
     /**
@@ -758,7 +759,7 @@ public class Verifications {
      */
     public static void verifyElementMatches(WebDriver driver, By elementLocator,
                                             String... customLogMessage) {
-        ValidationHelper.validateElementMatches(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, elementLocator, ValidationEnums.VisualValidationEngine.EXACT_OPENCV, ValidationEnums.ValidationType.POSITIVE, customLogMessage);
+        ValidationsHelper.validateElementMatches(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, elementLocator, ValidationEnums.VisualValidationEngine.EXACT_OPENCV, ValidationEnums.ValidationType.POSITIVE, customLogMessage);
     }
 
     /**
@@ -774,7 +775,7 @@ public class Verifications {
      */
     public static void verifyElementMatches(WebDriver driver, By elementLocator, Verifications.VerificationType verificationType,
                                             String... customLogMessage) {
-        ValidationHelper.validateElementMatches(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, elementLocator, ValidationEnums.VisualValidationEngine.EXACT_OPENCV, ValidationEnums.ValidationType.valueOf(verificationType.toString()), customLogMessage);
+        ValidationsHelper.validateElementMatches(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, elementLocator, ValidationEnums.VisualValidationEngine.EXACT_OPENCV, ValidationEnums.ValidationType.valueOf(verificationType.toString()), customLogMessage);
     }
 
     /**
@@ -789,7 +790,7 @@ public class Verifications {
      */
     public static void verifyElementMatches(WebDriver driver, By elementLocator, Verifications.VisualValidationEngine visualValidationEngine,
                                             String... customLogMessage) {
-        ValidationHelper.validateElementMatches(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, elementLocator, ValidationEnums.VisualValidationEngine.valueOf(visualValidationEngine.name()), ValidationEnums.ValidationType.POSITIVE, customLogMessage);
+        ValidationsHelper.validateElementMatches(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, elementLocator, ValidationEnums.VisualValidationEngine.valueOf(visualValidationEngine.name()), ValidationEnums.ValidationType.POSITIVE, customLogMessage);
     }
 
     /**
@@ -806,7 +807,7 @@ public class Verifications {
      */
     public static void verifyElementMatches(WebDriver driver, By elementLocator, Verifications.VisualValidationEngine visualValidationEngine, Verifications.VerificationType verificationType,
                                             String... customLogMessage) {
-        ValidationHelper.validateElementMatches(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, elementLocator, ValidationEnums.VisualValidationEngine.valueOf(visualValidationEngine.name()), ValidationEnums.ValidationType.valueOf(verificationType.toString()), customLogMessage);
+        ValidationsHelper.validateElementMatches(ValidationEnums.ValidationCategory.SOFT_ASSERT, driver, elementLocator, ValidationEnums.VisualValidationEngine.valueOf(visualValidationEngine.name()), ValidationEnums.ValidationType.valueOf(verificationType.toString()), customLogMessage);
     }
     /**
      * Verify that two objects are equal
@@ -824,7 +825,7 @@ public class Verifications {
      *                         the execution report
      */
     public static void verifyApiResponseEquals(Response response, String expectedValue, String JSONPath, String... customLogMessage) {
-        ValidationHelper.validateEquals(ValidationEnums.ValidationCategory.SOFT_ASSERT, expectedValue,
+        ValidationsHelper.validateEquals(ValidationEnums.ValidationCategory.SOFT_ASSERT, expectedValue,
                 RestActions.getResponseJSONValue(response, JSONPath), ValidationEnums.ValidationComparisonType.EQUALS,
                 ValidationEnums.ValidationType.POSITIVE, customLogMessage);
     }
@@ -845,7 +846,7 @@ public class Verifications {
      *                         the execution report
      */
     public static void verifyApiResponseEquals(Object response, String expectedValue, String JSONPath, String... customLogMessage) {
-        ValidationHelper.validateEquals(ValidationEnums.ValidationCategory.SOFT_ASSERT, expectedValue,
+        ValidationsHelper.validateEquals(ValidationEnums.ValidationCategory.SOFT_ASSERT, expectedValue,
                 RestActions.getResponseJSONValue(response, JSONPath), ValidationEnums.ValidationComparisonType.EQUALS,
                 ValidationEnums.ValidationType.POSITIVE, customLogMessage);
     }
@@ -862,7 +863,7 @@ public class Verifications {
      */
     public static void verifyElementMatches(Page page, String elementLocator,
                                             String... customLogMessage) {
-        ValidationHelper.validateElementMatches(ValidationEnums.ValidationCategory.SOFT_ASSERT, page, elementLocator, ValidationEnums.VisualValidationEngine.EXACT_OPENCV, ValidationEnums.ValidationType.POSITIVE, customLogMessage);
+        ValidationsHelper.validateElementMatches(ValidationEnums.ValidationCategory.SOFT_ASSERT, page, elementLocator, ValidationEnums.VisualValidationEngine.EXACT_OPENCV, ValidationEnums.ValidationType.POSITIVE, customLogMessage);
     }
 
     /**
@@ -878,7 +879,7 @@ public class Verifications {
      */
     public static void verifyElementMatches(Page page, String elementLocator, Verifications.VerificationType verificationType,
                                             String... customLogMessage) {
-        ValidationHelper.validateElementMatches(ValidationEnums.ValidationCategory.SOFT_ASSERT, page, elementLocator, ValidationEnums.VisualValidationEngine.EXACT_OPENCV, ValidationEnums.ValidationType.valueOf(verificationType.toString()), customLogMessage);
+        ValidationsHelper.validateElementMatches(ValidationEnums.ValidationCategory.SOFT_ASSERT, page, elementLocator, ValidationEnums.VisualValidationEngine.EXACT_OPENCV, ValidationEnums.ValidationType.valueOf(verificationType.toString()), customLogMessage);
     }
 
     /**
@@ -893,7 +894,7 @@ public class Verifications {
      */
     public static void verifyElementMatches(Page page, String elementLocator, Verifications.VisualValidationEngine visualValidationEngine,
                                             String... customLogMessage) {
-        ValidationHelper.validateElementMatches(ValidationEnums.ValidationCategory.SOFT_ASSERT, page, elementLocator, ValidationEnums.VisualValidationEngine.valueOf(visualValidationEngine.name()), ValidationEnums.ValidationType.POSITIVE, customLogMessage);
+        ValidationsHelper.validateElementMatches(ValidationEnums.ValidationCategory.SOFT_ASSERT, page, elementLocator, ValidationEnums.VisualValidationEngine.valueOf(visualValidationEngine.name()), ValidationEnums.ValidationType.POSITIVE, customLogMessage);
     }
 
     /**
@@ -910,7 +911,7 @@ public class Verifications {
      */
     public static void verifyElementMatches(Page page, String elementLocator, Verifications.VisualValidationEngine visualValidationEngine, Verifications.VerificationType verificationType,
                                             String... customLogMessage) {
-        ValidationHelper.validateElementMatches(ValidationEnums.ValidationCategory.SOFT_ASSERT, page, elementLocator, ValidationEnums.VisualValidationEngine.valueOf(visualValidationEngine.name()), ValidationEnums.ValidationType.valueOf(verificationType.toString()), customLogMessage);
+        ValidationsHelper.validateElementMatches(ValidationEnums.ValidationCategory.SOFT_ASSERT, page, elementLocator, ValidationEnums.VisualValidationEngine.valueOf(visualValidationEngine.name()), ValidationEnums.ValidationType.valueOf(verificationType.toString()), customLogMessage);
     }
 
     public enum VerificationType {

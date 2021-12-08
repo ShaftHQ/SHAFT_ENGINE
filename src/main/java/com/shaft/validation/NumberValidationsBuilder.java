@@ -9,10 +9,14 @@ public class NumberValidationsBuilder {
     protected Object actualValue;
     protected ValidationEnums.NumbersComparativeRelation numbersComparativeRelation;
 
+    protected StringBuilder reportMessageBuilder;
+
     public NumberValidationsBuilder(ValidationsBuilder validationsBuilder) {
         this.validationCategory = validationsBuilder.validationCategory;
         this.validationMethod = validationsBuilder.validationMethod;
         this.actualValue = validationsBuilder.actualValue;
+
+        this.reportMessageBuilder = validationsBuilder.reportMessageBuilder;
     }
 
     /**
@@ -24,7 +28,19 @@ public class NumberValidationsBuilder {
         this.expectedValue = expectedValue;
         this.numbersComparativeRelation = ValidationEnums.NumbersComparativeRelation.EQUALS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
+        reportMessageBuilder.append("is equal to [").append(expectedValue).append("].");
         return new ValidationsExecutor(this);
+    }
+
+    /**
+     * Overrides the default object method equals and is the same as calling isEqualTo((Number) expectedValue).perform();
+     * @param expectedValue the test data / expected value for the number under test
+     * @return boolean value true if passed and throws AssertionError if failed (return value can be safely ignored)
+     */
+    @Override
+    public boolean equals(Object expectedValue){
+        isEqualTo((Number) expectedValue).perform();
+        return true;
     }
 
     /**
@@ -36,6 +52,7 @@ public class NumberValidationsBuilder {
         this.expectedValue = expectedValue;
         this.numbersComparativeRelation = ValidationEnums.NumbersComparativeRelation.EQUALS;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
+        reportMessageBuilder.append("does not equal [").append(expectedValue).append("].");
         return new ValidationsExecutor(this);
     }
 
@@ -48,6 +65,7 @@ public class NumberValidationsBuilder {
         this.expectedValue = expectedValue;
         this.numbersComparativeRelation = ValidationEnums.NumbersComparativeRelation.GREATER_THAN_OR_EQUALS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
+        reportMessageBuilder.append("is greater than or equal to [").append(expectedValue).append("].");
         return new ValidationsExecutor(this);
     }
 
@@ -60,6 +78,7 @@ public class NumberValidationsBuilder {
         this.expectedValue = expectedValue;
         this.numbersComparativeRelation = ValidationEnums.NumbersComparativeRelation.GREATER_THAN;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
+        reportMessageBuilder.append("is greater than [").append(expectedValue).append("].");
         return new ValidationsExecutor(this);
     }
 
@@ -72,6 +91,7 @@ public class NumberValidationsBuilder {
         this.expectedValue = expectedValue;
         this.numbersComparativeRelation = ValidationEnums.NumbersComparativeRelation.LESS_THAN_OR_EQUALS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
+        reportMessageBuilder.append("is less than or equal to [").append(expectedValue).append("].");
         return new ValidationsExecutor(this);
     }
 
@@ -84,6 +104,7 @@ public class NumberValidationsBuilder {
         this.expectedValue = expectedValue;
         this.numbersComparativeRelation = ValidationEnums.NumbersComparativeRelation.LESS_THAN;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
+        reportMessageBuilder.append("is less than [").append(expectedValue).append("].");
         return new ValidationsExecutor(this);
     }
 }

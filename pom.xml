@@ -2,7 +2,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.mohabmohie</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>5.4.20211025-BETA</version>
+    <version>5.4.20211202-BETA</version>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
     <url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
@@ -28,19 +28,18 @@
 
     <properties>
         <!-- Dependencies and Plug-ins Version Numbers Parameters -->
-        <selenium.version>4.0.0</selenium.version>
-        <appium-selenium.version>3.141.59</appium-selenium.version>
-        <appium-java-client.version>7.6.0</appium-java-client.version>
-        <appium-java-client-snapshot.version>523d6433a52f022c9c76c1626b51ddc928fbe3b3</appium-java-client-snapshot.version>
-        <playwright.version>1.16.0</playwright.version>
+        <selenium.version>4.1.0</selenium.version>
+        <appium-java-client.version>8.0.0-beta</appium-java-client.version>
+        <playwright.version>1.17.2</playwright.version>
 
         <webdrivermanager.version>5.0.3</webdrivermanager.version>
-        <allure-testng.version>2.15.0</allure-testng.version> <!-- UPDATE internal.properties -->
+        <allure-testng.version>2.17.0</allure-testng.version> <!-- UPDATE internal.properties -->
         <extentreports.version>5.0.9</extentreports.version>
         <aspectj.version>1.9.8.RC1</aspectj.version> <!-- 1.9.6 DO NOT UPDATE (Search and replace) -->
 
         <rest-assured.version>4.4.0</rest-assured.version>
         <json-simple.version>1.1.1</json-simple.version>
+        <json-schema-validator.version>4.4.0</json-schema-validator.version>
         <skyscreamer-jsonassert.version>1.5.0</skyscreamer-jsonassert.version>
         <mime-util.version>2.1.3</mime-util.version>
 
@@ -51,7 +50,7 @@
         <postgresql.version>9.1-901-1.jdbc4</postgresql.version>
         <!-- <ojdbc8.version>19.3.0.0</ojdbc8.version> -->
 
-        <apachepoi.version>5.0.0</apachepoi.version>
+        <apachepoi.version>5.1.0</apachepoi.version>
         <org.slf4j.version>1.7.32</org.slf4j.version>
 
         <maven-resources-plugin.version>3.2.0</maven-resources-plugin.version>
@@ -65,7 +64,7 @@
 
         <jcraft-jsch.version>0.1.55</jcraft-jsch.version>
 
-        <cucumber.version>7.0.0</cucumber.version>
+        <cucumber.version>7.1.0</cucumber.version>
         <cverges-expect4j.version>1.9</cverges-expect4j.version>
 
         <openpnp-opencv.version>4.5.1-2</openpnp-opencv.version>
@@ -104,7 +103,6 @@
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-java</artifactId>
-<!--            <version>${appium-selenium.version}</version>-->
             <version>${selenium.version}</version>
             <exclusions>
                 <exclusion>
@@ -117,7 +115,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-handler</artifactId>
-            <version>4.1.69.Final</version>
+            <version>4.1.70.Final</version>
         </dependency>
 
 
@@ -130,39 +128,10 @@
 		</dependency>
 
         <!-- APPIUM -->
-<!--        <dependency>-->
-<!--            <groupId>io.appium</groupId>-->
-<!--            <artifactId>java-client</artifactId>-->
-<!--            <version>${appium-java-client.version}</version>-->
-<!--            <exclusions>-->
-<!--                <exclusion>-->
-<!--                    <groupId>org.seleniumhq.selenium</groupId>-->
-<!--                    <artifactId>selenium-java</artifactId>-->
-<!--                </exclusion>-->
-<!--                <exclusion>-->
-<!--                    <groupId>org.seleniumhq.selenium</groupId>-->
-<!--                    <artifactId>selenium-support</artifactId>-->
-<!--                </exclusion>-->
-<!--                <exclusion>-->
-<!--                    <groupId>org.seleniumhq.selenium</groupId>-->
-<!--                    <artifactId>selenium-api</artifactId>-->
-<!--                </exclusion>-->
-<!--                <exclusion>-->
-<!--                    <groupId>org.slf4j</groupId>-->
-<!--                    <artifactId>slf4j-api</artifactId>-->
-<!--                </exclusion>-->
-<!--                <exclusion>-->
-<!--                    <groupId>commons-logging</groupId>-->
-<!--                    <artifactId>commons-logging</artifactId>-->
-<!--                </exclusion>-->
-<!--            </exclusions>-->
-<!--        </dependency>-->
-
-        <!-- APPIUM -->
         <dependency>
-            <groupId>com.github.appium</groupId>
+            <groupId>io.appium</groupId>
             <artifactId>java-client</artifactId>
-            <version>${appium-java-client-snapshot.version}</version>
+            <version>${appium-java-client.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.seleniumhq.selenium</groupId>
@@ -187,12 +156,6 @@
             </exclusions>
         </dependency>
 
-        <!-- AI POWERED ELEMENT IDENTIFICATION / VISUAL VALIDATION -->
-        <!--        <dependency>-->
-        <!--            <groupId>org.openpnp</groupId>-->
-        <!--            <artifactId>opencv</artifactId>-->
-        <!--            <version>${openpnp-opencv.version}</version>-->
-        <!--        </dependency>-->
         <dependency>
             <groupId>com.applitools</groupId>
             <artifactId>eyes-images-java4</artifactId>
@@ -206,6 +169,12 @@
         </dependency>
 
         <!-- VISUAL ELEMENT IDENTIFICATION -->
+        <dependency>
+            <groupId>org.openpnp</groupId>
+            <artifactId>opencv</artifactId>
+            <version>${openpnp-opencv.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>com.sikulix</groupId>
             <artifactId>sikulixapi</artifactId>
@@ -360,18 +329,17 @@
                 </exclusion>
             </exclusions>
         </dependency>
-
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>json-schema-validator</artifactId>
+            <version>${json-schema-validator.version}</version>
+        </dependency>
         <!-- REMOTE SSH -->
         <dependency>
             <groupId>com.jcraft</groupId>
             <artifactId>jsch</artifactId>
             <version>${jcraft-jsch.version}</version>
         </dependency>
-<!--         <dependency>
-            <groupId>com.github.cverges</groupId>
-            <artifactId>expect4j</artifactId>
-            <version>${cverges-expect4j.version}</version>
-        </dependency> -->
 
         <!-- DATABASE CONNECTORS -->
         <dependency>
@@ -405,19 +373,16 @@
             <groupId>io.cucumber</groupId>
             <artifactId>cucumber-java</artifactId>
             <version>${cucumber.version}</version>
-            <!-- <scope>test</scope> -->
         </dependency>
         <dependency>
             <groupId>io.cucumber</groupId>
             <artifactId>cucumber-testng</artifactId>
             <version>${cucumber.version}</version>
-            <!-- <scope>test</scope> -->
         </dependency>
         <dependency>
             <groupId>io.cucumber</groupId>
             <artifactId>cucumber-picocontainer</artifactId>
             <version>${cucumber.version}</version>
-            <!--            <scope>test</scope>-->
         </dependency>
 
         <!-- VIDEO RECORDING -->

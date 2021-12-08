@@ -14,10 +14,14 @@ public class WebDriverElementValidationsBuilder {
     protected String elementAttribute;
     protected String elementCssProperty;
 
-    public WebDriverElementValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, WebDriver driver, By locator) {
+    protected StringBuilder reportMessageBuilder;
+
+    public WebDriverElementValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, WebDriver driver, By locator, StringBuilder reportMessageBuilder) {
         this.validationCategory = validationCategory;
         this.driver = driver;
         this.locator = locator;
+
+        this.reportMessageBuilder = reportMessageBuilder;
     }
 
     /**
@@ -27,6 +31,7 @@ public class WebDriverElementValidationsBuilder {
     public ValidationsExecutor exists() {
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         this.validationMethod = "elementExists";
+        reportMessageBuilder.append("exists.");
         return new ValidationsExecutor(this);
     }
 
@@ -35,8 +40,9 @@ public class WebDriverElementValidationsBuilder {
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
     public ValidationsExecutor doesNotExist() {
-        this.validationType = ValidationEnums.ValidationType.POSITIVE;
+        this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         this.validationMethod = "elementExists";
+        reportMessageBuilder.append("does not exist.");
         return new ValidationsExecutor(this);
     }
 
@@ -50,6 +56,7 @@ public class WebDriverElementValidationsBuilder {
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         this.validationMethod = "elementMatches";
         this.visualValidationEngine = ValidationEnums.VisualValidationEngine.EXACT_OPENCV;
+        reportMessageBuilder.append("matches the reference image [").append(ValidationEnums.VisualValidationEngine.EXACT_OPENCV).append("].");
         return new ValidationsExecutor(this);
     }
 
@@ -62,6 +69,7 @@ public class WebDriverElementValidationsBuilder {
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         this.validationMethod = "elementMatches";
         this.visualValidationEngine = visualValidationEngine;
+        reportMessageBuilder.append("matches the reference image [").append(visualValidationEngine).append("].");
         return new ValidationsExecutor(this);
     }
 
@@ -75,6 +83,7 @@ public class WebDriverElementValidationsBuilder {
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         this.validationMethod = "elementMatches";
         this.visualValidationEngine = ValidationEnums.VisualValidationEngine.EXACT_OPENCV;
+        reportMessageBuilder.append("does not match the reference image [").append(ValidationEnums.VisualValidationEngine.EXACT_OPENCV).append("].");
         return new ValidationsExecutor(this);
     }
 
@@ -87,6 +96,7 @@ public class WebDriverElementValidationsBuilder {
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         this.validationMethod = "elementMatches";
         this.visualValidationEngine = visualValidationEngine;
+        reportMessageBuilder.append("does not match the reference image [").append(visualValidationEngine).append("].");
         return new ValidationsExecutor(this);
     }
 
@@ -98,6 +108,7 @@ public class WebDriverElementValidationsBuilder {
     public NativeValidationsBuilder attribute(String elementAttribute) {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = elementAttribute;
+        reportMessageBuilder.append("attribute [").append(elementAttribute).append("] ");
         return new NativeValidationsBuilder(this);
     }
 
@@ -109,6 +120,7 @@ public class WebDriverElementValidationsBuilder {
     public NativeValidationsBuilder attribute(ValidationEnums.ElementAttribute elementAttribute) {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = elementAttribute.getValue();
+        reportMessageBuilder.append("attribute [").append(elementAttribute).append("] ");
         return new NativeValidationsBuilder(this);
     }
 
@@ -119,6 +131,7 @@ public class WebDriverElementValidationsBuilder {
     public NativeValidationsBuilder text() {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = ValidationEnums.ElementAttribute.TEXT.getValue();
+        reportMessageBuilder.append("text ");
         return new NativeValidationsBuilder(this);
     }
 
@@ -130,6 +143,7 @@ public class WebDriverElementValidationsBuilder {
     public NativeValidationsBuilder cssProperty(String elementCssProperty) {
         this.validationMethod = "elementCssPropertyEquals";
         this.elementCssProperty = elementCssProperty;
+        reportMessageBuilder.append("CSS property [").append(elementCssProperty).append("] ");
         return new NativeValidationsBuilder(this);
     }
 

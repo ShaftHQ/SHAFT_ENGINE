@@ -1,5 +1,6 @@
 package testPackage01;
 
+import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.tools.io.ExcelFileManager;
@@ -47,13 +48,13 @@ public class Test_google {
 
     @BeforeClass // Set-up method, to be run once before the first test
     public void beforeClass() {
-        System.setProperty("testDataFilePath", "src/test/resources/TestDataFiles/testSuite01/TestData.xlsx");
+        System.setProperty("testDataFilePath", System.getProperty("testDataFolderPath")+"testSuite01/TestData.xlsx");
         testDataReader = new ExcelFileManager(System.getProperty("testDataFilePath"));
-        driver = BrowserFactory.getBrowser();
+        driver = DriverFactory.getDriver();
     }
 
     @AfterClass
     public void afterClass() {
-        BrowserActions.closeCurrentWindow(driver);
+        DriverFactory.closeAllDrivers();
     }
 }

@@ -1,35 +1,5 @@
 package com.shaft.gui.image;
 
-import java.awt.Color;
-import java.awt.Image;
-import java.awt.image.BufferedImage;
-import java.awt.image.DataBuffer;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.nio.file.FileSystems;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-
-import javax.imageio.ImageIO;
-
-import org.opencv.core.Core;
-import org.opencv.core.Core.MinMaxLocResult;
-import org.opencv.core.CvType;
-import org.opencv.core.Mat;
-import org.opencv.core.MatOfByte;
-import org.opencv.core.Point;
-import org.opencv.core.Scalar;
-import org.opencv.highgui.HighGui;
-import org.opencv.imgcodecs.Imgcodecs;
-import org.opencv.imgproc.Imgproc;
-import org.openqa.selenium.By;
-import org.openqa.selenium.WebDriver;
-import org.testng.Assert;
-
 import com.applitools.eyes.LogHandler;
 import com.applitools.eyes.MatchLevel;
 import com.applitools.eyes.TestResults;
@@ -41,12 +11,30 @@ import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.gui.element.WebDriverElementActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
-import com.shaft.validation.Assertions;
-import com.shaft.validation.Assertions.AssertionType;
-import com.shaft.validation.Assertions.ComparativeRelationType;
-import com.shaft.validation.Verifications;
-
+import com.shaft.validation.Validations;
 import nu.pattern.OpenCV;
+import org.opencv.core.*;
+import org.opencv.core.Point;
+import org.opencv.highgui.HighGui;
+import org.opencv.imgcodecs.Imgcodecs;
+import org.opencv.imgproc.Imgproc;
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
+import org.testng.Assert;
+
+import javax.imageio.ImageIO;
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBuffer;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.nio.file.FileSystems;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 
 public class ImageProcessingActions {
     private static final String DIRECTORY_PROCESSING = "/processingDirectory/";
@@ -142,12 +130,56 @@ public class ImageProcessingActions {
         loadOpenCV();
         Mat img = Imgcodecs.imdecode(new MatOfByte(targetScreenshot), Imgcodecs.IMREAD_COLOR);
 
-        int outlineThickness = 5;
+        int    outlineThickness = 5;
+        double    elementHeight = elementLocation.getHeight(),
+                elementWidth = elementLocation.getWidth(),
+                xPos = elementLocation.getX(),
+                yPos = elementLocation.getY();
 
-        Point startPoint = new Point((double) elementLocation.getX() - outlineThickness,
-                (double) elementLocation.getY() - outlineThickness);
-        Point endPoint = new Point((double) elementLocation.getX() + elementLocation.getWidth() + outlineThickness,
-                (double) elementLocation.getY() + elementLocation.getHeight() + outlineThickness);
+        // IOS Native | MacOS Browser | Linux Browser scaled | -> Repositioning
+        if(System.getProperty("targetOperatingSystem").equals("iOS")
+                || System.getProperty("targetOperatingSystem").equals("Mac-64")
+                || (
+                        System.getProperty("targetOperatingSystem").equals("Linux-64")
+                        && System.getProperty("screenshotParams_scalingFactor") != null
+                        && !System.getProperty("screenshotParams_scalingFactor").isEmpty()
+                        && !System.getProperty("screenshotParams_scalingFactor").equals("1")
+                    )
+        ){
+            elementHeight *= 2;
+            elementWidth *= 2;
+            xPos *= 2;
+            yPos *= 2;
+        }
+
+        // IOS Browser Repositioning
+        if(System.getProperty("targetOperatingSystem").equals("iOS") && System.getProperty("mobile_browserName").equals("Safari") ){
+            yPos += elementHeight + 2 * outlineThickness;
+        }
+
+        // Android Browser Repositioning
+        if(System.getProperty("targetOperatingSystem").equals("Android") && System.getProperty("mobile_appPackage").equals("com.android.chrome")){
+            yPos += 2 * outlineThickness;
+        }
+
+        // MacOS Browser Repositioning
+        if(System.getProperty("targetOperatingSystem").equals("Mac-64")){
+            yPos += 2 * outlineThickness;
+        }
+
+        // Windows Browser Repositioning
+        if(System.getProperty("targetOperatingSystem").equals("Windows-64")
+                && System.getProperty("screenshotParams_scalingFactor")!=null
+                && !System.getProperty("screenshotParams_scalingFactor").isEmpty()){
+            double scalingFactor = Double.parseDouble(System.getProperty("screenshotParams_scalingFactor"));
+            elementHeight *= scalingFactor;
+            elementWidth *= scalingFactor;
+            xPos *= scalingFactor;
+            yPos *= scalingFactor;
+        }
+
+        Point startPoint = new Point(xPos - outlineThickness,yPos - outlineThickness);
+        Point   endPoint = new Point(xPos + elementWidth + outlineThickness,yPos + elementHeight + outlineThickness);
 
         // BGR color
         Scalar highlightColorScalar = new Scalar(highlightColor.getBlue(), highlightColor.getGreen(),
@@ -178,7 +210,38 @@ public class ImageProcessingActions {
             } else {
                 loadOpenCV();
                 Mat img = Imgcodecs.imdecode(new MatOfByte(currentPageScreenshot), Imgcodecs.IMREAD_COLOR);
+                Mat img_processed = Imgcodecs.imdecode(new MatOfByte(currentPageScreenshot), Imgcodecs.IMREAD_COLOR);
+
+                // https://answers.opencv.org/question/41498/detecting-image-in-another-image-image-comparison/
                 Mat templ = Imgcodecs.imread(referenceImagePath, Imgcodecs.IMREAD_COLOR);
+                Mat templ_processed = Imgcodecs.imread(referenceImagePath, Imgcodecs.IMREAD_COLOR);
+
+                // https://stackoverflow.com/questions/9480013/image-processing-to-improve-tesseract-ocr-accuracy
+                // Upscaling the image (it's recommended if you’re working with images that have a DPI of less than 300 dpi):
+                Imgproc.resize(templ_processed, templ_processed, templ_processed.size(), 4, 4, Imgproc.INTER_CUBIC);
+
+                // Converting image to grayscale:
+                Imgproc.cvtColor(img_processed, img_processed, Imgproc.COLOR_BGR2GRAY);
+                Imgproc.cvtColor(templ_processed, templ_processed, Imgproc.COLOR_BGR2GRAY);
+
+                // sharpening template image
+                // https://www.geeksforgeeks.org/image-processing-using-opencv-in-java-set-14-sharpness-enhancement/
+                Imgproc.GaussianBlur(img_processed, img_processed, new Size(0, 0), 10);
+                Core.addWeighted(img_processed, 1.5, img_processed, -0.5, 0, img_processed);
+
+                Imgproc.GaussianBlur(templ_processed, templ_processed, new Size(0, 0), 10);
+                Core.addWeighted(templ_processed, 1.5, templ_processed, -0.5, 0, templ_processed);
+
+                // eroding_dilating
+                // https://www.tutorialspoint.com/java_dip/eroding_dilating.htm
+                int erosion_size = 5;
+                int dilation_size = 5;
+                Mat element = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new  Size(2*erosion_size + 1, 2*erosion_size+1));
+                Imgproc.erode(img_processed, img_processed, element);
+                Imgproc.erode(templ_processed, templ_processed, element);
+                Mat element1 = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new  Size(2*dilation_size + 1, 2*dilation_size+1));
+                Imgproc.dilate(img_processed, img_processed, element1);
+                Imgproc.dilate(templ_processed, templ_processed, element1);
 
                 // / Create the result matrix
                 int resultCols = img.cols() - templ.cols() + 1;
@@ -188,13 +251,13 @@ public class ImageProcessingActions {
 
                 // / Do the Matching and Normalize
                 try {
-                    Imgproc.matchTemplate(img, templ, result, matchMethod);
+                    Imgproc.matchTemplate(img_processed, templ_processed, result, matchMethod);
                     Core.normalize(result, result, 0, 1, Core.NORM_MINMAX, -1, new Mat());
 
                     // / Localizing the best match with minMaxLoc
-                    MinMaxLocResult mmr = Core.minMaxLoc(result);
+                    Core.MinMaxLocResult mmr = Core.minMaxLoc(result);
 
-                    Point matchLoc;
+                    org.opencv.core.Point matchLoc;
                     if (matchMethod == Imgproc.TM_SQDIFF || matchMethod == Imgproc.TM_SQDIFF_NORMED) {
                         matchLoc = mmr.minLoc;
                     } else {
@@ -444,7 +507,7 @@ public class ImageProcessingActions {
             eyes.abortIfNotClosed();
         }
     }
-    
+
     private static void compareImageFolders(File[] refrenceFiles, File[] testFiles, File[] testProcessingFiles,
                                             File refrenceProcessingFolder, File testProcessingFolder, double threshhold) throws IOException {
         // TODO: refactor to minimize File IO actions
@@ -499,12 +562,14 @@ public class ImageProcessingActions {
                             + relatedReferenceFileName + "] match by [" + percentage + "] percent.",
                     Arrays.asList(referenceScreenshotAttachment, testScreenshotAttachment));
 
-            boolean discreetLoggingState = ReportManagerHelper.isDiscreteLogging();
+            boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
             try {
                 // add to pass/fail counter depending on assertion result, without logging
                 ReportManagerHelper.setDiscreteLogging(true);
-                Assertions.assertComparativeRelation(threshhold, percentage,
-                        ComparativeRelationType.GREATER_THAN_OR_EQUALS, AssertionType.POSITIVE);
+                Validations.assertThat()
+                            .number(percentage)
+                            .isGreaterThanOrEquals(threshhold)
+                            .perform();
                 ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
                 passedImagesCount++;
             } catch (AssertionError e) {
@@ -518,7 +583,10 @@ public class ImageProcessingActions {
                 failedImagesCount++;
             }
 
-            Verifications.verifyComparativeRelation(threshhold, percentage, Verifications.ComparativeRelationType.GREATER_THAN_OR_EQUALS, Verifications.VerificationType.POSITIVE);
+            Validations.verifyThat()
+                    .number(percentage)
+                    .isGreaterThanOrEquals(threshhold)
+                    .perform();
         }
 
         ReportManager.log("[" + passedImagesCount + "] images passed, and [" + failedImagesCount

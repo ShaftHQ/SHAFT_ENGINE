@@ -4,28 +4,33 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.gui.image.ImageProcessingActions;
-import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
+import io.appium.java_client.AppiumBy;
 import io.appium.java_client.AppiumDriver;
-import io.appium.java_client.MobileBy;
-import io.appium.java_client.MobileDriver;
-import io.appium.java_client.TouchAction;
-import io.appium.java_client.touch.WaitOptions;
-import io.appium.java_client.touch.offset.ElementOption;
-import io.appium.java_client.touch.offset.PointOption;
+import io.appium.java_client.android.AndroidDriver;
+import io.appium.java_client.ios.IOSDriver;
 import org.openqa.selenium.*;
+import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.interactions.Pause;
 import org.openqa.selenium.interactions.PointerInput;
 import org.openqa.selenium.interactions.Sequence;
+import org.openqa.selenium.remote.RemoteWebElement;
+
+import java.time.Duration;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static java.util.Arrays.asList;
 
-import java.time.Duration;
-import java.util.List;
-
-@SuppressWarnings({"unused", "rawtypes"})
+@SuppressWarnings({"unused"})
 public class TouchActions {
+    // TODO: migrate away from all deprecated methods
+    // https://github.com/appium/java-client/blob/087df2052abc177cea446825c48e3ab297a8ad6b/docs/v7-to-v8-migration-guide.md#touch-actions
     private static final int DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT = 10;
+    private static final boolean CAPTURE_CLICKED_ELEMENT_TEXT = Boolean.valueOf(System.getProperty("captureClickedElementText"));
     private final WebDriver driver;
 
     public TouchActions(WebDriver driver) {
@@ -67,8 +72,13 @@ public class TouchActions {
      */
     public TouchActions hideNativeKeyboard() {
         try {
-            ((AppiumDriver<?>) driver).hideKeyboard();
-            WebDriverElementActions.passAction(driver, null);
+            if (driver instanceof AndroidDriver androidDriver){
+                androidDriver.hideKeyboard();
+            }else if (driver instanceof IOSDriver iosDriver){
+                iosDriver.hideKeyboard();
+            }else{
+                WebDriverElementActions.failAction(driver, null);
+            }
         } catch (Exception rootCauseException) {
             WebDriverElementActions.failAction(driver, null, rootCauseException);
         }
@@ -94,7 +104,7 @@ public class TouchActions {
             tap.addAction(new Pause(input, Duration.ofMillis(200)));
             tap.addAction(input.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
             try {
-                ((AppiumDriver<?>) driver).perform(ImmutableList.of(tap));
+                ((AppiumDriver) driver).perform(ImmutableList.of(tap));
             } catch (UnsupportedCommandException exception) {
                 WebDriverElementActions.failAction(driver, null, exception);
             }
@@ -118,28 +128,27 @@ public class TouchActions {
      * @return a self-reference to be used to chain actions
      */
     public TouchActions tap(By elementLocator) {
-        By internalElementLocator = elementLocator;
+        // Override current locator with the aiGeneratedElementLocator
+        By internalElementLocator = WebDriverElementActions.updateLocatorWithAIGeneratedOne(elementLocator);
         if (WebDriverElementActions.identifyUniqueElement(driver, internalElementLocator)) {
-            // Override current locator with the aiGeneratedElementLocator
-            internalElementLocator = WebDriverElementActions.updateLocatorWithAIGeneratedOne(internalElementLocator);
             String elementText = "";
-            try {
-                if (DriverFactoryHelper.isMobileNativeExecution()) {
+            if (CAPTURE_CLICKED_ELEMENT_TEXT) {
+                try {
+                    if (DriverFactoryHelper.isMobileNativeExecution()){
                     elementText = driver.findElement(internalElementLocator).getAttribute("text");
-                } else {
+                } else{
                     elementText = driver.findElement(internalElementLocator).getText();
                 }
-            } catch (Exception e) {
+            } catch(Exception e){
                 // do nothing
             }
+        }
             List<Object> screenshot = WebDriverElementActions.takeScreenshot(driver, internalElementLocator, "tap", null, true);
             // takes screenshot before clicking the element out of view
 
             try {
-                if (driver instanceof AppiumDriver<?>) {
-                    // appium native device
-                    (new TouchAction<>((AppiumDriver<?>) driver))
-                            .tap(ElementOption.element(driver.findElement(internalElementLocator))).perform();
+                if (driver instanceof AppiumDriver appiumDriver) {
+                    new Actions(appiumDriver).click(driver.findElement(internalElementLocator)).perform();
                 } else {
                     // regular touch screen device
                     (new org.openqa.selenium.interactions.touch.TouchActions(driver)).singleTap(driver.findElement(internalElementLocator)).perform();
@@ -148,11 +157,10 @@ public class TouchActions {
                 WebDriverElementActions.failAction(driver, internalElementLocator, e);
             }
 
-            if (elementText != null && !elementText.equals("")) {
-                WebDriverElementActions.passAction(driver, internalElementLocator, elementText.replaceAll("\n", " "), screenshot);
-            } else {
-                WebDriverElementActions.passAction(driver, internalElementLocator, screenshot);
+            if (elementText == null || elementText.equals("")){
+                elementText = internalElementLocator.toString();
             }
+            WebDriverElementActions.passAction(driver, internalElementLocator, elementText.replaceAll("\n", " "), screenshot);
         } else {
             WebDriverElementActions.failAction(driver, internalElementLocator);
         }
@@ -181,11 +189,12 @@ public class TouchActions {
             // takes screenshot before clicking the element out of view
 
             try {
-                if (driver instanceof AppiumDriver<?>) {
+                if (driver instanceof AppiumDriver appiumDriver) {
                     // appium native device
-                    (new TouchAction<>((AppiumDriver<?>) driver))
-                            .tap(ElementOption.element(driver.findElement(internalElementLocator)))
-                            .tap(ElementOption.element(driver.findElement(internalElementLocator))).perform();
+                    (new Actions(driver)).doubleClick(driver.findElement(internalElementLocator)).perform();
+//                    (new TouchAction<>((appiumDriver))
+//                            .tap(ElementOption.element(driver.findElement(internalElementLocator)))
+//                            .tap(ElementOption.element(driver.findElement(internalElementLocator))).perform();
                 } else {
                     // regular touch screen device
                     (new org.openqa.selenium.interactions.touch.TouchActions(driver)).doubleTap(driver.findElement(internalElementLocator)).perform();
@@ -228,10 +237,9 @@ public class TouchActions {
             // takes screenshot before clicking the element out of view
 
             try {
-                if (driver instanceof AppiumDriver<?>) {
+                if (driver instanceof AppiumDriver appiumDriver) {
                     // appium native device
-                    (new TouchAction<>((AppiumDriver<?>) driver))
-                            .longPress(ElementOption.element(driver.findElement(internalElementLocator))).perform();
+                    new Actions(appiumDriver).clickAndHold(driver.findElement(internalElementLocator)).perform();
                 } else {
                     // regular touch screen device
                     (new org.openqa.selenium.interactions.touch.TouchActions(driver)).longPress(driver.findElement(internalElementLocator)).perform();
@@ -259,7 +267,13 @@ public class TouchActions {
      */
     public TouchActions sendAppToBackground(int secondsToSpendInTheBackground) {
     		if (DriverFactoryHelper.isMobileNativeExecution()) {
-                ((MobileDriver) driver).runAppInBackground(Duration.ofSeconds(secondsToSpendInTheBackground));
+                if (driver instanceof AndroidDriver androidDriver){
+                    androidDriver.runAppInBackground(Duration.ofSeconds(secondsToSpendInTheBackground));
+                }else if (driver instanceof IOSDriver iosDriver){
+                    iosDriver.runAppInBackground(Duration.ofSeconds(secondsToSpendInTheBackground));
+                }else{
+                    WebDriverElementActions.failAction(driver, null);
+                }
                 WebDriverElementActions.passAction(driver, null);
             }else {
                 WebDriverElementActions.failAction(driver, null);
@@ -284,7 +298,13 @@ public class TouchActions {
      */
     public TouchActions activateAppFromBackground(String appPackageName) {
 		if (DriverFactoryHelper.isMobileNativeExecution()) {
-            ((MobileDriver) driver).activateApp(appPackageName);
+            if (driver instanceof AndroidDriver androidDriver){
+                androidDriver.activateApp(appPackageName);
+            }else if (driver instanceof IOSDriver iosDriver){
+                iosDriver.activateApp(appPackageName);
+            }else{
+                WebDriverElementActions.failAction(driver, null);
+            }
             WebDriverElementActions.passAction(driver, null);
         }else {
             WebDriverElementActions.failAction(driver, null);
@@ -297,10 +317,18 @@ public class TouchActions {
      * 
      * @return a self-reference to be used to chain actions
      */
+    @Deprecated(forRemoval = true)
     public TouchActions restartApp() {
 		if (DriverFactoryHelper.isMobileNativeExecution()) {
-            ((MobileDriver) driver).closeApp();
-            ((MobileDriver) driver).launchApp();
+            if (driver instanceof AndroidDriver androidDriver){
+                androidDriver.closeApp();
+                androidDriver.launchApp();
+            }else if (driver instanceof IOSDriver iosDriver){
+                iosDriver.closeApp();
+                iosDriver.launchApp();
+            }else {
+                WebDriverElementActions.failAction(driver, null);
+            }
             WebDriverElementActions.passAction(driver, null);
         }else {
 	        WebDriverElementActions.failAction(driver, null);
@@ -313,9 +341,16 @@ public class TouchActions {
      * 
      * @return a self-reference to be used to chain actions
      */
+    @Deprecated(forRemoval = true)
     public TouchActions resetApp() {
 		if (DriverFactoryHelper.isMobileNativeExecution()) {
-            ((MobileDriver) driver).resetApp();
+            if (driver instanceof AndroidDriver androidDriver){
+                androidDriver.resetApp();
+            }else if (driver instanceof IOSDriver iosDriver){
+                iosDriver.resetApp();
+            }else {
+                WebDriverElementActions.failAction(driver, null);
+            }
             WebDriverElementActions.passAction(driver, null);
         }else {
 	        WebDriverElementActions.failAction(driver, null);
@@ -350,10 +385,9 @@ public class TouchActions {
             String startLocation = sourceElement.getLocation().toString();
 
             try {
-                if (driver instanceof AppiumDriver<?>) {
+                if (driver instanceof AppiumDriver appiumDriver) {
                     // appium native device
-                    (new TouchAction<>((AppiumDriver<?>) driver)).press(ElementOption.element(sourceElement))
-                            .moveTo(PointOption.point(destinationElement.getLocation())).release().perform();
+                    new Actions(appiumDriver).dragAndDrop(sourceElement, destinationElement).perform();
                 } else {
                     // regular touch screen device
                     (new org.openqa.selenium.interactions.touch.TouchActions(driver)).clickAndHold(sourceElement).release(destinationElement).perform();
@@ -402,12 +436,9 @@ public class TouchActions {
             String startLocation = elementLocation.toString();
 
             try {
-                if (driver instanceof AppiumDriver<?>) {
+                if (driver instanceof AppiumDriver appiumDriver) {
                     // appium native device
-                    (new TouchAction<>((AppiumDriver<?>) driver))
-                            .press(ElementOption.element(sourceElement)).moveTo(PointOption
-                            .point(elementLocation.getX() + xOffset, elementLocation.getY() + yOffset))
-                            .release().perform();
+                    new Actions(appiumDriver).dragAndDropBy(sourceElement, xOffset, yOffset).perform();
                 } else {
                     // regular touch screen device
                     (new org.openqa.selenium.interactions.touch.TouchActions(driver)).clickAndHold(sourceElement).moveByOffset(xOffset, yOffset).release()
@@ -440,7 +471,7 @@ public class TouchActions {
      * @return a self-reference to be used to chain actions
      */
     public TouchActions swipeElementIntoView(By targetElementLocator, SwipeDirection swipeDirection) {
-        return swipeElementIntoView(targetElementLocator, swipeDirection, SwipeTechnique.TOUCH_ACTIONS, 0);
+        return swipeElementIntoView(null, targetElementLocator, swipeDirection);
     }
 
     /**
@@ -452,6 +483,7 @@ public class TouchActions {
      * @param swipeTechnique		SwipeTechnique.TOUCH_ACTIONS, or UI_SELECTOR
      * @return a self-reference to be used to chain actions
      */
+    @Deprecated(forRemoval = true)
     public TouchActions swipeElementIntoView(By targetElementLocator, SwipeDirection swipeDirection, SwipeTechnique swipeTechnique) {
         return swipeElementIntoView(targetElementLocator, swipeDirection, swipeTechnique, 0);
     }
@@ -466,15 +498,16 @@ public class TouchActions {
      * @param scrollableElementInstanceNumber in case of multiple scrollable views, insert the instance number here (starts with 0)
      * @return a self-reference to be used to chain actions
      */
+    @Deprecated(forRemoval = true)
     public TouchActions swipeElementIntoView(By targetElementLocator, SwipeDirection swipeDirection, SwipeTechnique swipeTechnique, int scrollableElementInstanceNumber) {
         By internalElementLocator = targetElementLocator;
         internalElementLocator = WebDriverElementActions.updateLocatorWithAIGeneratedOne(internalElementLocator);
         try {
-            if (driver instanceof AppiumDriver<?>) {
+            if (driver instanceof AppiumDriver appiumDriver) {
                 // appium native application
                 boolean isElementFound = attemptToSwipeElementIntoViewInNativeApp(internalElementLocator, swipeDirection, swipeTechnique, scrollableElementInstanceNumber);
                 if (Boolean.FALSE.equals(isElementFound)) {
-                    WebDriverElementActions.failAction(driver, internalElementLocator);
+                    WebDriverElementActions.failAction(appiumDriver, internalElementLocator);
                 }
             } else {
                 // regular touch screen device
@@ -488,6 +521,41 @@ public class TouchActions {
             WebDriverElementActions.passAction(driver, internalElementLocator);
         } catch (Exception e) {
             WebDriverElementActions.failAction(driver, internalElementLocator, e);
+        }
+        return this;
+    }
+
+    /**
+     * Attempts to scroll element into view using the new W3C compliant actions for android and ios
+     * @param scrollableElementLocator the locator of the container/view/scrollable webElement that the scroll action will be performed inside
+     * @param targetElementLocator the locator of the webElement that you want to scroll to under test (By xpath, id,
+     *                             selector, name ...etc)
+     * @param swipeDirection       SwipeDirection.DOWN, UP, RIGHT, or LEFT
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions swipeElementIntoView(By scrollableElementLocator, By targetElementLocator, SwipeDirection swipeDirection) {
+        By internalScrollableElementLocator = WebDriverElementActions.updateLocatorWithAIGeneratedOne(scrollableElementLocator);
+        By internalTargetElementLocator = WebDriverElementActions.updateLocatorWithAIGeneratedOne(targetElementLocator);
+
+        try {
+            if (driver instanceof AppiumDriver appiumDriver) {
+                // appium native application
+                boolean isElementFound = attemptToSwipeElementIntoViewInNativeApp(scrollableElementLocator, targetElementLocator, swipeDirection);
+                if (Boolean.FALSE.equals(isElementFound)) {
+                    WebDriverElementActions.failAction(appiumDriver, internalTargetElementLocator);
+                }
+            } else {
+                // regular touch screen device
+                if (WebDriverElementActions.identifyUniqueElement(driver, internalTargetElementLocator)) {
+                    Point elementLocation = driver.findElement(internalTargetElementLocator).getLocation();
+                    (new org.openqa.selenium.interactions.touch.TouchActions(driver)).scroll(elementLocation.getX(), elementLocation.getY()).perform();
+                } else {
+                    WebDriverElementActions.failAction(driver, internalTargetElementLocator);
+                }
+            }
+            WebDriverElementActions.passAction(driver, internalTargetElementLocator);
+        } catch (Exception e) {
+            WebDriverElementActions.failAction(driver, internalTargetElementLocator, e);
         }
         return this;
     }
@@ -509,7 +577,7 @@ public class TouchActions {
                 WebDriverElementActions.takeScreenshot(driver, elementLocator, "swipeElementIntoView", null, true);
                 lastPageSourceBeforeSwiping = driver.getPageSource();
                 switch (swipeTechnique) {
-                    case TOUCH_ACTIONS -> attemptTouchActionScroll(swipeDirection);
+                    case W3C_ACTIONS -> attemptW3cCompliantActionsScroll(swipeDirection, null, elementLocator);
                     case UI_SELECTOR -> attemptUISelectorScroll(swipeDirection, scrollableElementInstanceNumber);
                 }
                 attemptsToFindElement++;
@@ -517,10 +585,10 @@ public class TouchActions {
 
             //attempting to change scrolling method if page source was not changed
             if (lastPageSourceBeforeSwiping.equals(driver.getPageSource())){
-                if (swipeTechnique.equals(SwipeTechnique.TOUCH_ACTIONS)){
+                if (swipeTechnique.equals(SwipeTechnique.W3C_ACTIONS)){
                     swipeTechnique = SwipeTechnique.UI_SELECTOR;
                 }else{
-                    swipeTechnique = SwipeTechnique.TOUCH_ACTIONS;
+                    swipeTechnique = SwipeTechnique.W3C_ACTIONS;
                 }
             }
         } while (Boolean.FALSE.equals(isElementFound) && attemptsToFindElement < DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT);
@@ -529,42 +597,119 @@ public class TouchActions {
         // do it.
         return isElementFound;
     }
+
+    private boolean attemptToSwipeElementIntoViewInNativeApp(By scrollableElementLocator, By targetElementLocator, SwipeDirection swipeDirection) {
+        boolean isElementFound = false;
+        boolean canStillScroll = true;
+        var isDiscrete = ReportManagerHelper.getDiscreteLogging();
+        ReportManagerHelper.setDiscreteLogging(true);
+
+        do {
+            // appium native device
+            if (!driver.findElements(targetElementLocator).isEmpty()
+                    && WebDriverElementActions.isElementDisplayed(driver, targetElementLocator)) {
+                // element is already on screen
+                isElementFound = true;
+                ReportManager.logDiscrete("Element found on screen.");
+            } else {
+                // for the animated GIF:
+                WebDriverElementActions.takeScreenshot(driver, null, "swipeElementIntoView", null, true);
+                canStillScroll = attemptW3cCompliantActionsScroll(swipeDirection, scrollableElementLocator, targetElementLocator);
+            }
+        } while (Boolean.FALSE.equals(isElementFound) && Boolean.TRUE.equals(canStillScroll));
+
+        //final check after reaching the end of the scrollable area
+        if (Boolean.FALSE.equals(isElementFound)
+            && !driver.findElements(targetElementLocator).isEmpty()
+            && WebDriverElementActions.isElementDisplayed(driver, targetElementLocator)){
+                // element is already on screen
+                isElementFound = true;
+                ReportManager.logDiscrete("Element found on screen.");
+        }
+        ReportManagerHelper.setDiscreteLogging(isDiscrete);
+        return isElementFound;
+    }
     
     private void attemptUISelectorScroll(SwipeDirection swipeDirection, int scrollableElementInstanceNumber) {
     	ReportManager.logDiscrete("Swiping to find Element using UiSelector.");
 		int scrollingSpeed = 100;
 		String scrollDirection = "Forward";
 		ReportManager.logDiscrete("Swiping to find Element using UiSelector.");
-		By androidUIAutomator = MobileBy
-				.AndroidUIAutomator("new UiScrollable(new UiSelector().scrollable(true).instance("
+		By androidUIAutomator = AppiumBy
+				.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true).instance("
 						+ scrollableElementInstanceNumber + ")).scroll" + scrollDirection + "(" + scrollingSpeed + ")");
 		WebDriverElementActions.getElementsCount(driver, androidUIAutomator);
     }
 
-    private void attemptTouchActionScroll(SwipeDirection swipeDirection) {
-    	ReportManager.logDiscrete("Swiping to find Element using TouchAction.");
-        Dimension screenSize = driver.manage().window().getSize();
-        Point startingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight() / 2);
-        Point endingPoint = new Point(0, 0);
-
-        switch (swipeDirection) {
-            case DOWN -> endingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight() * 80/100);
-            case UP -> endingPoint = new Point(screenSize.getWidth() / 2, screenSize.getHeight() * 20/100);
-            case LEFT -> endingPoint = new Point(screenSize.getWidth() * 80/100, screenSize.getHeight() / 2);
-            case RIGHT -> endingPoint = new Point(screenSize.getWidth() * 20/100, screenSize.getHeight() / 2);
+    private boolean attemptW3cCompliantActionsScroll(SwipeDirection swipeDirection, By scrollableElementLocator, By targetElementLocator) {
+    	var logMessage = "Swiping to find Element using W3C Compliant Actions. SwipeDirection ["+swipeDirection+"], TargetElementLocator ["+targetElementLocator+"]";
+        if (scrollableElementLocator != null){
+            logMessage += ", inside ScrollableElement ["+scrollableElementLocator+"]";
         }
-        
-        WaitOptions delay = WaitOptions.waitOptions(Duration.ofMillis(300));
-        (new TouchAction<>((AppiumDriver<?>) driver))
-        		.press(PointOption.point(startingPoint))
-        		.waitAction(delay)
-                .moveTo(PointOption.point(endingPoint))
-                .release().perform();
+        logMessage += ".";
+        ReportManager.logDiscrete(logMessage);
+
+        Dimension screenSize = driver.manage().window().getSize();
+        boolean canScrollMore = true;
+
+        var scrollParameters =  new HashMap<>();
+
+        if (scrollableElementLocator!=null) {
+            //scrolling inside an element
+            Rectangle elementRectangle = ((RemoteWebElement) driver.findElement(scrollableElementLocator)).getRect();
+            scrollParameters.putAll(ImmutableMap.of(
+                    "height", elementRectangle.getHeight() *90/100
+            ));
+            //percent 0.5 works for UP/DOWN, optimized to 0.8 to scroll faster and introduced delay 1000ms after every scroll action to increase stability
+            switch (swipeDirection){
+                case UP -> scrollParameters.putAll(ImmutableMap.of("percent", 0.8, "height", elementRectangle.getHeight() *90/100, "width", elementRectangle.getWidth(), "left", elementRectangle.getX(), "top", elementRectangle.getHeight() - 100));
+                case DOWN -> scrollParameters.putAll(ImmutableMap.of("percent", 0.8, "height", elementRectangle.getHeight() *90/100, "width", elementRectangle.getWidth(), "left", elementRectangle.getX(), "top", 100));
+                case RIGHT -> scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth()*70/100, "left", 100, "top", elementRectangle.getY()));
+                case LEFT -> scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth(), "left", elementRectangle.getX()+(elementRectangle.getWidth() *50/100), "top", elementRectangle.getY()));
+            }
+        }else{
+            //scrolling inside the screen
+            scrollParameters.putAll(ImmutableMap.of(
+                    "width", screenSize.getWidth(), "height", screenSize.getHeight() *90/100,
+                    "percent", 0.8
+            ));
+            switch (swipeDirection){
+                case UP -> scrollParameters.putAll(ImmutableMap.of("left", 0, "top", screenSize.getHeight() - 100));
+                case DOWN -> scrollParameters.putAll(ImmutableMap.of("left", 0, "top", 100));
+//                case RIGHT -> scrollParameters.putAll(ImmutableMap.of("left", 100, "top", 0));
+//                case LEFT -> scrollParameters.putAll(ImmutableMap.of("left", screenSize.getWidth() - 100, "top", 0));
+            }
+        }
+
+        if (driver instanceof AndroidDriver androidDriver){
+            scrollParameters.putAll(ImmutableMap.of(
+                    "direction", swipeDirection.toString()
+            ));
+            canScrollMore = (Boolean) ((JavascriptExecutor) androidDriver).executeScript("mobile: scrollGesture", scrollParameters);
+        } else if (driver instanceof IOSDriver iosDriver) {
+            scrollParameters.putAll(ImmutableMap.of(
+                    "direction", swipeDirection.toString()
+            ));
+            canScrollMore = (Boolean) ((JavascriptExecutor) iosDriver).executeScript("mobile: scroll", scrollParameters);
+        }
+        var logMessageAfter = "Attempted to scroll using these parameters: ["+scrollParameters+"]";
+        if (canScrollMore){
+            logMessageAfter += ", there is still more room to keep scrolling.";
+        }else{
+            logMessageAfter += ", there is no more room to keep scrolling.";
+        }
+        try {
+            //insert delay for scrolling to finish
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        ReportManager.logDiscrete(logMessageAfter);
+        return canScrollMore;
     }
     
     
    
-    @SuppressWarnings("unchecked")
     private void attemptPinchToZoomIn()
     {
 
@@ -592,11 +737,10 @@ public class TouchActions {
                 PointerInput.Origin.viewport(), source.x * 3 / 4, source.y * 3 / 4))
         .addAction(finger2.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
 
-        ((AppiumDriver<WebElement>) driver).perform(asList(pinchAndZoom1, pinchAndZoom2));
+        ((AppiumDriver) driver).perform(asList(pinchAndZoom1, pinchAndZoom2));
     }
 
     
-    @SuppressWarnings("unchecked")
     private void attemptPinchToZoomOut()
     {
 
@@ -626,7 +770,7 @@ public class TouchActions {
                 PointerInput.Origin.viewport(), source.x / 2 , source.y / 2))
         .addAction(finger2.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
 
-        ((AppiumDriver<WebElement>) driver).perform(asList(pinchAndZoom1, pinchAndZoom2));
+        ((AppiumDriver) driver).perform(asList(pinchAndZoom1, pinchAndZoom2));
     }
 
     /**
@@ -662,7 +806,7 @@ public class TouchActions {
     }
 
     public enum SwipeTechnique {
-        TOUCH_ACTIONS, UI_SELECTOR
+        W3C_ACTIONS, UI_SELECTOR
     }
 
     public enum KeyboardKeys {

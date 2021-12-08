@@ -2,6 +2,7 @@ package com.shaft.validation;
 
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.support.locators.RelativeLocator;
 
 public class ValidationsBuilder {
     protected ValidationEnums.ValidationCategory validationCategory;
@@ -10,8 +11,15 @@ public class ValidationsBuilder {
     protected boolean condition;
     protected Object actualValue;
 
+    protected StringBuilder reportMessageBuilder = new StringBuilder("Then I ");
+
     public ValidationsBuilder(ValidationEnums.ValidationCategory validationCategory) {
         this.validationCategory = validationCategory;
+        if (this.validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT)){
+            reportMessageBuilder.append("Assert that ");
+        }else{
+            reportMessageBuilder.append("Verify that ");
+        }
     }
 
     /**
@@ -22,6 +30,7 @@ public class ValidationsBuilder {
     public NativeValidationsBuilder object(Object actualValue) {
         this.validationMethod = "objectsAreEqual";
         this.actualValue = actualValue;
+        reportMessageBuilder.append("[").append(actualValue).append("] ");
         return new NativeValidationsBuilder(this);
     }
 
@@ -33,6 +42,7 @@ public class ValidationsBuilder {
     public NumberValidationsBuilder number(Number actualValue) {
         this.validationMethod = "comparativeRelationBetweenNumbers";
         this.actualValue = actualValue;
+        reportMessageBuilder.append("[").append(actualValue).append("] ");
         return new NumberValidationsBuilder(this);
     }
 
@@ -44,7 +54,12 @@ public class ValidationsBuilder {
      * @return a WebDriverElementValidationsBuilder object to continue building your validation
      */
     public WebDriverElementValidationsBuilder element(WebDriver driver, By locator) {
-        return new WebDriverElementValidationsBuilder(validationCategory, driver, locator);
+        var stringLocator = locator.toString();
+        if (locator instanceof RelativeLocator.RelativeBy relativeLocator){
+            stringLocator = "Relative Locator: "+relativeLocator.getRemoteParameters().value().toString();
+        }
+        reportMessageBuilder.append("the element found by [").append(stringLocator).append("] ");
+        return new WebDriverElementValidationsBuilder(validationCategory, driver, locator, reportMessageBuilder);
     }
 
     /**
@@ -53,7 +68,8 @@ public class ValidationsBuilder {
      * @return a WebDriverBrowserValidationsBuilder object to continue building your validation
      */
     public WebDriverBrowserValidationsBuilder browser(WebDriver driver) {
-        return new WebDriverBrowserValidationsBuilder(validationCategory, driver);
+        reportMessageBuilder.append("the browser ");
+        return new WebDriverBrowserValidationsBuilder(validationCategory, driver, reportMessageBuilder);
     }
 
     /**
@@ -62,7 +78,8 @@ public class ValidationsBuilder {
      * @return a RestValidationsBuilder object to continue building your validation
      */
     public RestValidationsBuilder response(Object response) {
-        return new RestValidationsBuilder(validationCategory, response);
+        reportMessageBuilder.append("the API response ");
+        return new RestValidationsBuilder(validationCategory, response, reportMessageBuilder);
     }
 
     /**
@@ -72,7 +89,8 @@ public class ValidationsBuilder {
      * @return a FileValidationsBuilder object to continue building your validation
      */
     public FileValidationsBuilder file(String folderRelativePath, String fileName) {
-        return new FileValidationsBuilder(validationCategory, folderRelativePath, fileName);
+        reportMessageBuilder.append("this file [").append(folderRelativePath).append(fileName).append("] ");
+        return new FileValidationsBuilder(validationCategory, folderRelativePath, fileName, reportMessageBuilder);
     }
 
     /**
@@ -80,6 +98,7 @@ public class ValidationsBuilder {
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
     public ValidationsExecutor forceFail() {
+        reportMessageBuilder.append("I can force fail.");
         this.validationMethod = "forceFail";
         return new ValidationsExecutor(this);
     }

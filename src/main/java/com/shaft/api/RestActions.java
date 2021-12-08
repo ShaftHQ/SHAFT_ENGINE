@@ -8,7 +8,7 @@ import com.shaft.driver.ShaftDriver;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
-import com.shaft.validation.Assertions;
+import com.shaft.validation.Validations;
 import eu.medsea.mimeutil.MimeUtil;
 import eu.medsea.mimeutil.MimeUtil2;
 import io.restassured.builder.MultiPartSpecBuilder;
@@ -57,6 +57,7 @@ public class RestActions implements ShaftDriver {
     private static final String ERROR_INCORRECT_JSONPATH = "Incorrect jsonPath ";
     private static final String ERROR_INCORRECT_XMLPATH = "Incorrect xmlPath ";
     private static final String ERROR_FAILED_TO_PARSE_JSON = "Failed to parse the JSON document";
+    private static boolean AUTOMATICALLY_ASSERT_RESPONSE_STATUS_CODE = true;
     private static int HTTP_SOCKET_TIMEOUT;
     private static int HTTP_CONNECTION_TIMEOUT;
     private static int HTTP_CONNECTION_MANAGER_TIMEOUT;
@@ -435,7 +436,7 @@ public class RestActions implements ShaftDriver {
             message = message + " With the following test data [" + testData + "].";
         }
 
-        Boolean initialLoggingState = ReportManagerHelper.isDiscreteLogging();
+        Boolean initialLoggingState = ReportManagerHelper.getDiscreteLogging();
         if (Boolean.TRUE.equals(isDiscrete)) {
             if (requestBody != null && !requestBody.equals(new JsonObject())) {
                 reportRequestBody(requestBody);
@@ -523,7 +524,7 @@ public class RestActions implements ShaftDriver {
     private static List<Object> reportRequestBody(Object requestBody) {
         List<Object> requestBodyAttachment = new ArrayList<>();
         if (requestBody.toString() != null && !requestBody.toString().equals("")) {
-            if (ReportManagerHelper.isDiscreteLogging()) {
+            if (ReportManagerHelper.getDiscreteLogging()) {
                 try {
                     ReportManager.logDiscrete("API Request - REST Body:\n"
                             + IOUtils.toString(parseBodyToJson(requestBody), StandardCharsets.UTF_8));
@@ -758,6 +759,8 @@ public class RestActions implements ShaftDriver {
         HTTP_CONNECTION_MANAGER_TIMEOUT = Integer
                 .parseInt(System.getProperty("apiConnectionManagerTimeout"));
 
+        AUTOMATICALLY_ASSERT_RESPONSE_STATUS_CODE = Boolean.parseBoolean(System.getProperty("automaticallyAssertResponseStatusCode"));
+
     }
 
     protected String getServiceURI() {
@@ -831,7 +834,7 @@ public class RestActions implements ShaftDriver {
     @Deprecated
     public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName) {
         return performRequest(
-                new Object[]{requestType, targetStatusCode, serviceName, null, null, null, null, ContentType.ANY});
+                new Object[]{requestType, targetStatusCode, serviceName, null, null, null, null, ContentType.ANY.toString()});
     }
 
     /**
@@ -849,7 +852,7 @@ public class RestActions implements ShaftDriver {
     public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName,
                                    String urlArguments) {
         return performRequest(new Object[]{requestType, targetStatusCode, serviceName, urlArguments, null, null, null,
-                ContentType.ANY});
+                ContentType.ANY.toString()});
     }
 
     /**
@@ -868,7 +871,7 @@ public class RestActions implements ShaftDriver {
     public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName,
                                    ContentType contentType) {
         return performRequest(
-                new Object[]{requestType, targetStatusCode, serviceName, null, null, null, null, contentType});
+                new Object[]{requestType, targetStatusCode, serviceName, null, null, null, null, contentType.toString()});
     }
 
     /**
@@ -890,7 +893,7 @@ public class RestActions implements ShaftDriver {
     public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName,
                                    ContentType contentType, String urlArguments) {
         return performRequest(new Object[]{requestType, targetStatusCode, serviceName, urlArguments, null, null, null,
-                contentType});
+                contentType.toString()});
     }
 
     /**
@@ -914,7 +917,7 @@ public class RestActions implements ShaftDriver {
     public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName,
                                    List<List<Object>> parameters, ParametersType parametersType, ContentType contentType) {
         return performRequest(new Object[]{requestType, targetStatusCode, serviceName, null, parameters,
-                parametersType, null, contentType});
+                parametersType, null, contentType.toString()});
     }
 
     /**
@@ -942,7 +945,7 @@ public class RestActions implements ShaftDriver {
     public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName,
                                    Object requestBody, ContentType contentType) {
         return performRequest(
-                new Object[]{requestType, targetStatusCode, serviceName, null, null, null, requestBody, contentType});
+                new Object[]{requestType, targetStatusCode, serviceName, null, null, null, requestBody, contentType.toString()});
     }
 
     protected String prepareRequestURL(String serviceURI, String urlArguments, String serviceName) {
@@ -954,7 +957,7 @@ public class RestActions implements ShaftDriver {
     }
 
     protected RequestSpecification prepareRequestSpecs(List<List<Object>> parameters, ParametersType parametersType,
-                                                       Object body, ContentType contentType, Map<String, Object> sessionCookies, Map<String, String> sessionHeaders, boolean appendDefaultContentCharsetToContentTypeIfUndefined,boolean urlEncodingEnabled) {
+                                                       Object body, String contentType, Map<String, Object> sessionCookies, Map<String, String> sessionHeaders, boolean appendDefaultContentCharsetToContentTypeIfUndefined,boolean urlEncodingEnabled) {
         RequestSpecBuilder builder = initializeBuilder(sessionCookies, sessionHeaders, appendDefaultContentCharsetToContentTypeIfUndefined);
 
         // set the default content type as part of the specs
@@ -969,11 +972,11 @@ public class RestActions implements ShaftDriver {
         return builder.build();
     }
 
-    private void prepareRequestBody(RequestSpecBuilder builder, Object body, ContentType contentType) {
+    private void prepareRequestBody(RequestSpecBuilder builder, Object body, String contentType) {
         try {
             switch (contentType) {
-                case JSON -> builder.setBody(body, ObjectMapperType.GSON);
-                case XML -> builder.setBody(body, ObjectMapperType.JAXB);
+                case "application/json", "application/javascript", "text/javascript", "text/json" -> builder.setBody(body, ObjectMapperType.GSON);
+                case "application/xml", "text/xml", "application/xhtml+xml" -> builder.setBody(body, ObjectMapperType.JAXB);
                 default -> builder.setBody(body);
             }
         } catch (Exception rootCauseException) {
@@ -1065,11 +1068,15 @@ public class RestActions implements ShaftDriver {
 
     protected boolean evaluateResponseStatusCode(Response response, int targetStatusCode) {
         try {
-            boolean discreetLoggingState = ReportManagerHelper.isDiscreteLogging();
+            boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
-            ReportManager.log("Response status code: [" + response.getStatusCode() + "], status line: [" + response.getStatusLine() + "]");
-            Assertions.assertEquals(targetStatusCode, response.getStatusCode(),
-                    "Evaluating the actual response status code against the expected one...");
+            ReportManager.logDiscrete("Response status code: [" + response.getStatusCode() + "], status line: [" + response.getStatusLine() + "]");
+            if (AUTOMATICALLY_ASSERT_RESPONSE_STATUS_CODE) {
+                Validations.assertThat().number(response.getStatusCode())
+                        .isEqualTo(targetStatusCode)
+                        .withCustomReportMessage("Evaluating the actual response status code against the expected one...")
+                        .perform();
+            }
             ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
             return true;
         } catch (AssertionError rootCauseException) {
@@ -1119,7 +1126,7 @@ public class RestActions implements ShaftDriver {
         List<List<Object>> parameters = (List<List<Object>>) params[4];
         ParametersType parametersType = (ParametersType) params[5];
         Object requestBody = params[6];
-        ContentType contentType = (ContentType) params[7];
+        String contentType = (String) params[7];
 
         String request = prepareRequestURL(serviceURI, urlArguments, serviceName);
 
@@ -1156,7 +1163,7 @@ public class RestActions implements ShaftDriver {
     }
 
     String prepareReportMessage(Response response, int targetStatusCode, RequestType requestType,
-                                String serviceName, ContentType contentType, String urlArguments) {
+                                String serviceName, String contentType, String urlArguments) {
         if (response != null) {
             extractCookiesFromResponse(response);
             extractHeadersFromResponse(response);

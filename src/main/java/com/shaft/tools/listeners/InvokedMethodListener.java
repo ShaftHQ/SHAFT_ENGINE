@@ -5,7 +5,7 @@ import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManagerHelper;
-import com.shaft.validation.Verifications;
+import com.shaft.validation.ValidationsHelper;
 import io.qameta.allure.Issue;
 import io.qameta.allure.Issues;
 import io.qameta.allure.model.Link;
@@ -92,7 +92,8 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 
     @Override
     public void afterInvocation(IInvokedMethod method, ITestResult testResult) {
-        if (!method.getTestMethod().getQualifiedName().contains("closureActivities")) {
+        if (!method.getTestMethod().getQualifiedName().contains("setupActivities")
+        && !method.getTestMethod().getQualifiedName().contains("teardownActivities")) {
             if (System.getProperty("videoParams_scope").trim().equals("TestMethod")) {
                 RecordManager.attachVideoRecording();
             }
@@ -122,10 +123,10 @@ public class InvokedMethodListener implements IInvokedMethodListener {
     }
 
     private void updateTestStatusInCaseOfVerificationFailure(ITestResult testResult) {
-        if (testResult != null && Verifications.getVerificationErrorToForceFail() != null) {
+        if (testResult != null && ValidationsHelper.getVerificationErrorToForceFail() != null) {
             testResult.setStatus(ITestResult.FAILURE);
-            testResult.setThrowable(Verifications.getVerificationErrorToForceFail());
-            Verifications.resetVerificationStateAfterFailing();
+            testResult.setThrowable(ValidationsHelper.getVerificationErrorToForceFail());
+            ValidationsHelper.resetVerificationStateAfterFailing();
         }
     }
 

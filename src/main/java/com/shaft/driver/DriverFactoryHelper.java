@@ -18,14 +18,13 @@ import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import io.appium.java_client.AppiumDriver;
-import io.appium.java_client.MobileElement;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.chrome.ChromeDriverLogLevel;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.chromium.ChromiumOptions;
 import org.openqa.selenium.edge.EdgeDriver;
 import org.openqa.selenium.edge.EdgeOptions;
 import org.openqa.selenium.firefox.FirefoxDriver;
@@ -448,58 +447,53 @@ public class DriverFactoryHelper {
                     ieOptions.setImplicitWaitTimeout(Duration.ofSeconds(IMPLICIT_WAIT_TIMEOUT));
                 }
             }
-            case APPIUM_CHROME, DESKTOP_CHROME -> {
-                chOptions = new ChromeOptions();
-                if (customDriverOptions != null) {
-                    chOptions = (ChromeOptions) customDriverOptions;
+            case APPIUM_CHROME, DESKTOP_CHROME, DESKTOP_EDGE -> {
+                ChromiumOptions options;
+                if (driverType.equals(DriverType.DESKTOP_EDGE)){
+                    options = new EdgeOptions();
+                }else {
+                    options = new ChromeOptions();
                 }
-                chOptions.setCapability(CapabilityType.PLATFORM_NAME, getDesiredOperatingSystem());
-                chOptions.setHeadless(HEADLESS_EXECUTION);
+                if (customDriverOptions != null) {
+                    options = (ChromiumOptions) customDriverOptions;
+                }
+                options.setCapability(CapabilityType.PLATFORM_NAME, getDesiredOperatingSystem());
+                options.setHeadless(HEADLESS_EXECUTION);
                 if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
                     // https://developers.google.com/web/updates/2017/04/headless-chrome
-                    chOptions.addArguments("--headless"); // only if you are ACTUALLY running headless
+//                    options.addArguments("--headless"); // only if you are ACTUALLY running headless
                     // https://stackoverflow.com/questions/43541925/how-can-i-set-the-browser-window-size-when-using-google-chrome-headless
-                    chOptions.addArguments("--window-size=1920,1080");
+                    options.addArguments("--window-size=1920,1080");
                 }
                 if (Boolean.TRUE.equals(AUTO_MAXIMIZE) && !isMobileWebExecution() && !OperatingSystemType.MACOS.equals(getOperatingSystemFromName(targetOperatingSystem))) {
-                    chOptions.addArguments("--start-maximized");
+                    options.addArguments("--start-maximized");
                 }
-                chOptions.setCapability(CapabilityType.LOGGING_PREFS, logPrefs);
-                chOptions.addArguments("--enable-automation"); // https://stackoverflow.com/a/43840128/1689770
-                chOptions.addArguments("--no-sandbox"); //https://stackoverflow.com/a/50725918/1689770
-                chOptions.addArguments("--disable-infobars"); //https://stackoverflow.com/a/43840128/1689770
-                chOptions.addArguments("--disable-dev-shm-usage"); //https://stackoverflow.com/a/50725918/1689770
-                chOptions.addArguments("--disable-browser-side-navigation"); //https://stackoverflow.com/a/49123152/1689770
-                chOptions.addArguments("--disable-gpu"); //https://stackoverflow.com/questions/51959986/how-to-solve-selenium-chromedriver-timed-out-receiving-message-from-renderer-exc
+                options.setCapability(CapabilityType.LOGGING_PREFS, logPrefs);
+                options.addArguments("--enable-automation"); // https://stackoverflow.com/a/43840128/1689770
+                options.addArguments("--no-sandbox"); //https://stackoverflow.com/a/50725918/1689770
+                options.addArguments("--disable-infobars"); //https://stackoverflow.com/a/43840128/1689770
+                options.addArguments("--disable-dev-shm-usage"); //https://stackoverflow.com/a/50725918/1689770
+                options.addArguments("--disable-browser-side-navigation"); //https://stackoverflow.com/a/49123152/1689770
+                options.addArguments("--disable-gpu"); //https://stackoverflow.com/questions/51959986/how-to-solve-selenium-chromedriver-timed-out-receiving-message-from-renderer-exc
+                options.addArguments("--remote-debugging-port=9222"); //https://stackoverflow.com/questions/50642308/webdriverexception-unknown-error-devtoolsactiveport-file-doesnt-exist-while-t/60168019#60168019
                 Map<String, Object> chromePreferences = new HashMap<>();
                 chromePreferences.put("profile.default_content_settings.popups", 0);
                 chromePreferences.put("download.prompt_for_download", "false");
                 chromePreferences.put("download.default_directory", downloadsFolderPath);
-                chOptions.setExperimentalOption("prefs", chromePreferences);
-//                chOptions.setExperimentalOption("w3c", false);
-                chOptions.setLogLevel(ChromeDriverLogLevel.OFF);
-                chOptions.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.ACCEPT_AND_NOTIFY);
-                chOptions.setCapability(CapabilityType.ACCEPT_INSECURE_CERTS, true);
-                chOptions.setCapability(CapabilityType.ACCEPT_SSL_CERTS, true);
-                chOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL); // https://www.skptricks.com/2018/08/timed-out-receiving-message-from-renderer-selenium.html
-                chOptions.setPageLoadTimeout(Duration.ofSeconds(PAGE_LOAD_TIMEOUT));
-                chOptions.setScriptTimeout(Duration.ofSeconds(SCRIPT_TIMEOUT));
+                options.setExperimentalOption("prefs", chromePreferences);
+                options.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.ACCEPT_AND_NOTIFY);
+                options.setCapability(CapabilityType.ACCEPT_INSECURE_CERTS, true);
+                options.setCapability(CapabilityType.ACCEPT_SSL_CERTS, true);
+                options.setPageLoadStrategy(PageLoadStrategy.NORMAL); // https://www.skptricks.com/2018/08/timed-out-receiving-message-from-renderer-selenium.html
+                options.setPageLoadTimeout(Duration.ofSeconds(PAGE_LOAD_TIMEOUT));
+                options.setScriptTimeout(Duration.ofSeconds(SCRIPT_TIMEOUT));
                 if (Boolean.TRUE.equals(WAIT_IMPLICITLY)) {
-                    chOptions.setImplicitWaitTimeout(Duration.ofSeconds(IMPLICIT_WAIT_TIMEOUT));
+                    options.setImplicitWaitTimeout(Duration.ofSeconds(IMPLICIT_WAIT_TIMEOUT));
                 }
-            }
-            case DESKTOP_EDGE -> {
-                edOptions = new EdgeOptions();
-                if (customDriverOptions != null) {
-                    edOptions = (EdgeOptions) customDriverOptions;
-                }
-                edOptions.setCapability(CapabilityType.PLATFORM_NAME, getDesiredOperatingSystem());
-                edOptions.setCapability(CapabilityType.LOGGING_PREFS, logPrefs);
-                edOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL);
-                edOptions.setPageLoadTimeout(Duration.ofSeconds(PAGE_LOAD_TIMEOUT));
-                edOptions.setScriptTimeout(Duration.ofSeconds(SCRIPT_TIMEOUT));
-                if (Boolean.TRUE.equals(WAIT_IMPLICITLY)) {
-                    edOptions.setImplicitWaitTimeout(Duration.ofSeconds(IMPLICIT_WAIT_TIMEOUT));
+                if (driverType.equals(DriverType.DESKTOP_EDGE)){
+                    edOptions = (EdgeOptions) options;
+                }else {
+                    chOptions = (ChromeOptions) options;
                 }
             }
             case DESKTOP_SAFARI -> {
@@ -517,9 +511,7 @@ public class DriverFactoryHelper {
                     sfOptions.setImplicitWaitTimeout(Duration.ofSeconds(IMPLICIT_WAIT_TIMEOUT));
                 }
             }
-            case APPIUM_MOBILE_NATIVE -> {
-                appiumCapabilities = new DesiredCapabilities(customDriverOptions);
-            }
+            case APPIUM_MOBILE_NATIVE -> appiumCapabilities = new DesiredCapabilities(customDriverOptions);
             default -> failAction("Unsupported Driver Type [" + driverName + "].");
         }
     }
@@ -581,7 +573,7 @@ public class DriverFactoryHelper {
             driver.set(new SafariDriver(sfOptions));
         } catch (SessionNotCreatedException e) {
             ReportManagerHelper.log(e);
-            failAction("Failed to create a session on" + DriverType.DESKTOP_SAFARI);
+            failAction("Failed to create a session on " + DriverType.DESKTOP_SAFARI);
         }
         storeDriverInstance(DriverType.DESKTOP_SAFARI.getValue());
         ReportManager.log("Successfully Opened Safari.");
@@ -682,7 +674,7 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
          if (!isMobileExecution()) {
              driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), sfOptions));
          } else {
-             driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+             driver.set(new AppiumDriver(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
          }
          break;
      case APPIUM_CHROME:
@@ -691,21 +683,21 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
          mobileDesiredCapabilities.setCapability("chromedriverExecutable",
                  WebDriverManager.chromedriver().getDownloadedDriverPath());
 //         mobileDesiredCapabilities.setCapability("appium:chromeOptions", Map.of("w3c", false));
-         driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+         driver.set(new AppiumDriver(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
          break;
      case APPIUM_CHROMIUM:
          WebDriverManager.chromedriver().browserVersion(System.getProperty("MobileBrowserVersion")).setup();
          mobileDesiredCapabilities.setCapability("chromedriverExecutable",
                  WebDriverManager.chromedriver().getDownloadedDriverPath());
-         driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+         driver.set(new AppiumDriver(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
          break;
      case APPIUM_BROWSER, APPIUM_MOBILE_NATIVE:
          if ("Android".equals(targetOperatingSystem)) {
-             driver.set(new AndroidDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+             driver.set(new AndroidDriver(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
          } else if ("iOS".equals(targetOperatingSystem)) {
-             driver.set(new IOSDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+             driver.set(new IOSDriver(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
          } else {
-             driver.set(new AppiumDriver<MobileElement>(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+             driver.set(new AppiumDriver(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
              // will break in case of firefoxOS
          }
          break;

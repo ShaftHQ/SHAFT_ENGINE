@@ -665,6 +665,30 @@
 
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
+                                        <label class="col-md-4 control-label" for="attemptClearBeforeTypingUsingBackspace">Attempt clearing text before typing using backspace
+                                        </label>
+                                        <div class="col-md-4" id="attemptClearBeforeTypingUsingBackspace">
+                                            <div class="radio-inline">
+                                                <label for="attemptClearBeforeTypingUsingBackspace-0">
+                                                    <input id="attemptClearBeforeTypingUsingBackspace-0"
+                                                           name="attemptClearBeforeTypingUsingBackspace" type="radio"
+                                                           value="true">
+                                                    Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="attemptClearBeforeTypingUsingBackspace-1">
+                                                    <input checked="checked" id="attemptClearBeforeTypingUsingBackspace-1"
+                                                           name="attemptClearBeforeTypingUsingBackspace" type="radio"
+                                                           value="false">
+                                                    Disabled
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
                                         <label class="col-md-4 control-label" for="forceCheckNavigationWasSuccessful">Force
                                             check
                                             navigation was successful
@@ -682,6 +706,54 @@
                                                 <label for="forceCheckNavigationWasSuccessful-1">
                                                     <input id="forceCheckNavigationWasSuccessful-1"
                                                            name="forceCheckNavigationWasSuccessful" type="radio"
+                                                           value="false">
+                                                    Disabled
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="clickUsingJavascriptWhenWebDriverClickFails">Click using JavaScript if WebDriver Click Fails
+                                        </label>
+                                        <div class="col-md-4" id="clickUsingJavascriptWhenWebDriverClickFails">
+                                            <div class="radio-inline">
+                                                <label for="clickUsingJavascriptWhenWebDriverClickFails-0">
+                                                    <input id="clickUsingJavascriptWhenWebDriverClickFails-0"
+                                                           name="clickUsingJavascriptWhenWebDriverClickFails" type="radio"
+                                                           value="true">
+                                                    Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="clickUsingJavascriptWhenWebDriverClickFails-1">
+                                                    <input checked="checked" id="clickUsingJavascriptWhenWebDriverClickFails-1"
+                                                           name="clickUsingJavascriptWhenWebDriverClickFails" type="radio"
+                                                           value="false">
+                                                    Disabled
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="automaticallyAssertResponseStatusCode">Automatically Assert Response Status Code
+                                        </label>
+                                        <div class="col-md-4" id="automaticallyAssertResponseStatusCode">
+                                            <div class="radio-inline">
+                                                <label for="automaticallyAssertResponseStatusCode-0">
+                                                    <input checked="checked" id="automaticallyAssertResponseStatusCode-0"
+                                                           name="automaticallyAssertResponseStatusCode" type="radio"
+                                                           value="true">
+                                                    Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="automaticallyAssertResponseStatusCode-1">
+                                                    <input id="automaticallyAssertResponseStatusCode-1"
+                                                           name="automaticallyAssertResponseStatusCode" type="radio"
                                                            value="false">
                                                     Disabled
                                                 </label>
@@ -1110,6 +1182,25 @@
                                     <!-- Form Name -->
                                     <!-- <legend>&nbsp;Visual Validations:</legend>-->
 
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label"
+                                               for="screenshotParams_scalingFactor">Scaling
+                                            Factor
+                                        </label>
+                                        <div class="col-md-4">
+                                            <div class="input-group">
+                                                <input class="form-control input-md"
+                                                       id="screenshotParams_scalingFactor"
+                                                       max="5" min="1" name="screenshotParams_scalingFactor"
+                                                       step="0.05"
+                                                       type="number" value="1">
+                                            </div>
+                                            <span class="help-block">• A number between 1 and 5.00 where 1 means unscaled and 5.00 means 500% scaled.
+                                                                <br/>• If Linux is scaled you can provide a random value between [1.05, 5.00].
+                                                                <br/>• Windows and Linux browsers only.</span>
+                                        </div>
+                                    </div>
                                     <!-- Select Basic -->
                                     <div class="form-group">
                                         <label class="col-md-4 control-label"
@@ -1396,6 +1487,28 @@
                                                 <option value="warn">Warnings Only</option>
                                                 <option value="error">Errors Only</option>
                                             </select>
+                                        </div>
+                                    </div>
+
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="captureClickedElementText">Report Clicked Element Text</label>
+                                        <div class="col-md-4" id="captureClickedElementText">
+                                            <div class="radio-inline">
+                                                <label for="captureClickedElementText-0">
+                                                    <input checked="checked" id="captureClickedElementText-0" name="captureClickedElementText"
+                                                           type="radio"
+                                                           value="true"> Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="captureClickedElementText-1">
+                                                    <input id="captureClickedElementText-1"
+                                                           name="captureClickedElementText" type="radio" value="false">
+                                                    Disabled
+                                                </label>
+                                            </div>
+                                            <span class="help-block">• Automatically capture clicked element text and create a more descriptive report message.</span>
                                         </div>
                                     </div>
 
@@ -2024,7 +2137,10 @@
         const forceCheckForElementVisibility = $("input[name=forceCheckForElementVisibility]:checked").val();
         const forceCheckElementLocatorIsUnique = $("input[name=forceCheckElementLocatorIsUnique]:checked").val();
         const forceCheckTextWasTypedCorrectly = $("input[name=forceCheckTextWasTypedCorrectly]:checked").val();
+        const attemptClearBeforeTypingUsingBackspace = $("input[name=attemptClearBeforeTypingUsingBackspace]:checked").val();
         const forceCheckNavigationWasSuccessful = $("input[name=forceCheckNavigationWasSuccessful]:checked").val();
+        const clickUsingJavascriptWhenWebDriverClickFails = $("input[name=clickUsingJavascriptWhenWebDriverClickFails]:checked").val();
+        const automaticallyAssertResponseStatusCode = $("input[name=automaticallyAssertResponseStatusCode]:checked").val();
         const maximumPerformanceMode = $("input[name=maximumPerformanceMode]:checked").val();
         const skipTestsWithLinkedIssues = $("input[name=skipTestsWithLinkedIssues]:checked").val();
         const aiPoweredSelfHealingElementIdentification = $("input[name=aiPoweredSelfHealingElementIdentification]:checked").val();
@@ -2037,7 +2153,10 @@
             'forceCheckForElementVisibility=' + forceCheckForElementVisibility + '\r\n' +
             'forceCheckElementLocatorIsUnique=' + forceCheckElementLocatorIsUnique + '\r\n' +
             'forceCheckTextWasTypedCorrectly=' + forceCheckTextWasTypedCorrectly + '\r\n' +
+            'attemptClearBeforeTypingUsingBackspace=' + attemptClearBeforeTypingUsingBackspace + '\r\n' +
             'forceCheckNavigationWasSuccessful=' + forceCheckNavigationWasSuccessful + '\r\n' +
+            'clickUsingJavascriptWhenWebDriverClickFails=' + clickUsingJavascriptWhenWebDriverClickFails + '\r\n' +
+            'automaticallyAssertResponseStatusCode=' + automaticallyAssertResponseStatusCode + '\r\n' +
             'maximumPerformanceMode=' + maximumPerformanceMode + '\r\n' +
             'skipTestsWithLinkedIssues=' + skipTestsWithLinkedIssues + '\r\n' +
             'aiPoweredSelfHealingElementIdentification=' + aiPoweredSelfHealingElementIdentification + '\r\n';
@@ -2096,6 +2215,7 @@
 <script>
     function generateVisualValidations() {
         // Get the data from each element on the form.
+        const screenshotParams_scalingFactor = $("input[name=screenshotParams_scalingFactor]").val();
         const screenshotParams_whenToTakeAScreenshot = $("select[name=screenshotParams_whenToTakeAScreenshot]").val();
         const screenshotParams_screenshotType = $("input[name=screenshotParams_screenshotType]:checked").val();
         const screenshotParams_highlightElements = $("input[name=screenshotParams_highlightElements]:checked").val();
@@ -2110,6 +2230,7 @@
 
         // This variable stores all the data.
         let data =
+            'screenshotParams_scalingFactor=' + screenshotParams_scalingFactor + '\r\n' +
             'screenshotParams_whenToTakeAScreenshot=' + screenshotParams_whenToTakeAScreenshot + '\r\n' +
             'screenshotParams_screenshotType=' + screenshotParams_screenshotType + '\r\n' +
             'screenshotParams_highlightElements=' + screenshotParams_highlightElements + '\r\n' +
@@ -2132,6 +2253,7 @@
     function generateReporting() {
         // Get the data from each element on the form.
         const defaultLogLevel = $("select[name=defaultLogLevel]").val();
+        const captureClickedElementText = $("input[name=captureClickedElementText]:checked").val();
         const captureWebDriverLogs = $("input[name=captureWebDriverLogs]:checked").val();
         const alwaysLogDiscreetly = $("input[name=alwaysLogDiscreetly]:checked").val();
         const debugMode = $("input[name=debugMode]:checked").val();
@@ -2144,6 +2266,7 @@
         // This variable stores all the data.
         let data =
             'org.slf4j.simpleLogger.defaultLogLevel=' + defaultLogLevel + '\r\n' +
+            'captureClickedElementText=' + captureClickedElementText + '\r\n' +
             'captureWebDriverLogs=' + captureWebDriverLogs + '\r\n' +
             'alwaysLogDiscreetly=' + alwaysLogDiscreetly + '\r\n' +
             'debugMode=' + debugMode + '\r\n' +

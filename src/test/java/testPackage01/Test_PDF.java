@@ -1,18 +1,30 @@
 package testPackage01;
 
-import org.testng.annotations.Test;
-
 import com.shaft.tools.io.PdfFileManager;
-import com.shaft.tools.io.PdfFileManager.DeleteFileAfterValidationStatus;
-import com.shaft.validation.Assertions;
+import com.shaft.validation.Validations;
+import org.testng.annotations.Test;
 
 public class Test_PDF {
 
 	@Test
-	public void testPDF_Downloaded() {
-		String content = new PdfFileManager("src/test/resources/TestDataFiles/", "sample.pdf", 20)
-				.readPDFContentFromDownloadedPDF(1, 1, DeleteFileAfterValidationStatus.FALSE);
-		System.out.println(content);
-		Assertions.assertTrue(content.contains("A Simple PDF File"), Assertions.AssertionType.POSITIVE);
+	public void testPDF1() {
+		var actualFile = PdfFileManager.readFileContent(System.getProperty("testDataFolderPath")+"sample.pdf");
+		var expectedData = "A Simple PDF File";
+		Validations.assertThat()
+				.object(actualFile)
+				.contains(expectedData)
+				.withCustomReportMessage("Checking to see that the pdf file contains [" + expectedData + "]")
+				.perform();
+	}
+
+	@Test
+	public void testPDF2(){
+		var expectedData = "A Simple PDF File";
+		Validations.assertThat()
+				.file(System.getProperty("testDataFolderPath"), "sample.pdf")
+				.content()
+				.contains(expectedData)
+				.withCustomReportMessage("Checking to see that the pdf file contains [" + expectedData + "]")
+				.perform();
 	}
 }

@@ -53,14 +53,23 @@ public class DriverFactory {
      * @return a new Selenium WebDriver instance using BrowserStack
      */
     public static WebDriver getBrowserStackDriver() {
-        MutableCapabilities browserStackOptions = new MutableCapabilities();
+        return getBrowserStackDriver(new MutableCapabilities());
+    }
+
+    /**
+     * Creates a new Selenium WebDriver instance using BrowserStack, use this to test Native Mobile apps over BrowserStack
+     * @param browserStackOptions custom browserstack options to be merged with the default in the browserStack.properties file
+     * @return a new Selenium WebDriver instance using BrowserStack
+     */
+    public static WebDriver getBrowserStackDriver(MutableCapabilities browserStackOptions){
         String appUrl = System.getProperty("browserStack.appUrl");
         if ("".equals(appUrl)){
-            browserStackOptions= BrowserStack.setupNativeAppExecution(System.getProperty("browserStack.username"), System.getProperty("browserStack.accessKey"),
-                    System.getProperty("browserStack.deviceName"), System.getProperty("browserStack.platformVersion"), System.getProperty("browserStack.appRelativeFilePath"), System.getProperty("browserStack.appName"));
+            //TODO: there is a bug in the merge method and it doesn't respect the capabilities at all
+            browserStackOptions = BrowserStack.setupNativeAppExecution(System.getProperty("browserStack.username"), System.getProperty("browserStack.accessKey"),
+                    System.getProperty("browserStack.deviceName"), System.getProperty("browserStack.platformVersion"), System.getProperty("browserStack.appRelativeFilePath"), System.getProperty("browserStack.appName")).merge(browserStackOptions);
         }else{
-            browserStackOptions= BrowserStack.setupNativeAppExecution(System.getProperty("browserStack.username"), System.getProperty("browserStack.accessKey"),
-                    System.getProperty("browserStack.deviceName"), System.getProperty("browserStack.platformVersion"), appUrl);
+            browserStackOptions = BrowserStack.setupNativeAppExecution(System.getProperty("browserStack.username"), System.getProperty("browserStack.accessKey"),
+                    System.getProperty("browserStack.deviceName"), System.getProperty("browserStack.platformVersion"), appUrl).merge(browserStackOptions);
         }
         return DriverFactoryHelper.getDriver(DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
     }

@@ -35,7 +35,7 @@ public class BrowserStack {
     public static MutableCapabilities setupNativeAppExecution(String username, String password, String deviceName, String osVersion, String relativePathToAppFile, String appName) {
         System.setProperty("apiSocketTimeout", "600"); //increasing socket timeout to 10 minutes to upload a new app file
         ReportManager.logDiscrete("Setting up BrowserStack configuration for new native app version...");
-        String testData = "Username: " + username + ", Password: " + password + ", Device Name: " + deviceName + ", OS Version: " + osVersion + ", Relative Path to App File: " + relativePathToAppFile + ", App Name: " + appName;
+        String testData = "Username: " + username + ", Password: " + "•".repeat(password.length()) + ", Device Name: " + deviceName + ", OS Version: " + osVersion + ", Relative Path to App File: " + relativePathToAppFile + ", App Name: " + appName;
 
         // upload app to browserstack api
         List<Object> apkFile = new ArrayList<>();
@@ -97,7 +97,7 @@ public class BrowserStack {
         System.setProperty("mobile_app", appUrl);
 
         MutableCapabilities browserStackCapabilities = new MutableCapabilities();
-        HashMap<String, Object> browserstackOptions = new HashMap<String, Object>();
+        HashMap<String, Object> browserstackOptions = new HashMap<>();
         browserstackOptions.put("appiumVersion", System.getProperty("browserStack.appiumVersion"));
         browserstackOptions.put("acceptInsecureCerts", System.getProperty("browserStack.acceptInsecureCerts"));
         browserstackOptions.put("debug", System.getProperty("browserStack.debug"));

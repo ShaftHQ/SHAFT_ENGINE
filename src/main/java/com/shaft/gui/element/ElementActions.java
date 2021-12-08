@@ -1,6 +1,7 @@
 package com.shaft.gui.element;
 
 import com.microsoft.playwright.Page;
+import com.shaft.cli.FileActions;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
@@ -575,10 +576,16 @@ public class ElementActions {
 	 * @param driver           the current instance of Selenium webdriver
 	 * @param elementLocator   the locator of the webElement under test (By xpath,
 	 *                         id, selector, name ...etc)
-	 * @param absoluteFilePath the full path to the file that needs to be uploaded
+	 *@param filePath       the full path to the file that needs to be uploaded, it can be absolute or relative
+     *                       path, Engine will detect that
 	 */
-	public static void typeFileLocationForUpload(WebDriver driver, By elementLocator, String absoluteFilePath) {
-		WebDriverElementActions.typeFileLocationForUpload(driver, elementLocator, absoluteFilePath);
+	public static void typeFileLocationForUpload(WebDriver driver, By elementLocator, String filePath) {
+        if (filePath.startsWith("src")) {
+            WebDriverElementActions.typeFileLocationForUpload(driver, elementLocator,
+                    FileActions.getAbsolutePath(filePath));
+        } else {
+            WebDriverElementActions.typeFileLocationForUpload(driver, elementLocator, filePath);
+        }
 	}
 
 	/**

@@ -53,7 +53,7 @@ public class ScreenshotManager {
     // TODO: parameterize the detailed gif value
     private static final Boolean DETAILED_GIF = true;
     private static final String DETAILED_GIF_REGEX = "(verify.*)|(assert.*)|(click.*)|(tap.*)|(key.*)|(navigate.*)";
-    private static final String AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH = "src/test/resources/DynamicObjectRepository/";
+    private static final String AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH = System.getProperty("dynamicObjectRepositoryPath").trim();
     private static Boolean AI_SUPPORTED_ELEMENT_IDENTIFICATION = Boolean
             .valueOf(System.getProperty("aiPoweredSelfHealingElementIdentification").trim());
     private static String screenshotFileName = "Screenshot";
@@ -392,7 +392,7 @@ public class ScreenshotManager {
                  */
                 if (takeScreenshot && Boolean.TRUE.equals(SCREENSHOT_PARAMS_HIGHLIGHTELEMENTS) && internalElementLocator != null
                         && (ElementActions.getElementsCount(driver, internalElementLocator,
-                        RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1)) {
+                        RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) >= 1)) {
 
                     if ("JavaScript".equals(SCREENSHOT_PARAMS_HIGHLIGHTMETHOD)) {
                         element = driver.findElement(internalElementLocator);
@@ -400,7 +400,6 @@ public class ScreenshotManager {
                         regularElementStyle = highlightElementAndReturnDefaultStyle(element, js,
                                 setHighlightedElementStyle());
                     } else {
-                        // TODO: AI rect isn't in the proper location on Windows
                         // default to using AI
                         elementLocation = driver.findElement(internalElementLocator).getRect();
                     }
