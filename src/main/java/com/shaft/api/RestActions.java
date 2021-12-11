@@ -48,6 +48,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import static io.restassured.RestAssured.given;
+import static io.restassured.RestAssured.urlEncodingEnabled;
 
 @SuppressWarnings("unused")
 public class RestActions implements ShaftDriver {
@@ -779,7 +780,6 @@ public class RestActions implements ShaftDriver {
 
         builder.addCookies(sessionCookies);
         builder.addHeaders(sessionHeaders);
-
         // fixing issue with non-unicode content being encoded with a non UTF-8 charset
         // adding timeouts
         builder.setConfig(
@@ -957,11 +957,12 @@ public class RestActions implements ShaftDriver {
     }
 
     protected RequestSpecification prepareRequestSpecs(List<List<Object>> parameters, ParametersType parametersType,
-                                                       Object body, String contentType, Map<String, Object> sessionCookies, Map<String, String> sessionHeaders, boolean appendDefaultContentCharsetToContentTypeIfUndefined) {
+                                                       Object body, String contentType, Map<String, Object> sessionCookies, Map<String, String> sessionHeaders, boolean appendDefaultContentCharsetToContentTypeIfUndefined,boolean urlEncodingEnabled) {
         RequestSpecBuilder builder = initializeBuilder(sessionCookies, sessionHeaders, appendDefaultContentCharsetToContentTypeIfUndefined);
 
         // set the default content type as part of the specs
         builder.setContentType(contentType);
+        builder.setUrlEncodingEnabled(urlEncodingEnabled);
 
         if (body != null && contentType != null && !body.toString().equals("")) {
             prepareRequestBody(builder, body, contentType);
@@ -1129,7 +1130,7 @@ public class RestActions implements ShaftDriver {
 
         String request = prepareRequestURL(serviceURI, urlArguments, serviceName);
 
-        RequestSpecification specs = prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders, true);
+        RequestSpecification specs = prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders, true, true);
 
         Response response = null;
         try {

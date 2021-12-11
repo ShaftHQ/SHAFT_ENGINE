@@ -30,6 +30,7 @@ public class RequestBuilder {
     private String authenticationPassword;
 
     private boolean appendDefaultContentCharsetToContentTypeIfUndefined;
+    private boolean urlEncodingEnabled;
 
     /**
      * Start building a new API request.
@@ -64,6 +65,7 @@ public class RequestBuilder {
         this.contentType = ContentType.ANY.toString();
         this.authenticationType = AuthenticationType.NONE;
         this.appendDefaultContentCharsetToContentTypeIfUndefined = true;
+        this.urlEncodingEnabled = true;
     }
 
     /**
@@ -149,6 +151,19 @@ public class RequestBuilder {
     }
 
     /**
+     * Tells whether REST Assured should automatically encode the URI if not defined explicitly.
+     * Note that this does not affect multipart form data.
+     * Default is true.
+     *
+     * @param urlEncodingEnabled Whether REST Assured should automatically encode the URI if not defined explicitly.
+     * @return a self-reference to be used to continue building your API request
+     */
+    public RequestBuilder enableUrlEncoding(boolean urlEncodingEnabled) {
+        this.urlEncodingEnabled = urlEncodingEnabled;
+        return this;
+    }
+
+    /**
      * Append a header to the current session to be used in the current and all the following requests. This feature is commonly used for authentication tokens.
      *
      * @param key   the name of the header that you want to add
@@ -194,7 +209,7 @@ public class RequestBuilder {
      */
     public Response performRequest() {
         String request = session.prepareRequestURL(serviceURI, urlArguments, serviceName);
-        RequestSpecification specs = session.prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders, appendDefaultContentCharsetToContentTypeIfUndefined);
+        RequestSpecification specs = session.prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders, appendDefaultContentCharsetToContentTypeIfUndefined, urlEncodingEnabled);
 
         switch (this.authenticationType) {
             case BASIC -> specs.auth().preemptive().basic(this.authenticationUsername, this.authenticationPassword);
