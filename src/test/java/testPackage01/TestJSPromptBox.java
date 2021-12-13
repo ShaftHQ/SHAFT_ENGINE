@@ -8,7 +8,8 @@ import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
-import org.testng.annotations.BeforeTest;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 public class TestJSPromptBox {
@@ -16,10 +17,15 @@ public class TestJSPromptBox {
     private static final By JS_ResultText = By.id("result");
     private static WebDriver driver;
 
-    @BeforeTest
+    @BeforeClass
     public void navigateToJSAlertPage() {
         driver = DriverFactory.getDriver();
         BrowserActions.navigateToURL(driver, "http://the-internet.herokuapp.com/javascript_alerts");
+    }
+
+    @AfterClass
+    public void tearDownDriver() {
+        BrowserActions.closeCurrentWindow(driver);
     }
 
     @Test

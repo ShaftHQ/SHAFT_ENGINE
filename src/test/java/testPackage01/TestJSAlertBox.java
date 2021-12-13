@@ -8,9 +8,7 @@ import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
-import org.testng.annotations.AfterTest;
-import org.testng.annotations.BeforeTest;
-import org.testng.annotations.Test;
+import org.testng.annotations.*;
 
 public class TestJSAlertBox {
 
@@ -18,10 +16,15 @@ public class TestJSAlertBox {
     private static final By JS_ResultText = By.id("result");
     private static WebDriver driver;
 
-    @BeforeTest
+    @BeforeClass
     public void navigateToJSAlertPage() {
         driver = DriverFactory.getDriver();
         BrowserActions.navigateToURL(driver, "http://the-internet.herokuapp.com/javascript_alerts");
+    }
+
+    @AfterClass
+    public void tearDownDriver() {
+        BrowserActions.closeCurrentWindow(driver);
     }
 
     @Test
@@ -43,10 +46,5 @@ public class TestJSAlertBox {
         Validations.assertThat().element(driver, JS_ResultText).attribute(ValidationEnums.ElementAttribute.TEXT).
                 matchesRegex("You successfully clicked an alert").
                 perform();
-    }
-
-    @AfterTest
-    public void tearDownDriver() {
-        BrowserActions.closeCurrentWindow(driver);
     }
 }
