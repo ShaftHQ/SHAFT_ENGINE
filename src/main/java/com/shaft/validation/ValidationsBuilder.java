@@ -6,6 +6,7 @@ import org.openqa.selenium.support.locators.RelativeLocator;
 
 public class ValidationsBuilder {
     protected ValidationEnums.ValidationCategory validationCategory;
+    protected ValidationsBuilder validationsBuilder;
     protected String validationMethod;
     protected ValidationEnums.ValidationType validationType;
     protected boolean condition;
@@ -79,7 +80,7 @@ public class ValidationsBuilder {
      */
     public RestValidationsBuilder response(Object response) {
         reportMessageBuilder.append("the API response ");
-        return new RestValidationsBuilder(validationCategory, response, reportMessageBuilder);
+        return new RestValidationsBuilder(validationsBuilder, validationCategory, response, reportMessageBuilder);
     }
 
     /**

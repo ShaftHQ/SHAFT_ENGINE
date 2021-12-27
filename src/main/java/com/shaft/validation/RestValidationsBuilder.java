@@ -6,16 +6,19 @@ import com.shaft.cli.FileActions;
 
 public class RestValidationsBuilder {
     protected ValidationEnums.ValidationCategory validationCategory;
+    protected ValidationsBuilder validationsBuilder;
     protected String validationMethod;
     protected ValidationEnums.ValidationType validationType;
     protected Object response;
     protected String fileAbsolutePath;
     protected RestActions.ComparisonType restComparisonType;
     protected String jsonPath;
+    protected double responseTime;
 
     protected StringBuilder reportMessageBuilder;
 
-    public RestValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, Object response, StringBuilder reportMessageBuilder) {
+    public RestValidationsBuilder( ValidationsBuilder validationsBuilder ,ValidationEnums.ValidationCategory validationCategory, Object response, StringBuilder reportMessageBuilder) {
+        this.validationsBuilder = validationsBuilder;
         this.validationCategory = validationCategory;
         this.response = response;
 
@@ -91,6 +94,18 @@ public class RestValidationsBuilder {
         this.jsonPath = jsonPath;
         reportMessageBuilder.append("extracted value from the JSON path [").append(jsonPath).append("] ");
         return new NativeValidationsBuilder(this);
+    }
+
+    /**
+     * Use this to extract a certain value from the provided actual response object and check against it
+     * @param responseTime ResponseTime of the target value
+     * @return a NumberValidationsBuilder object to continue building your validation
+     */
+    public NumberValidationsBuilder extractedResponseTimeValue(double responseTime) {
+        this.validationMethod = "jsonResponseTimeEquals";
+        this.responseTime = responseTime;
+        reportMessageBuilder.append("extracted value from the Response Time [").append(responseTime).append("] ");
+        return new NumberValidationsBuilder(validationsBuilder);
     }
 
     /**

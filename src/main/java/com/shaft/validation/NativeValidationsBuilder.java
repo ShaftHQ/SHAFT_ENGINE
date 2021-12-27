@@ -21,6 +21,7 @@ public class NativeValidationsBuilder {
 
     protected Object response;
     protected String jsonPath;
+    protected double responseTime;
 
     protected String folderRelativePath;
     protected String fileName;
@@ -60,6 +61,7 @@ public class NativeValidationsBuilder {
         this.validationMethod = restValidationsBuilder.validationMethod;
         this.jsonPath = restValidationsBuilder.jsonPath;
         this.response = restValidationsBuilder.response;
+        this.responseTime = restValidationsBuilder.responseTime;
 
         this.reportMessageBuilder = restValidationsBuilder.reportMessageBuilder;
     }
