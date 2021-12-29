@@ -2,6 +2,7 @@ package com.shaft.validation;
 
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
+import io.restassured.builder.ResponseBuilder;
 
 
 public class RestValidationsBuilder {
@@ -13,7 +14,7 @@ public class RestValidationsBuilder {
     protected String fileAbsolutePath;
     protected RestActions.ComparisonType restComparisonType;
     protected String jsonPath;
-    protected double responseTime;
+    protected long responseTime;
 
     protected StringBuilder reportMessageBuilder;
 
@@ -97,14 +98,14 @@ public class RestValidationsBuilder {
     }
 
     /**
-     * Use this to extract a certain value from the provided actual response object and check against it
-     * @param responseTime ResponseTime of the target value
+     * Use this to check against the provided response time value
+     * By default response time is given in milliseconds when you use response.getTime(); return response time as long value
      * @return a NumberValidationsBuilder object to continue building your validation
      */
-    public NumberValidationsBuilder extractedResponseTimeValue(double responseTime) {
-        this.validationMethod = "jsonResponseTimeEquals";
-        this.responseTime = responseTime;
-        reportMessageBuilder.append("extracted value from the Response Time [").append(responseTime).append("] ");
+    public NumberValidationsBuilder time() {
+        this.validationMethod = "responseTimeEquals";
+        this.responseTime = (new ResponseBuilder()).build().getTime();
+        reportMessageBuilder.append("responseTime ");
         return new NumberValidationsBuilder(validationsBuilder);
     }
 

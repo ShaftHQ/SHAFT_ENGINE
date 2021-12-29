@@ -1,16 +1,15 @@
 package testPackage01;
 
-import org.openqa.selenium.WebDriver;
-import org.sikuli.script.App;
-import org.sikuli.script.Key;
-import org.testng.annotations.Test;
-
 import com.shaft.cli.TerminalActions;
 import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Assertions;
+import org.openqa.selenium.WebDriver;
+import org.sikuli.script.App;
+import org.sikuli.script.Key;
+import org.testng.annotations.Test;
 
 public class Test_sikulix {
     App calculator;

@@ -13,7 +13,6 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.validation.Validations;
 import nu.pattern.OpenCV;
-import org.opencv.core.*;
 import org.opencv.core.Point;
 import org.opencv.highgui.HighGui;
 import org.opencv.imgcodecs.Imgcodecs;

@@ -1,10 +1,9 @@
 package com.shaft.gui.browser;
 
-import org.openqa.selenium.MutableCapabilities;
-import org.openqa.selenium.WebDriver;
-
 import com.shaft.driver.DriverFactory;
 import com.shaft.driver.DriverFactory.DriverType;
+import org.openqa.selenium.MutableCapabilities;
+import org.openqa.selenium.WebDriver;
 
 @Deprecated
 public class BrowserFactory {

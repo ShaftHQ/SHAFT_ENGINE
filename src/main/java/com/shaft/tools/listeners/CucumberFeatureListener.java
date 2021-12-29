@@ -9,7 +9,6 @@ import io.cucumber.core.feature.FeatureParser;
 import io.cucumber.core.gherkin.Feature;
 import io.cucumber.core.resource.Resource;
 import io.cucumber.plugin.ConcurrentEventListener;
-import io.cucumber.plugin.event.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;

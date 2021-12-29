@@ -10,7 +10,6 @@ import io.qameta.allure.Issue;
 import io.qameta.allure.Issues;
 import io.qameta.allure.model.Link;
 import io.qameta.allure.util.AnnotationUtils;
-import org.testng.*;
 import org.testng.internal.ConfigurationMethod;
 import org.testng.internal.ConstructorOrMethod;
 

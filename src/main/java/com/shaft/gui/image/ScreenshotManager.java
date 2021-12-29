@@ -11,8 +11,6 @@ import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import org.imgscalr.Scalr;
-import org.openqa.selenium.Rectangle;
-import org.openqa.selenium.*;
 import org.sikuli.script.App;
 import org.sikuli.script.Pattern;
 import org.sikuli.script.Screen;

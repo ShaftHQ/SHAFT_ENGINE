@@ -5,7 +5,6 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.tools.support.JavaScriptHelper;
 import io.appium.java_client.AppiumDriver;
-import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Locatable;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.FluentWait;

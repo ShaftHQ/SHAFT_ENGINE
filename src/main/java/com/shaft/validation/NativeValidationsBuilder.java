@@ -21,7 +21,7 @@ public class NativeValidationsBuilder {
 
     protected Object response;
     protected String jsonPath;
-    protected double responseTime;
+    protected long responseTime;
 
     protected String folderRelativePath;
     protected String fileName;

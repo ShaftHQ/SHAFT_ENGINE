@@ -1,16 +1,15 @@
 package selfRelease;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
-
-import org.testng.annotations.Test;
-
 import com.shaft.api.RequestBuilder.AuthenticationType;
 import com.shaft.api.RestActions;
 import com.shaft.api.RestActions.RequestType;
 import com.shaft.driver.DriverFactory;
 import com.shaft.tools.io.ReportManager;
+import org.testng.annotations.Test;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 //TODO: Make this work
 public class BuildAndRelease {
 	String releaseVersion = System.getProperty("project.version");

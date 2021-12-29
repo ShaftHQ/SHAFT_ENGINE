@@ -7,8 +7,6 @@ import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
 
 public class Test_threadSafe_grid4 {
     private ThreadLocal<WebDriver> driver = new ThreadLocal<>();

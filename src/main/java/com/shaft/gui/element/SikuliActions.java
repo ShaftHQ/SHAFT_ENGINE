@@ -6,8 +6,6 @@ import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import org.apache.commons.io.IOUtils;
-import org.sikuli.basics.Settings;
-import org.sikuli.script.*;
 
 import javax.imageio.ImageIO;
 import java.io.ByteArrayInputStream;

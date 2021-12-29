@@ -1,8 +1,6 @@
 package testPackage01;
 
 import com.shaft.driver.DriverFactory;
-import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.tools.io.ExcelFileManager;
 import org.openqa.selenium.WebDriver;
 import org.testng.annotations.AfterClass;

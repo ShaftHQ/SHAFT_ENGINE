@@ -10,7 +10,6 @@ import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.tools.support.JavaScriptHelper;
-import org.openqa.selenium.Dimension;
 import org.testng.Assert;
 
 import java.awt.*;

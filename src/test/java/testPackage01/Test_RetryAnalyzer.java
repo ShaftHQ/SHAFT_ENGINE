@@ -1,7 +1,6 @@
 package testPackage01;
 
 import com.shaft.validation.Validations;
-import org.testng.annotations.Test;
 
 public class Test_RetryAnalyzer {
     private int x =1;

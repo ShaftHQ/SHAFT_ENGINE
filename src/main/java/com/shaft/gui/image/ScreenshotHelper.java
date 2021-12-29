@@ -1,10 +1,8 @@
 package com.shaft.gui.image;
 
-import org.apache.commons.io.output.ByteArrayOutputStream;
-import org.openqa.selenium.*;
-
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Page.ScreenshotOptions;
+import org.apache.commons.io.output.ByteArrayOutputStream;
 
 import javax.imageio.ImageIO;
 import java.awt.*;

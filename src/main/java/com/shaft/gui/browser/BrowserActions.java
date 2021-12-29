@@ -1,8 +1,7 @@
 package com.shaft.gui.browser;
 
-import org.openqa.selenium.WebDriver;
-
 import com.microsoft.playwright.Page;
+import org.openqa.selenium.WebDriver;
 
 public class BrowserActions {
 

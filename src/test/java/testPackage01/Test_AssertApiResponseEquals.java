@@ -1,12 +1,11 @@
 package testPackage01;
-import org.testng.annotations.Test;
 
 import com.shaft.api.RestActions;
 import com.shaft.api.RestActions.RequestType;
 import com.shaft.validation.Assertions;
 import com.shaft.validation.Verifications;
-
 import io.restassured.response.Response;
+import org.testng.annotations.Test;
 
 public class Test_AssertApiResponseEquals {
     @Test
