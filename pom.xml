@@ -28,12 +28,12 @@
 
     <properties>
         <!-- Dependencies and Plug-ins Version Numbers Parameters -->
-        <selenium.version>4.1.0</selenium.version>
-        <appium-java-client.version>8.0.0-beta</appium-java-client.version>
+        <selenium.version>4.1.1</selenium.version>
+        <appium-java-client.version>8.0.0-beta2</appium-java-client.version>
         <playwright.version>1.17.2</playwright.version>
 
         <webdrivermanager.version>5.0.3</webdrivermanager.version>
-        <allure-testng.version>2.17.1</allure-testng.version> <!-- UPDATE internal.properties -->
+        <allure-testng.version>2.17.2</allure-testng.version> <!-- UPDATE internal.properties -->
         <extentreports.version>5.0.9</extentreports.version>
         <aspectj.version>1.9.8.RC1</aspectj.version> <!-- 1.9.6 DO NOT UPDATE (Search and replace) -->
 
@@ -74,7 +74,7 @@
         <jave-all-deps.version>3.1.1</jave-all-deps.version>
         <video-recorder-testng.version>2.0</video-recorder-testng.version>
 
-		<pdfbox.version>2.0.24</pdfbox.version>
+		<pdfbox.version>2.0.25</pdfbox.version>
 
         <!-- Build Commands-->
         <installToLocalRepository>mvn clean install -DskipTests</installToLocalRepository>
@@ -115,7 +115,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-handler</artifactId>
-            <version>4.1.71.Final</version>
+            <version>4.1.72.Final</version>
         </dependency>
 
 
