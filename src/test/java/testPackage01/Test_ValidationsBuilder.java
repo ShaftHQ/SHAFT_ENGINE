@@ -186,13 +186,14 @@ public class Test_ValidationsBuilder {
                 .withCustomReportMessage("checking that data.totalRows is equal to 107")
                 .perform();
 
-        long responseTime = response.getTime();
+
         Validations.verifyThat()
-                .response(responseTime)
+                .response(response)
                 .time()
                 .isLessThanOrEquals(2000)
                 .withCustomReportMessage("checking that the response time is less than or equal to 2 Second ==> 2000 milliseconds")
                 .perform();
+
     }
 
     //@Test

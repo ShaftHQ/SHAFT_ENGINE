@@ -98,13 +98,13 @@ public class RestValidationsBuilder {
     }
 
     /**
-     * Use this to check against the provided response time value
-     * By default response time is given in milliseconds when you use response.getTime(); return response time as long value
+     * Use this to check against the provided response time value,
+     * By default response time is given in milliseconds as long value
      * @return a NumberValidationsBuilder object to continue building your validation
      */
     public NumberValidationsBuilder time() {
         this.validationMethod = "responseTimeEquals";
-        this.responseTime = (new ResponseBuilder()).build().getTime();
+        this.responseTime = new ResponseBuilder().build().getTime();
         reportMessageBuilder.append("responseTime ");
         return new NumberValidationsBuilder(validationsBuilder);
     }
