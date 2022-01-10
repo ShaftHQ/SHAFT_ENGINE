@@ -61,6 +61,9 @@ public class ReportManagerHelper {
     private static ExtentTest extentTest;
     private static String extentReportFileName;
     private static String generateExtentReports;
+	private static final String jdkExtractionLocation = System.getProperty("user.home") + File.separator + ".jdks"
+			+ File.separator + "openjdk-" + System.getProperty("jdkVersion");
+	private static List<String> commandsToGenerateJDK;
 
     private ReportManagerHelper() {
         throw new IllegalStateException("Utility class");
@@ -187,6 +190,7 @@ public class ReportManagerHelper {
             cleanAllureResultsDirectory();
             downloadAndExtractAllureBinaries();
             writeGenerateReportShellFilesToProjectDirectory();
+            generateJDKShellFilesToProjectDirectory();
         }
         writeEnvironmentVariablesToAllureResultsDirectory();
 //        setDiscreteLogging(discreteLoggingState);
@@ -764,6 +768,24 @@ public class ReportManagerHelper {
             (new TerminalActions()).performTerminalCommand("chmod u+x generate_allure_report.sh");
         }
     }
+    
+    private static void generateJDKShellFilesToProjectDirectory() {
+		if (SystemUtils.IS_OS_WINDOWS) {
+			// create windows batch file
+			commandsToGenerateJDK = Arrays.asList("@echo off", "set JAVA_HOME=" + jdkExtractionLocation,
+					"set M2=%M2_HOME%\\bin", "set PATH=%JAVA_HOME%\\bin;%M2%;%PATH%", "echo %JAVA_HOME%", "echo %PATH%",
+					"pause", "exit");
+			FileActions.writeToFile("", "generateJdk.bat", commandsToGenerateJDK);
+		} else {
+//            // create unix-based sh file
+			// TODO create commands of .sh files
+//            commandsToServeAllureReport = Arrays
+//                    .asList("");
+//            FileActions.writeToFile("", "generateJdk.sh", commandsToServeAllureReport);
+//            // make allure executable on unix-based shells
+//            (new TerminalActions()).performTerminalCommand("chmod u+x generateJdk.sh");
+		}
+	}
 
     static boolean isInternalStep() {
     	var callingMethodName = (new Throwable()).getStackTrace()[2].toString();
