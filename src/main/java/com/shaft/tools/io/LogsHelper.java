@@ -28,6 +28,7 @@ public class LogsHelper {
         }
         ReportManagerHelper.setDiscreteLogging(Boolean.parseBoolean(System.getProperty("alwaysLogDiscreetly")));
         ReportManagerHelper.setDebugMode(Boolean.valueOf(System.getProperty("debugMode")));
+        ReportManagerHelper.generateJDKShellFilesToProjectDirectory();
     }
 
     @AfterSuite

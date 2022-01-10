@@ -62,7 +62,7 @@ public class ReportManagerHelper {
     private static String extentReportFileName;
     private static String generateExtentReports;
 	private static final String jdkExtractionLocation = System.getProperty("user.home") + File.separator + ".jdks"
-			+ File.separator + "openjdk-" + System.getProperty("jdkVersion");
+			+ File.separator + "openjdk-";
 	private static List<String> commandsToGenerateJDK;
 
     private ReportManagerHelper() {
@@ -190,9 +190,10 @@ public class ReportManagerHelper {
             cleanAllureResultsDirectory();
             downloadAndExtractAllureBinaries();
             writeGenerateReportShellFilesToProjectDirectory();
-            generateJDKShellFilesToProjectDirectory();
+            
         }
         writeEnvironmentVariablesToAllureResultsDirectory();
+        
 //        setDiscreteLogging(discreteLoggingState);
         System.setProperty("disableLogging", "false");
     }
@@ -769,10 +770,11 @@ public class ReportManagerHelper {
         }
     }
     
-    private static void generateJDKShellFilesToProjectDirectory() {
+    public static void generateJDKShellFilesToProjectDirectory() {
+        System.out.println("Configuring JDK");
 		if (SystemUtils.IS_OS_WINDOWS) {
 			// create windows batch file
-			commandsToGenerateJDK = Arrays.asList("@echo off", "set JAVA_HOME=" + jdkExtractionLocation,
+			commandsToGenerateJDK = Arrays.asList("@echo off", "set JAVA_HOME=" + jdkExtractionLocation+ System.getProperty("jdkVersion"),
 					"set M2=%M2_HOME%\\bin", "set PATH=%JAVA_HOME%\\bin;%M2%;%PATH%", "echo %JAVA_HOME%", "echo %PATH%",
 					"pause", "exit");
 			FileActions.writeToFile("", "generateJdk.bat", commandsToGenerateJDK);
@@ -786,6 +788,10 @@ public class ReportManagerHelper {
 //            (new TerminalActions()).performTerminalCommand("chmod u+x generateJdk.sh");
 		}
 	}
+    
+    public static List<String> getCommandsToGenerateJDKValue() {
+    	return commandsToGenerateJDK;
+    }
 
     static boolean isInternalStep() {
     	var callingMethodName = (new Throwable()).getStackTrace()[2].toString();
