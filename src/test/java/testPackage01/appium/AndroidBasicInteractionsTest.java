@@ -1,6 +1,5 @@
 package testPackage01.appium;
 
-import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactory;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.TouchActions;
@@ -13,9 +12,6 @@ import org.openqa.selenium.WebDriver;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.io.UnsupportedEncodingException;
-import java.util.Base64;
 
 public class AndroidBasicInteractionsTest {
     private WebDriver driver;
@@ -81,7 +77,7 @@ public class AndroidBasicInteractionsTest {
                 .perform();
     }
 
-    @Test
+    //@Test
     public void visualElementIdentification_requiresProcessing() {
         ElementActions.performTouchAction(driver).tap("src/main/resources/dynamicObjectRepository/content2.png");
         Validations.assertThat()

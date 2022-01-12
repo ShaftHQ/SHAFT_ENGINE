@@ -731,7 +731,8 @@ public class ReportManagerHelper {
             FileActions.unpackArchive(allureSHAFTConfigArchive,
                     allureExtractionLocation + "allure-" + allureVersion + File.separator);
 
-            if (!System.getProperty(TARGET_OS_PROPERTY_NAME).equals(OS_WINDOWS)) {
+            if (!System.getProperty(TARGET_OS_PROPERTY_NAME).equals(OS_WINDOWS)
+                    && (System.getProperty("mobile_platformName") == null || System.getProperty("mobile_platformName").trim().equals(""))) {
                 // make allure executable on unix-based shells
                 (new TerminalActions()).performTerminalCommand("chmod u+x " + allureBinaryPath);
             }
