@@ -8,7 +8,6 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
-import org.opencv.imgproc.Imgproc;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Actions;
@@ -36,7 +35,7 @@ public class WebDriverElementActions {
     private static final String OBFUSCATED_STRING = "•";
     private static final boolean CAPTURE_CLICKED_ELEMENT_TEXT = Boolean.parseBoolean(System.getProperty("captureClickedElementText"));
     private static final boolean CLICK_USING_JAVASCRIPT_WHEN_WEB_DRIVER_CLICK_FAILS = Boolean.parseBoolean(System.getProperty("clickUsingJavascriptWhenWebDriverClickFails"));
-    private static final boolean ATTEMPT_CLEAR_BEFORE_TYPING_USING_BACKSPACE = Boolean.parseBoolean(System.getProperty("attemptClearBeforeTypingUsingBackspace"));;
+    private static final boolean ATTEMPT_CLEAR_BEFORE_TYPING_USING_BACKSPACE = Boolean.parseBoolean(System.getProperty("attemptClearBeforeTypingUsingBackspace"));
     private static WebDriver lastUsedDriver = null;
     private static By aiGeneratedElementLocator = null;
 
@@ -54,7 +53,7 @@ public class WebDriverElementActions {
             String aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
             String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
             List<Integer> point = ImageProcessingActions.findImageWithinCurrentPage(referenceImagePath,
-                    ScreenshotManager.takeFullPageScreenshot(driver), Imgproc.TM_CCORR_NORMED); // TM_CCOEFF
+                    ScreenshotManager.takeFullPageScreenshot(driver)); // TM_CCOEFF
             if (point.size() == 2) {
                 WebElement targetElement = ElementActionsHelper.getWebElementFromPointUsingJavascript(driver, point, false);
                 if (targetElement == null) {
@@ -245,8 +244,11 @@ public class WebDriverElementActions {
                 // do nothing
                 ReportManagerHelper.logDiscrete(e);
             }
-            List<Object> screenshot = WebDriverElementActions.takeScreenshot(driver, internalElementLocator, "doubleClick", null, true);
+
             // takes screenshot before clicking the element out of view
+            var screenshot = WebDriverElementActions.takeScreenshot(driver, internalElementLocator, "doubleClick", null, true);
+            List<List<Object>> attachments = new LinkedList<>();
+            attachments.add(screenshot);
 
             try {
                 (new Actions(driver)).moveToElement(driver.findElement(internalElementLocator)).doubleClick().perform();
@@ -257,7 +259,7 @@ public class WebDriverElementActions {
             if (!elementText.equals("")) {
                 WebDriverElementActions.passAction(driver, internalElementLocator, elementText.replaceAll("\n", " "), screenshot);
             } else {
-                WebDriverElementActions.passAction(driver, internalElementLocator, screenshot);
+                WebDriverElementActions.passAction(driver, internalElementLocator, attachments);
             }
         } else {
             WebDriverElementActions.failAction(driver, internalElementLocator);
@@ -1307,9 +1309,16 @@ public class WebDriverElementActions {
         failAction(driver, actionName, testData, elementLocator, null, rootCauseException);
     }
 
+    protected static void failAction(WebDriver driver, String testData, By elementLocator, List<List<Object>> attachments, Exception... rootCauseException) {
+        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
+        failAction(driver, actionName, testData, elementLocator, attachments, rootCauseException);
+    }
+
     protected static void failAction(Screen screen, App applicationWindow, Pattern element, String testData, Exception... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        failAction(null, actionName, testData, null, SikuliActions.prepareElementScreenshotAttachment(screen, applicationWindow, element, actionName, false), rootCauseException);
+        List<List<Object>> attachments = new LinkedList<>();
+        attachments.add(SikuliActions.prepareElementScreenshotAttachment(screen, applicationWindow, element, actionName, false));
+        failAction(null, actionName, testData, null, attachments, rootCauseException);
     }
 
     protected static boolean identifyUniqueElement(WebDriver driver, By elementLocator) {
@@ -1325,9 +1334,9 @@ public class WebDriverElementActions {
         passAction(driver, elementLocator, actionName, null, null);
     }
 
-    protected static void passAction(WebDriver driver, By elementLocator, List<Object> screenshot) {
+    protected static void passAction(WebDriver driver, By elementLocator, List<List<Object>> screenshots) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        passAction(driver, elementLocator, actionName, null, screenshot);
+        passAction(driver, elementLocator, actionName, null, screenshots);
     }
 
     protected static void passAction(WebDriver driver, By elementLocator, String testData) {
@@ -1337,12 +1346,16 @@ public class WebDriverElementActions {
 
     protected static void passAction(WebDriver driver, By elementLocator, String testData, List<Object> screenshot) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        passAction(driver, elementLocator, actionName, testData, screenshot);
+        List<List<Object>> attachments = new LinkedList<>();
+        attachments.add(screenshot);
+        passAction(driver, elementLocator, actionName, testData, attachments);
     }
 
     protected static void passAction(Screen screen, App applicationWindow, Pattern element, String testData) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        passAction(null, null, actionName, testData, SikuliActions.prepareElementScreenshotAttachment(screen, applicationWindow, element, actionName, true));
+        List<List<Object>> attachments = new LinkedList<>();
+        attachments.add(SikuliActions.prepareElementScreenshotAttachment(screen, applicationWindow, element, actionName, true));
+        passAction(null, null, actionName, testData, attachments);
     }
 
     protected static List<Object> takeScreenshot(WebDriver driver, By elementLocator, String actionName, String testData,
@@ -1412,7 +1425,7 @@ public class WebDriverElementActions {
         }
     }
 
-    private static String confirmTypingWasSuccessful(WebDriver driver, By elementLocator, String expectedText,
+    private static String confirmTypingWasSuccessful(WebDriver driver, By elementLocator,
                                                      TextDetectionStrategy successfulTextLocationStrategy) {
         TextDetectionStrategy updatedSuccessfulTextLocationStrategy = successfulTextLocationStrategy;
         if (updatedSuccessfulTextLocationStrategy.equals(TextDetectionStrategy.UNDEFINED)) {
@@ -1444,9 +1457,9 @@ public class WebDriverElementActions {
         return successfulTextLocationStrategy;
     }
 
-    private static void failAction(WebDriver driver, String actionName, String testData, By elementLocator, List<Object> screenshot,
+    private static void failAction(WebDriver driver, String actionName, String testData, By elementLocator, List<List<Object>> screenshots,
                                    Exception... rootCauseException) {
-        String message = reportActionResult(driver, actionName, testData, elementLocator, screenshot, false);
+        String message = reportActionResult(driver, actionName, testData, elementLocator, screenshots, false);
 
         if (rootCauseException != null && rootCauseException.length >= 1) {
             Assert.fail(message, rootCauseException[0]);
@@ -1517,11 +1530,7 @@ public class WebDriverElementActions {
 
         int matchingElementsCount = getMatchingElementsCount(driver, elementLocator, Optional.empty(), Optional.of(checkForVisibility));
         if (elementLocator instanceof RelativeLocator.RelativeBy relativeLocator){
-            if (matchingElementsCount >=1) {
-                return true;
-            }else{
-                return false;
-            }
+            return matchingElementsCount >= 1;
         }else {
             if (internalElementLocator != null) {
                 // unique element found
@@ -1551,8 +1560,8 @@ public class WebDriverElementActions {
     }
 
     private static void passAction(WebDriver driver, By elementLocator, String actionName, String testData,
-                                   List<Object> screenshot) {
-        reportActionResult(driver, actionName, testData, elementLocator, screenshot, true);
+                                   List<List<Object>> screenshots) {
+        reportActionResult(driver, actionName, testData, elementLocator, screenshots, true);
     }
 
     private static void passAction(WebDriver driver, String testData) {
@@ -1676,7 +1685,7 @@ public class WebDriverElementActions {
     }
 
     private static String reportActionResult(WebDriver driver, String actionName, String testData, By elementLocator,
-                                             List<Object> screenshot, Boolean passFailStatus) {
+                                             List<List<Object>> screenshots, Boolean passFailStatus) {
         actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
@@ -1694,9 +1703,9 @@ public class WebDriverElementActions {
             message = message + " With the following test data [" + testData + "].";
         }
 
-        if (screenshot != null && !screenshot.equals(new ArrayList<>())) {
+        if (screenshots != null && !screenshots.equals(new ArrayList<>())) {
             // screenshot taken before action (in case of click)
-            attachments.add(screenshot);
+            attachments.addAll(screenshots);
         } else if (driver != null) {
             List<Object> newScreenshot = takeScreenshot(driver, elementLocator, actionName, testData, passFailStatus);
             if (newScreenshot != null && !newScreenshot.equals(new ArrayList<>())) {
@@ -1741,7 +1750,7 @@ public class WebDriverElementActions {
                 performType(driver, internalElementLocator, targetText);
             }
             if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckTextWasTypedCorrectly")))) {
-                String actualText = confirmTypingWasSuccessful(driver, internalElementLocator, targetText, successfulTextLocationStrategy);
+                String actualText = confirmTypingWasSuccessful(driver, internalElementLocator, successfulTextLocationStrategy);
                 if (targetText.equals(actualText) || OBFUSCATED_STRING.repeat(targetText.length()).equals(actualText)) {
                     return targetText;
                 } else {

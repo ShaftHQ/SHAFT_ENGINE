@@ -227,18 +227,9 @@ public class ScreenshotManager {
                 ReportManagerHelper.log(e);
             }
 
-            /*
-             * Declare screenshot file name
-             */
-            testCaseName = ReportManagerHelper.getTestMethodName();
-            screenshotFileName = System.currentTimeMillis() + "_" + testCaseName + "_" + actionName;
-            if (!"".equals(globalPassFailAppendedText)) {
-                screenshotFileName = screenshotFileName + "_" + globalPassFailAppendedText;
-            }
-
             startOrAppendToAnimatedGif(src);
             if (takeScreenshot) {
-                return addScreenshotToReport(src);
+                return prepareImageforReport(src, actionName);
             } else {
                 return null;
             }
@@ -451,7 +442,7 @@ public class ScreenshotManager {
                 }
                 startOrAppendToAnimatedGif(src);
                 if (takeScreenshot) {
-                    return addScreenshotToReport(src);
+                    return prepareImageforReport(src, actionName);
                 } else {
                     return null;
                 }
@@ -529,7 +520,7 @@ public class ScreenshotManager {
             }
             startOrAppendToAnimatedGif(src);
             if (takeScreenshot) {
-                return addScreenshotToReport(src);
+                return prepareImageforReport(src, actionName);
             } else {
                 return null;
             }
@@ -598,14 +589,23 @@ public class ScreenshotManager {
         }
     }
 
-    private static List<Object> addScreenshotToReport(byte[] screenshotFile) {
+    public static List<Object> prepareImageforReport(byte[] image, String actionName) {
+        /*
+         * Declare screenshot file name
+         */
+        testCaseName = ReportManagerHelper.getTestMethodName();
+        screenshotFileName = System.currentTimeMillis() + "_" + testCaseName + "_" + actionName;
+        if (!"".equals(globalPassFailAppendedText)) {
+            screenshotFileName = screenshotFileName + "_" + globalPassFailAppendedText;
+        }
+
         /*
          * Adding Screenshot to the Report.
          *
          */
         try {
             // add SHAFT_Engine logo overlay
-            InputStream in = new ByteArrayInputStream(screenshotFile);
+            InputStream in = new ByteArrayInputStream(image);
             BufferedImage screenshotImage = ImageIO.read(in);
             overlayShaftEngineLogo(screenshotImage);
 
