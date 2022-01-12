@@ -1,5 +1,6 @@
 package com.shaft.gui.element;
 
+import com.shaft.tools.io.ReportManager;
 import org.openqa.selenium.NoAlertPresentException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
@@ -8,36 +9,39 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import java.time.Duration;
 
 public class AlertActions {
-    private static WebDriverWait webDriverWait;
     private final WebDriver driver;
 
     public AlertActions(WebDriver driver) {
         this.driver = driver;
-        webDriverWait = new WebDriverWait(driver, Duration.ofSeconds(30));
     }
 
     public ElementActions performElementAction() {
         return new ElementActions(driver);
     }
 
-    public static void waitForAlertToBePresent(WebDriver driver) {
+    private void waitForAlertToBePresent(WebDriver driver) {
         try {
-            webDriverWait.until(ExpectedConditions.alertIsPresent());
+            (new WebDriverWait(driver, Duration.ofSeconds(30))).until(ExpectedConditions.alertIsPresent());
             driver.switchTo().alert();
-            System.out.println("Alert is present");
-        } catch (NoAlertPresentException exception) {
-            System.out.println("Alert is not present");
+            ReportManager.logDiscrete("Alert is present");
+        } catch (Exception rootCauseException) {
+            ReportManager.logDiscrete("Alert is not present");
+            WebDriverElementActions.failAction(driver, null, rootCauseException);
         }
     }
 
-    public static boolean isAlertPresent(WebDriver driver) {
+    public boolean isAlertPresent() {
         try {
-            waitForAlertToBePresent(driver);
             driver.switchTo().alert();
-            System.out.println("Alert is present");
+            WebDriverElementActions.passAction(driver, null);
+            ReportManager.logDiscrete("Alert is present");
             return true;
         } catch (NoAlertPresentException exception) {
-            System.out.println("Alert is not present");
+            WebDriverElementActions.failAction(driver, null, exception);
+            ReportManager.logDiscrete("Alert is not present");
+            return false;
+        } catch (Exception rootCauseException) {
+            WebDriverElementActions.failAction(driver, null, rootCauseException);
             return false;
         }
     }
@@ -46,8 +50,9 @@ public class AlertActions {
         try {
             waitForAlertToBePresent(driver);
             driver.switchTo().alert().accept();
-        } catch (NoAlertPresentException exception) {
-            System.out.println("Alert is not present");
+            WebDriverElementActions.passAction(driver, null);
+        } catch (Exception rootCauseException) {
+            WebDriverElementActions.failAction(driver, null, rootCauseException);
         }
         return this;
     }
@@ -56,20 +61,35 @@ public class AlertActions {
         try {
             waitForAlertToBePresent(driver);
             driver.switchTo().alert().dismiss();
-        } catch (NoAlertPresentException exception) {
-            System.out.println("Alert is not present");
+            WebDriverElementActions.passAction(driver, null);
+        } catch (Exception rootCauseException) {
+            WebDriverElementActions.failAction(driver, null, rootCauseException);
         }
         return this;
     }
 
-    public static String getAlertText(WebDriver driver) {
-        waitForAlertToBePresent(driver);
-        System.out.println(driver.switchTo().alert().getText());
-        return driver.switchTo().alert().getText();
+    public String getAlertText() {
+        try {
+            waitForAlertToBePresent(driver);
+            var alertText = driver.switchTo().alert().getText();
+            ReportManager.logDiscrete("Alert Text is: [" + alertText + "]");
+            WebDriverElementActions.passAction(driver, null);
+            return alertText;
+        } catch (Exception rootCauseException) {
+            WebDriverElementActions.failAction(driver, null, rootCauseException);
+            return null;
+        }
     }
 
-    public static void typeIntoPromptAlert(WebDriver driver, String text) {
-        waitForAlertToBePresent(driver);
-        driver.switchTo().alert().sendKeys(text);
+    public void typeIntoPromptAlert(String text) {
+        try {
+            waitForAlertToBePresent(driver);
+            driver.switchTo().alert().sendKeys(text);
+            ReportManager.logDiscrete("Text typed into Alert is: [" + text + "]");
+            WebDriverElementActions.passAction(driver, null);
+        } catch (Exception rootCauseException) {
+            WebDriverElementActions.failAction(driver, null, rootCauseException);
+        }
+
     }
 }
