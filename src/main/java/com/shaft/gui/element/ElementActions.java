@@ -56,7 +56,7 @@ public class ElementActions {
         return new AlertActions(driver);
     }
 
-    public static AlertActions performAlertAction() {
+    public AlertActions performAlertAction() {
         return new AlertActions(WebDriverElementActions.getLastUsedDriver());
     }
     
