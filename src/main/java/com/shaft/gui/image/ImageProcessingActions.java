@@ -13,8 +13,8 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.validation.Validations;
 import nu.pattern.OpenCV;
-import org.opencv.core.*;
 import org.opencv.core.Point;
+import org.opencv.core.*;
 import org.opencv.highgui.HighGui;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
@@ -127,7 +127,7 @@ public class ImageProcessingActions {
     public static byte[] highlightElementInScreenshot(byte[] targetScreenshot,
                                                       org.openqa.selenium.Rectangle elementLocation, Color highlightColor) {
 
-        loadOpenCV();
+//        loadOpenCV();
         Mat img = Imgcodecs.imdecode(new MatOfByte(targetScreenshot), Imgcodecs.IMREAD_COLOR);
 
         int    outlineThickness = 5;
@@ -199,109 +199,149 @@ public class ImageProcessingActions {
         return baos.toByteArray();
     }
 
-    public static List<Integer> findImageWithinCurrentPage(String referenceImagePath, byte[] currentPageScreenshot,
-                                                           int matchMethod) {
+    private static final int
+            CV_MOP_CLOSE = 3,
+            CV_THRESH_OTSU = 8,
+            CV_THRESH_BINARY = 0,
+            CV_ADAPTIVE_THRESH_GAUSSIAN_C  = 1,
+            CV_ADAPTIVE_THRESH_MEAN_C = 0,
+            CV_THRESH_BINARY_INV  = 1;
 
-        if (FileActions.doesFileExist(referenceImagePath)) {
-            if (currentPageScreenshot == null || Arrays.equals(currentPageScreenshot, new byte[]{})) {
-                //target image is empty, force fail comparison
-                ReportManager.log("Failed to identify the element using AI; target screenshot is empty.");
-                return Collections.emptyList();
-            } else {
-                loadOpenCV();
-                Mat img = Imgcodecs.imdecode(new MatOfByte(currentPageScreenshot), Imgcodecs.IMREAD_COLOR);
-                Mat img_processed = Imgcodecs.imdecode(new MatOfByte(currentPageScreenshot), Imgcodecs.IMREAD_COLOR);
+    private static Mat preprocess(byte[] image){
+        //https://stackoverflow.com/questions/37302098/image-preprocessing-with-opencv-before-doing-character-recognition-tesseract
+        Mat img;
+        Mat imgGray = new Mat();
+        Mat imgGaussianBlur = new Mat();
+        Mat imgSobel = new Mat();
+        Mat imgThreshold = new Mat();
 
-                // https://answers.opencv.org/question/41498/detecting-image-in-another-image-image-comparison/
-                Mat templ = Imgcodecs.imread(referenceImagePath, Imgcodecs.IMREAD_COLOR);
-                Mat templ_processed = Imgcodecs.imread(referenceImagePath, Imgcodecs.IMREAD_COLOR);
+        img = Imgcodecs.imdecode(new MatOfByte(image), Imgcodecs.IMREAD_COLOR);
+        Imgproc.cvtColor(img, imgGray, Imgproc.COLOR_BGR2GRAY);
+        Imgproc.GaussianBlur(imgGray,imgGaussianBlur, new Size(3, 3),0);
+        Imgproc.Sobel(imgGaussianBlur, imgSobel, -1, 1, 0);
+        Imgproc.threshold(imgSobel, imgThreshold, 0, 255,  CV_THRESH_OTSU + CV_THRESH_BINARY);
 
-                // https://stackoverflow.com/questions/9480013/image-processing-to-improve-tesseract-ocr-accuracy
-                // Upscaling the image (it's recommended if you’re working with images that have a DPI of less than 300 dpi):
-                Imgproc.resize(templ_processed, templ_processed, templ_processed.size(), 4, 4, Imgproc.INTER_CUBIC);
+        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("debugMode")))) {
+            FileActions.createFolder("target/openCV/temp/");
+            String timestamp = String.valueOf(System.currentTimeMillis());
+            Imgcodecs.imwrite("target/openCV/temp/"+timestamp+"_1_True_Image.png", img);
+            Imgcodecs.imwrite("target/openCV/temp/"+timestamp+"_2_imgGray.png", imgGray);
+            Imgcodecs.imwrite("target/openCV/temp/"+timestamp+"_3_imgGaussianBlur.png", imgGaussianBlur);
+            Imgcodecs.imwrite("target/openCV/temp/"+timestamp+"_4_imgSobel.png", imgSobel);
+            Imgcodecs.imwrite("target/openCV/temp/"+timestamp+"_5_imgThreshold.png", imgThreshold);
+        }
+        return imgThreshold;
+    }
 
-                // Converting image to grayscale:
-                Imgproc.cvtColor(img_processed, img_processed, Imgproc.COLOR_BGR2GRAY);
-                Imgproc.cvtColor(templ_processed, templ_processed, Imgproc.COLOR_BGR2GRAY);
+    private static List<Integer> attemptToFindImageUsingOpenCV(String referenceImagePath, byte[] currentPageScreenshot, int attemptNumber) {
+        if (currentPageScreenshot == null || Arrays.equals(currentPageScreenshot, new byte[]{})) {
+            //target image is empty, force fail comparison
+            ReportManager.log("Failed to identify the element using AI; target screenshot is empty.");
+        } else {
+            Mat img_original = Imgcodecs.imdecode(new MatOfByte(currentPageScreenshot), Imgcodecs.IMREAD_COLOR);
+            Mat templ_original = Imgcodecs.imread(referenceImagePath, Imgcodecs.IMREAD_COLOR);
 
-                // sharpening template image
-                // https://www.geeksforgeeks.org/image-processing-using-opencv-in-java-set-14-sharpness-enhancement/
-                Imgproc.GaussianBlur(img_processed, img_processed, new Size(0, 0), 10);
-                Core.addWeighted(img_processed, 1.5, img_processed, -0.5, 0, img_processed);
+            Mat img = preprocess(currentPageScreenshot);
+            Mat templ = preprocess(FileActions.readFromImageFile(referenceImagePath));
 
-                Imgproc.GaussianBlur(templ_processed, templ_processed, new Size(0, 0), 10);
-                Core.addWeighted(templ_processed, 1.5, templ_processed, -0.5, 0, templ_processed);
+            // / Create the result matrix
+            int resultCols = img.cols() - templ.cols() + 1;
+            int resultRows = img.rows() - templ.rows() + 1;
 
-                // eroding_dilating
-                // https://www.tutorialspoint.com/java_dip/eroding_dilating.htm
-                int erosion_size = 5;
-                int dilation_size = 5;
-                Mat element = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new  Size(2*erosion_size + 1, 2*erosion_size+1));
-                Imgproc.erode(img_processed, img_processed, element);
-                Imgproc.erode(templ_processed, templ_processed, element);
-                Mat element1 = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new  Size(2*dilation_size + 1, 2*dilation_size+1));
-                Imgproc.dilate(img_processed, img_processed, element1);
-                Imgproc.dilate(templ_processed, templ_processed, element1);
+            Mat result = new Mat(resultRows, resultCols, CvType.CV_32FC1);
 
-                // / Create the result matrix
-                int resultCols = img.cols() - templ.cols() + 1;
-                int resultRows = img.rows() - templ.rows() + 1;
+            // / Do the Matching and Normalize
+            try {
+                // matchMethod 1 == Imgproc.TM_SQDIFF_NORMED
+                int matchMethod = Imgproc.TM_CCOEFF_NORMED;
+                double threshold = 0.80;
 
-                Mat result = new Mat(resultRows, resultCols, CvType.CV_32FC1);
+                switch (attemptNumber){
+                    case 0-> matchMethod = Imgproc.TM_CCOEFF_NORMED;
+                    case 1-> matchMethod = Imgproc.TM_SQDIFF_NORMED;
+                    case 2-> matchMethod = Imgproc.TM_CCORR_NORMED;
+                }
 
-                // / Do the Matching and Normalize
-                try {
-                    Imgproc.matchTemplate(img_processed, templ_processed, result, matchMethod);
-                    Core.normalize(result, result, 0, 1, Core.NORM_MINMAX, -1, new Mat());
+                switch (attemptNumber){
+                    case 0-> threshold = 0.80;
+                    case 1-> threshold = 0.70;
+                    case 2-> threshold = 0.60;
+                }
 
-                    // / Localizing the best match with minMaxLoc
-                    Core.MinMaxLocResult mmr = Core.minMaxLoc(result);
+                Imgproc.matchTemplate(img, templ, result, matchMethod);
+//                    Core.normalize(result, result, 0, 1, Core.NORM_MINMAX, -1, new Mat());
 
-                    org.opencv.core.Point matchLoc;
-                    if (matchMethod == Imgproc.TM_SQDIFF || matchMethod == Imgproc.TM_SQDIFF_NORMED) {
-                        matchLoc = mmr.minLoc;
-                    } else {
-                        matchLoc = mmr.maxLoc;
-                    }
+                // Localizing the best match with minMaxLoc
+                Core.MinMaxLocResult mmr = Core.minMaxLoc(result);
 
-                    if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("debugMode")))) {
-                        // debugging
-                        Imgproc.rectangle(img, matchLoc, new Point(matchLoc.x + templ.cols(), matchLoc.y + templ.rows()),
+                double minMaxVal;
+                double matchAccuracy;
+
+                org.opencv.core.Point matchLoc;
+                if (matchMethod == Imgproc.TM_SQDIFF || matchMethod == Imgproc.TM_SQDIFF_NORMED) {
+                    matchLoc = mmr.minLoc;
+                    minMaxVal = mmr.minVal;
+                    matchAccuracy = 1 - minMaxVal;
+                } else {
+                    matchLoc = mmr.maxLoc;
+                    minMaxVal = mmr.maxVal;
+                    matchAccuracy = minMaxVal;
+                }
+                ReportManager.logDiscrete("Accuracy threshold is [" + threshold*100 + "%] and the actual match accuracy is [" + matchAccuracy*100 + "%].");
+
+                if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("debugMode")))) {
+                    // debugging
+                    try {
+                        FileActions.createFolder("target/openCV/");
+                        String timestamp = String.valueOf(System.currentTimeMillis());
+
+                        File output = new File("target/openCV/" + timestamp + "_1_templ.png");
+                        ImageIO.write((BufferedImage) HighGui.toBufferedImage(templ_original), "png", output);
+
+                        output = new File("target/openCV/" + timestamp + "_3_img.png");
+                        ImageIO.write((BufferedImage) HighGui.toBufferedImage(img_original), "png", output);
+
+                        Imgproc.rectangle(img_original, matchLoc, new Point(matchLoc.x + templ.cols(), matchLoc.y + templ.rows()),
                                 new Scalar(0, 0, 0), 2, 8, 0);
-                        Image tmpImg = HighGui.toBufferedImage(img);
-                        BufferedImage image = (BufferedImage) tmpImg;
-
-                        try {
-                            FileActions.createFolder("target/openCV/");
-                            File output = new File("target/openCV/" + System.currentTimeMillis() + ".png");
-                            ImageIO.write(image, "png", output);
-                        } catch (IOException e) {
-                            ReportManagerHelper.log(e);
-                            return Collections.emptyList();
-                        }
+                        output = new File("target/openCV/" + timestamp + "_5_output.png");
+                        ImageIO.write((BufferedImage) HighGui.toBufferedImage(img_original), "png", output);
+                    } catch (IOException e) {
+                        ReportManagerHelper.log(e);
+                        return Collections.emptyList();
                     }
+                }
 
-                    // returning the top left corner resulted in an issue with round edged text
-                    // boxes
-                    // matchLoc.x
-                    // matchLoc.y
-
-                    // returning the center of the element resulted in an issue with another element
-                    // overlaying it
-                    // matchLoc.x + templ.cols() / 2
-                    // matchLoc.y + templ.rows() / 2
-
-                    // returning the top left corner point plus 1x and 1y
-                    int x = Integer.parseInt(String.valueOf(matchLoc.x + 1).split("\\.")[0]);
-                    int y = Integer.parseInt(String.valueOf(matchLoc.y + 1).split("\\.")[0]);
-                    ReportManager.logDiscrete("Successfully identified the element using AI; OpenCV.");
-                    return Arrays.asList(x, y);
-                } catch (org.opencv.core.CvException e) {
-                    ReportManagerHelper.log(e);
-                    ReportManager.log("Failed to identify the element using AI; openCV core exception.");
+                if (matchAccuracy < threshold) {
                     return Collections.emptyList();
                 }
+
+                // returning the top left corner point plus 1x and 1y
+                int x = Integer.parseInt(String.valueOf(matchLoc.x + 1).split("\\.")[0]);
+                int y = Integer.parseInt(String.valueOf(matchLoc.y + 1).split("\\.")[0]);
+                ReportManager.logDiscrete("Successfully identified the element using AI; OpenCV.");
+                return Arrays.asList(x, y);
+            } catch (org.opencv.core.CvException e) {
+                ReportManagerHelper.log(e);
+                ReportManager.log("Failed to identify the element using AI; openCV core exception.");
             }
+        }
+        return Collections.emptyList();
+    }
+
+    public static List<Integer> findImageWithinCurrentPage(String referenceImagePath, byte[] currentPageScreenshot) {
+        if (FileActions.doesFileExist(referenceImagePath)) {
+            int maxNumberOfAttempts = 3;
+            int attempts = 0;
+            List<Integer> foundLocation = Collections.emptyList();
+            do {
+                try {
+                    foundLocation = attemptToFindImageUsingOpenCV(referenceImagePath, currentPageScreenshot, attempts);
+                }catch (Exception e){
+                    //Do Nothing
+                }
+                attempts++;
+            } while (Collections.emptyList().equals(foundLocation) && attempts<maxNumberOfAttempts);
+            return foundLocation;
         } else {
             // no reference screenshot exists
             ReportManager.log("Failed to identify the element using AI; No reference element screenshot exists.");
@@ -336,7 +376,7 @@ public class ImageProcessingActions {
             boolean doesReferenceFileExist = FileActions.doesFileExist(referenceImagePath);
 
             if (!Arrays.equals(elementScreenshot, new byte[]{})) {
-                if (!doesReferenceFileExist || !ImageProcessingActions.findImageWithinCurrentPage(referenceImagePath, elementScreenshot, Imgproc.TM_CCORR_NORMED).equals(Collections.emptyList())) {
+                if (!doesReferenceFileExist || !ImageProcessingActions.findImageWithinCurrentPage(referenceImagePath, elementScreenshot).equals(Collections.emptyList())) {
                     //pass: element found and matched || first time element
                     if (!doesReferenceFileExist) {
                         ReportManager.logDiscrete("Passing the test and saving a reference image");
@@ -428,7 +468,7 @@ public class ImageProcessingActions {
             boolean doesReferenceFileExist = FileActions.doesFileExist(referenceImagePath);
 
             if (!Arrays.equals(elementScreenshot, new byte[]{})) {
-                if (!doesReferenceFileExist || !ImageProcessingActions.findImageWithinCurrentPage(referenceImagePath, elementScreenshot, Imgproc.TM_CCORR_NORMED).equals(Collections.emptyList())) {
+                if (!doesReferenceFileExist || !ImageProcessingActions.findImageWithinCurrentPage(referenceImagePath, elementScreenshot).equals(Collections.emptyList())) {
                     //pass: element found and matched || first time element
                     if (!doesReferenceFileExist) {
                         ReportManager.logDiscrete("Passing the test and saving a reference image");
@@ -594,7 +634,7 @@ public class ImageProcessingActions {
 
     }
 
-    private static void loadOpenCV() {
+    public static void loadOpenCV() {
         try {
             OpenCV.loadShared();
             ReportManager.logDiscrete("Loaded Shared OpenCV");

@@ -1,6 +1,8 @@
 package com.shaft.gui.element;
 
+import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactoryHelper;
+import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.tools.support.JavaScriptHelper;
@@ -12,9 +14,7 @@ import org.openqa.selenium.support.ui.FluentWait;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 class ElementActionsHelper {
     private static final int DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER = Integer
@@ -39,6 +39,32 @@ class ElementActionsHelper {
 
     protected static int waitForElementPresence(WebDriver driver, By elementLocator, boolean checkForVisibility) {
         return waitForElementPresence(driver, elementLocator, ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION, checkForVisibility);
+    }
+
+    protected static List<Object> waitForElementPresence(WebDriver driver, String elementReferenceScreenshot){
+        long startTime = System.currentTimeMillis();
+        long elapsedTime;
+        List<Integer> coordinates;
+        boolean isFound = false;
+        byte[] currentScreenImage;
+        do{
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                ReportManagerHelper.log(e);
+            }
+            currentScreenImage = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+            coordinates = ImageProcessingActions.findImageWithinCurrentPage(elementReferenceScreenshot, currentScreenImage);
+            if (!Collections.emptyList().equals(coordinates)){
+                isFound = true;
+            }
+            elapsedTime = System.currentTimeMillis() - startTime;
+        }while (!isFound && elapsedTime<((long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER *ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION*1000));
+        List<Object> returnedValue = new LinkedList<>();
+        returnedValue.add(currentScreenImage);
+        returnedValue.add(FileActions.readFromImageFile(elementReferenceScreenshot));
+        returnedValue.add(coordinates);
+        return returnedValue;
     }
 
     protected static int waitForElementPresence(WebDriver driver, By elementLocator, int numberOfAttempts, boolean checkForVisibility) {

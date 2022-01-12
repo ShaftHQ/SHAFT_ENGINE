@@ -3,7 +3,7 @@ package com.shaft.gui.element;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.shaft.driver.DriverFactoryHelper;
-import com.shaft.gui.image.ImageProcessingActions;
+import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import io.appium.java_client.AppiumBy;
@@ -15,22 +15,19 @@ import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.interactions.Pause;
 import org.openqa.selenium.interactions.PointerInput;
 import org.openqa.selenium.interactions.Sequence;
-import org.openqa.selenium.remote.RemoteWebElement;
 
 import java.time.Duration;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 
 import static java.util.Arrays.asList;
 
 @SuppressWarnings({"unused"})
 public class TouchActions {
-    // TODO: migrate away from all deprecated methods
-    // https://github.com/appium/java-client/blob/087df2052abc177cea446825c48e3ab297a8ad6b/docs/v7-to-v8-migration-guide.md#touch-actions
-    private static final int DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT = 10;
-    private static final boolean CAPTURE_CLICKED_ELEMENT_TEXT = Boolean.valueOf(System.getProperty("captureClickedElementText"));
+    private static final int DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT = 5;
+    private static final boolean CAPTURE_CLICKED_ELEMENT_TEXT = Boolean.parseBoolean(System.getProperty("captureClickedElementText"));
     private final WebDriver driver;
 
     public TouchActions(WebDriver driver) {
@@ -88,35 +85,48 @@ public class TouchActions {
     /**
      * Taps an element once on a touch-enabled screen
      *
-     * @param elementReferenceScreenshot relative path to the reference image from the local object repository, ends with /
+     * @param elementReferenceScreenshot relative path to the reference image from the local object repository
      * @return a self-reference to be used to chain actions
      */
     public TouchActions tap(String elementReferenceScreenshot) {
-        List<Object> screenshot = WebDriverElementActions.takeScreenshot(driver, null, "tap", null, true);
+        // Wait for element presence and get the needed data
+        var objects = ElementActionsHelper.waitForElementPresence(driver, elementReferenceScreenshot);
+        byte[] currentScreenImage = (byte[]) objects.get(0);
+        byte[] referenceImage = (byte[]) objects.get(1);
+        List<Integer> coordinates = (List<Integer>) objects.get(2);
 
-        if (DriverFactoryHelper.isMobileNativeExecution()) {
-            byte[] currentScreenImage = ((AppiumDriver) driver).getScreenshotAs(OutputType.BYTES);
-            List<Integer> coordinates = ImageProcessingActions.findImageWithinCurrentPage(elementReferenceScreenshot, currentScreenImage, 1);
-            PointerInput input = new PointerInput(PointerInput.Kind.TOUCH, "finger1");
-            Sequence tap = new Sequence(input, 0);
-            tap.addAction(input.createPointerMove(Duration.ZERO, PointerInput.Origin.viewport(), coordinates.get(0), coordinates.get(1)));
-            tap.addAction(input.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
-            tap.addAction(new Pause(input, Duration.ofMillis(200)));
-            tap.addAction(input.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
-            try {
-                ((AppiumDriver) driver).perform(ImmutableList.of(tap));
-            } catch (UnsupportedCommandException exception) {
-                WebDriverElementActions.failAction(driver, null, exception);
-            }
+        // Prepare screenshots for reporting
+        var screenshot = ScreenshotManager.prepareImageforReport(currentScreenImage, "tap - Current Screen Image");
+        var referenceScreenshot = ScreenshotManager.prepareImageforReport(referenceImage, "tap - Reference Screenshot");
+        List<List<Object>> attachments = new LinkedList<>();
+        attachments.add(referenceScreenshot);
+        attachments.add(screenshot);
+
+        // If coordinates are empty then OpenCV couldn't find the element on screen
+        if (Collections.emptyList().equals(coordinates)) {
+            WebDriverElementActions.failAction(driver, "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.", null, attachments);
         } else {
-            byte[] currentScreenImage = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
-            List<Integer> coordinates = ImageProcessingActions.findImageWithinCurrentPage(elementReferenceScreenshot, currentScreenImage, 1);
-            (new org.openqa.selenium.interactions.touch.TouchActions(driver))
-                    .down(coordinates.get(0), coordinates.get(1))
-                    .up(coordinates.get(0), coordinates.get(1))
-                    .perform();
+            // Perform tap action by coordinates
+            if (DriverFactoryHelper.isMobileNativeExecution()) {
+                PointerInput input = new PointerInput(PointerInput.Kind.TOUCH, "finger1");
+                Sequence tap = new Sequence(input, 0);
+                tap.addAction(input.createPointerMove(Duration.ZERO, PointerInput.Origin.viewport(), coordinates.get(0), coordinates.get(1)));
+                tap.addAction(input.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
+                tap.addAction(new Pause(input, Duration.ofMillis(200)));
+                tap.addAction(input.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+                try {
+                    ((AppiumDriver) driver).perform(ImmutableList.of(tap));
+                } catch (UnsupportedCommandException exception) {
+                    WebDriverElementActions.failAction(driver, null, exception);
+                }
+            } else {
+                (new org.openqa.selenium.interactions.touch.TouchActions(driver))
+                        .down(coordinates.get(0), coordinates.get(1))
+                        .up(coordinates.get(0), coordinates.get(1))
+                        .perform();
+            }
+            WebDriverElementActions.passAction(driver, null, attachments);
         }
-        WebDriverElementActions.passAction(driver, null, screenshot);
         return this;
     }
 
@@ -185,8 +195,11 @@ public class TouchActions {
             } catch (Exception e) {
                 // do nothing
             }
-            List<Object> screenshot = WebDriverElementActions.takeScreenshot(driver, internalElementLocator, "doubleTap", null, true);
+
             // takes screenshot before clicking the element out of view
+            var screenshot = WebDriverElementActions.takeScreenshot(driver, internalElementLocator, "doubleTap", null, true);
+            List<List<Object>> attachments = new LinkedList<>();
+            attachments.add(screenshot);
 
             try {
                 if (driver instanceof AppiumDriver appiumDriver) {
@@ -206,7 +219,7 @@ public class TouchActions {
             if (elementText != null && !elementText.equals("")) {
                 WebDriverElementActions.passAction(driver, internalElementLocator, elementText.replaceAll("\n", " "), screenshot);
             } else {
-                WebDriverElementActions.passAction(driver, internalElementLocator, screenshot);
+                WebDriverElementActions.passAction(driver, internalElementLocator, attachments);
             }
         } else {
             WebDriverElementActions.failAction(driver, internalElementLocator);
@@ -233,8 +246,10 @@ public class TouchActions {
             } catch (Exception e) {
                 // do nothing
             }
-            List<Object> screenshot = WebDriverElementActions.takeScreenshot(driver, internalElementLocator, "longPress", null, true);
             // takes screenshot before clicking the element out of view
+            List<Object> screenshot = WebDriverElementActions.takeScreenshot(driver, internalElementLocator, "longPress", null, true);
+            List<List<Object>> attachments = new LinkedList<>();
+            attachments.add(screenshot);
 
             try {
                 if (driver instanceof AppiumDriver appiumDriver) {
@@ -251,7 +266,7 @@ public class TouchActions {
             if (elementText != null && !elementText.equals("")) {
                 WebDriverElementActions.passAction(driver, internalElementLocator, elementText.replaceAll("\n", " "), screenshot);
             } else {
-                WebDriverElementActions.passAction(driver, internalElementLocator, screenshot);
+                WebDriverElementActions.passAction(driver, internalElementLocator, attachments);
             }
         } else {
             WebDriverElementActions.failAction(driver, internalElementLocator);
@@ -357,7 +372,7 @@ public class TouchActions {
 		}
 		return this;
     }
-    
+
     /**
      * Swipes the sourceElement onto the destinationElement on a touch-enabled
      * screen
@@ -525,6 +540,108 @@ public class TouchActions {
         return this;
     }
 
+    //TODO: swipeToEndOfView(SwipeDirection swipeDirection)
+    //TODO: waitUntilElementIsNotVisible(String elementReferenceScreenshot)
+
+    /**
+     * Waits until a specific element is now visible on the current screen
+     * @param elementReferenceScreenshot relative path to the reference image from the local object repository
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions waitUntilElementIsVisible(String elementReferenceScreenshot){
+        var visualIdentificationObjects = ElementActionsHelper.waitForElementPresence(driver, elementReferenceScreenshot);
+        byte[] currentScreenImage = (byte[]) visualIdentificationObjects.get(0);
+        byte[] referenceImage = (byte[]) visualIdentificationObjects.get(1);
+        List<Integer> coordinates = (List<Integer>) visualIdentificationObjects.get(2);
+
+        // prepare attachments
+        var screenshot = ScreenshotManager.prepareImageforReport(currentScreenImage, "waitUntilElementIsVisible - Current Screen Image");
+        var referenceScreenshot = ScreenshotManager.prepareImageforReport(referenceImage, "waitUntilElementIsVisible - Reference Screenshot");
+        List<List<Object>> attachments = new LinkedList<>();
+        attachments.add(referenceScreenshot);
+        attachments.add(screenshot);
+
+        if (!Collections.emptyList().equals(coordinates)) {
+            WebDriverElementActions.passAction(driver, null, attachments);
+        }else{
+            WebDriverElementActions.failAction(driver, "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.", null, attachments);
+        }
+        return this;
+    }
+
+    /**
+     * Attempts to scroll element into view using the new W3C compliant actions for android and ios and AI for image identification
+     * @param elementReferenceScreenshot relative path to the reference image from the local object repository
+     * @param swipeDirection                  SwipeDirection.DOWN, UP, RIGHT, or LEFT
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions swipeElementIntoView(String elementReferenceScreenshot, SwipeDirection swipeDirection) {
+        return swipeElementIntoView(null, elementReferenceScreenshot, swipeDirection);
+    }
+
+    /**
+     * Attempts to scroll element into view using the new W3C compliant actions for android and ios and AI for image identification
+     * @param scrollableElementLocator the locator of the container/view/scrollable webElement that the scroll action will be performed inside
+     * @param elementReferenceScreenshot relative path to the reference image from the local object repository
+     * @param swipeDirection                  SwipeDirection.DOWN, UP, RIGHT, or LEFT
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions swipeElementIntoView(By scrollableElementLocator, String elementReferenceScreenshot, SwipeDirection swipeDirection) {
+        By internalScrollableElementLocator = WebDriverElementActions.updateLocatorWithAIGeneratedOne(scrollableElementLocator);
+
+        // Prepare attachments for reporting
+        List<List<Object>> attachments = new LinkedList<>();
+        if (WebDriverElementActions.identifyUniqueElement(driver, internalScrollableElementLocator)) {
+            try {
+                if (driver instanceof AppiumDriver appiumDriver) {
+                    // appium native application
+                    var visualIdentificationObjects = attemptToSwipeElementIntoViewInNativeApp(scrollableElementLocator, elementReferenceScreenshot, swipeDirection);
+                    byte[] currentScreenImage = (byte[]) visualIdentificationObjects.get(0);
+                    byte[] referenceImage = (byte[]) visualIdentificationObjects.get(1);
+                    List<Integer> coordinates = (List<Integer>) visualIdentificationObjects.get(2);
+
+                    // prepare attachments
+                    var screenshot = ScreenshotManager.prepareImageforReport(currentScreenImage, "swipeElementIntoView - Current Screen Image");
+                    var referenceScreenshot = ScreenshotManager.prepareImageforReport(referenceImage, "swipeElementIntoView - Reference Screenshot");
+                    attachments = new LinkedList<>();
+                    attachments.add(referenceScreenshot);
+                    attachments.add(screenshot);
+
+                    // If coordinates are empty then OpenCV couldn't find the element on screen
+                    if (Collections.emptyList().equals(coordinates)) {
+                        WebDriverElementActions.failAction(driver, "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.", null, attachments);
+                    }
+                } else {
+                    // Wait for element presence and get the needed data
+                    var objects = ElementActionsHelper.waitForElementPresence(driver, elementReferenceScreenshot);
+                    byte[] currentScreenImage = (byte[]) objects.get(0);
+                    byte[] referenceImage = (byte[]) objects.get(1);
+                    List<Integer> coordinates = (List<Integer>) objects.get(2);
+
+                    // prepare attachments
+                    var screenshot = ScreenshotManager.prepareImageforReport(currentScreenImage, "swipeElementIntoView - Current Screen Image");
+                    var referenceScreenshot = ScreenshotManager.prepareImageforReport(referenceImage, "swipeElementIntoView - Reference Screenshot");
+                    attachments = new LinkedList<>();
+                    attachments.add(referenceScreenshot);
+                    attachments.add(screenshot);
+
+                    // If coordinates are empty then OpenCV couldn't find the element on screen
+                    if (Collections.emptyList().equals(coordinates)) {
+                        WebDriverElementActions.failAction(driver, "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.", null, attachments);
+                    } else {
+                        (new org.openqa.selenium.interactions.touch.TouchActions(driver)).scroll(coordinates.get(0), coordinates.get(1)).perform();
+                    }
+                }
+                WebDriverElementActions.passAction(driver, null, attachments);
+            } catch (Exception e) {
+                WebDriverElementActions.failAction(driver, "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.", null, attachments);
+            }
+        }else {
+            WebDriverElementActions.failAction(driver, internalScrollableElementLocator);
+        }
+        return this;
+    }
+
     /**
      * Attempts to scroll element into view using the new W3C compliant actions for android and ios
      * @param scrollableElementLocator the locator of the container/view/scrollable webElement that the scroll action will be performed inside
@@ -537,25 +654,29 @@ public class TouchActions {
         By internalScrollableElementLocator = WebDriverElementActions.updateLocatorWithAIGeneratedOne(scrollableElementLocator);
         By internalTargetElementLocator = WebDriverElementActions.updateLocatorWithAIGeneratedOne(targetElementLocator);
 
-        try {
-            if (driver instanceof AppiumDriver appiumDriver) {
-                // appium native application
-                boolean isElementFound = attemptToSwipeElementIntoViewInNativeApp(scrollableElementLocator, targetElementLocator, swipeDirection);
-                if (Boolean.FALSE.equals(isElementFound)) {
-                    WebDriverElementActions.failAction(appiumDriver, internalTargetElementLocator);
-                }
-            } else {
-                // regular touch screen device
-                if (WebDriverElementActions.identifyUniqueElement(driver, internalTargetElementLocator)) {
-                    Point elementLocation = driver.findElement(internalTargetElementLocator).getLocation();
-                    (new org.openqa.selenium.interactions.touch.TouchActions(driver)).scroll(elementLocation.getX(), elementLocation.getY()).perform();
+        if (WebDriverElementActions.identifyUniqueElement(driver, internalScrollableElementLocator)) {
+            try {
+                if (driver instanceof AppiumDriver appiumDriver) {
+                    // appium native application
+                    boolean isElementFound = attemptToSwipeElementIntoViewInNativeApp(scrollableElementLocator, targetElementLocator, swipeDirection);
+                    if (Boolean.FALSE.equals(isElementFound)) {
+                        WebDriverElementActions.failAction(appiumDriver, internalTargetElementLocator);
+                    }
                 } else {
-                    WebDriverElementActions.failAction(driver, internalTargetElementLocator);
+                    // regular touch screen device
+                    if (WebDriverElementActions.identifyUniqueElement(driver, internalTargetElementLocator)) {
+                        Point elementLocation = driver.findElement(internalTargetElementLocator).getLocation();
+                        (new org.openqa.selenium.interactions.touch.TouchActions(driver)).scroll(elementLocation.getX(), elementLocation.getY()).perform();
+                    } else {
+                        WebDriverElementActions.failAction(driver, internalTargetElementLocator);
+                    }
                 }
+                WebDriverElementActions.passAction(driver, internalTargetElementLocator);
+            } catch (Exception e) {
+                WebDriverElementActions.failAction(driver, internalTargetElementLocator, e);
             }
-            WebDriverElementActions.passAction(driver, internalTargetElementLocator);
-        } catch (Exception e) {
-            WebDriverElementActions.failAction(driver, internalTargetElementLocator, e);
+        }else {
+            WebDriverElementActions.failAction(driver, internalScrollableElementLocator);
         }
         return this;
     }
@@ -592,10 +713,38 @@ public class TouchActions {
                 }
             }
         } while (Boolean.FALSE.equals(isElementFound) && attemptsToFindElement < DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT);
-        // TODO: devise a way to break the loop when no further scrolling options are
-        // available. do not use visual comparison which is the easy but costly way to
-        // do it.
         return isElementFound;
+    }
+
+    private List<Object> attemptToSwipeElementIntoViewInNativeApp(By scrollableElementLocator, String targetElementImage, SwipeDirection swipeDirection) {
+        boolean isElementFound = false;
+        boolean canStillScroll = true;
+        var isDiscrete = ReportManagerHelper.getDiscreteLogging();
+        ReportManagerHelper.setDiscreteLogging(true);
+        List<Object> visualIdentificationObjects;
+
+        // force SHAFT back into the loop even if canStillScroll is false, or ignore it completely for the first 5 scroll attempts
+        int blindScrollingAttempts = 0;
+
+        do {
+            // appium native device
+            // Wait for element presence and get the needed data
+            visualIdentificationObjects = ElementActionsHelper.waitForElementPresence(driver, targetElementImage);
+            List<Integer> coordinates = (List<Integer>) visualIdentificationObjects.get(2);
+
+            if (!Collections.emptyList().equals(coordinates)) {
+                // element is already on screen
+                isElementFound = true;
+                ReportManager.logDiscrete("Element found on screen.");
+            } else {
+                // for the animated GIF:
+                WebDriverElementActions.takeScreenshot(driver, null, "swipeElementIntoView", null, true);
+                canStillScroll = attemptW3cCompliantActionsScroll(swipeDirection, scrollableElementLocator, null);
+                blindScrollingAttempts++;
+            }
+        } while (Boolean.FALSE.equals(isElementFound) && blindScrollingAttempts<DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT && Boolean.TRUE.equals(canStillScroll));
+        ReportManagerHelper.setDiscreteLogging(isDiscrete);
+        return visualIdentificationObjects;
     }
 
     private boolean attemptToSwipeElementIntoViewInNativeApp(By scrollableElementLocator, By targetElementLocator, SwipeDirection swipeDirection) {
@@ -603,6 +752,9 @@ public class TouchActions {
         boolean canStillScroll = true;
         var isDiscrete = ReportManagerHelper.getDiscreteLogging();
         ReportManagerHelper.setDiscreteLogging(true);
+
+        // force SHAFT back into the loop even if canStillScroll is false, or ignore it completely for the first 5 scroll attempts
+        int blindScrollingAttempts = 0;
 
         do {
             // appium native device
@@ -616,16 +768,8 @@ public class TouchActions {
                 WebDriverElementActions.takeScreenshot(driver, null, "swipeElementIntoView", null, true);
                 canStillScroll = attemptW3cCompliantActionsScroll(swipeDirection, scrollableElementLocator, targetElementLocator);
             }
-        } while (Boolean.FALSE.equals(isElementFound) && Boolean.TRUE.equals(canStillScroll));
-
-        //final check after reaching the end of the scrollable area
-        if (Boolean.FALSE.equals(isElementFound)
-            && !driver.findElements(targetElementLocator).isEmpty()
-            && WebDriverElementActions.isElementDisplayed(driver, targetElementLocator)){
-                // element is already on screen
-                isElementFound = true;
-                ReportManager.logDiscrete("Element found on screen.");
-        }
+            blindScrollingAttempts++;
+        } while (Boolean.FALSE.equals(isElementFound) && blindScrollingAttempts<DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT && Boolean.TRUE.equals(canStillScroll));
         ReportManagerHelper.setDiscreteLogging(isDiscrete);
         return isElementFound;
     }
@@ -642,7 +786,10 @@ public class TouchActions {
     }
 
     private boolean attemptW3cCompliantActionsScroll(SwipeDirection swipeDirection, By scrollableElementLocator, By targetElementLocator) {
-    	var logMessage = "Swiping to find Element using W3C Compliant Actions. SwipeDirection ["+swipeDirection+"], TargetElementLocator ["+targetElementLocator+"]";
+    	var logMessage = "Swiping to find Element using W3C Compliant Actions. SwipeDirection ["+swipeDirection+"]";
+        if (targetElementLocator !=null){
+            logMessage+= ", TargetElementLocator ["+targetElementLocator+"]";
+        }
         if (scrollableElementLocator != null){
             logMessage += ", inside ScrollableElement ["+scrollableElementLocator+"]";
         }
@@ -656,7 +803,7 @@ public class TouchActions {
 
         if (scrollableElementLocator!=null) {
             //scrolling inside an element
-            Rectangle elementRectangle = ((RemoteWebElement) driver.findElement(scrollableElementLocator)).getRect();
+            Rectangle elementRectangle = driver.findElement(scrollableElementLocator).getRect();
             scrollParameters.putAll(ImmutableMap.of(
                     "height", elementRectangle.getHeight() *90/100
             ));
