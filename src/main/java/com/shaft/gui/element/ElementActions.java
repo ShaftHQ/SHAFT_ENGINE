@@ -52,6 +52,14 @@ public class ElementActions {
 		return new TouchActions(WebDriverElementActions.getLastUsedDriver());
 	}
 
+    public static AlertActions performAlertAction(WebDriver driver) {
+        return new AlertActions(driver);
+    }
+
+    public static AlertActions performAlertAction() {
+        return new AlertActions(WebDriverElementActions.getLastUsedDriver());
+    }
+    
 	/**
 	 * Clicks on a certain element using Selenium WebDriver, or JavaScript
 	 *
