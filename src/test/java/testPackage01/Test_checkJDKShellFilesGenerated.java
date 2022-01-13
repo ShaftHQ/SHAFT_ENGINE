@@ -13,9 +13,9 @@ public class Test_checkJDKShellFilesGenerated {
 		ReportManagerHelper.generateJDKShellFilesToProjectDirectory();
 		if (SystemUtils.IS_OS_WINDOWS) {
 			Validations.assertThat().object(ReportManagerHelper.getCommandsToGenerateJDKBatFile())
-					.contains(System.getProperty("jdkVersion").substring(0,6)).perform();
+					.contains(System.getProperty("java.runtime.version").substring(0,6)).perform();
 			Validations.assertThat().object(ReportManagerHelper.getCommandsToGenerateJDKShellFile())
-					.contains(System.getProperty("jdkVersion").substring(0,6)).perform();
+					.contains(System.getProperty("java.runtime.version").substring(0,6)).perform();
 		} else {
 			Validations.assertThat().object(ReportManagerHelper.getCommandsToGenerateJDKShellFile())
 					.contains("JAVA_HOME=$(/usr/libexec/java_home)").perform();
