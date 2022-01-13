@@ -21,6 +21,7 @@ public class LogsHelper {
         ReportManagerHelper.initializeExtentReportingEnvironment();
         attachImportantLinks();
         attachPropertyFiles();
+        ReportManagerHelper.generateJDKShellFilesToProjectDirectory();
         var suite=testContext.getSuite();
         if (!(suite.getAllMethods().size() == 1 && suite.getAllMethods().get(0).getMethodName().equals("runScenario"))) {
             // not cucumber test runner
@@ -28,7 +29,7 @@ public class LogsHelper {
         }
         ReportManagerHelper.setDiscreteLogging(Boolean.parseBoolean(System.getProperty("alwaysLogDiscreetly")));
         ReportManagerHelper.setDebugMode(Boolean.valueOf(System.getProperty("debugMode")));
-        ReportManagerHelper.generateJDKShellFilesToProjectDirectory();
+
     }
 
     @AfterSuite
