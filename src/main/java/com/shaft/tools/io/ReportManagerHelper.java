@@ -775,14 +775,13 @@ public class ReportManagerHelper {
     
 	public static void generateJDKShellFilesToProjectDirectory() {
 		ReportManager.logDiscrete("Configuring JDK");
-//		if (SystemUtils.IS_OS_WINDOWS) {
+		if (SystemUtils.IS_OS_WINDOWS) {
 			// create windows batch file
 		String JDKVersion=System.getProperty("java.runtime.version").substring(0,6);
 			commandsToGenerateJDKBatFile = Arrays.asList("@echo off",
 				"set JAVA_HOME=" + jdkExtractionLocation + JDKVersion, "set M2=%M2_HOME%\\bin",
 				"set PATH=%JAVA_HOME%\\bin;%M2%;%PATH%", "echo %JAVA_HOME%", "echo %PATH%");
 		FileActions.writeToFile("", "generateJdk.bat", commandsToGenerateJDKBatFile);
-//		} else {
          // create .sh file to run on git bash
 		String ConcatenatedJDKPath = "/" + jdkExtractionLocation + System.getProperty("jdkVersion");
 		String FinalJDKPath = ConcatenatedJDKPath.replace("\\", "/").replaceFirst(":", "");
@@ -791,10 +790,15 @@ public class ReportManagerHelper {
 		  commandsToGenerateJDKShellFile = Arrays.asList("#!/bin/bash", "export JAVA_HOME=" + FinalJDKPath,
 				"export PATH=$JAVA_HOME/bin:$PATH", "echo $JAVA_HOME", "echo $PATH", "$SHELL");
 		FileActions.writeToFile("", "generateJdk.sh", commandsToGenerateJDKShellFile);
+        } else {
 
+            // create commands of .sh files
+            commandsToGenerateJDKShellFile = Arrays.asList("#!/bin/bash", "export JAVA_HOME=$(/usr/libexec/java_home)",
+                    "export PATH=$JAVA_HOME/bin:$PATH","source ~/.zshenv", "echo $JAVA_HOME", "echo $PATH", "exec bash");
+            FileActions.writeToFile("", "generateJdkMac.sh", commandsToGenerateJDKShellFile);
 		// make JDK executable on unix-based shells
-//            (new TerminalActions()).performTerminalCommand("chmod u+x generateJdk.sh");
-//		}
+            (new TerminalActions()).performTerminalCommand("chmod u+x generateJdk.sh");
+		}
 	}
     
     public static List<String> getCommandsToGenerateJDKBatFile() {
