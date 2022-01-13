@@ -2,7 +2,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.mohabmohie</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>5.4.20211202-BETA</version>
+    <version>6.1.20220113</version>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
     <url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
@@ -35,7 +35,7 @@
         <webdrivermanager.version>5.0.3</webdrivermanager.version>
         <allure-testng.version>2.17.2</allure-testng.version> <!-- UPDATE internal.properties -->
         <extentreports.version>5.0.9</extentreports.version>
-        <aspectj.version>1.9.8.RC1</aspectj.version> <!-- 1.9.6 DO NOT UPDATE (Search and replace) -->
+        <aspectj.version>1.9.7</aspectj.version> <!-- 1.9.7 DO NOT UPDATE -->
 
         <rest-assured.version>4.4.0</rest-assured.version>
         <json-simple.version>1.1.1</json-simple.version>
@@ -54,17 +54,17 @@
         <org.slf4j.version>1.7.32</org.slf4j.version>
 
         <maven-resources-plugin.version>3.2.0</maven-resources-plugin.version>
-        <maven-compiler-plugin.version>3.8.1</maven-compiler-plugin.version>
+        <maven-compiler-plugin.version>3.9.0</maven-compiler-plugin.version>
         <maven-surefire-plugin.version>3.0.0-M5</maven-surefire-plugin.version>
         <maven-shade-plugin.version>3.2.1</maven-shade-plugin.version>
-        <maven-jar-plugin.version>3.2.0</maven-jar-plugin.version>
+        <maven-jar-plugin.version>3.2.2</maven-jar-plugin.version>
         <maven-javadoc-plugin.version>3.3.1</maven-javadoc-plugin.version>
         <maven-scm-publish-plugin.version>3.1.0</maven-scm-publish-plugin.version>
         <maven-source-plugin.version>3.2.1</maven-source-plugin.version>
 
         <jcraft-jsch.version>0.1.55</jcraft-jsch.version>
 
-        <cucumber.version>7.2.1</cucumber.version>
+        <cucumber.version>7.2.2</cucumber.version>
         <cverges-expect4j.version>1.9</cverges-expect4j.version>
 
         <openpnp-opencv.version>4.5.1-2</openpnp-opencv.version>
@@ -115,7 +115,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-handler</artifactId>
-            <version>4.1.72.Final</version>
+            <version>4.1.73.Final</version>
         </dependency>
 
 

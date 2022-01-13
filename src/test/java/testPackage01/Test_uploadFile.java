@@ -16,7 +16,7 @@ public class Test_uploadFile {
 
     @Test
     public void uploadFile_visibleUploadInput() {
-        BrowserActions.navigateToURL(driver.get(), "http://demo.guru99.com/test/upload/");
+        BrowserActions.navigateToURL(driver.get(), "https://demo.guru99.com/test/upload/");
         ElementActions.typeFileLocationForUpload(driver.get(), By.id("uploadfile_0"), "src/main/resources/images/shaft.png");
         new ElementActions(driver.get()).click(By.id("terms")).click(By.id("submitbutton"));
         Validations.assertThat().element(driver.get(), By.id("res")).attribute("Text").contains("1 file").perform();

@@ -48,7 +48,6 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import static io.restassured.RestAssured.given;
-import static io.restassured.RestAssured.urlEncodingEnabled;
 
 @SuppressWarnings("unused")
 public class RestActions implements ShaftDriver {

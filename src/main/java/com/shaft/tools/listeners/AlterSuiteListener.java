@@ -1,5 +1,6 @@
 package com.shaft.tools.listeners;
 
+import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.tools.io.LogsHelper;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
@@ -28,6 +29,7 @@ public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, 
         //TODO: manage slf4j log patterns
         System.setProperty("disableLogging","true");
         PropertyFileManager.readPropertyFiles();
+        ImageProcessingActions.loadOpenCV();
         System.setProperty("disableLogging","false");
         ReportManagerHelper.logEngineVersion();
 
