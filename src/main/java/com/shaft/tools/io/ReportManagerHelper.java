@@ -61,8 +61,6 @@ public class ReportManagerHelper {
     private static ExtentTest extentTest;
     private static String extentReportFileName;
     private static String generateExtentReports;
-	private static final String jdkExtractionLocation = System.getProperty("user.home") + File.separator + ".jdks"
-			+ File.separator + "openjdk-";
 	private static List<String> commandsToGenerateJDKBatFile;
 	private static List<String> commandsToGenerateJDKShellFile;
 	
@@ -777,16 +775,14 @@ public class ReportManagerHelper {
 	public static void generateJDKShellFilesToProjectDirectory() {
 		ReportManager.logDiscrete("Configuring JDK");
 		if (SystemUtils.IS_OS_WINDOWS) {
-		
 		// create windows batch file
-		String JDKVersion=System.getProperty("java.runtime.version").substring(0,6);
 			commandsToGenerateJDKBatFile = Arrays.asList("@echo off",
-				"set JAVA_HOME=" + jdkExtractionLocation + JDKVersion, "set M2=%M2_HOME%\\bin",
+				"set JAVA_HOME=" + System.getProperty("java.home"), "set M2=%M2_HOME%\\bin",
 				"set PATH=%JAVA_HOME%\\bin;%M2%;%PATH%", "echo %JAVA_HOME%", "echo %PATH%");
 		FileActions.writeToFile("", "generateJdk.bat", commandsToGenerateJDKBatFile);
         
 		// create .sh file to run on git bash
-		String ConcatenatedJDKPath = "/" + jdkExtractionLocation + System.getProperty("java.runtime.version").substring(0,6);
+		String ConcatenatedJDKPath = "/" + System.getProperty("java.home");
 		String FinalJDKPath = ConcatenatedJDKPath.replace("\\", "/").replaceFirst(":", "");
 		    commandsToGenerateJDKShellFile = Arrays.asList("#!/bin/bash", "export JAVA_HOME=" + FinalJDKPath,
 				"export PATH=$JAVA_HOME/bin:$PATH", "echo $JAVA_HOME", "echo $PATH", "$SHELL");

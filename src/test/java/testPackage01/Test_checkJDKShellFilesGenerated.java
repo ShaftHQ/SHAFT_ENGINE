@@ -9,7 +9,7 @@ public class Test_checkJDKShellFilesGenerated {
 
 	@Test
 	public void testJDKGeneratedSuccessfully() {
-
+        System.out.println(System.getProperty("java.home"));
 		ReportManagerHelper.generateJDKShellFilesToProjectDirectory();
 		if (SystemUtils.IS_OS_WINDOWS) {
 			Validations.assertThat().object(ReportManagerHelper.getCommandsToGenerateJDKBatFile())
