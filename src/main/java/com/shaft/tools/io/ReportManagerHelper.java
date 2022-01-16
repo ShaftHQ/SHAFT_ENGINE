@@ -61,6 +61,10 @@ public class ReportManagerHelper {
     private static ExtentTest extentTest;
     private static String extentReportFileName;
     private static String generateExtentReports;
+	private static List<String> commandsToGenerateJDKBatFile;
+	private static List<String> commandsToGenerateJDKShellFile;
+	
+
 
     private ReportManagerHelper() {
         throw new IllegalStateException("Utility class");
@@ -187,8 +191,10 @@ public class ReportManagerHelper {
             cleanAllureResultsDirectory();
             downloadAndExtractAllureBinaries();
             writeGenerateReportShellFilesToProjectDirectory();
+            
         }
         writeEnvironmentVariablesToAllureResultsDirectory();
+        
 //        setDiscreteLogging(discreteLoggingState);
         System.setProperty("disableLogging", "false");
     }
@@ -764,6 +770,39 @@ public class ReportManagerHelper {
             // make allure executable on unix-based shells
             (new TerminalActions()).performTerminalCommand("chmod u+x generate_allure_report.sh");
         }
+    }
+    
+	public static void generateJDKShellFilesToProjectDirectory() {
+		ReportManager.logDiscrete("Configuring JDK");
+		if (SystemUtils.IS_OS_WINDOWS) {
+		// create windows batch file
+			commandsToGenerateJDKBatFile = Arrays.asList("@echo off",
+				"set JAVA_HOME=" + System.getProperty("java.home"), "set M2=%M2_HOME%\\bin",
+				"set PATH=%JAVA_HOME%\\bin;%M2%;%PATH%", "echo %JAVA_HOME%", "echo %PATH%");
+		FileActions.writeToFile("", "generateJdk.bat", commandsToGenerateJDKBatFile);
+        
+		// create .sh file to run on git bash
+		String ConcatenatedJDKPath = "/" + System.getProperty("java.home");
+		String FinalJDKPath = ConcatenatedJDKPath.replace("\\", "/").replaceFirst(":", "");
+		    commandsToGenerateJDKShellFile = Arrays.asList("#!/bin/bash", "export JAVA_HOME=" + FinalJDKPath,
+				"export PATH=$JAVA_HOME/bin:$PATH", "echo $JAVA_HOME", "echo $PATH", "$SHELL");
+		FileActions.writeToFile("", "generateJdk.sh", commandsToGenerateJDKShellFile);
+        } else {
+
+            // create commands of unix-based shells
+            commandsToGenerateJDKShellFile = Arrays.asList("#!/bin/bash", "export JAVA_HOME=$(/usr/libexec/java_home)",
+                    "export PATH=$JAVA_HOME/bin:$PATH","source ~/.zshenv", "echo $JAVA_HOME", "echo $PATH", "exec bash");
+            FileActions.writeToFile("", "generateJdkMac.sh", commandsToGenerateJDKShellFile);
+		    // make JDK executable on unix-based shells
+            (new TerminalActions()).performTerminalCommand("chmod u+x generateJdk.sh");
+		}
+	}
+    
+    public static List<String> getCommandsToGenerateJDKBatFile() {
+    	return commandsToGenerateJDKBatFile;
+    }
+    public static List<String> getCommandsToGenerateJDKShellFile() {
+    	return commandsToGenerateJDKShellFile;
     }
 
     static boolean isInternalStep() {
