@@ -6,13 +6,10 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
-import io.restassured.RestAssured;
 import io.restassured.config.RestAssuredConfig;
 import io.restassured.config.SSLConfig;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
-import org.json.simple.parser.ParseException;
-
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -20,18 +17,18 @@ import java.text.SimpleDateFormat;
 import java.util.Base64;
 import java.util.Calendar;
 
-import static io.restassured.RestAssured.given;
+import static io.restassured.RestAssured.*;
 import static io.restassured.config.EncoderConfig.encoderConfig;
 
-public class XRayIntegration {
+public class XrayIntegration {
      public static String _JiraAuthorization=
              Base64.getEncoder().encodeToString(System.getProperty("authorization").getBytes());
      public static String _ProjectKey= System.getProperty("projectKey");
      public static String _TestExecutionID=null;
 
      public static void setup() {
-         RestAssured.baseURI = System.getProperty("jiraUrl");
-         RestAssured.given()
+         baseURI = System.getProperty("jiraUrl");
+         given()
                  .config(RestAssuredConfig.config().sslConfig(SSLConfig.sslConfig().allowAllHostnames()))
                  .relaxedHTTPSValidation();
      }
@@ -64,7 +61,7 @@ public class XRayIntegration {
         }
     }
 
-    public static void renameTestExecutionSuit(String executionName, String executionDescription) throws ParseException {
+    public static void renameTestExecutionSuit(String executionName, String executionDescription) {
          if (_TestExecutionID==null) return;
          setup();
         Calendar cal = Calendar.getInstance();
@@ -84,7 +81,7 @@ public class XRayIntegration {
                     .when()
                     .put( "/rest/api/2/issue/" +_TestExecutionID).then().extract().response();
             ReportManager.logDiscrete("#################"+ response.asString());
-            //DriverFactory.
+
         }catch (Exception e){
             ReportManagerHelper.log(e);
         }
@@ -95,7 +92,7 @@ public class XRayIntegration {
         String reportPath = System.getProperty("user.dir")+"\\"+filepath;
         try {
             Response response = given()
-                    .config(RestAssured.config().encoderConfig(encoderConfig().encodeContentTypeAs("multipart/form-data", ContentType.TEXT)))
+                    .config(config().encoderConfig(encoderConfig().encodeContentTypeAs("multipart/form-data", ContentType.TEXT)))
                     .relaxedHTTPSValidation().contentType("multipart/form-data")
                     .header("Authorization", "Basic " + _JiraAuthorization)
                     .multiPart(new File(reportPath))

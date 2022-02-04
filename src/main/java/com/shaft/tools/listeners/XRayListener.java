@@ -1,7 +1,6 @@
-
 package com.shaft.tools.listeners;
 
-import com.shaft.tms.XRayIntegration;
+import com.shaft.tms.XrayIntegration;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import io.qameta.allure.*;
@@ -36,49 +35,13 @@ public class XRayListener implements IInvokedMethodListener, ITestListener, IExe
 
     
     private boolean annotationPresent(IInvokedMethod method, Class clazz) {
-        boolean retVal = method.getTestMethod().getConstructorOrMethod().getMethod().isAnnotationPresent(clazz) ? true : false;
-        return retVal;
+        return method.getTestMethod().getConstructorOrMethod().getMethod().isAnnotationPresent(clazz);
     }
-
 
     public void afterInvocation(IInvokedMethod method, ITestResult testResult) {
         if(method.isTestMethod()&& !testSuccess ) {
                 testResult.setStatus(ITestResult.FAILURE);
             }
-    }
-
-    public void onTestStart(ITestResult result) {
-        // TODO Auto-generated method stub
-        
-    }
-
-    public void onTestSuccess(ITestResult result) {
-        // TODO Auto-generated method stub
-        
-    }
-
-    public void onTestFailure(ITestResult result) {
-        // TODO Auto-generated method stub
-        
-    }
-
-    public void onTestSkipped(ITestResult result) {
-        // TODO Auto-generated method stub
-        
-    }
-
-    public void onTestFailedButWithinSuccessPercentage(ITestResult result) {
-        // TODO Auto-generated method stub
-        
-    }
-
-    public void onStart(ITestContext context) {
-        
-    }
-
-    public void onFinish(ITestContext context) {
-        // TODO Auto-generated method stub
-        
     }
 
     @Override
@@ -95,13 +58,13 @@ public class XRayListener implements IInvokedMethodListener, ITestListener, IExe
             try {
                     if(System.getProperty("reportPath").contains("testng-results.xml"))
                     {
-                        XRayIntegration.importTestNGResults(System.getProperty("reportPath"));
+                        XrayIntegration.importTestNGResults(System.getProperty("reportPath"));
                     }
                     else if (System.getProperty("reportPath").contains("cucumber.json")) {
-                        XRayIntegration.importCucumberResults(System.getProperty("reportPath"));
+                        XrayIntegration.importCucumberResults(System.getProperty("reportPath"));
                     }
 
-                XRayIntegration.renameTestExecutionSuit(System.getProperty("ExecutionName"),
+                XrayIntegration.renameTestExecutionSuit(System.getProperty("ExecutionName"),
                         System.getProperty("ExecutionDescription") );
 
             } catch (Exception e) {
