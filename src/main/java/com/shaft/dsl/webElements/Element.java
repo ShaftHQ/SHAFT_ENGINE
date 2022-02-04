@@ -1,4 +1,4 @@
-package com.shaft.dsl;
+package com.shaft.dsl.webElements;
 
 import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Validations;

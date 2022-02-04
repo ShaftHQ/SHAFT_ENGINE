@@ -1,4 +1,4 @@
-package com.shaft.dsl;
+package com.shaft.dsl.webElements;
 
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
