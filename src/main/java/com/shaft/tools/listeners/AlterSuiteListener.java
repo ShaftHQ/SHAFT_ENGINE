@@ -89,6 +89,7 @@ public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, 
     private void addListeners(List<XmlSuite> suites) {
         suites.forEach(suite -> {
             suite.addListener("com.shaft.tools.listeners.InvokedMethodListener");
+            suite.addListener("com.shaft.tools.listeners.XRayListener");
 //            suite.addListener("com.shaft.tools.listeners.SuiteListener");
         });
 
