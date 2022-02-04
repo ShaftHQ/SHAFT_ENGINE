@@ -1,4 +1,4 @@
-package com.shaft.tms;
+package com.shaft.tools.tms;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -20,7 +20,7 @@ import java.util.Calendar;
 import static io.restassured.RestAssured.*;
 import static io.restassured.config.EncoderConfig.encoderConfig;
 
-public class XrayIntegration {
+public class XrayIntegrationManager {
      public static String _JiraAuthorization=
              Base64.getEncoder().encodeToString(System.getProperty("authorization").getBytes());
      public static String _ProjectKey= System.getProperty("projectKey");

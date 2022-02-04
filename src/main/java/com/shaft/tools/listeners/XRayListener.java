@@ -1,6 +1,6 @@
 package com.shaft.tools.listeners;
 
-import com.shaft.tms.XrayIntegration;
+import com.shaft.tools.tms.XrayIntegrationManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import io.qameta.allure.*;
@@ -58,13 +58,13 @@ public class XRayListener implements IInvokedMethodListener, ITestListener, IExe
             try {
                     if(System.getProperty("reportPath").contains("testng-results.xml"))
                     {
-                        XrayIntegration.importTestNGResults(System.getProperty("reportPath"));
+                        XrayIntegrationManager.importTestNGResults(System.getProperty("reportPath"));
                     }
                     else if (System.getProperty("reportPath").contains("cucumber.json")) {
-                        XrayIntegration.importCucumberResults(System.getProperty("reportPath"));
+                        XrayIntegrationManager.importCucumberResults(System.getProperty("reportPath"));
                     }
 
-                XrayIntegration.renameTestExecutionSuit(System.getProperty("ExecutionName"),
+                XrayIntegrationManager.renameTestExecutionSuit(System.getProperty("ExecutionName"),
                         System.getProperty("ExecutionDescription") );
 
             } catch (Exception e) {
