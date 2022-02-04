@@ -42,11 +42,9 @@ public class XRayListener implements IInvokedMethodListener, ITestListener, IExe
 
 
     public void afterInvocation(IInvokedMethod method, ITestResult testResult) {
-        if(method.isTestMethod()) {
-            if( !testSuccess ) {
+        if(method.isTestMethod()&& !testSuccess ) {
                 testResult.setStatus(ITestResult.FAILURE);
             }
-        }
     }
 
     public void onTestStart(ITestResult result) {

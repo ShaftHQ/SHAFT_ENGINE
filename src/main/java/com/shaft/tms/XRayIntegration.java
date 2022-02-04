@@ -39,12 +39,12 @@ public class XRayIntegration {
     public static void importCucumberResults(String filepath) throws Exception {
 
         setup();
-        filepath = System.getProperty("user.dir")+"\\"+filepath;
-        ReportManager.logDiscrete("uploading file: "+filepath);
-        ReportManager.logDiscrete("Length: "+new File(filepath).length());
+        String reportPath = System.getProperty("user.dir")+"\\"+filepath;
+        ReportManager.logDiscrete("uploading file: "+reportPath);
+        ReportManager.logDiscrete("Length: "+new File(reportPath).length());
 
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        JsonElement je = JsonParser.parseString( new String(Files.readAllBytes(Paths.get(filepath))));
+        JsonElement je = JsonParser.parseString( new String(Files.readAllBytes(Paths.get(reportPath))));
         String prettyJsonString = gson.toJson(je);
         ReportManager.logDiscrete("Pretty: \n"+ prettyJsonString);
 
@@ -92,13 +92,13 @@ public class XRayIntegration {
 
     public static void importTestNGResults(String filepath) {
         setup();
-        filepath = System.getProperty("user.dir")+"\\"+filepath;
+        String reportPath = System.getProperty("user.dir")+"\\"+filepath;
         try {
             Response response = given()
                     .config(RestAssured.config().encoderConfig(encoderConfig().encodeContentTypeAs("multipart/form-data", ContentType.TEXT)))
                     .relaxedHTTPSValidation().contentType("multipart/form-data")
                     .header("Authorization", "Basic " + _JiraAuthorization)
-                    .multiPart(new File(filepath))
+                    .multiPart(new File(reportPath))
                     .when()
                     .post("/rest/raven/1.0/import/execution/testng?projectKey="+_ProjectKey)
                     .then().log().all().extract().response();
