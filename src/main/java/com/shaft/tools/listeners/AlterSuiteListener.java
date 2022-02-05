@@ -5,23 +5,23 @@ import com.shaft.tools.io.LogsHelper;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
-import org.testng.IAlterSuiteListener;
-import org.testng.IAnnotationTransformer;
-import org.testng.IRetryAnalyzer;
-import org.testng.ITestResult;
+import com.shaft.tools.tms.XrayIntegrationHelper;
+import io.qameta.allure.*;
+import org.testng.*;
 import org.testng.annotations.ITestAnnotation;
 import org.testng.xml.XmlClass;
 import org.testng.xml.XmlSuite;
 import org.testng.xml.XmlSuite.ParallelMode;
-
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.List;
 
-public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, IAnnotationTransformer {
+public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, IAnnotationTransformer,
+        IInvokedMethodListener, ITestListener, IExecutionListener {
 
     private int retryCount = 0;
     private static int retryMaximumNumberOfAttempts = 0;
+    private boolean testSuccess = true;
 
     @Override
     public void alter(List<XmlSuite> suites) {
@@ -114,5 +114,66 @@ public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, 
     @Override
     public void transform(ITestAnnotation annotation, Class testClass, Constructor testConstructor, Method testMethod) {
         annotation.setRetryAnalyzer(AlterSuiteListener.class);
+    }
+
+    /**
+     * The method is to update testng-results.xml with the required data to integrate with xray plugin
+     * The Method uses Epic, Feature, Story and Test allure annotations' values.
+     *
+     * @see Allure
+     */
+
+    public void beforeInvocation(IInvokedMethod method, ITestResult testResult) {
+        if(method.isTestMethod() ) {
+            if (annotationPresent(method, Feature.class))
+                testResult.setAttribute("requirement", method.getTestMethod().getConstructorOrMethod().getMethod().getAnnotation(Feature.class).value());
+            if (annotationPresent(method, Epic.class))
+                testResult.setAttribute("requirement", method.getTestMethod().getConstructorOrMethod().getMethod().getAnnotation(Epic.class).value());
+            if (annotationPresent(method, Story.class))
+                testResult.setAttribute("requirement", method.getTestMethod().getConstructorOrMethod().getMethod().getAnnotation(Story.class).value());
+            if (annotationPresent(method, TmsLink.class))
+                testResult.setAttribute("test", method.getTestMethod().getConstructorOrMethod().getMethod().getAnnotation(TmsLink.class).value());
+            //TO-DO: testResult.setAttribute("labels", method.getTestMethod().getConstructorOrMethod().getMethod().getAnnotation().labels());
+        }
+    }
+
+
+    private boolean annotationPresent(IInvokedMethod method, Class clazz) {
+        return method.getTestMethod().getConstructorOrMethod().getMethod().isAnnotationPresent(clazz);
+    }
+
+    public void afterInvocation(IInvokedMethod method, ITestResult testResult) {
+        if(method.isTestMethod()&& !testSuccess ) {
+            testResult.setStatus(ITestResult.FAILURE);
+        }
+    }
+
+    @Override
+    public void onExecutionStart() {
+        ReportManager.logDiscrete("TestNG is going to start");
+
+    }
+
+    @Override
+    public void onExecutionFinish() {
+        ReportManager.logDiscrete("TestNG is finished");
+        if(System.getProperty("jiraInteraction").equalsIgnoreCase("true"))
+        {
+            try {
+                if(System.getProperty("reportPath").contains("testng-results.xml"))
+                {
+                    XrayIntegrationHelper.importTestNGResults(System.getProperty("reportPath"));
+                }
+                else if (System.getProperty("reportPath").contains("cucumber.json")) {
+                    XrayIntegrationHelper.importCucumberResults(System.getProperty("reportPath"));
+                }
+
+                XrayIntegrationHelper.renameTestExecutionSuit(System.getProperty("ExecutionName"),
+                        System.getProperty("ExecutionDescription") );
+
+            } catch (Exception e) {
+                ReportManagerHelper.log(e);
+            }
+        }
     }
 }
