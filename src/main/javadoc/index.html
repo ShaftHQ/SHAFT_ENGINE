@@ -69,6 +69,7 @@
                 <li><a data-toggle="tab" href="#" tabName="Timeouts">Timeouts</a></li>
                 <li><a data-toggle="tab" href="#" tabName="Validations">Validations</a></li>
                 <li><a data-toggle="tab" href="#" tabName="Reporting">Reporting</a></li>
+                <li><a data-toggle="tab" href="#" tabName="XRay">XRay</a></li>
                 <li><a data-toggle="tab" href="#" tabName="All">Generate All</a></li>
             </ul>
 
@@ -1732,6 +1733,163 @@
                             </form>
                             <br/>
                         </div>
+                        <div class="tab-pane" id="xray">
+                            <br/><br/>
+                            <form class="form-horizontal">
+                                <fieldset>
+
+                                    <!-- Form Name -->
+                                    <!-- <legend>&nbsp;Reporting:</legend>-->
+
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="jiraInteraction">Integration:*</label>
+                                        <div class="col-md-4" id="jiraInteraction">
+                                            <div class="radio-inline">
+                                                <label for="jiraInteraction-0">
+                                                    <input id="jiraInteraction-0"
+                                                           name="jiraInteraction" type="radio"
+                                                           value="true"> Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="jiraInteraction-1">
+                                                    <input checked="checked" id="jiraInteraction-1"
+                                                           name="jiraInteraction"
+                                                           type="radio" value="false"> Disabled
+                                                </label>
+                                            </div>
+                                            <span class="help-block">• In order to run the integration, it should be enabled.
+                                                However, it's recommended to keep it disabled while creating/maintaining the automation scripts to avoid reporting misleading results.</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="jiraUrl">Your Jira URL:*
+                                        </label>
+                                        <div class="col-md-4">
+                                            <div class="input-group">
+                                                <span class="input-group-addon">https://</span>
+                                                <input class="form-control input-md"
+                                                       id="jiraUrl"
+                                                       name="jiraUrl" placeholder="<JiraDomain>.com"
+                                                       type="text">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="projectKey">Project Key:*
+                                        </label>
+                                        <div class="col-md-4">
+                                            <input class="form-control input-md"
+                                                   id="projectKey"
+                                                   name="projectKey"
+                                                   placeholder="e.g CALC" type="text">
+                                        </div>
+                                    </div>
+
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="username">Authorized username:*
+                                        </label>
+                                        <div class="col-md-4">
+                                            <input class="form-control input-md"
+                                                   id="username"
+                                                   name="username"
+                                                   type="text">
+                                        </div>
+                                    </div>
+
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="password">Password:*
+                                        </label>
+                                        <div class="col-md-4">
+                                            <input class="form-control input-md"
+                                                   id="password"
+                                                   name="password"
+                                                   type="password">
+                                        </div>
+                                    </div>
+
+                                    <!-- Select Basic -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="reportPath">Results report path:
+                                        </label>
+                                        <div class="col-md-4">
+                                            <select class="form-control" id="reportPath" name="reportPath">
+                                                <option value="target/surefire-reports/testng-results.xml">target/surefire-reports/testng-results.xml</option>
+                                                <option value="target/surefire-reports/testng-results.xml">allure-results/cucumber.json</option>
+                                            </select>
+                                            <span class="help-block">• For cucumber report path please make sure it matches cucumber properties path.</span>
+
+                                        </div>
+                                    </div>
+
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="ExecutionName">Execution suite name:
+                                        </label>
+                                        <div class="col-md-4">
+                                            <input class="form-control input-md"
+                                                   id="ExecutionName"
+                                                   name="ExecutionName"
+                                                   type="text">
+                                        </div>
+                                    </div>
+
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="ExecutionDescription">Execution description:
+                                        </label>
+                                        <div class="col-md-4">
+                                            <input class="form-control input-md"
+                                                   id="ExecutionDescription"
+                                                   name="ExecutionDescription"
+                                                   type="text">
+                                        </div>
+                                    </div>
+
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="allureLinkTmsPattern">allure.link.tms.pattern:
+                                        </label>
+                                        <div class="col-md-4">
+                                            <div class="input-group">
+                                                <span class="input-group-addon">https://</span>
+                                                <input class="form-control input-md"
+                                                       id="allureLinkTmsPattern"
+                                                       name="allureLinkTmsPattern" placeholder="<JiraDomain>.com/browse"
+                                                       type="text">
+                                                <span class="input-group-addon">/PROJECTID-10</span>
+                                            </div>
+                                            <span class="help-block">• This used to link testcases @TmsLink to xray url in allure report.<br>
+                                            <a href="https://docs.qameta.io/allure/#_configuration">more info</a></span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Button -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="generateXRay_button">Generate
+                                            Properties
+                                            File
+                                        </label>
+                                        <div class="col-md-4">
+                                            <button class="btn btn-primary" id="generateXRay_button"
+                                                    onclick="generateXRay();return false;">
+                                                JiraXRay.properties
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                </fieldset>
+                            </form>
+                            <br/>
+                        </div>
+
                         <div class="tab-pane" id="allSettings">
                             <br/><br/>
                             <form class="form-horizontal">
@@ -1776,6 +1934,7 @@
         $("div[id=timeouts]").attr("class", "tab-pane");
         $("div[id=visualValidations]").attr("class", "tab-pane");
         $("div[id=reporting]").attr("class", "tab-pane");
+        $("div[id=xray]").attr("class", "tab-pane");
         $("div[id=allSettings]").attr("class", "tab-pane");
     });
 
@@ -1787,6 +1946,7 @@
         $("div[id=timeouts]").attr("class", "tab-pane");
         $("div[id=visualValidations]").attr("class", "tab-pane");
         $("div[id=reporting]").attr("class", "tab-pane");
+        $("div[id=xray]").attr("class", "tab-pane");
         $("div[id=allSettings]").attr("class", "tab-pane");
     });
 
@@ -1798,6 +1958,7 @@
         $("div[id=timeouts]").attr("class", "tab-pane");
         $("div[id=visualValidations]").attr("class", "tab-pane");
         $("div[id=reporting]").attr("class", "tab-pane");
+        $("div[id=xray]").attr("class", "tab-pane");
         $("div[id=allSettings]").attr("class", "tab-pane");
     });
 
@@ -1809,6 +1970,7 @@
         $("div[id=timeouts]").attr("class", "tab-pane active");
         $("div[id=visualValidations]").attr("class", "tab-pane");
         $("div[id=reporting]").attr("class", "tab-pane");
+        $("div[id=xray]").attr("class", "tab-pane");
         $("div[id=allSettings]").attr("class", "tab-pane");
     });
 
@@ -1820,6 +1982,7 @@
         $("div[id=timeouts]").attr("class", "tab-pane");
         $("div[id=visualValidations]").attr("class", "tab-pane active");
         $("div[id=reporting]").attr("class", "tab-pane");
+        $("div[id=xray]").attr("class", "tab-pane");
         $("div[id=allSettings]").attr("class", "tab-pane");
     });
 
@@ -1831,6 +1994,19 @@
         $("div[id=timeouts]").attr("class", "tab-pane");
         $("div[id=visualValidations]").attr("class", "tab-pane");
         $("div[id=reporting]").attr("class", "tab-pane active");
+        $("div[id=xray]").attr("class", "tab-pane");
+        $("div[id=allSettings]").attr("class", "tab-pane");
+    });
+
+    //XRay
+    $("a[tabName='XRay']").click(function () {
+        $("div[id=executionPlatformSettings]").attr("class", "tab-pane");
+        $("div[id=mobileCapabilities]").attr("class", "tab-pane");
+        $("div[id=platformFlags]").attr("class", "tab-pane");
+        $("div[id=timeouts]").attr("class", "tab-pane");
+        $("div[id=visualValidations]").attr("class", "tab-pane");
+        $("div[id=reporting]").attr("class", "tab-pane");
+        $("div[id=xray]").attr("class", "tab-pane active");
         $("div[id=allSettings]").attr("class", "tab-pane");
     });
 
@@ -1842,6 +2018,7 @@
         $("div[id=timeouts]").attr("class", "tab-pane");
         $("div[id=visualValidations]").attr("class", "tab-pane");
         $("div[id=reporting]").attr("class", "tab-pane");
+        $("div[id=xray]").attr("class", "tab-pane");
         $("div[id=allSettings]").attr("class", "tab-pane active");
     });
 </script>
@@ -2279,6 +2456,34 @@
         downloadFile(data, 'Reporting.properties');
     }
 
+</script>
+
+<script>
+    function generateXRay() {
+        // Get the data from each element on the form.
+        const jiraInteraction = $("input[name=jiraInteraction]:checked").val();
+        const jiraUrl = 'https://'+$("input[name=jiraUrl]").val();
+        const projectKey = $("input[name=projectKey]").val();
+        const authorization = $("input[name=username]").val()+':'+$("input[name=password]").val();
+        const reportPath = $("select[name=reportPath]").val();
+        const ExecutionName = $("input[name=ExecutionName]").val();
+        const ExecutionDescription = $("input[name=ExecutionDescription]").val();
+        const allureLinkTmsPattern='https://'+ $("input[name=allureLinkTmsPattern]").val();
+
+        // This variable stores all the data.
+        let data =
+            'jiraInteraction=' + jiraInteraction + '\r\n' +
+            'jiraUrl=' + jiraUrl + '\r\n' +
+            'projectKey=' + projectKey + '\r\n' +
+            'authorization=' + authorization + '\r\n' +
+            'reportPath=' + reportPath + '\r\n' +
+            'ExecutionName=' + ExecutionName + '\r\n' +
+            'ExecutionDescription=' + ExecutionDescription + '\r\n'+
+            'allure.link.tms.pattern=' + allureLinkTmsPattern + '/{} \r\n'+
+            'allure.link.custom.pattern={}\r\n';
+
+        downloadFile(data, 'JiraXRay.properties');
+    }
 
 </script>
 
@@ -2290,6 +2495,7 @@
         generateTimeouts();
         generateVisualValidations();
         generateReporting();
+        generateXRay();
     }
 
 
