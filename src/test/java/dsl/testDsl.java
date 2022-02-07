@@ -30,7 +30,7 @@ public class testDsl {
         Button btn= new Button(driver, By.xpath("//button[text()='Add Element']"));
         btn.shouldHaveText("Add Element");
         btn.click();
-        btn.isEnabled()
+        btn.isEnabled();
         Button btn1= new Button(driver, By.xpath("//button[text()='Delete']"));
         btn1.shouldHaveText("Delete");
         driver.quit();
