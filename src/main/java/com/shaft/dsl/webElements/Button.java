@@ -14,7 +14,7 @@ public class Button extends Label {
     public String getText() {
         return elementActions.getText(locator);
     }
-    public Boolean getStatus(){
+    public Boolean isEnabled(){
         return Boolean.parseBoolean(elementActions.getAttribute(locator,"disabled"));
     }
 
