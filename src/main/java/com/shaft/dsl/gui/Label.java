@@ -1,4 +1,4 @@
-package com.shaft.dsl.webElements;
+package com.shaft.dsl.gui;
 
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;

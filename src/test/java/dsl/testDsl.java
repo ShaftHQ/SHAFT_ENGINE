@@ -1,16 +1,14 @@
 package dsl;
 
 import com.shaft.driver.DriverFactory;
-import com.shaft.dsl.webElements.Button;
-import com.shaft.dsl.webElements.CheckBox;
-import com.shaft.dsl.webElements.Label;
+import com.shaft.dsl.gui.Button;
+import com.shaft.dsl.gui.CheckBox;
+import com.shaft.dsl.gui.Label;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.testng.annotations.Test;
-
-import java.sql.DriverAction;
 
 public class testDsl {
     @Test
