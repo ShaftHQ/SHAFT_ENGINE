@@ -117,8 +117,22 @@
             <artifactId>netty-handler</artifactId>
             <version>4.1.74.Final</version>
         </dependency>
-
-
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-sqs</artifactId>
+            <version>1.12.153</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk-dynamodb -->
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-dynamodb</artifactId>
+            <version>1.12.107</version>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sqs</artifactId>
+            <version>2.17.117</version>
+        </dependency>
         <!-- PLAYWRIGHT -->
         		<!-- https://mvnrepository.com/artifact/com.microsoft.playwright/playwright -->
 		<dependency>
