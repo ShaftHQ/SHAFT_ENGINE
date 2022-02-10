@@ -33,7 +33,7 @@ public class S3 {
         }
         return objects;
     }
-    void upload(String filePath,String fileNameOnS3){
+    public void upload(String filePath,String fileNameOnS3){
         System.out.format("Uploading %s to S3 bucket %s...\n", filePath, bucketName);
         try {
             s3.putObject(bucketName, fileNameOnS3, new File(filePath));
@@ -42,7 +42,7 @@ public class S3 {
             System.exit(1);
         }
     }
-    void download(String fileNameOnS3)
+   public void download(String fileNameOnS3)
     {
         System.out.format("Downloading %s from S3 bucket %s...\n", fileNameOnS3, bucketName);
         try {
@@ -66,7 +66,7 @@ public class S3 {
             System.err.println(e.getMessage());
             System.exit(1);}
     }
-    void delete(String fileNameOnS3)
+    public void delete(String fileNameOnS3)
     {
         try {
             s3.deleteObject(bucketName,fileNameOnS3);
