@@ -37,7 +37,7 @@
         <extentreports.version>5.0.9</extentreports.version>
         <aspectj.version>1.9.7</aspectj.version> <!-- 1.9.7 DO NOT UPDATE -->
 
-        <rest-assured.version>4.5.0</rest-assured.version>
+        <rest-assured.version>4.5.1</rest-assured.version>
         <json-simple.version>1.1.1</json-simple.version>
         <json-schema-validator.version>4.5.1</json-schema-validator.version>
         <skyscreamer-jsonassert.version>1.5.0</skyscreamer-jsonassert.version>
