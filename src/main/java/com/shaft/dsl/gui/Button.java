@@ -16,11 +16,11 @@ public class Button extends Label {
         return Boolean.parseBoolean(elementActions.getAttribute(locator,"disabled"));
     }
     public void shouldBeEnabled()
-    {   Validations.assertThat().element(driver,locator).attribute("disabled").isFalse();
+    {   Validations.assertThat().element(driver,locator).attribute("disabled").isFalse().perform();
     }
     public void shouldBeDisabled()
-    {  
-        Validations.assertThat().element(driver,locator).attribute("disabled").isTrue();
+    {
+        Validations.assertThat().element(driver,locator).attribute("disabled").isTrue().perform();
     }
 
 }
