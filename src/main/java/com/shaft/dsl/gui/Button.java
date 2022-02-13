@@ -1,5 +1,6 @@
 package com.shaft.dsl.gui;
 
+import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
@@ -11,11 +12,15 @@ public class Button extends Label {
     public void click() {
         elementActions.click(locator);
     }
-    public String getText() {
-        return elementActions.getText(locator);
-    }
     public Boolean isEnabled(){
         return Boolean.parseBoolean(elementActions.getAttribute(locator,"disabled"));
+    }
+    public void shouldBeEnabled()
+    {   Validations.assertThat().element(driver,locator).attribute("disabled").isFalse().perform();
+    }
+    public void shouldBeDisabled()
+    {
+        Validations.assertThat().element(driver,locator).attribute("disabled").isTrue().perform();
     }
 
 }
