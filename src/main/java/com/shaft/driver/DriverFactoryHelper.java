@@ -1,5 +1,6 @@
 package com.shaft.driver;
 
+import com.epam.healenium.SelfHealingDriver;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.BrowserType.LaunchOptions;
@@ -76,6 +77,7 @@ public class DriverFactoryHelper {
     private static String customDriverName;
     private static String targetOperatingSystem;
     private static ThreadLocal<WebDriver> driver = new ThreadLocal<>();
+    private static ThreadLocal<SelfHealingDriver> selfHealingDriver = new ThreadLocal<>();
 
     // logging preferences object
     private static LoggingPreferences logPrefs;
@@ -833,6 +835,10 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
             Assert.fail("Unhandled Exception with Driver Type [" + internalDriverName + "].", e);
         }
 
+        if (Boolean.valueOf(System.getProperty("heal-enabled").trim())){
+            ReportManager.logDiscrete("Initializing Healenium's Self Healing Driver...");
+            driver.set(SelfHealingDriver.create(driver.get()));
+        }
         return driver.get();
     }
 
