@@ -33,7 +33,7 @@
         <playwright.version>1.19.0</playwright.version>
 
         <webdrivermanager.version>5.1.0</webdrivermanager.version>
-        <allure-testng.version>2.17.2</allure-testng.version> <!-- UPDATE internal.properties -->
+        <allure-testng.version>2.17.3</allure-testng.version> <!-- UPDATE internal.properties -->
         <extentreports.version>5.0.9</extentreports.version>
         <aspectj.version>1.9.7</aspectj.version> <!-- 1.9.7 DO NOT UPDATE -->
 
