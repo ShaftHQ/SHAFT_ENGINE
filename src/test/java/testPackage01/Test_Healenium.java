@@ -16,6 +16,14 @@ import org.testng.annotations.Test;
 public class Test_Healenium {
     WebDriver driver;
 
+    /*
+    TODO:
+. optimize and reduce number of findElement calls done by SHAFT to increase overall performance
+. research if healenium report can be generated manually and attached to the allure report
+. capture healenium logs in shaft logs
+. create user guide or video on how to use healenium with shaft and the needed manual step to initialize healenium backend
+     */
+
     @Test
     public void test(){
         //confirm that the self healing driver has been initialized successfully
