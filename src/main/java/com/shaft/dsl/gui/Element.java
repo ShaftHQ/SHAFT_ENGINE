@@ -7,13 +7,23 @@ import org.openqa.selenium.WebDriver;
 
 public abstract class Element {
     By locator;
-    WebDriver driver;
+    static WebDriver driver;
     ElementActions elementActions;
-
-    public Element(WebDriver driver, By locator) {
-        this.driver = driver;
+    public static void setDriver(WebDriver driver) {
+        Element.driver = driver;
+    }
+    public static WebDriver getDriver() {
+        return Element.driver;
+    }
+    protected Element(By locator) {
         this.locator = locator;
-        elementActions = new ElementActions(this.driver);
+        elementActions = new ElementActions(driver);
+    }
+    public boolean isDisplayed() {
+       return ElementActions.isElementDisplayed(driver, locator);
+    }
+    public void shouldBeDisplayed() {
+        Validations.assertThat().object(isDisplayed()).isTrue().perform();
     }
 
     public void shouldExist()

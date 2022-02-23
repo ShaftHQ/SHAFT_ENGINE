@@ -3,6 +3,7 @@ package dsl;
 import com.shaft.driver.DriverFactory;
 import com.shaft.dsl.gui.Button;
 import com.shaft.dsl.gui.CheckBox;
+import com.shaft.dsl.gui.Element;
 import com.shaft.dsl.gui.Label;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
@@ -16,7 +17,8 @@ public class testDsl {
     {
         WebDriver driver = DriverFactory.getDriver();
         driver.navigate().to("http://the-internet.herokuapp.com/");
-        Label label= new Label(driver, By.xpath("//*[contains(text(),'Welcome to the-internet')]"));
+        Element.setDriver(driver);
+        Label label= new Label(By.xpath("//*[contains(text(),'Welcome to the-internet')]"));
         label.shouldHaveText("Welcome to the-internet");
     }
     @Test
@@ -25,11 +27,12 @@ public class testDsl {
         WebDriver driver = DriverFactory.getDriver();
         BrowserActions.navigateToURL(driver,"http://the-internet.herokuapp.com/");
         ElementActions.click(driver,By.linkText("Add/Remove Elements"));
-        Button btn= new Button(driver, By.xpath("//button[text()='Add Element']"));
+        Element.setDriver(driver);
+        Button btn= new Button( By.xpath("//button[text()='Add Element']"));
         btn.shouldHaveText("Add Element");
         btn.click();
         btn.isEnabled();
-        Button btn1= new Button(driver, By.xpath("//button[text()='Delete']"));
+        Button btn1= new Button(By.xpath("//button[text()='Delete']"));
         btn1.shouldHaveText("Delete");
         driver.quit();
     }
@@ -37,11 +40,12 @@ public class testDsl {
     void testCheckBox()
     {
         WebDriver driver = DriverFactory.getDriver();
+        Element.setDriver(driver);
         BrowserActions.navigateToURL(driver,"http://the-internet.herokuapp.com/");
         ElementActions.click(driver,By.linkText("Checkboxes"));
-        CheckBox cb1 = new CheckBox(driver,By.xpath("(//INPUT[@type='checkbox'])[1]"),By.xpath("(//INPUT[@type='checkbox'])[1]"));
+        CheckBox cb1 = new CheckBox(By.xpath("(//INPUT[@type='checkbox'])[1]"),By.xpath("(//INPUT[@type='checkbox'])[1]"));
         cb1.click();
-        CheckBox cb2 = new CheckBox(driver,By.xpath("(//INPUT[@type='checkbox'])[2]"),By.xpath("(//INPUT[@type='checkbox'])[2]"));
+        CheckBox cb2 = new CheckBox(By.xpath("(//INPUT[@type='checkbox'])[2]"),By.xpath("(//INPUT[@type='checkbox'])[2]"));
         cb2.click();
         driver.quit();
     }
