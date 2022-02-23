@@ -19,3 +19,5 @@ debug.log
 /.project
 /bin/
 /src/main/resources/properties/
+/generateJdk.bat
+/generateJdk.sh

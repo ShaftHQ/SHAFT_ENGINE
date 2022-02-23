@@ -1,5 +1,6 @@
 package com.shaft.gui.image;
 
+import com.epam.healenium.SelfHealingDriver;
 import com.microsoft.playwright.ElementHandle;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Page.ScreenshotOptions;
@@ -529,6 +530,10 @@ public class ScreenshotManager {
 	}
 
     private static byte[] takeScreenshot(WebDriver driver) {
+        if (driver instanceof SelfHealingDriver selfHealingDriver){
+            driver = selfHealingDriver.getDelegate();
+        }
+
         return switch (SCREENSHOT_PARAMS_SCREENSHOTTYPE.toLowerCase().trim()) {
             case "fullpage" -> takeFullPageScreenshot(driver);
             case "element" -> takeElementScreenshot(driver, targetElementLocator, true);

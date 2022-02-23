@@ -2,7 +2,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.mohabmohie</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>6.1.20220113</version>
+    <version>6.1.20220223</version>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
     <url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
@@ -118,6 +118,31 @@
             <version>4.1.74.Final</version>
         </dependency>
 
+        <!-- Healenium -->
+        <!-- https://mvnrepository.com/artifact/com.epam.healenium/healenium-web -->
+        <dependency>
+            <groupId>com.epam.healenium</groupId>
+            <artifactId>healenium-web</artifactId>
+            <version>3.2.2</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.seleniumhq.selenium</groupId>
+                    <artifactId>selenium-java</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.github.bonigarcia</groupId>
+                    <artifactId>webdrivermanager</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-simple</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.projectlombok</groupId>
+                    <artifactId>lombok</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
 
         <!-- PLAYWRIGHT -->
         		<!-- https://mvnrepository.com/artifact/com.microsoft.playwright/playwright -->
@@ -604,6 +629,27 @@
                     <encoding>UTF-8</encoding>
                     <outputDirectory>target/classes</outputDirectory>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>com.epam.healenium</groupId>
+                <artifactId>hlm-report-mvn</artifactId>
+                <version>1.1</version>
+                <executions>
+                    <execution>
+                        <id>hlmReport</id>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>initReport</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>hlmReportB</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>buildReport</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
