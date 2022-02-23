@@ -1,17 +1,39 @@
 package com.shaft.dsl.gui;
 
+import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
-import org.openqa.selenium.WebDriver;
+
 
 public class RadioButton extends Button {
-    Label lbl;
-    public RadioButton(WebDriver driver, By buttonLocator,By labelLoctor) {
-        super(driver, buttonLocator);
-        lbl= new Label(driver, labelLoctor);
+    public static final String SELECTED = "selected";
+    By selectedLocator;
+
+    public RadioButton(By buttonLocator, By selectedLocator) {
+        super(buttonLocator);
+        this.selectedLocator = selectedLocator;
     }
 
-    @Override
-    public String getText() {
-        return lbl.getText();
+    public void select() {
+        if (!(isSelected())) {
+            click();
+        }
+    }
+
+    public void unselect() {
+        if ((isSelected())) {
+            click();
+        }
+    }
+
+    public boolean isSelected() {
+        return (elementActions.getAttribute(selectedLocator, SELECTED) != null);
+    }
+
+    public void shouldBeSelected() {
+        Validations.assertThat().object(isSelected()).isTrue().perform();
+    }
+
+    public void shouldBeSelected(String reportMsg) {
+        Validations.assertThat().object(isSelected()).isTrue().withCustomReportMessage(reportMsg).perform();
     }
 }
