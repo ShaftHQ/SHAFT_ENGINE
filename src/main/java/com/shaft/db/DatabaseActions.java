@@ -320,18 +320,62 @@ public class DatabaseActions implements ShaftDriver {
      * @return either (1) the row count for SQL Data Manipulation Language (DML)
      * statements or (2) 0 for SQL statements that return nothing
      */
-    public int executeUpdateQuery(String sql) {
-    	var updatedRows = 0;
+    private int executeDataManipulationQueries(String sql, String queryType) {
+        var affectedRows = 0;
         try {
-            updatedRows = createStatement(createConnection()).executeUpdate(sql);
+            affectedRows = createStatement(createConnection()).executeUpdate(sql);
             passAction(sql);
         } catch (SQLException | NullPointerException rootCauseException) {
             ReportManagerHelper.log(rootCauseException);
-            failAction(getReportMessage("UPDATE", sql), rootCauseException);
+            failAction(getReportMessage(queryType, sql), rootCauseException);
         }
-        return updatedRows;
+        return affectedRows;
     }
 
+    /**
+     * Executes any DML or DDL statement and returns the result as a ResultSet
+     * object
+     *
+     * @param sql an SQL Data Manipulation Language (DML) ;UPDATE statement,
+     *            or an SQL statement that returns nothing, such
+     *            as a DDL statement.
+     * @return either (1) the row count for SQL Data Manipulation Language (DML)
+     * statements or (2) 0 for SQL statements that return nothing
+     */
+    public int executeUpdateQuery(String sql) {
+       return executeDataManipulationQueries(sql,"UPDATE");
+    }
+
+    /**
+     * Executes any DML or DDL statement and returns the result as a ResultSet
+     * object
+     *
+     * @param sql an SQL Data Manipulation Language (DML) ;INSERT statement,
+     *            or an SQL statement that returns nothing, such
+     *            as a DDL statement.
+     * @return either (1) the row count for SQL Data Manipulation Language (DML)
+     * statements or (2) 0 for SQL statements that return nothing
+     */
+    public int executeInsertQuery(String sql) {
+        return executeDataManipulationQueries(sql,"INSERT");
+
+    }
+
+    /**
+     * Executes any DML or DDL statement and returns the result as a ResultSet
+     * object
+     *
+     * @param sql an SQL Data Manipulation Language (DML) ;DELETE statement,
+     *            or an SQL statement that returns nothing, such
+     *            as a DDL statement.
+     * @return either (1) the row count for SQL Data Manipulation Language (DML)
+     * statements or (2) 0 for SQL statements that return nothing
+     */
+    public int executeDeleteQuery(String sql) {
+        return executeDataManipulationQueries(sql,"DELETE");
+
+    }
+    
     private Connection createConnection() {
         Connection connection = null;
         var connectionString = "";
