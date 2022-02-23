@@ -741,8 +741,7 @@ public class RestActions implements ShaftDriver {
             transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
             transformer.transform(xmlInput, new StreamResult(stringWriter));
             return stringWriter.toString().trim();
-        } catch (TransformerException e) {
-            ReportManagerHelper.log(e);
+        } catch (Exception e) {
             return input;
         }
     }
