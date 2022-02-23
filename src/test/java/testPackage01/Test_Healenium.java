@@ -19,7 +19,7 @@ public class Test_Healenium {
     @Test
     public void test(){
         //confirm that the self healing driver has been initialized successfully
-        if (driver instanceof SelfHealingDriver selfHealingDriver){
+        if (driver instanceof SelfHealingDriver){
             ReportManager.log("Healenium's Self Healing Driver initialized successfully.");
         } else{
             ReportManager.log("This is a normal WebDriver instance.");
@@ -35,7 +35,7 @@ public class Test_Healenium {
         try {
             Validations.assertThat().element(driver, googleLogo_image).exists().perform();
             ReportManager.log("Successfully Found Element on initial check");
-        }catch (NoSuchElementException e){
+        }catch (AssertionError e){
             Validations.assertThat().forceFail()
                     .withCustomReportMessage("Failed To Find Element on initial check").perform();
         }
@@ -47,7 +47,7 @@ public class Test_Healenium {
         try {
             Validations.assertThat().element(driver, googleLogo_image).exists().perform();
             ReportManager.log("Successfully Healed the locator and Found Element.");
-        }catch (NoSuchElementException e){
+        }catch (AssertionError e){
             Validations.assertThat().forceFail()
                     .withCustomReportMessage("Failed To Heal locator and Find Element").perform();
         }
