@@ -23,12 +23,4 @@ public class Button extends Label {
     {
         Validations.assertThat().element(driver,locator).attribute(DISABLED).isTrue().perform();
     }
-    public void shouldBeEnabled()
-    {   Validations.assertThat().element(driver,locator).attribute("disabled").isFalse().perform();
-    }
-    public void shouldBeDisabled()
-    {
-        Validations.assertThat().element(driver,locator).attribute("disabled").isTrue().perform();
-    }
-
 }

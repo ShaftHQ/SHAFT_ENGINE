@@ -3,7 +3,8 @@ package unitTests;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.ElementActions;
-import com.shaft.validation.Assertions;
+import com.shaft.validation.ValidationEnums;
+import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.testng.Assert;
@@ -19,17 +20,32 @@ public class tests_element_elementActions {
     public void waitForElementToBePresent_true_expectedToPass() {
         BrowserActions.navigateToURL(driver.get(), "https://www.google.com/ncr", "www.google.com");
         ElementActions.waitForElementToBePresent(driver.get(), GoogleSearch.googleLogo_image, 1, true);
-        Assertions.assertElementMatches(driver.get(), GoogleSearch.googleLogo_image, Assertions.VisualValidationEngine.EXACT_OPENCV, Assertions.AssertionType.POSITIVE, "Using Visual AI; OpenCV");
-        //Assertions.assertElementMatches(driver.get(), GoogleSearch.googleLogo_image, Assertions.VisualValidationEngine.STRICT_EYES, Assertions.AssertionType.POSITIVE, "Using Visual AI; Applitools Eyes");
+        Validations.assertThat()
+                .element(driver.get(), GoogleSearch.googleLogo_image)
+                .matchesReferenceImage()
+                .withCustomReportMessage("Using Visual AI; OpenCV")
+                .perform();
     }
 
     //@Test
     public void waitForElementToBePresent_true_expectedToPass2() {
         BrowserActions.navigateToURL(driver.get(), "https://www.google.com/ncr", "www.google.com");
-        Assertions.assertElementMatches(driver.get(), By.xpath("//div[@class='RNNXgb']"), Assertions.VisualValidationEngine.STRICT_EYES, Assertions.AssertionType.POSITIVE, "NEW - Using Visual AI; Applitools Eyes");
-        Assertions.assertElementMatches(driver.get(), By.xpath("//div[@class='RNNXgb']"), Assertions.VisualValidationEngine.STRICT_EYES, Assertions.AssertionType.POSITIVE, "PASSED - Using Visual AI; Applitools Eyes");
+        Validations.assertThat()
+                .element(driver.get(), By.xpath("//div[@class='RNNXgb']"))
+                .matchesReferenceImage(ValidationEnums.VisualValidationEngine.STRICT_EYES)
+                .withCustomReportMessage("NEW - Using Visual AI; Applitools Eyes")
+                .perform();
+        Validations.assertThat()
+                .element(driver.get(), By.xpath("//div[@class='RNNXgb']"))
+                .matchesReferenceImage(ValidationEnums.VisualValidationEngine.STRICT_EYES)
+                .withCustomReportMessage("PASSED - Using Visual AI; Applitools Eyes")
+                .perform();
         ElementActions.type(driver.get(), By.xpath("//input[@name='q']"), "SHAFT_Engine Aplitools Test");
-        Assertions.assertElementMatches(driver.get(), By.xpath("//div[@class='RNNXgb']"), Assertions.VisualValidationEngine.STRICT_EYES, Assertions.AssertionType.POSITIVE, "FAILED/MISMATCH - Using Visual AI; Applitools Eyes");
+        Validations.assertThat()
+                .element(driver.get(), By.xpath("//div[@class='RNNXgb']"))
+                .matchesReferenceImage(ValidationEnums.VisualValidationEngine.STRICT_EYES)
+                .withCustomReportMessage("FAILED/MISMATCH - Using Visual AI; Applitools Eyes")
+                .perform();
     }
 
     @Test

@@ -13,8 +13,6 @@ import org.openqa.selenium.WebDriver;
 public class GoogleSearch {
     WebDriver driver = null;
     Page page = null;
-    // ExcelFileManager testDataReader = new
-    // ExcelFileManager(System.getProperty("testDataFilePath"));
 
      String url = "https://www.google.com/ncr";
      String urlAfterRedirection = "https://www.google.com";
