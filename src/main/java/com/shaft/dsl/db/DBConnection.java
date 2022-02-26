@@ -2,8 +2,8 @@ package com.shaft.dsl.db;
 
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManagerHelper;
-import org.apache.commons.lang.builder.ToStringBuilder;
-import org.apache.commons.lang.builder.ToStringStyle;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
 
 import java.sql.*;
 import java.util.concurrent.Executors;
