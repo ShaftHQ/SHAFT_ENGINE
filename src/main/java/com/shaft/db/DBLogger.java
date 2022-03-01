@@ -1,4 +1,4 @@
-package com.shaft.dsl.db;
+package com.shaft.db;
 
 import com.shaft.tools.io.ReportManager;
 import java.sql.Connection;

@@ -1,4 +1,4 @@
-package com.shaft.dsl.db;
+package com.shaft.db;
 
 import com.shaft.tools.io.ReportManagerHelper;
 import org.apache.commons.lang3.builder.ToStringBuilder;
@@ -15,27 +15,30 @@ public class  DBDriver {
        dbConnection.open();
        dbConnection.close();
     }
-    public ResultSet executeSelectQuery(String sql) {
-        dbConnection.open();
+    public ResultObject executeQuery(String sql) {
         ResultSet resultSet = null;
+        dbConnection.open();
         try {resultSet =dbConnection.getStatement().executeQuery(sql);}
         catch (SQLException | NullPointerException rootCauseException) {
             ReportManagerHelper.log(rootCauseException);
             DBReporter.failAction(DBLogger.getReportMessage("SELECT", sql), rootCauseException);
         }
-        DBLogger.logSelectStmtResultStatus(sql, resultSet);
         dbConnection.close();
-        return resultSet;
+        DBLogger.logSelectStmtResultStatus(sql, resultSet);
+        ResultObject resultObject= new ResultObject(resultSet);
+        return resultObject;
     }
 
-    public int executeUpdateQuery(String sql) {
+    public int executeCommand(String sql) {
         var updatedRows = 0;
+        dbConnection.open();
         try {updatedRows = dbConnection.getStatement().executeUpdate(sql);
             DBReporter.passAction(sql);
         } catch (SQLException | NullPointerException rootCauseException) {
             ReportManagerHelper.log(rootCauseException);
             DBReporter.failAction(DBLogger.getReportMessage("UPDATE", sql), rootCauseException);
         }
+        dbConnection.close();
         return updatedRows;
     }
 

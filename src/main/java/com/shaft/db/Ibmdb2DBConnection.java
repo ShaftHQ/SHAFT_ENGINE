@@ -1,4 +1,4 @@
-package com.shaft.dsl.db;
+package com.shaft.db;
 
 public class Ibmdb2DBConnection extends DBConnection{
 

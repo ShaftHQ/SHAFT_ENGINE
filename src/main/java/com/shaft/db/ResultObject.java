@@ -1,4 +1,4 @@
-package com.shaft.dsl.db;
+package com.shaft.db;
 
 import com.shaft.tools.io.ReportManagerHelper;
 
@@ -12,7 +12,10 @@ public class ResultObject {
         this.resultSet= resultSet;
     }
 
-    public  String getResult() {
+    public  ResultSet getResult() {
+        return resultSet;
+    }
+    public  String getString() {
         var resultSetString = getResultStringValue(false);
         DBReporter.passAction();
         return resultSetString;

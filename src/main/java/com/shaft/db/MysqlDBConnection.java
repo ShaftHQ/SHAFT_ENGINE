@@ -1,4 +1,4 @@
-package com.shaft.dsl.db;
+package com.shaft.db;
 
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManagerHelper;
@@ -6,10 +6,14 @@ import com.shaft.tools.io.ReportManagerHelper;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
-public class PostgresqlDBConnection extends DBConnection{
-
-    public PostgresqlDBConnection(String dbServerIp, String dbPort, String dbName, String username, String password) {
+public class MysqlDBConnection extends DBConnection{
+    public MysqlDBConnection(String dbServerIp, String dbPort, String dbName, String username, String password) {
         super(dbServerIp, dbPort, dbName, username, password);
+    }
+
+    @Override
+     String getString(String dbServerIP, String dbPort, String dbName) {
+        return  "jdbc:mysql://" + dbServerIP + ":" + dbPort + "/" + dbName;
     }
 
     @Override
@@ -25,10 +29,5 @@ public class PostgresqlDBConnection extends DBConnection{
             DBReporter.failAction(connectionString, rootCauseException);
         }
         DBLogger.logConnectionStatus(this);
-    }
-
-    @Override
-    String getString(String dbServerIP, String dbPort, String dbName) {
-        return "jdbc:postgresql://" + dbServerIP + ":" + dbPort + ":" + dbName;
     }
 }
