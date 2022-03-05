@@ -17,7 +17,7 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v2.4.0
+        uses: actions/checkout@v3
       - name: Set up JDK 17
         uses: actions/setup-java@v2
         with:
@@ -51,7 +51,7 @@ jobs:
           script: mvn test -DexecutionAddress="localhost:4723" -DtargetOperatingSystem="Android" -Dmobile_automationName="UIAutomator2" -Dmobile_app="src/test/resources/TestDataFiles/apps/ApiDemos-debug.apk" -Dtest="%regex[.*Android.*]"
       - name: Get Allure history
         continue-on-error: true
-        uses: actions/checkout@v2.4.0
+        uses: actions/checkout@v3
         if: always()
         with:
           ref: gh-pages
