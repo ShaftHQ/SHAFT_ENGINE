@@ -5,9 +5,9 @@ import io.restassured.path.json.JsonPath;
 import io.restassured.path.json.exception.JsonPathException;
 import org.testng.Assert;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -143,4 +143,14 @@ public class JSONFileManager {
     public enum DataType {
         STRING, LIST, MAP
     }
+
+    /**
+     * Read all the file data in one string
+     *
+     * @return the file content as string
+     */
+    public String readJsonFileAsString() throws IOException {
+        return new String(Files.readAllBytes(Paths.get(this.jsonFilePath)));
+    }
+
 }
