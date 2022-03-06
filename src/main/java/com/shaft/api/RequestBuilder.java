@@ -37,9 +37,6 @@ public class RequestBuilder {
     private boolean appendDefaultContentCharsetToContentTypeIfUndefined;
     private boolean urlEncodingEnabled;
 
-    private boolean relaxedHTTPValidations= false;
-    private RestAssuredConfig config;
-
     /**
      * Start building a new API request.
      *
