@@ -1,6 +1,8 @@
 package com.shaft.api;
 
 import com.shaft.tools.io.ReportManagerHelper;
+import io.restassured.config.RestAssuredConfig;
+import io.restassured.config.SSLConfig;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
@@ -10,10 +12,13 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
+import static io.restassured.RestAssured.config;
+
 public class RequestBuilder {
     private RestActions session;
     private Map<String, String> sessionHeaders;
     private Map<String, Object> sessionCookies;
+    private List<RestAssuredConfig> sessionConfigs;
     private RestActions.RequestType requestType;
     private String serviceName;
     private String serviceURI;
@@ -31,6 +36,9 @@ public class RequestBuilder {
 
     private boolean appendDefaultContentCharsetToContentTypeIfUndefined;
     private boolean urlEncodingEnabled;
+
+    private boolean relaxedHTTPValidations= false;
+    private RestAssuredConfig config;
 
     /**
      * Start building a new API request.
@@ -59,6 +67,7 @@ public class RequestBuilder {
         this.serviceURI = session.getServiceURI();
         this.sessionCookies = session.getSessionCookies();
         this.sessionHeaders = session.getSessionHeaders();
+        this.sessionConfigs= session.getSessionConfigs();
         this.requestType = requestType;
         this.serviceName = serviceName;
         this.targetStatusCode = 200;
@@ -66,6 +75,28 @@ public class RequestBuilder {
         this.authenticationType = AuthenticationType.NONE;
         this.appendDefaultContentCharsetToContentTypeIfUndefined = true;
         this.urlEncodingEnabled = true;
+    }
+
+    /**
+     * set useRelaxedHTTPSValidation configuration to trust all hosts regardless if the SSL certificate is invalid in the request builder
+     *  'SSL' is the protocol name by default
+     *
+     * @return a self-reference to be used to continue building your API request
+     */
+    public RequestBuilder useRelaxedHTTPSValidation() {
+        useRelaxedHTTPSValidation("SSL");
+        return this;
+    }
+
+    /**
+     * set useRelaxedHTTPSValidation configuration to trust all hosts regardless if the SSL certificate is invalid in the request builder
+     * *
+     * @param protocol The standard name of the requested protocol.
+     * @return a self-reference to be used to continue building your API request
+     */
+    public RequestBuilder useRelaxedHTTPSValidation(String protocol) {
+        addConfig(config().sslConfig(SSLConfig.sslConfig().relaxedHTTPSValidation(protocol)));
+        return this;
     }
 
     /**
@@ -176,6 +207,17 @@ public class RequestBuilder {
     }
 
     /**
+     * Append a config to the current session to be used in the current and all the following requests.
+     *
+     * @param config   the rest assured config you want to add.
+     * @return a self-reference to be used to continue building your API request
+     */
+    public RequestBuilder addConfig(RestAssuredConfig config) {
+        this.sessionConfigs.add(config);
+        return this;
+    }
+
+    /**
      * Append a cookie to the current session to be used in the current and all the following requests. This feature is commonly used for authentication cookies.
      *
      * @param key   the name of the cookie that you want to add
@@ -209,7 +251,7 @@ public class RequestBuilder {
      */
     public Response performRequest() {
         String request = session.prepareRequestURL(serviceURI, urlArguments, serviceName);
-        RequestSpecification specs = session.prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders, appendDefaultContentCharsetToContentTypeIfUndefined, urlEncodingEnabled);
+        RequestSpecification specs = session.prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders,sessionConfigs, appendDefaultContentCharsetToContentTypeIfUndefined, urlEncodingEnabled);
 
         switch (this.authenticationType) {
             case BASIC -> specs.auth().preemptive().basic(this.authenticationUsername, this.authenticationPassword);
