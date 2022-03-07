@@ -63,6 +63,7 @@ public class RestActions implements ShaftDriver {
     private final String serviceURI;
     private final Map<String, String> sessionHeaders;
     private final Map<String, Object> sessionCookies;
+    private final List<RestAssuredConfig> sessionConfigs;
     private String headerAuthorization;
     private static final String GRAPHQL_END_POINT = "graphql";
 
@@ -72,6 +73,7 @@ public class RestActions implements ShaftDriver {
         this.serviceURI = serviceURI;
         sessionCookies = new HashMap<>();
         sessionHeaders = new HashMap<>();
+        sessionConfigs = new ArrayList<>();
     }
 
     public static RequestBuilder buildNewRequest(String serviceURI, String serviceName, RequestType requestType) {
@@ -773,11 +775,25 @@ public class RestActions implements ShaftDriver {
         return sessionCookies;
     }
 
-    private RequestSpecBuilder initializeBuilder(Map<String, Object> sessionCookies, Map<String, String> sessionHeaders, boolean appendDefaultContentCharsetToContentTypeIfUndefined) {
+    protected List<RestAssuredConfig> getSessionConfigs() {
+        return sessionConfigs;
+    }
+
+    private RequestSpecBuilder setConfigs(RequestSpecBuilder builder, List<RestAssuredConfig> configs)
+    {
+        for (RestAssuredConfig config : configs)
+        {
+            builder.setConfig(config);
+        }
+        return builder;
+    }
+    private RequestSpecBuilder initializeBuilder(Map<String, Object> sessionCookies, Map<String, String> sessionHeaders,List<RestAssuredConfig> sessionConfigs, boolean appendDefaultContentCharsetToContentTypeIfUndefined) {
         RequestSpecBuilder builder = new RequestSpecBuilder();
 
         builder.addCookies(sessionCookies);
         builder.addHeaders(sessionHeaders);
+        builder=setConfigs(builder,sessionConfigs);
+
         // fixing issue with non-unicode content being encoded with a non UTF-8 charset
         // adding timeouts
         builder.setConfig(
@@ -818,6 +834,17 @@ public class RestActions implements ShaftDriver {
      */
     public RestActions addHeaderVariable(String key, String value) {
         sessionHeaders.put(key, value);
+        return this;
+    }
+
+    /**
+     * Append a config to the current session.
+     *
+     * @param config   the rest-assured config you want to add
+     * @return self-reference to be used for chaining actions
+     */
+    public RestActions addConfigVariable(RestAssuredConfig config) {
+        sessionConfigs.add(config);
         return this;
     }
 
@@ -955,8 +982,8 @@ public class RestActions implements ShaftDriver {
     }
 
     protected RequestSpecification prepareRequestSpecs(List<List<Object>> parameters, ParametersType parametersType,
-                                                       Object body, String contentType, Map<String, Object> sessionCookies, Map<String, String> sessionHeaders, boolean appendDefaultContentCharsetToContentTypeIfUndefined,boolean urlEncodingEnabled) {
-        RequestSpecBuilder builder = initializeBuilder(sessionCookies, sessionHeaders, appendDefaultContentCharsetToContentTypeIfUndefined);
+                                                       Object body, String contentType, Map<String, Object> sessionCookies, Map<String, String> sessionHeaders, List<RestAssuredConfig> sessionConfigs, boolean appendDefaultContentCharsetToContentTypeIfUndefined, boolean urlEncodingEnabled) {
+        RequestSpecBuilder builder = initializeBuilder(sessionCookies, sessionHeaders, sessionConfigs,appendDefaultContentCharsetToContentTypeIfUndefined);
 
         // set the default content type as part of the specs
         builder.setContentType(contentType);
@@ -1128,7 +1155,7 @@ public class RestActions implements ShaftDriver {
 
         String request = prepareRequestURL(serviceURI, urlArguments, serviceName);
 
-        RequestSpecification specs = prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders, true, true);
+        RequestSpecification specs = prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders,sessionConfigs, true, true);
 
         Response response = null;
         try {
