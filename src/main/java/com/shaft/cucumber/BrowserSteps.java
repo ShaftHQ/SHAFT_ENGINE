@@ -1,5 +1,6 @@
 package com.shaft.cucumber;
 
+import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.BrowserFactory;
 import io.cucumber.java.en.Given;
@@ -21,7 +22,7 @@ public class BrowserSteps {
     @Given("I Open the target browser")
 //    @بفرض("انى قمت بفتح المتصفح المطلوب")
     public void getBrowser() {
-        driver.set(BrowserFactory.getBrowser());
+        driver.set(DriverFactory.getDriver());
     }
 
     /**

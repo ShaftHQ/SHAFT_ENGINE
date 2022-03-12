@@ -642,9 +642,10 @@ public class ImageProcessingActions {
             try {
                 OpenCV.loadLocally();
                 ReportManager.logDiscrete("Loaded Local OpenCV");
-            } catch (UnsatisfiedLinkError e2) {
-                ReportManagerHelper.log(e);
-                ReportManager.logDiscrete("Failed to load OpenCV");
+            } catch (Throwable throwable) {
+                ReportManagerHelper.log(throwable);
+                ReportManager.logDiscrete("Failed to load OpenCV, switching to JavaScript.");
+                System.setProperty("screenshotParams_highlightMethod","JavaScript");
             }
         }
     }

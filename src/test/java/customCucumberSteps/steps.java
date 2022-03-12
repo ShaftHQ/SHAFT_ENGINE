@@ -52,16 +52,4 @@ public class steps {
                 .withCustomReportMessage("Check that first result text contains ["+expectedText+"]")
                 .perform();
     }
-    @Before
-    public void before(){
-        ReportManager.log("This is @Before");
-    }
-    @BeforeAll
-    public static void beforeAll(){
-        ReportManager.log("This is @BeforeAll");
-    }
-    @BeforeStep
-    public void beforeStep(){
-        ReportManager.log("This is @BeforeStep");
-    }
 }
