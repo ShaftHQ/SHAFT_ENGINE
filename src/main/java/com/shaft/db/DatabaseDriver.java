@@ -6,11 +6,11 @@ import org.apache.commons.lang3.builder.ToStringStyle;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-public class  DBDriver {
+public class DatabaseDriver {
 
     DBConnection dbConnection ;
 
-    public DBDriver(DBConnection dbConnection) {
+    public DatabaseDriver(DBConnection dbConnection) {
        this.dbConnection =dbConnection;
        dbConnection.open();
        dbConnection.close();
@@ -29,17 +29,32 @@ public class  DBDriver {
         return resultObject;
     }
 
-    public int executeCommand(String sql) {
+    private int executeCommand(String sql, String queryType) {
         var updatedRows = 0;
         dbConnection.open();
         try {updatedRows = dbConnection.getStatement().executeUpdate(sql);
             DBReporter.passAction(sql);
         } catch (SQLException | NullPointerException rootCauseException) {
             ReportManagerHelper.log(rootCauseException);
-            DBReporter.failAction(DBLogger.getReportMessage("UPDATE", sql), rootCauseException);
+            DBReporter.failAction(DBLogger.getReportMessage(queryType, sql), rootCauseException);
+            //to be updated
         }
         dbConnection.close();
         return updatedRows;
+    }
+
+    public int executeUpdateQuery(String sql) {
+        return executeCommand(sql,"UPDATE");
+    }
+
+    public int executeInsertQuery(String sql) {
+        return executeCommand(sql,"INSERT");
+
+    }
+
+    public int executeDeleteQuery(String sql) {
+        return executeCommand(sql,"DELETE");
+
     }
 
     @Override

@@ -1,6 +1,6 @@
 package sampleUsecases;
 
-import com.shaft.db.DBDriver;
+import com.shaft.db.DatabaseDriver;
 import com.shaft.db.DatabaseActions;
 import com.shaft.db.OracleDBConnection;
 import com.shaft.db.ResultObject;
@@ -22,8 +22,8 @@ public class DB {
     @Test
     public void after()
     {
-        DBDriver dbDriver= new DBDriver(new OracleDBConnection("localhost", "1521","DataDB","Admin","Admin123"));
-        ResultObject resultObject = dbDriver.executeQuery("SELECT * FROM Employees where id=101");
+        DatabaseDriver dataBaseDriver = new DatabaseDriver(new OracleDBConnection("localhost", "1521","DataDB","Admin","Admin123"));
+        ResultObject resultObject = dataBaseDriver.executeQuery("SELECT * FROM Employees where id=101");
         Validations.assertThat().object( resultObject.getString()).isNotNull();
     }
 }
