@@ -215,7 +215,7 @@ public class InvokedMethodListener implements IInvokedMethodListener {
         listOfOpenIssuesForPassedTests.add(newIssue);
     }
 
-    private String createTestLog(List<String> output) {
+    public static String createTestLog(List<String> output) {
         StringBuilder builder = new StringBuilder();
         for (String each : output) {
             builder.append(each).append(System.lineSeparator());

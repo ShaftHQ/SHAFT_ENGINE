@@ -11,6 +11,8 @@ import com.aventstack.extentreports.reporter.configuration.ViewName;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
+import com.shaft.tools.listeners.CucumberFeatureListener;
+import com.shaft.tools.support.JavaActions;
 import io.qameta.allure.Allure;
 import io.qameta.allure.Step;
 import org.apache.commons.io.IOUtils;
@@ -208,15 +210,26 @@ public class ReportManagerHelper {
     public static synchronized void logTestInformation(String className, String testMethodName,
                                                        String testDescription) {
         testCasesCounter++;
-        if (!testDescription.equals("")) {
-            createImportantReportEntry("Starting Execution:\t[" + testCasesCounter + " out of " + totalNumberOfTests
-                    + "] test cases in the current suite\nTest Method:\t\t[" + className + "." + testMethodName
-                    + "]\nTest Description:\t[" + testDescription + "]", false);
-        } else {
-            createImportantReportEntry("Starting Execution:\t[" + testCasesCounter + " out of " + totalNumberOfTests
-                            + "] test cases in the current suite\nTest Method:\t\t[" + className + "." + testMethodName + "]",
-                    false);
+        StringBuilder reportMessage = new StringBuilder();
+
+        if (totalNumberOfTests>0){
+            reportMessage.append("Starting Execution:\t");
+            reportMessage.append("[");
+            reportMessage.append(testCasesCounter);
+            reportMessage.append(" out of ");
+            reportMessage.append(totalNumberOfTests);
+            reportMessage.append("] test cases in the current suite");
+        }else{
+            //it's only zero in case of CucumberTestRunner
+            reportMessage.append("Starting Dynamic Cucumber Feature Execution:\t");
         }
+        reportMessage.append("\nTest Method:\t\t[" + className + "." + testMethodName+ "]");
+
+        if (!testDescription.equals("")) {
+            reportMessage.append("\nTest Description:\t[" + testDescription + "]");
+        }
+
+        createImportantReportEntry(reportMessage.toString(),false);
     }
 
     public static synchronized void logScenarioInformation(String keyword, String name, String steps) {
@@ -307,7 +320,7 @@ public class ReportManagerHelper {
         }
     }
 
-    protected static void openAllureReportAfterExecution() {
+    public static void openAllureReportAfterExecution() {
         String commandToOpenAllureReport;
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("openAllureReportAfterExecution").trim()))
                 && System.getProperty("executionAddress").trim().equals("local")) {
@@ -321,7 +334,7 @@ public class ReportManagerHelper {
         }
     }
 
-    protected static void generateAllureReportArchive() {
+    public static void generateAllureReportArchive() {
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateAllureReportArchive").trim()))
                 && System.getProperty("executionAddress").trim().equals("local")) {
             ReportManager.logDiscrete("Generating Allure Report Archive...");
@@ -355,7 +368,12 @@ public class ReportManagerHelper {
     }
 
     public static String getTestMethodName() {
-        return Reporter.getCurrentTestResult().getMethod().getMethodName();
+        if (Reporter.getCurrentTestResult() != null) {
+            return Reporter.getCurrentTestResult().getMethod().getMethodName();
+        }else{
+            // this happens when running a cucumber feature file directly because there is no testNG Reporter instance
+            return JavaActions.removeSpecialCharacters(CucumberFeatureListener.getLastStartedScenarioName());
+        }
     }
 
     public static void setTestCaseName(String scenarioName) {
@@ -374,7 +392,12 @@ public class ReportManagerHelper {
     }
 
     public static Boolean isCurrentTestPassed() {
-        return Reporter.getCurrentTestResult().isSuccess();
+        if (Reporter.getCurrentTestResult() != null) {
+            return Reporter.getCurrentTestResult().isSuccess();
+        }else{
+            // this happens in case of native cucumber execution without TestNG Test Runner
+            return CucumberFeatureListener.getIsLastFinishedStepOK();
+        }
     }
 
     public static void setFeatureName(String featureName) {
@@ -674,7 +697,11 @@ public class ReportManagerHelper {
         // clean allure-results directory before execution
         if (Boolean.TRUE.equals(
                 Boolean.valueOf(System.getProperty("cleanAllureResultsDirectoryBeforeExecution")))) {
-            FileActions.deleteFolder(allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1));
+            try {
+                FileActions.deleteFolder(allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1));
+            } catch (Throwable t){
+                ReportManager.log("Failed to delete allure-results as it is currently open. Kindly restart your device to unlock the directory.");
+            }
         }
     }
 

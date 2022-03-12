@@ -12,12 +12,13 @@ import org.testng.annotations.ITestAnnotation;
 import org.testng.xml.XmlClass;
 import org.testng.xml.XmlSuite;
 import org.testng.xml.XmlSuite.ParallelMode;
+
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.List;
 
 public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, IAnnotationTransformer,
-        IInvokedMethodListener, ITestListener, IExecutionListener {
+        IInvokedMethodListener, IExecutionListener {
 
     private int retryCount = 0;
     private static int retryMaximumNumberOfAttempts = 0;
@@ -60,7 +61,8 @@ public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, 
     }
 
     private void renameDefaultSuiteAndTest(List<XmlSuite> suites) {
-        var prefix = "SHAFT: ";
+//        var prefix = "SHAFT: ";
+        var prefix = "";
         // rename default suite and test
         suites.forEach(suite -> {
             if (suite.getName().trim().equalsIgnoreCase("default suite")
@@ -89,8 +91,7 @@ public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, 
     private void addListeners(List<XmlSuite> suites) {
         suites.forEach(suite -> {
             suite.addListener("com.shaft.tools.listeners.InvokedMethodListener");
-            suite.addListener("com.shaft.tools.listeners.XRayListener");
-//            suite.addListener("com.shaft.tools.listeners.SuiteListener");
+//            suite.addListener("com.shaft.tools.listeners.CucumberFeatureListener");
         });
 
     }
@@ -150,13 +151,16 @@ public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, 
 
     @Override
     public void onExecutionStart() {
-        ReportManager.logDiscrete("TestNG is going to start");
-
+//        ReportManager.logDiscrete("TestNG is going to start");
     }
 
     @Override
     public void onExecutionFinish() {
-        ReportManager.logDiscrete("TestNG is finished");
+//        ReportManager.logDiscrete("TestNG is finished");
+        reportExecutionStatusToJira();
+    }
+
+    public static void reportExecutionStatusToJira(){
         if(System.getProperty("jiraInteraction").equalsIgnoreCase("true"))
         {
             try {

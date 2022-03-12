@@ -1,8 +1,8 @@
 package com.shaft.tools.io;
 
 import com.shaft.cli.FileActions;
+import com.shaft.driver.DriverFactory;
 import com.shaft.driver.DriverFactoryHelper;
-import com.shaft.gui.browser.BrowserFactory;
 import org.testng.ITestContext;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
@@ -34,7 +34,7 @@ public class LogsHelper {
 
     @AfterSuite
     public void teardownActivities() {
-        attachBrowserLogs();
+        closeAllDriversAndattachBrowserLogs();
         attachFullLogs();
         attachCucumberReport();
         attachExtentReport();
@@ -43,19 +43,19 @@ public class LogsHelper {
         ReportManagerHelper.openAllureReportAfterExecution();
     }
 
-    public void attachFullLogs() {
+    public static void attachFullLogs() {
         String executionEndTimestamp = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
         ReportManagerHelper.attachIssuesLog(executionEndTimestamp);
         ReportManagerHelper.attachFullLog(executionEndTimestamp);
     }
 
-    public void attachBrowserLogs() {
+    public static void closeAllDriversAndattachBrowserLogs() {
         if (Boolean.FALSE.equals(DriverFactoryHelper.isDriversListEmpty())) {
-            BrowserFactory.closeAllBrowsers();
+            DriverFactory.closeAllDrivers();
         }
     }
 
-    private void attachImportantLinks() {
+    public static void attachImportantLinks() {
         ReportManager.logDiscrete("Initializing Important Links...");
         System.setProperty("disableLogging", "true");
         String importantLinks = "#SHAFT: Important Links" +
@@ -82,7 +82,7 @@ public class LogsHelper {
         System.setProperty("disableLogging", "false");
     }
 
-    private void attachPropertyFiles() {
+    public static void attachPropertyFiles() {
         ReportManager.logDiscrete("Initializing Custom Properties...");
         System.setProperty("disableLogging", "true");
         if (FileActions.doesFileExist(System.getProperty("propertiesFolderPath"))) {
@@ -92,13 +92,13 @@ public class LogsHelper {
         System.setProperty("disableLogging", "false");
     }
 
-    private void attachCucumberReport() {
+    public static void attachCucumberReport() {
         if (FileActions.doesFileExist("allure-results/cucumberReport.html")) {
             ReportManagerHelper.attach("HTML", "Cucumber Execution Report", FileActions.readFromFile("allure-results/cucumberReport.html"));
         }
     }
 
-    private void attachExtentReport() {
+    public static void attachExtentReport() {
         ReportManagerHelper.extentReportsFlush();
         if (Boolean.parseBoolean(System.getProperty("generateExtentReports").trim()) && FileActions.doesFileExist(ReportManagerHelper.getExtentReportFileName())) {
             ReportManagerHelper.attach("HTML", "Extent Emailable Execution Report", FileActions.readFromFile(ReportManagerHelper.getExtentReportFileName()));
