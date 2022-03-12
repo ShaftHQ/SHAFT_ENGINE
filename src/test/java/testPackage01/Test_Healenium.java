@@ -7,7 +7,6 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.WebDriver;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -22,6 +21,13 @@ public class Test_Healenium {
 . research if healenium report can be generated manually and attached to the allure report
 . capture healenium logs in shaft logs
 . create user guide or video on how to use healenium with shaft and the needed manual step to initialize healenium backend
+     */
+
+    /*
+    Steps to use Healinium with SHAFT
+    1. Run the docker-compose file under src/main/resources/docker-compose/healenium-backend.yml
+    2. Ensure that the 'heal-enabled' property is set to 'true'
+    3. Run this test class to ensure that everything is working as expected
      */
 
     @Test
