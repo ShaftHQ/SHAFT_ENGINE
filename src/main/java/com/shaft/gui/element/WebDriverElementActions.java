@@ -1441,8 +1441,21 @@ public class WebDriverElementActions {
             return TextDetectionStrategy.TEXT;
         }
         String text = driver.findElement(elementLocator).getText();
-        String content = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.CONTENT.getValue());
-        String value = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.VALUE.getValue());
+
+        // fixing https://github.com/MohabMohie/SHAFT_ENGINE/issues/533
+        String content = "";
+        try{
+            content = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.CONTENT.getValue());
+        } catch (Exception exception) {
+            // ignore exception
+        }
+
+        String value = "";
+        try{
+            value = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.VALUE.getValue());
+        } catch (Exception exception) {
+            // ignore exception
+        }
 
         TextDetectionStrategy successfulTextLocationStrategy;
         if (text != null && !"".equals(text.trim())) {
