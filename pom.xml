@@ -2,7 +2,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.mohabmohie</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>6.1.20220313</version>
+    <version>6.1.20220314</version>
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
     <url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
@@ -123,7 +123,7 @@
         <dependency>
             <groupId>com.epam.healenium</groupId>
             <artifactId>healenium-web</artifactId>
-            <version>3.2.3</version>
+            <version>3.2.2</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.seleniumhq.selenium</groupId>

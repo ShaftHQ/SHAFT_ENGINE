@@ -131,12 +131,13 @@ public class AndroidBasicInteractionsTest {
         driver = DriverFactory.getDriver();
 
         // remote browserstack server (new app version)
+//        System.setProperty("executionAddress", "browserstack");
 //        System.setProperty("browserStack.platformVersion", "11.0");
 //        System.setProperty("browserStack.deviceName", "Google Pixel 4");
 //        System.setProperty("browserStack.appName", "ApiDemos-debug.apk");
 //        System.setProperty("browserStack.appRelativeFilePath", System.getProperty("testDataFolderPath")+"apps/ApiDemos-debug.apk");
 //        System.setProperty("browserStack.appUrl", "");
-//        driver = DriverFactory.getBrowserStackDriver();
+//        driver = DriverFactory.getDriver();
 
         // remote browserstack server (existing app version)
 //        System.setProperty("browserStack.platformVersion", "11.0");
@@ -144,7 +145,7 @@ public class AndroidBasicInteractionsTest {
 //        System.setProperty("browserStack.appName", "ApiDemos-debug.apk");
 //        System.setProperty("browserStack.appRelativeFilePath", "");
 //        System.setProperty("browserStack.appUrl", "bs://030ae95f0aa6d82ca804e342adde364c2614b419");
-//        driver = DriverFactory.getBrowserStackDriver();
+//        driver = DriverFactory.getDriver();
     }
 
     @AfterMethod

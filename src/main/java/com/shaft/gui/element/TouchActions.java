@@ -158,7 +158,9 @@ public class TouchActions {
 
             try {
                 if (driver instanceof AppiumDriver appiumDriver) {
-                    new Actions(appiumDriver).click(driver.findElement(internalElementLocator)).perform();
+//                    fixing https://github.com/MohabMohie/SHAFT_ENGINE/issues/501
+//                    new Actions(appiumDriver).click(driver.findElement(internalElementLocator)).perform();
+                    driver.findElement(internalElementLocator).click();
                 } else {
                     // regular touch screen device
                     (new org.openqa.selenium.interactions.touch.TouchActions(driver)).singleTap(driver.findElement(internalElementLocator)).perform();
