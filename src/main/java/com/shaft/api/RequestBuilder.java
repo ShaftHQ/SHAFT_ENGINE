@@ -1,11 +1,15 @@
 package com.shaft.api;
 
 import com.shaft.tools.io.ReportManagerHelper;
+import com.shaft.validation.Validations;
 import io.restassured.config.RestAssuredConfig;
 import io.restassured.config.SSLConfig;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import io.restassured.specification.RequestSpecification;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 
 import java.util.List;
 import java.util.Map;
@@ -142,6 +146,27 @@ public class RequestBuilder {
         this.requestBody = requestBody;
         return this;
     }
+
+    /**
+     * Sets the body (if any) for the API request that you're currently building. A request usually has only one of the following: urlArguments, parameters+type, or body
+     *
+     * @param requestBody Specify a String request content that will automatically be serialized to JSON and sent with the request.
+     * @return a self-reference to be used to continue building your API request
+     */
+    public RequestBuilder setRequestBody(String  requestBody) {
+        JSONObject requestBodyToJSONObject = null;
+        JSONParser parser = new JSONParser();
+        try {
+            requestBodyToJSONObject = (JSONObject) parser.parse(requestBody);
+        } catch (ParseException e) {
+            e.printStackTrace();
+            ReportManagerHelper.log(e);
+            Validations.assertThat().forceFail().withCustomReportMessage("failed to parse JSON").perform();
+        }
+        this.requestBody = requestBodyToJSONObject;
+        return this;
+    }
+
 
     /**
      * Sets the content type for the API request that you're currently building. By default this value is set to ContentType.ANY but you can change it by calling this method.
