@@ -96,12 +96,20 @@
                                                            type="radio" value="local"> Local Execution
                                                 </label>
                                             </div>
+                                            <br/>
                                             <div class="radio-inline">
                                                 <label for="executionAddress-1">
                                                     <input id="executionAddress-1" name="executionAddress"
                                                            type="radio"
-                                                           value="remote"> Remote Execution (Selenium Grid / Appium
-                                                    Server)
+                                                           value="remote"> Remote Execution (Selenium Grid / Appium)
+                                                </label>
+                                            </div>
+                                            <br/>
+                                            <div class="radio-inline">
+                                                <label for="executionAddress-2">
+                                                    <input id="executionAddress-2" name="executionAddress"
+                                                           type="radio"
+                                                           value="browserstack"> Remote Execution (BrowserStack)
                                                 </label>
                                             </div>
                                         </div>
@@ -122,7 +130,8 @@
                                                        type="text">
                                                 <span class="input-group-addon">/wd/hub</span>
                                             </div>
-                                            <span class="help-block">• Should follow this format seleniumGridHubIP:port or appiumServerIP:port</span>
+                                            <span class="help-block">• For Appium, set the below settings and move to the Mobile tab to continue.
+                                            <br/>• For BrowserStack, set the "Target Operating System" below, and the "Automation Name" in the Mobile tab, then configure the "browserStack.properties" file in your project directory.</span>
                                         </div>
                                     </div>
 
@@ -2028,6 +2037,20 @@
     $("input[name=executionAddress]").click(function () {
         if ($("input[name=executionAddress]:checked").val() == "remote") {
             $("#executionAddress-remote").attr("disabled", false);
+            $("#executionAddress-remote").val("");
+            $("#targetOperatingSystem-0").attr("disabled", false);
+            $("label[for=targetOperatingSystem-0]").attr("style", '');
+            $("#targetOperatingSystem-1").attr("disabled", false);
+            $("label[for=targetOperatingSystem-1]").attr("style", '');
+            $("#targetOperatingSystem-2").attr("disabled", false);
+            $("label[for=targetOperatingSystem-2]").attr("style", '');
+            $("#targetOperatingSystem-3").attr("disabled", false);
+            $("label[for=targetOperatingSystem-3]").attr("style", '');
+            $("#targetOperatingSystem-4").attr("disabled", false);
+            $("label[for=targetOperatingSystem-4]").attr("style", '');
+        } else if ($("input[name=executionAddress]:checked").val() == "browserstack"){
+            $("#executionAddress-remote").attr("disabled", true);
+            $("#executionAddress-remote").val("username:accessKey@hub-cloud.browserstack.com");
             $("#targetOperatingSystem-0").attr("disabled", false);
             $("label[for=targetOperatingSystem-0]").attr("style", '');
             $("#targetOperatingSystem-1").attr("disabled", false);
@@ -2040,7 +2063,7 @@
             $("label[for=targetOperatingSystem-4]").attr("style", '');
         } else {
             $("#executionAddress-remote").attr("disabled", true);
-            $("#executionAddress-remote").val('');
+            $("#executionAddress-remote").val("");
             $("#targetOperatingSystem-0").attr("disabled", true);
             $("label[for=targetOperatingSystem-0]").attr("style", "color:#A9A9A9");
             $("#targetOperatingSystem-1").attr("disabled", true);

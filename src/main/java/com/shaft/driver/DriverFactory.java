@@ -24,7 +24,11 @@ public class DriverFactory {
      * @return a new Selenium WebDriver instance
      */
     public static WebDriver getDriver() {
-        return DriverFactoryHelper.getDriver();
+        if (System.getProperty("executionAddress").equals("browserstack")){
+            return getBrowserStackDriver(new MutableCapabilities());
+        }else {
+            return DriverFactoryHelper.getDriver();
+        }
     }
     
     /**
@@ -34,7 +38,11 @@ public class DriverFactory {
      * @return a new Selenium WebDriver instance
      */
     public static WebDriver getDriver(DriverType driverType) {
-        return DriverFactoryHelper.getDriver(driverType, null);
+        if (driverType.equals(DriverType.BROWSERSTACK)){
+            return getBrowserStackDriver(new MutableCapabilities());
+        }else {
+            return DriverFactoryHelper.getDriver(driverType, null);
+        }
     }
     
     /**
@@ -45,7 +53,11 @@ public class DriverFactory {
      * @return a new Selenium WebDriver instance
      */
     public static WebDriver getDriver(DriverType driverType, MutableCapabilities customDriverOptions) {
-        return DriverFactoryHelper.getDriver(driverType, customDriverOptions);
+        if (driverType.equals(DriverType.BROWSERSTACK)){
+            return getBrowserStackDriver(customDriverOptions);
+        }else {
+            return DriverFactoryHelper.getDriver(driverType, customDriverOptions);
+        }
     }
 
     /**
@@ -180,7 +192,7 @@ public class DriverFactory {
      * List of the supported driver types for execution
      */
     public enum DriverType {
-        SIKULI("SikuliActions"), DATABASE("DatabaseActions"), TERMINAL("TerminalActions"), API("RestActions"), DESKTOP_FIREFOX("MozillaFirefox"), DESKTOP_CHROME("GoogleChrome"), DESKTOP_SAFARI("Safari"),
+        SIKULI("SikuliActions"), BROWSERSTACK("BrowserStack"), DATABASE("DatabaseActions"), TERMINAL("TerminalActions"), API("RestActions"), DESKTOP_FIREFOX("MozillaFirefox"), DESKTOP_CHROME("GoogleChrome"), DESKTOP_SAFARI("Safari"),
         DESKTOP_INTERNET_EXPLORER("MicrosoftInternetExplorer"), DESKTOP_EDGE("MicrosoftEdge"), DESKTOP_CHROMIUM("Chromium"), DESKTOP_WEBKIT("Webkit"), APPIUM_CHROME("Chrome"),
         APPIUM_CHROMIUM("Chromium"), APPIUM_BROWSER("Browser"), APPIUM_MOBILE_NATIVE("NativeMobileApp");
 
