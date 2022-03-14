@@ -161,7 +161,7 @@ public class RequestBuilder {
         } catch (ParseException e) {
             e.printStackTrace();
             ReportManagerHelper.log(e);
-            Validations.assertThat().forceFail().withCustomReportMessage("failed to parse JSON").perform();
+            Validations.assertThat().forceFail().withCustomReportMessage("failed to parse to JSON").perform();
         }
         this.requestBody = requestBodyToJSONObject;
         return this;
