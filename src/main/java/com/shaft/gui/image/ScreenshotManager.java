@@ -778,4 +778,7 @@ public class ScreenshotManager {
             ReportManagerHelper.log(e);
         }
     }
+    public static String getGifRelativePathWithFileName() {
+        return gifRelativePathWithFileName;
+    }
 }

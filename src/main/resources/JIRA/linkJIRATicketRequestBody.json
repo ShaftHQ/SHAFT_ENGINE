@@ -1,0 +1,16 @@
+{
+  "update":{
+    "issuelinks":[
+      {
+        "add":{
+          "type":{
+            "name":"Relates"
+          },
+          "outwardIssue":{
+            "key":"testcaseID"
+          }
+        }
+      }
+    ]
+  }
+}

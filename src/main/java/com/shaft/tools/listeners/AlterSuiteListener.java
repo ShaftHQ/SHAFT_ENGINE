@@ -161,7 +161,8 @@ public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, 
     }
 
     public static void reportExecutionStatusToJira(){
-        if(System.getProperty("jiraInteraction").equalsIgnoreCase("true"))
+        if(System.getProperty("jiraInteraction").trim().equalsIgnoreCase("true")
+           &&System.getProperty("reportTestCasesExecution").trim().equalsIgnoreCase("true"))
         {
             try {
                 if(System.getProperty("reportPath").contains("testng-results.xml"))

@@ -1,0 +1,15 @@
+{
+  "fields":{
+    "project":{
+      "key":"projectKey"
+    },
+    "summary":"bugSummery",
+    "description":"Reported By SHAFT Automation Engine|| Execution Log bugDescription",
+    "assignee":{
+      "name":"assigneeName"
+    },
+    "issuetype":{
+      "name":"Bug"
+    }
+  }
+}

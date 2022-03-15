@@ -1814,13 +1814,35 @@
 
                                     <!-- Text input-->
                                     <div class="form-group">
-                                        <label class="col-md-4 control-label" for="password">Password:*
+                                        <label class="col-md-4 control-label" for="password">Password/APIToken:*
                                         </label>
                                         <div class="col-md-4">
                                             <input class="form-control input-md"
                                                    id="password"
                                                    name="password"
                                                    type="password">
+                                        </div>
+                                    </div>
+
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="reportTestCasesExecution">Report the testcases execution results:*</label>
+                                        <div class="col-md-4" id="reportTestCasesExecution">
+                                            <div class="radio-inline">
+                                                <label for="reportTestCasesExecution-0">
+                                                    <input id="reportTestCasesExecution-0"
+                                                           name="reportTestCasesExecution" type="radio"
+                                                           value="true"> Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="jiraInteraction-1">
+                                                    <input checked="checked" id="reportTestCasesExecution-1"
+                                                           name="reportTestCasesExecution"
+                                                           type="radio" value="false"> Disabled
+                                                </label>
+                                            </div>
+                                            <span class="help-block">•  In case you disabled that option you're still able to only report the issue by enabling report Bugs option, they're not linked.</span>
                                         </div>
                                     </div>
 
@@ -1833,7 +1855,7 @@
                                                 <option value="target/surefire-reports/testng-results.xml">target/surefire-reports/testng-results.xml</option>
                                                 <option value="target/surefire-reports/testng-results.xml">allure-results/cucumber.json</option>
                                             </select>
-                                            <span class="help-block">• For cucumber report path please make sure it matches cucumber properties path.</span>
+                                            <span class="help-block">• For cucumber report path please make sure it matches cucumber properties path. After selecting your preferred report, please make sure to use allure annotations for TestNG methods or tags [i.e. @TESTID] for cucumber scenarios.</span>
 
                                         </div>
                                     </div>
@@ -1862,6 +1884,40 @@
                                         </div>
                                     </div>
 
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="ReportBugs">Reporting Bugs:*</label>
+                                        <div class="col-md-4" id="ReportBugs">
+                                            <div class="radio-inline">
+                                                <label for="ReportBugs-0">
+                                                    <input id="ReportBugs-0"
+                                                           name="ReportBugs" type="radio"
+                                                           value="true"> Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="ReportBugs-1">
+                                                    <input checked="checked" id="ReportBugs-1"
+                                                           name="ReportBugs"
+                                                           type="radio" value="false"> Disabled
+                                                </label>
+                                            </div>
+                                            <span class="help-block">• WARNING! Enabling this option while tests are under maintenance might spam your jira board. the reporting will be done after each testcase run and bug will be created contains the execution attachments and log.</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="Assignee">Assignee (optional):
+                                        </label>
+                                        <div class="col-md-4">
+                                            <input class="form-control input-md"
+                                                   id="Assignee"
+                                                   name="Assignee" placeholder="JIRA username or email"
+                                                   type="text">
+                                        </div>
+                                    </div>
+
                                     <!-- Text input-->
                                     <div class="form-group">
                                         <label class="col-md-4 control-label" for="allureLinkTmsPattern">allure.link.tms.pattern:
@@ -1879,6 +1935,7 @@
                                             <a href="https://docs.qameta.io/allure/#_configuration">more info</a></span>
                                         </div>
                                     </div>
+
 
                                     <!-- Button -->
                                     <div class="form-group">
@@ -2485,11 +2542,14 @@
     function generateXRay() {
         // Get the data from each element on the form.
         const jiraInteraction = $("input[name=jiraInteraction]:checked").val();
+        const reportBugs = $("input[name=ReportBugs]:checked").val();
         const jiraUrl = 'https://'+$("input[name=jiraUrl]").val();
         const projectKey = $("input[name=projectKey]").val();
         const authorization = $("input[name=username]").val()+':'+$("input[name=password]").val();
+        const reportTestCasesExecution = $("input[name=reportTestCasesExecution]:checked").val();
         const reportPath = $("select[name=reportPath]").val();
         const ExecutionName = $("input[name=ExecutionName]").val();
+        const assignee = $("input[name=Assignee]").val();
         const ExecutionDescription = $("input[name=ExecutionDescription]").val();
         const allureLinkTmsPattern='https://'+ $("input[name=allureLinkTmsPattern]").val();
 
@@ -2499,9 +2559,12 @@
             'jiraUrl=' + jiraUrl + '\r\n' +
             'projectKey=' + projectKey + '\r\n' +
             'authorization=' + authorization + '\r\n' +
+            'reportTestCasesExecution=' + reportTestCasesExecution + '\r\n' +
             'reportPath=' + reportPath + '\r\n' +
             'ExecutionName=' + ExecutionName + '\r\n' +
             'ExecutionDescription=' + ExecutionDescription + '\r\n'+
+            'ReportBugs=' + reportBugs + '\r\n'+
+            'assignee=' + assignee + '\r\n'+
             'allure.link.tms.pattern=' + allureLinkTmsPattern + '/{} \r\n'+
             'allure.link.custom.pattern={}\r\n';
 
