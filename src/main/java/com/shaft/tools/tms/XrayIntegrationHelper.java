@@ -157,7 +157,7 @@ public class XrayIntegrationHelper {
                     .post("/rest/api/2/issue")
                     .then().log().all().extract().response();
 
-            String id= response.jsonPath().get("key").toString(); //"ITD-94";
+            String id= response.jsonPath().get("key").toString();
 
             ReportManager.logDiscrete("BugID: "+id);
             attachFilesToIssue(id,files);
