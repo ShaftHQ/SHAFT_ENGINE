@@ -6,16 +6,15 @@ import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.validation.ValidationsHelper;
-import io.qameta.allure.Issue;
-import io.qameta.allure.Issues;
+import io.qameta.allure.*;
 import io.qameta.allure.model.Link;
 import io.qameta.allure.util.AnnotationUtils;
 import org.testng.*;
 import org.testng.internal.ConfigurationMethod;
 import org.testng.internal.ConstructorOrMethod;
-
 import java.lang.reflect.Method;
 import java.util.*;
+import static com.shaft.tools.tms.XrayIntegrationHelper.*;
 
 public class InvokedMethodListener implements IInvokedMethodListener {
     private final List<List<String>> listOfOpenIssues = new ArrayList<>();
@@ -92,16 +91,25 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 
     @Override
     public void afterInvocation(IInvokedMethod method, ITestResult testResult) {
+
         if (!method.getTestMethod().getQualifiedName().contains("setupActivities")
         && !method.getTestMethod().getQualifiedName().contains("teardownActivities")) {
+            List<String> attachments = new ArrayList<>();
+            String attachment;
             if (System.getProperty("videoParams_scope").trim().equals("TestMethod")) {
-                RecordManager.attachVideoRecording();
+                attachment=RecordManager.attachVideoRecording();
+                if(!attachment.equals(""))
+                attachments.add(attachment);
             }
-            ScreenshotManager.attachAnimatedGif();
+            attachment= ScreenshotManager.attachAnimatedGif();
+            if(!attachment.equals(""))
+                attachments.add(attachment);
             // configuration method attachment is not added to the report (Allure ->
             // threadContext.getCurrent(); -> empty)
+            String logText= createTestLog(Reporter.getOutput(testResult));
             ReportManagerHelper.attachTestLog(testResult.getMethod().getMethodName(),
-                    createTestLog(Reporter.getOutput(testResult)));
+                    logText);
+            reportBugsToJIRA(attachments,logText,method,testResult);
         }
 
         // resetting scope and config
@@ -228,5 +236,20 @@ public class InvokedMethodListener implements IInvokedMethodListener {
             return testLog;
         }
 
+    }
+    /**
+     * is called in afterInvocation() to report bugs in case of failure and if the integration is enabled
+     * */
+    private void reportBugsToJIRA(List<String> attachments,String logText,IInvokedMethod method, ITestResult testResult)
+    {
+        if(!testResult.isSuccess()
+                &&System.getProperty("jiraInteraction").trim().equals("true")
+                &&System.getProperty("ReportBugs").trim().equals("true"))
+        {
+            String bugID= createIssue(attachments, ReportManagerHelper.getTestMethodName(),logText);
+            if(bugID!=null
+                    &&method.isTestMethod()&& method.getTestMethod().getConstructorOrMethod().getMethod().isAnnotationPresent(TmsLink.class))
+                link2Tickets(bugID,method.getTestMethod().getConstructorOrMethod().getMethod().getAnnotation(TmsLink.class).value());
+        }
     }
 }
