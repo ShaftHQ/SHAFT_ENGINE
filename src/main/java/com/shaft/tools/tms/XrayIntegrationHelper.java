@@ -11,13 +11,15 @@ import io.restassured.config.RestAssuredConfig;
 import io.restassured.config.SSLConfig;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
+import io.restassured.specification.RequestSpecification;
 import java.io.File;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.Base64;
 import java.util.Calendar;
+import java.util.List;
+
 import static io.restassured.RestAssured.*;
 import static io.restassured.config.EncoderConfig.encoderConfig;
 
@@ -103,7 +105,7 @@ public class XrayIntegrationHelper {
      * @param filepath > the report relative path
      *
      */
-    public static void importTestNGResults(String filepath) throws IOException {
+    public static void importTestNGResults(String filepath){
         setup();
         String reportPath = FileActions.getAbsolutePath(filepath);
         ReportManager.logDiscrete("uploading file: "+reportPath);
@@ -124,5 +126,139 @@ public class XrayIntegrationHelper {
         }catch (Exception e){
             ReportManagerHelper.log(e);
         }
+    }
+
+    /**
+     * Create JIRA Bug to report execution failure.
+     * @param files -> list of the failed testcase attachments.
+     * @param testCaseName -> the failed testcase name
+     * @param description --> the failed test case execution log
+     *
+     * @return String bugID
+     */
+    public static String createIssue(List<String> files, String testCaseName, String description)
+    {
+        setup();
+        try {
+            Response response = given()
+                    .config(config().encoderConfig(encoderConfig().encodeContentTypeAs("application/json", ContentType.JSON)))
+                    .relaxedHTTPSValidation().contentType("application/json")
+                    .header("Authorization", "Basic " + _JiraAuthorization)
+                    .when()
+                    .body(getCreateIssueRequestBody()
+                            .replace("${PROJECT_KEY}",_ProjectKey)
+                            .replace("${BUG_SUMMERY}","Execution Bug: "+testCaseName)
+                            .replace("${BUG_DESCRIPTION}",description
+                                    .replaceAll("[^a-zA-Z0-9.?=*$%@#&!<>|\\{\\}\\[\\]\"\'\s/]","")
+                                    .replaceAll("\"","\'")
+                            )
+                            .replace("${ASSIGNEE_NAME}",System.getProperty("assignee"))
+                    )
+                    .post("/rest/api/2/issue")
+                    .then().log().all().extract().response();
+
+            String id= response.jsonPath().get("key").toString();
+
+            ReportManager.logDiscrete("BugID: "+id);
+            attachFilesToIssue(id,files);
+            return id;
+
+        }catch (Exception e){
+            ReportManagerHelper.log(e);
+            return null;
+        }
+    }
+
+    /**
+     * Update the created issue with the attachments.
+     * @param issueID -> the created bug ID.
+     * @param files -> list of the failed testcase attachments.
+     *
+     */
+    public static void attachFilesToIssue(String issueID, List<String> files)
+    {
+        setup();
+        try {
+            RequestSpecification req= given()
+                    .relaxedHTTPSValidation().contentType(ContentType.MULTIPART)
+                    .header("Authorization", "Basic " + _JiraAuthorization)
+                    .header("X-Atlassian-Token","nocheck");
+            for (String file:files)
+                req.multiPart("file",new File(file));
+
+            ReportManager.logDiscrete("BugID: "+issueID);
+            req.when()
+                    .post("/rest/api/2/issue/"+issueID+"/attachments")
+                    .then().log().all().extract().response();
+        }catch (Exception e){
+            ReportManagerHelper.log(e);
+        }
+    }
+
+    /**
+     * Link any jira 2 tickets using the tickets IDs through PUT API request. the covered relation is relates.
+     * @param ticketID -> the main ticket ID.
+     * @param linkedToID -> the one to be linked to.
+     *
+     */
+    public static void link2Tickets(String ticketID, String linkedToID)
+    {
+        setup();
+        try {
+            given()
+                    .config(config().encoderConfig(encoderConfig().encodeContentTypeAs("application/json", ContentType.JSON)))
+                    .relaxedHTTPSValidation().contentType("application/json")
+                    .header("Authorization", "Basic " + _JiraAuthorization)
+                    .when()
+                    .body( getLinkJIRATicketRequestBody()
+                            .replace("${TICKET_ID}",linkedToID)
+                    )
+                    .put("/rest/api/2/issue/"+ticketID)
+                    .then().log().all().extract().response();
+        }catch (Exception e){
+            ReportManagerHelper.log(e);
+        }
+    }
+
+    private static String getCreateIssueRequestBody()
+    {
+        return """
+                {
+                  "fields":{
+                    "project":{
+                      "key":"${PROJECT_KEY}"
+                    },
+                    "summary":"${BUG_SUMMERY}",
+                    "description":"Reported By SHAFT Automation Engine|| Execution Log ${BUG_DESCRIPTION}",
+                    "assignee":{
+                      "name":"${ASSIGNEE_NAME}"
+                    },
+                    "issuetype":{
+                      "name":"Bug"
+                    }
+                  }
+                }
+                """;
+    }
+    private static String getLinkJIRATicketRequestBody()
+    {
+        return """
+                {
+                   "update":{
+                     "issuelinks":[
+                       {
+                         "add":{
+                           "type":{
+                             "name":"Relates"
+                           },
+                           "outwardIssue":{
+                             "key":"${TICKET_ID}"
+                           }
+                         }
+                       }
+                     ]
+                   }
+                 }
+                """;
     }
 }

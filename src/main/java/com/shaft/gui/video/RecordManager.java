@@ -71,8 +71,8 @@ public class RecordManager {
         }
     }
 
-    public static synchronized void attachVideoRecording() {
-        String pathToRecording;
+    public static synchronized String attachVideoRecording() {
+        String pathToRecording = "";
         String testMethodName = ReportManagerHelper.getTestMethodName();
 
         if (Boolean.TRUE.equals(RECORD_VIDEO) && recorder.get() != null) {
@@ -99,6 +99,7 @@ public class RecordManager {
             videoDriver.set(null);
             isRecordingStarted = false;
         }
+        return pathToRecording;
     }
 
     private static synchronized File encodeRecording(String pathToRecording) {
