@@ -145,14 +145,14 @@ public class XrayIntegrationHelper {
                     .relaxedHTTPSValidation().contentType("application/json")
                     .header("Authorization", "Basic " + _JiraAuthorization)
                     .when()
-                    .body(new String(Files.readAllBytes(Paths.get("src/main/resources/JIRA/createIssueRequestBody.json")))
-                            .replace("projectKey",_ProjectKey)
-                            .replace("bugSummery","Execution Bug: "+testCaseName)
-                            .replace("bugDescription",description
+                    .body(getCreateIssueRequestBody()
+                            .replace("${PROJECT_KEY}",_ProjectKey)
+                            .replace("${BUG_SUMMERY}","Execution Bug: "+testCaseName)
+                            .replace("${BUG_DESCRIPTION}",description
                                     .replaceAll("[^a-zA-Z0-9.?=*$%@#&!<>|\\{\\}\\[\\]\"\'\s/]","")
                                     .replaceAll("\"","\'")
                             )
-                            .replace("assigneeName",System.getProperty("assignee"))
+                            .replace("${ASSIGNEE_NAME}",System.getProperty("assignee"))
                     )
                     .post("/rest/api/2/issue")
                     .then().log().all().extract().response();
@@ -210,13 +210,55 @@ public class XrayIntegrationHelper {
                     .relaxedHTTPSValidation().contentType("application/json")
                     .header("Authorization", "Basic " + _JiraAuthorization)
                     .when()
-                    .body(new String(Files.readAllBytes(Paths.get("src/main/resources/JIRA/linkJIRATicketRequestBody.json")))
-                            .replace("testcaseID",linkedToID)
+                    .body( getLinkJIRATicketRequestBody()
+                            .replace("${TICKET_ID}",linkedToID)
                     )
                     .put("/rest/api/2/issue/"+ticketID)
                     .then().log().all().extract().response();
         }catch (Exception e){
             ReportManagerHelper.log(e);
         }
+    }
+
+    private static String getCreateIssueRequestBody()
+    {
+        return """
+                {
+                  "fields":{
+                    "project":{
+                      "key":"${PROJECT_KEY}"
+                    },
+                    "summary":"${BUG_SUMMERY}",
+                    "description":"Reported By SHAFT Automation Engine|| Execution Log ${BUG_DESCRIPTION}",
+                    "assignee":{
+                      "name":"${ASSIGNEE_NAME}"
+                    },
+                    "issuetype":{
+                      "name":"Bug"
+                    }
+                  }
+                }
+                """;
+    }
+    private static String getLinkJIRATicketRequestBody()
+    {
+        return """
+                {
+                   "update":{
+                     "issuelinks":[
+                       {
+                         "add":{
+                           "type":{
+                             "name":"Relates"
+                           },
+                           "outwardIssue":{
+                             "key":"${TICKET_ID}"
+                           }
+                         }
+                       }
+                     ]
+                   }
+                 }
+                """;
     }
 }

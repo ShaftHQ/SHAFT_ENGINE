@@ -95,14 +95,15 @@ public class InvokedMethodListener implements IInvokedMethodListener {
         if (!method.getTestMethod().getQualifiedName().contains("setupActivities")
         && !method.getTestMethod().getQualifiedName().contains("teardownActivities")) {
             List<String> attachments = new ArrayList<>();
+            String attachment;
             if (System.getProperty("videoParams_scope").trim().equals("TestMethod")) {
-                String attachment=RecordManager.attachVideoRecording();
+                attachment=RecordManager.attachVideoRecording();
                 if(!attachment.equals(""))
                 attachments.add(attachment);
             }
-            if(!ScreenshotManager.getGifRelativePathWithFileName().equals(""))
-                attachments.add(ScreenshotManager.getGifRelativePathWithFileName());
-            ScreenshotManager.attachAnimatedGif();
+            attachment= ScreenshotManager.attachAnimatedGif();
+            if(!attachment.equals(""))
+                attachments.add(attachment);
             // configuration method attachment is not added to the report (Allure ->
             // threadContext.getCurrent(); -> empty)
             String logText= createTestLog(Reporter.getOutput(testResult));

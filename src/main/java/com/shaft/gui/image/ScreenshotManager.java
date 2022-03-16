@@ -280,7 +280,7 @@ public class ScreenshotManager {
         return takeElementScreenshot(page, targetElementLocator, false);
     }
 
-    public static synchronized void attachAnimatedGif() {
+    public static synchronized String attachAnimatedGif() {
         // stop and attach
         if (Boolean.TRUE.equals(CREATE_GIF) && !"".equals(gifRelativePathWithFileName)) {
             try {
@@ -294,7 +294,9 @@ public class ScreenshotManager {
 
                 gifOutputStream = new ThreadLocal<>();
                 gifWriter = new ThreadLocal<>();
+                String gifRelativePath= gifRelativePathWithFileName;
                 gifRelativePathWithFileName = "";
+                return gifRelativePath;
             } catch (FileNotFoundException e) {
                 // this happens when the gif fails to start, maybe the browser window was
                 // already closed
@@ -302,6 +304,7 @@ public class ScreenshotManager {
                 ReportManagerHelper.log(e);
             }
         }
+        return "";
     }
 
     public static void storeElementScreenshotForAISupportedElementIdentification(WebDriver driver, By
@@ -777,8 +780,5 @@ public class ScreenshotManager {
         } catch (WebDriverException | IOException | IllegalStateException | IllegalArgumentException | NullPointerException e) {
             ReportManagerHelper.log(e);
         }
-    }
-    public static String getGifRelativePathWithFileName() {
-        return gifRelativePathWithFileName;
     }
 }
