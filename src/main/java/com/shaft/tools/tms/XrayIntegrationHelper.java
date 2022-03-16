@@ -187,7 +187,7 @@ public class XrayIntegrationHelper {
                 req.multiPart("file",new File(file));
 
             ReportManager.logDiscrete("BugID: "+issueID);
-            Response response =req.when()
+            req.when()
                     .post("/rest/api/2/issue/"+issueID+"/attachments")
                     .then().log().all().extract().response();
         }catch (Exception e){
@@ -205,7 +205,7 @@ public class XrayIntegrationHelper {
     {
         setup();
         try {
-            Response response = given()
+            given()
                     .config(config().encoderConfig(encoderConfig().encodeContentTypeAs("application/json", ContentType.JSON)))
                     .relaxedHTTPSValidation().contentType("application/json")
                     .header("Authorization", "Basic " + _JiraAuthorization)

@@ -247,7 +247,7 @@ public class InvokedMethodListener implements IInvokedMethodListener {
                 &&System.getProperty("ReportBugs").trim().equals("true"))
         {
             String bugID= createIssue(attachments, ReportManagerHelper.getTestMethodName(),logText);
-            if(!bugID.equals(null)
+            if(bugID!=null
                     &&method.isTestMethod()&& method.getTestMethod().getConstructorOrMethod().getMethod().isAnnotationPresent(TmsLink.class))
                 link2Tickets(bugID,method.getTestMethod().getConstructorOrMethod().getMethod().getAnnotation(TmsLink.class).value());
         }
