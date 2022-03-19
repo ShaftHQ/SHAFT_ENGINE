@@ -48,7 +48,6 @@ public class Test_google {
 
     @BeforeClass // Set-up method, to be run once before the first test
     public void beforeClass() {
-        System.setProperty("screenshotParams_screenshotType","fullpage");
         System.setProperty("testDataFilePath", System.getProperty("testDataFolderPath")+"testSuite01/TestData.xlsx");
         testDataReader = new ExcelFileManager(System.getProperty("testDataFilePath"));
         driver = DriverFactory.getDriver();

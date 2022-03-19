@@ -1,10 +1,10 @@
 package com.shaft.gui.image;
 
-import org.apache.commons.io.output.ByteArrayOutputStream;
-import org.openqa.selenium.*;
-
+import com.google.common.collect.ImmutableMap;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Page.ScreenshotOptions;
+import org.apache.commons.io.output.ByteArrayOutputStream;
+import org.openqa.selenium.*;
 import org.openqa.selenium.chromium.ChromiumDriver;
 import org.openqa.selenium.firefox.FirefoxDriver;
 
@@ -13,18 +13,8 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.lang.reflect.Method;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import com.google.common.collect.ImmutableMap;
-import org.openqa.selenium.OutputType;
-import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.chrome.ChromeDriverService;
-import org.openqa.selenium.chrome.ChromeOptions;
-import org.openqa.selenium.remote.CommandInfo;
-import org.openqa.selenium.remote.HttpCommandExecutor;
-import org.openqa.selenium.remote.http.HttpMethod;
 
 public class ScreenshotHelper {
 
