@@ -456,7 +456,7 @@ public class FileActions {
             passAction("Target Folder: \"" + folderPath + "\"");
         } catch (FileNotFoundException e) {
             // file is already deleted or was not found
-            ReportManager.log("Folder [" + folderPath + "] was not found, it may have already been deleted.");
+            ReportManager.log("Folder \"" + folderPath + "\" was not found, it may have already been deleted.");
         } catch (IOException e) {
             ReportManagerHelper.log(e);
             failAction(e);
@@ -530,8 +530,8 @@ public class FileActions {
             boolean initialLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(false);
             try {
-                ReportManager.log("Downloading a file from this url [" + targetFileURL + "] to this directory ["
-                        + destinationFilePath + "], please wait as downloading may take some time...");
+                ReportManager.log("Downloading a file from this url \"" + targetFileURL + "\" to this directory \""
+                        + destinationFilePath + "\", please wait as downloading may take some time...");
                 FileUtils.copyURLToFile(new URL(targetFileURL), new File(destinationFilePath), connectionTimeout,
                         readTimeout);
                 ReportManager.logDiscrete("Downloading completed successfully.");
@@ -543,15 +543,15 @@ public class FileActions {
                 return downloadedFile;
             } catch (IOException rootCauseException) {
                 ReportManagerHelper.log(rootCauseException);
-                failAction("Target File URL: [" + targetFileURL + "], and Destination File Path: ["
-                        + destinationFilePath + "]", rootCauseException);
+                failAction("Target File URL: \"" + targetFileURL + "\", and Destination File Path: \""
+                        + destinationFilePath + "\"", rootCauseException);
                 return null;
             } finally {
                 ReportManagerHelper.setDiscreteLogging(initialLoggingState);
             }
         } else {
-            failAction("Target File URL: [" + targetFileURL + "], and Destination File Path: [" + destinationFilePath
-                    + "]");
+            failAction("Target File URL: \"" + targetFileURL + "\", and Destination File Path: \"" + destinationFilePath
+                    + "\"");
             return null;
         }
     }
@@ -590,9 +590,9 @@ public class FileActions {
         actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
-            message = "File Action [" + actionName + "] successfully performed.";
+            message = "File Action \"" + actionName + "\" successfully performed.";
         } else {
-            message = "File Action [" + actionName + "] failed.";
+            message = "File Action \"" + actionName + "\" failed.";
         }
 
         List<List<Object>> attachments = new ArrayList<>();
@@ -601,7 +601,7 @@ public class FileActions {
                     testData);
             attachments.add(actualValueAttachment);
         } else if (testData != null && !testData.isEmpty()) {
-            message = message + " With the following test data [" + testData + "].";
+            message = message + " With the following test data \"" + testData + "\".";
         }
 
         if (log != null && !log.trim().equals("")) {

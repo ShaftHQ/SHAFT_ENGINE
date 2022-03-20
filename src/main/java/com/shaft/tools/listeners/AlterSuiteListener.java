@@ -67,14 +67,14 @@ public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, 
         suites.forEach(suite -> {
             if (suite.getName().trim().equalsIgnoreCase("default suite")
                     || suite.getName().trim().equalsIgnoreCase("surefire suite")) {
-                suite.setName(prefix + "Custom Suite");
+                suite.setName(prefix + "Suite");
             } else {
                 suite.setName(prefix + suite.getName());
             }
             suite.getTests().forEach(test -> {
                 if (test.getName().trim().equalsIgnoreCase("default test")
                         || test.getName().trim().equalsIgnoreCase("surefire test") || test.getName().trim().equalsIgnoreCase("SHAFT_ENGINE")) {
-                    test.setName(prefix + "Custom Test");
+                    test.setName(prefix + "Test");
                 } else {
                     test.setName(prefix + test.getName());
                 }

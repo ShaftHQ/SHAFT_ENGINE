@@ -1,7 +1,7 @@
 package unitTests;
 
+import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.Validations;
@@ -86,7 +86,7 @@ public class tests_element_elementActions {
 
     @BeforeMethod
     public void beforeMethod() {
-        driver.set(BrowserFactory.getBrowser());
+        driver.set(DriverFactory.getDriver());
     }
 
     @AfterMethod

@@ -1,7 +1,7 @@
 package testPackage01;
 
+import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.browser.BrowserFactory;
 import org.openqa.selenium.WebDriver;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -34,7 +34,7 @@ public class Test_clipboardActions {
 
     @BeforeClass // Set-up method, to be run once before the first test
     public void beforeClass() {
-        driver = BrowserFactory.getBrowser();
+        driver = DriverFactory.getDriver();
     }
 
     @AfterClass

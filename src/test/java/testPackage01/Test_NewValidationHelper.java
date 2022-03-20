@@ -1,7 +1,7 @@
 package testPackage01;
 
+import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.validation.Assertions;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -323,13 +323,13 @@ public class Test_NewValidationHelper {
 
     @BeforeMethod(onlyForGroups = {"browserBasedTests"})
     public void openBrowser() {
-        driver = BrowserFactory.getBrowser();
+        driver = DriverFactory.getDriver();
         BrowserActions.navigateToURL(driver, "https://the-internet.herokuapp.com/");
     }
 
     @AfterMethod(onlyForGroups = {"browserBasedTests"})
     public void closeBrowser() {
-        BrowserFactory.closeAllBrowsers();
+        DriverFactory.closeAllDrivers();
     }
 
 }

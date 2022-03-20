@@ -1,7 +1,7 @@
 package unitTests;
 
+import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.validation.Assertions;
@@ -403,7 +403,7 @@ public class tests_validations_assertions {
 
     @BeforeMethod(onlyForGroups = {"WebBased"})
     public void beforeMethod() {
-        driver = BrowserFactory.getBrowser();
+        driver = DriverFactory.getDriver();
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
     }
 }

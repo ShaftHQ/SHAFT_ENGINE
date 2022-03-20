@@ -65,7 +65,7 @@ public class ExcelFileManager {
             //unreachable code because if the file was not found then the reader would have failed at a previous step
         }
         attachments.add(testDataFileAttachment);
-        ReportManagerHelper.log("Successfully loaded the following test data file [" + excelFilePath + "].", attachments);
+        ReportManagerHelper.log("Loaded Test Data: \"" + excelFilePath + "\".", attachments);
     }
 
     /**

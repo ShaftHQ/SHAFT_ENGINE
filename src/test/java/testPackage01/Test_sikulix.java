@@ -8,7 +8,6 @@ import org.testng.annotations.Test;
 import com.shaft.cli.TerminalActions;
 import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Assertions;
 
@@ -18,7 +17,7 @@ public class Test_sikulix {
 
     //@Test
     public void sampleWithSeleniumWebDriver() {
-        WebDriver driver = BrowserFactory.getBrowser();
+        WebDriver driver = DriverFactory.getDriver();
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "https://www.google.com");
 //        byte[] searchTextBox = ScreenshotManager.takeElementScreenshot(driver, By.xpath("//input[@name='q']"));
 //        ElementActions.performSikuliAction(searchTextBox).type("SHAFT_Engine trial using SikuliX1" + Key.ENTER);
@@ -29,7 +28,7 @@ public class Test_sikulix {
 
     @Test
     public void sampleWithSeleniumAndYoutube() {
-        WebDriver driver = BrowserFactory.getBrowser();
+        WebDriver driver = DriverFactory.getDriver();
         BrowserActions.navigateToURL(driver, "https://www.youtube.com/watch?v=6FbpNgZ8fZ8&t=2s");
         String pathToTargetElementImage = System.getProperty("testDataFolderPath") + "sikulixElements/youtube.png";
         ElementActions.performSikuliAction().click(pathToTargetElementImage);

@@ -306,19 +306,19 @@ class ElementActionsHelper {
                 }
             } catch (JavascriptException e) {
                 ReportManagerHelper.log(e);
-                ReportManager.log("Failed to suggest a new XPath for the target element with this deprecated locator ["
-                        + deprecatedElementLocator + "]");
+                ReportManager.log("Failed to suggest a new XPath for the target element with this deprecated locator \""
+                        + deprecatedElementLocator + "\"");
             }
         }
         if (newXpath != null) {
             boolean initialLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(false);
-            ReportManager.log("New AI-Suggested XPath [" + newXpath.replace("\"", "'") + "]");
+            ReportManager.log("New AI-Suggested XPath \"" + newXpath.replace("\"", "'") + "\"");
             ReportManagerHelper.setDiscreteLogging(initialLoggingState);
             return newXpath;
         } else {
-            ReportManager.log("Failed to suggest a new XPath for the target element with this deprecated locator ["
-                    + deprecatedElementLocator + "]");
+            ReportManager.log("Failed to suggest a new XPath for the target element with this deprecated locator \""
+                    + deprecatedElementLocator + "\"");
             return null;
         }
     	} else {

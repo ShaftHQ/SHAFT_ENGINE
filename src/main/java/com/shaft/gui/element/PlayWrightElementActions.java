@@ -227,7 +227,7 @@ public class PlayWrightElementActions {
      * @return the value of the target attribute of the webElement under test
      */
     public static String getAttribute(Page page, String elementLocator, String attributeName) {
-        ReportManager.logDiscrete("Attempting to getAttribute [" + attributeName + "] from elementLocator [" + elementLocator + "].");
+        ReportManager.logDiscrete("Attempting to getAttribute \"" + attributeName + "\" from elementLocator \"" + elementLocator + "\".");
         if (identifyUniqueElement(page, elementLocator)) {
                 String elementAttribute = page.getAttribute(elementLocator, attributeName);
                 passAction(page, elementLocator, elementAttribute);
@@ -593,7 +593,7 @@ public class PlayWrightElementActions {
      */
     public static void waitForElementToBePresent(Page page, String elementLocator, int numberOfTries,
                                                  boolean stateOfPresence) {
-        ReportManager.logDiscrete("Waiting for element to be present; elementLocator [" + elementLocator + "], numberOfTries[" + numberOfTries + "], stateOfPresence[" + stateOfPresence + "]...");
+        ReportManager.logDiscrete("Waiting for element to be present; elementLocator \"" + elementLocator + "\", numberOfTries\"" + numberOfTries + "\", stateOfPresence\"" + stateOfPresence + "\"...");
         String reportMessage = "waited for the element's state of presence to be (" + stateOfPresence
                 + "). Element locator (" + elementLocator + ")";
         if (Boolean.compare(stateOfPresence, getMatchingElementsCount(page, elementLocator) >= 1) == 0) {
@@ -780,9 +780,9 @@ public class PlayWrightElementActions {
         actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
-            message = "Element Action [" + actionName + "] successfully performed.";
+            message = "Element Action \"" + actionName + "\" successfully performed.";
         } else {
-            message = "Element Action [" + actionName + "] failed.";
+            message = "Element Action \"" + actionName + "\" failed.";
         }
 
         List<List<Object>> attachments = new ArrayList<>();
@@ -791,7 +791,7 @@ public class PlayWrightElementActions {
                     "Actual Value", testData);
             attachments.add(actualValueAttachment);
         } else if (testData != null && !testData.isEmpty()) {
-            message = message + " With the following test data [" + testData + "].";
+            message = message + " With the following test data \"" + testData + "\".";
         }
 
         if (screenshot != null && !screenshot.equals(new ArrayList<>())) {
@@ -828,7 +828,7 @@ public class PlayWrightElementActions {
                 return targetText;
             }
         } else {
-            ReportManager.log("Failed to identify Target element with locator [" + elementLocator + "].");
+            ReportManager.log("Failed to identify Target element with locator \"" + elementLocator + "\".");
             return null;
         }
     }

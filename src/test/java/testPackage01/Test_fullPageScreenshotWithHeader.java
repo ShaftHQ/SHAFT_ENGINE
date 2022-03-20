@@ -1,7 +1,7 @@
 package testPackage01;
 
+import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.validation.Assertions;
 import com.shaft.validation.Assertions.AssertionType;
 import org.openqa.selenium.By;
@@ -29,7 +29,7 @@ public class Test_fullPageScreenshotWithHeader {
     public void beforeClass() {
 //	System.setProperty("screenshotParams_skippedElementsFromScreenshot",
 //		"//div[@id='topnav'];//div[@id='leftmenuinner']");
-        driver = BrowserFactory.getBrowser();
+        driver = DriverFactory.getDriver();
     }
 
     @AfterClass

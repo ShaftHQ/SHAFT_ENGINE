@@ -3,7 +3,10 @@ package com.shaft.tools.support;
 import com.shaft.tools.io.ReportManagerHelper;
 import org.testng.Assert;
 
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class JavaActions {
@@ -174,5 +177,29 @@ public class JavaActions {
                 return -1;
         }
         return 1;
+    }
+
+    public static String convertToSentenceCase(String text) {
+        Pattern WORD_FINDER = Pattern.compile("(([A-Z]*[a-z]*)|([A-Z]))");
+        Matcher matcher = WORD_FINDER.matcher(text);
+        List<String> words = new ArrayList<>();
+        while (matcher.find()) {
+            words.add(matcher.group(0));
+        }
+        List<String> capitalized = new ArrayList<>();
+        for (int i = 0; i < words.size(); i++) {
+            String currentWord = words.get(i);
+            if (i == 0) {
+                capitalized.add(capitalizeFirst(currentWord));
+            } else {
+                capitalized.add(currentWord.toLowerCase());
+            }
+        }
+        return String.join(" ", capitalized).trim();
+    }
+
+    private static String capitalizeFirst(String word) {
+        return word.substring(0, 1).toUpperCase()
+                + word.substring(1).toLowerCase();
     }
 }
