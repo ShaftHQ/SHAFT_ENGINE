@@ -1,8 +1,8 @@
 package com.shaft.gui.element;
 
-import java.time.Duration;
-import java.util.Objects;
-
+import com.shaft.driver.DriverFactoryHelper;
+import com.shaft.tools.io.ReportManagerHelper;
+import com.shaft.tools.support.JavaScriptHelper;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.NoSuchSessionException;
 import org.openqa.selenium.WebDriver;
@@ -10,9 +10,8 @@ import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.support.ui.ExpectedCondition;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
-import com.shaft.driver.DriverFactoryHelper;
-import com.shaft.tools.io.ReportManagerHelper;
-import com.shaft.tools.support.JavaScriptHelper;
+import java.time.Duration;
+import java.util.Objects;
 
 public class JavaScriptWaitManager {
     private static final boolean WAIT_FOR_LAZY_LOADING = Boolean.parseBoolean(System.getProperty("waitForLazyLoading"));

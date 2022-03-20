@@ -6,15 +6,20 @@ import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.validation.ValidationsHelper;
-import io.qameta.allure.*;
+import io.qameta.allure.Issue;
+import io.qameta.allure.Issues;
+import io.qameta.allure.TmsLink;
 import io.qameta.allure.model.Link;
 import io.qameta.allure.util.AnnotationUtils;
 import org.testng.*;
 import org.testng.internal.ConfigurationMethod;
 import org.testng.internal.ConstructorOrMethod;
+
 import java.lang.reflect.Method;
 import java.util.*;
-import static com.shaft.tools.tms.XrayIntegrationHelper.*;
+
+import static com.shaft.tools.tms.XrayIntegrationHelper.createIssue;
+import static com.shaft.tools.tms.XrayIntegrationHelper.link2Tickets;
 
 public class InvokedMethodListener implements IInvokedMethodListener {
     private final List<List<String>> listOfOpenIssues = new ArrayList<>();

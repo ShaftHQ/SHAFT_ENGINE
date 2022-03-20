@@ -21,7 +21,10 @@ import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
-import com.shaft.tools.io.*;
+import com.shaft.tools.io.LogsHelper;
+import com.shaft.tools.io.ProjectStructureManager;
+import com.shaft.tools.io.PropertyFileManager;
+import com.shaft.tools.io.ReportManagerHelper;
 import io.cucumber.core.feature.FeatureParser;
 import io.cucumber.core.resource.Resource;
 import io.cucumber.messages.types.Examples;
@@ -33,35 +36,21 @@ import io.cucumber.plugin.event.*;
 import io.qameta.allure.Allure;
 import io.qameta.allure.AllureLifecycle;
 import io.qameta.allure.cucumber7jvm.testsourcemodel.TestSourcesModelProxy;
-import io.qameta.allure.model.FixtureResult;
-import io.qameta.allure.model.Parameter;
 import io.qameta.allure.model.Status;
-import io.qameta.allure.model.StatusDetails;
-import io.qameta.allure.model.StepResult;
-import io.qameta.allure.model.TestResult;
-import io.qameta.allure.model.TestResultContainer;
+import io.qameta.allure.model.*;
 import org.testng.Reporter;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.Deque;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static io.qameta.allure.util.ResultsUtils.createParameter;
-import static io.qameta.allure.util.ResultsUtils.getStatus;
-import static io.qameta.allure.util.ResultsUtils.getStatusDetails;
-import static io.qameta.allure.util.ResultsUtils.md5;
+import static io.qameta.allure.util.ResultsUtils.*;
 
 /**
  * Allure plugin for Cucumber JVM 7.0.
