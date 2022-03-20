@@ -4,12 +4,12 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
 public class NativeValidationsBuilder {
-    protected ValidationEnums.ValidationCategory validationCategory;
+    protected final ValidationEnums.ValidationCategory validationCategory;
     protected WebDriver driver;
     protected By locator;
 
     protected ValidationEnums.ValidationType validationType;
-    protected String validationMethod;
+    protected final String validationMethod;
 
     protected String elementAttribute;
     protected String elementCssProperty;
@@ -25,7 +25,7 @@ public class NativeValidationsBuilder {
     protected String folderRelativePath;
     protected String fileName;
 
-    protected StringBuilder reportMessageBuilder;
+    protected final StringBuilder reportMessageBuilder;
 
     public NativeValidationsBuilder(WebDriverElementValidationsBuilder webDriverElementValidationsBuilder) {
         this.validationCategory = webDriverElementValidationsBuilder.validationCategory;

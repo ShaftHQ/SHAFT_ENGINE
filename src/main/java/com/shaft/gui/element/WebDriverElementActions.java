@@ -376,7 +376,7 @@ public class WebDriverElementActions {
     }
 
     /**
-     * This is a generic method to enable the execution of any of the native mobile
+     * This is a generic method to enable the execution of the native mobile
      * commands found herein: http://appium.io/docs/en/commands/mobile-command/
      * <p>
      * Note: This method does no validation on the output of the executed JavaScript
@@ -414,7 +414,7 @@ public class WebDriverElementActions {
      * with the given name is returned. If neither exists, null is returned.
      * <p>
      * The "style" attribute is converted as best can be to a text representation
-     * with a trailing semi-colon.
+     * with a trailing semicolon.
      * <p>
      * The following are deemed to be "boolean" attributes, and will return either
      * "true" or null:
@@ -758,7 +758,7 @@ public class WebDriverElementActions {
      * Hovers over the hoverElement then clicks the clickableElement
      *
      * @param driver                  the current instance of Selenium webdriver
-     * @param hoverElementLocator     he locator of the webElement under test upon
+     * @param hoverElementLocator     the locator of the webElement under test upon
      *                                which the hover action will be performed (By
      *                                xpath, id, selector, name ...etc)
      * @param clickableElementLocator the locator of the webElement under test upon
@@ -1500,7 +1500,7 @@ public class WebDriverElementActions {
             }
         }
 
-        // not null AND not html AND ai self healing is enabled
+        // not null AND not html AND AI self-healing is enabled
         return getMatchingElementsCountAI(driver, elementLocator, numberOfAttempts.orElse(1));
     }
 
@@ -1602,17 +1602,12 @@ public class WebDriverElementActions {
         try {
             switch (action.toLowerCase()) {
                 case "copy":
-//                    (Toolkit.getDefaultToolkit().getSystemClipboard())
-//                            .setContents((new StringSelection(getText(driver, elementLocator))), null);
                     (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "c")).perform();
                     break;
                 case "paste":
-//                    pasteFromClipboard(driver, elementLocator);
                     (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "v")).perform();
                     break;
                 case "cut":
-//                    (Toolkit.getDefaultToolkit().getSystemClipboard())
-//                            .setContents((new StringSelection(getText(driver, elementLocator))), null);
                     (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "x")).perform();
                     type(driver, elementLocator, "");
                     break;

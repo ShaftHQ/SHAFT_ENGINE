@@ -29,7 +29,7 @@ public class PropertyFileManager {
      * following this naming convention
      * <p>
      * Priorities follow this order: MVN system properties + pom.xml THEN Explicit
-     * properties files THEN Base properties files (lowest priority)
+     * properties files THEN Base properties files (the lowest priority)
      */
     public static synchronized void readPropertyFiles() {
         if (Boolean.TRUE.equals(readPropertyFiles)) {

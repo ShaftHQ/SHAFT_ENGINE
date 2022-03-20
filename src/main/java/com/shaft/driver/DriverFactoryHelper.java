@@ -57,13 +57,12 @@ import java.util.logging.Level;
 public class DriverFactoryHelper {
     // TODO: implement pass and fail actions to enable initial factory method screenshot and append it to animated GIF
     private static final Map<String, Map<String, WebDriver>> drivers = new HashMap<>();
+    private static final ThreadLocal<SelfHealingDriver> selfHealingDriver = new ThreadLocal<>();
     private static Boolean AUTO_MAXIMIZE;
     private static Boolean HEADLESS_EXECUTION;
     private static String EXECUTION_ADDRESS;
     // local OR hub ip:port
     private static String TARGET_HUB_URL;
-    // Proxy server settings | testing behind a proxy
-    private static String PROXY_SERVER_SETTINGS;
     // Windows-64 | Linux-64 | Mac-64
     private static String TARGET_DRIVER_NAME;
     // Default | MozillaFirefox | MicrosoftInternetExplorer | GoogleChrome |
@@ -79,8 +78,6 @@ public class DriverFactoryHelper {
     private static String customDriverName;
     private static String targetOperatingSystem;
     private static ThreadLocal<WebDriver> driver = new ThreadLocal<>();
-    private static final ThreadLocal<SelfHealingDriver> selfHealingDriver = new ThreadLocal<>();
-
     // logging preferences object
     private static LoggingPreferences logPrefs;
 
@@ -417,7 +414,8 @@ public class DriverFactoryHelper {
         var driverType = getDriverTypeFromName(driverName);
 
         //get proxy server
-        PROXY_SERVER_SETTINGS = System.getProperty("com.SHAFT.proxySettings");
+        // Proxy server settings | testing behind a proxy
+        String PROXY_SERVER_SETTINGS = System.getProperty("com.SHAFT.proxySettings");
 
         //https://github.com/GoogleChrome/chrome-launcher/blob/master/docs/chrome-flags-for-tools.md#--enable-automation
         switch (driverType) {
@@ -846,10 +844,8 @@ public class DriverFactoryHelper {
                 setLoggingPrefrences();
                 // set logging global preferences
             }
-//            if (!isMobileExecution()) {
             setDriverOptions(internalDriverName, customDriverOptions);
             // set driver options with respect to the target driver name
-//            }
             if (Boolean.TRUE.equals(DRIVER_OBJECT_SINGLETON)) {
                 closeAllDrivers();
             }
@@ -877,7 +873,7 @@ public class DriverFactoryHelper {
             Assert.fail("Unhandled Exception with Driver Type \"" + internalDriverName + "\".", e);
         }
 
-        if (Boolean.valueOf(System.getProperty("heal-enabled").trim())) {
+        if (Boolean.parseBoolean(System.getProperty("heal-enabled").trim())) {
             ReportManager.logDiscrete("Initializing Healenium's Self Healing Driver...");
             driver.set(SelfHealingDriver.create(driver.get()));
         }

@@ -4,9 +4,9 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
 public class WebDriverElementValidationsBuilder {
-    protected ValidationEnums.ValidationCategory validationCategory;
-    protected WebDriver driver;
-    protected By locator;
+    protected final ValidationEnums.ValidationCategory validationCategory;
+    protected final WebDriver driver;
+    protected final By locator;
 
     protected ValidationEnums.ValidationType validationType;
     protected String validationMethod;
@@ -14,7 +14,7 @@ public class WebDriverElementValidationsBuilder {
     protected String elementAttribute;
     protected String elementCssProperty;
 
-    protected StringBuilder reportMessageBuilder;
+    protected final StringBuilder reportMessageBuilder;
 
     public WebDriverElementValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, WebDriver driver, By locator, StringBuilder reportMessageBuilder) {
         this.validationCategory = validationCategory;

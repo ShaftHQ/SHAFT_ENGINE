@@ -5,21 +5,16 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.support.locators.RelativeLocator;
 
 public class ValidationsBuilder {
-    protected ValidationEnums.ValidationCategory validationCategory;
+    protected final ValidationEnums.ValidationCategory validationCategory;
     protected String validationMethod;
     protected ValidationEnums.ValidationType validationType;
     protected boolean condition;
     protected Object actualValue;
 
-    protected StringBuilder reportMessageBuilder = new StringBuilder();
+    protected final StringBuilder reportMessageBuilder = new StringBuilder();
 
     public ValidationsBuilder(ValidationEnums.ValidationCategory validationCategory) {
         this.validationCategory = validationCategory;
-//        if (this.validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT)){
-//            reportMessageBuilder.append("Assert that ");
-//        }else{
-//            reportMessageBuilder.append("Verify that ");
-//        }
     }
 
     /**
@@ -100,7 +95,7 @@ public class ValidationsBuilder {
     }
 
     /**
-     * Force fail the current validation
+     * Force fails the current validation
      *
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */

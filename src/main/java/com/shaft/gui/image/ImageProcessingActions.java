@@ -143,7 +143,7 @@ public class ImageProcessingActions {
                 xPos = elementLocation.getX(),
                 yPos = elementLocation.getY();
 
-        // IOS Native | MacOS Browser | Linux Browser scaled | -> Repositioning
+        // IOS Native | macOS Browser | Linux Browser scaled | -> Repositioning
         if (System.getProperty("targetOperatingSystem").equals("iOS")
                 || System.getProperty("targetOperatingSystem").equals("Mac-64")
                 || (

@@ -1,15 +1,15 @@
 package com.shaft.validation;
 
 public class NumberValidationsBuilder {
-    protected ValidationEnums.ValidationCategory validationCategory;
+    protected final ValidationEnums.ValidationCategory validationCategory;
     protected ValidationEnums.ValidationType validationType;
-    protected String validationMethod;
+    protected final String validationMethod;
 
     protected Number expectedValue;
-    protected Object actualValue;
+    protected final Object actualValue;
     protected ValidationEnums.NumbersComparativeRelation numbersComparativeRelation;
 
-    protected StringBuilder reportMessageBuilder;
+    protected final StringBuilder reportMessageBuilder;
 
     public NumberValidationsBuilder(ValidationsBuilder validationsBuilder) {
         this.validationCategory = validationsBuilder.validationCategory;

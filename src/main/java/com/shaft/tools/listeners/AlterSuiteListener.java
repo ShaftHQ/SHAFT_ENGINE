@@ -22,7 +22,6 @@ public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, 
 
     private static int retryMaximumNumberOfAttempts = 0;
     private int retryCount = 0;
-    private final boolean testSuccess = true;
 
     public static void reportExecutionStatusToJira() {
         if (System.getProperty("jiraInteraction").trim().equalsIgnoreCase("true")
@@ -134,7 +133,7 @@ public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, 
     @Override
     public boolean retry(ITestResult iTestResult) {
         if (!iTestResult.isSuccess()) {                      //Check if test not succeed
-            if (retryCount < retryMaximumNumberOfAttempts) {                            //Check if maxtry count is reached
+            if (retryCount < retryMaximumNumberOfAttempts) {                            //Check if max try count is reached
                 retryCount++;                                     //Increase the maxTry count by 1
                 iTestResult.setStatus(ITestResult.FAILURE);  //Mark test as failed
                 return true;                                 //Tells TestNG to re-run the test
@@ -178,6 +177,7 @@ public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, 
     }
 
     public void afterInvocation(IInvokedMethod method, ITestResult testResult) {
+        boolean testSuccess = true;
         if (method.isTestMethod() && !testSuccess) {
             testResult.setStatus(ITestResult.FAILURE);
         }

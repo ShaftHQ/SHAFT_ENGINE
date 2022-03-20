@@ -186,15 +186,15 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
             ReportManagerHelper.extentReportsCreateTest(feature.getName(), feature.getDescription());
         }
         var testCase = event.getTestCase();
-        var scenarioSteps = new StringBuilder();
+//        var scenarioSteps = new StringBuilder();
         var cleanScenarioSteps = new StringBuilder();
         testCase.getTestSteps().forEach(testStep -> {
             if (testStep instanceof PickleStepTestStep pickleStepTestStep) {
-                scenarioSteps.append("<b style=\"color:ForestGreen;\">")
-                        .append(pickleStepTestStep.getStep().getKeyword())
-                        .append("</b>")
-                        .append(pickleStepTestStep.getStep().getText())
-                        .append("<br/>");
+//                scenarioSteps.append("<b style=\"color:ForestGreen;\">")
+//                        .append(pickleStepTestStep.getStep().getKeyword())
+//                        .append("</b>")
+//                        .append(pickleStepTestStep.getStep().getText())
+//                        .append("<br/>");
                 cleanScenarioSteps.append(pickleStepTestStep.getStep().getKeyword())
                         .append(pickleStepTestStep.getStep().getText())
                         .append(System.lineSeparator());
@@ -239,8 +239,7 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
     }
 
     private void handleTestStepStarted(final TestStepStarted event) {
-        if (event.getTestStep() instanceof PickleStepTestStep) {
-            final PickleStepTestStep pickleStep = (PickleStepTestStep) event.getTestStep();
+        if (event.getTestStep() instanceof final PickleStepTestStep pickleStep) {
             final String stepKeyword = Optional.ofNullable(
                     testSources.getKeywordFromSource(currentFeatureFile.get(), pickleStep.getStep().getLine())
             ).orElse("UNDEFINED");
@@ -252,26 +251,13 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
             lifecycle.startStep(getTestCaseUuid(currentTestCase.get()), getStepUuid(pickleStep), stepResult);
 
             final StepArgument stepArgument = pickleStep.getStep().getArgument();
-            if (stepArgument instanceof DataTableArgument) {
-                final DataTableArgument dataTableArgument = (DataTableArgument) stepArgument;
+            if (stepArgument instanceof final DataTableArgument dataTableArgument) {
                 createDataTableAttachment(dataTableArgument);
             }
         } else if (event.getTestStep() instanceof HookTestStep) {
             initHook((HookTestStep) event.getTestStep());
         }
 
-//        //custom code
-//        var testStep = event.getTestStep();
-//
-//        if (testStep instanceof HookTestStep hookTestStep) {
-//            ReportManager.logDiscrete("Scenario Hook: " + hookTestStep.getHookType().name());
-//            lastStartedStepName = hookTestStep.getHookType().name();
-//        }
-//
-//        if (testStep instanceof PickleStepTestStep pickleStepTestStep) {
-//            ReportManager.logDiscrete("Scenario Step: " + pickleStepTestStep.getStep().getKeyword() + pickleStepTestStep.getStep().getText());
-//            lastStartedStepName = pickleStepTestStep.getStep().getKeyword() + pickleStepTestStep.getStep().getText();
-//        }
     }
 
     private void initHook(final HookTestStep hook) {
@@ -342,20 +328,13 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
     }
 
     private Status translateTestCaseStatus(final Result testCaseResult) {
-        switch (testCaseResult.getStatus()) {
-            case FAILED:
-                return getStatus(testCaseResult.getError())
-                        .orElse(Status.FAILED);
-            case PASSED:
-                return Status.PASSED;
-            case SKIPPED:
-            case PENDING:
-                return Status.SKIPPED;
-            case AMBIGUOUS:
-            case UNDEFINED:
-            default:
-                return null;
-        }
+        return switch (testCaseResult.getStatus()) {
+            case FAILED -> getStatus(testCaseResult.getError())
+                    .orElse(Status.FAILED);
+            case PASSED -> Status.PASSED;
+            case SKIPPED, PENDING -> Status.SKIPPED;
+            case AMBIGUOUS, UNDEFINED, default -> null;
+        };
     }
 
     private List<Parameter> getExamplesAsParameters(
@@ -369,7 +348,7 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
                         )
                         .findFirst();
 
-        if (!maybeExample.isPresent()) {
+        if (maybeExample.isEmpty()) {
             return Collections.emptyList();
         }
 
@@ -379,7 +358,7 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
                 .filter(example -> example.getLocation().getLine() == localCurrentTestCase.getLocation().getLine())
                 .findFirst();
 
-        if (!maybeRow.isPresent()) {
+        if (maybeRow.isEmpty()) {
             return Collections.emptyList();
         }
 

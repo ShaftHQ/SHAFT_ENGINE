@@ -1,13 +1,13 @@
 package com.shaft.validation;
 
 public class FileValidationsBuilder {
-    protected ValidationEnums.ValidationCategory validationCategory;
+    protected final ValidationEnums.ValidationCategory validationCategory;
     protected String validationMethod;
     protected ValidationEnums.ValidationType validationType;
-    protected String folderRelativePath;
-    protected String fileName;
+    protected final String folderRelativePath;
+    protected final String fileName;
 
-    protected StringBuilder reportMessageBuilder;
+    protected final StringBuilder reportMessageBuilder;
 
     public FileValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, String folderRelativePath, String fileName, StringBuilder reportMessageBuilder) {
         this.validationCategory = validationCategory;

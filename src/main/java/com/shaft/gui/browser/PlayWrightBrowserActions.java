@@ -537,6 +537,7 @@ public class PlayWrightBrowserActions {
     /**
      * Maximizes current window size based on screen size minus 5%
      */
+    @SuppressWarnings("UnusedReturnValue")
     public PlayWrightBrowserActions maximizeWindow() {
         maximizeWindow(lastUsedPage);
         return this;

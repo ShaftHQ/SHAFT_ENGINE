@@ -943,7 +943,7 @@ public class RestActions implements ShaftDriver {
         // timeouts documentation
         /*
          * CoreConnectionPNames.SO_TIMEOUT='http.socket.timeout': defines the socket
-         * timeout (SO_TIMEOUT) in milliseconds, which is the timeout for waiting for
+         * timeout (SO_TIMEOUT) in milliseconds (which is the timeout for waiting for
          * data or, put differently, a maximum period inactivity between two consecutive
          * data packets). A timeout value of zero is interpreted as an infinite timeout.
          * This parameter expects a value of type java.lang.Integer. If this parameter
@@ -987,7 +987,7 @@ public class RestActions implements ShaftDriver {
     }
 
     /**
-     * Attempts to perform a request to a REST API, then checks the response status code, if it matches the target code the step is passed and the response is returned. Otherwise the action fails.
+     * Attempts to perform a request to a REST API, then checks the response status code, if it matches the target code the step is passed and the response is returned. Otherwise, the action fails.
      *
      * @param requestType      POST, GET, PATCH, DELETE, PUT
      * @param targetStatusCode default success code is 200
@@ -1001,7 +1001,7 @@ public class RestActions implements ShaftDriver {
     }
 
     /**
-     * Attempts to perform a request to a REST API, then checks the response status code, if it matches the target code the step is passed and the response is returned. Otherwise the action fails.
+     * Attempts to perform a request to a REST API, then checks the response status code, if it matches the target code the step is passed and the response is returned. Otherwise, the action fails.
      *
      * @param requestType      POST, GET, PATCH, DELETE, PUT
      * @param targetStatusCode default success code is 200
@@ -1019,7 +1019,7 @@ public class RestActions implements ShaftDriver {
     }
 
     /**
-     * Attempts to perform a request to a REST API, then checks the response status code, if it matches the target code the step is passed and the response is returned. Otherwise the action fails.
+     * Attempts to perform a request to a REST API, then checks the response status code, if it matches the target code the step is passed and the response is returned. Otherwise, the action fails.
      *
      * @param requestType      POST, GET, PATCH, DELETE, PUT
      * @param targetStatusCode default success code is 200
@@ -1038,7 +1038,7 @@ public class RestActions implements ShaftDriver {
     }
 
     /**
-     * Attempts to perform a request to a REST API, then checks the response status code, if it matches the target code the step is passed and the response is returned. Otherwise the action fails.
+     * Attempts to perform a request to a REST API, then checks the response status code, if it matches the target code the step is passed and the response is returned. Otherwise, the action fails.
      *
      * @param requestType      POST, GET, PATCH, DELETE, PUT
      * @param targetStatusCode default success code is 200
@@ -1060,7 +1060,7 @@ public class RestActions implements ShaftDriver {
     }
 
     /**
-     * Attempts to perform a request to a REST API, then checks the response status code, if it matches the target code the step is passed and the response is returned. Otherwise the action fails.
+     * Attempts to perform a request to a REST API, then checks the response status code, if it matches the target code the step is passed and the response is returned. Otherwise, the action fails.
      *
      * @param requestType      POST, GET, PATCH, DELETE, PUT
      * @param targetStatusCode default success code is 200
@@ -1084,7 +1084,7 @@ public class RestActions implements ShaftDriver {
     }
 
     /**
-     * Attempts to perform a request to a REST API, then checks the response status code, if it matches the target code the step is passed and the response is returned. Otherwise the action fails.
+     * Attempts to perform a request to a REST API, then checks the response status code, if it matches the target code the step is passed and the response is returned. Otherwise, the action fails.
      *
      * @param requestType      POST, GET, PATCH, DELETE, PUT
      * @param targetStatusCode default success code is 200
@@ -1250,7 +1250,7 @@ public class RestActions implements ShaftDriver {
     /**
      * Attempts to perform POST/PATCH/GET/DELETE request to a REST API, then checks
      * the response status code, if it matches the target code the step is passed
-     * and the response is returned. Otherwise the action fails and NULL is
+     * and the response is returned. Otherwise, the action fails and NULL is
      * returned.
      *
      * @param params 0.requestType      POST/PATCH/GET/DELETE

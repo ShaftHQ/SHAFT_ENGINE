@@ -350,7 +350,7 @@ public class WebDriverBrowserActions {
                 // happens with headless firefox browsers // remote // linux and windows
                 // also happens with chrome/windows
 
-                // attempt resize using WebDriver mange window
+                // attempt resize using WebDriver manage window
                 currentWindowSize = attemptMaximizeUsingSeleniumWebDriverManageWindow(driver, targetWidth, targetHeight);
             }
 

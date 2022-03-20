@@ -7,8 +7,8 @@ import org.openqa.selenium.WebDriver;
 
 public abstract class Element {
     static WebDriver driver;
-    By locator;
-    ElementActions elementActions;
+    final By locator;
+    final ElementActions elementActions;
 
     protected Element(By locator) {
         this.locator = locator;

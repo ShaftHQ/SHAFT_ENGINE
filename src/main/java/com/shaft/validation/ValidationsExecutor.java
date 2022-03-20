@@ -13,7 +13,7 @@ public class ValidationsExecutor {
     private final ValidationEnums.ValidationCategory validationCategory;
     private final ValidationEnums.ValidationType validationType;
     private final String validationMethod;
-    protected StringBuilder reportMessageBuilder;
+    protected final StringBuilder reportMessageBuilder;
     private WebDriver driver;
     private By locator;
     private String customReportMessage = "";
@@ -117,7 +117,7 @@ public class ValidationsExecutor {
      * Set a customized business-readable message that will appear in the execution report instead of the technical log message which will be nested under it
      *
      * @param customReportMessage the message that you would like to describe this validation in the execution report
-     * @return the current ValidationsExecutor object so that you can call the perform() method and execute this validation
+     * @return the current ValidationsExecutor object so that you can call the "perform()" method and execute this validation
      */
     public ValidationsExecutor withCustomReportMessage(String customReportMessage) {
         this.customReportMessage = customReportMessage;

@@ -3,13 +3,13 @@ package com.shaft.validation;
 import org.openqa.selenium.WebDriver;
 
 public class WebDriverBrowserValidationsBuilder {
-    protected ValidationEnums.ValidationCategory validationCategory;
-    protected WebDriver driver;
+    protected final ValidationEnums.ValidationCategory validationCategory;
+    protected final WebDriver driver;
 
     protected String validationMethod;
     protected String browserAttribute;
 
-    protected StringBuilder reportMessageBuilder;
+    protected final StringBuilder reportMessageBuilder;
 
     public WebDriverBrowserValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, WebDriver driver, StringBuilder reportMessageBuilder) {
         this.validationCategory = validationCategory;

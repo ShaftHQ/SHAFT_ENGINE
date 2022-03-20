@@ -221,10 +221,10 @@ public class ReportManagerHelper {
             //it's only zero in case of CucumberTestRunner
             reportMessage.append("Starting Dynamic Cucumber Feature Execution:\t");
         }
-        reportMessage.append("\nTest Method:\t\t\"" + className + "." + testMethodName + "\"");
+        reportMessage.append("\nTest Method:\t\t\"").append(className).append(".").append(testMethodName).append("\"");
 
         if (!testDescription.equals("")) {
-            reportMessage.append("\nTest Description:\t\"" + testDescription + "\"");
+            reportMessage.append("\nTest Description:\t\"").append(testDescription).append("\"");
         }
 
         createImportantReportEntry(reportMessage.toString(), false);
@@ -765,7 +765,7 @@ public class ReportManagerHelper {
 
             if (!System.getProperty(TARGET_OS_PROPERTY_NAME).equals(OS_WINDOWS)
                     && (System.getProperty("mobile_platformName") == null || System.getProperty("mobile_platformName").trim().equals(""))) {
-                // make allure executable on unix-based shells
+                // make allure executable on Unix-based shells
                 (new TerminalActions()).performTerminalCommand("chmod u+x " + allureBinaryPath);
             }
         }
@@ -783,7 +783,7 @@ public class ReportManagerHelper {
                     "pause", "exit");
             FileActions.writeToFile("", "generate_allure_report.bat", commandsToServeAllureReport);
         } else {
-            // create unix-based sh file
+            // create Unix-based sh file
             commandsToServeAllureReport = Arrays
                     .asList("#!/bin/bash", "parent_path=$( cd \"$(dirname \"${BASH_SOURCE[0]}\")\" ; pwd -P )",
                             "cd \"" + allureExtractionLocation + "allure-" + allureVersion + "/bin/\"",
@@ -793,7 +793,7 @@ public class ReportManagerHelper {
 
                     );
             FileActions.writeToFile("", "generate_allure_report.sh", commandsToServeAllureReport);
-            // make allure executable on unix-based shells
+            // make allure executable on Unix-based shells
             (new TerminalActions()).performTerminalCommand("chmod u+x generate_allure_report.sh");
         }
     }
@@ -815,11 +815,11 @@ public class ReportManagerHelper {
             FileActions.writeToFile("", "generateJdk.sh", commandsToGenerateJDKShellFile);
         } else {
 
-            // create commands of unix-based shells
+            // create commands of Unix-based shells
             commandsToGenerateJDKShellFile = Arrays.asList("#!/bin/bash", "export JAVA_HOME=$(/usr/libexec/java_home)",
                     "export PATH=$JAVA_HOME/bin:$PATH", "source ~/.zshenv", "echo $JAVA_HOME", "echo $PATH", "exec bash");
             FileActions.writeToFile("", "generateJdkMac.sh", commandsToGenerateJDKShellFile);
-            // make JDK executable on unix-based shells
+            // make JDK executable on Unix-based shells
             (new TerminalActions()).performTerminalCommand("chmod u+x generateJdk.sh");
         }
     }
@@ -852,7 +852,7 @@ public class ReportManagerHelper {
 
     private static void writeOpenReportShellFilesToGeneratedDirectory() {
         List<String> commandsToOpenAllureReport;
-        // create unix-based sh file
+        // create Unix-based sh file
         commandsToOpenAllureReport = Arrays.asList("#!/bin/bash",
                 "parent_path=$( cd \"$(dirname \"${BASH_SOURCE[0]}\")\" ; pwd -P )",
                 "cd \"$parent_path/allure/allure-" + System.getProperty(ALLURE_VERSION_PROPERTY_NAME) + "/bin/\"",

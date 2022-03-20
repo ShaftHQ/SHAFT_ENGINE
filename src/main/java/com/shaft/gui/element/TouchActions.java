@@ -280,7 +280,7 @@ public class TouchActions {
     /**
      * Send the currently active app to the background, and return after a certain number of seconds.
      *
-     * @param secondsToSpendInTheBackground number of seconds before returning back to the app
+     * @param secondsToSpendInTheBackground number of seconds before returning to the app
      * @return a self-reference to be used to chain actions
      */
     public TouchActions sendAppToBackground(int secondsToSpendInTheBackground) {
@@ -830,8 +830,9 @@ public class TouchActions {
             switch (swipeDirection) {
                 case UP -> scrollParameters.putAll(ImmutableMap.of("left", 0, "top", screenSize.getHeight() - 100));
                 case DOWN -> scrollParameters.putAll(ImmutableMap.of("left", 0, "top", 100));
-//                case RIGHT -> scrollParameters.putAll(ImmutableMap.of("left", 100, "top", 0));
-//                case LEFT -> scrollParameters.putAll(ImmutableMap.of("left", screenSize.getWidth() - 100, "top", 0));
+                // expected issues with RIGHT and LEFT
+                case RIGHT -> scrollParameters.putAll(ImmutableMap.of("left", 100, "top", 0));
+                case LEFT -> scrollParameters.putAll(ImmutableMap.of("left", screenSize.getWidth() - 100, "top", 0));
             }
         }
 

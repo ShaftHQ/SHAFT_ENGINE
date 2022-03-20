@@ -165,7 +165,7 @@ public class ScreenshotManager {
                 || actionName.toLowerCase().contains("validate")))
                 || (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly") && (!passFailStatus))
                 || (!passFailStatus);
-        // take screen shot if set to always,
+        // take screenshot if set to always,
         //OR if set to validation points only and actionName contains verify or assert
         //OR if set to failures only and the test failed
     }
@@ -350,7 +350,7 @@ public class ScreenshotManager {
      *                       selector, name ...etc)
      * @param appendedText   the text that needs to be appended to the name of the
      *                       screenshot to make it more recognizable
-     * @param takeScreenshot determines whether or not to take a screenshot given
+     * @param takeScreenshot determines whether to take a screenshot given
      *                       the screenshotParams_whenToTakeAScreenshot parameter
      *                       from the pom.xml file
      * @return screenshot list object
@@ -775,7 +775,7 @@ public class ScreenshotManager {
                 gifWriter.get().writeToSequence(overlayShaftEngineLogo(image));
             }
         } catch (NoSuchSessionException e) {
-            // this happens when attempting to append to a non existing gif, expected
+            // this happens when attempting to append to a non-existing gif, expected
             // solution is to recreate the gif
             // removed the old solution, the new fix is to ignore this exception, this will
             // leave the gif intact and will attach it even after failing to append to it

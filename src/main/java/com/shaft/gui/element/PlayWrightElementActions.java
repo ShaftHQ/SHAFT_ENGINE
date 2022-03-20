@@ -197,7 +197,7 @@ public class PlayWrightElementActions {
      * with the given name is returned. If neither exists, null is returned.
      * <p>
      * The "style" attribute is converted as best can be to a text representation
-     * with a trailing semi-colon.
+     * with a trailing semicolon.
      * <p>
      * The following are deemed to be "boolean" attributes, and will return either
      * "true" or null:
@@ -351,7 +351,7 @@ public class PlayWrightElementActions {
      * Hovers over the hoverElement then clicks the clickableElement
      *
      * @param page                    the current instance of PlayWright
-     * @param hoverElementLocator     he locator of the webElement under test upon
+     * @param hoverElementLocator     the locator of the webElement under test upon
      *                                which the hover action will be performed (By
      *                                xpath, id, selector, name ...etc)
      * @param clickableElementLocator the locator of the webElement under test upon
@@ -439,6 +439,7 @@ public class PlayWrightElementActions {
         return new SikuliActions(applicationWindow);
     }
 
+    @SuppressWarnings("UnusedReturnValue")
     public static Page switchToIframe(Page page, String elementLocator) {
         if (identifyUniqueElement(page, elementLocator)) {
             var frame = page.frame(elementLocator).page();
@@ -897,7 +898,7 @@ public class PlayWrightElementActions {
      * with the given name is returned. If neither exists, null is returned.
      * <p>
      * The "style" attribute is converted as best can be to a text representation
-     * with a trailing semi-colon.
+     * with a trailing semicolon.
      * <p>
      * The following are deemed to be "boolean" attributes, and will return either
      * "true" or null:
