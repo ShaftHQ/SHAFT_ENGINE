@@ -39,7 +39,6 @@ public class ReportManagerHelper {
     private static final String OS_WINDOWS = "Windows-64";
     private static final String allureExtractionLocation = System.getProperty("user.home") + File.separator + ".m2"
             + File.separator + "repository" + File.separator + "allure" + File.separator;
-    static int actionCounter = 1;
     private static String fullLog = "";
     private static String issuesLog = "";
     private static int issueCounter = 1;
@@ -202,8 +201,8 @@ public class ReportManagerHelper {
     }
 
     public static void logEngineVersion() {
-        String engineVersion = "Detected SHAFT Engine Version: ["
-                + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "]";
+        String engineVersion = "Detected SHAFT Engine Version: \""
+                + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "\"";
         createImportantReportEntry(engineVersion, true);
     }
 
@@ -214,19 +213,19 @@ public class ReportManagerHelper {
 
         if (totalNumberOfTests>0){
             reportMessage.append("Starting Execution:\t");
-            reportMessage.append("[");
+            reportMessage.append("\"");
             reportMessage.append(testCasesCounter);
             reportMessage.append(" out of ");
             reportMessage.append(totalNumberOfTests);
-            reportMessage.append("] test cases in the current suite");
+            reportMessage.append("\" test cases in the current suite");
         }else{
             //it's only zero in case of CucumberTestRunner
             reportMessage.append("Starting Dynamic Cucumber Feature Execution:\t");
         }
-        reportMessage.append("\nTest Method:\t\t[" + className + "." + testMethodName+ "]");
+        reportMessage.append("\nTest Method:\t\t\"" + className + "." + testMethodName+ "\"");
 
         if (!testDescription.equals("")) {
-            reportMessage.append("\nTest Description:\t[" + testDescription + "]");
+            reportMessage.append("\nTest Description:\t\"" + testDescription + "\"");
         }
 
         createImportantReportEntry(reportMessage.toString(),false);
@@ -234,18 +233,18 @@ public class ReportManagerHelper {
 
     public static synchronized void logScenarioInformation(String keyword, String name, String steps) {
         testCasesCounter++;
-        createImportantReportEntry("Starting Execution:\t[" + testCasesCounter + " out of " + totalNumberOfTests
-                        + "] scenarios in the [" + featureName + "] feature"
-                        + "\n" + keyword + " Name:\t\t[" + name
-                        + "]\n" + keyword + " Steps:\n" + steps,
+        createImportantReportEntry("Starting Execution:\t\"" + testCasesCounter + " out of " + totalNumberOfTests
+                        + "\" scenarios in the \"" + featureName + "\" feature"
+                        + "\n" + keyword + " Name:\t\t\"" + name
+                        + "\"\n" + keyword + " Steps:\n" + steps,
                 false);
     }
 
     public static void logConfigurationMethodInformation(String className, String testMethodName) {
         // In TestNG Reporter, this log entry is logged at the end of the previous test
         // (or null for the first test)
-        createImportantReportEntry("Starting Execution of a Configuration (Setup or Teardown) Method\nTest Method:\t\t["
-                + className + "." + testMethodName + "]", false);
+        createImportantReportEntry("Starting Execution of a Configuration (Setup or Teardown) Method\nTest Method:\t\t\""
+                + className + "." + testMethodName + "\"", false);
     }
 
     public static String formatStackTraceToLogEntry(Throwable t) {
@@ -298,11 +297,11 @@ public class ReportManagerHelper {
 
     public static void attachFullLog(String executionEndTimestamp) {
         if (!fullLog.trim().equals("")) {
-            String fullLogCreated = "Successfully created attachment [" + SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE + " - "
-                    + "Execution log" + "]";
+            String fullLogCreated = "Successfully created attachment \"" + SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE + " - "
+                    + "Execution log" + "\"";
             createReportEntry(fullLogCreated, true);
-            String copyrights = "This test run was powered by SHAFT Engine Version: ["
-                    + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "]" + System.lineSeparator()
+            String copyrights = "This test run was powered by SHAFT Engine Version: \""
+                    + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "\"" + System.lineSeparator()
                     + "SHAFT Engine is licensed under the MIT License: [https://github.com/MohabMohie/SHAFT_ENGINE/blob/master/LICENSE].";
             createImportantReportEntry(copyrights, true);
             createAttachment(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE, "Execution log: " + executionEndTimestamp,
@@ -569,12 +568,12 @@ public class ReportManagerHelper {
      * @param logText the text that needs to be logged in this action
      */
     @Step("{logText}")
-    static void writeStepToReport(int actionCounter, String logText) {
+    static void writeStepToReport(String logText) {
         createReportEntry(logText, false);
     }
 
     @Step("{logText}")
-    static void writeStepToReport(int actionCounter, String logText, List<List<Object>> attachments) {
+    static void writeStepToReport(String logText, List<List<Object>> attachments) {
         createReportEntry(logText, false);
         if (attachments != null) {
             attachments.forEach(attachment -> {
@@ -605,7 +604,8 @@ public class ReportManagerHelper {
             Reporter.log(error, false);
         }
 
-        String attachmentDescription = "Attachment: " + attachmentType + " - " + attachmentName;
+        String attachmentDescription = attachmentType + " - " + attachmentName;
+//        String attachmentDescription = "Attachment: " + attachmentType + " - " + attachmentName;
         attachBasedOnFileType(attachmentType, attachmentName, baos, attachmentDescription);
         logAttachmentAction(attachmentType, attachmentName, baos);
     }
@@ -643,7 +643,7 @@ public class ReportManagerHelper {
     }
 
     private static synchronized void logAttachmentAction(String attachmentType, String attachmentName, ByteArrayOutputStream attachmentContent) {
-        createLogEntry("Successfully created attachment [" + attachmentType + " - " + attachmentName + "]");
+        createLogEntry("Successfully created attachment \"" + attachmentType + " - " + attachmentName + "\"");
         if (debugMode && !attachmentType.contains(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE)
                 && !attachmentType.equalsIgnoreCase("Selenium WebDriver Logs")
                 && !attachmentType.toLowerCase().contains("screenshot")
@@ -912,8 +912,7 @@ public class ReportManagerHelper {
                 });
             }
         } else {
-            writeStepToReport(actionCounter, logText, attachments);
-            actionCounter++;
+            writeStepToReport(logText, attachments);
         }
     }
 
@@ -933,16 +932,14 @@ public class ReportManagerHelper {
                     customLogText = "Assertion Failed: " + customLogText;
                 }
             }
-            writeNestedStepsToReport(actionCounter, customLogText, logText, attachments);
+            writeNestedStepsToReport(customLogText, logText, attachments);
         } else {
-            writeStepToReport(actionCounter, logText, attachments);
+            writeStepToReport(logText, attachments);
         }
-        actionCounter++;
     }
 
-    //@Step("Action [{actionCounter}]: {customLog}")
     @Step("{customLog}")
-    private static void writeNestedStepsToReport(int actionCounter, String customLog, String stepLog, List<List<Object>> attachments) {
+    private static void writeNestedStepsToReport(String customLog, String stepLog, List<List<Object>> attachments) {
         createReportEntry(customLog, false);
         if (attachments != null) {
             attachments.forEach(attachment -> {
@@ -981,7 +978,6 @@ public class ReportManagerHelper {
             log("An Exception Occured",
                     Collections.singletonList(Arrays.asList("Exception Stack Trace", t.getClass().getName(), logText)));
         }
-        actionCounter++;
     }
 
     public static void logDiscrete(Throwable t) {

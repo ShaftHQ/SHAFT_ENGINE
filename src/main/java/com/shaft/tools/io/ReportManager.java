@@ -17,8 +17,7 @@ public class ReportManager {
             if (getDiscreteLogging() && !logText.toLowerCase().contains("failed") && isInternalStep()) {
                 createLogEntry(logText);
             } else {
-                writeStepToReport(actionCounter, logText);
-                actionCounter++;
+                writeStepToReport(logText);
             }
     }
 

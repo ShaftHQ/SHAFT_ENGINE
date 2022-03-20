@@ -176,7 +176,7 @@ public class DriverFactoryHelper {
         var myapp = new App(applicationName);
         myapp.waitForWindow(Integer.parseInt(System.getProperty("browserNavigationTimeout")));
         myapp.focus();
-        ReportManager.log("Opened app: [" + myapp.getName() + "]...");
+        ReportManager.log("Opened app: \"" + myapp.getName() + "\"...");
         return myapp;
     }
     
@@ -221,7 +221,7 @@ public class DriverFactoryHelper {
      * @param application a sikuli App instance that can be used to perform SikuliActions
      */
     protected static void closeSikuliApp(App application) {
-        ReportManager.log("Closing app: [" + application.getName() + "]...");
+        ReportManager.log("Closing app: \"" + application.getName() + "\"...");
         application.close();
     }
 
@@ -298,9 +298,9 @@ public class DriverFactoryHelper {
 
     private static void failAction(String testData, Throwable... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        String message = "Driver Factory Action [" + actionName + "] failed.";
+        String message = "Driver Factory Action \"" + actionName + "\" failed.";
         if (testData != null) {
-            message = message + " With the following test data [" + testData + "].";
+            message = message + " With the following test data \"" + testData + "\".";
         }
         ReportManager.log(message);
         if (rootCauseException != null && rootCauseException.length >= 1) {
@@ -318,7 +318,7 @@ public class DriverFactoryHelper {
                 return Arrays.asList(DriverType.values()).get(i);
             }
         }
-        failAction("Unsupported Driver Type [" + driverName + "].");
+        failAction("Unsupported Driver Type \"" + driverName + "\".");
         return DriverType.DESKTOP_CHROME;
     }
 
@@ -330,7 +330,7 @@ public class DriverFactoryHelper {
                 return Arrays.asList(OperatingSystemType.values()).get(i);
             }
         }
-        failAction("Unsupported Operating System [" + targetOperatingSystem + "].");
+        failAction("Unsupported Operating System \"" + targetOperatingSystem + "\".");
         return OperatingSystemType.LINUX;
     }
 
@@ -375,13 +375,13 @@ public class DriverFactoryHelper {
                 break;
 
             default:
-                failAction("Unsupported Operating System [" + targetOperatingSystem + "].");
+                failAction("Unsupported Operating System \"" + targetOperatingSystem + "\".");
                 break;
         }
 
         if (Boolean.FALSE.equals(isCompatibleDriver)) {
-            failAction("Unsupported Driver Type [" + driverType + "] for this Operating System ["
-                    + targetOperatingSystem + "].");
+            failAction("Unsupported Driver Type \"" + driverType + "\" for this Operating System \""
+                    + targetOperatingSystem + "\".");
         }
 
     }
@@ -553,7 +553,7 @@ public class DriverFactoryHelper {
                 }
             }
             case APPIUM_MOBILE_NATIVE -> appiumCapabilities = new DesiredCapabilities(customDriverOptions);
-            default -> failAction("Unsupported Driver Type [" + driverName + "].");
+            default -> failAction("Unsupported Driver Type \"" + driverName + "\".");
         }
     }
 
@@ -562,7 +562,7 @@ public class DriverFactoryHelper {
             System.setProperty("webdriver.gecko.driver",
                     customDriverPath + customDriverName + setDriversExtecutableFileExtension());
         } else {
-            ReportManager.log(WEBDRIVERMANAGER_MESSAGE);
+            ReportManager.logDiscrete(WEBDRIVERMANAGER_MESSAGE);
             WebDriverManager.firefoxdriver().setup();
         }
         driver.set(new FirefoxDriver(ffOptions));
@@ -575,7 +575,7 @@ public class DriverFactoryHelper {
             System.setProperty("webdriver.ie.driver",
                     customDriverPath + customDriverName + setDriversExtecutableFileExtension());
         } else {
-            ReportManager.log(WEBDRIVERMANAGER_MESSAGE);
+            ReportManager.logDiscrete(WEBDRIVERMANAGER_MESSAGE);
             WebDriverManager.iedriver().setup();
         }
         driver.set(new InternetExplorerDriver(ieOptions));
@@ -588,7 +588,7 @@ public class DriverFactoryHelper {
             System.setProperty("webdriver.chrome.driver",
                     customDriverPath + customDriverName + setDriversExtecutableFileExtension());
         } else {
-            ReportManager.log(WEBDRIVERMANAGER_MESSAGE);
+            ReportManager.logDiscrete(WEBDRIVERMANAGER_MESSAGE);
             WebDriverManager.chromedriver().setup();
         }
         driver.set(new ChromeDriver(chOptions));
@@ -601,7 +601,7 @@ public class DriverFactoryHelper {
             System.setProperty("webdriver.edge.driver",
                     customDriverPath + customDriverName + setDriversExtecutableFileExtension());
         } else {
-            ReportManager.log(WEBDRIVERMANAGER_MESSAGE);
+            ReportManager.logDiscrete(WEBDRIVERMANAGER_MESSAGE);
             WebDriverManager.edgedriver().setup();
         }
         driver.set(new EdgeDriver(edOptions));
@@ -621,7 +621,7 @@ public class DriverFactoryHelper {
     }
 
     private static WebDriver createNewLocalDriverInstance(String driverName) {
-        String initialLog = "Attempting to run locally on: [" + targetOperatingSystem + "], [" + driverName + "]";
+        String initialLog = "Attempting to run locally on: \"" + targetOperatingSystem  + " / " +  driverName + "\"";
         if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
             initialLog = initialLog + ", Headless Execution";
         }
@@ -635,7 +635,7 @@ public class DriverFactoryHelper {
                 case DESKTOP_CHROME -> createNewLocalDriverInstanceForChrome();
                 case DESKTOP_EDGE -> createNewLocalDriverInstanceForEdge();
                 case DESKTOP_SAFARI -> createNewLocalDriverInstanceForSafari();
-                default -> failAction("Unsupported Driver Type [" + driverName + "].");
+                default -> failAction("Unsupported Driver Type \"" + driverName + "\".");
             }
         }catch (SessionNotCreatedException exception){
             failAction("Failed to create new Browser Session", exception);
@@ -652,13 +652,13 @@ public class DriverFactoryHelper {
             driverType = getDriverTypeFromName(driverName);
         }
         var initialLog = new StringBuilder();
-        initialLog.append("Attempting to run remotely on: [").append(targetOperatingSystem).append("]");
+        initialLog.append("Attempting to run remotely on: \"").append(targetOperatingSystem);
 
         if (!isMobileNativeExecution()) {
-            initialLog.append(", [").append(driverName).append("]");
+            initialLog.append(" / ").append(driverName);
         }
 
-        initialLog.append(", [").append(TARGET_HUB_URL).append("]");
+        initialLog.append(" / ").append(TARGET_HUB_URL).append("\"");
 
         if (Boolean.TRUE.equals(HEADLESS_EXECUTION) && !isMobileExecution()) {
             initialLog.append(", Headless Execution");
@@ -682,13 +682,13 @@ public class DriverFactoryHelper {
         } catch (WebDriverException e) {
             ReportManagerHelper.log(e);
             if (e.getMessage().contains("Error forwarding the new session cannot find")) {
-                ReportManager.log("Failed to run remotely on: [" + targetOperatingSystem + "], [" + driverName + "], ["
-                        + TARGET_HUB_URL + "].");
+                ReportManager.log("Failed to run remotely on: \"" + targetOperatingSystem + "\", \"" + driverName + "\", \""
+                        + TARGET_HUB_URL + "\".");
                 failAction(
                         "Error forwarding the new session: Couldn't find a node that matches the desired capabilities.", e);
             } else {
-                ReportManager.log("Failed to run remotely on: [" + targetOperatingSystem + "], [" + driverName + "], ["
-                        + TARGET_HUB_URL + "].");
+                ReportManager.log("Failed to run remotely on: \"" + targetOperatingSystem + "\", \"" + driverName + "\", \""
+                        + TARGET_HUB_URL + "\".");
                 failAction("Unhandled Error.", e);
             }
         } catch (NoClassDefFoundError | MalformedURLException e) {
@@ -719,7 +719,7 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
          }
          break;
      case APPIUM_CHROME:
-         ReportManager.log(WEBDRIVERMANAGER_MESSAGE);
+         ReportManager.logDiscrete(WEBDRIVERMANAGER_MESSAGE);
          WebDriverManager.chromedriver().browserVersion(System.getProperty("MobileBrowserVersion")).setup();
          mobileDesiredCapabilities.setCapability("chromedriverExecutable",
                  WebDriverManager.chromedriver().getDownloadedDriverPath());
@@ -743,10 +743,10 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
          }
          break;
      default:
-         failAction("Unsupported Driver Type [" + driverName + "].");
+         failAction("Unsupported Driver Type \"" + driverName + "\".");
          break;
      }
-     ReportManager.log("Successfully Opened [" + driverType.getValue() + "].");
+     ReportManager.log("Successfully Opened \"" + driverType.getValue() + "\".");
      storeDriverInstance(driverName);
      ((RemoteWebDriver) driver.get()).setFileDetector(new LocalFileDetector());
 }
@@ -767,7 +767,7 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
                 return Platform.IOS;
             default:
                 ReportManager.log(
-                        "Unsupported Operating System [" + targetOperatingSystem + "], setting target platform to [ANY].");
+                        "Unsupported Operating System \"" + targetOperatingSystem + "\", setting target platform to [ANY].");
                 return Platform.ANY;
         }
     }
@@ -870,8 +870,8 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
             RecordManager.startVideoRecording(driver.get());
         } catch (NullPointerException e) {
             ReportManagerHelper.log(e);
-            ReportManager.log("Unhandled Exception with Driver Type [" + internalDriverName + "].");
-            Assert.fail("Unhandled Exception with Driver Type [" + internalDriverName + "].", e);
+            ReportManager.log("Unhandled Exception with Driver Type \"" + internalDriverName + "\".");
+            Assert.fail("Unhandled Exception with Driver Type \"" + internalDriverName + "\".", e);
         }
 
         if (Boolean.valueOf(System.getProperty("heal-enabled").trim())){
@@ -973,7 +973,7 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
 		// playwright handles the initial setup
 		playwright = Playwright.create();
 		
-        String initialLog = "Attempting to run using Playwright locally on: [" + targetOperatingSystem + "], [" + driverName + "]";
+        String initialLog = "Attempting to run using Playwright locally on: \"" + targetOperatingSystem + " / " + driverName + "\"";
         if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
             initialLog = initialLog + ", Headless Execution";
         }
@@ -991,7 +991,7 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
             case DESKTOP_FIREFOX -> browser = playwright.firefox().launch(options);
             case DESKTOP_CHROMIUM, DESKTOP_CHROME, DESKTOP_EDGE -> browser = playwright.chromium().launch(options);
             case DESKTOP_WEBKIT, DESKTOP_SAFARI -> browser = playwright.webkit().launch(options);
-            default -> failAction("Unsupported Driver Type [" + driverName + "].");
+            default -> failAction("Unsupported Driver Type \"" + driverName + "\".");
         }
 
         // handle video recording

@@ -2,7 +2,6 @@ package com.shaft.cucumber;
 
 import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.browser.BrowserFactory;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.When;
 import org.openqa.selenium.WebDriver;

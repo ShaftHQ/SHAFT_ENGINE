@@ -788,12 +788,12 @@ public class TouchActions {
     }
 
     private boolean attemptW3cCompliantActionsScroll(SwipeDirection swipeDirection, By scrollableElementLocator, By targetElementLocator) {
-    	var logMessage = "Swiping to find Element using W3C Compliant Actions. SwipeDirection ["+swipeDirection+"]";
+    	var logMessage = "Swiping to find Element using W3C Compliant Actions. SwipeDirection \""+swipeDirection+"\"";
         if (targetElementLocator !=null){
-            logMessage+= ", TargetElementLocator ["+targetElementLocator+"]";
+            logMessage+= ", TargetElementLocator \""+targetElementLocator+"\"";
         }
         if (scrollableElementLocator != null){
-            logMessage += ", inside ScrollableElement ["+scrollableElementLocator+"]";
+            logMessage += ", inside ScrollableElement \""+scrollableElementLocator+"\"";
         }
         logMessage += ".";
         ReportManager.logDiscrete(logMessage);
@@ -841,7 +841,7 @@ public class TouchActions {
             ));
             canScrollMore = (Boolean) ((JavascriptExecutor) iosDriver).executeScript("mobile: scroll", scrollParameters);
         }
-        var logMessageAfter = "Attempted to scroll using these parameters: ["+scrollParameters+"]";
+        var logMessageAfter = "Attempted to scroll using these parameters: \""+scrollParameters+"\"";
         if (canScrollMore){
             logMessageAfter += ", there is still more room to keep scrolling.";
         }else{

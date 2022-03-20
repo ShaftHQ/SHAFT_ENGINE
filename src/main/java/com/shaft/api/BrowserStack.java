@@ -123,12 +123,12 @@ public class BrowserStack {
         actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
-            message = "BrowserStack API Action [" + actionName + "] successfully performed.";
+            message = "BrowserStack API Action \"" + actionName + "\" successfully performed.";
         } else {
-            message = "BrowserStack API Action [" + actionName + "] failed.";
+            message = "BrowserStack API Action \"" + actionName + "\" failed.";
         }
         if (testData != null && !testData.isEmpty()) {
-            message = message + " With the following test data [" + testData + "].";
+            message = message + " With the following test data \"" + testData + "\".";
         }
         ReportManager.log(message);
         return message;

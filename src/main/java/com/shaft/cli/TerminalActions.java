@@ -118,9 +118,9 @@ public class TerminalActions implements ShaftDriver {
         actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
-            message = "Terminal Action [" + actionName + "] successfully performed.";
+            message = "Terminal Action \"" + actionName + "\" successfully performed.";
         } else {
-            message = "Terminal Action [" + actionName + "] failed.";
+            message = "Terminal Action \"" + actionName + "\" failed.";
         }
 
         List<List<Object>> attachments = new ArrayList<>();
@@ -129,7 +129,7 @@ public class TerminalActions implements ShaftDriver {
                     "Actual Value", testData);
             attachments.add(actualValueAttachment);
         } else if (testData != null && !testData.isEmpty()) {
-            message = message + " With the following test data [" + testData + "].";
+            message = message + " With the following test data \"" + testData + "\".";
         }
 
         if (log != null && !log.trim().equals("")) {
@@ -309,7 +309,7 @@ public class TerminalActions implements ShaftDriver {
                 int sessionTimeout = Integer.parseInt(System.getProperty("shellSessionTimeout")) * 1000;
                 // remote execution
                 ReportManager.logDiscrete(
-                        "Attempting to perform the following command remotely. Command: [" + command + "]");
+                        "Attempting to perform the following command remotely. Command: \"" + command + "\"");
                 remoteSession = createSSHsession();
                 if (remoteSession != null) {
                     remoteSession.setTimeout(sessionTimeout);
@@ -322,7 +322,7 @@ public class TerminalActions implements ShaftDriver {
             } else {
                 // local execution
                 ReportManager
-                        .logDiscrete("Attempting to perform the following command locally. Command: [" + command + "]");
+                        .logDiscrete("Attempting to perform the following command locally. Command: \"" + command + "\"");
                 localProcess = Runtime.getRuntime().exec(command);
                 if (!unattended) {
                     localProcess.waitFor();

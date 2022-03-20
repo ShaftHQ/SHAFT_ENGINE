@@ -1,7 +1,7 @@
 package testPackage01;
 
+import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Assertions;
@@ -55,7 +55,7 @@ public class Test_dragAndDrop {
 
     @BeforeMethod
     public void beforeMethod() {
-        driver = BrowserFactory.getBrowser();
+        driver = DriverFactory.getDriver();
     }
 
     @AfterMethod

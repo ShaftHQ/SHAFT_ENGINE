@@ -1,7 +1,6 @@
 package testPackage01.appium;
 
 import com.shaft.driver.DriverFactory;
-import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Validations;
 import io.appium.java_client.AppiumBy;
@@ -57,6 +56,6 @@ public class IOSBasicInteractionsTest {
 
     @AfterClass
     public void teardown() {
-        BrowserFactory.closeAllBrowsers();
+        DriverFactory.closeAllDrivers();
     }
 }

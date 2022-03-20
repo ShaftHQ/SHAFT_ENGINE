@@ -1,7 +1,7 @@
 package testPackage01;
 
+import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Assertions;
 import com.shaft.validation.Assertions.AssertionType;
@@ -24,7 +24,7 @@ public class Test_IsElementClickable {
 
     @BeforeMethod
     public void beforeMethod() {
-        driver = BrowserFactory.getBrowser();
+        driver = DriverFactory.getDriver();
     }
 
     @AfterMethod

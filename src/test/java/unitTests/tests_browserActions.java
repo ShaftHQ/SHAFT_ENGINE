@@ -1,7 +1,7 @@
 package unitTests;
 
+import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.validation.Assertions;
 import org.openqa.selenium.WebDriver;
 import org.testng.annotations.AfterMethod;
@@ -87,7 +87,7 @@ public class tests_browserActions {
 
     @BeforeMethod
     public void beforeMethod() {
-        driver.set(BrowserFactory.getBrowser());
+        driver.set(DriverFactory.getDriver());
         BrowserActions.navigateToURL(driver.get(), "https://duckduckgo.com");
     }
 

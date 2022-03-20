@@ -1,8 +1,8 @@
 package testPackage01;
 
+import com.shaft.driver.DriverFactory;
 import com.shaft.driver.DriverFactory.DriverType;
 import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Assertions;
@@ -14,7 +14,7 @@ public class Test_SelectedValue {
     String baseURL = "https://yari-demos.prod.mdn.mozit.cloud/en-US/docs/Web/HTML/Element/select/_sample_.";
     @Test
     public void simpleSelect() {
-        WebDriver driver = BrowserFactory.getBrowser(DriverType.DESKTOP_CHROME);
+        WebDriver driver = DriverFactory.getDriver(DriverType.DESKTOP_CHROME);
         BrowserActions.navigateToURL(driver, baseURL+"Basic_select.html");
         By select = By.tagName("select");
         ElementActions.select(driver, select, "Third Value");
@@ -25,7 +25,7 @@ public class Test_SelectedValue {
 
     @Test
     public void multipleSelect() {
-        WebDriver driver = BrowserFactory.getBrowser(DriverType.DESKTOP_CHROME);
+        WebDriver driver = DriverFactory.getDriver(DriverType.DESKTOP_CHROME);
         BrowserActions.navigateToURL(driver, baseURL+"Advanced_select_with_multiple_features.html");
         By select = By.tagName("select");
         ElementActions.select(driver, select, "Dog");

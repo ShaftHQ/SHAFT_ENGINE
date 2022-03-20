@@ -778,7 +778,7 @@ public class ValidationsHelper {
         }
 
         validationMethodName = validationMethodName.substring(0, 1).toUpperCase() + validationMethodName.substring(1);
-        message.append(validationTypeString).append(" [").append(validationMethodName).append("] ");
+        message.append(validationTypeString).append(" \"").append(validationMethodName).append("\" ");
         if (validationMethodName.equals("ValidateFail")) {
             //validationState = ValidationState.PASSED;
             message.append(validationState).append(". ");
@@ -805,15 +805,15 @@ public class ValidationsHelper {
 
                 message.append("Expected and Actual values are attached.");
             } else {
-                message.append("Expected [").append(expectedValue).append("] and Actual [").append(actualValue).append("].");
+                message.append("Expected \"").append(expectedValue).append("\" and Actual \"").append(actualValue).append("\".");
             }
 
             if (validationComparisonOrComparativeRelationType != null) {
-                message.append(" Comparison Type [").append(validationComparisonOrComparativeRelationType).append("].");
+                message.append(" Comparison Type \"").append(validationComparisonOrComparativeRelationType).append("\".");
             }
 
             if (validationType != null) {
-                message.append(" Validation Type [").append(validationType).append("].");
+                message.append(" Validation Type \"").append(validationType).append("\".");
             }
         }
 

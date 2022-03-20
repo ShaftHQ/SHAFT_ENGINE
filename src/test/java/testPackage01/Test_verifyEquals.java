@@ -1,7 +1,7 @@
 package testPackage01;
 
+import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Verifications;
 import org.openqa.selenium.By;
@@ -45,7 +45,7 @@ public class Test_verifyEquals {
 
     @BeforeClass // Set-up method, to be run once before the first test
     public void beforeClass() {
-        driver = BrowserFactory.getBrowser();
+        driver = DriverFactory.getDriver();
     }
 
     @AfterClass
