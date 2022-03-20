@@ -29,21 +29,21 @@ public class PropertyFileManager {
      * following this naming convention
      * <p>
      * Priorities follow this order: MVN system properties + pom.xml THEN Explicit
-     * properties files THEN Base properties files (lowest priority)
+     * properties files THEN Base properties files (the lowest priority)
      */
     public static synchronized void readPropertyFiles() {
         if (Boolean.TRUE.equals(readPropertyFiles)) {
             var isDiscrete = ReportManagerHelper.getDiscreteLogging();
-        	ReportManagerHelper.setDiscreteLogging(true);
+            ReportManagerHelper.setDiscreteLogging(true);
 
             // migrate folder structure
             ProjectStructureManager.migrateToNewStructure();
 
             // delete internal.properties old and new folder structure
             var internalPropertiesFilePath = "src/main/resources/properties/internal.properties";
-                if (FileActions.doesFileExist(internalPropertiesFilePath)) {
-                    FileActions.deleteFile(FileActions.getAbsolutePath(internalPropertiesFilePath));
-                }
+            if (FileActions.doesFileExist(internalPropertiesFilePath)) {
+                FileActions.deleteFile(FileActions.getAbsolutePath(internalPropertiesFilePath));
+            }
 
             // read base system properties
             Properties props = System.getProperties();
@@ -70,7 +70,7 @@ public class PropertyFileManager {
 
             setMobilePlatform();
             readPropertyFiles = false;
-        	ReportManagerHelper.setDiscreteLogging(isDiscrete);
+            ReportManagerHelper.setDiscreteLogging(isDiscrete);
         }
     }
 
@@ -92,8 +92,8 @@ public class PropertyFileManager {
             }
         });
         var app = appiumDesiredCapabilities.get("mobile_app");
-        if (app!= null && !app.isEmpty() &&
-                (app.startsWith("src\\") || app.startsWith("src/"))){
+        if (app != null && !app.isEmpty() &&
+                (app.startsWith("src\\") || app.startsWith("src/"))) {
             appiumDesiredCapabilities.put("mobile_app", FileActions.getAbsolutePath(app));
         }
         return appiumDesiredCapabilities;

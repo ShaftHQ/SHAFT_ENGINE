@@ -60,7 +60,7 @@ public class WebDriverElementActions {
                 if (targetElement == null) {
                     // element may be outside viewport, attempt to scroll and find it using custom
                     // javascript
-                	targetElement = ElementActionsHelper.getWebElementFromPointUsingJavascript(driver, point, true);
+                    targetElement = ElementActionsHelper.getWebElementFromPointUsingJavascript(driver, point, true);
                 }
                 boolean initialLoggingState = ReportManagerHelper.getDiscreteLogging();
                 ReportManagerHelper.setDiscreteLogging(false);
@@ -142,7 +142,7 @@ public class WebDriverElementActions {
                             ReportManagerHelper.log(rootCauseException);
                             failAction(driver, internalElementLocator, rootCauseException);
                         }
-                    }else{
+                    } else {
                         ReportManagerHelper.log(exception1);
                         failAction(driver, internalElementLocator, exception1);
                     }
@@ -154,7 +154,7 @@ public class WebDriverElementActions {
 
                 // removed to enhance performance, and replaced with a process to assert after
                 // every navigation
-                if (elementText.equals("")){
+                if (elementText.equals("")) {
                     elementText = internalElementLocator.toString();
                 }
                 passAction(driver, internalElementLocator, elementText.replaceAll("\n", " "), screenshot);
@@ -297,7 +297,7 @@ public class WebDriverElementActions {
 
             // attempt to perform drag and drop
             try {
-            	ElementActionsHelper.dragAndDropUsingJavascript(driver, sourceElementLocator, destinationElementLocator);
+                ElementActionsHelper.dragAndDropUsingJavascript(driver, sourceElementLocator, destinationElementLocator);
             } catch (Exception rootCauseException) {
                 ReportManagerHelper.log(rootCauseException);
                 failAction(driver, internalSourceElementLocator, rootCauseException);
@@ -376,7 +376,7 @@ public class WebDriverElementActions {
     }
 
     /**
-     * This is a generic method to enable the execution of any of the native mobile
+     * This is a generic method to enable the execution of the native mobile
      * commands found herein: http://appium.io/docs/en/commands/mobile-command/
      * <p>
      * Note: This method does no validation on the output of the executed JavaScript
@@ -390,7 +390,7 @@ public class WebDriverElementActions {
      */
     public static void executeNativeMobileCommand(WebDriver driver, String command, Map<String, String> parameters) {
         try {
-        	ElementActionsHelper.executeNativeMobileCommandUsingJavascript(driver, command, parameters);
+            ElementActionsHelper.executeNativeMobileCommandUsingJavascript(driver, command, parameters);
             passAction(driver, "Command: " + command + ", Parameters: " + parameters);
         } catch (Exception rootCauseException) {
             failAction(driver, null, rootCauseException);
@@ -414,7 +414,7 @@ public class WebDriverElementActions {
      * with the given name is returned. If neither exists, null is returned.
      * <p>
      * The "style" attribute is converted as best can be to a text representation
-     * with a trailing semi-colon.
+     * with a trailing semicolon.
      * <p>
      * The following are deemed to be "boolean" attributes, and will return either
      * "true" or null:
@@ -504,7 +504,7 @@ public class WebDriverElementActions {
         String context = "";
         if (driver instanceof AndroidDriver androidDriver) {
             context = androidDriver.getContext();
-        }else if (driver instanceof IOSDriver iosDriver){
+        } else if (driver instanceof IOSDriver iosDriver) {
             context = iosDriver.getContext();
         } else {
             WebDriverElementActions.failAction(driver, null);
@@ -524,12 +524,12 @@ public class WebDriverElementActions {
         List<String> windowHandles = new ArrayList<>();
         if (driver instanceof AndroidDriver androidDriver) {
             windowHandles.addAll(androidDriver.getContextHandles());
-        }else if (driver instanceof IOSDriver iosDriver){
+        } else if (driver instanceof IOSDriver iosDriver) {
             windowHandles.addAll(iosDriver.getContextHandles());
         } else {
             WebDriverElementActions.failAction(driver, null);
         }
-            WebDriverElementActions.passAction(driver);
+        WebDriverElementActions.passAction(driver);
         return windowHandles;
     }
 
@@ -758,7 +758,7 @@ public class WebDriverElementActions {
      * Hovers over the hoverElement then clicks the clickableElement
      *
      * @param driver                  the current instance of Selenium webdriver
-     * @param hoverElementLocator     he locator of the webElement under test upon
+     * @param hoverElementLocator     the locator of the webElement under test upon
      *                                which the hover action will be performed (By
      *                                xpath, id, selector, name ...etc)
      * @param clickableElementLocator the locator of the webElement under test upon
@@ -994,20 +994,20 @@ public class WebDriverElementActions {
     public static void setContext(WebDriver driver, String context) {
         if (driver instanceof AndroidDriver androidDriver) {
             androidDriver.context(context);
-        }else if (driver instanceof IOSDriver iosDriver){
+        } else if (driver instanceof IOSDriver iosDriver) {
             iosDriver.context(context);
         } else {
             WebDriverElementActions.failAction(driver, context, null);
         }
-            WebDriverElementActions.passAction(driver, context);
+        WebDriverElementActions.passAction(driver, context);
+    }
+
+    protected static WebDriver getLastUsedDriver() {
+        return lastUsedDriver;
     }
 
     public static void setLastUsedDriver(WebDriver driver) {
         lastUsedDriver = driver;
-    }
-    
-    protected static WebDriver getLastUsedDriver() {
-    	return lastUsedDriver;
     }
 
     /**
@@ -1219,8 +1219,8 @@ public class WebDriverElementActions {
                 //this happens when the file path doesn't exist
                 failAction(driver, internalAbsoluteFilePath, internalElementLocator, e);
 
-            } catch (ElementNotInteractableException|NoSuchElementException exception1) {
-            	ElementActionsHelper.changeWebElementVisibilityUsingJavascript(driver, internalElementLocator, true);
+            } catch (ElementNotInteractableException | NoSuchElementException exception1) {
+                ElementActionsHelper.changeWebElementVisibilityUsingJavascript(driver, internalElementLocator, true);
                 try {
                     driver.findElement(internalElementLocator).sendKeys(internalAbsoluteFilePath);
                 } catch (WebDriverException rootCauseException) {
@@ -1230,7 +1230,7 @@ public class WebDriverElementActions {
                     failAction(driver, internalAbsoluteFilePath, internalElementLocator, rootCauseException);
                 }
                 try {
-                	ElementActionsHelper.changeWebElementVisibilityUsingJavascript(driver, internalElementLocator, false);
+                    ElementActionsHelper.changeWebElementVisibilityUsingJavascript(driver, internalElementLocator, false);
                 } catch (NoSuchElementException | StaleElementReferenceException e) {
                     // this exception is sometimes thrown on firefox after the upload has been
                     // successful, since we don't have to return the style to what it was, then it's
@@ -1416,7 +1416,7 @@ public class WebDriverElementActions {
             if (ATTEMPT_CLEAR_BEFORE_TYPING_USING_BACKSPACE) {
                 String elementText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator,
                         successfulTextLocationStrategy);
-                for (var character:elementText.toCharArray()) {
+                for (var character : elementText.toCharArray()) {
                     driver.findElement(elementLocator).sendKeys(Keys.BACK_SPACE);
                 }
             }
@@ -1445,14 +1445,14 @@ public class WebDriverElementActions {
 
         // fixing https://github.com/MohabMohie/SHAFT_ENGINE/issues/533
         String content = "";
-        try{
+        try {
             content = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.CONTENT.getValue());
         } catch (Exception exception) {
             // ignore exception
         }
 
         String value = "";
-        try{
+        try {
             value = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.VALUE.getValue());
         } catch (Exception exception) {
             // ignore exception
@@ -1500,7 +1500,7 @@ public class WebDriverElementActions {
             }
         }
 
-        // not null AND not html AND ai self healing is enabled
+        // not null AND not html AND AI self-healing is enabled
         return getMatchingElementsCountAI(driver, elementLocator, numberOfAttempts.orElse(1));
     }
 
@@ -1543,9 +1543,9 @@ public class WebDriverElementActions {
         internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
 
         int matchingElementsCount = getMatchingElementsCount(driver, elementLocator, Optional.empty(), Optional.of(checkForVisibility));
-        if (elementLocator instanceof RelativeLocator.RelativeBy relativeLocator){
+        if (elementLocator instanceof RelativeLocator.RelativeBy relativeLocator) {
             return matchingElementsCount >= 1;
-        }else {
+        } else {
             if (internalElementLocator != null) {
                 // unique element found
                 switch (matchingElementsCount) {
@@ -1602,17 +1602,12 @@ public class WebDriverElementActions {
         try {
             switch (action.toLowerCase()) {
                 case "copy":
-//                    (Toolkit.getDefaultToolkit().getSystemClipboard())
-//                            .setContents((new StringSelection(getText(driver, elementLocator))), null);
                     (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "c")).perform();
                     break;
                 case "paste":
-//                    pasteFromClipboard(driver, elementLocator);
                     (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "v")).perform();
                     break;
                 case "cut":
-//                    (Toolkit.getDefaultToolkit().getSystemClipboard())
-//                            .setContents((new StringSelection(getText(driver, elementLocator))), null);
                     (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "x")).perform();
                     type(driver, elementLocator, "");
                     break;
@@ -1730,7 +1725,7 @@ public class WebDriverElementActions {
         }
 
         ReportManager.logDiscrete(message);
-        message = message.replace("Element Action: ","");
+        message = message.replace("Element Action: ", "");
         if (!attachments.equals(new ArrayList<>())) {
             ReportManagerHelper.log(message, attachments);
         } else {
@@ -1762,7 +1757,7 @@ public class WebDriverElementActions {
             }
 
 //            if (!successfulTextLocationStrategy.equals(TextDetectionStrategy.UNDEFINED)) {
-                clearBeforeTyping(driver, internalElementLocator, successfulTextLocationStrategy);
+            clearBeforeTyping(driver, internalElementLocator, successfulTextLocationStrategy);
 //            }
             if (!"".equals(targetText)) {
                 performType(driver, internalElementLocator, targetText);

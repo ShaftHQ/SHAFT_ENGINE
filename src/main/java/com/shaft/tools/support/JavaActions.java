@@ -40,13 +40,13 @@ public class JavaActions {
         return text;
     }
 
-    public static String removeSpecialCharacters(String text){
+    public static String removeSpecialCharacters(String text) {
         StringBuilder cleanString = new StringBuilder();
-        for (int i=0; i< text.toCharArray().length; i++){
+        for (int i = 0; i < text.toCharArray().length; i++) {
             var character = String.valueOf(text.toCharArray()[i]);
-            if(Pattern.compile("[^a-z0-9]", Pattern.CASE_INSENSITIVE).matcher(character).find()){
+            if (Pattern.compile("[^a-z0-9]", Pattern.CASE_INSENSITIVE).matcher(character).find()) {
                 cleanString.append("_");
-            }else{
+            } else {
                 cleanString.append(character);
             }
         }

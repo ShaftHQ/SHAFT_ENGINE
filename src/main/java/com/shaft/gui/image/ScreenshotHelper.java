@@ -23,9 +23,9 @@ public class ScreenshotHelper {
     private ScreenshotHelper() {
         throw new IllegalStateException("Utility class");
     }
-    
+
     protected static byte[] makeFullScreenshot(Page page) {
-    	return page.screenshot(new ScreenshotOptions().setFullPage(true));
+        return page.screenshot(new ScreenshotOptions().setFullPage(true));
     }
 
     protected static Object sendCommand(ChromiumDriver chromiumDriver, String cmd, Object params) {
@@ -34,15 +34,15 @@ public class ScreenshotHelper {
 
     protected static Object sendEvaluate(ChromiumDriver chromiumDriver, String script) {
         Object response = sendCommand(chromiumDriver, "Runtime.evaluate", ImmutableMap.of("returnByValue", true, "expression", script));
-        Object result = ((Map<String, ?>)response).get("result");
-        return ((Map<String, ?>)result).get("value");
+        Object result = ((Map<String, ?>) response).get("result");
+        return ((Map<String, ?>) result).get("value");
     }
 
     protected static byte[] makeFullScreenshot(WebDriver driver, WebElement... skipElements) throws IOException {
         if (driver instanceof FirefoxDriver firefoxDriver) {
             return firefoxDriver.getFullPageScreenshotAs(OutputType.BYTES);
-        } else if (driver instanceof ChromiumDriver chromiumDriver){
-            Map<String,Object> page_rect = chromiumDriver.executeCdpCommand("Page.getLayoutMetrics", new HashMap<>());
+        } else if (driver instanceof ChromiumDriver chromiumDriver) {
+            Map<String, Object> page_rect = chromiumDriver.executeCdpCommand("Page.getLayoutMetrics", new HashMap<>());
             Map<String, Object> contentSize = (Map<String, Object>) page_rect.get("contentSize");
             Number contentWidth = (Number) contentSize.get("width");
             Number contentHeight = (Number) contentSize.get("height");
@@ -52,14 +52,14 @@ public class ScreenshotHelper {
             clip.put("x", 0);
             clip.put("y", 0);
             clip.put("scale", 1);
-            Map<String,Object> screenshot_config = new HashMap<>();
+            Map<String, Object> screenshot_config = new HashMap<>();
             screenshot_config.put("captureBeyondViewport", true);
             screenshot_config.put("fromSurface", true);
             screenshot_config.put("clip", clip);
             var result = chromiumDriver.executeCdpCommand("Page.captureScreenshot", screenshot_config);
-            String base64EncodedPng = (String)((Map<String, ?>)result).get("data");
+            String base64EncodedPng = (String) ((Map<String, ?>) result).get("data");
             return OutputType.BYTES.convertFromBase64Png(base64EncodedPng);
-        }else {
+        } else {
             // scroll up first to start taking screenshots
             scrollVerticallyTo(driver, 0);
             hideScroll(driver);

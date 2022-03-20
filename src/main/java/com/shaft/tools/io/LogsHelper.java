@@ -13,36 +13,6 @@ import java.util.Arrays;
 import java.util.Date;
 
 public class LogsHelper {
-    //TODO: migrate invokedMethodListener, SuiteListener to annotations here?
-    @BeforeSuite
-    public void setupActivities(ITestContext testContext){
-        ProjectStructureManager.initialize();
-        ReportManagerHelper.initializeAllureReportingEnvironment();
-        ReportManagerHelper.initializeExtentReportingEnvironment();
-        attachImportantLinks();
-        attachPropertyFiles();
-        ReportManagerHelper.generateJDKShellFilesToProjectDirectory();
-        var suite=testContext.getSuite();
-        if (!(suite.getAllMethods().size() == 1 && suite.getAllMethods().get(0).getMethodName().equals("runScenario"))) {
-            // not cucumber test runner
-            ReportManagerHelper.setTotalNumberOfTests(suite.getAllMethods().size());
-        }
-        ReportManagerHelper.setDiscreteLogging(Boolean.parseBoolean(System.getProperty("alwaysLogDiscreetly")));
-        ReportManagerHelper.setDebugMode(Boolean.valueOf(System.getProperty("debugMode")));
-
-    }
-
-    @AfterSuite
-    public void teardownActivities() {
-        closeAllDriversAndattachBrowserLogs();
-        attachFullLogs();
-        attachCucumberReport();
-        attachExtentReport();
-        ReportManagerHelper.setDiscreteLogging(true);
-        ReportManagerHelper.generateAllureReportArchive();
-        ReportManagerHelper.openAllureReportAfterExecution();
-    }
-
     public static void attachFullLogs() {
         String executionEndTimestamp = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
         ReportManagerHelper.attachIssuesLog(executionEndTimestamp);
@@ -103,6 +73,36 @@ public class LogsHelper {
         if (Boolean.parseBoolean(System.getProperty("generateExtentReports").trim()) && FileActions.doesFileExist(ReportManagerHelper.getExtentReportFileName())) {
             ReportManagerHelper.attach("HTML", "Extent Emailable Execution Report", FileActions.readFromFile(ReportManagerHelper.getExtentReportFileName()));
         }
+    }
+
+    //TODO: migrate invokedMethodListener, SuiteListener to annotations here?
+    @BeforeSuite
+    public void setupActivities(ITestContext testContext) {
+        ProjectStructureManager.initialize();
+        ReportManagerHelper.initializeAllureReportingEnvironment();
+        ReportManagerHelper.initializeExtentReportingEnvironment();
+        attachImportantLinks();
+        attachPropertyFiles();
+        ReportManagerHelper.generateJDKShellFilesToProjectDirectory();
+        var suite = testContext.getSuite();
+        if (!(suite.getAllMethods().size() == 1 && suite.getAllMethods().get(0).getMethodName().equals("runScenario"))) {
+            // not cucumber test runner
+            ReportManagerHelper.setTotalNumberOfTests(suite.getAllMethods().size());
+        }
+        ReportManagerHelper.setDiscreteLogging(Boolean.parseBoolean(System.getProperty("alwaysLogDiscreetly")));
+        ReportManagerHelper.setDebugMode(Boolean.valueOf(System.getProperty("debugMode")));
+
+    }
+
+    @AfterSuite
+    public void teardownActivities() {
+        closeAllDriversAndattachBrowserLogs();
+        attachFullLogs();
+        attachCucumberReport();
+        attachExtentReport();
+        ReportManagerHelper.setDiscreteLogging(true);
+        ReportManagerHelper.generateAllureReportArchive();
+        ReportManagerHelper.openAllureReportAfterExecution();
     }
 
 }

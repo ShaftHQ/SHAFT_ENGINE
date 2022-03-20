@@ -14,20 +14,20 @@ public class ReportManager {
      * @param logText the text that will be logged by action
      */
     public static void log(String logText) {
-            if (getDiscreteLogging() && !logText.toLowerCase().contains("failed") && isInternalStep()) {
-                createLogEntry(logText);
-            } else {
-                writeStepToReport(logText);
-            }
+        if (getDiscreteLogging() && !logText.toLowerCase().contains("failed") && isInternalStep()) {
+            createLogEntry(logText);
+        } else {
+            writeStepToReport(logText);
+        }
     }
 
     /**
-     * Creates a custom log entry that will not be added as a step in the execution report but you can see it in the attached execution log txt file
+     * Creates a custom log entry that will not be added as a step in the execution report, but you can see it in the attached execution log txt file
      *
      * @param logText the text that will be logged by action
      */
     public static void logDiscrete(String logText) {
-            createLogEntry(logText);
+        createLogEntry(logText);
     }
 
 }

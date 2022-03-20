@@ -1,13 +1,13 @@
 package com.shaft.validation;
 
 public class FileValidationsBuilder {
-    protected ValidationEnums.ValidationCategory validationCategory;
+    protected final ValidationEnums.ValidationCategory validationCategory;
     protected String validationMethod;
     protected ValidationEnums.ValidationType validationType;
-    protected String folderRelativePath;
-    protected String fileName;
+    protected final String folderRelativePath;
+    protected final String fileName;
 
-    protected StringBuilder reportMessageBuilder;
+    protected final StringBuilder reportMessageBuilder;
 
     public FileValidationsBuilder(ValidationEnums.ValidationCategory validationCategory, String folderRelativePath, String fileName, StringBuilder reportMessageBuilder) {
         this.validationCategory = validationCategory;
@@ -19,6 +19,7 @@ public class FileValidationsBuilder {
 
     /**
      * Use this to check if a certain file exists
+     *
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
     public ValidationsExecutor exists() {
@@ -30,6 +31,7 @@ public class FileValidationsBuilder {
 
     /**
      * Use this to check if a certain file does not exist
+     *
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
     public ValidationsExecutor doesNotExist() {
@@ -41,6 +43,7 @@ public class FileValidationsBuilder {
 
     /**
      * Use this to calculate and check a certain file checksum to confirm if it has the exact same content or not
+     *
      * @return a NativeValidationsBuilder object to continue building your validation
      */
     public NativeValidationsBuilder checksum() {
@@ -51,9 +54,10 @@ public class FileValidationsBuilder {
 
     /**
      * Use this to attempt to read and validate a certain file content (works for PDF and TEXT files)
+     *
      * @return a NativeValidationsBuilder object to continue building your validation
      */
-    public NativeValidationsBuilder content(){
+    public NativeValidationsBuilder content() {
         this.validationMethod = "fileContent";
         reportMessageBuilder.append("content ");
         return new NativeValidationsBuilder(this);

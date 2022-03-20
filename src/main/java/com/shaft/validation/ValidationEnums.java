@@ -11,7 +11,7 @@ public class ValidationEnums {
             this.value = type;
         }
 
-        protected boolean getValue() {
+        boolean getValue() {
             return value;
         }
     }
@@ -25,7 +25,7 @@ public class ValidationEnums {
             this.value = type;
         }
 
-        protected int getValue() {
+        int getValue() {
             return value;
         }
     }
@@ -52,7 +52,7 @@ public class ValidationEnums {
             this.value = type;
         }
 
-        protected String getValue() {
+        String getValue() {
             return value;
         }
     }
@@ -66,7 +66,7 @@ public class ValidationEnums {
             this.value = type;
         }
 
-        protected boolean getValue() {
+        boolean getValue() {
             return value;
         }
     }
@@ -80,7 +80,7 @@ public class ValidationEnums {
             this.value = type;
         }
 
-        protected String getValue() {
+        String getValue() {
             return value;
         }
     }
@@ -94,7 +94,7 @@ public class ValidationEnums {
             this.value = type;
         }
 
-        protected String getValue() {
+        String getValue() {
             return value;
         }
     }

@@ -21,7 +21,10 @@ import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
-import com.shaft.tools.io.*;
+import com.shaft.tools.io.LogsHelper;
+import com.shaft.tools.io.ProjectStructureManager;
+import com.shaft.tools.io.PropertyFileManager;
+import com.shaft.tools.io.ReportManagerHelper;
 import io.cucumber.core.feature.FeatureParser;
 import io.cucumber.core.resource.Resource;
 import io.cucumber.messages.types.Examples;
@@ -33,35 +36,21 @@ import io.cucumber.plugin.event.*;
 import io.qameta.allure.Allure;
 import io.qameta.allure.AllureLifecycle;
 import io.qameta.allure.cucumber7jvm.testsourcemodel.TestSourcesModelProxy;
-import io.qameta.allure.model.FixtureResult;
-import io.qameta.allure.model.Parameter;
 import io.qameta.allure.model.Status;
-import io.qameta.allure.model.StatusDetails;
-import io.qameta.allure.model.StepResult;
-import io.qameta.allure.model.TestResult;
-import io.qameta.allure.model.TestResultContainer;
+import io.qameta.allure.model.*;
 import org.testng.Reporter;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.Deque;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static io.qameta.allure.util.ResultsUtils.createParameter;
-import static io.qameta.allure.util.ResultsUtils.getStatus;
-import static io.qameta.allure.util.ResultsUtils.getStatusDetails;
-import static io.qameta.allure.util.ResultsUtils.md5;
+import static io.qameta.allure.util.ResultsUtils.*;
 
 /**
  * Allure plugin for Cucumber JVM 7.0.
@@ -74,17 +63,18 @@ import static io.qameta.allure.util.ResultsUtils.md5;
 })
 public class CucumberFeatureListener implements ConcurrentEventListener {
 
+    private static final String TXT_EXTENSION = ".txt";
+    private static final String TEXT_PLAIN = "text/plain";
+    private static String lastStartedScenarioName;
+    private static Boolean isLastFinishedStepOK;
     private final AllureLifecycle lifecycle;
-
     private final ConcurrentHashMap<String, String> scenarioUuids = new ConcurrentHashMap<>();
     private final TestSourcesModelProxy testSources = new TestSourcesModelProxy();
-
     private final ThreadLocal<Feature> currentFeature = new InheritableThreadLocal<>();
     private final ThreadLocal<URI> currentFeatureFile = new InheritableThreadLocal<>();
     private final ThreadLocal<TestCase> currentTestCase = new InheritableThreadLocal<>();
     private final ThreadLocal<String> currentContainer = new InheritableThreadLocal<>();
     private final ThreadLocal<Boolean> forbidTestCaseStatusChange = new InheritableThreadLocal<>();
-
     private final EventHandler<TestSourceRead> featureStartedHandler = this::handleFeatureStartedHandler;
     private final EventHandler<TestCaseStarted> caseStartedHandler = this::handleTestCaseStarted;
     private final EventHandler<TestCaseFinished> caseFinishedHandler = this::handleTestCaseFinished;
@@ -93,19 +83,6 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
     private final EventHandler<WriteEvent> writeEventHandler = this::handleWriteEvent;
     private final EventHandler<EmbedEvent> embedEventHandler = this::handleEmbedEvent;
 
-    private static final String TXT_EXTENSION = ".txt";
-    private static final String TEXT_PLAIN = "text/plain";
-
-    private static String lastStartedScenarioName;
-    public static String getLastStartedScenarioName(){
-        return lastStartedScenarioName;
-    }
-
-    private static Boolean isLastFinishedStepOK;
-    public static Boolean getIsLastFinishedStepOK(){
-        return isLastFinishedStepOK;
-    }
-
     @SuppressWarnings("unused")
     public CucumberFeatureListener() {
         this(Allure.getLifecycle());
@@ -113,6 +90,14 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
 
     public CucumberFeatureListener(final AllureLifecycle lifecycle) {
         this.lifecycle = lifecycle;
+    }
+
+    public static String getLastStartedScenarioName() {
+        return lastStartedScenarioName;
+    }
+
+    public static Boolean getIsLastFinishedStepOK() {
+        return isLastFinishedStepOK;
     }
 
     /*
@@ -197,19 +182,19 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
         lastStartedScenarioName = scenarioDefinition.getName();
         ReportManagerHelper.setTestCaseName(lastStartedScenarioName);
         ReportManagerHelper.setTestCaseDescription(scenarioDefinition.getDescription());
-        if (Boolean.parseBoolean(System.getProperty("generateExtentReports").trim())){
+        if (Boolean.parseBoolean(System.getProperty("generateExtentReports").trim())) {
             ReportManagerHelper.extentReportsCreateTest(feature.getName(), feature.getDescription());
         }
         var testCase = event.getTestCase();
-        var scenarioSteps = new StringBuilder();
+//        var scenarioSteps = new StringBuilder();
         var cleanScenarioSteps = new StringBuilder();
         testCase.getTestSteps().forEach(testStep -> {
             if (testStep instanceof PickleStepTestStep pickleStepTestStep) {
-                scenarioSteps.append("<b style=\"color:ForestGreen;\">")
-                        .append(pickleStepTestStep.getStep().getKeyword())
-                        .append("</b>")
-                        .append(pickleStepTestStep.getStep().getText())
-                        .append("<br/>");
+//                scenarioSteps.append("<b style=\"color:ForestGreen;\">")
+//                        .append(pickleStepTestStep.getStep().getKeyword())
+//                        .append("</b>")
+//                        .append(pickleStepTestStep.getStep().getText())
+//                        .append("<br/>");
                 cleanScenarioSteps.append(pickleStepTestStep.getStep().getKeyword())
                         .append(pickleStepTestStep.getStep().getText())
                         .append(System.lineSeparator());
@@ -254,8 +239,7 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
     }
 
     private void handleTestStepStarted(final TestStepStarted event) {
-        if (event.getTestStep() instanceof PickleStepTestStep) {
-            final PickleStepTestStep pickleStep = (PickleStepTestStep) event.getTestStep();
+        if (event.getTestStep() instanceof final PickleStepTestStep pickleStep) {
             final String stepKeyword = Optional.ofNullable(
                     testSources.getKeywordFromSource(currentFeatureFile.get(), pickleStep.getStep().getLine())
             ).orElse("UNDEFINED");
@@ -267,26 +251,13 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
             lifecycle.startStep(getTestCaseUuid(currentTestCase.get()), getStepUuid(pickleStep), stepResult);
 
             final StepArgument stepArgument = pickleStep.getStep().getArgument();
-            if (stepArgument instanceof DataTableArgument) {
-                final DataTableArgument dataTableArgument = (DataTableArgument) stepArgument;
+            if (stepArgument instanceof final DataTableArgument dataTableArgument) {
                 createDataTableAttachment(dataTableArgument);
             }
         } else if (event.getTestStep() instanceof HookTestStep) {
             initHook((HookTestStep) event.getTestStep());
         }
 
-//        //custom code
-//        var testStep = event.getTestStep();
-//
-//        if (testStep instanceof HookTestStep hookTestStep) {
-//            ReportManager.logDiscrete("Scenario Hook: " + hookTestStep.getHookType().name());
-//            lastStartedStepName = hookTestStep.getHookType().name();
-//        }
-//
-//        if (testStep instanceof PickleStepTestStep pickleStepTestStep) {
-//            ReportManager.logDiscrete("Scenario Step: " + pickleStepTestStep.getStep().getKeyword() + pickleStepTestStep.getStep().getText());
-//            lastStartedStepName = pickleStepTestStep.getStep().getKeyword() + pickleStepTestStep.getStep().getText();
-//        }
     }
 
     private void initHook(final HookTestStep hook) {
@@ -384,7 +355,7 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
                         )
                         .findFirst();
 
-        if (!maybeExample.isPresent()) {
+        if (maybeExample.isEmpty()) {
             return Collections.emptyList();
         }
 
@@ -394,7 +365,7 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
                 .filter(example -> example.getLocation().getLine() == localCurrentTestCase.getLocation().getLine())
                 .findFirst();
 
-        if (!maybeRow.isPresent()) {
+        if (maybeRow.isEmpty()) {
             return Collections.emptyList();
         }
 
@@ -511,6 +482,7 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
             }
         });
     }
+
     private Optional<io.cucumber.core.gherkin.Feature> getFeature(URI uri) {
         var featureParser = new FeatureParser(() -> new UUID(10, 1));
         return featureParser.parseResource(new Resource() {
@@ -526,7 +498,7 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
         });
     }
 
-    private void shaftSetup(){
+    private void shaftSetup() {
         if (Reporter.getCurrentTestResult() == null) {
             // running in native Cucumber mode
             System.setProperty("disableLogging", "true");
@@ -545,7 +517,7 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
         }
     }
 
-    private void shaftTeardown(){
+    private void shaftTeardown() {
         if (Reporter.getCurrentTestResult() == null) {
             // running in native Cucumber mode
             LogsHelper.closeAllDriversAndattachBrowserLogs();

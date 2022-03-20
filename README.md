@@ -5,8 +5,8 @@
 ![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/MohabMohie/shaft_engine?include_prereleases&label=Latest%20Release&style=for-the-badge)
   [![Maven Central](https://img.shields.io/maven-central/v/io.github.mohabmohie/SHAFT_ENGINE?style=for-the-badge)](https://search.maven.org/search?q=g:%22io.github.mohabmohie%22%20AND%20a:%22SHAFT_ENGINE%22)
 
-[![Codacy grade](https://img.shields.io/codacy/grade/3579cfd02a2c4f67bd1dce5dad0b1562?style=for-the-badge)](https://www.codacy.com/manual/mohab.mohieeldeen/SHAFT_ENGINE?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=MohabMohie/SHAFT_ENGINE&amp;utm_campaign=Badge_Grade)
- [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/MohabMohie/SHAFT_Engine/CodeQL?label=CodeQL&style=for-the-badge)](https://github.com/MohabMohie/SHAFT_ENGINE/actions?query=workflow%3ACodeQL)
+[![Codacy grade](https://img.shields.io/codacy/grade/3579cfd02a2c4f67bd1dce5dad0b1562?style=for-the-badge)](https://app.codacy.com/gh/MohabMohie/SHAFT_ENGINE/dashboard)
+[![GitHub Workflow Status](https://img.shields.io/github/workflow/status/MohabMohie/SHAFT_Engine/CodeQL?label=CodeQL&style=for-the-badge)](https://github.com/MohabMohie/SHAFT_ENGINE/actions?query=workflow%3ACodeQL)
  [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/MohabMohie/SHAFT_Engine/Ubuntu%20-%20Test?label=Ubuntu%20-%20Test&style=for-the-badge)](https://github.com/MohabMohie/SHAFT_ENGINE/actions?query=workflow%3A%22Ubuntu+-+Test%22)
 
 ### Important Links:

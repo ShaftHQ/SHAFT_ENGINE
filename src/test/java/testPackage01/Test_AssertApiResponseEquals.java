@@ -1,12 +1,10 @@
 package testPackage01;
-import org.testng.annotations.Test;
 
 import com.shaft.api.RestActions;
 import com.shaft.api.RestActions.RequestType;
-import com.shaft.validation.Assertions;
-import com.shaft.validation.Verifications;
-
+import com.shaft.validation.Validations;
 import io.restassured.response.Response;
+import org.testng.annotations.Test;
 
 public class Test_AssertApiResponseEquals {
     @Test
@@ -15,8 +13,8 @@ public class Test_AssertApiResponseEquals {
         Response users = apiObject.buildNewRequest("/users", RequestType.GET).setTargetStatusCode(200).performRequest();
         RestActions.getResponseJSONValueAsList(users, "$").forEach(user -> {
             if (RestActions.getResponseJSONValue(user, "name").equals("Leanne Graham")) {
-                Verifications.verifyApiResponseEquals(user, "Sincere@april.biz", "email");
-                Assertions.assertApiResponseEquals(user, "Bret", "username");
+                Validations.verifyThat().response(user).extractedJsonValue("email").isEqualTo("Sincere@april.biz").perform();
+                Validations.assertThat().response(user).extractedJsonValue("username").isEqualTo("Bret").perform();
             }
         });
     }

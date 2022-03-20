@@ -54,33 +54,34 @@ public class TouchActions {
      */
     public TouchActions nativeKeyboardKeyPress(KeyboardKeys key) {
         try {
-            ((AppiumDriver)driver).executeScript("mobile: performEditorAction", key.getValue());
+            ((AppiumDriver) driver).executeScript("mobile: performEditorAction", key.getValue());
             WebDriverElementActions.passAction(driver, null, key.name());
         } catch (Exception rootCauseException) {
             WebDriverElementActions.failAction(driver, null, rootCauseException);
         }
         return this;
     }
-    
+
     /**
      * Hides the device native soft keyboard.
-     * 
+     *
      * @return a self-reference to be used to chain actions
      */
     public TouchActions hideNativeKeyboard() {
         try {
-            if (driver instanceof AndroidDriver androidDriver){
+            if (driver instanceof AndroidDriver androidDriver) {
                 androidDriver.hideKeyboard();
-            }else if (driver instanceof IOSDriver iosDriver){
+            } else if (driver instanceof IOSDriver iosDriver) {
                 iosDriver.hideKeyboard();
-            }else{
+            } else {
                 WebDriverElementActions.failAction(driver, null);
             }
         } catch (Exception rootCauseException) {
             WebDriverElementActions.failAction(driver, null, rootCauseException);
         }
         WebDriverElementActions.passAction(driver, null);
-        return this;    }
+        return this;
+    }
 
     /**
      * Taps an element once on a touch-enabled screen
@@ -144,15 +145,15 @@ public class TouchActions {
             String elementText = "";
             if (CAPTURE_CLICKED_ELEMENT_TEXT) {
                 try {
-                    if (DriverFactoryHelper.isMobileNativeExecution()){
-                    elementText = driver.findElement(internalElementLocator).getAttribute("text");
-                } else{
-                    elementText = driver.findElement(internalElementLocator).getText();
+                    if (DriverFactoryHelper.isMobileNativeExecution()) {
+                        elementText = driver.findElement(internalElementLocator).getAttribute("text");
+                    } else {
+                        elementText = driver.findElement(internalElementLocator).getText();
+                    }
+                } catch (Exception e) {
+                    // do nothing
                 }
-            } catch(Exception e){
-                // do nothing
             }
-        }
             List<Object> screenshot = WebDriverElementActions.takeScreenshot(driver, internalElementLocator, "tap", null, true);
             // takes screenshot before clicking the element out of view
 
@@ -169,7 +170,7 @@ public class TouchActions {
                 WebDriverElementActions.failAction(driver, internalElementLocator, e);
             }
 
-            if (elementText == null || elementText.equals("")){
+            if (elementText == null || elementText.equals("")) {
                 elementText = internalElementLocator.toString();
             }
             WebDriverElementActions.passAction(driver, internalElementLocator, elementText.replaceAll("\n", " "), screenshot);
@@ -275,104 +276,104 @@ public class TouchActions {
         }
         return this;
     }
-    
+
     /**
      * Send the currently active app to the background, and return after a certain number of seconds.
-     * 
-     * @param secondsToSpendInTheBackground number of seconds before returning back to the app
+     *
+     * @param secondsToSpendInTheBackground number of seconds before returning to the app
      * @return a self-reference to be used to chain actions
      */
     public TouchActions sendAppToBackground(int secondsToSpendInTheBackground) {
-    		if (DriverFactoryHelper.isMobileNativeExecution()) {
-                if (driver instanceof AndroidDriver androidDriver){
-                    androidDriver.runAppInBackground(Duration.ofSeconds(secondsToSpendInTheBackground));
-                }else if (driver instanceof IOSDriver iosDriver){
-                    iosDriver.runAppInBackground(Duration.ofSeconds(secondsToSpendInTheBackground));
-                }else{
-                    WebDriverElementActions.failAction(driver, null);
-                }
-                WebDriverElementActions.passAction(driver, null);
-            }else {
+        if (DriverFactoryHelper.isMobileNativeExecution()) {
+            if (driver instanceof AndroidDriver androidDriver) {
+                androidDriver.runAppInBackground(Duration.ofSeconds(secondsToSpendInTheBackground));
+            } else if (driver instanceof IOSDriver iosDriver) {
+                iosDriver.runAppInBackground(Duration.ofSeconds(secondsToSpendInTheBackground));
+            } else {
                 WebDriverElementActions.failAction(driver, null);
-    		}
-            return this;
+            }
+            WebDriverElementActions.passAction(driver, null);
+        } else {
+            WebDriverElementActions.failAction(driver, null);
+        }
+        return this;
     }
-    
+
     /**
      * Send the currently active app to the background and leave the app deactivated.
-     * 
+     *
      * @return a self-reference to be used to chain actions
      */
     public TouchActions sendAppToBackground() {
-    	return sendAppToBackground(-1);
+        return sendAppToBackground(-1);
     }
-    
+
     /**
      * Activates an app that has been previously deactivated or sent to the background.
-     * 
+     *
      * @param appPackageName the full name for the app package that you want to activate. for example [com.apple.Preferences] or [io.appium.android.apis]
      * @return a self-reference to be used to chain actions
      */
     public TouchActions activateAppFromBackground(String appPackageName) {
-		if (DriverFactoryHelper.isMobileNativeExecution()) {
-            if (driver instanceof AndroidDriver androidDriver){
+        if (DriverFactoryHelper.isMobileNativeExecution()) {
+            if (driver instanceof AndroidDriver androidDriver) {
                 androidDriver.activateApp(appPackageName);
-            }else if (driver instanceof IOSDriver iosDriver){
+            } else if (driver instanceof IOSDriver iosDriver) {
                 iosDriver.activateApp(appPackageName);
-            }else{
+            } else {
                 WebDriverElementActions.failAction(driver, null);
             }
             WebDriverElementActions.passAction(driver, null);
-        }else {
+        } else {
             WebDriverElementActions.failAction(driver, null);
-		}
-		return this;
+        }
+        return this;
     }
-    
+
     /**
      * Close the app which was provided in the capabilities at session creation and quits the session. Then re-Launches the app and restarts the session.
-     * 
+     *
      * @return a self-reference to be used to chain actions
      */
     @Deprecated(forRemoval = true)
     public TouchActions restartApp() {
-		if (DriverFactoryHelper.isMobileNativeExecution()) {
-            if (driver instanceof AndroidDriver androidDriver){
+        if (DriverFactoryHelper.isMobileNativeExecution()) {
+            if (driver instanceof AndroidDriver androidDriver) {
                 androidDriver.closeApp();
                 androidDriver.launchApp();
-            }else if (driver instanceof IOSDriver iosDriver){
+            } else if (driver instanceof IOSDriver iosDriver) {
                 iosDriver.closeApp();
                 iosDriver.launchApp();
-            }else {
+            } else {
                 WebDriverElementActions.failAction(driver, null);
             }
             WebDriverElementActions.passAction(driver, null);
-        }else {
-	        WebDriverElementActions.failAction(driver, null);
-		}
-		return this;
+        } else {
+            WebDriverElementActions.failAction(driver, null);
+        }
+        return this;
     }
-    
+
     /**
      * Resets the currently running app together with the session.
-     * 
+     *
      * @return a self-reference to be used to chain actions
      */
     @Deprecated(forRemoval = true)
     public TouchActions resetApp() {
-		if (DriverFactoryHelper.isMobileNativeExecution()) {
-            if (driver instanceof AndroidDriver androidDriver){
+        if (DriverFactoryHelper.isMobileNativeExecution()) {
+            if (driver instanceof AndroidDriver androidDriver) {
                 androidDriver.resetApp();
-            }else if (driver instanceof IOSDriver iosDriver){
+            } else if (driver instanceof IOSDriver iosDriver) {
                 iosDriver.resetApp();
-            }else {
+            } else {
                 WebDriverElementActions.failAction(driver, null);
             }
             WebDriverElementActions.passAction(driver, null);
-        }else {
-	        WebDriverElementActions.failAction(driver, null);
-		}
-		return this;
+        } else {
+            WebDriverElementActions.failAction(driver, null);
+        }
+        return this;
     }
 
     /**
@@ -478,7 +479,7 @@ public class TouchActions {
         }
         return this;
     }
-    
+
     /**
      * Attempts to scroll the element into view in case of native mobile elements.
      *
@@ -497,7 +498,7 @@ public class TouchActions {
      * @param targetElementLocator the locator of the webElement under test (By xpath, id,
      *                             selector, name ...etc)
      * @param swipeDirection       SwipeDirection.DOWN, UP, RIGHT, or LEFT
-     * @param swipeTechnique		SwipeTechnique.TOUCH_ACTIONS, or UI_SELECTOR
+     * @param swipeTechnique       SwipeTechnique.TOUCH_ACTIONS, or UI_SELECTOR
      * @return a self-reference to be used to chain actions
      */
     @Deprecated(forRemoval = true)
@@ -511,7 +512,7 @@ public class TouchActions {
      * @param targetElementLocator            the locator of the webElement under test (By xpath, id,
      *                                        selector, name ...etc)
      * @param swipeDirection                  SwipeDirection.DOWN, UP, RIGHT, or LEFT
-     * @param swipeTechnique		SwipeTechnique.TOUCH_ACTIONS, or UI_SELECTOR
+     * @param swipeTechnique                  SwipeTechnique.TOUCH_ACTIONS, or UI_SELECTOR
      * @param scrollableElementInstanceNumber in case of multiple scrollable views, insert the instance number here (starts with 0)
      * @return a self-reference to be used to chain actions
      */
@@ -547,10 +548,11 @@ public class TouchActions {
 
     /**
      * Waits until a specific element is now visible on the current screen
+     *
      * @param elementReferenceScreenshot relative path to the reference image from the local object repository
      * @return a self-reference to be used to chain actions
      */
-    public TouchActions waitUntilElementIsVisible(String elementReferenceScreenshot){
+    public TouchActions waitUntilElementIsVisible(String elementReferenceScreenshot) {
         var visualIdentificationObjects = ElementActionsHelper.waitForElementPresence(driver, elementReferenceScreenshot);
         byte[] currentScreenImage = (byte[]) visualIdentificationObjects.get(0);
         byte[] referenceImage = (byte[]) visualIdentificationObjects.get(1);
@@ -565,7 +567,7 @@ public class TouchActions {
 
         if (!Collections.emptyList().equals(coordinates)) {
             WebDriverElementActions.passAction(driver, null, attachments);
-        }else{
+        } else {
             WebDriverElementActions.failAction(driver, "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.", null, attachments);
         }
         return this;
@@ -573,8 +575,9 @@ public class TouchActions {
 
     /**
      * Attempts to scroll element into view using the new W3C compliant actions for android and ios and AI for image identification
+     *
      * @param elementReferenceScreenshot relative path to the reference image from the local object repository
-     * @param swipeDirection                  SwipeDirection.DOWN, UP, RIGHT, or LEFT
+     * @param swipeDirection             SwipeDirection.DOWN, UP, RIGHT, or LEFT
      * @return a self-reference to be used to chain actions
      */
     public TouchActions swipeElementIntoView(String elementReferenceScreenshot, SwipeDirection swipeDirection) {
@@ -583,9 +586,10 @@ public class TouchActions {
 
     /**
      * Attempts to scroll element into view using the new W3C compliant actions for android and ios and AI for image identification
-     * @param scrollableElementLocator the locator of the container/view/scrollable webElement that the scroll action will be performed inside
+     *
+     * @param scrollableElementLocator   the locator of the container/view/scrollable webElement that the scroll action will be performed inside
      * @param elementReferenceScreenshot relative path to the reference image from the local object repository
-     * @param swipeDirection                  SwipeDirection.DOWN, UP, RIGHT, or LEFT
+     * @param swipeDirection             SwipeDirection.DOWN, UP, RIGHT, or LEFT
      * @return a self-reference to be used to chain actions
      */
     public TouchActions swipeElementIntoView(By scrollableElementLocator, String elementReferenceScreenshot, SwipeDirection swipeDirection) {
@@ -638,7 +642,7 @@ public class TouchActions {
             } catch (Exception e) {
                 WebDriverElementActions.failAction(driver, "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.", null, attachments);
             }
-        }else {
+        } else {
             WebDriverElementActions.failAction(driver, internalScrollableElementLocator);
         }
         return this;
@@ -646,10 +650,11 @@ public class TouchActions {
 
     /**
      * Attempts to scroll element into view using the new W3C compliant actions for android and ios
+     *
      * @param scrollableElementLocator the locator of the container/view/scrollable webElement that the scroll action will be performed inside
-     * @param targetElementLocator the locator of the webElement that you want to scroll to under test (By xpath, id,
-     *                             selector, name ...etc)
-     * @param swipeDirection       SwipeDirection.DOWN, UP, RIGHT, or LEFT
+     * @param targetElementLocator     the locator of the webElement that you want to scroll to under test (By xpath, id,
+     *                                 selector, name ...etc)
+     * @param swipeDirection           SwipeDirection.DOWN, UP, RIGHT, or LEFT
      * @return a self-reference to be used to chain actions
      */
     public TouchActions swipeElementIntoView(By scrollableElementLocator, By targetElementLocator, SwipeDirection swipeDirection) {
@@ -677,7 +682,7 @@ public class TouchActions {
             } catch (Exception e) {
                 WebDriverElementActions.failAction(driver, internalTargetElementLocator, e);
             }
-        }else {
+        } else {
             WebDriverElementActions.failAction(driver, internalScrollableElementLocator);
         }
         return this;
@@ -707,10 +712,10 @@ public class TouchActions {
             }
 
             //attempting to change scrolling method if page source was not changed
-            if (lastPageSourceBeforeSwiping.equals(driver.getPageSource())){
-                if (swipeTechnique.equals(SwipeTechnique.W3C_ACTIONS)){
+            if (lastPageSourceBeforeSwiping.equals(driver.getPageSource())) {
+                if (swipeTechnique.equals(SwipeTechnique.W3C_ACTIONS)) {
                     swipeTechnique = SwipeTechnique.UI_SELECTOR;
-                }else{
+                } else {
                     swipeTechnique = SwipeTechnique.W3C_ACTIONS;
                 }
             }
@@ -744,7 +749,7 @@ public class TouchActions {
                 canStillScroll = attemptW3cCompliantActionsScroll(swipeDirection, scrollableElementLocator, null);
                 blindScrollingAttempts++;
             }
-        } while (Boolean.FALSE.equals(isElementFound) && blindScrollingAttempts<DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT && Boolean.TRUE.equals(canStillScroll));
+        } while (Boolean.FALSE.equals(isElementFound) && blindScrollingAttempts < DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT && Boolean.TRUE.equals(canStillScroll));
         ReportManagerHelper.setDiscreteLogging(isDiscrete);
         return visualIdentificationObjects;
     }
@@ -771,29 +776,29 @@ public class TouchActions {
                 canStillScroll = attemptW3cCompliantActionsScroll(swipeDirection, scrollableElementLocator, targetElementLocator);
             }
             blindScrollingAttempts++;
-        } while (Boolean.FALSE.equals(isElementFound) && blindScrollingAttempts<DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT && Boolean.TRUE.equals(canStillScroll));
+        } while (Boolean.FALSE.equals(isElementFound) && blindScrollingAttempts < DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT && Boolean.TRUE.equals(canStillScroll));
         ReportManagerHelper.setDiscreteLogging(isDiscrete);
         return isElementFound;
     }
-    
+
     private void attemptUISelectorScroll(SwipeDirection swipeDirection, int scrollableElementInstanceNumber) {
-    	ReportManager.logDiscrete("Swiping to find Element using UiSelector.");
-		int scrollingSpeed = 100;
-		String scrollDirection = "Forward";
-		ReportManager.logDiscrete("Swiping to find Element using UiSelector.");
-		By androidUIAutomator = AppiumBy
-				.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true).instance("
-						+ scrollableElementInstanceNumber + ")).scroll" + scrollDirection + "(" + scrollingSpeed + ")");
-		WebDriverElementActions.getElementsCount(driver, androidUIAutomator);
+        ReportManager.logDiscrete("Swiping to find Element using UiSelector.");
+        int scrollingSpeed = 100;
+        String scrollDirection = "Forward";
+        ReportManager.logDiscrete("Swiping to find Element using UiSelector.");
+        By androidUIAutomator = AppiumBy
+                .androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true).instance("
+                        + scrollableElementInstanceNumber + ")).scroll" + scrollDirection + "(" + scrollingSpeed + ")");
+        WebDriverElementActions.getElementsCount(driver, androidUIAutomator);
     }
 
     private boolean attemptW3cCompliantActionsScroll(SwipeDirection swipeDirection, By scrollableElementLocator, By targetElementLocator) {
-    	var logMessage = "Swiping to find Element using W3C Compliant Actions. SwipeDirection \""+swipeDirection+"\"";
-        if (targetElementLocator !=null){
-            logMessage+= ", TargetElementLocator \""+targetElementLocator+"\"";
+        var logMessage = "Swiping to find Element using W3C Compliant Actions. SwipeDirection \"" + swipeDirection + "\"";
+        if (targetElementLocator != null) {
+            logMessage += ", TargetElementLocator \"" + targetElementLocator + "\"";
         }
-        if (scrollableElementLocator != null){
-            logMessage += ", inside ScrollableElement \""+scrollableElementLocator+"\"";
+        if (scrollableElementLocator != null) {
+            logMessage += ", inside ScrollableElement \"" + scrollableElementLocator + "\"";
         }
         logMessage += ".";
         ReportManager.logDiscrete(logMessage);
@@ -801,36 +806,37 @@ public class TouchActions {
         Dimension screenSize = driver.manage().window().getSize();
         boolean canScrollMore = true;
 
-        var scrollParameters =  new HashMap<>();
+        var scrollParameters = new HashMap<>();
 
-        if (scrollableElementLocator!=null) {
+        if (scrollableElementLocator != null) {
             //scrolling inside an element
             Rectangle elementRectangle = driver.findElement(scrollableElementLocator).getRect();
             scrollParameters.putAll(ImmutableMap.of(
-                    "height", elementRectangle.getHeight() *90/100
+                    "height", elementRectangle.getHeight() * 90 / 100
             ));
             //percent 0.5 works for UP/DOWN, optimized to 0.8 to scroll faster and introduced delay 1000ms after every scroll action to increase stability
-            switch (swipeDirection){
-                case UP -> scrollParameters.putAll(ImmutableMap.of("percent", 0.8, "height", elementRectangle.getHeight() *90/100, "width", elementRectangle.getWidth(), "left", elementRectangle.getX(), "top", elementRectangle.getHeight() - 100));
-                case DOWN -> scrollParameters.putAll(ImmutableMap.of("percent", 0.8, "height", elementRectangle.getHeight() *90/100, "width", elementRectangle.getWidth(), "left", elementRectangle.getX(), "top", 100));
-                case RIGHT -> scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth()*70/100, "left", 100, "top", elementRectangle.getY()));
-                case LEFT -> scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth(), "left", elementRectangle.getX()+(elementRectangle.getWidth() *50/100), "top", elementRectangle.getY()));
+            switch (swipeDirection) {
+                case UP -> scrollParameters.putAll(ImmutableMap.of("percent", 0.8, "height", elementRectangle.getHeight() * 90 / 100, "width", elementRectangle.getWidth(), "left", elementRectangle.getX(), "top", elementRectangle.getHeight() - 100));
+                case DOWN -> scrollParameters.putAll(ImmutableMap.of("percent", 0.8, "height", elementRectangle.getHeight() * 90 / 100, "width", elementRectangle.getWidth(), "left", elementRectangle.getX(), "top", 100));
+                case RIGHT -> scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth() * 70 / 100, "left", 100, "top", elementRectangle.getY()));
+                case LEFT -> scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth(), "left", elementRectangle.getX() + (elementRectangle.getWidth() * 50 / 100), "top", elementRectangle.getY()));
             }
-        }else{
+        } else {
             //scrolling inside the screen
             scrollParameters.putAll(ImmutableMap.of(
-                    "width", screenSize.getWidth(), "height", screenSize.getHeight() *90/100,
+                    "width", screenSize.getWidth(), "height", screenSize.getHeight() * 90 / 100,
                     "percent", 0.8
             ));
-            switch (swipeDirection){
+            switch (swipeDirection) {
                 case UP -> scrollParameters.putAll(ImmutableMap.of("left", 0, "top", screenSize.getHeight() - 100));
                 case DOWN -> scrollParameters.putAll(ImmutableMap.of("left", 0, "top", 100));
-//                case RIGHT -> scrollParameters.putAll(ImmutableMap.of("left", 100, "top", 0));
-//                case LEFT -> scrollParameters.putAll(ImmutableMap.of("left", screenSize.getWidth() - 100, "top", 0));
+                // expected issues with RIGHT and LEFT
+                case RIGHT -> scrollParameters.putAll(ImmutableMap.of("left", 100, "top", 0));
+                case LEFT -> scrollParameters.putAll(ImmutableMap.of("left", screenSize.getWidth() - 100, "top", 0));
             }
         }
 
-        if (driver instanceof AndroidDriver androidDriver){
+        if (driver instanceof AndroidDriver androidDriver) {
             scrollParameters.putAll(ImmutableMap.of(
                     "direction", swipeDirection.toString()
             ));
@@ -841,10 +847,10 @@ public class TouchActions {
             ));
             canScrollMore = (Boolean) ((JavascriptExecutor) iosDriver).executeScript("mobile: scroll", scrollParameters);
         }
-        var logMessageAfter = "Attempted to scroll using these parameters: \""+scrollParameters+"\"";
-        if (canScrollMore){
+        var logMessageAfter = "Attempted to scroll using these parameters: \"" + scrollParameters + "\"";
+        if (canScrollMore) {
             logMessageAfter += ", there is still more room to keep scrolling.";
-        }else{
+        } else {
             logMessageAfter += ", there is no more room to keep scrolling.";
         }
         try {
@@ -856,13 +862,11 @@ public class TouchActions {
         ReportManager.logDiscrete(logMessageAfter);
         return canScrollMore;
     }
-    
-    
-   
-    private void attemptPinchToZoomIn()
-    {
 
-    	PointerInput finger = new PointerInput(PointerInput.Kind.TOUCH, "finger");
+
+    private void attemptPinchToZoomIn() {
+
+        PointerInput finger = new PointerInput(PointerInput.Kind.TOUCH, "finger");
         PointerInput finger2 = new PointerInput(PointerInput.Kind.TOUCH, "finger2");
 
         Dimension size = driver.manage().window().getSize();
@@ -870,30 +874,29 @@ public class TouchActions {
 
         Sequence pinchAndZoom1 = new Sequence(finger, 0);
         pinchAndZoom1.addAction(finger.createPointerMove(Duration.ofMillis(0),
-                PointerInput.Origin.viewport(), source.x / 2, source.y / 2))
-        .addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()))
-        .addAction(new Pause(finger, Duration.ofMillis(110)))
-        .addAction(finger.createPointerMove(Duration.ofMillis(600),
-                PointerInput.Origin.viewport(), source.x / 3, source.y / 3))
-        .addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+                        PointerInput.Origin.viewport(), source.x / 2, source.y / 2))
+                .addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()))
+                .addAction(new Pause(finger, Duration.ofMillis(110)))
+                .addAction(finger.createPointerMove(Duration.ofMillis(600),
+                        PointerInput.Origin.viewport(), source.x / 3, source.y / 3))
+                .addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
 
 
         Sequence pinchAndZoom2 = new Sequence(finger2, 0);
         pinchAndZoom2.addAction(finger2.createPointerMove(Duration.ofMillis(0),
-                PointerInput.Origin.viewport(), source.x / 2, source.y / 2))
-        .addAction(finger2.createPointerDown(PointerInput.MouseButton.LEFT.asArg()))
-        .addAction(finger2.createPointerMove(Duration.ofMillis(600),
-                PointerInput.Origin.viewport(), source.x * 3 / 4, source.y * 3 / 4))
-        .addAction(finger2.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+                        PointerInput.Origin.viewport(), source.x / 2, source.y / 2))
+                .addAction(finger2.createPointerDown(PointerInput.MouseButton.LEFT.asArg()))
+                .addAction(finger2.createPointerMove(Duration.ofMillis(600),
+                        PointerInput.Origin.viewport(), source.x * 3 / 4, source.y * 3 / 4))
+                .addAction(finger2.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
 
         ((AppiumDriver) driver).perform(asList(pinchAndZoom1, pinchAndZoom2));
     }
 
-    
-    private void attemptPinchToZoomOut()
-    {
 
-    	PointerInput finger = new PointerInput(PointerInput.Kind.TOUCH, "finger");
+    private void attemptPinchToZoomOut() {
+
+        PointerInput finger = new PointerInput(PointerInput.Kind.TOUCH, "finger");
         PointerInput finger2 = new PointerInput(PointerInput.Kind.TOUCH, "finger2");
 
         Dimension size = driver.manage().window().getSize();
@@ -901,54 +904,54 @@ public class TouchActions {
 
         Sequence pinchAndZoom1 = new Sequence(finger, 0);
         pinchAndZoom1
-        .addAction(finger.createPointerMove(Duration.ofMillis(0),
-                PointerInput.Origin.viewport(), source.x / 3, source.y / 3))
-        .addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()))
-        .addAction(new Pause(finger, Duration.ofMillis(110)))
-        .addAction(finger.createPointerMove(Duration.ofMillis(600),
-                PointerInput.Origin.viewport(), source.x / 2, source.y / 2 ))
-        .addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+                .addAction(finger.createPointerMove(Duration.ofMillis(0),
+                        PointerInput.Origin.viewport(), source.x / 3, source.y / 3))
+                .addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()))
+                .addAction(new Pause(finger, Duration.ofMillis(110)))
+                .addAction(finger.createPointerMove(Duration.ofMillis(600),
+                        PointerInput.Origin.viewport(), source.x / 2, source.y / 2))
+                .addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
 
 
         Sequence pinchAndZoom2 = new Sequence(finger2, 0);
         pinchAndZoom2.addAction(finger2.createPointerMove(Duration.ofMillis(0),
-                PointerInput.Origin.viewport(), source.x * 3 / 4, source.y * 3 / 4 ))
-        .addAction(finger2.createPointerDown(PointerInput.MouseButton.LEFT.asArg()))
-        .addAction(new Pause(finger, Duration.ofMillis(100)))
-        .addAction(finger2.createPointerMove(Duration.ofMillis(600),
-                PointerInput.Origin.viewport(), source.x / 2 , source.y / 2))
-        .addAction(finger2.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+                        PointerInput.Origin.viewport(), source.x * 3 / 4, source.y * 3 / 4))
+                .addAction(finger2.createPointerDown(PointerInput.MouseButton.LEFT.asArg()))
+                .addAction(new Pause(finger, Duration.ofMillis(100)))
+                .addAction(finger2.createPointerMove(Duration.ofMillis(600),
+                        PointerInput.Origin.viewport(), source.x / 2, source.y / 2))
+                .addAction(finger2.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
 
         ((AppiumDriver) driver).perform(asList(pinchAndZoom1, pinchAndZoom2));
     }
 
     /**
      * Attempts to zoom the current screen IN/ OUT in case of zoom enabled screen.
-     * @param zoomDirection       ZoomDirection.IN or OUT
+     *
+     * @param zoomDirection ZoomDirection.IN or OUT
      * @return a self-reference to be used to chain actions
      */
     public TouchActions pinchToZoom(ZoomDirection zoomDirection) {
-    	try {
-    	switch (zoomDirection) {
-    		case IN -> attemptPinchToZoomIn();
-    		case OUT -> attemptPinchToZoomOut();
-    	}
-    	} catch(Exception rootCauseException) {
+        try {
+            switch (zoomDirection) {
+                case IN -> attemptPinchToZoomIn();
+                case OUT -> attemptPinchToZoomOut();
+            }
+        } catch (Exception rootCauseException) {
             WebDriverElementActions.failAction(driver, null, rootCauseException);
         }
         WebDriverElementActions.passAction(driver, null, zoomDirection.name());
-    	return this;
+        return this;
     }
 
-   
-     public enum ZoomDirection {
-            IN, OUT
-        }
+
+    public enum ZoomDirection {
+        IN, OUT
+    }
 
 
     /**
      * SwipeDirection; swiping UP means the screen will move downwards
-     *
      */
     public enum SwipeDirection {
         UP, DOWN, LEFT, RIGHT
@@ -962,13 +965,13 @@ public class TouchActions {
         GO(ImmutableMap.of("action", "go")), DONE(ImmutableMap.of("action", "done")), SEARCH(ImmutableMap.of("action", "search")), SEND(ImmutableMap.of("action", "send")),
         NEXT(ImmutableMap.of("action", "next")), PREVIOUS(ImmutableMap.of("action", "previous")), NORMAL(ImmutableMap.of("action", "normal")), UNSPECIFIED(ImmutableMap.of("action", "unspecified")), NONE(ImmutableMap.of("action", "none"));
 
-        private final ImmutableMap<?,?> value;
+        private final ImmutableMap<?, ?> value;
 
-        KeyboardKeys(ImmutableMap<?,?> type) {
+        KeyboardKeys(ImmutableMap<?, ?> type) {
             this.value = type;
         }
 
-        private ImmutableMap<?,?> getValue() {
+        private ImmutableMap<?, ?> getValue() {
             return value;
         }
     }

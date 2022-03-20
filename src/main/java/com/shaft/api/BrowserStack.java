@@ -21,7 +21,7 @@ public class BrowserStack {
     }
 
     /**
-     * Use this method to setup all the needed capabilities to be able to upload and test the latest version of your native application.
+     * Use this method to set up all the needed capabilities to be able to upload and test the latest version of your native application.
      * You can refer to the getting started guide for BrowserStack App Automate to get all the needed information here https://app-automate.browserstack.com/dashboard/v2/getting-started
      *
      * @param username              Your BrowserStack username
@@ -72,7 +72,7 @@ public class BrowserStack {
     }
 
     /**
-     * Use this method to setup all the needed capabilities to be able to test an already uploaded version of your native application.
+     * Use this method to set up all the needed capabilities to be able to test an already uploaded version of your native application.
      * You can refer to the getting started guide for BrowserStack App Automate to get all the needed information here https://app-automate.browserstack.com/dashboard/v2/getting-started
      *
      * @param username   Your BrowserStack username
@@ -91,7 +91,7 @@ public class BrowserStack {
     }
 
     private static MutableCapabilities setBrowserStackProperties(String username, String password, String deviceName, String osVersion, String appUrl) {
-        System.setProperty("executionAddress", username+":"+password+"@"+hubUrl);
+        System.setProperty("executionAddress", username + ":" + password + "@" + hubUrl);
         System.setProperty("mobile_deviceName", deviceName);
         System.setProperty("mobile_platformVersion", osVersion);
         System.setProperty("mobile_app", appUrl);
@@ -105,7 +105,7 @@ public class BrowserStack {
         browserStackCapabilities.setCapability("bstack:options", browserstackOptions);
         return browserStackCapabilities;
     }
-  
+
     private static void passAction(String testData) {
         reportActionResult(Thread.currentThread().getStackTrace()[2].getMethodName(), testData, true);
     }

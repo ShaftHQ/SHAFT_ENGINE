@@ -29,10 +29,10 @@ public class ExcelFileManager {
     private String testDataColumnNamePrefix;
 
     /**
-     * Creates a new instance of the test data excel reader using the target excel
+     * Creates a new instance of the test data Excel reader using the target Excel
      * file path
      *
-     * @param excelFilePath target test data excel file path
+     * @param excelFilePath target test data Excel file path
      */
     public ExcelFileManager(String excelFilePath) {
         initializeVariables();
@@ -69,7 +69,7 @@ public class ExcelFileManager {
     }
 
     /**
-     * Reads cell data from the first sheet in the desired excel workbook Reads cell
+     * Reads cell data from the first sheet in the desired Excel workbook Reads cell
      * data using row name (1st column) only Reads cell data from the 2nd column
      * (1st Value in the test data file)
      *
@@ -82,7 +82,7 @@ public class ExcelFileManager {
     }
 
     /**
-     * Reads cell data from the first sheet in the desired excel workbook Reads cell
+     * Reads cell data from the first sheet in the desired Excel workbook Reads cell
      * data using row name (1st column) and column name
      *
      * @param rowName    the value of the first cell of the target row
@@ -95,10 +95,10 @@ public class ExcelFileManager {
     }
 
     /**
-     * Reads cell data from a specific sheet name inside the excel file Reads cell
+     * Reads cell data from a specific sheet name inside the Excel file Reads cell
      * data using row name (1st column) and column name
      *
-     * @param sheetName  the name of the target excel sheet
+     * @param sheetName  the name of the target Excel sheet
      * @param rowName    the value of the first cell of the target row
      * @param columnName the value of the first cell of the target column
      * @return the value of the target cell within the target row and column within
@@ -145,7 +145,7 @@ public class ExcelFileManager {
      * Returns the last column number that contains a header value (zero based).
      * That is if the last column number is 3, it means that there are 4 columns.
      *
-     * @param sheetName the name of the target excel sheet
+     * @param sheetName the name of the target Excel sheet
      * @return the number of the last column that holds data in the target test data
      * sheet
      */
@@ -171,7 +171,7 @@ public class ExcelFileManager {
      * Looks for the column name that holds the cellData in the specified rowName
      * and sheetName
      *
-     * @param sheetName the name of the target excel sheet
+     * @param sheetName the name of the target Excel sheet
      * @param rowName   the value of the first cell of the target row
      * @param cellData  the value of the target cell within the target row
      * @return the value of the first cell of the target column

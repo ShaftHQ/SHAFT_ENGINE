@@ -10,17 +10,20 @@ public class Button extends Label {
     public Button(By locator) {
         super(locator);
     }
+
     public void click() {
         elementActions.click(locator);
     }
-    public Boolean isEnabled(){
-        return Boolean.parseBoolean(elementActions.getAttribute(locator,DISABLED));
+
+    public Boolean isEnabled() {
+        return Boolean.parseBoolean(elementActions.getAttribute(locator, DISABLED));
     }
-    public void shouldBeEnabled()
-    {   Validations.assertThat().element(driver,locator).attribute(DISABLED).isFalse().perform();
+
+    public void shouldBeEnabled() {
+        Validations.assertThat().element(driver, locator).attribute(DISABLED).isFalse().perform();
     }
-    public void shouldBeDisabled()
-    {
-        Validations.assertThat().element(driver,locator).attribute(DISABLED).isTrue().perform();
+
+    public void shouldBeDisabled() {
+        Validations.assertThat().element(driver, locator).attribute(DISABLED).isTrue().perform();
     }
 }

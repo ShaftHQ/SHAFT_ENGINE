@@ -39,6 +39,13 @@ import java.util.Objects;
 public class ImageProcessingActions {
     private static final String DIRECTORY_PROCESSING = "/processingDirectory/";
     private static final String DIRECTORY_FAILED = "/failedImagesDirectory/";
+    private static final int
+            CV_MOP_CLOSE = 3,
+            CV_THRESH_OTSU = 8,
+            CV_THRESH_BINARY = 0,
+            CV_ADAPTIVE_THRESH_GAUSSIAN_C = 1,
+            CV_ADAPTIVE_THRESH_MEAN_C = 0,
+            CV_THRESH_BINARY_INV = 1;
 
     private ImageProcessingActions() {
         throw new IllegalStateException("Utility class");
@@ -130,22 +137,22 @@ public class ImageProcessingActions {
 //        loadOpenCV();
         Mat img = Imgcodecs.imdecode(new MatOfByte(targetScreenshot), Imgcodecs.IMREAD_COLOR);
 
-        int    outlineThickness = 5;
-        double    elementHeight = elementLocation.getHeight(),
+        int outlineThickness = 5;
+        double elementHeight = elementLocation.getHeight(),
                 elementWidth = elementLocation.getWidth(),
                 xPos = elementLocation.getX(),
                 yPos = elementLocation.getY();
 
-        // IOS Native | MacOS Browser | Linux Browser scaled | -> Repositioning
-        if(System.getProperty("targetOperatingSystem").equals("iOS")
+        // IOS Native | macOS Browser | Linux Browser scaled | -> Repositioning
+        if (System.getProperty("targetOperatingSystem").equals("iOS")
                 || System.getProperty("targetOperatingSystem").equals("Mac-64")
                 || (
-                        System.getProperty("targetOperatingSystem").equals("Linux-64")
+                System.getProperty("targetOperatingSystem").equals("Linux-64")
                         && System.getProperty("screenshotParams_scalingFactor") != null
                         && !System.getProperty("screenshotParams_scalingFactor").isEmpty()
                         && !System.getProperty("screenshotParams_scalingFactor").equals("1")
-                    )
-        ){
+        )
+        ) {
             elementHeight *= 2;
             elementWidth *= 2;
             xPos *= 2;
@@ -153,24 +160,24 @@ public class ImageProcessingActions {
         }
 
         // IOS Browser Repositioning
-        if(System.getProperty("targetOperatingSystem").equals("iOS") && System.getProperty("mobile_browserName").equals("Safari") ){
+        if (System.getProperty("targetOperatingSystem").equals("iOS") && System.getProperty("mobile_browserName").equals("Safari")) {
             yPos += elementHeight + 2 * outlineThickness;
         }
 
         // Android Browser Repositioning
-        if(System.getProperty("targetOperatingSystem").equals("Android") && System.getProperty("mobile_appPackage").equals("com.android.chrome")){
+        if (System.getProperty("targetOperatingSystem").equals("Android") && System.getProperty("mobile_appPackage").equals("com.android.chrome")) {
             yPos += 2 * outlineThickness;
         }
 
         // MacOS Browser Repositioning
-        if(System.getProperty("targetOperatingSystem").equals("Mac-64")){
+        if (System.getProperty("targetOperatingSystem").equals("Mac-64")) {
             yPos += 2 * outlineThickness;
         }
 
         // Windows Browser Repositioning
-        if(System.getProperty("targetOperatingSystem").equals("Windows-64")
-                && System.getProperty("screenshotParams_scalingFactor")!=null
-                && !System.getProperty("screenshotParams_scalingFactor").isEmpty()){
+        if (System.getProperty("targetOperatingSystem").equals("Windows-64")
+                && System.getProperty("screenshotParams_scalingFactor") != null
+                && !System.getProperty("screenshotParams_scalingFactor").isEmpty()) {
             double scalingFactor = Double.parseDouble(System.getProperty("screenshotParams_scalingFactor"));
             elementHeight *= scalingFactor;
             elementWidth *= scalingFactor;
@@ -178,8 +185,8 @@ public class ImageProcessingActions {
             yPos *= scalingFactor;
         }
 
-        Point startPoint = new Point(xPos - outlineThickness,yPos - outlineThickness);
-        Point   endPoint = new Point(xPos + elementWidth + outlineThickness,yPos + elementHeight + outlineThickness);
+        Point startPoint = new Point(xPos - outlineThickness, yPos - outlineThickness);
+        Point endPoint = new Point(xPos + elementWidth + outlineThickness, yPos + elementHeight + outlineThickness);
 
         // BGR color
         Scalar highlightColorScalar = new Scalar(highlightColor.getBlue(), highlightColor.getGreen(),
@@ -199,15 +206,7 @@ public class ImageProcessingActions {
         return baos.toByteArray();
     }
 
-    private static final int
-            CV_MOP_CLOSE = 3,
-            CV_THRESH_OTSU = 8,
-            CV_THRESH_BINARY = 0,
-            CV_ADAPTIVE_THRESH_GAUSSIAN_C  = 1,
-            CV_ADAPTIVE_THRESH_MEAN_C = 0,
-            CV_THRESH_BINARY_INV  = 1;
-
-    private static Mat preprocess(byte[] image){
+    private static Mat preprocess(byte[] image) {
         //https://stackoverflow.com/questions/37302098/image-preprocessing-with-opencv-before-doing-character-recognition-tesseract
         Mat img;
         Mat imgGray = new Mat();
@@ -217,18 +216,18 @@ public class ImageProcessingActions {
 
         img = Imgcodecs.imdecode(new MatOfByte(image), Imgcodecs.IMREAD_COLOR);
         Imgproc.cvtColor(img, imgGray, Imgproc.COLOR_BGR2GRAY);
-        Imgproc.GaussianBlur(imgGray,imgGaussianBlur, new Size(3, 3),0);
+        Imgproc.GaussianBlur(imgGray, imgGaussianBlur, new Size(3, 3), 0);
         Imgproc.Sobel(imgGaussianBlur, imgSobel, -1, 1, 0);
-        Imgproc.threshold(imgSobel, imgThreshold, 0, 255,  CV_THRESH_OTSU + CV_THRESH_BINARY);
+        Imgproc.threshold(imgSobel, imgThreshold, 0, 255, CV_THRESH_OTSU + CV_THRESH_BINARY);
 
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("debugMode")))) {
             FileActions.createFolder("target/openCV/temp/");
             String timestamp = String.valueOf(System.currentTimeMillis());
-            Imgcodecs.imwrite("target/openCV/temp/"+timestamp+"_1_True_Image.png", img);
-            Imgcodecs.imwrite("target/openCV/temp/"+timestamp+"_2_imgGray.png", imgGray);
-            Imgcodecs.imwrite("target/openCV/temp/"+timestamp+"_3_imgGaussianBlur.png", imgGaussianBlur);
-            Imgcodecs.imwrite("target/openCV/temp/"+timestamp+"_4_imgSobel.png", imgSobel);
-            Imgcodecs.imwrite("target/openCV/temp/"+timestamp+"_5_imgThreshold.png", imgThreshold);
+            Imgcodecs.imwrite("target/openCV/temp/" + timestamp + "_1_True_Image.png", img);
+            Imgcodecs.imwrite("target/openCV/temp/" + timestamp + "_2_imgGray.png", imgGray);
+            Imgcodecs.imwrite("target/openCV/temp/" + timestamp + "_3_imgGaussianBlur.png", imgGaussianBlur);
+            Imgcodecs.imwrite("target/openCV/temp/" + timestamp + "_4_imgSobel.png", imgSobel);
+            Imgcodecs.imwrite("target/openCV/temp/" + timestamp + "_5_imgThreshold.png", imgThreshold);
         }
         return imgThreshold;
     }
@@ -256,16 +255,16 @@ public class ImageProcessingActions {
                 int matchMethod = Imgproc.TM_CCOEFF_NORMED;
                 double threshold = 0.80;
 
-                switch (attemptNumber){
-                    case 0-> matchMethod = Imgproc.TM_CCOEFF_NORMED;
-                    case 1-> matchMethod = Imgproc.TM_SQDIFF_NORMED;
-                    case 2-> matchMethod = Imgproc.TM_CCORR_NORMED;
+                switch (attemptNumber) {
+                    case 0 -> matchMethod = Imgproc.TM_CCOEFF_NORMED;
+                    case 1 -> matchMethod = Imgproc.TM_SQDIFF_NORMED;
+                    case 2 -> matchMethod = Imgproc.TM_CCORR_NORMED;
                 }
 
-                switch (attemptNumber){
-                    case 0-> threshold = 0.80;
-                    case 1-> threshold = 0.70;
-                    case 2-> threshold = 0.60;
+                switch (attemptNumber) {
+                    case 0 -> threshold = 0.80;
+                    case 1 -> threshold = 0.70;
+                    case 2 -> threshold = 0.60;
                 }
 
                 Imgproc.matchTemplate(img, templ, result, matchMethod);
@@ -287,7 +286,7 @@ public class ImageProcessingActions {
                     minMaxVal = mmr.maxVal;
                     matchAccuracy = minMaxVal;
                 }
-                ReportManager.logDiscrete("Accuracy threshold is [" + threshold*100 + "%] and the actual match accuracy is [" + matchAccuracy*100 + "%].");
+                ReportManager.logDiscrete("Accuracy threshold is [" + threshold * 100 + "%] and the actual match accuracy is [" + matchAccuracy * 100 + "%].");
 
                 if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("debugMode")))) {
                     // debugging
@@ -336,11 +335,11 @@ public class ImageProcessingActions {
             do {
                 try {
                     foundLocation = attemptToFindImageUsingOpenCV(referenceImagePath, currentPageScreenshot, attempts);
-                }catch (Exception e){
+                } catch (Exception e) {
                     //Do Nothing
                 }
                 attempts++;
-            } while (Collections.emptyList().equals(foundLocation) && attempts<maxNumberOfAttempts);
+            } while (Collections.emptyList().equals(foundLocation) && attempts < maxNumberOfAttempts);
             return foundLocation;
         } else {
             // no reference screenshot exists
@@ -607,9 +606,9 @@ public class ImageProcessingActions {
                 // add to pass/fail counter depending on assertion result, without logging
                 ReportManagerHelper.setDiscreteLogging(true);
                 Validations.assertThat()
-                            .number(percentage)
-                            .isGreaterThanOrEquals(threshhold)
-                            .perform();
+                        .number(percentage)
+                        .isGreaterThanOrEquals(threshhold)
+                        .perform();
                 ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
                 passedImagesCount++;
             } catch (AssertionError e) {
@@ -645,7 +644,7 @@ public class ImageProcessingActions {
             } catch (Throwable throwable) {
                 ReportManagerHelper.log(throwable);
                 ReportManager.logDiscrete("Failed to load OpenCV, switching to JavaScript.");
-                System.setProperty("screenshotParams_highlightMethod","JavaScript");
+                System.setProperty("screenshotParams_highlightMethod", "JavaScript");
             }
         }
     }
