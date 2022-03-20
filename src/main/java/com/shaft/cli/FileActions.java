@@ -426,6 +426,9 @@ public class FileActions {
 
                     String filename = jarEntryName.startsWith(jarConnectionEntryName) ? jarEntryName.substring(jarConnectionEntryName.length()) : jarEntryName;
                     File currentFile = new File(destinationFolderPath, filename);
+                    if (!currentFile.toPath().normalize().startsWith(new File(destinationFolderPath).toPath())) {
+                        throw new Exception("Bad zip entry");
+                    }
                     if (jarEntry.isDirectory()) {
                         boolean success = currentFile.mkdirs();
                         if (success) {
@@ -440,7 +443,7 @@ public class FileActions {
                     }
                 }
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             ReportManagerHelper.log(e);
             failAction(e);
         }
