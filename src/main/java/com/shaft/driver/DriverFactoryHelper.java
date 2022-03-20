@@ -622,7 +622,7 @@ public class DriverFactoryHelper {
     }
 
     private static WebDriver createNewLocalDriverInstance(String driverName) {
-        String initialLog = "Attempting to run locally on: \"" + targetOperatingSystem + " / " + driverName + "\"";
+        String initialLog = "Attempting to run locally on: \"" + targetOperatingSystem + " | " + driverName + "\"";
         if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
             initialLog = initialLog + ", Headless Execution";
         }
@@ -656,10 +656,10 @@ public class DriverFactoryHelper {
         initialLog.append("Attempting to run remotely on: \"").append(targetOperatingSystem);
 
         if (!isMobileNativeExecution()) {
-            initialLog.append(" / ").append(driverName);
+            initialLog.append(" | ").append(driverName);
         }
 
-        initialLog.append(" / ").append(TARGET_HUB_URL).append("\"");
+        initialLog.append(" | ").append(TARGET_HUB_URL).append("\"");
 
         if (Boolean.TRUE.equals(HEADLESS_EXECUTION) && !isMobileExecution()) {
             initialLog.append(", Headless Execution");
@@ -854,7 +854,7 @@ public class DriverFactoryHelper {
                 // Manage local execution
                 driver.set(createNewLocalDriverInstance(internalDriverName));
             } else {
-                // Manage remote execution / or appium execution
+                // Manage remote execution | or appium execution
                 driver.set(createNewRemoteDriverInstance(internalDriverName));
             }
 
@@ -949,7 +949,7 @@ public class DriverFactoryHelper {
         // playwright handles the initial setup
         playwright = Playwright.create();
 
-        String initialLog = "Attempting to run using Playwright locally on: \"" + targetOperatingSystem + " / " + driverName + "\"";
+        String initialLog = "Attempting to run using Playwright locally on: \"" + targetOperatingSystem + " | " + driverName + "\"";
         if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
             initialLog = initialLog + ", Headless Execution";
         }
