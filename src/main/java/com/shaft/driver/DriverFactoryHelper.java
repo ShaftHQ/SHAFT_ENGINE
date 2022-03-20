@@ -427,14 +427,6 @@ public class DriverFactoryHelper {
                     ffOptions.addArguments("-headless");
                 }
 
-                //Add Proxy Setting if found
-                if (!PROXY_SERVER_SETTINGS.equals(""))
-                {
-                    Proxy proxy = new Proxy();
-                    proxy.setHttpProxy(PROXY_SERVER_SETTINGS);
-                    proxy.setFtpProxy(PROXY_SERVER_SETTINGS);
-                    ffOptions.setProxy(proxy);
-                }
                 ffOptions.addArguments("-foreground");
                 var ffProfile = new FirefoxProfile();
                 ffProfile.setPreference("browser.download.dir", downloadsFolderPath);
