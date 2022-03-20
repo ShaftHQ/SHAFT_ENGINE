@@ -6,6 +6,7 @@ import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
+import com.shaft.tools.support.JavaActions;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import org.openqa.selenium.NoSuchElementException;
@@ -64,7 +65,7 @@ public class WebDriverElementActions {
                 boolean initialLoggingState = ReportManagerHelper.getDiscreteLogging();
                 ReportManagerHelper.setDiscreteLogging(false);
                 ReportManager.log(
-                        "New Element found using AI... Kindly update your element locator [" + elementLocator + "].");
+                        "New Element found using AI... Kindly update your element locator \"" + elementLocator + "\".");
                 ReportManagerHelper.setDiscreteLogging(initialLoggingState);
 
                 String newXpath = ElementActionsHelper.suggestNewXpathUsingJavascript(driver, targetElement, elementLocator);
@@ -443,7 +444,7 @@ public class WebDriverElementActions {
      */
     public static String getAttribute(WebDriver driver, By elementLocator, String attributeName) {
         By internalElementLocator = elementLocator;
-        ReportManager.logDiscrete("Attempting to getAttribute [" + attributeName + "] from elementLocator [" + internalElementLocator + "].");
+        ReportManager.logDiscrete("Attempting to getAttribute \"" + attributeName + "\" from elementLocator \"" + internalElementLocator + "\".");
         if (identifyUniqueElement(driver, internalElementLocator)) {
             // Override current locator with the aiGeneratedElementLocator
             internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
@@ -1285,7 +1286,7 @@ public class WebDriverElementActions {
     public static void waitForElementToBePresent(WebDriver driver, By elementLocator, int numberOfTries,
                                                  boolean stateOfPresence) {
         By internalElementLocator = elementLocator;
-        ReportManager.logDiscrete("Waiting for element to be present; elementLocator [" + internalElementLocator + "], numberOfTries[" + numberOfTries + "], stateOfPresence[" + stateOfPresence + "]...");
+        ReportManager.logDiscrete("Waiting for element to be present; elementLocator \"" + internalElementLocator + "\", numberOfTries\"" + numberOfTries + "\", stateOfPresence\"" + stateOfPresence + "\"...");
         // Override current locator with the aiGeneratedElementLocator
         internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
 
@@ -1525,8 +1526,8 @@ public class WebDriverElementActions {
                 boolean initialLoggingState = ReportManagerHelper.getDiscreteLogging();
                 ReportManagerHelper.setDiscreteLogging(false);
                 ReportManager
-                        .log("Element was previously found using AI... Kindly update your element locator from ["
-                                + internalElementLocator + "] to [" + aiGeneratedElementLocator + "].");
+                        .log("Element was previously found using AI... Kindly update your element locator from \""
+                                + internalElementLocator + "\" to \"" + aiGeneratedElementLocator + "\".");
                 ReportManagerHelper.setDiscreteLogging(initialLoggingState);
                 internalElementLocator = aiGeneratedElementLocator;
             }
@@ -1699,12 +1700,13 @@ public class WebDriverElementActions {
 
     private static String reportActionResult(WebDriver driver, String actionName, String testData, By elementLocator,
                                              List<List<Object>> screenshots, Boolean passFailStatus) {
-        actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
+//        actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
+        actionName = JavaActions.convertToSentenceCase(actionName);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
-            message = "Element Action [" + actionName + "] successfully performed.";
+            message = "Element Action: " + actionName;
         } else {
-            message = "Element Action [" + actionName + "] failed.";
+            message = "Element Action: " + actionName + " failed";
         }
 
         List<List<Object>> attachments = new ArrayList<>();
@@ -1713,8 +1715,9 @@ public class WebDriverElementActions {
                     "Actual Value", testData);
             attachments.add(actualValueAttachment);
         } else if (testData != null && !testData.isEmpty()) {
-            message = message + " With the following test data [" + testData + "].";
+            message = message + " \"" + testData.trim() + "\"";
         }
+        message = message + ".";
 
         if (screenshots != null && !screenshots.equals(new ArrayList<>())) {
             // screenshot taken before action (in case of click)
@@ -1724,8 +1727,10 @@ public class WebDriverElementActions {
             if (newScreenshot != null && !newScreenshot.equals(new ArrayList<>())) {
                 attachments.add(newScreenshot);
             }
-        } 
+        }
 
+        ReportManager.logDiscrete(message);
+        message = message.replace("Element Action: ","");
         if (!attachments.equals(new ArrayList<>())) {
             ReportManagerHelper.log(message, attachments);
         } else {
@@ -1781,7 +1786,7 @@ public class WebDriverElementActions {
                 return targetText;
             }
         } else {
-            ReportManager.log("Failed to identify Target element with locator [" + internalElementLocator + "].");
+            ReportManager.log("Failed to identify Target element with locator \"" + internalElementLocator + "\".");
             return null;
         }
     }

@@ -165,7 +165,7 @@ public class RestActions implements ShaftDriver {
         try {
             searchPool = response.jsonPath().getString(jsonPath);
         } catch (ClassCastException rootCauseException) {
-            ReportManager.log(ERROR_INCORRECT_JSONPATH + "[" + jsonPath + "]");
+            ReportManager.log(ERROR_INCORRECT_JSONPATH + "\"" + jsonPath + "\"");
             failAction(jsonPath, rootCauseException);
         } catch (JsonPathException | IllegalArgumentException rootCauseException) {
             ReportManager.log(ERROR_FAILED_TO_PARSE_JSON);
@@ -175,7 +175,7 @@ public class RestActions implements ShaftDriver {
             passAction(jsonPath);
             return searchPool;
         } else {
-            ReportManager.logDiscrete(ERROR_NOT_FOUND + "jsonPath [" + jsonPath + "]");
+            ReportManager.logDiscrete(ERROR_NOT_FOUND + "jsonPath \"" + jsonPath + "\"");
             passAction(jsonPath);
             return null;
         }
@@ -191,7 +191,7 @@ public class RestActions implements ShaftDriver {
                 searchPool = responseObject.jsonPath().getString(jsonPath);
             }
         } catch (ClassCastException rootCauseException) {
-            ReportManager.log(ERROR_INCORRECT_JSONPATH + "[" + jsonPath + "]");
+            ReportManager.log(ERROR_INCORRECT_JSONPATH + "\"" + jsonPath + "\"");
             failAction(jsonPath, rootCauseException);
         } catch (JsonPathException | IllegalArgumentException rootCauseException) {
             ReportManager.log(ERROR_FAILED_TO_PARSE_JSON);
@@ -201,7 +201,7 @@ public class RestActions implements ShaftDriver {
             passAction(jsonPath);
             return searchPool;
         } else {
-            ReportManager.logDiscrete(ERROR_NOT_FOUND + "jsonPath [" + jsonPath + "]");
+            ReportManager.logDiscrete(ERROR_NOT_FOUND + "jsonPath \"" + jsonPath + "\"");
             passAction(jsonPath);
             return null;
         }
@@ -212,7 +212,7 @@ public class RestActions implements ShaftDriver {
         try {
             searchPool = response.jsonPath().getList(jsonPath);
         } catch (ClassCastException rootCauseException) {
-            ReportManager.log(ERROR_INCORRECT_JSONPATH + "[" + jsonPath + "]");
+            ReportManager.log(ERROR_INCORRECT_JSONPATH + "\"" + jsonPath + "\"");
             failAction(jsonPath, rootCauseException);
         } catch (JsonPathException | IllegalArgumentException rootCauseException) {
             ReportManager.log(ERROR_FAILED_TO_PARSE_JSON);
@@ -223,7 +223,7 @@ public class RestActions implements ShaftDriver {
             passAction(jsonPath);
             return searchPool;
         } else {
-            ReportManager.logDiscrete(ERROR_NOT_FOUND + "jsonPath [" + jsonPath + "]");
+            ReportManager.logDiscrete(ERROR_NOT_FOUND + "jsonPath \"" + jsonPath + "\"");
             passAction(jsonPath);
             return null;
         }
@@ -234,7 +234,7 @@ public class RestActions implements ShaftDriver {
         try {
             searchPool = response.xmlPath().getString(xmlPath);
         } catch (ClassCastException rootCauseException) {
-            ReportManager.log(ERROR_INCORRECT_XMLPATH + "[" + xmlPath + "]");
+            ReportManager.log(ERROR_INCORRECT_XMLPATH + "\"" + xmlPath + "\"");
             failAction(xmlPath, rootCauseException);
 
         }
@@ -242,7 +242,7 @@ public class RestActions implements ShaftDriver {
             passAction(xmlPath);
             return searchPool;
         } else {
-            ReportManager.logDiscrete(ERROR_NOT_FOUND + "xmlPath [" + xmlPath + "]");
+            ReportManager.logDiscrete(ERROR_NOT_FOUND + "xmlPath \"" + xmlPath + "\"");
             passAction(xmlPath);
             return null;
         }
@@ -253,7 +253,7 @@ public class RestActions implements ShaftDriver {
         try {
             output = ((Node) response).getAttribute(xmlPath);
         } catch (ClassCastException rootCauseException) {
-            ReportManager.log(ERROR_INCORRECT_XMLPATH + "[" + xmlPath + "]");
+            ReportManager.log(ERROR_INCORRECT_XMLPATH + "\"" + xmlPath + "\"");
             failAction(xmlPath, rootCauseException);
 
         }
@@ -261,7 +261,7 @@ public class RestActions implements ShaftDriver {
             passAction(xmlPath);
             return output;
         } else {
-            ReportManager.logDiscrete(ERROR_NOT_FOUND + "xmlPath [" + xmlPath + "]");
+            ReportManager.logDiscrete(ERROR_NOT_FOUND + "xmlPath \"" + xmlPath + "\"");
             passAction(xmlPath);
             return null;
         }
@@ -272,7 +272,7 @@ public class RestActions implements ShaftDriver {
         try {
             output = response.xmlPath().get(xmlPath);
         } catch (ClassCastException rootCauseException) {
-            ReportManager.log(ERROR_INCORRECT_XMLPATH + "[" + xmlPath + "]");
+            ReportManager.log(ERROR_INCORRECT_XMLPATH + "\"" + xmlPath + "\"");
             failAction(xmlPath, rootCauseException);
 
         }
@@ -288,7 +288,7 @@ public class RestActions implements ShaftDriver {
             passAction(xmlPath);
             return searchPool;
         } else {
-            ReportManager.logDiscrete(ERROR_NOT_FOUND + "xmlPath [" + xmlPath + "]");
+            ReportManager.logDiscrete(ERROR_NOT_FOUND + "xmlPath \"" + xmlPath + "\"");
             passAction(xmlPath);
             return null;
         }
@@ -388,11 +388,11 @@ public class RestActions implements ShaftDriver {
             };
         } catch (IOException rootCauseException) {
             ReportManagerHelper.log(rootCauseException);
-            failAction("Couldn't find the desired file. [" + referenceJsonFilePath + "].", rootCauseException);
+            failAction("Couldn't find the desired file. \"" + referenceJsonFilePath + "\".", rootCauseException);
             comparisonResult = false;
         } catch (ParseException | JSONException rootCauseException) {
             ReportManagerHelper.log(rootCauseException);
-            failAction("Couldn't parse the desired file. [" + referenceJsonFilePath + "].", rootCauseException);
+            failAction("Couldn't parse the desired file. \"" + referenceJsonFilePath + "\".", rootCauseException);
             comparisonResult = false;
         }
         passAction(referenceJsonFilePath, expectedJSONAttachment);
@@ -423,9 +423,9 @@ public class RestActions implements ShaftDriver {
         actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
-            message = "API Action [" + actionName + "] successfully performed.";
+            message = "API Action \"" + actionName + "\" successfully performed.";
         } else {
-            message = "API Action [" + actionName + "] failed.";
+            message = "API Action \"" + actionName + "\" failed.";
         }
 
         List<List<Object>> attachments = new ArrayList<>();
@@ -434,7 +434,7 @@ public class RestActions implements ShaftDriver {
                     testData);
             attachments.add(actualValueAttachment);
         } else if (testData != null && !testData.isEmpty()) {
-            message = message + " With the following test data [" + testData + "].";
+            message = message + " With the following test data \"" + testData + "\".";
         }
 
         Boolean initialLoggingState = ReportManagerHelper.getDiscreteLogging();
@@ -1095,7 +1095,7 @@ public class RestActions implements ShaftDriver {
         try {
             boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
-            ReportManager.logDiscrete("Response status code: [" + response.getStatusCode() + "], status line: [" + response.getStatusLine() + "]");
+            ReportManager.logDiscrete("Response status code: \"" + response.getStatusCode() + "\", status line: \"" + response.getStatusLine() + "\"");
             if (AUTOMATICALLY_ASSERT_RESPONSE_STATUS_CODE) {
                 Validations.assertThat().number(response.getStatusCode())
                         .isEqualTo(targetStatusCode)
@@ -1216,7 +1216,7 @@ public class RestActions implements ShaftDriver {
      * @return Response object
      */
     private static Response graphQlRequestHelper(String base_URI_forHelperMethod, org.json.simple.JSONObject requestBody_forHelperMethod){
-        ReportManager.logDiscrete("GraphQl Request is being Performed with the Following Parameters [Service URL: " +base_URI_forHelperMethod+"graphql | Request Body: "+ requestBody_forHelperMethod+"]");
+        ReportManager.logDiscrete("GraphQl Request is being Performed with the Following Parameters [Service URL: " +base_URI_forHelperMethod+"graphql | Request Body: "+ requestBody_forHelperMethod+"\"");
         return buildNewRequest(base_URI_forHelperMethod, GRAPHQL_END_POINT, RestActions.RequestType.POST).setRequestBody(requestBody_forHelperMethod)
                 .setContentType(ContentType.JSON).performRequest();
     }
@@ -1277,7 +1277,7 @@ public class RestActions implements ShaftDriver {
      * @return Response object
      */
     private static Response graphQlRequestHelperWithHeader(String base_URI_forHelperMethod, org.json.simple.JSONObject requestBody_forHelperMethod, String headerKey_forHelperMethod, String headerValue_forHelperMethod){
-        ReportManager.logDiscrete("GraphQl Request is being Performed with the Following Parameters [Service URL: " +base_URI_forHelperMethod+ "graphql | Request Body: "+ requestBody_forHelperMethod+" | Header: \""+headerKey_forHelperMethod+"\":\""+headerValue_forHelperMethod+"\"]");
+        ReportManager.logDiscrete("GraphQl Request is being Performed with the Following Parameters [Service URL: " +base_URI_forHelperMethod+ "graphql | Request Body: "+ requestBody_forHelperMethod+" | Header: \""+headerKey_forHelperMethod+"\":\""+headerValue_forHelperMethod+"\"\"");
         return buildNewRequest(base_URI_forHelperMethod, GRAPHQL_END_POINT, RestActions.RequestType.POST).setRequestBody(requestBody_forHelperMethod)
                 .setContentType(ContentType.JSON).addHeader(headerKey_forHelperMethod,headerValue_forHelperMethod).performRequest();
     }

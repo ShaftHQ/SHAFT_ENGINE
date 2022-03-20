@@ -194,10 +194,10 @@ public class PlayWrightBrowserActions {
     public static void navigateToURL(Page page, String targetUrl, String targetUrlAfterRedirection) {
         if (targetUrl.equals(targetUrlAfterRedirection)) {
             ReportManager.logDiscrete(
-                    "Target URL: [" + targetUrl + "]");
+                    "Target URL: \"" + targetUrl + "\"");
         } else {
             ReportManager.logDiscrete(
-                    "Target URL: [" + targetUrl + "], and after redirection: [" + targetUrlAfterRedirection + "]");
+                    "Target URL: \"" + targetUrl + "\", and after redirection: \"" + targetUrlAfterRedirection + "\"");
         }
 
         try {
@@ -209,7 +209,7 @@ public class PlayWrightBrowserActions {
             if (initialURL.startsWith("/", initialURL.length() - 1)) {
                 initialURL = initialURL.substring(0, initialURL.length() - 1);
             }
-            ReportManager.logDiscrete("Initial URL: [" + initialURL + "]");
+            ReportManager.logDiscrete("Initial URL: \"" + initialURL + "\"");
             if (!initialURL.equals(targetUrl)) {
                 // navigate to new url
                 navigateToNewURL(page, targetUrl, targetUrlAfterRedirection);
@@ -474,9 +474,9 @@ public class PlayWrightBrowserActions {
         actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
-            message = "Browser Action [" + actionName + "] successfully performed.";
+            message = "Browser Action \"" + actionName + "\" successfully performed.";
         } else {
-            message = "Browser Action [" + actionName + "] failed.";
+            message = "Browser Action \"" + actionName + "\" failed.";
         }
 
         List<List<Object>> attachments = new ArrayList<>();
@@ -485,7 +485,7 @@ public class PlayWrightBrowserActions {
                     "Actual Value", testData);
             attachments.add(actualValueAttachment);
         } else if (testData != null && !testData.isEmpty()) {
-            message = message + " With the following test data [" + testData + "].";
+            message = message + " With the following test data \"" + testData + "\".";
         }
 
         if (page != null) {
@@ -529,7 +529,7 @@ public class PlayWrightBrowserActions {
         }
 
         if (!currentUrl.equals(targetUrlAfterRedirection)) {
-        	failAction(page, "Failed to navigate to ["+targetUrlAfterRedirection+"] and ended up on ["+currentUrl+"].");
+        	failAction(page, "Failed to navigate to \""+targetUrlAfterRedirection+"\" and ended up on \""+currentUrl+"\".");
         }
     }
 

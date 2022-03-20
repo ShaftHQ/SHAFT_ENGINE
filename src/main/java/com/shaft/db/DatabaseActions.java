@@ -206,9 +206,9 @@ public class DatabaseActions implements ShaftDriver {
         actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
-            message = "Database Action [" + actionName + "] successfully performed.";
+            message = "Database Action \"" + actionName + "\" successfully performed.";
         } else {
-            message = "Database Action [" + actionName + "] failed.";
+            message = "Database Action \"" + actionName + "\" failed.";
         }
 
         List<List<Object>> attachments = new ArrayList<>();
@@ -217,7 +217,7 @@ public class DatabaseActions implements ShaftDriver {
                     "Actual Value", testData);
             attachments.add(actualValueAttachment);
         } else if (testData != null && !testData.isEmpty()) {
-            message = message + " With the following test data [" + testData + "].";
+            message = message + " With the following test data \"" + testData + "\".";
         }
 
         if (queryResult != null && !queryResult.trim().equals("")) {
@@ -304,7 +304,7 @@ public class DatabaseActions implements ShaftDriver {
         if (resultSet != null) {
             passAction(getReportMessage("SELECT", sql), getResultStringValue(resultSet, true));
         } else {
-            failAction("Null or no resultSet was returned from executing this query [" + sql + "]");
+            failAction("Null or no resultSet was returned from executing this query \"" + sql + "\"");
         }
 
         return resultSet;
@@ -410,8 +410,8 @@ public class DatabaseActions implements ShaftDriver {
         if (connection != null) {
             ReportManager.logDiscrete("Connection created successfully");
         } else {
-            failAction("Failed to create a connection with this string [" + connectionString
-                    + "] due to an unhandled exception.");
+            failAction("Failed to create a connection with this string \"" + connectionString
+                    + "\" due to an unhandled exception.");
         }
         return connection;
     }
@@ -435,8 +435,8 @@ public class DatabaseActions implements ShaftDriver {
         if (statement != null) {
             ReportManager.logDiscrete("Statement created successfully");
         } else {
-            failAction("Failed to create a statement with this string [" + connection
-                    + "] due to an unhandled exception.");
+            failAction("Failed to create a statement with this string \"" + connection
+                    + "\" due to an unhandled exception.");
         }
 
         return statement;

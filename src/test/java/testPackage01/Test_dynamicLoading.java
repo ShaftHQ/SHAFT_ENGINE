@@ -1,7 +1,7 @@
 package testPackage01;
 
+import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.browser.BrowserFactory;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Assertions;
 import org.openqa.selenium.By;
@@ -29,7 +29,7 @@ public class Test_dynamicLoading {
 
     @BeforeMethod
     public void beforeMethod() {
-        driver.set(BrowserFactory.getBrowser());
+        driver.set(DriverFactory.getDriver());
     }
 
     @AfterMethod

@@ -6,6 +6,7 @@ import com.shaft.gui.element.WebDriverElementActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
+import com.shaft.tools.support.JavaActions;
 import com.shaft.tools.support.JavaScriptHelper;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.Point;
@@ -250,10 +251,10 @@ public class WebDriverBrowserActions {
     public static void navigateToURL(WebDriver driver, String targetUrl, String targetUrlAfterRedirection) {
         if (targetUrl.equals(targetUrlAfterRedirection)) {
             ReportManager.logDiscrete(
-                    "Target URL: [" + targetUrl + "]");
+                    "Target URL: \"" + targetUrl + "\"");
         } else {
             ReportManager.logDiscrete(
-                    "Target URL: [" + targetUrl + "], and after redirection: [" + targetUrlAfterRedirection + "]");
+                    "Target URL: \"" + targetUrl + "\", and after redirection: \"" + targetUrlAfterRedirection + "\"");
         }
         // force stop any current navigation
         try {
@@ -279,7 +280,7 @@ public class WebDriverBrowserActions {
             if (initialURL.startsWith("/", initialURL.length() - 1)) {
                 initialURL = initialURL.substring(0, initialURL.length() - 1);
             }
-            ReportManager.logDiscrete("Initial URL: [" + initialURL + "]");
+            ReportManager.logDiscrete("Initial URL: \"" + initialURL + "\"");
             if (!initialURL.equals(targetUrl)) {
                 // navigate to new url
                 navigateToNewURL(driver, initialURL, targetUrl, targetUrlAfterRedirection);
@@ -615,12 +616,13 @@ public class WebDriverBrowserActions {
 
     private static String reportActionResult(WebDriver driver, String actionName, String testData,
                                              Boolean passFailStatus) {
-        actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
+//        actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
+        actionName = JavaActions.convertToSentenceCase(actionName);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
-            message = "Browser Action [" + actionName + "] successfully performed.";
+            message = "Browser Action: " + actionName;
         } else {
-            message = "Browser Action [" + actionName + "] failed.";
+            message = "Browser Action: " + actionName + " failed";
         }
 
         List<List<Object>> attachments = new ArrayList<>();
@@ -629,9 +631,12 @@ public class WebDriverBrowserActions {
                     "Actual Value", testData);
             attachments.add(actualValueAttachment);
         } else if (testData != null && !testData.isEmpty()) {
-            message = message + " With the following test data [" + testData + "].";
+            message = message + " \"" + testData.trim() + "\"";
         }
+        message = message + ".";
 
+        ReportManager.logDiscrete(message);
+        message = message.replace("Browser Action: ","");
         if (driver != null) {
             attachments.add(ScreenshotManager.captureScreenShot(driver, actionName, true));
             ReportManagerHelper.log(message, attachments);
@@ -673,7 +678,7 @@ public class WebDriverBrowserActions {
                 (new WebDriverWait(driver, Duration.ofSeconds(NAVIGATION_TIMEOUT_INTEGER)))
                         .until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
             } catch (TimeoutException rootCauseException) {
-                failAction(driver, "Waited for " + NAVIGATION_TIMEOUT_INTEGER + " seconds to navigate away from [" + initialURL + "] but didn't.", rootCauseException);
+                failAction(driver, "Waited for " + NAVIGATION_TIMEOUT_INTEGER + " seconds to navigate away from \"" + initialURL + "\" but didn't.", rootCauseException);
             }
         } else {
             try {
@@ -683,7 +688,7 @@ public class WebDriverBrowserActions {
                         .until(ExpectedConditions.urlContains(targetUrlAfterRedirection));
 
             } catch (TimeoutException rootCauseException) {
-                failAction(driver, "Waited for " + NAVIGATION_TIMEOUT_INTEGER + " seconds to navigate to [" + targetUrlAfterRedirection + "] but ended up with [" + driver.getCurrentUrl() + "].", rootCauseException);
+                failAction(driver, "Waited for " + NAVIGATION_TIMEOUT_INTEGER + " seconds to navigate to \"" + targetUrlAfterRedirection + "\" but ended up with \"" + driver.getCurrentUrl() + "\".", rootCauseException);
             }
         }
     }
