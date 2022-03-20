@@ -62,6 +62,8 @@ public class DriverFactoryHelper {
     private static String EXECUTION_ADDRESS;
     // local OR hub ip:port
     private static String TARGET_HUB_URL;
+    // Proxy server settings | testing behind a proxy
+    private static String PROXY_SERVER_SETTINGS;
     // Windows-64 | Linux-64 | Mac-64
     private static String TARGET_DRIVER_NAME;
     // Default | MozillaFirefox | MicrosoftInternetExplorer | GoogleChrome |
@@ -407,6 +409,9 @@ public class DriverFactoryHelper {
         String downloadsFolderPath = FileActions.getAbsolutePath(System.getProperty("downloadsFolderPath"));
         var driverType = getDriverTypeFromName(driverName);
 
+        //get proxy server
+        PROXY_SERVER_SETTINGS =System.getProperty("com.SHAFT.proxySettings");
+
         //https://github.com/GoogleChrome/chrome-launcher/blob/master/docs/chrome-flags-for-tools.md#--enable-automation
         switch (driverType) {
             case DESKTOP_FIREFOX -> {
@@ -421,6 +426,7 @@ public class DriverFactoryHelper {
                     // https://developer.mozilla.org/en-US/docs/Mozilla/Firefox/Headless_mode
                     ffOptions.addArguments("-headless");
                 }
+
                 ffOptions.addArguments("-foreground");
                 var ffProfile = new FirefoxProfile();
                 ffProfile.setPreference("browser.download.dir", downloadsFolderPath);
@@ -433,6 +439,14 @@ public class DriverFactoryHelper {
                 ffOptions.setScriptTimeout(Duration.ofSeconds(SCRIPT_TIMEOUT));
                 if (Boolean.TRUE.equals(WAIT_IMPLICITLY)) {
                     ffOptions.setImplicitWaitTimeout(Duration.ofSeconds(IMPLICIT_WAIT_TIMEOUT));
+                }
+                //Add Proxy Setting if found
+                if (!PROXY_SERVER_SETTINGS.equals(""))
+                {
+                    Proxy proxy = new Proxy();
+                    proxy.setHttpProxy(PROXY_SERVER_SETTINGS);
+                    proxy.setFtpProxy(PROXY_SERVER_SETTINGS);
+                    ffOptions.setProxy(proxy);
                 }
             }
             case DESKTOP_INTERNET_EXPLORER -> {
@@ -447,6 +461,14 @@ public class DriverFactoryHelper {
                 ieOptions.setScriptTimeout(Duration.ofSeconds(SCRIPT_TIMEOUT));
                 if (Boolean.TRUE.equals(WAIT_IMPLICITLY)) {
                     ieOptions.setImplicitWaitTimeout(Duration.ofSeconds(IMPLICIT_WAIT_TIMEOUT));
+                }
+                //Add Proxy Setting if found
+                if (!PROXY_SERVER_SETTINGS.equals(""))
+                {
+                    Proxy proxy = new Proxy();
+                    proxy.setHttpProxy(PROXY_SERVER_SETTINGS);
+                    proxy.setFtpProxy(PROXY_SERVER_SETTINGS);
+                    ieOptions.setProxy(proxy);
                 }
             }
             case APPIUM_CHROME, DESKTOP_CHROME, DESKTOP_EDGE -> {
@@ -492,6 +514,15 @@ public class DriverFactoryHelper {
                 if (Boolean.TRUE.equals(WAIT_IMPLICITLY)) {
                     options.setImplicitWaitTimeout(Duration.ofSeconds(IMPLICIT_WAIT_TIMEOUT));
                 }
+                //Add Proxy Setting if found
+                if (!PROXY_SERVER_SETTINGS.equals(""))
+                {
+                    Proxy proxy = new Proxy();
+                    proxy.setHttpProxy(PROXY_SERVER_SETTINGS);
+                    proxy.setFtpProxy(PROXY_SERVER_SETTINGS);
+                    options.setProxy(proxy);
+                }
+
                 if (driverType.equals(DriverType.DESKTOP_EDGE)){
                     edOptions = (EdgeOptions) options;
                 }else {
@@ -511,6 +542,14 @@ public class DriverFactoryHelper {
                 sfOptions.setScriptTimeout(Duration.ofSeconds(SCRIPT_TIMEOUT));
                 if (Boolean.TRUE.equals(WAIT_IMPLICITLY)) {
                     sfOptions.setImplicitWaitTimeout(Duration.ofSeconds(IMPLICIT_WAIT_TIMEOUT));
+                }
+                //Add Proxy Setting if found
+                if (!PROXY_SERVER_SETTINGS.equals(""))
+                {
+                    Proxy proxy = new Proxy();
+                    proxy.setHttpProxy(PROXY_SERVER_SETTINGS);
+                    proxy.setFtpProxy(PROXY_SERVER_SETTINGS);
+                    sfOptions.setProxy(proxy);
                 }
             }
             case APPIUM_MOBILE_NATIVE -> appiumCapabilities = new DesiredCapabilities(customDriverOptions);
