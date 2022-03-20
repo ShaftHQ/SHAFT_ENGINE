@@ -328,13 +328,20 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
     }
 
     private Status translateTestCaseStatus(final Result testCaseResult) {
-        return switch (testCaseResult.getStatus()) {
-            case FAILED -> getStatus(testCaseResult.getError())
-                    .orElse(Status.FAILED);
-            case PASSED -> Status.PASSED;
-            case SKIPPED, PENDING -> Status.SKIPPED;
-            case AMBIGUOUS, UNDEFINED, default -> null;
-        };
+        switch (testCaseResult.getStatus()) {
+            case FAILED:
+                return getStatus(testCaseResult.getError())
+                        .orElse(Status.FAILED);
+            case PASSED:
+                return Status.PASSED;
+            case SKIPPED:
+            case PENDING:
+                return Status.SKIPPED;
+            case AMBIGUOUS:
+            case UNDEFINED:
+            default:
+                return null;
+        }
     }
 
     private List<Parameter> getExamplesAsParameters(
