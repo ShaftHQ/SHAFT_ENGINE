@@ -26,7 +26,7 @@ public class WebDriverBrowserValidationsBuilder {
     public NativeValidationsBuilder attribute(String browserAttribute) {
         this.validationMethod = "browserAttributeEquals";
         this.browserAttribute = browserAttribute;
-        reportMessageBuilder.append("attribute [").append(browserAttribute).append("] ");
+        reportMessageBuilder.append("attribute \"").append(browserAttribute).append("\" ");
         return new NativeValidationsBuilder(this);
     }
 
@@ -38,7 +38,7 @@ public class WebDriverBrowserValidationsBuilder {
     public NativeValidationsBuilder attribute(ValidationEnums.BrowserAttribute browserAttribute) {
         this.validationMethod = "browserAttributeEquals";
         this.browserAttribute = browserAttribute.getValue();
-        reportMessageBuilder.append("attribute [").append(browserAttribute).append("] ");
+        reportMessageBuilder.append("attribute \"").append(browserAttribute).append("\" ");
         return new NativeValidationsBuilder(this);
     }
 

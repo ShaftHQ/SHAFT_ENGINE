@@ -7,7 +7,6 @@ import com.shaft.validation.Assertions.AssertionComparisonType;
 import com.shaft.validation.Assertions.AssertionType;
 import com.shaft.validation.Assertions.ElementAttributeType;
 import com.shaft.validation.Validations;
-import com.shaft.validation.Verifications;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
@@ -43,11 +42,12 @@ public class GoogleSearchResults {
     }
 
     public void verifyResultsStatsExists() {
-    	if(driver != null) {
-        Verifications.verifyElementExists(driver, resultsStats_label, Verifications.VerificationType.POSITIVE);
-    	}else {
-    		
-    	}
+        if (driver != null) {
+            Validations.verifyThat().element(driver, resultsStats_label)
+                    .exists().perform();
+        } else {
+
+        }
     }
 
     public void clickNext() {

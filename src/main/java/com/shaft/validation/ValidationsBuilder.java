@@ -11,15 +11,15 @@ public class ValidationsBuilder {
     protected boolean condition;
     protected Object actualValue;
 
-    protected StringBuilder reportMessageBuilder = new StringBuilder("Then I ");
+    protected StringBuilder reportMessageBuilder = new StringBuilder();
 
     public ValidationsBuilder(ValidationEnums.ValidationCategory validationCategory) {
         this.validationCategory = validationCategory;
-        if (this.validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT)){
-            reportMessageBuilder.append("Assert that ");
-        }else{
-            reportMessageBuilder.append("Verify that ");
-        }
+//        if (this.validationCategory.equals(ValidationEnums.ValidationCategory.HARD_ASSERT)){
+//            reportMessageBuilder.append("Assert that ");
+//        }else{
+//            reportMessageBuilder.append("Verify that ");
+//        }
     }
 
     /**
@@ -30,7 +30,7 @@ public class ValidationsBuilder {
     public NativeValidationsBuilder object(Object actualValue) {
         this.validationMethod = "objectsAreEqual";
         this.actualValue = actualValue;
-        reportMessageBuilder.append("[").append(actualValue).append("] ");
+        reportMessageBuilder.append("\"").append(actualValue).append("\" ");
         return new NativeValidationsBuilder(this);
     }
 
@@ -42,7 +42,7 @@ public class ValidationsBuilder {
     public NumberValidationsBuilder number(Number actualValue) {
         this.validationMethod = "comparativeRelationBetweenNumbers";
         this.actualValue = actualValue;
-        reportMessageBuilder.append("[").append(actualValue).append("] ");
+        reportMessageBuilder.append("\"").append(actualValue).append("\" ");
         return new NumberValidationsBuilder(this);
     }
 
@@ -58,7 +58,7 @@ public class ValidationsBuilder {
         if (locator instanceof RelativeLocator.RelativeBy relativeLocator){
             stringLocator = "Relative Locator: "+relativeLocator.getRemoteParameters().value().toString();
         }
-        reportMessageBuilder.append("the element found by [").append(stringLocator).append("] ");
+        reportMessageBuilder.append("The Element located by \"").append(stringLocator).append("\" ");
         return new WebDriverElementValidationsBuilder(validationCategory, driver, locator, reportMessageBuilder);
     }
 
@@ -68,7 +68,7 @@ public class ValidationsBuilder {
      * @return a WebDriverBrowserValidationsBuilder object to continue building your validation
      */
     public WebDriverBrowserValidationsBuilder browser(WebDriver driver) {
-        reportMessageBuilder.append("the browser ");
+        reportMessageBuilder.append("The Browser ");
         return new WebDriverBrowserValidationsBuilder(validationCategory, driver, reportMessageBuilder);
     }
 
@@ -78,7 +78,7 @@ public class ValidationsBuilder {
      * @return a RestValidationsBuilder object to continue building your validation
      */
     public RestValidationsBuilder response(Object response) {
-        reportMessageBuilder.append("the API response ");
+        reportMessageBuilder.append("The API response ");
         return new RestValidationsBuilder(validationCategory, response, reportMessageBuilder);
     }
 
@@ -89,7 +89,7 @@ public class ValidationsBuilder {
      * @return a FileValidationsBuilder object to continue building your validation
      */
     public FileValidationsBuilder file(String folderRelativePath, String fileName) {
-        reportMessageBuilder.append("this file [").append(folderRelativePath).append(fileName).append("] ");
+        reportMessageBuilder.append("The File \"").append(folderRelativePath).append(fileName).append("\" ");
         return new FileValidationsBuilder(validationCategory, folderRelativePath, fileName, reportMessageBuilder);
     }
 
@@ -98,7 +98,7 @@ public class ValidationsBuilder {
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
     public ValidationsExecutor forceFail() {
-        reportMessageBuilder.append("I can force fail.");
+        reportMessageBuilder.append("Force fail.");
         this.validationMethod = "forceFail";
         return new ValidationsExecutor(this);
     }

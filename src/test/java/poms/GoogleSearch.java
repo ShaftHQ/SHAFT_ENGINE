@@ -5,8 +5,8 @@ import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Assertions;
 import com.shaft.validation.Assertions.AssertionType;
+import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.Validations;
-import com.shaft.validation.Verifications;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
@@ -87,12 +87,14 @@ public class GoogleSearch {
     }
 
     public void verifyPageTitle(String expectedValue) {
-    	if(driver != null) {
-        Verifications.verifyBrowserAttribute(driver, "Title", expectedValue, Verifications.VerificationComparisonType.EQUALS, Verifications.VerificationType.POSITIVE);
-        Verifications.verifyBrowserAttribute(driver, "Title", "Not Google", Verifications.VerificationComparisonType.EQUALS, Verifications.VerificationType.NEGATIVE);
-    	}else {
-    		
-    	}
+        if (driver != null) {
+            Validations.verifyThat().browser(driver).attribute(ValidationEnums.BrowserAttribute.TITLE)
+                    .isEqualTo(expectedValue).perform();
+            Validations.verifyThat().browser(driver).attribute(ValidationEnums.BrowserAttribute.TITLE)
+                    .doesNotEqual("Not Google").perform();
+        } else {
+
+        }
 
     }
 

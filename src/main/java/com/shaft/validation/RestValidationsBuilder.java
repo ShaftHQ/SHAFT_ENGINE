@@ -32,7 +32,7 @@ public class RestValidationsBuilder {
         this.fileAbsolutePath = FileActions.getAbsolutePath(fileRelativePath);
         this.restComparisonType = RestActions.ComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
-        reportMessageBuilder.append("is equal to the contents of this file [").append(fileRelativePath).append("].");
+        reportMessageBuilder.append("is equal to the contents of this file \"").append(fileRelativePath).append("\".");
         return new ValidationsExecutor(this);
     }
 
@@ -46,7 +46,7 @@ public class RestValidationsBuilder {
         this.fileAbsolutePath = FileActions.getAbsolutePath(fileRelativePath);
         this.restComparisonType = RestActions.ComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
-        reportMessageBuilder.append("is not equal to the contents of this file [").append(fileRelativePath).append("].");
+        reportMessageBuilder.append("is not equal to the contents of this file \"").append(fileRelativePath).append("\".");
         return new ValidationsExecutor(this);
     }
 
@@ -60,7 +60,7 @@ public class RestValidationsBuilder {
         this.fileAbsolutePath = FileActions.getAbsolutePath(fileRelativePath);
         this.restComparisonType = RestActions.ComparisonType.CONTAINS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
-        reportMessageBuilder.append("contains the contents of this file [").append(fileRelativePath).append("].");
+        reportMessageBuilder.append("contains the contents of this file \"").append(fileRelativePath).append("\".");
         return new ValidationsExecutor(this);
     }
 
@@ -74,7 +74,7 @@ public class RestValidationsBuilder {
         this.fileAbsolutePath = FileActions.getAbsolutePath(fileRelativePath);
         this.restComparisonType = RestActions.ComparisonType.CONTAINS;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
-        reportMessageBuilder.append("does not contain the contents of this file [").append(fileRelativePath).append("].");
+        reportMessageBuilder.append("does not contain the contents of this file \"").append(fileRelativePath).append("\".");
         return new ValidationsExecutor(this);
     }
 
@@ -89,7 +89,7 @@ public class RestValidationsBuilder {
     public NativeValidationsBuilder extractedJsonValue(String jsonPath) {
         this.validationMethod = "jsonPathValueEquals";
         this.jsonPath = jsonPath;
-        reportMessageBuilder.append("extracted value from the JSON path [").append(jsonPath).append("] ");
+        reportMessageBuilder.append("extracted value from the JSON path \"").append(jsonPath).append("\" ");
         return new NativeValidationsBuilder(this);
     }
 
@@ -103,7 +103,7 @@ public class RestValidationsBuilder {
         this.fileAbsolutePath = FileActions.getAbsolutePath(fileRelativePath);
         this.restComparisonType = RestActions.ComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
-        reportMessageBuilder.append("schema matches that in this file [").append(fileRelativePath).append("].");
+        reportMessageBuilder.append("schema matches that in this file \"").append(fileRelativePath).append("\".");
         return new ValidationsExecutor(this);
     }
 
@@ -117,7 +117,7 @@ public class RestValidationsBuilder {
         this.fileAbsolutePath = FileActions.getAbsolutePath(fileRelativePath);
         this.restComparisonType = RestActions.ComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
-        reportMessageBuilder.append("schema does not match that in this file [").append(fileRelativePath).append("].");
+        reportMessageBuilder.append("schema does not match that in this file \"").append(fileRelativePath).append("\".");
         return new ValidationsExecutor(this);
     }
 }

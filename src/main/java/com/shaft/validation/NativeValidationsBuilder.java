@@ -82,7 +82,7 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
-        reportMessageBuilder.append("is equal to [").append(expectedValue).append("].");
+        reportMessageBuilder.append("is equal to \"").append(expectedValue).append("\".");
         return new ValidationsExecutor(this);
     }
 
@@ -106,7 +106,7 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
-        reportMessageBuilder.append("does not equal [").append(expectedValue).append("].");
+        reportMessageBuilder.append("does not equal \"").append(expectedValue).append("\".");
         return new ValidationsExecutor(this);
     }
 
@@ -119,7 +119,7 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.CONTAINS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
-        reportMessageBuilder.append("contains [").append(expectedValue).append("].");
+        reportMessageBuilder.append("contains \"").append(expectedValue).append("\".");
         return new ValidationsExecutor(this);
     }
 
@@ -132,7 +132,7 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.CONTAINS;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
-        reportMessageBuilder.append("does not contain [").append(expectedValue).append("].");
+        reportMessageBuilder.append("does not contain \"").append(expectedValue).append("\".");
         return new ValidationsExecutor(this);
     }
 
@@ -145,7 +145,7 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.MATCHES;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
-        reportMessageBuilder.append("matches this regular expression [").append(expectedValue).append("].");
+        reportMessageBuilder.append("matches this regular expression \"").append(expectedValue).append("\".");
         return new ValidationsExecutor(this);
     }
 
@@ -158,7 +158,7 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.MATCHES;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
-        reportMessageBuilder.append("does not match this regular expression [").append(expectedValue).append("].");
+        reportMessageBuilder.append("does not match this regular expression \"").append(expectedValue).append("\".");
         return new ValidationsExecutor(this);
     }
 
@@ -171,7 +171,7 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.CASE_INSENSITIVE;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
-        reportMessageBuilder.append("equals [").append(expectedValue).append("], ignoring case sensitivity.");
+        reportMessageBuilder.append("equals \"").append(expectedValue).append("\", ignoring case sensitivity.");
         return new ValidationsExecutor(this);
     }
 
@@ -184,7 +184,7 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.CASE_INSENSITIVE;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
-        reportMessageBuilder.append("does not equal [").append(expectedValue).append("], ignoring case sensitivity.");
+        reportMessageBuilder.append("does not equal \"").append(expectedValue).append("\", ignoring case sensitivity.");
         return new ValidationsExecutor(this);
     }
 

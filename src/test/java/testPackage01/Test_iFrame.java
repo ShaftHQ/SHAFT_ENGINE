@@ -3,7 +3,7 @@ package testPackage01;
 import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
-import com.shaft.validation.Verifications;
+import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.testng.annotations.AfterClass;
@@ -26,9 +26,9 @@ public class Test_iFrame {
         By iframe_2 = By.xpath("//iframe[@title='iframe example 1']");
         ElementActions.switchToIframe(driver, iframe_1);
         ElementActions.switchToIframe(driver, iframe_2);
-        Verifications.verifyElementExists(driver, goButton, Verifications.VerificationType.POSITIVE);
+        Validations.verifyThat().element(driver, goButton).exists().perform();
         ElementActions.switchToDefaultContent(driver);
-        Verifications.verifyElementExists(driver, elementInMainPage, Verifications.VerificationType.POSITIVE);
+        Validations.verifyThat().element(driver, elementInMainPage).exists().perform();
 
         // attempt to switch out while already out
         ElementActions.switchToDefaultContent(driver);
