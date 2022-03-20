@@ -38,6 +38,8 @@ public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, 
         setExecutionProperties(suites);
         renameDefaultSuiteAndTest(suites);
         addLogsReporterToFirstTest(suites);
+        //Configure Proxy
+        addProxy();
     }
 
     private void setExecutionProperties(List<XmlSuite> suites) {
@@ -94,6 +96,22 @@ public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, 
 //            suite.addListener("com.shaft.tools.listeners.CucumberFeatureListener");
         });
 
+    }
+
+    //Configure Proxy Settings
+    private void addProxy()
+    {
+        String PROXY_SERVER_SETTINGS =System.getProperty("com.SHAFT.proxySettings");
+        if (!PROXY_SERVER_SETTINGS.equals(""))
+        {
+            String [] proxyHostPort =PROXY_SERVER_SETTINGS.split(":");
+            System.setProperty("http.proxyHost",proxyHostPort[0]);
+            System.setProperty("http.proxyPort",proxyHostPort[1]);
+            System.setProperty("https.proxyHost",proxyHostPort[0]);
+            System.setProperty("https.proxyPort",proxyHostPort[1]);
+            System.setProperty("ftp.proxyHost",proxyHostPort[0]);
+            System.setProperty("ftp.proxyPort",proxyHostPort[1]);
+        }
     }
 
     @Override

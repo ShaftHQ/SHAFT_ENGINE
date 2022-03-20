@@ -267,6 +267,29 @@
                                         </div>
                                     </div>
 
+
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label"></label>
+                                        <div class="col-md-4">
+                                            <div class="input-group">
+                                            </div>
+                                            <span class="help-block"></span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="proxySettings-0">Proxy Server</label>
+                                        <div class="col-md-4">
+                                            <div class="input-group">
+                                                <input class="form-control input-md" id="proxySettings-0"
+                                                       name="platform_proxySettings" placeholder="Proxyserver:1234"
+                                                       required type="text">
+                                            </div>
+                                            <span class="help-block">Used to configure testing behind a proxy.  e.g. corporate proxy</span>
+                                        </div>
+                                    </div>
+
                                     <!-- Button -->
                                     <div class="form-group">
                                         <label class="col-md-4 control-label"
@@ -2002,6 +2025,7 @@
         $("div[id=reporting]").attr("class", "tab-pane");
         $("div[id=xray]").attr("class", "tab-pane");
         $("div[id=allSettings]").attr("class", "tab-pane");
+
     });
 
     //Mobile
@@ -2343,13 +2367,15 @@
         const targetOperatingSystem = $("input[name=targetOperatingSystem]:checked").val();
         const targetBrowserName = $("input[name=targetBrowserName]:checked").val();
         const headlessExecution = $("input[name=headlessExecution]:checked").val();
+        const proxySettings = $("input[name=platform_proxySettings]").val();
 
         // This variable stores all the data.
         let data =
             'executionAddress=' + executionAddress + '\r\n' +
             'targetOperatingSystem=' + targetOperatingSystem + '\r\n' +
             'targetBrowserName=' + targetBrowserName + '\r\n' +
-            'headlessExecution=' + headlessExecution + '\r\n';
+            'headlessExecution=' + headlessExecution + '\r\n'+
+            'com.SHAFT.proxySettings=' + proxySettings + '\r\n';
 
         downloadFile(data, 'ExecutionPlatform.properties');
     }
