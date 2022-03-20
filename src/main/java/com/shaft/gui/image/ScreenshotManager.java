@@ -357,106 +357,108 @@ public class ScreenshotManager {
      */
     private static synchronized List<Object> internalCaptureScreenShot(WebDriver driver, By elementLocator,
                                                                        String actionName, String appendedText, boolean takeScreenshot) {
-        By internalElementLocator = elementLocator;
-        // Override current locator with the aiGeneratedElementLocator
-        if (Boolean.TRUE.equals(AI_SUPPORTED_ELEMENT_IDENTIFICATION) && aiGeneratedElementLocator != null
-                && internalElementLocator != null) {
-            internalElementLocator = aiGeneratedElementLocator;
-        }
-
-        // Suggested: add to animated gif only in case of click, navigation, or validation actions.
-        if (takeScreenshot || (CREATE_GIF && (DETAILED_GIF || actionName.matches(DETAILED_GIF_REGEX)))) {
-            /*
-             * Force screenshot link to be shown in the results as a link not text
-             */
-            System.setProperty("org.uncommons.reportng.escape-output", "false");
-
-            /*
-             * Declare regularElementStyle, the WebElemnt, and Javascript Executor to
-             * highlight and unhighlight the WebElement
-             */
-            String regularElementStyle = "";
-            JavascriptExecutor js = null;
-            WebElement element = null;
-            Rectangle elementLocation = null;
-
-            try {
-                /*
-                 * If an elementLocator was passed, store regularElementStyle and highlight that
-                 * element before taking the screenshot
-                 */
-                if (takeScreenshot && Boolean.TRUE.equals(SCREENSHOT_PARAMS_HIGHLIGHTELEMENTS) && internalElementLocator != null
-                        && (ElementActions.getElementsCount(driver, internalElementLocator,
-                        RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) >= 1)) {
-
-                    if ("JavaScript".equals(SCREENSHOT_PARAMS_HIGHLIGHTMETHOD)) {
-                        element = driver.findElement(internalElementLocator);
-                        js = (JavascriptExecutor) driver;
-                        regularElementStyle = highlightElementAndReturnDefaultStyle(element, js,
-                                setHighlightedElementStyle());
-                    } else {
-                        // default to using AI
-                        elementLocation = driver.findElement(internalElementLocator).getRect();
-                    }
-                }
-            } catch (StaleElementReferenceException e) {
-                // this happens when WebDriver fails to capture the elements initial style or
-                // fails to highlight the element for some reason
-                ReportManagerHelper.log(e);
+        if (!actionName.toLowerCase().contains("get")) {
+            By internalElementLocator = elementLocator;
+            // Override current locator with the aiGeneratedElementLocator
+            if (Boolean.TRUE.equals(AI_SUPPORTED_ELEMENT_IDENTIFICATION) && aiGeneratedElementLocator != null
+                    && internalElementLocator != null) {
+                internalElementLocator = aiGeneratedElementLocator;
             }
 
-            /*
-             * Take the screenshot and store it as a file
-             */
-            byte[] src;
-
-            /*
-             * Attempt to take a full page screenshot, take a regular screenshot upon
-             * failure
-             */
-            try {
-                src = takeScreenshot(driver);
+            // Suggested: add to animated gif only in case of click, navigation, or validation actions.
+            if (takeScreenshot || (CREATE_GIF && (DETAILED_GIF || actionName.matches(DETAILED_GIF_REGEX)))) {
+                /*
+                 * Force screenshot link to be shown in the results as a link not text
+                 */
+                System.setProperty("org.uncommons.reportng.escape-output", "false");
 
                 /*
-                 * Declare screenshot file name
+                 * Declare regularElementStyle, the WebElemnt, and Javascript Executor to
+                 * highlight and unhighlight the WebElement
                  */
-                testCaseName = ReportManagerHelper.getTestMethodName();
-                screenshotFileName = System.currentTimeMillis() + "_" + testCaseName + "_" + actionName;
-                if (!"".equals(appendedText)) {
-                    screenshotFileName = screenshotFileName + "_" + appendedText;
-                }
+                String regularElementStyle = "";
+                JavascriptExecutor js = null;
+                WebElement element = null;
+                Rectangle elementLocation = null;
 
-                /*
-                 * If an elementLocator was passed, unhighlight that element after taking the
-                 * screenshot
-                 *
-                 */
-                if (takeScreenshot && SCREENSHOT_PARAMS_HIGHLIGHTMETHOD.equals("JavaScript") && js != null) {
-                    js.executeScript("arguments[0].setAttribute('style', arguments[1]);", element, regularElementStyle);
-                }
+                try {
+                    /*
+                     * If an elementLocator was passed, store regularElementStyle and highlight that
+                     * element before taking the screenshot
+                     */
+                    if (takeScreenshot && Boolean.TRUE.equals(SCREENSHOT_PARAMS_HIGHLIGHTELEMENTS) && internalElementLocator != null
+                            && (ElementActions.getElementsCount(driver, internalElementLocator,
+                            RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) >= 1)) {
 
-                if (takeScreenshot && !SCREENSHOT_PARAMS_HIGHLIGHTMETHOD.equals("JavaScript") && elementLocation != null) {
-                    Color color;
-                    if (globalPassFailStatus) {
-                        color = new Color(165, 210, 165); // green
-                    } else {
-                        color = new Color(255, 255, 153); // yellow
+                        if ("JavaScript".equals(SCREENSHOT_PARAMS_HIGHLIGHTMETHOD)) {
+                            element = driver.findElement(internalElementLocator);
+                            js = (JavascriptExecutor) driver;
+                            regularElementStyle = highlightElementAndReturnDefaultStyle(element, js,
+                                    setHighlightedElementStyle());
+                        } else {
+                            // default to using AI
+                            elementLocation = driver.findElement(internalElementLocator).getRect();
+                        }
                     }
-                    src = ImageProcessingActions.highlightElementInScreenshot(src, elementLocation, color);
+                } catch (StaleElementReferenceException e) {
+                    // this happens when WebDriver fails to capture the elements initial style or
+                    // fails to highlight the element for some reason
+                    ReportManagerHelper.log(e);
                 }
-                startOrAppendToAnimatedGif(src);
-                if (takeScreenshot) {
-                    return prepareImageforReport(src, actionName);
-                } else {
-                    return null;
+
+                /*
+                 * Take the screenshot and store it as a file
+                 */
+                byte[] src;
+
+                /*
+                 * Attempt to take a full page screenshot, take a regular screenshot upon
+                 * failure
+                 */
+                try {
+                    src = takeScreenshot(driver);
+
+                    /*
+                     * Declare screenshot file name
+                     */
+                    testCaseName = ReportManagerHelper.getTestMethodName();
+                    screenshotFileName = System.currentTimeMillis() + "_" + testCaseName + "_" + actionName;
+                    if (!"".equals(appendedText)) {
+                        screenshotFileName = screenshotFileName + "_" + appendedText;
+                    }
+
+                    /*
+                     * If an elementLocator was passed, unhighlight that element after taking the
+                     * screenshot
+                     *
+                     */
+                    if (takeScreenshot && SCREENSHOT_PARAMS_HIGHLIGHTMETHOD.equals("JavaScript") && js != null) {
+                        js.executeScript("arguments[0].setAttribute('style', arguments[1]);", element, regularElementStyle);
+                    }
+
+                    if (takeScreenshot && !SCREENSHOT_PARAMS_HIGHLIGHTMETHOD.equals("JavaScript") && elementLocation != null) {
+                        Color color;
+                        if (globalPassFailStatus) {
+                            color = new Color(165, 210, 165); // green
+                        } else {
+                            color = new Color(255, 255, 153); // yellow
+                        }
+                        src = ImageProcessingActions.highlightElementInScreenshot(src, elementLocation, color);
+                    }
+                    startOrAppendToAnimatedGif(src);
+                    if (takeScreenshot) {
+                        return prepareImageforReport(src, actionName);
+                    } else {
+                        return new LinkedList<>();
+                    }
+                } catch (WebDriverException e) {
+                    // this happens when a browser session crashes mid-execution, or the docker is
+                    // unregistered
+                    ReportManagerHelper.log(e);
                 }
-            } catch (WebDriverException e) {
-                // this happens when a browser session crashes mid-execution, or the docker is
-                // unregistered
-                ReportManagerHelper.log(e);
             }
         }
-        return null;
+        return new LinkedList<>();
     }
     
 
