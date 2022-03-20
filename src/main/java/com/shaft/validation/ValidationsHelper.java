@@ -28,9 +28,9 @@ public class ValidationsHelper {
     private static final int ATTEMPTS_ELEMENTNOTFOUNDEXCEPTION = Integer
             .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
     private static final int ATTEMPTS_ELEMENTNOTFOUNDEXCEPTION_ELEMENTSHOULDNOTEXIST = 1;
+    static ArrayList<String> optionalCustomLogMessage = new ArrayList<>();
     private static WebDriver lastUsedDriver = null;
     private static By lastUsedElementLocator = null;
-
     private static Page lastUsedPage = null;
     private static String lastUsedElementLocatorString = null;
     private static Boolean discreetLoggingState = Boolean.valueOf(System.getProperty("alwaysLogDiscreetly"));
@@ -49,8 +49,6 @@ public class ValidationsHelper {
         verificationFailuresList = new ArrayList<>();
         verificationError = null;
     }
-
-    static ArrayList<String> optionalCustomLogMessage = new ArrayList<>();
 
     protected static void validateFail(ValidationCategory validationCategory, String... optionalCustomLogMessage) {
         processCustomLogMessage(optionalCustomLogMessage);
@@ -443,7 +441,7 @@ public class ValidationsHelper {
     }
 
     protected static void validateFileContentEquals(ValidationCategory validationCategory, String fileFolderName, String fileName, int numberOfRetries,
-                                             ValidationType validationType, String... optionalCustomLogMessage) {
+                                                    ValidationType validationType, String... optionalCustomLogMessage) {
         processCustomLogMessage(optionalCustomLogMessage);
         boolean expectedValue = ValidationType.POSITIVE.equals(validationType);
         boolean actualValue = FileActions.doesFileExist(fileFolderName, fileName, numberOfRetries);
@@ -632,7 +630,7 @@ public class ValidationsHelper {
         }
     }
 
-    protected static void validateResponseFileSchema(ValidationCategory validationCategory, Response response,  String referenceJsonFilePath,
+    protected static void validateResponseFileSchema(ValidationCategory validationCategory, Response response, String referenceJsonFilePath,
                                                      RestActions.ComparisonType comparisonType, String jsonPathToTargetArray, ValidationType validationType, String... optionalCustomLogMessage) {
 
         processCustomLogMessage(optionalCustomLogMessage);

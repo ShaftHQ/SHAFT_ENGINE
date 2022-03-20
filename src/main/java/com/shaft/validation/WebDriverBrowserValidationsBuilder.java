@@ -20,6 +20,7 @@ public class WebDriverBrowserValidationsBuilder {
 
     /**
      * Use this to check against a certain browser attribute
+     *
      * @param browserAttribute the target browser attribute that will be checked against
      * @return a NativeValidationsBuilder object to continue building your validation
      */
@@ -32,6 +33,7 @@ public class WebDriverBrowserValidationsBuilder {
 
     /**
      * Use this to check against a certain browser attribute
+     *
      * @param browserAttribute the target browser attribute that will be checked against
      * @return a NativeValidationsBuilder object to continue building your validation
      */

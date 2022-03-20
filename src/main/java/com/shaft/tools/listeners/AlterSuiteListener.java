@@ -20,18 +20,37 @@ import java.util.List;
 public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, IAnnotationTransformer,
         IInvokedMethodListener, IExecutionListener {
 
-    private int retryCount = 0;
     private static int retryMaximumNumberOfAttempts = 0;
-    private boolean testSuccess = true;
+    private int retryCount = 0;
+    private final boolean testSuccess = true;
+
+    public static void reportExecutionStatusToJira() {
+        if (System.getProperty("jiraInteraction").trim().equalsIgnoreCase("true")
+                && System.getProperty("reportTestCasesExecution").trim().equalsIgnoreCase("true")) {
+            try {
+                if (System.getProperty("reportPath").contains("testng-results.xml")) {
+                    XrayIntegrationHelper.importTestNGResults(System.getProperty("reportPath"));
+                } else if (System.getProperty("reportPath").contains("cucumber.json")) {
+                    XrayIntegrationHelper.importCucumberResults(System.getProperty("reportPath"));
+                }
+
+                XrayIntegrationHelper.renameTestExecutionSuit(System.getProperty("ExecutionName"),
+                        System.getProperty("ExecutionDescription"));
+
+            } catch (Exception e) {
+                ReportManagerHelper.log(e);
+            }
+        }
+    }
 
     @Override
     public void alter(List<XmlSuite> suites) {
         addListeners(suites);
         //TODO: manage slf4j log patterns
-        System.setProperty("disableLogging","true");
+        System.setProperty("disableLogging", "true");
         PropertyFileManager.readPropertyFiles();
         ImageProcessingActions.loadOpenCV();
-        System.setProperty("disableLogging","false");
+        System.setProperty("disableLogging", "false");
         ReportManagerHelper.logEngineVersion();
 
         retryMaximumNumberOfAttempts = Integer.parseInt(System.getProperty("retryMaximumNumberOfAttempts"));
@@ -86,7 +105,7 @@ public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, 
 
     private void addLogsReporterToFirstTest(List<XmlSuite> suites) {
         // alter first test and add the afterSuiteMethod
-    	var logsReporter = new XmlClass(LogsHelper.class.getName());
+        var logsReporter = new XmlClass(LogsHelper.class.getName());
         suites.get(0).getTests().get(0).getClasses().add(logsReporter);
     }
 
@@ -99,18 +118,16 @@ public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, 
     }
 
     //Configure Proxy Settings
-    private void addProxy()
-    {
-        String PROXY_SERVER_SETTINGS =System.getProperty("com.SHAFT.proxySettings");
-        if (!PROXY_SERVER_SETTINGS.equals(""))
-        {
-            String [] proxyHostPort =PROXY_SERVER_SETTINGS.split(":");
-            System.setProperty("http.proxyHost",proxyHostPort[0]);
-            System.setProperty("http.proxyPort",proxyHostPort[1]);
-            System.setProperty("https.proxyHost",proxyHostPort[0]);
-            System.setProperty("https.proxyPort",proxyHostPort[1]);
-            System.setProperty("ftp.proxyHost",proxyHostPort[0]);
-            System.setProperty("ftp.proxyPort",proxyHostPort[1]);
+    private void addProxy() {
+        String PROXY_SERVER_SETTINGS = System.getProperty("com.SHAFT.proxySettings");
+        if (!PROXY_SERVER_SETTINGS.equals("")) {
+            String[] proxyHostPort = PROXY_SERVER_SETTINGS.split(":");
+            System.setProperty("http.proxyHost", proxyHostPort[0]);
+            System.setProperty("http.proxyPort", proxyHostPort[1]);
+            System.setProperty("https.proxyHost", proxyHostPort[0]);
+            System.setProperty("https.proxyPort", proxyHostPort[1]);
+            System.setProperty("ftp.proxyHost", proxyHostPort[0]);
+            System.setProperty("ftp.proxyPort", proxyHostPort[1]);
         }
     }
 
@@ -143,7 +160,7 @@ public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, 
      */
 
     public void beforeInvocation(IInvokedMethod method, ITestResult testResult) {
-        if(method.isTestMethod() ) {
+        if (method.isTestMethod()) {
             if (annotationPresent(method, Feature.class))
                 testResult.setAttribute("requirement", method.getTestMethod().getConstructorOrMethod().getMethod().getAnnotation(Feature.class).value());
             if (annotationPresent(method, Epic.class))
@@ -156,13 +173,12 @@ public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, 
         }
     }
 
-
     private boolean annotationPresent(IInvokedMethod method, Class clazz) {
         return method.getTestMethod().getConstructorOrMethod().getMethod().isAnnotationPresent(clazz);
     }
 
     public void afterInvocation(IInvokedMethod method, ITestResult testResult) {
-        if(method.isTestMethod()&& !testSuccess ) {
+        if (method.isTestMethod() && !testSuccess) {
             testResult.setStatus(ITestResult.FAILURE);
         }
     }
@@ -176,27 +192,5 @@ public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, 
     public void onExecutionFinish() {
 //        ReportManager.logDiscrete("TestNG is finished");
         reportExecutionStatusToJira();
-    }
-
-    public static void reportExecutionStatusToJira(){
-        if(System.getProperty("jiraInteraction").trim().equalsIgnoreCase("true")
-           &&System.getProperty("reportTestCasesExecution").trim().equalsIgnoreCase("true"))
-        {
-            try {
-                if(System.getProperty("reportPath").contains("testng-results.xml"))
-                {
-                    XrayIntegrationHelper.importTestNGResults(System.getProperty("reportPath"));
-                }
-                else if (System.getProperty("reportPath").contains("cucumber.json")) {
-                    XrayIntegrationHelper.importCucumberResults(System.getProperty("reportPath"));
-                }
-
-                XrayIntegrationHelper.renameTestExecutionSuit(System.getProperty("ExecutionName"),
-                        System.getProperty("ExecutionDescription") );
-
-            } catch (Exception e) {
-                ReportManagerHelper.log(e);
-            }
-        }
     }
 }

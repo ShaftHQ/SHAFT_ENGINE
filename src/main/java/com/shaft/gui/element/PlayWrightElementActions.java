@@ -26,66 +26,65 @@ import java.util.List;
 public class PlayWrightElementActions {
     private static final String OBFUSCATED_STRING = "•";
     private static Page lastUsedPage = null;
-    
-    public static void setLastUsedPage(Page page) {
-    	PlayWrightElementActions.lastUsedPage=page;
-    }
-    
-    protected static Page getLastUsedPage() {
-    	return PlayWrightElementActions.lastUsedPage;
-    }
 
     public PlayWrightElementActions(Page page) {
-    	PlayWrightElementActions.lastUsedPage=page;
+        PlayWrightElementActions.lastUsedPage = page;
     }
-    
 
-  /**
+    protected static Page getLastUsedPage() {
+        return PlayWrightElementActions.lastUsedPage;
+    }
+
+    public static void setLastUsedPage(Page page) {
+        PlayWrightElementActions.lastUsedPage = page;
+    }
+
+    /**
      * Clicks on a certain element using PlayWright
      *
-     * @param page         the current instance of PlayWright page
+     * @param page           the current instance of PlayWright page
      * @param elementLocator the locator of the webElement under test (String xpath, id,
      *                       selector, name ...etc)
      */
     public static void click(Page page, String elementLocator) {
-            // Waits for the element to be clickable, and then clicks it.
-            if (identifyUniqueElement(page, elementLocator)) {
-                String elementText = "";
-                try {
-                    // attempting to read element text
-                    elementText = readTextBasedOnSuccessfulLocationStrategy(page, elementLocator,
-                            determineSuccessfulTextLocationStrategy(page, elementLocator));
-                    // adding hover before clicking an element to enable styles to show in the
-                    // execution screenshots and to solve issues clicking on certain elements.
-                    page.hover(elementLocator);
-                } catch (Exception e) {
-                    ReportManagerHelper.logDiscrete(e);
-                }
-
-                List<Object> screenshot = takeScreenshot(page, elementLocator, "click", null, true);
-                // takes screenshot before clicking the element out of view
-
-                try {
-                    page.click(elementLocator, new ClickOptions().setButton(MouseButton.LEFT));
-                } catch (Exception rootCauseException) {
-                        ReportManagerHelper.log(rootCauseException);
-                        failAction(page, "", elementLocator, rootCauseException);
-                }
-                
-                if (elementText != null && !elementText.equals("")) {
-                    passAction(page, elementLocator, elementText.replaceAll("\n", " "), screenshot);
-                } else {
-                    passAction(page, elementLocator, screenshot);
-                }
-            } else {
-                failAction(page, "", elementLocator);
+        // Waits for the element to be clickable, and then clicks it.
+        if (identifyUniqueElement(page, elementLocator)) {
+            String elementText = "";
+            try {
+                // attempting to read element text
+                elementText = readTextBasedOnSuccessfulLocationStrategy(page, elementLocator,
+                        determineSuccessfulTextLocationStrategy(page, elementLocator));
+                // adding hover before clicking an element to enable styles to show in the
+                // execution screenshots and to solve issues clicking on certain elements.
+                page.hover(elementLocator);
+            } catch (Exception e) {
+                ReportManagerHelper.logDiscrete(e);
             }
+
+            List<Object> screenshot = takeScreenshot(page, elementLocator, "click", null, true);
+            // takes screenshot before clicking the element out of view
+
+            try {
+                page.click(elementLocator, new ClickOptions().setButton(MouseButton.LEFT));
+            } catch (Exception rootCauseException) {
+                ReportManagerHelper.log(rootCauseException);
+                failAction(page, "", elementLocator, rootCauseException);
+            }
+
+            if (elementText != null && !elementText.equals("")) {
+                passAction(page, elementLocator, elementText.replaceAll("\n", " "), screenshot);
+            } else {
+                passAction(page, elementLocator, screenshot);
+            }
+        } else {
+            failAction(page, "", elementLocator);
         }
+    }
 
     /**
      * Double-clicks on an element using PlayWright's Actions Library
      *
-     * @param page         the current instance of PlayWright
+     * @param page           the current instance of PlayWright
      * @param elementLocator the locator of the webElement under test (String xpath, id,
      *                       selector, name ...etc)
      */
@@ -122,7 +121,7 @@ public class PlayWrightElementActions {
      * Drags the source element and drops it onto the destination element using
      * javascript
      *
-     * @param page                    the current instance of PlayWright
+     * @param page                      the current instance of PlayWright
      * @param sourceElementLocator      the locator of the source webElement that
      *                                  should be dragged under test (String xpath, id,
      *                                  selector, name ...etc)
@@ -134,8 +133,8 @@ public class PlayWrightElementActions {
     public static void dragAndDrop(Page page, String sourceElementLocator, String destinationElementLocator) {
         if (identifyUniqueElement(page, sourceElementLocator)
                 && identifyUniqueElement(page, destinationElementLocator)) {
-        	var startLocation = String.valueOf(page.querySelector(sourceElementLocator).boundingBox());
-        	page.dispatchEvent(sourceElementLocator, "dragstart");
+            var startLocation = String.valueOf(page.querySelector(sourceElementLocator).boundingBox());
+            page.dispatchEvent(sourceElementLocator, "dragstart");
             page.dispatchEvent(destinationElementLocator, "dragenter");
             page.dispatchEvent(destinationElementLocator, "dragover");
             page.dispatchEvent(destinationElementLocator, "drop");
@@ -146,7 +145,7 @@ public class PlayWrightElementActions {
             if (!endLocation.equals(startLocation)) {
                 passAction(page, sourceElementLocator, reportMessage);
             } else {
-                    failAction(page, reportMessage, sourceElementLocator);
+                failAction(page, reportMessage, sourceElementLocator);
             }
         } else {
             failAction(page, "", sourceElementLocator);
@@ -156,7 +155,7 @@ public class PlayWrightElementActions {
     /**
      * Drags the source element and drops it onto the determined offset
      *
-     * @param page               the current instance of PlayWright
+     * @param page                 the current instance of PlayWright
      * @param sourceElementLocator the locator of the source webElement that should
      *                             be dragged under test (String xpath, id, selector,
      *                             name ...etc)
@@ -188,7 +187,7 @@ public class PlayWrightElementActions {
         }
     }
 
-  
+
     /**
      * Get the value of the given attribute of the element. Will return the current
      * value, even if this has been modified after the page has been loaded.
@@ -220,7 +219,7 @@ public class PlayWrightElementActions {
      * attribute even when a property of the same name exists, then you should
      * evaluate Javascript to obtain the result you desire.
      *
-     * @param page         the current instance of PlayWright
+     * @param page           the current instance of PlayWright
      * @param elementLocator the locator of the webElement under test (String xpath, id,
      *                       selector, name ...etc)
      * @param attributeName  the target attribute of the webElement under test
@@ -229,9 +228,9 @@ public class PlayWrightElementActions {
     public static String getAttribute(Page page, String elementLocator, String attributeName) {
         ReportManager.logDiscrete("Attempting to getAttribute \"" + attributeName + "\" from elementLocator \"" + elementLocator + "\".");
         if (identifyUniqueElement(page, elementLocator)) {
-                String elementAttribute = page.getAttribute(elementLocator, attributeName);
-                passAction(page, elementLocator, elementAttribute);
-                return elementAttribute;
+            String elementAttribute = page.getAttribute(elementLocator, attributeName);
+            passAction(page, elementLocator, elementAttribute);
+            return elementAttribute;
         } else {
             failAction(page, "", elementLocator);
             return null;
@@ -241,7 +240,7 @@ public class PlayWrightElementActions {
     /**
      * Returns the number of elements that match a certain elementLocator
      *
-     * @param page         the current instance of PlayWright
+     * @param page           the current instance of PlayWright
      * @param elementLocator the locator of the webElement under test (String xpath, id,
      *                       selector, name ...etc)
      * @return integer value that represents the number of elements that match the
@@ -250,25 +249,12 @@ public class PlayWrightElementActions {
     public static int getElementsCount(Page page, String elementLocator) {
         return getMatchingElementsCount(page, elementLocator);
     }
-    
-    /**
-     * Returns the number of elements that match a certain elementLocator
-     *
-     * @param elementLocator the locator of the webElement under test (String xpath, id,
-     *                       selector, name ...etc)
-     * @return integer value that represents the number of elements that match the
-     * desired elementLocator
-     */
-    public int getElementsCount(String elementLocator) {
-        return getMatchingElementsCount(lastUsedPage, elementLocator);
-    }
-
 
     /**
      * Retrieves element size from the target element and returns it as a string
      * value.
      *
-     * @param page         the current instance of PlayWright
+     * @param page           the current instance of PlayWright
      * @param elementLocator the locator of the webElement under test (String xpath, id,
      *                       selector, name ...etc)
      * @return the size of the webElement under test
@@ -276,7 +262,7 @@ public class PlayWrightElementActions {
     public static String getSize(Page page, String elementLocator) {
         if (identifyUniqueElement(page, elementLocator)) {
             var boundingBox = page.querySelector(elementLocator).boundingBox();
-            String elementSize = boundingBox.width +" * "+boundingBox.height;
+            String elementSize = boundingBox.width + " * " + boundingBox.height;
             passAction(page, elementLocator, elementSize);
             return elementSize;
         } else {
@@ -284,33 +270,11 @@ public class PlayWrightElementActions {
             return null;
         }
     }
-    
-    /**
-     * Retrieves element size from the target element and returns it as a string
-     * value.
-     *
-     * @param elementLocator the locator of the webElement under test (String xpath, id,
-     *                       selector, name ...etc)
-     * @return the size of the webElement under test
-     */
-    public String getSize(String elementLocator) {
-    	var page = lastUsedPage;
-        if (identifyUniqueElement(page, elementLocator)) {
-            var boundingBox = page.querySelector(elementLocator).boundingBox();
-            String elementSize = boundingBox.width +" * "+boundingBox.height;
-            passAction(page, elementLocator, elementSize);
-            return elementSize;
-        } else {
-            failAction(page, "", elementLocator);
-            return null;
-        }
-    }
-
 
     /**
      * Retrieves text from the target element and returns it as a string value.
      *
-     * @param page         the current instance of PlayWright
+     * @param page           the current instance of PlayWright
      * @param elementLocator the locator of the webElement under test (String xpath, id,
      *                       selector, name ...etc)
      * @return the text value of the target webElement
@@ -343,19 +307,19 @@ public class PlayWrightElementActions {
      * another webElement and click on it, use hoverAndClick instead for a more
      * reliable result.
      *
-     * @param page         the current instance of PlayWright
+     * @param page           the current instance of PlayWright
      * @param elementLocator the locator of the webElement under test (String xpath, id,
      *                       selector, name ...etc)
      */
     public static void hover(Page page, String elementLocator) {
         if (identifyUniqueElement(page, elementLocator)) {
             try {
-            	page.hover(elementLocator);
+                page.hover(elementLocator);
             } catch (Exception rootCauseException) {
                 ReportManagerHelper.log(rootCauseException);
                 failAction(page, "", elementLocator, rootCauseException);
             }
-            passAction(page, elementLocator,"");
+            passAction(page, elementLocator, "");
         } else {
             failAction(page, "", elementLocator);
         }
@@ -364,7 +328,7 @@ public class PlayWrightElementActions {
     /**
      * Hovers over the hoverElements in sequence then clicks the clickableElement
      *
-     * @param page                  the current instance of PlayWright
+     * @param page                    the current instance of PlayWright
      * @param hoverElementLocators    the list of locators of the webElements under
      *                                test upon which the hover action will be
      *                                performed in sequence (String xpath, id, selector,
@@ -377,7 +341,7 @@ public class PlayWrightElementActions {
         if (identifyUniqueElement(page, hoverElementLocators.get(0))) {
             hoverElementLocators.forEach(page::hover);
             page.click(clickableElementLocator, new ClickOptions().setButton(MouseButton.LEFT));
-            passAction(page, hoverElementLocators.get(0),"");
+            passAction(page, hoverElementLocators.get(0), "");
         } else {
             failAction(page, "", hoverElementLocators.get(0));
         }
@@ -386,7 +350,7 @@ public class PlayWrightElementActions {
     /**
      * Hovers over the hoverElement then clicks the clickableElement
      *
-     * @param page                  the current instance of PlayWright
+     * @param page                    the current instance of PlayWright
      * @param hoverElementLocator     he locator of the webElement under test upon
      *                                which the hover action will be performed (By
      *                                xpath, id, selector, name ...etc)
@@ -401,7 +365,7 @@ public class PlayWrightElementActions {
     /**
      * Checks to see if an element is clickable
      *
-     * @param page         the current instance of PlayWright
+     * @param page           the current instance of PlayWright
      * @param elementLocator the locator of the webElement under test (String xpath, id,
      *                       selector, name ...etc)
      * @return boolean value, true if the element is clickable, and false if the
@@ -413,7 +377,7 @@ public class PlayWrightElementActions {
                 failAction(page, "element is not clickable", elementLocator);
             }
             // wait for element to be clickable
-            passAction(page, elementLocator,"");
+            passAction(page, elementLocator, "");
             return true;
         } else {
             failAction(page, "", elementLocator);
@@ -424,7 +388,7 @@ public class PlayWrightElementActions {
     /**
      * Checks to see if an element is displayed
      *
-     * @param page         the current instance of PlayWright
+     * @param page           the current instance of PlayWright
      * @param elementLocator the locator of the webElement under test (String xpath, id,
      *                       selector, name ...etc)
      * @return boolean value, true if the element is displayed, and false if the
@@ -433,7 +397,7 @@ public class PlayWrightElementActions {
     public static boolean isElementDisplayed(Page page, String elementLocator) {
         if (identifyUniqueElement(page, elementLocator, false)) {
             boolean isDisplayed = page.querySelector(elementLocator).isVisible();
-            passAction(page, elementLocator,"");
+            passAction(page, elementLocator, "");
             return isDisplayed;
         } else {
             failAction(page, "", elementLocator);
@@ -445,7 +409,7 @@ public class PlayWrightElementActions {
      * Sends a keypress to the target element. Supported keys are: ENTER, RETURN,
      * TAB
      *
-     * @param page         the current instance of PlayWright
+     * @param page           the current instance of PlayWright
      * @param elementLocator the locator of the webElement under test (String xpath, id,
      *                       selector, name ...etc)
      * @param key            the key that should be pressed
@@ -493,7 +457,7 @@ public class PlayWrightElementActions {
      * Checks if there is any text in an element, clears it, then types the required
      * string into the target element.
      *
-     * @param page         the current instance of PlayWright
+     * @param page           the current instance of PlayWright
      * @param elementLocator the locator of the webElement under test (String xpath, id,
      *                       selector, name ...etc)
      * @param text           the target text that needs to be typed into the target
@@ -515,7 +479,7 @@ public class PlayWrightElementActions {
      * Appends the required string into the target element, regardless of the
      * current text value.
      *
-     * @param page         the current instance of PlayWright
+     * @param page           the current instance of PlayWright
      * @param elementLocator the locator of the webElement under test (String xpath, id,
      *                       selector, name ...etc)
      * @param text           the target text that needs to be appended into the
@@ -525,7 +489,7 @@ public class PlayWrightElementActions {
         if (identifyUniqueElement(page, elementLocator)
                 && (text != null)) {
             var currentText = readTextBasedOnSuccessfulLocationStrategy(page, elementLocator, determineSuccessfulTextLocationStrategy(page, elementLocator));
-            page.fill(elementLocator, currentText+text);
+            page.fill(elementLocator, currentText + text);
             passAction(page, elementLocator, text);
         } else {
             failAction(page, text, elementLocator);
@@ -546,7 +510,7 @@ public class PlayWrightElementActions {
         if (identifyUniqueElement(page, elementLocator, false)) {
             List<Object> screenshot = takeScreenshot(page, elementLocator, "typeFileLocationForUpload", null, true);
             // takes screenshot before clicking the element out of view
-        	page.setInputFiles("input#upload", Paths.get(absoluteFilePath));
+            page.setInputFiles("input#upload", Paths.get(absoluteFilePath));
             passAction(page, elementLocator, internalAbsoluteFilePath, screenshot);
         } else {
             failAction(page, internalAbsoluteFilePath, elementLocator);
@@ -558,7 +522,7 @@ public class PlayWrightElementActions {
      * string into the target element. Obfuscates the written text in the output
      * report. This action should be used for writing passwords and secure text.
      *
-     * @param page         the current instance of PlayWright
+     * @param page           the current instance of PlayWright
      * @param elementLocator the locator of the webElement under test (String xpath, id,
      *                       selector, name ...etc)
      * @param text           the target text that needs to be typed into the target
@@ -583,7 +547,7 @@ public class PlayWrightElementActions {
      * multiplied String the default element identification timeout (in the POM.xml
      * file)
      *
-     * @param page          the current instance of PlayWright
+     * @param page            the current instance of PlayWright
      * @param elementLocator  the locator of the webElement under test (String xpath,
      *                        id, selector, name ...etc)
      * @param numberOfTries   the number of times to try and wait for the element to
@@ -651,12 +615,12 @@ public class PlayWrightElementActions {
         String text = page.querySelector(elementLocator).innerText().trim();
         String content = page.querySelector(elementLocator).textContent().trim();
         Object valueObj = page.querySelector(elementLocator).evaluate("node => node.value");
-        String value =null;
-        
-        if (valueObj !=null) {
+        String value = null;
+
+        if (valueObj != null) {
             value = (String) valueObj;
         }
-        
+
         if (value != null) {
             value = value.trim();
         }
@@ -673,7 +637,7 @@ public class PlayWrightElementActions {
         }
         return successfulTextLocationStrategy;
     }
-    
+
     private static void failAction(Page page, String testData, String elementLocator, Exception... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         failAction(page, actionName, testData, elementLocator, null, rootCauseException);
@@ -699,10 +663,10 @@ public class PlayWrightElementActions {
         try {
             page.waitForLoadState(LoadState.NETWORKIDLE, new WaitForLoadStateOptions());
             page.waitForSelector(elementLocator, new WaitForSelectorOptions().setState(WaitForSelectorState.ATTACHED).setTimeout(Double
-                    .parseDouble(System.getProperty("defaultElementIdentificationTimeout").trim())*1000));
-        	matchingElementCount = page.querySelectorAll(elementLocator).size();
-        }catch(Exception rootCauseException) {
-        	failAction(page, "", elementLocator, rootCauseException);
+                    .parseDouble(System.getProperty("defaultElementIdentificationTimeout").trim()) * 1000));
+            matchingElementCount = page.querySelectorAll(elementLocator).size();
+        } catch (Exception rootCauseException) {
+            failAction(page, "", elementLocator, rootCauseException);
         }
         return matchingElementCount;
     }
@@ -736,7 +700,7 @@ public class PlayWrightElementActions {
         }
         return false;
     }
-    
+
     private static void passAction(Page page, String elementLocator, List<Object> screenshot) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         passAction(page, elementLocator, actionName, null, screenshot);
@@ -829,6 +793,39 @@ public class PlayWrightElementActions {
             }
         } else {
             ReportManager.log("Failed to identify Target element with locator \"" + elementLocator + "\".");
+            return null;
+        }
+    }
+
+    /**
+     * Returns the number of elements that match a certain elementLocator
+     *
+     * @param elementLocator the locator of the webElement under test (String xpath, id,
+     *                       selector, name ...etc)
+     * @return integer value that represents the number of elements that match the
+     * desired elementLocator
+     */
+    public int getElementsCount(String elementLocator) {
+        return getMatchingElementsCount(lastUsedPage, elementLocator);
+    }
+
+    /**
+     * Retrieves element size from the target element and returns it as a string
+     * value.
+     *
+     * @param elementLocator the locator of the webElement under test (String xpath, id,
+     *                       selector, name ...etc)
+     * @return the size of the webElement under test
+     */
+    public String getSize(String elementLocator) {
+        var page = lastUsedPage;
+        if (identifyUniqueElement(page, elementLocator)) {
+            var boundingBox = page.querySelector(elementLocator).boundingBox();
+            String elementSize = boundingBox.width + " * " + boundingBox.height;
+            passAction(page, elementLocator, elementSize);
+            return elementSize;
+        } else {
+            failAction(page, "", elementLocator);
             return null;
         }
     }
@@ -930,7 +927,7 @@ public class PlayWrightElementActions {
     public String getAttribute(String elementLocator, String attributeName) {
         return getAttribute(lastUsedPage, elementLocator, attributeName);
     }
-    
+
     /**
      * Retrieves text from the target element and returns it as a string value.
      *
@@ -978,7 +975,7 @@ public class PlayWrightElementActions {
      *
      * @param elementLocator the locator of the webElement under test (String xpath, id,
      *                       selector, name ...etc)
-     * @param key           the key that should be pressed
+     * @param key            the key that should be pressed
      * @return a self-reference to be used to chain actions
      */
     public PlayWrightElementActions keyPress(String elementLocator, String key) {
@@ -1070,7 +1067,7 @@ public class PlayWrightElementActions {
      * @return a self-reference to be used to chain actions
      */
     public PlayWrightElementActions waitForElementToBePresent(String elementLocator, int numberOfTries,
-                                                    boolean stateOfPresence) {
+                                                              boolean stateOfPresence) {
         waitForElementToBePresent(lastUsedPage, elementLocator, numberOfTries,
                 stateOfPresence);
         return this;
@@ -1087,7 +1084,7 @@ public class PlayWrightElementActions {
     public boolean isElementDisplayed(String elementLocator) {
         if (identifyUniqueElement(lastUsedPage, elementLocator, false)) {
             boolean isDisplayed = lastUsedPage.querySelector(elementLocator).isVisible();
-            passAction(lastUsedPage, elementLocator,"");
+            passAction(lastUsedPage, elementLocator, "");
             return isDisplayed;
         } else {
             failAction(lastUsedPage, "", elementLocator);

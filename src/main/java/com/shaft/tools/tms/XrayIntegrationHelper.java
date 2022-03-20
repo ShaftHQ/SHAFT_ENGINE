@@ -27,66 +27,67 @@ import static io.restassured.config.EncoderConfig.encoderConfig;
 
 public class XrayIntegrationHelper {
 
-     private static final String _JiraAuthorization =
-                Base64.getEncoder().encodeToString(System.getProperty("authorization").trim().getBytes());
-     private static final String _ProjectKey = System.getProperty("projectKey").trim();
-     private static String _TestExecutionID = null;
+    private static final String _JiraAuthorization =
+            Base64.getEncoder().encodeToString(System.getProperty("authorization").trim().getBytes());
+    private static final String _ProjectKey = System.getProperty("projectKey").trim();
+    private static String _TestExecutionID = null;
 
-     private static void setup() {
-         baseURI = System.getProperty("jiraUrl");
-         given()
-                 .config(RestAssuredConfig.config().sslConfig(SSLConfig.sslConfig().allowAllHostnames()))
-                 .relaxedHTTPSValidation();
-     }
+    private static void setup() {
+        baseURI = System.getProperty("jiraUrl");
+        given()
+                .config(RestAssuredConfig.config().sslConfig(SSLConfig.sslConfig().allowAllHostnames()))
+                .relaxedHTTPSValidation();
+    }
 
     /**
      * Import cucumber results recorded in cucumber.jsom file through /import/execution/cucumber endpoint
-     * @param filepath > the report relative path
      *
+     * @param filepath > the report relative path
      */
     public static void importCucumberResults(String filepath) throws Exception {
 
         setup();
         String reportPath = FileActions.getAbsolutePath(filepath);
-        ReportManager.logDiscrete("uploading file: "+reportPath);
-        ReportManager.logDiscrete("Length: "+new File(reportPath).length());
+        ReportManager.logDiscrete("uploading file: " + reportPath);
+        ReportManager.logDiscrete("Length: " + new File(reportPath).length());
 
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        JsonElement je = JsonParser.parseString( new String(Files.readAllBytes(Paths.get(reportPath))));
+        JsonElement je = JsonParser.parseString(new String(Files.readAllBytes(Paths.get(reportPath))));
         String prettyJsonString = gson.toJson(je);
 
         try {
-            Response response =given()
+            Response response = given()
                     .contentType("application/json")
                     .header("Authorization", "Basic " + _JiraAuthorization)
                     .body(prettyJsonString)
                     .expect().statusCode(200)
                     .when()
-                    .post( "/rest/raven/1.0/import/execution/cucumber").then().extract().response();
+                    .post("/rest/raven/1.0/import/execution/cucumber").then().extract().response();
 
-            _TestExecutionID=response.jsonPath().get("testExecIssue.key").toString();
-            ReportManager.logDiscrete("ExecutionID: "+_TestExecutionID);
-        }catch (Exception e){
+            _TestExecutionID = response.jsonPath().get("testExecIssue.key").toString();
+            ReportManager.logDiscrete("ExecutionID: " + _TestExecutionID);
+        } catch (Exception e) {
             ReportManagerHelper.log(e);
         }
     }
 
     /**
      * Import TestNG results recorded in testng-results.jsom file through /import/execution/testng?projectKey=[projectKey] endpoint
-     * @param  executionName  > The execution name mentioned in JiraXray.properties
-     * @param  executionDescription > The execution Description mentioned in JiraXray.properties
+     *
+     * @param executionName        > The execution name mentioned in JiraXray.properties
+     * @param executionDescription > The execution Description mentioned in JiraXray.properties
      */
     public static void renameTestExecutionSuit(String executionName, String executionDescription) {
 
-         if (_TestExecutionID==null) return;
-         setup();
-         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        if (_TestExecutionID == null) return;
+        setup();
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
-         String body= "{\r\n    \"fields\" : {\r\n       " +
-                 " \"summary\": " +
-                 "\"Execution results "+executionName+" | "+sdf.format(Calendar.getInstance().getTime())+"\",\r\n        " +
-                 "\"description\": " +
-                 "\""+executionDescription+"\"\r\n    }\r\n}";
+        String body = "{\r\n    \"fields\" : {\r\n       " +
+                " \"summary\": " +
+                "\"Execution results " + executionName + " | " + sdf.format(Calendar.getInstance().getTime()) + "\",\r\n        " +
+                "\"description\": " +
+                "\"" + executionDescription + "\"\r\n    }\r\n}";
         try {
             given()
                     .contentType("application/json")
@@ -94,23 +95,23 @@ public class XrayIntegrationHelper {
                     .body(body)
                     .expect().statusCode(204)
                     .when()
-                    .put( "/rest/api/2/issue/" +_TestExecutionID).then().extract().response();
+                    .put("/rest/api/2/issue/" + _TestExecutionID).then().extract().response();
 
-        }catch (Exception e){
+        } catch (Exception e) {
             ReportManagerHelper.log(e);
         }
     }
 
     /**
      * Import TestNG results recorded in testng-results.jsom file through /import/execution/testng?projectKey=[projectKey] endpoint
-     * @param filepath > the report relative path
      *
+     * @param filepath > the report relative path
      */
-    public static void importTestNGResults(String filepath){
+    public static void importTestNGResults(String filepath) {
         setup();
         String reportPath = FileActions.getAbsolutePath(filepath);
-        ReportManager.logDiscrete("uploading file: "+reportPath);
-        ReportManager.logDiscrete("Length: "+new File(reportPath).length());
+        ReportManager.logDiscrete("uploading file: " + reportPath);
+        ReportManager.logDiscrete("Length: " + new File(reportPath).length());
         try {
             Response response = given()
                     .config(config().encoderConfig(encoderConfig().encodeContentTypeAs("multipart/form-data", ContentType.TEXT)))
@@ -118,27 +119,26 @@ public class XrayIntegrationHelper {
                     .header("Authorization", "Basic " + _JiraAuthorization)
                     .multiPart(new File(reportPath))
                     .when()
-                    .post("/rest/raven/1.0/import/execution/testng?projectKey="+_ProjectKey)
+                    .post("/rest/raven/1.0/import/execution/testng?projectKey=" + _ProjectKey)
                     .then().log().all().extract().response();
 
-            _TestExecutionID=response.jsonPath().get("testExecIssue.key").toString();
-            ReportManager.logDiscrete("ExecutionID: "+_TestExecutionID);
+            _TestExecutionID = response.jsonPath().get("testExecIssue.key").toString();
+            ReportManager.logDiscrete("ExecutionID: " + _TestExecutionID);
 
-        }catch (Exception e){
+        } catch (Exception e) {
             ReportManagerHelper.log(e);
         }
     }
 
     /**
      * Create JIRA Bug to report execution failure.
-     * @param files -> list of the failed testcase attachments.
-     * @param testCaseName -> the failed testcase name
-     * @param description --> the failed test case execution log
      *
+     * @param files        -> list of the failed testcase attachments.
+     * @param testCaseName -> the failed testcase name
+     * @param description  --> the failed test case execution log
      * @return String bugID
      */
-    public static String createIssue(List<String> files, String testCaseName, String description)
-    {
+    public static String createIssue(List<String> files, String testCaseName, String description) {
         setup();
         try {
             Response response = given()
@@ -147,24 +147,24 @@ public class XrayIntegrationHelper {
                     .header("Authorization", "Basic " + _JiraAuthorization)
                     .when()
                     .body(getCreateIssueRequestBody()
-                            .replace("${PROJECT_KEY}",_ProjectKey)
-                            .replace("${BUG_SUMMERY}","Execution Bug: "+testCaseName)
-                            .replace("${BUG_DESCRIPTION}",description
-                                    .replaceAll("[^a-zA-Z0-9.?=*$%@#&!<>|\\{\\}\\[\\]\"\'\s/]","")
-                                    .replaceAll("\"","\'")
+                            .replace("${PROJECT_KEY}", _ProjectKey)
+                            .replace("${BUG_SUMMERY}", "Execution Bug: " + testCaseName)
+                            .replace("${BUG_DESCRIPTION}", description
+                                    .replaceAll("[^a-zA-Z0-9.?=*$%@#&!<>|\\{\\}\\[\\]\"'\s/]", "")
+                                    .replaceAll("\"", "'")
                             )
-                            .replace("${ASSIGNEE_NAME}",System.getProperty("assignee"))
+                            .replace("${ASSIGNEE_NAME}", System.getProperty("assignee"))
                     )
                     .post("/rest/api/2/issue")
                     .then().log().all().extract().response();
 
-            String id= response.jsonPath().get("key").toString();
+            String id = response.jsonPath().get("key").toString();
 
-            ReportManager.logDiscrete("BugID: "+id);
-            attachFilesToIssue(id,files);
+            ReportManager.logDiscrete("BugID: " + id);
+            attachFilesToIssue(id, files);
             return id;
 
-        }catch (Exception e){
+        } catch (Exception e) {
             ReportManagerHelper.log(e);
             return null;
         }
@@ -172,38 +172,36 @@ public class XrayIntegrationHelper {
 
     /**
      * Update the created issue with the attachments.
-     * @param issueID -> the created bug ID.
-     * @param files -> list of the failed testcase attachments.
      *
+     * @param issueID -> the created bug ID.
+     * @param files   -> list of the failed testcase attachments.
      */
-    public static void attachFilesToIssue(String issueID, List<String> files)
-    {
+    public static void attachFilesToIssue(String issueID, List<String> files) {
         setup();
         try {
-            RequestSpecification req= given()
+            RequestSpecification req = given()
                     .relaxedHTTPSValidation().contentType(ContentType.MULTIPART)
                     .header("Authorization", "Basic " + _JiraAuthorization)
-                    .header("X-Atlassian-Token","nocheck");
-            for (String file:files)
-                req.multiPart("file",new File(file));
+                    .header("X-Atlassian-Token", "nocheck");
+            for (String file : files)
+                req.multiPart("file", new File(file));
 
-            ReportManager.logDiscrete("BugID: "+issueID);
+            ReportManager.logDiscrete("BugID: " + issueID);
             req.when()
-                    .post("/rest/api/2/issue/"+issueID+"/attachments")
+                    .post("/rest/api/2/issue/" + issueID + "/attachments")
                     .then().log().all().extract().response();
-        }catch (Exception e){
+        } catch (Exception e) {
             ReportManagerHelper.log(e);
         }
     }
 
     /**
      * Link any jira 2 tickets using the tickets IDs through PUT API request. the covered relation is relates.
-     * @param ticketID -> the main ticket ID.
-     * @param linkedToID -> the one to be linked to.
      *
+     * @param ticketID   -> the main ticket ID.
+     * @param linkedToID -> the one to be linked to.
      */
-    public static void link2Tickets(String ticketID, String linkedToID)
-    {
+    public static void link2Tickets(String ticketID, String linkedToID) {
         setup();
         try {
             given()
@@ -211,18 +209,17 @@ public class XrayIntegrationHelper {
                     .relaxedHTTPSValidation().contentType("application/json")
                     .header("Authorization", "Basic " + _JiraAuthorization)
                     .when()
-                    .body( getLinkJIRATicketRequestBody()
-                            .replace("${TICKET_ID}",linkedToID)
+                    .body(getLinkJIRATicketRequestBody()
+                            .replace("${TICKET_ID}", linkedToID)
                     )
-                    .put("/rest/api/2/issue/"+ticketID)
+                    .put("/rest/api/2/issue/" + ticketID)
                     .then().log().all().extract().response();
-        }catch (Exception e){
+        } catch (Exception e) {
             ReportManagerHelper.log(e);
         }
     }
 
-    private static String getCreateIssueRequestBody()
-    {
+    private static String getCreateIssueRequestBody() {
         return """
                 {
                   "fields":{
@@ -241,8 +238,8 @@ public class XrayIntegrationHelper {
                 }
                 """;
     }
-    private static String getLinkJIRATicketRequestBody()
-    {
+
+    private static String getLinkJIRATicketRequestBody() {
         return """
                 {
                    "update":{

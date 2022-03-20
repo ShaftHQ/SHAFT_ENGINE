@@ -91,7 +91,7 @@ public class BrowserStack {
     }
 
     private static MutableCapabilities setBrowserStackProperties(String username, String password, String deviceName, String osVersion, String appUrl) {
-        System.setProperty("executionAddress", username+":"+password+"@"+hubUrl);
+        System.setProperty("executionAddress", username + ":" + password + "@" + hubUrl);
         System.setProperty("mobile_deviceName", deviceName);
         System.setProperty("mobile_platformVersion", osVersion);
         System.setProperty("mobile_app", appUrl);
@@ -105,7 +105,7 @@ public class BrowserStack {
         browserStackCapabilities.setCapability("bstack:options", browserstackOptions);
         return browserStackCapabilities;
     }
-  
+
     private static void passAction(String testData) {
         reportActionResult(Thread.currentThread().getStackTrace()[2].getMethodName(), testData, true);
     }

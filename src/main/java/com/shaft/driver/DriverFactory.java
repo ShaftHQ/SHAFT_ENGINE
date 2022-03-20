@@ -24,27 +24,27 @@ public class DriverFactory {
      * @return a new Selenium WebDriver instance
      */
     public static WebDriver getDriver() {
-        if (System.getProperty("executionAddress").equals("browserstack")){
+        if (System.getProperty("executionAddress").equals("browserstack")) {
             return getBrowserStackDriver(new MutableCapabilities());
-        }else {
+        } else {
             return DriverFactoryHelper.getDriver();
         }
     }
-    
+
     /**
      * Creates a new Selenium WebDriver instance with custom driver type
      *
-     * @param driverType          one of the supported driver types
+     * @param driverType one of the supported driver types
      * @return a new Selenium WebDriver instance
      */
     public static WebDriver getDriver(DriverType driverType) {
-        if (driverType.equals(DriverType.BROWSERSTACK)){
+        if (driverType.equals(DriverType.BROWSERSTACK)) {
             return getBrowserStackDriver(new MutableCapabilities());
-        }else {
+        } else {
             return DriverFactoryHelper.getDriver(driverType, null);
         }
     }
-    
+
     /**
      * Creates a new Selenium WebDriver instance with custom driver type and options
      *
@@ -53,15 +53,16 @@ public class DriverFactory {
      * @return a new Selenium WebDriver instance
      */
     public static WebDriver getDriver(DriverType driverType, MutableCapabilities customDriverOptions) {
-        if (driverType.equals(DriverType.BROWSERSTACK)){
+        if (driverType.equals(DriverType.BROWSERSTACK)) {
             return getBrowserStackDriver(customDriverOptions);
-        }else {
+        } else {
             return DriverFactoryHelper.getDriver(driverType, customDriverOptions);
         }
     }
 
     /**
      * Creates a new Selenium WebDriver instance using BrowserStack, use this to test Native Mobile apps over BrowserStack
+     *
      * @return a new Selenium WebDriver instance using BrowserStack
      */
     public static WebDriver getBrowserStackDriver() {
@@ -70,55 +71,58 @@ public class DriverFactory {
 
     /**
      * Creates a new Selenium WebDriver instance using BrowserStack, use this to test Native Mobile apps over BrowserStack
+     *
      * @param browserStackOptions custom browserstack options to be merged with the default in the browserStack.properties file
      * @return a new Selenium WebDriver instance using BrowserStack
      */
-    public static WebDriver getBrowserStackDriver(MutableCapabilities browserStackOptions){
+    public static WebDriver getBrowserStackDriver(MutableCapabilities browserStackOptions) {
         String appUrl = System.getProperty("browserStack.appUrl");
-        if ("".equals(appUrl)){
+        if ("".equals(appUrl)) {
             //TODO: there is a bug in the merge method and it doesn't respect the capabilities at all
             browserStackOptions = BrowserStack.setupNativeAppExecution(System.getProperty("browserStack.username"), System.getProperty("browserStack.accessKey"),
                     System.getProperty("browserStack.deviceName"), System.getProperty("browserStack.platformVersion"), System.getProperty("browserStack.appRelativeFilePath"), System.getProperty("browserStack.appName")).merge(browserStackOptions);
-        }else{
+        } else {
             browserStackOptions = BrowserStack.setupNativeAppExecution(System.getProperty("browserStack.username"), System.getProperty("browserStack.accessKey"),
                     System.getProperty("browserStack.deviceName"), System.getProperty("browserStack.platformVersion"), appUrl).merge(browserStackOptions);
         }
         return DriverFactoryHelper.getDriver(DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
     }
-    
+
     /**
      * Creates a new PlayWright page with the value from the execution.properties file
-     * 
+     *
      * @return a new PlayWright page instance
      */
     public static Page getPlaywrightDriver() {
-    	return DriverFactoryHelper.getPlaywrightDriver();
+        return DriverFactoryHelper.getPlaywrightDriver();
     }
-    
+
     /**
      * Creates a new PlayWright page with custom driver type
-     * @param driverType          one of the supported driver types
+     *
+     * @param driverType one of the supported driver types
      * @return a new PlayWright page instance
      */
     public static Page getPlaywrightDriver(DriverType driverType) {
-    	return DriverFactoryHelper.getPlaywrightDriver(driverType);
+        return DriverFactoryHelper.getPlaywrightDriver(driverType);
     }
-    
+
     /**
      * Creates a new PlayWright page with custom driver type and launch options
-     * @param driverType          one of the supported driver types
-     * @param launchOptions			custom launch options
+     *
+     * @param driverType    one of the supported driver types
+     * @param launchOptions custom launch options
      * @return a new PlayWright page instance
      */
     public static Page getPlaywrightDriver(DriverType driverType, LaunchOptions launchOptions) {
-    	return DriverFactoryHelper.getPlaywrightDriver(driverType, launchOptions);
+        return DriverFactoryHelper.getPlaywrightDriver(driverType, launchOptions);
     }
-    
+
     /**
      * Closes the current PlayWright instance terminating all open pages and browser contexts
      */
     public static void closePlayWrightDriver() {
-    	DriverFactoryHelper.closePlayWrightDriver();
+        DriverFactoryHelper.closePlayWrightDriver();
     }
 
     /**
@@ -135,24 +139,26 @@ public class DriverFactory {
         ReportManager.log("Opened app: [" + myapp.getName() + "]...");
         return myapp;
     }
-    
+
     /**
      * Creates a new API instance to facilitate using the Rest Actions Library
-     * @param serviceURI the base URI of the target web service 
+     *
+     * @param serviceURI the base URI of the target web service
      * @return rest actions instance that can be used to chain and build your api request
      */
     public static RestActions getAPIDriver(String serviceURI) {
-    	return new RestActions (serviceURI);
+        return new RestActions(serviceURI);
     }
-    
+
     /**
      * Creates a new local Terminal instance to facilitate using the Terminal Actions Library
+     *
      * @return local terminal driver instance
      */
     public static TerminalActions getTerminalDriver() {
-    	return new TerminalActions();
+        return new TerminalActions();
     }
-    
+
     /**
      * Creates a new Database driver instance to facilitate using the Database Actions Library
      *
@@ -167,8 +173,8 @@ public class DriverFactory {
      * @return new database driver instance
      */
     public static DatabaseActions getDatabaseDriver(DatabaseType databaseType, String ip, String port, String name, String username,
-            String password) {
-    	return new DatabaseActions(databaseType, ip, port, name, username, password);
+                                                    String password) {
+        return new DatabaseActions(databaseType, ip, port, name, username, password);
     }
 
     /**
@@ -185,7 +191,7 @@ public class DriverFactory {
      * Close all open driver instances.
      */
     public static synchronized void closeAllDrivers() {
-    	DriverFactoryHelper.closeAllDrivers();
+        DriverFactoryHelper.closeAllDrivers();
     }
 
     /**

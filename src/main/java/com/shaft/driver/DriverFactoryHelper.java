@@ -79,7 +79,7 @@ public class DriverFactoryHelper {
     private static String customDriverName;
     private static String targetOperatingSystem;
     private static ThreadLocal<WebDriver> driver = new ThreadLocal<>();
-    private static ThreadLocal<SelfHealingDriver> selfHealingDriver = new ThreadLocal<>();
+    private static final ThreadLocal<SelfHealingDriver> selfHealingDriver = new ThreadLocal<>();
 
     // logging preferences object
     private static LoggingPreferences logPrefs;
@@ -94,6 +94,10 @@ public class DriverFactoryHelper {
 
     // kill-switch
     private static boolean killSwitch = false;
+    private static Playwright playwright = null;
+    private static Browser browser;
+    private static BrowserContext context;
+    private static Page page;
 
     private DriverFactoryHelper() {
         throw new IllegalStateException("Utility class");
@@ -179,24 +183,26 @@ public class DriverFactoryHelper {
         ReportManager.log("Opened app: \"" + myapp.getName() + "\"...");
         return myapp;
     }
-    
+
     /**
      * Creates a new API instance to facilitate using the Rest Actions Library
-     * @param serviceURI the base URI of the target web service 
+     *
+     * @param serviceURI the base URI of the target web service
      * @return rest actions instance that can be used to chain and build your api request
      */
     protected static RestActions getAPIDriver(String serviceURI) {
-    	return new RestActions (serviceURI);
+        return new RestActions(serviceURI);
     }
-    
+
     /**
      * Creates a new local Terminal instance to facilitate using the Terminal Actions Library
+     *
      * @return local terminal driver instance
      */
     protected static TerminalActions getTerminalDriver() {
-    	return new TerminalActions();
+        return new TerminalActions();
     }
-    
+
     /**
      * Creates a new Database driver instance to facilitate using the Database Actions Library
      *
@@ -211,8 +217,8 @@ public class DriverFactoryHelper {
      * @return new database driver instance
      */
     protected static DatabaseActions getDatabaseDriver(DatabaseType databaseType, String ip, String port, String name, String username,
-            String password) {
-    	return new DatabaseActions(databaseType, ip, port, name, username, password);
+                                                       String password) {
+        return new DatabaseActions(databaseType, ip, port, name, username, password);
     }
 
     /**
@@ -246,7 +252,7 @@ public class DriverFactoryHelper {
             driver = new ThreadLocal<>();
             drivers.clear();
             ReportManager.log("Successfully Closed All Drivers.");
-        }        
+        }
     }
 
     /**
@@ -278,6 +284,7 @@ public class DriverFactoryHelper {
 
     /**
      * Closes the driver associated with the provided hashCode
+     *
      * @param hashCode of the target driver instance that will be closed
      */
     public static synchronized void closeDriver(int hashCode) {
@@ -410,7 +417,7 @@ public class DriverFactoryHelper {
         var driverType = getDriverTypeFromName(driverName);
 
         //get proxy server
-        PROXY_SERVER_SETTINGS =System.getProperty("com.SHAFT.proxySettings");
+        PROXY_SERVER_SETTINGS = System.getProperty("com.SHAFT.proxySettings");
 
         //https://github.com/GoogleChrome/chrome-launcher/blob/master/docs/chrome-flags-for-tools.md#--enable-automation
         switch (driverType) {
@@ -441,8 +448,7 @@ public class DriverFactoryHelper {
                     ffOptions.setImplicitWaitTimeout(Duration.ofSeconds(IMPLICIT_WAIT_TIMEOUT));
                 }
                 //Add Proxy Setting if found
-                if (!PROXY_SERVER_SETTINGS.equals(""))
-                {
+                if (!PROXY_SERVER_SETTINGS.equals("")) {
                     Proxy proxy = new Proxy();
                     proxy.setHttpProxy(PROXY_SERVER_SETTINGS);
                     proxy.setFtpProxy(PROXY_SERVER_SETTINGS);
@@ -463,8 +469,7 @@ public class DriverFactoryHelper {
                     ieOptions.setImplicitWaitTimeout(Duration.ofSeconds(IMPLICIT_WAIT_TIMEOUT));
                 }
                 //Add Proxy Setting if found
-                if (!PROXY_SERVER_SETTINGS.equals(""))
-                {
+                if (!PROXY_SERVER_SETTINGS.equals("")) {
                     Proxy proxy = new Proxy();
                     proxy.setHttpProxy(PROXY_SERVER_SETTINGS);
                     proxy.setFtpProxy(PROXY_SERVER_SETTINGS);
@@ -473,9 +478,9 @@ public class DriverFactoryHelper {
             }
             case APPIUM_CHROME, DESKTOP_CHROME, DESKTOP_EDGE -> {
                 ChromiumOptions options;
-                if (driverType.equals(DriverType.DESKTOP_EDGE)){
+                if (driverType.equals(DriverType.DESKTOP_EDGE)) {
                     options = new EdgeOptions();
-                }else {
+                } else {
                     options = new ChromeOptions();
                 }
                 if (customDriverOptions != null) {
@@ -515,17 +520,16 @@ public class DriverFactoryHelper {
                     options.setImplicitWaitTimeout(Duration.ofSeconds(IMPLICIT_WAIT_TIMEOUT));
                 }
                 //Add Proxy Setting if found
-                if (!PROXY_SERVER_SETTINGS.equals(""))
-                {
+                if (!PROXY_SERVER_SETTINGS.equals("")) {
                     Proxy proxy = new Proxy();
                     proxy.setHttpProxy(PROXY_SERVER_SETTINGS);
                     proxy.setFtpProxy(PROXY_SERVER_SETTINGS);
                     options.setProxy(proxy);
                 }
 
-                if (driverType.equals(DriverType.DESKTOP_EDGE)){
+                if (driverType.equals(DriverType.DESKTOP_EDGE)) {
                     edOptions = (EdgeOptions) options;
-                }else {
+                } else {
                     chOptions = (ChromeOptions) options;
                 }
             }
@@ -544,8 +548,7 @@ public class DriverFactoryHelper {
                     sfOptions.setImplicitWaitTimeout(Duration.ofSeconds(IMPLICIT_WAIT_TIMEOUT));
                 }
                 //Add Proxy Setting if found
-                if (!PROXY_SERVER_SETTINGS.equals(""))
-                {
+                if (!PROXY_SERVER_SETTINGS.equals("")) {
                     Proxy proxy = new Proxy();
                     proxy.setHttpProxy(PROXY_SERVER_SETTINGS);
                     proxy.setFtpProxy(PROXY_SERVER_SETTINGS);
@@ -621,7 +624,7 @@ public class DriverFactoryHelper {
     }
 
     private static WebDriver createNewLocalDriverInstance(String driverName) {
-        String initialLog = "Attempting to run locally on: \"" + targetOperatingSystem  + " / " +  driverName + "\"";
+        String initialLog = "Attempting to run locally on: \"" + targetOperatingSystem + " / " + driverName + "\"";
         if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
             initialLog = initialLog + ", Headless Execution";
         }
@@ -637,7 +640,7 @@ public class DriverFactoryHelper {
                 case DESKTOP_SAFARI -> createNewLocalDriverInstanceForSafari();
                 default -> failAction("Unsupported Driver Type \"" + driverName + "\".");
             }
-        }catch (SessionNotCreatedException exception){
+        } catch (SessionNotCreatedException exception) {
             failAction("Failed to create new Browser Session", exception);
         }
         return driver.get();
@@ -669,13 +672,13 @@ public class DriverFactoryHelper {
         if (isMobileExecution()) {
             if (appiumCapabilities == null) {
                 appiumCapabilities = setAppiumDesiredCapabilitiesList();
-            }else{
+            } else {
                 appiumCapabilities.merge(setAppiumDesiredCapabilitiesList());
             }
         }
 
         try {
-        		setValueToRemoteDriverInstance(driverName, driverType, appiumCapabilities);
+            setValueToRemoteDriverInstance(driverName, driverType, appiumCapabilities);
         } catch (UnreachableBrowserException e) {
             killSwitch = true;
             failAction("Unreachable Browser, terminated test suite execution.", e);
@@ -697,59 +700,59 @@ public class DriverFactoryHelper {
         return driver.get();
     }
 
-private static void setValueToRemoteDriverInstance(String driverName, DriverType driverType, DesiredCapabilities mobileDesiredCapabilities) throws MalformedURLException{
-	 switch (driverType) {
-     case DESKTOP_FIREFOX:
-         driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), ffOptions));
-         break;
-     case DESKTOP_INTERNET_EXPLORER:
-         driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), ieOptions));
-         break;
-     case DESKTOP_CHROME:
-         driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), chOptions));
-         break;
-     case DESKTOP_EDGE:
-         driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), edOptions));
-         break;
-     case DESKTOP_SAFARI:
-         if (!isMobileExecution()) {
-             driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), sfOptions));
-         } else {
-             driver.set(new AppiumDriver(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
-         }
-         break;
-     case APPIUM_CHROME:
-         ReportManager.logDiscrete(WEBDRIVERMANAGER_MESSAGE);
-         WebDriverManager.chromedriver().browserVersion(System.getProperty("MobileBrowserVersion")).setup();
-         mobileDesiredCapabilities.setCapability("chromedriverExecutable",
-                 WebDriverManager.chromedriver().getDownloadedDriverPath());
+    private static void setValueToRemoteDriverInstance(String driverName, DriverType driverType, DesiredCapabilities mobileDesiredCapabilities) throws MalformedURLException {
+        switch (driverType) {
+            case DESKTOP_FIREFOX:
+                driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), ffOptions));
+                break;
+            case DESKTOP_INTERNET_EXPLORER:
+                driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), ieOptions));
+                break;
+            case DESKTOP_CHROME:
+                driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), chOptions));
+                break;
+            case DESKTOP_EDGE:
+                driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), edOptions));
+                break;
+            case DESKTOP_SAFARI:
+                if (!isMobileExecution()) {
+                    driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), sfOptions));
+                } else {
+                    driver.set(new AppiumDriver(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+                }
+                break;
+            case APPIUM_CHROME:
+                ReportManager.logDiscrete(WEBDRIVERMANAGER_MESSAGE);
+                WebDriverManager.chromedriver().browserVersion(System.getProperty("MobileBrowserVersion")).setup();
+                mobileDesiredCapabilities.setCapability("chromedriverExecutable",
+                        WebDriverManager.chromedriver().getDownloadedDriverPath());
 //         mobileDesiredCapabilities.setCapability("appium:chromeOptions", Map.of("w3c", false));
-         driver.set(new AppiumDriver(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
-         break;
-     case APPIUM_CHROMIUM:
-         WebDriverManager.chromedriver().browserVersion(System.getProperty("MobileBrowserVersion")).setup();
-         mobileDesiredCapabilities.setCapability("chromedriverExecutable",
-                 WebDriverManager.chromedriver().getDownloadedDriverPath());
-         driver.set(new AppiumDriver(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
-         break;
-     case APPIUM_BROWSER, APPIUM_MOBILE_NATIVE:
-         if ("Android".equals(targetOperatingSystem)) {
-             driver.set(new AndroidDriver(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
-         } else if ("iOS".equals(targetOperatingSystem)) {
-             driver.set(new IOSDriver(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
-         } else {
-             driver.set(new AppiumDriver(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
-             // will break in case of firefoxOS
-         }
-         break;
-     default:
-         failAction("Unsupported Driver Type \"" + driverName + "\".");
-         break;
-     }
-     ReportManager.log("Successfully Opened \"" + driverType.getValue() + "\".");
-     storeDriverInstance(driverName);
-     ((RemoteWebDriver) driver.get()).setFileDetector(new LocalFileDetector());
-}
+                driver.set(new AppiumDriver(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+                break;
+            case APPIUM_CHROMIUM:
+                WebDriverManager.chromedriver().browserVersion(System.getProperty("MobileBrowserVersion")).setup();
+                mobileDesiredCapabilities.setCapability("chromedriverExecutable",
+                        WebDriverManager.chromedriver().getDownloadedDriverPath());
+                driver.set(new AppiumDriver(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+                break;
+            case APPIUM_BROWSER, APPIUM_MOBILE_NATIVE:
+                if ("Android".equals(targetOperatingSystem)) {
+                    driver.set(new AndroidDriver(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+                } else if ("iOS".equals(targetOperatingSystem)) {
+                    driver.set(new IOSDriver(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+                } else {
+                    driver.set(new AppiumDriver(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
+                    // will break in case of firefoxOS
+                }
+                break;
+            default:
+                failAction("Unsupported Driver Type \"" + driverName + "\".");
+                break;
+        }
+        ReportManager.log("Successfully Opened \"" + driverType.getValue() + "\".");
+        storeDriverInstance(driverName);
+        ((RemoteWebDriver) driver.get()).setFileDetector(new LocalFileDetector());
+    }
 
     private static Platform getDesiredOperatingSystem() {
         OperatingSystemType operatingSystem = getOperatingSystemFromName(targetOperatingSystem);
@@ -803,7 +806,7 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
     }
 
     private static DesiredCapabilities setAppiumDesiredCapabilitiesList() {
-    	var desiredCapabilities = new DesiredCapabilities();
+        var desiredCapabilities = new DesiredCapabilities();
 
         Map<String, String> caps = PropertyFileManager.getAppiumDesiredCapabilities();
         caps.forEach((capabilityName, value) -> {
@@ -820,8 +823,8 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
      * selected driver and operating system
      *
      * @param driverName the name of the driver that you want to run, currently
-     *                    supports 'MozillaFirefox', 'MicrosoftInternetExplorer',
-     *                    'GoogleChrome', and 'MicrosoftEdge'
+     *                   supports 'MozillaFirefox', 'MicrosoftInternetExplorer',
+     *                   'GoogleChrome', and 'MicrosoftEdge'
      * @return a singleton driver instance
      */
     private static synchronized WebDriver getDriver(String driverName, MutableCapabilities customDriverOptions) {
@@ -844,8 +847,8 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
                 // set logging global preferences
             }
 //            if (!isMobileExecution()) {
-                setDriverOptions(internalDriverName, customDriverOptions);
-                // set driver options with respect to the target driver name
+            setDriverOptions(internalDriverName, customDriverOptions);
+            // set driver options with respect to the target driver name
 //            }
             if (Boolean.TRUE.equals(DRIVER_OBJECT_SINGLETON)) {
                 closeAllDrivers();
@@ -874,7 +877,7 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
             Assert.fail("Unhandled Exception with Driver Type \"" + internalDriverName + "\".", e);
         }
 
-        if (Boolean.valueOf(System.getProperty("heal-enabled").trim())){
+        if (Boolean.valueOf(System.getProperty("heal-enabled").trim())) {
             ReportManager.logDiscrete("Initializing Healenium's Self Healing Driver...");
             driver.set(SelfHealingDriver.create(driver.get()));
         }
@@ -913,78 +916,55 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
         drivers.get(driverName + "_" + driver.get().hashCode()).put(targetOperatingSystem, driver.get());
     }
 
-    /**
-     * Enum list of the supported operating systems for execution
-     */
-    private enum OperatingSystemType {
-        LINUX("Linux-64"), MACOS("Mac-64"), WINDOWS("Windows-64"), ANDROID("Android"), IOS("iOS"),
-        FIREFOXOS("FirefoxOS");
-
-        private final String value;
-
-        OperatingSystemType(String type) {
-            this.value = type;
-        }
-
-        private String getValue() {
-            return value;
-        }
-    }
-
-    protected static Page getPlaywrightDriver(){
+    protected static Page getPlaywrightDriver() {
         initializeSystemProperties(System.getProperty("targetBrowserName") == null);
-    	return getPlaywrightDriver(TARGET_DRIVER_NAME, null) ;
+        return getPlaywrightDriver(TARGET_DRIVER_NAME, null);
     }
-    
-    protected static Page getPlaywrightDriver(DriverFactory.DriverType driverType){
+
+    protected static Page getPlaywrightDriver(DriverFactory.DriverType driverType) {
         initializeSystemProperties(System.getProperty("targetBrowserName") == null);
-    	return getPlaywrightDriver(driverType.getValue(), null) ;
+        return getPlaywrightDriver(driverType.getValue(), null);
     }
-    
-    protected static Page getPlaywrightDriver(DriverFactory.DriverType driverType, LaunchOptions options){
+
+    protected static Page getPlaywrightDriver(DriverFactory.DriverType driverType, LaunchOptions options) {
         initializeSystemProperties(System.getProperty("targetBrowserName") == null);
-    	return getPlaywrightDriver(driverType.getValue(), options) ;
+        return getPlaywrightDriver(driverType.getValue(), options);
     }
-    
-    private static Playwright playwright = null;
-    private static Browser browser;
-    private static BrowserContext context;
-    private static Page page;
-    
+
     public static Playwright getPlaywrightInstance() {
-    	return playwright;
+        return playwright;
     }
-    
-    public static Browser getPlaywrightBrowser() {
-    	return browser;
-    }
-    
-    public static BrowserContext getPlaywrightBrowserContext() {
-    	return context;
-    }
-    
-    public static Page getPlaywrightPage() {
-    	return page;
-    }
-    
-	private static Page getPlaywrightDriver(String driverName, LaunchOptions options) {
-		//// Creating the basic drivers
 
-		// playwright handles the initial setup
-		playwright = Playwright.create();
-		
+    public static Browser getPlaywrightBrowser() {
+        return browser;
+    }
+
+    public static BrowserContext getPlaywrightBrowserContext() {
+        return context;
+    }
+
+    public static Page getPlaywrightPage() {
+        return page;
+    }
+
+    private static Page getPlaywrightDriver(String driverName, LaunchOptions options) {
+        //// Creating the basic drivers
+
+        // playwright handles the initial setup
+        playwright = Playwright.create();
+
         String initialLog = "Attempting to run using Playwright locally on: \"" + targetOperatingSystem + " / " + driverName + "\"";
         if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
             initialLog = initialLog + ", Headless Execution";
         }
         ReportManager.log(initialLog + ".");
         var driverType = getDriverTypeFromName(driverName);
-        
+
         // handling custom launch options
         if (options == null) {
-        	options = new LaunchOptions().setHeadless(HEADLESS_EXECUTION).setDownloadsPath(Path.of(FileActions.getAbsolutePath(System.getProperty("downloadsFolderPath"))));
+            options = new LaunchOptions().setHeadless(HEADLESS_EXECUTION).setDownloadsPath(Path.of(FileActions.getAbsolutePath(System.getProperty("downloadsFolderPath"))));
         }
-        
+
         // browser opens the browser session
         browser = null;
         switch (driverType) {
@@ -1007,14 +987,14 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
         BrowserActions.performBrowserAction(page).maximizeWindow();
         return page;
     }
-	
-	public static void closePlayWrightDriver() {
-		if (playwright!=null) {
-		//This is how you attach the video, and you have to close the context for the video to be prepared
-		//I recommend creating the playwright instance with the DriverManager init phase, and destroying it in the afterSuite listener.
-		//I recommend that close browser should close the context, while close all drivers should terminate the playwright instance.
-			var video = page.video();
-			var videoPath = "";
+
+    public static void closePlayWrightDriver() {
+        if (playwright != null) {
+            //This is how you attach the video, and you have to close the context for the video to be prepared
+            //I recommend creating the playwright instance with the DriverManager init phase, and destroying it in the afterSuite listener.
+            //I recommend that close browser should close the context, while close all drivers should terminate the playwright instance.
+            var video = page.video();
+            var videoPath = "";
             if (video != null) {
                 videoPath = video.path().toString();
             } else {
@@ -1033,5 +1013,23 @@ private static void setValueToRemoteDriverInstance(String driverName, DriverType
                 }
             }
         }
-	}
+    }
+
+    /**
+     * Enum list of the supported operating systems for execution
+     */
+    private enum OperatingSystemType {
+        LINUX("Linux-64"), MACOS("Mac-64"), WINDOWS("Windows-64"), ANDROID("Android"), IOS("iOS"),
+        FIREFOXOS("FirefoxOS");
+
+        private final String value;
+
+        OperatingSystemType(String type) {
+            this.value = type;
+        }
+
+        private String getValue() {
+            return value;
+        }
+    }
 }

@@ -75,6 +75,7 @@ public class NativeValidationsBuilder {
 
     /**
      * Use this to check that the actual object is equal to the expected value
+     *
      * @param expectedValue the test data / expected value for the object under test
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
@@ -88,17 +89,19 @@ public class NativeValidationsBuilder {
 
     /**
      * Overrides the default object method equals and is the same as calling isEqualTo(expectedValue).perform();
+     *
      * @param expectedValue the test data / expected value for the object under test
      * @return boolean value true if passed and throws AssertionError if failed (return value can be safely ignored)
      */
     @Override
-    public boolean equals(Object expectedValue){
+    public boolean equals(Object expectedValue) {
         isEqualTo(expectedValue).perform();
         return true;
     }
 
     /**
      * Use this to check that the actual object is not equal to the expected value
+     *
      * @param expectedValue the test data / expected value for the object under test
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
@@ -112,6 +115,7 @@ public class NativeValidationsBuilder {
 
     /**
      * Use this to check that the actual object contains the expected value
+     *
      * @param expectedValue the test data / expected value for the object under test
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
@@ -125,6 +129,7 @@ public class NativeValidationsBuilder {
 
     /**
      * Use this to check that the actual object does not contain the expected value
+     *
      * @param expectedValue the test data / expected value for the object under test
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
@@ -138,6 +143,7 @@ public class NativeValidationsBuilder {
 
     /**
      * Use this to check that the actual object matches the expected regular expression
+     *
      * @param expectedValue the test data / expected regular expression for the object under test
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
@@ -151,6 +157,7 @@ public class NativeValidationsBuilder {
 
     /**
      * Use this to check that the actual object does not match the expected regular expression
+     *
      * @param expectedValue the test data / expected regular expression for the object under test
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
@@ -164,6 +171,7 @@ public class NativeValidationsBuilder {
 
     /**
      * Use this to check that the actual object is equal to the expected value (ignoring case sensitivity)
+     *
      * @param expectedValue the test data / expected value for the object under test
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
@@ -177,6 +185,7 @@ public class NativeValidationsBuilder {
 
     /**
      * Use this to check that the actual object is not equal to the expected value (ignoring case sensitivity)
+     *
      * @param expectedValue the test data / expected value for the object under test
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
@@ -190,6 +199,7 @@ public class NativeValidationsBuilder {
 
     /**
      * Use this to check that the actual object is null
+     *
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
     public ValidationsExecutor isNull() {
@@ -202,6 +212,7 @@ public class NativeValidationsBuilder {
 
     /**
      * Use this to check that the actual object is not null
+     *
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
     public ValidationsExecutor isNotNull() {
@@ -214,6 +225,7 @@ public class NativeValidationsBuilder {
 
     /**
      * Use this to check that the actual object is true
+     *
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
     public ValidationsExecutor isTrue() {
@@ -226,6 +238,7 @@ public class NativeValidationsBuilder {
 
     /**
      * Use this to check that the actual object is false
+     *
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
     public ValidationsExecutor isFalse() {

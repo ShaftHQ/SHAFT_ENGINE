@@ -25,12 +25,13 @@ public class CucumberTestRunnerListener implements ConcurrentEventListener {
     private static String lastStartedScenarioName;
 
     private static String lastStartedStepName;
-    public static String getLastStartedStepName(){
+    private static Boolean isLastFinishedStepOK;
+
+    public static String getLastStartedStepName() {
         return lastStartedStepName;
     }
 
-    private static Boolean isLastFinishedStepOK;
-    public static Boolean getIsLastFinishedStepOK(){
+    public static Boolean getIsLastFinishedStepOK() {
         return isLastFinishedStepOK;
     }
 
@@ -69,7 +70,7 @@ public class CucumberTestRunnerListener implements ConcurrentEventListener {
     }
 
 
-    private void shaftSetup(){
+    private void shaftSetup() {
         if (Reporter.getCurrentTestResult() == null) {
             // running in native Cucumber mode
             System.setProperty("disableLogging", "true");
@@ -88,7 +89,7 @@ public class CucumberTestRunnerListener implements ConcurrentEventListener {
         }
     }
 
-    private void shaftTeardown(){
+    private void shaftTeardown() {
         if (Reporter.getCurrentTestResult() == null) {
             // running in native Cucumber mode
             LogsHelper.closeAllDriversAndattachBrowserLogs();
@@ -104,7 +105,7 @@ public class CucumberTestRunnerListener implements ConcurrentEventListener {
 
     private void caseStartedHandler(TestCaseStarted event) {
         var testCase = event.getTestCase();
-    	var scenarioSteps = new StringBuilder();
+        var scenarioSteps = new StringBuilder();
         var cleanScenarioSteps = new StringBuilder();
         testCase.getTestSteps().forEach(testStep -> {
             if (testStep instanceof PickleStepTestStep pickleStepTestStep) {
@@ -124,7 +125,7 @@ public class CucumberTestRunnerListener implements ConcurrentEventListener {
         }
         ReportManagerHelper.setTestCaseName(testCase.getName());
         ReportManagerHelper.setTestCaseDescription(scenarioSteps.toString());
-        if (Boolean.parseBoolean(System.getProperty("generateExtentReports").trim())){
+        if (Boolean.parseBoolean(System.getProperty("generateExtentReports").trim())) {
             ReportManagerHelper.extentReportsCreateTest(testCase.getName(), scenarioSteps.toString());
         }
         lastStartedScenarioName = testCase.getName();
@@ -150,7 +151,7 @@ public class CucumberTestRunnerListener implements ConcurrentEventListener {
     }
 
     private Optional<Feature> getFeature(URI uri) {
-    	var featureParser = new FeatureParser(() -> new UUID(10, 1));
+        var featureParser = new FeatureParser(() -> new UUID(10, 1));
         return featureParser.parseResource(new Resource() {
             @Override
             public URI getUri() {
@@ -165,7 +166,7 @@ public class CucumberTestRunnerListener implements ConcurrentEventListener {
     }
 
     private void stepStartedHandler(TestStepStarted event) {
-    	var testStep = event.getTestStep();
+        var testStep = event.getTestStep();
 
         if (testStep instanceof HookTestStep hookTestStep) {
             ReportManager.logDiscrete("Scenario Hook: " + hookTestStep.getHookType().name());

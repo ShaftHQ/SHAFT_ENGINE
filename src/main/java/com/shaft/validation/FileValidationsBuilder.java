@@ -19,6 +19,7 @@ public class FileValidationsBuilder {
 
     /**
      * Use this to check if a certain file exists
+     *
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
     public ValidationsExecutor exists() {
@@ -30,6 +31,7 @@ public class FileValidationsBuilder {
 
     /**
      * Use this to check if a certain file does not exist
+     *
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
     public ValidationsExecutor doesNotExist() {
@@ -41,6 +43,7 @@ public class FileValidationsBuilder {
 
     /**
      * Use this to calculate and check a certain file checksum to confirm if it has the exact same content or not
+     *
      * @return a NativeValidationsBuilder object to continue building your validation
      */
     public NativeValidationsBuilder checksum() {
@@ -51,9 +54,10 @@ public class FileValidationsBuilder {
 
     /**
      * Use this to attempt to read and validate a certain file content (works for PDF and TEXT files)
+     *
      * @return a NativeValidationsBuilder object to continue building your validation
      */
-    public NativeValidationsBuilder content(){
+    public NativeValidationsBuilder content() {
         this.validationMethod = "fileContent";
         reportMessageBuilder.append("content ");
         return new NativeValidationsBuilder(this);

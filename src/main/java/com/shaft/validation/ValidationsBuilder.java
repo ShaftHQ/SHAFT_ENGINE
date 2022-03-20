@@ -24,6 +24,7 @@ public class ValidationsBuilder {
 
     /**
      * Build a native validation to check against the target object
+     *
      * @param actualValue the actual object that will be compared against
      * @return a NativeValidationsBuilder object to continue building your validation
      */
@@ -36,6 +37,7 @@ public class ValidationsBuilder {
 
     /**
      * Build a number validation to check against the target number
+     *
      * @param actualValue the actual number that will be compared against
      * @return a NumberValidationsBuilder object to continue building your validation
      */
@@ -48,15 +50,16 @@ public class ValidationsBuilder {
 
     /**
      * Build a webdriver element validation to check against the target element
-     * @param driver         the current instance of Selenium webdriver
-     * @param locator        the locator of the webElement under test (By xpath, id,
-     *                       selector, name ...etc)
+     *
+     * @param driver  the current instance of Selenium webdriver
+     * @param locator the locator of the webElement under test (By xpath, id,
+     *                selector, name ...etc)
      * @return a WebDriverElementValidationsBuilder object to continue building your validation
      */
     public WebDriverElementValidationsBuilder element(WebDriver driver, By locator) {
         var stringLocator = locator.toString();
-        if (locator instanceof RelativeLocator.RelativeBy relativeLocator){
-            stringLocator = "Relative Locator: "+relativeLocator.getRemoteParameters().value().toString();
+        if (locator instanceof RelativeLocator.RelativeBy relativeLocator) {
+            stringLocator = "Relative Locator: " + relativeLocator.getRemoteParameters().value().toString();
         }
         reportMessageBuilder.append("The Element located by \"").append(stringLocator).append("\" ");
         return new WebDriverElementValidationsBuilder(validationCategory, driver, locator, reportMessageBuilder);
@@ -64,7 +67,8 @@ public class ValidationsBuilder {
 
     /**
      * Build a webdriver browser validation to check against the target browser
-     * @param driver         the current instance of Selenium webdriver
+     *
+     * @param driver the current instance of Selenium webdriver
      * @return a WebDriverBrowserValidationsBuilder object to continue building your validation
      */
     public WebDriverBrowserValidationsBuilder browser(WebDriver driver) {
@@ -74,6 +78,7 @@ public class ValidationsBuilder {
 
     /**
      * Build an API response validation to check against the target API response
+     *
      * @param response the target API response object
      * @return a RestValidationsBuilder object to continue building your validation
      */
@@ -84,8 +89,9 @@ public class ValidationsBuilder {
 
     /**
      * Build a file validation to check against the target file
-     * @param folderRelativePath    relative path to the targetDirectory
-     * @param fileName  target fileName
+     *
+     * @param folderRelativePath relative path to the targetDirectory
+     * @param fileName           target fileName
      * @return a FileValidationsBuilder object to continue building your validation
      */
     public FileValidationsBuilder file(String folderRelativePath, String fileName) {
@@ -95,6 +101,7 @@ public class ValidationsBuilder {
 
     /**
      * Force fail the current validation
+     *
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
     public ValidationsExecutor forceFail() {

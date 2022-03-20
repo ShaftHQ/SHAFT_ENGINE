@@ -63,17 +63,18 @@ import static io.qameta.allure.util.ResultsUtils.*;
 })
 public class CucumberFeatureListener implements ConcurrentEventListener {
 
+    private static final String TXT_EXTENSION = ".txt";
+    private static final String TEXT_PLAIN = "text/plain";
+    private static String lastStartedScenarioName;
+    private static Boolean isLastFinishedStepOK;
     private final AllureLifecycle lifecycle;
-
     private final ConcurrentHashMap<String, String> scenarioUuids = new ConcurrentHashMap<>();
     private final TestSourcesModelProxy testSources = new TestSourcesModelProxy();
-
     private final ThreadLocal<Feature> currentFeature = new InheritableThreadLocal<>();
     private final ThreadLocal<URI> currentFeatureFile = new InheritableThreadLocal<>();
     private final ThreadLocal<TestCase> currentTestCase = new InheritableThreadLocal<>();
     private final ThreadLocal<String> currentContainer = new InheritableThreadLocal<>();
     private final ThreadLocal<Boolean> forbidTestCaseStatusChange = new InheritableThreadLocal<>();
-
     private final EventHandler<TestSourceRead> featureStartedHandler = this::handleFeatureStartedHandler;
     private final EventHandler<TestCaseStarted> caseStartedHandler = this::handleTestCaseStarted;
     private final EventHandler<TestCaseFinished> caseFinishedHandler = this::handleTestCaseFinished;
@@ -82,19 +83,6 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
     private final EventHandler<WriteEvent> writeEventHandler = this::handleWriteEvent;
     private final EventHandler<EmbedEvent> embedEventHandler = this::handleEmbedEvent;
 
-    private static final String TXT_EXTENSION = ".txt";
-    private static final String TEXT_PLAIN = "text/plain";
-
-    private static String lastStartedScenarioName;
-    public static String getLastStartedScenarioName(){
-        return lastStartedScenarioName;
-    }
-
-    private static Boolean isLastFinishedStepOK;
-    public static Boolean getIsLastFinishedStepOK(){
-        return isLastFinishedStepOK;
-    }
-
     @SuppressWarnings("unused")
     public CucumberFeatureListener() {
         this(Allure.getLifecycle());
@@ -102,6 +90,14 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
 
     public CucumberFeatureListener(final AllureLifecycle lifecycle) {
         this.lifecycle = lifecycle;
+    }
+
+    public static String getLastStartedScenarioName() {
+        return lastStartedScenarioName;
+    }
+
+    public static Boolean getIsLastFinishedStepOK() {
+        return isLastFinishedStepOK;
     }
 
     /*
@@ -186,7 +182,7 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
         lastStartedScenarioName = scenarioDefinition.getName();
         ReportManagerHelper.setTestCaseName(lastStartedScenarioName);
         ReportManagerHelper.setTestCaseDescription(scenarioDefinition.getDescription());
-        if (Boolean.parseBoolean(System.getProperty("generateExtentReports").trim())){
+        if (Boolean.parseBoolean(System.getProperty("generateExtentReports").trim())) {
             ReportManagerHelper.extentReportsCreateTest(feature.getName(), feature.getDescription());
         }
         var testCase = event.getTestCase();
@@ -500,6 +496,7 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
             }
         });
     }
+
     private Optional<io.cucumber.core.gherkin.Feature> getFeature(URI uri) {
         var featureParser = new FeatureParser(() -> new UUID(10, 1));
         return featureParser.parseResource(new Resource() {
@@ -515,7 +512,7 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
         });
     }
 
-    private void shaftSetup(){
+    private void shaftSetup() {
         if (Reporter.getCurrentTestResult() == null) {
             // running in native Cucumber mode
             System.setProperty("disableLogging", "true");
@@ -534,7 +531,7 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
         }
     }
 
-    private void shaftTeardown(){
+    private void shaftTeardown() {
         if (Reporter.getCurrentTestResult() == null) {
             // running in native Cucumber mode
             LogsHelper.closeAllDriversAndattachBrowserLogs();

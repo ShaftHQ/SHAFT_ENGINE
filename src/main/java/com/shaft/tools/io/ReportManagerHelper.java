@@ -62,15 +62,14 @@ public class ReportManagerHelper {
     private static ExtentTest extentTest;
     private static String extentReportFileName;
     private static String generateExtentReports;
-	private static List<String> commandsToGenerateJDKBatFile;
-	private static List<String> commandsToGenerateJDKShellFile;
-	
+    private static List<String> commandsToGenerateJDKBatFile;
+    private static List<String> commandsToGenerateJDKShellFile;
 
 
     private ReportManagerHelper() {
         throw new IllegalStateException("Utility class");
     }
-    
+
     public static String getExtentReportFileName() {
         return extentReportFileName;
     }
@@ -192,10 +191,10 @@ public class ReportManagerHelper {
             cleanAllureResultsDirectory();
             downloadAndExtractAllureBinaries();
             writeGenerateReportShellFilesToProjectDirectory();
-            
+
         }
         writeEnvironmentVariablesToAllureResultsDirectory();
-        
+
 //        setDiscreteLogging(discreteLoggingState);
         System.setProperty("disableLogging", "false");
     }
@@ -211,24 +210,24 @@ public class ReportManagerHelper {
         testCasesCounter++;
         StringBuilder reportMessage = new StringBuilder();
 
-        if (totalNumberOfTests>0){
+        if (totalNumberOfTests > 0) {
             reportMessage.append("Starting Execution:\t");
             reportMessage.append("\"");
             reportMessage.append(testCasesCounter);
             reportMessage.append(" out of ");
             reportMessage.append(totalNumberOfTests);
             reportMessage.append("\" test cases in the current suite");
-        }else{
+        } else {
             //it's only zero in case of CucumberTestRunner
             reportMessage.append("Starting Dynamic Cucumber Feature Execution:\t");
         }
-        reportMessage.append("\nTest Method:\t\t\"" + className + "." + testMethodName+ "\"");
+        reportMessage.append("\nTest Method:\t\t\"" + className + "." + testMethodName + "\"");
 
         if (!testDescription.equals("")) {
             reportMessage.append("\nTest Description:\t\"" + testDescription + "\"");
         }
 
-        createImportantReportEntry(reportMessage.toString(),false);
+        createImportantReportEntry(reportMessage.toString(), false);
     }
 
     public static synchronized void logScenarioInformation(String keyword, String name, String steps) {
@@ -369,7 +368,7 @@ public class ReportManagerHelper {
     public static String getTestMethodName() {
         if (Reporter.getCurrentTestResult() != null) {
             return Reporter.getCurrentTestResult().getMethod().getMethodName();
-        }else{
+        } else {
             // this happens when running a cucumber feature file directly because there is no testNG Reporter instance
             return JavaActions.removeSpecialCharacters(CucumberFeatureListener.getLastStartedScenarioName());
         }
@@ -393,7 +392,7 @@ public class ReportManagerHelper {
     public static Boolean isCurrentTestPassed() {
         if (Reporter.getCurrentTestResult() != null) {
             return Reporter.getCurrentTestResult().isSuccess();
-        }else{
+        } else {
             // this happens in case of native cucumber execution without TestNG Test Runner
             return CucumberFeatureListener.getIsLastFinishedStepOK();
         }
@@ -490,7 +489,7 @@ public class ReportManagerHelper {
     }
 
     private static String formatStackTraceToLogEntry(Throwable t, boolean isCause) {
-    	var logBuilder = new StringBuilder();
+        var logBuilder = new StringBuilder();
         if (t != null) {
             StackTraceElement[] trace = t.getStackTrace();
             if (isCause) {
@@ -595,11 +594,11 @@ public class ReportManagerHelper {
     }
 
     private static void createAttachment(String attachmentType, String attachmentName, InputStream attachmentContent) {
-    	var baos = new ByteArrayOutputStream();
+        var baos = new ByteArrayOutputStream();
         try {
             attachmentContent.transferTo(baos);
         } catch (IOException e) {
-        	var error = "Error while creating Attachment";
+            var error = "Error while creating Attachment";
             slf4jLogger.info(error, e);
             Reporter.log(error, false);
         }
@@ -666,7 +665,7 @@ public class ReportManagerHelper {
     private static void attachCodeBlockToExtentReport(String attachmentType, InputStream attachmentContent) {
         if (extentTest != null) {
             try {
-            	var codeBlock = IOUtils.toString(attachmentContent, StandardCharsets.UTF_8.name());
+                var codeBlock = IOUtils.toString(attachmentContent, StandardCharsets.UTF_8.name());
                 switch (attachmentType) {
                     case "text/json" -> extentTest.info(MarkupHelper.createCodeBlock(codeBlock, CodeLanguage.JSON));
                     case "text/xml" -> extentTest.info(MarkupHelper.createCodeBlock(codeBlock, CodeLanguage.XML));
@@ -681,7 +680,7 @@ public class ReportManagerHelper {
     private static void attachImageToExtentReport(String attachmentType, InputStream attachmentContent) {
         if (extentTest != null) {
             try {
-            	var image = Base64.getEncoder().encodeToString(IOUtils.toByteArray(attachmentContent));
+                var image = Base64.getEncoder().encodeToString(IOUtils.toByteArray(attachmentContent));
                 if (attachmentType.toLowerCase().contains("gif")) {
                     extentTest.addScreenCaptureFromBase64String(image);
                 } else {
@@ -699,7 +698,7 @@ public class ReportManagerHelper {
                 Boolean.valueOf(System.getProperty("cleanAllureResultsDirectoryBeforeExecution")))) {
             try {
                 FileActions.deleteFolder(allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1));
-            } catch (Throwable t){
+            } catch (Throwable t) {
                 ReportManager.log("Failed to delete allure-results as it is currently open. Kindly restart your device to unlock the directory.");
             }
         }
@@ -708,8 +707,8 @@ public class ReportManagerHelper {
     private static void writeEnvironmentVariablesToAllureResultsDirectory() {
         // reads all environment variables and then formats and writes them to be read
         // by the Allure report
-    	var props = System.getProperties();
-    	var propertiesFileBuilder = new StringBuilder();
+        var props = System.getProperties();
+        var propertiesFileBuilder = new StringBuilder();
         propertiesFileBuilder.append("<environment>");
         // read properties from any explicit properties files
         for (var i = 0; i < props.size(); i++) {
@@ -798,42 +797,43 @@ public class ReportManagerHelper {
             (new TerminalActions()).performTerminalCommand("chmod u+x generate_allure_report.sh");
         }
     }
-    
-	public static void generateJDKShellFilesToProjectDirectory() {
-		ReportManager.logDiscrete("Configuring JDK");
-		if (SystemUtils.IS_OS_WINDOWS) {
-		// create windows batch file
-			commandsToGenerateJDKBatFile = Arrays.asList("@echo off",
-				"set JAVA_HOME=" + System.getProperty("java.home"), "set M2=%M2_HOME%\\bin",
-				"set PATH=%JAVA_HOME%\\bin;%M2%;%PATH%", "echo %JAVA_HOME%", "echo %PATH%");
-		FileActions.writeToFile("", "generateJdk.bat", commandsToGenerateJDKBatFile);
-        
-		// create .sh file to run on git bash
-		String ConcatenatedJDKPath = "/" + System.getProperty("java.home");
-		String FinalJDKPath = ConcatenatedJDKPath.replace("\\", "/").replaceFirst(":", "");
-		    commandsToGenerateJDKShellFile = Arrays.asList("#!/bin/bash", "export JAVA_HOME=" + FinalJDKPath,
-				"export PATH=$JAVA_HOME/bin:$PATH", "echo $JAVA_HOME", "echo $PATH", "$SHELL");
-		FileActions.writeToFile("", "generateJdk.sh", commandsToGenerateJDKShellFile);
+
+    public static void generateJDKShellFilesToProjectDirectory() {
+        ReportManager.logDiscrete("Configuring JDK");
+        if (SystemUtils.IS_OS_WINDOWS) {
+            // create windows batch file
+            commandsToGenerateJDKBatFile = Arrays.asList("@echo off",
+                    "set JAVA_HOME=" + System.getProperty("java.home"), "set M2=%M2_HOME%\\bin",
+                    "set PATH=%JAVA_HOME%\\bin;%M2%;%PATH%", "echo %JAVA_HOME%", "echo %PATH%");
+            FileActions.writeToFile("", "generateJdk.bat", commandsToGenerateJDKBatFile);
+
+            // create .sh file to run on git bash
+            String ConcatenatedJDKPath = "/" + System.getProperty("java.home");
+            String FinalJDKPath = ConcatenatedJDKPath.replace("\\", "/").replaceFirst(":", "");
+            commandsToGenerateJDKShellFile = Arrays.asList("#!/bin/bash", "export JAVA_HOME=" + FinalJDKPath,
+                    "export PATH=$JAVA_HOME/bin:$PATH", "echo $JAVA_HOME", "echo $PATH", "$SHELL");
+            FileActions.writeToFile("", "generateJdk.sh", commandsToGenerateJDKShellFile);
         } else {
 
             // create commands of unix-based shells
             commandsToGenerateJDKShellFile = Arrays.asList("#!/bin/bash", "export JAVA_HOME=$(/usr/libexec/java_home)",
-                    "export PATH=$JAVA_HOME/bin:$PATH","source ~/.zshenv", "echo $JAVA_HOME", "echo $PATH", "exec bash");
+                    "export PATH=$JAVA_HOME/bin:$PATH", "source ~/.zshenv", "echo $JAVA_HOME", "echo $PATH", "exec bash");
             FileActions.writeToFile("", "generateJdkMac.sh", commandsToGenerateJDKShellFile);
-		    // make JDK executable on unix-based shells
+            // make JDK executable on unix-based shells
             (new TerminalActions()).performTerminalCommand("chmod u+x generateJdk.sh");
-		}
-	}
-    
-    public static List<String> getCommandsToGenerateJDKBatFile() {
-    	return commandsToGenerateJDKBatFile;
+        }
     }
+
+    public static List<String> getCommandsToGenerateJDKBatFile() {
+        return commandsToGenerateJDKBatFile;
+    }
+
     public static List<String> getCommandsToGenerateJDKShellFile() {
-    	return commandsToGenerateJDKShellFile;
+        return commandsToGenerateJDKShellFile;
     }
 
     static boolean isInternalStep() {
-    	var callingMethodName = (new Throwable()).getStackTrace()[2].toString();
+        var callingMethodName = (new Throwable()).getStackTrace()[2].toString();
         return callingMethodName.contains("com.shaft");
     }
 

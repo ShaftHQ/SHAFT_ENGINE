@@ -11,35 +11,27 @@ import org.openqa.selenium.WebDriver;
 
 public class ValidationsExecutor {
     private final ValidationEnums.ValidationCategory validationCategory;
-    private WebDriver driver;
-    private By locator;
     private final ValidationEnums.ValidationType validationType;
     private final String validationMethod;
+    protected StringBuilder reportMessageBuilder;
+    private WebDriver driver;
+    private By locator;
     private String customReportMessage = "";
-
     private ValidationEnums.VisualValidationEngine visualValidationEngine;
-
     private String elementAttribute;
     private String elementCssProperty;
     private String browserAttribute;
-
     private ValidationEnums.ValidationComparisonType validationComparisonType;
     private Object expectedValue;
-
     private boolean condition;
     private Object actualValue;
-
     private ValidationEnums.NumbersComparativeRelation numbersComparativeRelation;
-
     private Object response;
     private String fileAbsolutePath;
     private RestActions.ComparisonType restComparisonType;
-
     private String jsonPath;
     private String folderRelativePath;
     private String fileName;
-
-    protected StringBuilder reportMessageBuilder;
 
     public ValidationsExecutor(WebDriverElementValidationsBuilder webDriverElementValidationsBuilder) {
         this.validationCategory = webDriverElementValidationsBuilder.validationCategory;
@@ -123,6 +115,7 @@ public class ValidationsExecutor {
 
     /**
      * Set a customized business-readable message that will appear in the execution report instead of the technical log message which will be nested under it
+     *
      * @param customReportMessage the message that you would like to describe this validation in the execution report
      * @return the current ValidationsExecutor object so that you can call the perform() method and execute this validation
      */
@@ -135,7 +128,7 @@ public class ValidationsExecutor {
      * Execute this validation
      */
     public void perform() {
-        if ("".equals(customReportMessage)){
+        if ("".equals(customReportMessage)) {
             customReportMessage = reportMessageBuilder.toString();
         }
         switch (validationMethod) {
@@ -160,10 +153,10 @@ public class ValidationsExecutor {
             case "checkResponseSchema" -> ValidationsHelper.validateResponseFileSchema(validationCategory, (Response) response, fileAbsolutePath, restComparisonType, "", validationType, customReportMessage);
             case "fileContent" -> {
                 String fileContent;
-                if (fileName.contains(".pdf")){
-                    fileContent = PdfFileManager.readFileContent(folderRelativePath+fileName);
-                }else{
-                    fileContent = FileActions.readFromFile(folderRelativePath,fileName);
+                if (fileName.contains(".pdf")) {
+                    fileContent = PdfFileManager.readFileContent(folderRelativePath + fileName);
+                } else {
+                    fileContent = FileActions.readFromFile(folderRelativePath, fileName);
                 }
                 ValidationsHelper.validateEquals(validationCategory, expectedValue, fileContent, validationComparisonType, validationType, customReportMessage);
             }

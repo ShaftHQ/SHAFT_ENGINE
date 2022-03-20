@@ -8,13 +8,13 @@ public class BrowserActions {
     private BrowserActions() {
         throw new IllegalStateException("Utility class");
     }
-    
+
     public static WebDriverBrowserActions performBrowserAction(WebDriver driver) {
-    	return new WebDriverBrowserActions(driver);
+        return new WebDriverBrowserActions(driver);
     }
-    
+
     public static PlayWrightBrowserActions performBrowserAction(Page page) {
-    	return new PlayWrightBrowserActions(page);
+        return new PlayWrightBrowserActions(page);
     }
 
     /**
@@ -24,7 +24,7 @@ public class BrowserActions {
      * @return the URL that's currently open in the current page
      */
     public static String getCurrentURL(WebDriver driver) {
-    	return WebDriverBrowserActions.getCurrentURL(driver);
+        return WebDriverBrowserActions.getCurrentURL(driver);
     }
 
     /**
@@ -86,7 +86,7 @@ public class BrowserActions {
      *                  to
      */
     public static void navigateToURL(WebDriver driver, String targetUrl) {
-    	WebDriverBrowserActions.navigateToURL(driver, targetUrl);
+        WebDriverBrowserActions.navigateToURL(driver, targetUrl);
     }
 
     /**
@@ -103,7 +103,7 @@ public class BrowserActions {
      *                                  navigation
      */
     public static void navigateToURL(WebDriver driver, String targetUrl, String targetUrlAfterRedirection) {
-    	WebDriverBrowserActions.navigateToURL(driver, targetUrl, targetUrlAfterRedirection);
+        WebDriverBrowserActions.navigateToURL(driver, targetUrl, targetUrlAfterRedirection);
     }
 
     /**
@@ -112,7 +112,7 @@ public class BrowserActions {
      * @param driver the current instance of Selenium webdriver
      */
     public static void navigateBack(WebDriver driver) {
-    	WebDriverBrowserActions.navigateBack(driver);
+        WebDriverBrowserActions.navigateBack(driver);
     }
 
     /**
@@ -121,7 +121,7 @@ public class BrowserActions {
      * @param driver the current instance of Selenium webdriver
      */
     public static void navigateForward(WebDriver driver) {
-    	WebDriverBrowserActions.navigateForward(driver);
+        WebDriverBrowserActions.navigateForward(driver);
     }
 
     /**
@@ -130,7 +130,7 @@ public class BrowserActions {
      * @param driver the current instance of Selenium webdriver
      */
     public static void refreshCurrentPage(WebDriver driver) {
-    	WebDriverBrowserActions.refreshCurrentPage(driver);
+        WebDriverBrowserActions.refreshCurrentPage(driver);
     }
 
     /**
@@ -139,7 +139,7 @@ public class BrowserActions {
      * @param driver the current instance of Selenium webdriver
      */
     public static synchronized void closeCurrentWindow(WebDriver driver) {
-    	WebDriverBrowserActions.closeCurrentWindow(driver);
+        WebDriverBrowserActions.closeCurrentWindow(driver);
     }
 
     /**
@@ -148,7 +148,7 @@ public class BrowserActions {
      * @param driver the current instance of Selenium webdriver
      */
     public static void maximizeWindow(WebDriver driver) {
-    	WebDriverBrowserActions.maximizeWindow(driver);
+        WebDriverBrowserActions.maximizeWindow(driver);
     }
 
     /**
@@ -159,15 +159,16 @@ public class BrowserActions {
      * @param height the desired new height of the target window
      */
     public static void setWindowSize(WebDriver driver, int width, int height) {
-    	WebDriverBrowserActions.setWindowSize(driver, width, height);
+        WebDriverBrowserActions.setWindowSize(driver, width, height);
     }
 
     /**
      * Resizes the current window to become full screen
+     *
      * @param driver the current instance of Selenium webdriver
      */
     public static void fullScreenWindow(WebDriver driver) {
-    	WebDriverBrowserActions.fullScreenWindow(driver);
+        WebDriverBrowserActions.fullScreenWindow(driver);
     }
 
 }

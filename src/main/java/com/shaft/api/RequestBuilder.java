@@ -64,7 +64,7 @@ public class RequestBuilder {
         this.serviceURI = session.getServiceURI();
         this.sessionCookies = session.getSessionCookies();
         this.sessionHeaders = session.getSessionHeaders();
-        this.sessionConfigs= session.getSessionConfigs();
+        this.sessionConfigs = session.getSessionConfigs();
         this.requestType = requestType;
         this.serviceName = serviceName;
         this.targetStatusCode = 200;
@@ -76,7 +76,7 @@ public class RequestBuilder {
 
     /**
      * set useRelaxedHTTPSValidation configuration to trust all hosts regardless if the SSL certificate is invalid in the request builder
-     *  'SSL' is the protocol name by default
+     * 'SSL' is the protocol name by default
      *
      * @return a self-reference to be used to continue building your API request
      */
@@ -88,6 +88,7 @@ public class RequestBuilder {
     /**
      * set useRelaxedHTTPSValidation configuration to trust all hosts regardless if the SSL certificate is invalid in the request builder
      * *
+     *
      * @param protocol The standard name of the requested protocol.
      * @return a self-reference to be used to continue building your API request
      */
@@ -121,7 +122,7 @@ public class RequestBuilder {
     /**
      * Sets the parameters (if any) for the API request that you're currently building. A request usually has only one of the following: urlArguments, parameters+type, or body
      *
-     * @param parameters a list of key/value pairs that will be sent as parameters with this API call, is nullable, Example: Arrays.asList(Arrays.asList("itemId", "123"), Arrays.asList("contents", XMLcontents));
+     * @param parameters     a list of key/value pairs that will be sent as parameters with this API call, is nullable, Example: Arrays.asList(Arrays.asList("itemId", "123"), Arrays.asList("contents", XMLcontents));
      * @param parametersType FORM, QUERY
      * @return a self-reference to be used to continue building your API request
      */
@@ -206,7 +207,7 @@ public class RequestBuilder {
     /**
      * Append a config to the current session to be used in the current and all the following requests.
      *
-     * @param config   the rest assured config you want to add.
+     * @param config the rest assured config you want to add.
      * @return a self-reference to be used to continue building your API request
      */
     public RequestBuilder addConfig(RestAssuredConfig config) {
@@ -248,7 +249,7 @@ public class RequestBuilder {
      */
     public Response performRequest() {
         String request = session.prepareRequestURL(serviceURI, urlArguments, serviceName);
-        RequestSpecification specs = session.prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders,sessionConfigs, appendDefaultContentCharsetToContentTypeIfUndefined, urlEncodingEnabled);
+        RequestSpecification specs = session.prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders, sessionConfigs, appendDefaultContentCharsetToContentTypeIfUndefined, urlEncodingEnabled);
 
         switch (this.authenticationType) {
             case BASIC -> specs.auth().preemptive().basic(this.authenticationUsername, this.authenticationPassword);
@@ -278,7 +279,7 @@ public class RequestBuilder {
         } catch (Exception rootCauseException) {
             ReportManagerHelper.log(rootCauseException);
             if (response != null) {
-                RestActions.failAction(request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", requestBody,specs,
+                RestActions.failAction(request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", requestBody, specs,
                         response, rootCauseException);
             } else {
                 RestActions.failAction(request, rootCauseException);

@@ -262,7 +262,7 @@ public class ScreenshotManager {
             return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
         }
     }
-    
+
     public static byte[] takeFullPageScreenshot(Page page) {
         try {
             return ScreenshotHelper.makeFullScreenshot(page);
@@ -275,7 +275,7 @@ public class ScreenshotManager {
     public static byte[] takeElementScreenshot(WebDriver driver, By targetElementLocator) {
         return takeElementScreenshot(driver, targetElementLocator, false);
     }
-    
+
     public static byte[] takeElementScreenshot(Page page, String targetElementLocator) {
         return takeElementScreenshot(page, targetElementLocator, false);
     }
@@ -294,7 +294,7 @@ public class ScreenshotManager {
 
                 gifOutputStream = new ThreadLocal<>();
                 gifWriter = new ThreadLocal<>();
-                String gifRelativePath= gifRelativePathWithFileName;
+                String gifRelativePath = gifRelativePathWithFileName;
                 gifRelativePathWithFileName = "";
                 return gifRelativePath;
             } catch (FileNotFoundException e) {
@@ -460,10 +460,10 @@ public class ScreenshotManager {
         }
         return new LinkedList<>();
     }
-    
+
 
     private static synchronized List<Object> internalCaptureScreenShot(Page page, String elementLocator, String actionName,
-    		String appendedText, boolean takeScreenshot) {
+                                                                       String appendedText, boolean takeScreenshot) {
         // Suggested: add to animated gif only in case of click, navigation, or validation actions.
         if (takeScreenshot || (CREATE_GIF && (DETAILED_GIF || actionName.matches(DETAILED_GIF_REGEX)))) {
             /*
@@ -514,8 +514,8 @@ public class ScreenshotManager {
             }
 
             if (takeScreenshot && !SCREENSHOT_PARAMS_HIGHLIGHTMETHOD.equals("JavaScript") && elementHandle != null) {
-            	var boundingBox = elementHandle.boundingBox();
-            	var elementLocation = new Rectangle((int)boundingBox.x, (int)boundingBox.y, (int)boundingBox.height, (int)boundingBox.width);
+                var boundingBox = elementHandle.boundingBox();
+                var elementLocation = new Rectangle((int) boundingBox.x, (int) boundingBox.y, (int) boundingBox.height, (int) boundingBox.width);
                 Color color;
                 if (globalPassFailStatus) {
                     color = new Color(165, 210, 165); // green
@@ -532,10 +532,10 @@ public class ScreenshotManager {
             }
         }
         return null;
-	}
+    }
 
     private static byte[] takeScreenshot(WebDriver driver) {
-        if (driver instanceof SelfHealingDriver selfHealingDriver){
+        if (driver instanceof SelfHealingDriver selfHealingDriver) {
             driver = selfHealingDriver.getDelegate();
         }
 
@@ -545,7 +545,7 @@ public class ScreenshotManager {
             default -> ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
         };
     }
-    
+
     private static byte[] takeScreenshot(Page page, String elementLocator) {
         return switch (SCREENSHOT_PARAMS_SCREENSHOTTYPE.toLowerCase().trim()) {
             case "fullpage" -> page.screenshot(new ScreenshotOptions().setFullPage(true));
@@ -576,12 +576,12 @@ public class ScreenshotManager {
             }
         }
     }
-    
+
     private static byte[] takeElementScreenshot(Page page, String targetElementLocator, Boolean
             returnRegularScreenshotInCaseOfFailure) {
         try {
             if (targetElementLocator != null && ElementActions.performElementAction(page).getElementsCount(targetElementLocator) == 1) {
-                return page.querySelector(targetElementLocator).screenshot();                		
+                return page.querySelector(targetElementLocator).screenshot();
             } else {
                 if (returnRegularScreenshotInCaseOfFailure) {
                     return page.screenshot();
@@ -675,10 +675,10 @@ public class ScreenshotManager {
 
                 // grab the output image type from the first image in the sequence
                 BufferedImage firstImage = ImageIO.read(new ByteArrayInputStream(screenshot));
-                
+
                 //scaling it down
                 firstImage = Scalr.resize(firstImage, Scalr.Method.BALANCED, GIF_SIZE);
-                
+
                 // create a new BufferedOutputStream
                 FileActions.createFile(SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME, gifFileName);
                 gifOutputStream.set(new FileImageOutputStream(new File(gifRelativePathWithFileName)));
@@ -768,9 +768,9 @@ public class ScreenshotManager {
     private static synchronized void appendToAnimatedGif(byte[] screenshot) {
         try {
             BufferedImage image;
-            if (screenshot != null) {                
+            if (screenshot != null) {
                 image = ImageIO.read(new ByteArrayInputStream(screenshot));
-            	//scaling it down
+                //scaling it down
                 image = Scalr.resize(image, Scalr.Method.BALANCED, GIF_SIZE);
                 gifWriter.get().writeToSequence(overlayShaftEngineLogo(image));
             }
