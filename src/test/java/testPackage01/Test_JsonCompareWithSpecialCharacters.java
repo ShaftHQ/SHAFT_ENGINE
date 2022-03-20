@@ -3,8 +3,7 @@ package testPackage01;
 import com.shaft.api.RestActions.ComparisonType;
 import com.shaft.cli.FileActions;
 import com.shaft.validation.Assertions;
-import com.shaft.validation.Verifications;
-import com.shaft.validation.Verifications.VerificationType;
+import com.shaft.validation.Validations;
 import io.restassured.builder.ResponseBuilder;
 import io.restassured.response.Response;
 import org.testng.annotations.Test;
@@ -15,8 +14,7 @@ public class Test_JsonCompareWithSpecialCharacters {
         String referenceJsonFilePath = System.getProperty("testDataFolderPath") + "specialCharacters.json";
         Response response = (new ResponseBuilder()).setBody(FileActions.readFromFile(referenceJsonFilePath))
                 .setStatusCode(200).build();
-        Verifications.verifyJSONFileContent(response, referenceJsonFilePath, ComparisonType.EQUALS,
-                VerificationType.POSITIVE);
+        Validations.verifyThat().response(response).isEqualToFileContent(referenceJsonFilePath).perform();
     }
 
     @Test

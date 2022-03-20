@@ -56,7 +56,7 @@ public class DatabaseActions implements ShaftDriver {
      * @return a string value which represents the provided resultSet object
      */
     public static String getResult(ResultSet resultSet) {
-    	var resultSetString = getResultStringValue(resultSet, false);
+        var resultSetString = getResultStringValue(resultSet, false);
         passAction();
         return resultSetString;
     }
@@ -118,7 +118,7 @@ public class DatabaseActions implements ShaftDriver {
      * @return a string value which represents the data of the target column
      */
     public static String getColumn(ResultSet resultSet, String columnName) {
-    	var str = new StringBuilder();
+        var str = new StringBuilder();
         try {
             resultSet.beforeFirst();
             if (resultSet.last()) {
@@ -148,7 +148,7 @@ public class DatabaseActions implements ShaftDriver {
      * the provided resultSet
      */
     public static int getRowCount(ResultSet resultSet) {
-    	var rowCount = 0;
+        var rowCount = 0;
         try {
             resultSet.beforeFirst();
             if (resultSet.last()) {
@@ -234,7 +234,7 @@ public class DatabaseActions implements ShaftDriver {
 
     private static StringBuilder readColumnHeaders(ResultSet resultSet, boolean readColumnNames, int columnsCount)
             throws SQLException {
-    	var str = new StringBuilder();
+        var str = new StringBuilder();
         if (readColumnNames) {
             for (var i = 1; i <= columnsCount; i++) {
                 str.append(resultSet.getMetaData().getColumnName(i));
@@ -249,7 +249,7 @@ public class DatabaseActions implements ShaftDriver {
 
     private static StringBuilder readColumnData(ResultSet resultSet, int columnsCount, int lastRowID)
             throws SQLException {
-    	var str = new StringBuilder();
+        var str = new StringBuilder();
         for (var i = 1; i <= lastRowID; i++) {
             resultSet.absolute(i);
             for (var j = 1; j <= columnsCount; j++) {
@@ -264,7 +264,7 @@ public class DatabaseActions implements ShaftDriver {
     }
 
     private static String getResultStringValue(ResultSet resultSet, boolean readColumnNames) {
-    	var str = new StringBuilder();
+        var str = new StringBuilder();
         try {
             resultSet.beforeFirst();
             if (resultSet.last()) {
@@ -343,7 +343,7 @@ public class DatabaseActions implements ShaftDriver {
      * statements or (2) 0 for SQL statements that return nothing
      */
     public int executeUpdateQuery(String sql) {
-       return executeDataManipulationQueries(sql,"UPDATE");
+        return executeDataManipulationQueries(sql, "UPDATE");
     }
 
     /**
@@ -357,7 +357,7 @@ public class DatabaseActions implements ShaftDriver {
      * statements or (2) 0 for SQL statements that return nothing
      */
     public int executeInsertQuery(String sql) {
-        return executeDataManipulationQueries(sql,"INSERT");
+        return executeDataManipulationQueries(sql, "INSERT");
 
     }
 
@@ -372,10 +372,10 @@ public class DatabaseActions implements ShaftDriver {
      * statements or (2) 0 for SQL statements that return nothing
      */
     public int executeDeleteQuery(String sql) {
-        return executeDataManipulationQueries(sql,"DELETE");
+        return executeDataManipulationQueries(sql, "DELETE");
 
     }
-    
+
     private Connection createConnection() {
         Connection connection = null;
         var connectionString = "";

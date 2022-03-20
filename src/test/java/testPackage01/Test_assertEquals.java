@@ -6,7 +6,7 @@ import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Assertions;
 import com.shaft.validation.Assertions.AssertionComparisonType;
 import com.shaft.validation.Assertions.AssertionType;
-import com.shaft.validation.Verifications;
+import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.testng.annotations.AfterClass;
@@ -44,7 +44,10 @@ public class Test_assertEquals {
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "https://www.google.com");
         ElementActions.type(driver, By.name("q"),
                 "© Copyright 2014-2017 Incorta, Inc Version: Rel3.3-dev Build May 29, 2018 15:30");
-        Verifications.verifyElementAttribute(driver, By.name("q"), "text", "([\\s\\S]*Rel3.3[\\s\\S]*)", Verifications.VerificationComparisonType.MATCHES, Verifications.VerificationType.POSITIVE);
+        Validations.verifyThat().element(driver, By.name("q"))
+                .text()
+                .matchesRegex("([\\s\\S]*Rel3.3[\\s\\S]*)")
+                .perform();
     }
 
     @BeforeClass // Set-up method, to be run once before the first test

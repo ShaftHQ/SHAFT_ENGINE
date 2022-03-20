@@ -28,7 +28,7 @@ public class AssertionSteps {
                 .browser(driver.get())
                 .attribute(browserAttribute)
                 .isEqualTo(expectedValue)
-                .withCustomReportMessage("I Assert that the ["+browserAttribute+"] attribute of the browser, equals ["+expectedValue+"]")
+                .withCustomReportMessage("I Assert that the [" + browserAttribute + "] attribute of the browser, equals [" + expectedValue + "]")
                 .perform();
     }
 
@@ -46,7 +46,7 @@ public class AssertionSteps {
                 .browser(driver.get())
                 .attribute(browserAttribute)
                 .doesNotEqual(expectedValue)
-                .withCustomReportMessage("I Assert that the ["+browserAttribute+"] attribute of the browser, does not equal ["+expectedValue+"]")
+                .withCustomReportMessage("I Assert that the [" + browserAttribute + "] attribute of the browser, does not equal [" + expectedValue + "]")
                 .perform();
     }
 
@@ -64,7 +64,7 @@ public class AssertionSteps {
                 .browser(driver.get())
                 .attribute(browserAttribute)
                 .contains(expectedValue)
-                .withCustomReportMessage("I Assert that the ["+browserAttribute+"] attribute of the browser, contains ["+expectedValue+"]")
+                .withCustomReportMessage("I Assert that the [" + browserAttribute + "] attribute of the browser, contains [" + expectedValue + "]")
                 .perform();
     }
 
@@ -82,7 +82,7 @@ public class AssertionSteps {
                 .browser(driver.get())
                 .attribute(browserAttribute)
                 .doesNotContain(expectedValue)
-                .withCustomReportMessage("I Assert that the ["+browserAttribute+"] attribute of the browser, does not contain ["+expectedValue+"]")
+                .withCustomReportMessage("I Assert that the [" + browserAttribute + "] attribute of the browser, does not contain [" + expectedValue + "]")
                 .perform();
     }
 
@@ -100,7 +100,7 @@ public class AssertionSteps {
                 .browser(driver.get())
                 .attribute(browserAttribute)
                 .matchesRegex(expectedValue)
-                .withCustomReportMessage("I Assert that the ["+browserAttribute+"] attribute of the browser, matches the regular expression ["+expectedValue+"]")
+                .withCustomReportMessage("I Assert that the [" + browserAttribute + "] attribute of the browser, matches the regular expression [" + expectedValue + "]")
                 .perform();
     }
 
@@ -118,7 +118,7 @@ public class AssertionSteps {
                 .browser(driver.get())
                 .attribute(browserAttribute)
                 .doesNotMatchRegex(expectedValue)
-                .withCustomReportMessage("I Assert that the ["+browserAttribute+"] attribute of the browser, does not match the regular expression ["+expectedValue+"]")
+                .withCustomReportMessage("I Assert that the [" + browserAttribute + "] attribute of the browser, does not match the regular expression [" + expectedValue + "]")
                 .perform();
     }
 
@@ -137,7 +137,7 @@ public class AssertionSteps {
                 .element(driver.get(), ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
                 .attribute(elementAttribute)
                 .isEqualTo(expectedValue)
-                .withCustomReportMessage("I Assert that the ["+elementAttribute+"] attribute of the element found by ["+locatorType+": "+locatorValue+"], equals ["+expectedValue+"]")
+                .withCustomReportMessage("I Assert that the [" + elementAttribute + "] attribute of the element found by [" + locatorType + ": " + locatorValue + "], equals [" + expectedValue + "]")
                 .perform();
     }
 
@@ -155,7 +155,7 @@ public class AssertionSteps {
                 .element(driver.get(), ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
                 .attribute(elementAttribute)
                 .doesNotEqual(expectedValue)
-                .withCustomReportMessage("I Assert that the ["+elementAttribute+"] attribute of the element found by ["+locatorType+": "+locatorValue+"], does not equal ["+expectedValue+"]")
+                .withCustomReportMessage("I Assert that the [" + elementAttribute + "] attribute of the element found by [" + locatorType + ": " + locatorValue + "], does not equal [" + expectedValue + "]")
                 .perform();
     }
 
@@ -173,7 +173,7 @@ public class AssertionSteps {
                 .element(driver.get(), ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
                 .attribute(elementAttribute)
                 .contains(expectedValue)
-                .withCustomReportMessage("I Assert that the ["+elementAttribute+"] attribute of the element found by ["+locatorType+": "+locatorValue+"], contains ["+expectedValue+"]")
+                .withCustomReportMessage("I Assert that the [" + elementAttribute + "] attribute of the element found by [" + locatorType + ": " + locatorValue + "], contains [" + expectedValue + "]")
                 .perform();
     }
 
@@ -191,7 +191,7 @@ public class AssertionSteps {
                 .element(driver.get(), ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
                 .attribute(elementAttribute)
                 .doesNotContain(expectedValue)
-                .withCustomReportMessage("I Assert that the ["+elementAttribute+"] attribute of the element found by ["+locatorType+": "+locatorValue+"], does not contain ["+expectedValue+"]")
+                .withCustomReportMessage("I Assert that the [" + elementAttribute + "] attribute of the element found by [" + locatorType + ": " + locatorValue + "], does not contain [" + expectedValue + "]")
                 .perform();
     }
 
@@ -209,7 +209,7 @@ public class AssertionSteps {
                 .element(driver.get(), ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
                 .attribute(elementAttribute)
                 .matchesRegex(expectedValue)
-                .withCustomReportMessage("I Assert that the ["+elementAttribute+"] attribute of the element found by ["+locatorType+": "+locatorValue+"], matches the regular expression ["+expectedValue+"]")
+                .withCustomReportMessage("I Assert that the [" + elementAttribute + "] attribute of the element found by [" + locatorType + ": " + locatorValue + "], matches the regular expression [" + expectedValue + "]")
                 .perform();
     }
 
@@ -227,7 +227,7 @@ public class AssertionSteps {
                 .element(driver.get(), ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
                 .attribute(elementAttribute)
                 .doesNotMatchRegex(expectedValue)
-                .withCustomReportMessage("I Assert that the ["+elementAttribute+"] attribute of the element found by ["+locatorType+": "+locatorValue+"], does not match the regular expression ["+expectedValue+"]")
+                .withCustomReportMessage("I Assert that the [" + elementAttribute + "] attribute of the element found by [" + locatorType + ": " + locatorValue + "], does not match the regular expression [" + expectedValue + "]")
                 .perform();
     }
 
@@ -243,7 +243,7 @@ public class AssertionSteps {
         Validations.assertThat()
                 .element(driver.get(), ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
                 .exists()
-                .withCustomReportMessage("I Assert that the element found by ["+locatorType+": "+locatorValue+"], does exist")
+                .withCustomReportMessage("I Assert that the element found by [" + locatorType + ": " + locatorValue + "], does exist")
                 .perform();
     }
 
@@ -259,7 +259,7 @@ public class AssertionSteps {
         Validations.assertThat()
                 .element(driver.get(), ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
                 .doesNotExist()
-                .withCustomReportMessage("I Assert that the element found by ["+locatorType+": "+locatorValue+"], does not exist")
+                .withCustomReportMessage("I Assert that the element found by [" + locatorType + ": " + locatorValue + "], does not exist")
                 .perform();
     }
 
@@ -277,7 +277,7 @@ public class AssertionSteps {
                 .element(driver.get(), ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
                 .cssProperty(elementCSSProperty)
                 .isEqualTo(expectedValue)
-                .withCustomReportMessage("I Assert that the ["+elementCSSProperty+"] CSS property of the element found by ["+locatorType+": "+locatorValue+"], equals ["+expectedValue+"]")
+                .withCustomReportMessage("I Assert that the [" + elementCSSProperty + "] CSS property of the element found by [" + locatorType + ": " + locatorValue + "], equals [" + expectedValue + "]")
                 .perform();
     }
 
@@ -295,7 +295,7 @@ public class AssertionSteps {
                 .element(driver.get(), ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
                 .cssProperty(elementCSSProperty)
                 .doesNotEqual(expectedValue)
-                .withCustomReportMessage("I Assert that the ["+elementCSSProperty+"] CSS property of the element found by ["+locatorType+": "+locatorValue+"], does not equal ["+expectedValue+"]")
+                .withCustomReportMessage("I Assert that the [" + elementCSSProperty + "] CSS property of the element found by [" + locatorType + ": " + locatorValue + "], does not equal [" + expectedValue + "]")
                 .perform();
     }
 
@@ -313,7 +313,7 @@ public class AssertionSteps {
                 .element(driver.get(), ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
                 .cssProperty(elementCSSProperty)
                 .contains(expectedValue)
-                .withCustomReportMessage("I Assert that the ["+elementCSSProperty+"] CSS property of the element found by ["+locatorType+": "+locatorValue+"], contains ["+expectedValue+"]")
+                .withCustomReportMessage("I Assert that the [" + elementCSSProperty + "] CSS property of the element found by [" + locatorType + ": " + locatorValue + "], contains [" + expectedValue + "]")
                 .perform();
     }
 
@@ -331,7 +331,7 @@ public class AssertionSteps {
                 .element(driver.get(), ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
                 .cssProperty(elementCSSProperty)
                 .doesNotContain(expectedValue)
-                .withCustomReportMessage("I Assert that the ["+elementCSSProperty+"] CSS property of the element found by ["+locatorType+": "+locatorValue+"], does not contain ["+expectedValue+"]")
+                .withCustomReportMessage("I Assert that the [" + elementCSSProperty + "] CSS property of the element found by [" + locatorType + ": " + locatorValue + "], does not contain [" + expectedValue + "]")
                 .perform();
     }
 
@@ -349,7 +349,7 @@ public class AssertionSteps {
                 .element(driver.get(), ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
                 .cssProperty(elementCSSProperty)
                 .matchesRegex(expectedValue)
-                .withCustomReportMessage("I Assert that the ["+elementCSSProperty+"] CSS property of the element found by ["+locatorType+": "+locatorValue+"], matches the regular expression ["+expectedValue+"]")
+                .withCustomReportMessage("I Assert that the [" + elementCSSProperty + "] CSS property of the element found by [" + locatorType + ": " + locatorValue + "], matches the regular expression [" + expectedValue + "]")
                 .perform();
     }
 
@@ -367,7 +367,7 @@ public class AssertionSteps {
                 .element(driver.get(), ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
                 .cssProperty(elementCSSProperty)
                 .doesNotMatchRegex(expectedValue)
-                .withCustomReportMessage("I Assert that the ["+elementCSSProperty+"] CSS property of the element found by ["+locatorType+": "+locatorValue+"], does not match the regular expression ["+expectedValue+"]")
+                .withCustomReportMessage("I Assert that the [" + elementCSSProperty + "] CSS property of the element found by [" + locatorType + ": " + locatorValue + "], does not match the regular expression [" + expectedValue + "]")
                 .perform();
     }
 
@@ -383,7 +383,7 @@ public class AssertionSteps {
         Validations.assertThat()
                 .element(driver.get(), ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
                 .matchesReferenceImage()
-                .withCustomReportMessage("I Assert that the element found by ["+locatorType+": "+locatorValue+"], exactly matches with the expected reference image using Artificial Intelligence (OpenCV)")
+                .withCustomReportMessage("I Assert that the element found by [" + locatorType + ": " + locatorValue + "], exactly matches with the expected reference image using Artificial Intelligence (OpenCV)")
                 .perform();
     }
 
@@ -399,7 +399,7 @@ public class AssertionSteps {
         Validations.assertThat()
                 .element(driver.get(), ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
                 .doesNotMatchReferenceImage()
-                .withCustomReportMessage("I Assert that the element found by ["+locatorType+": "+locatorValue+"], does not exactly match with the expected reference image using Artificial Intelligence (OpenCV)")
+                .withCustomReportMessage("I Assert that the element found by [" + locatorType + ": " + locatorValue + "], does not exactly match with the expected reference image using Artificial Intelligence (OpenCV)")
                 .perform();
     }
 
@@ -415,7 +415,7 @@ public class AssertionSteps {
         Validations.assertThat()
                 .element(driver.get(), ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
                 .matchesReferenceImage(ValidationEnums.VisualValidationEngine.EXACT_EYES)
-                .withCustomReportMessage("I Assert that the element found by ["+locatorType+": "+locatorValue+"], exactly matches with the expected reference image using Artificial Intelligence (Applitools Eyes)")
+                .withCustomReportMessage("I Assert that the element found by [" + locatorType + ": " + locatorValue + "], exactly matches with the expected reference image using Artificial Intelligence (Applitools Eyes)")
                 .perform();
     }
 
@@ -431,7 +431,7 @@ public class AssertionSteps {
         Validations.assertThat()
                 .element(driver.get(), ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
                 .doesNotMatchReferenceImage(ValidationEnums.VisualValidationEngine.EXACT_EYES)
-                .withCustomReportMessage("I Assert that the element found by ["+locatorType+": "+locatorValue+"], does not exactly match with the expected reference image using Artificial Intelligence (Applitools Eyes)")
+                .withCustomReportMessage("I Assert that the element found by [" + locatorType + ": " + locatorValue + "], does not exactly match with the expected reference image using Artificial Intelligence (Applitools Eyes)")
                 .perform();
     }
 
@@ -447,7 +447,7 @@ public class AssertionSteps {
         Validations.assertThat()
                 .element(driver.get(), ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
                 .matchesReferenceImage(ValidationEnums.VisualValidationEngine.STRICT_EYES)
-                .withCustomReportMessage("I Assert that the element found by ["+locatorType+": "+locatorValue+"], strictly matches with the expected reference image using Artificial Intelligence (Applitools Eyes)")
+                .withCustomReportMessage("I Assert that the element found by [" + locatorType + ": " + locatorValue + "], strictly matches with the expected reference image using Artificial Intelligence (Applitools Eyes)")
                 .perform();
     }
 
@@ -463,7 +463,7 @@ public class AssertionSteps {
         Validations.assertThat()
                 .element(driver.get(), ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
                 .doesNotMatchReferenceImage(ValidationEnums.VisualValidationEngine.STRICT_EYES)
-                .withCustomReportMessage("I Assert that the element found by ["+locatorType+": "+locatorValue+"], does not strictly match with the expected reference image using Artificial Intelligence (Applitools Eyes)")
+                .withCustomReportMessage("I Assert that the element found by [" + locatorType + ": " + locatorValue + "], does not strictly match with the expected reference image using Artificial Intelligence (Applitools Eyes)")
                 .perform();
     }
 
@@ -479,7 +479,7 @@ public class AssertionSteps {
         Validations.assertThat()
                 .element(driver.get(), ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
                 .matchesReferenceImage(ValidationEnums.VisualValidationEngine.CONTENT_EYES)
-                .withCustomReportMessage("I Assert that the element found by ["+locatorType+": "+locatorValue+"], matches the content of the expected reference image using Artificial Intelligence (Applitools Eyes)")
+                .withCustomReportMessage("I Assert that the element found by [" + locatorType + ": " + locatorValue + "], matches the content of the expected reference image using Artificial Intelligence (Applitools Eyes)")
                 .perform();
     }
 
@@ -495,7 +495,7 @@ public class AssertionSteps {
         Validations.assertThat()
                 .element(driver.get(), ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
                 .doesNotMatchReferenceImage(ValidationEnums.VisualValidationEngine.CONTENT_EYES)
-                .withCustomReportMessage("I Assert that the element found by ["+locatorType+": "+locatorValue+"], does not match the content of the expected reference image using Artificial Intelligence (Applitools Eyes)")
+                .withCustomReportMessage("I Assert that the element found by [" + locatorType + ": " + locatorValue + "], does not match the content of the expected reference image using Artificial Intelligence (Applitools Eyes)")
                 .perform();
     }
 
@@ -511,7 +511,7 @@ public class AssertionSteps {
         Validations.assertThat()
                 .element(driver.get(), ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
                 .matchesReferenceImage(ValidationEnums.VisualValidationEngine.LAYOUT_EYES)
-                .withCustomReportMessage("I Assert that the element found by ["+locatorType+": "+locatorValue+"], matches the layout of the expected reference image using Artificial Intelligence (Applitools Eyes)")
+                .withCustomReportMessage("I Assert that the element found by [" + locatorType + ": " + locatorValue + "], matches the layout of the expected reference image using Artificial Intelligence (Applitools Eyes)")
                 .perform();
     }
 
@@ -527,7 +527,7 @@ public class AssertionSteps {
         Validations.assertThat()
                 .element(driver.get(), ElementSteps.getLocatorFromTypeAndValue(locatorType, locatorValue))
                 .doesNotMatchReferenceImage(ValidationEnums.VisualValidationEngine.LAYOUT_EYES)
-                .withCustomReportMessage("I Assert that the element found by ["+locatorType+": "+locatorValue+"], does not match the layout of the expected reference image using Artificial Intelligence (Applitools Eyes)")
+                .withCustomReportMessage("I Assert that the element found by [" + locatorType + ": " + locatorValue + "], does not match the layout of the expected reference image using Artificial Intelligence (Applitools Eyes)")
                 .perform();
     }
 }

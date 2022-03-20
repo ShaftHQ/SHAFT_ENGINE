@@ -25,20 +25,11 @@ public class WebDriverBrowserActions {
     private static final Boolean HEADLESS_EXECUTION = Boolean.valueOf(System.getProperty("headlessExecution").trim());
     private static final int NAVIGATION_TIMEOUT_INTEGER = Integer
             .parseInt(System.getProperty("browserNavigationTimeout").trim());
-    
+
     private static WebDriver lastUsedDriver;
 
     protected WebDriverBrowserActions(WebDriver driver) {
-        lastUsedDriver=driver;
-    }
-    
-    /**
-     * Gets the current page URL and returns it as a string
-     *
-     * @return the URL that's currently open in the current page
-     */
-    public String getCurrentURL() {
-    	return getCurrentURL(lastUsedDriver);
+        lastUsedDriver = driver;
     }
 
     /**
@@ -62,15 +53,6 @@ public class WebDriverBrowserActions {
     /**
      * Gets the current window title and returns it as a string
      *
-     * @return the title of the current window
-     */
-    public String getCurrentWindowTitle() {
-    	return getCurrentWindowTitle(lastUsedDriver);
-    }
-    
-    /**
-     * Gets the current window title and returns it as a string
-     *
      * @param driver the current instance of Selenium webdriver
      * @return the title of the current window
      */
@@ -84,15 +66,6 @@ public class WebDriverBrowserActions {
             failAction(driver, currentWindowTitle, rootCauseException);
         }
         return currentWindowTitle;
-    }
-    
-    /**
-     * Gets the current page source and returns it as a string
-     *
-     * @return the source of the current page
-     */
-    public String getPageSource() {
-    	return getPageSource(lastUsedDriver);
     }
 
     /**
@@ -112,15 +85,6 @@ public class WebDriverBrowserActions {
         }
         return pageSource;
     }
-    
-    /**
-     * Gets the current window handle and returns it as a string
-     *
-     * @return the window handle for the current window
-     */
-    public String getWindowHandle() {
-    	return getWindowHandle(lastUsedDriver);
-    }
 
     /**
      * Gets the current window handle and returns it as a string
@@ -138,15 +102,6 @@ public class WebDriverBrowserActions {
             failAction(driver, windowHandle, rootCauseException);
         }
         return windowHandle;
-    }
-    
-    /**
-     * Gets the current window position and returns it as a string
-     *
-     * @return the position of the current window
-     */
-    public String getWindowPosition() {
-    	return getWindowPosition(lastUsedDriver);
     }
 
     /**
@@ -166,15 +121,6 @@ public class WebDriverBrowserActions {
         }
         return windowPosition;
     }
-    
-    /**
-     * Gets the current window size and returns it as a string
-     *
-     * @return the size of the current window
-     */
-    public String getWindowSize() {
-    	return getWindowSize(lastUsedDriver);
-    }
 
     /**
      * Gets the current window size and returns it as a string
@@ -193,18 +139,6 @@ public class WebDriverBrowserActions {
         }
         return windowSize;
     }
-    
-    /**
-     * Navigates to targetUrl in case the current URL is different, else refreshes
-     * the current page
-     *
-     * @param targetUrl a string that represents the URL that you wish to navigate
-     *                  to
-     */
-    public WebDriverBrowserActions navigateToURL(String targetUrl) {
-    	navigateToURL(lastUsedDriver, targetUrl);
-    	return this;
-    }
 
     /**
      * Navigates to targetUrl in case the current URL is different, else refreshes
@@ -216,23 +150,6 @@ public class WebDriverBrowserActions {
      */
     public static void navigateToURL(WebDriver driver, String targetUrl) {
         navigateToURL(driver, targetUrl, targetUrl);
-    }
-    
-    /**
-     * Navigates to targetUrl in case the current URL is different, else refreshes
-     * the current page. Waits for successfully navigating to the final url after
-     * redirection.
-     *
-     * @param targetUrl                 a string that represents the URL that you
-     *                                  wish to navigate to
-     * @param targetUrlAfterRedirection a string that represents a part of the url
-     *                                  that should be present after redirection,
-     *                                  this string is used to confirm successful
-     *                                  navigation
-     */
-    public WebDriverBrowserActions navigateToURL(String targetUrl, String targetUrlAfterRedirection) {
-    	navigateToURL(lastUsedDriver, targetUrl, targetUrlAfterRedirection);
-    	return this;
     }
 
     /**
@@ -305,15 +222,6 @@ public class WebDriverBrowserActions {
             failAction(driver, targetUrl, rootCauseException);
         }
     }
-    
-    /**
-     * Navigates one step back from the browsers history
-     *
-     */
-    public WebDriverBrowserActions navigateBack() {
-    	navigateBack(lastUsedDriver);
-    	return this;
-    }
 
     /**
      * Navigates one step back from the browsers history
@@ -339,15 +247,6 @@ public class WebDriverBrowserActions {
         } catch (Exception rootCauseException) {
             failAction(driver, newURL, rootCauseException);
         }
-    }
-    
-    /**
-     * Navigates one step forward from the browsers history
-     *
-     */
-    public WebDriverBrowserActions navigateForward() {
-    	navigateForward(lastUsedDriver);
-    	return this;
     }
 
     /**
@@ -375,15 +274,6 @@ public class WebDriverBrowserActions {
             failAction(driver, newURL, rootCauseException);
         }
     }
-    
-    /**
-     * Attempts to refresh the current page
-     *
-     */
-    public WebDriverBrowserActions refreshCurrentPage() {
-    	refreshCurrentPage(lastUsedDriver);
-    	return this;
-    }
 
     /**
      * Attempts to refresh the current page
@@ -396,15 +286,6 @@ public class WebDriverBrowserActions {
         passAction(driver, driver.getPageSource());
         // removed all exception handling as there was no comments on when and why this
         // exception happens
-    }
-    
-    /**
-     * Closes the current browser window
-     *
-     */
-    public synchronized WebDriverBrowserActions closeCurrentWindow() {
-    	closeCurrentWindow(lastUsedDriver);
-    	return this;
     }
 
     /**
@@ -436,15 +317,6 @@ public class WebDriverBrowserActions {
             ReportManager.logDiscrete("Window is already closed and driver object is null.");
             passAction(null);
         }
-    }
-    
-    /**
-     * Maximizes current window size based on screen size minus 5%
-     *
-     */
-    public WebDriverBrowserActions maximizeWindow() {
-    	maximizeWindow(lastUsedDriver);
-    	return this;
     }
 
     /**
@@ -478,7 +350,7 @@ public class WebDriverBrowserActions {
                 // happens with headless firefox browsers // remote // linux and windows
                 // also happens with chrome/windows
 
-                // attempt resize using WebDriver mange window
+                // attempt resize using WebDriver manage window
                 currentWindowSize = attemptMaximizeUsingSeleniumWebDriverManageWindow(driver, targetWidth, targetHeight);
             }
 
@@ -497,17 +369,6 @@ public class WebDriverBrowserActions {
             }
         }
         passAction(driver, "New screen size is now: " + currentWindowSize);
-    }
-    
-    /**
-     * Resizes the current window size based on the provided width and height
-     *
-     * @param width  the desired new width of the target window
-     * @param height the desired new height of the target window
-     */
-    public WebDriverBrowserActions setWindowSize(int width, int height) {
-    	setWindowSize(lastUsedDriver, width, height);
-    	return this;
     }
 
     /**
@@ -550,19 +411,10 @@ public class WebDriverBrowserActions {
 
         passAction(driver, "New screen size is now: " + currentWindowSize);
     }
-    
-    /**
-     * Resize the window to fill the current screen
-     * 
-     */
-    public WebDriverBrowserActions fullScreenWindow() {
-    	fullScreenWindow(lastUsedDriver);
-    	return this;
-    }
 
     /**
      * Resize the window to fill the current screen
-     * 
+     *
      * @param driver the current instance of Selenium webdriver
      */
     public static void fullScreenWindow(WebDriver driver) {
@@ -636,7 +488,7 @@ public class WebDriverBrowserActions {
         message = message + ".";
 
         ReportManager.logDiscrete(message);
-        message = message.replace("Browser Action: ","");
+        message = message.replace("Browser Action: ", "");
         if (driver != null) {
             attachments.add(ScreenshotManager.captureScreenShot(driver, actionName, true));
             ReportManagerHelper.log(message, attachments);
@@ -717,7 +569,7 @@ public class WebDriverBrowserActions {
         int targetWidth = width;
         int targetHeight = height;
         try {
-        	var toolkit = Toolkit.getDefaultToolkit();
+            var toolkit = Toolkit.getDefaultToolkit();
             if (Boolean.FALSE.equals(HEADLESS_EXECUTION)) {
                 targetWidth = (int) toolkit.getScreenSize().getWidth();
                 targetHeight = (int) toolkit.getScreenSize().getHeight();
@@ -747,5 +599,147 @@ public class WebDriverBrowserActions {
         ReportManager.logDiscrete(
                 "Window size after WebDriver.Manage.Window: " + driver.manage().window().getSize().toString());
         return driver.manage().window().getSize();
+    }
+
+    /**
+     * Gets the current page URL and returns it as a string
+     *
+     * @return the URL that's currently open in the current page
+     */
+    public String getCurrentURL() {
+        return getCurrentURL(lastUsedDriver);
+    }
+
+    /**
+     * Gets the current window title and returns it as a string
+     *
+     * @return the title of the current window
+     */
+    public String getCurrentWindowTitle() {
+        return getCurrentWindowTitle(lastUsedDriver);
+    }
+
+    /**
+     * Gets the current page source and returns it as a string
+     *
+     * @return the source of the current page
+     */
+    public String getPageSource() {
+        return getPageSource(lastUsedDriver);
+    }
+
+    /**
+     * Gets the current window handle and returns it as a string
+     *
+     * @return the window handle for the current window
+     */
+    public String getWindowHandle() {
+        return getWindowHandle(lastUsedDriver);
+    }
+
+    /**
+     * Gets the current window position and returns it as a string
+     *
+     * @return the position of the current window
+     */
+    public String getWindowPosition() {
+        return getWindowPosition(lastUsedDriver);
+    }
+
+    /**
+     * Gets the current window size and returns it as a string
+     *
+     * @return the size of the current window
+     */
+    public String getWindowSize() {
+        return getWindowSize(lastUsedDriver);
+    }
+
+    /**
+     * Navigates to targetUrl in case the current URL is different, else refreshes
+     * the current page
+     *
+     * @param targetUrl a string that represents the URL that you wish to navigate
+     *                  to
+     */
+    public WebDriverBrowserActions navigateToURL(String targetUrl) {
+        navigateToURL(lastUsedDriver, targetUrl);
+        return this;
+    }
+
+    /**
+     * Navigates to targetUrl in case the current URL is different, else refreshes
+     * the current page. Waits for successfully navigating to the final url after
+     * redirection.
+     *
+     * @param targetUrl                 a string that represents the URL that you
+     *                                  wish to navigate to
+     * @param targetUrlAfterRedirection a string that represents a part of the url
+     *                                  that should be present after redirection,
+     *                                  this string is used to confirm successful
+     *                                  navigation
+     */
+    public WebDriverBrowserActions navigateToURL(String targetUrl, String targetUrlAfterRedirection) {
+        navigateToURL(lastUsedDriver, targetUrl, targetUrlAfterRedirection);
+        return this;
+    }
+
+    /**
+     * Navigates one step back from the browsers history
+     */
+    public WebDriverBrowserActions navigateBack() {
+        navigateBack(lastUsedDriver);
+        return this;
+    }
+
+    /**
+     * Navigates one step forward from the browsers history
+     */
+    public WebDriverBrowserActions navigateForward() {
+        navigateForward(lastUsedDriver);
+        return this;
+    }
+
+    /**
+     * Attempts to refresh the current page
+     */
+    public WebDriverBrowserActions refreshCurrentPage() {
+        refreshCurrentPage(lastUsedDriver);
+        return this;
+    }
+
+    /**
+     * Closes the current browser window
+     */
+    public synchronized WebDriverBrowserActions closeCurrentWindow() {
+        closeCurrentWindow(lastUsedDriver);
+        return this;
+    }
+
+    /**
+     * Maximizes current window size based on screen size minus 5%
+     */
+    public WebDriverBrowserActions maximizeWindow() {
+        maximizeWindow(lastUsedDriver);
+        return this;
+    }
+
+    /**
+     * Resizes the current window size based on the provided width and height
+     *
+     * @param width  the desired new width of the target window
+     * @param height the desired new height of the target window
+     */
+    public WebDriverBrowserActions setWindowSize(int width, int height) {
+        setWindowSize(lastUsedDriver, width, height);
+        return this;
+    }
+
+    /**
+     * Resize the window to fill the current screen
+     */
+    public WebDriverBrowserActions fullScreenWindow() {
+        fullScreenWindow(lastUsedDriver);
+        return this;
     }
 }

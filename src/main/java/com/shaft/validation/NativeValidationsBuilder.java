@@ -4,12 +4,12 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
 public class NativeValidationsBuilder {
-    protected ValidationEnums.ValidationCategory validationCategory;
+    protected final ValidationEnums.ValidationCategory validationCategory;
     protected WebDriver driver;
     protected By locator;
 
     protected ValidationEnums.ValidationType validationType;
-    protected String validationMethod;
+    protected final String validationMethod;
 
     protected String elementAttribute;
     protected String elementCssProperty;
@@ -25,7 +25,7 @@ public class NativeValidationsBuilder {
     protected String folderRelativePath;
     protected String fileName;
 
-    protected StringBuilder reportMessageBuilder;
+    protected final StringBuilder reportMessageBuilder;
 
     public NativeValidationsBuilder(WebDriverElementValidationsBuilder webDriverElementValidationsBuilder) {
         this.validationCategory = webDriverElementValidationsBuilder.validationCategory;
@@ -75,6 +75,7 @@ public class NativeValidationsBuilder {
 
     /**
      * Use this to check that the actual object is equal to the expected value
+     *
      * @param expectedValue the test data / expected value for the object under test
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
@@ -82,23 +83,25 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
-        reportMessageBuilder.append("is equal to [").append(expectedValue).append("].");
+        reportMessageBuilder.append("is equal to \"").append(expectedValue).append("\".");
         return new ValidationsExecutor(this);
     }
 
     /**
      * Overrides the default object method equals and is the same as calling isEqualTo(expectedValue).perform();
+     *
      * @param expectedValue the test data / expected value for the object under test
      * @return boolean value true if passed and throws AssertionError if failed (return value can be safely ignored)
      */
     @Override
-    public boolean equals(Object expectedValue){
+    public boolean equals(Object expectedValue) {
         isEqualTo(expectedValue).perform();
         return true;
     }
 
     /**
      * Use this to check that the actual object is not equal to the expected value
+     *
      * @param expectedValue the test data / expected value for the object under test
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
@@ -106,12 +109,13 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
-        reportMessageBuilder.append("does not equal [").append(expectedValue).append("].");
+        reportMessageBuilder.append("does not equal \"").append(expectedValue).append("\".");
         return new ValidationsExecutor(this);
     }
 
     /**
      * Use this to check that the actual object contains the expected value
+     *
      * @param expectedValue the test data / expected value for the object under test
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
@@ -119,12 +123,13 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.CONTAINS;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
-        reportMessageBuilder.append("contains [").append(expectedValue).append("].");
+        reportMessageBuilder.append("contains \"").append(expectedValue).append("\".");
         return new ValidationsExecutor(this);
     }
 
     /**
      * Use this to check that the actual object does not contain the expected value
+     *
      * @param expectedValue the test data / expected value for the object under test
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
@@ -132,12 +137,13 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.CONTAINS;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
-        reportMessageBuilder.append("does not contain [").append(expectedValue).append("].");
+        reportMessageBuilder.append("does not contain \"").append(expectedValue).append("\".");
         return new ValidationsExecutor(this);
     }
 
     /**
      * Use this to check that the actual object matches the expected regular expression
+     *
      * @param expectedValue the test data / expected regular expression for the object under test
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
@@ -145,12 +151,13 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.MATCHES;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
-        reportMessageBuilder.append("matches this regular expression [").append(expectedValue).append("].");
+        reportMessageBuilder.append("matches this regular expression \"").append(expectedValue).append("\".");
         return new ValidationsExecutor(this);
     }
 
     /**
      * Use this to check that the actual object does not match the expected regular expression
+     *
      * @param expectedValue the test data / expected regular expression for the object under test
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
@@ -158,12 +165,13 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.MATCHES;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
-        reportMessageBuilder.append("does not match this regular expression [").append(expectedValue).append("].");
+        reportMessageBuilder.append("does not match this regular expression \"").append(expectedValue).append("\".");
         return new ValidationsExecutor(this);
     }
 
     /**
      * Use this to check that the actual object is equal to the expected value (ignoring case sensitivity)
+     *
      * @param expectedValue the test data / expected value for the object under test
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
@@ -171,12 +179,13 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.CASE_INSENSITIVE;
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
-        reportMessageBuilder.append("equals [").append(expectedValue).append("], ignoring case sensitivity.");
+        reportMessageBuilder.append("equals \"").append(expectedValue).append("\", ignoring case sensitivity.");
         return new ValidationsExecutor(this);
     }
 
     /**
      * Use this to check that the actual object is not equal to the expected value (ignoring case sensitivity)
+     *
      * @param expectedValue the test data / expected value for the object under test
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
@@ -184,12 +193,13 @@ public class NativeValidationsBuilder {
         this.expectedValue = expectedValue;
         this.validationComparisonType = ValidationEnums.ValidationComparisonType.CASE_INSENSITIVE;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
-        reportMessageBuilder.append("does not equal [").append(expectedValue).append("], ignoring case sensitivity.");
+        reportMessageBuilder.append("does not equal \"").append(expectedValue).append("\", ignoring case sensitivity.");
         return new ValidationsExecutor(this);
     }
 
     /**
      * Use this to check that the actual object is null
+     *
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
     public ValidationsExecutor isNull() {
@@ -202,6 +212,7 @@ public class NativeValidationsBuilder {
 
     /**
      * Use this to check that the actual object is not null
+     *
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
     public ValidationsExecutor isNotNull() {
@@ -214,6 +225,7 @@ public class NativeValidationsBuilder {
 
     /**
      * Use this to check that the actual object is true
+     *
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
     public ValidationsExecutor isTrue() {
@@ -226,6 +238,7 @@ public class NativeValidationsBuilder {
 
     /**
      * Use this to check that the actual object is false
+     *
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
     public ValidationsExecutor isFalse() {

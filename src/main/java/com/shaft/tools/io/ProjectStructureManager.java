@@ -25,7 +25,7 @@ public class ProjectStructureManager {
         System.setProperty("disableLogging", "false");
     }
 
-    public static void migrateToNewStructure(){
+    public static void migrateToNewStructure() {
         var isDiscrete = ReportManagerHelper.getDiscreteLogging();
         ReportManagerHelper.setDiscreteLogging(true);
         if (FileActions.doesFileExist("src/test/resources/Properties")) {

@@ -64,7 +64,7 @@ public class RequestBuilder {
         this.serviceURI = session.getServiceURI();
         this.sessionCookies = session.getSessionCookies();
         this.sessionHeaders = session.getSessionHeaders();
-        this.sessionConfigs= session.getSessionConfigs();
+        this.sessionConfigs = session.getSessionConfigs();
         this.requestType = requestType;
         this.serviceName = serviceName;
         this.targetStatusCode = 200;
@@ -76,7 +76,7 @@ public class RequestBuilder {
 
     /**
      * set useRelaxedHTTPSValidation configuration to trust all hosts regardless if the SSL certificate is invalid in the request builder
-     *  'SSL' is the protocol name by default
+     * 'SSL' is the protocol name by default
      *
      * @return a self-reference to be used to continue building your API request
      */
@@ -88,16 +88,18 @@ public class RequestBuilder {
     /**
      * set useRelaxedHTTPSValidation configuration to trust all hosts regardless if the SSL certificate is invalid in the request builder
      * *
+     *
      * @param protocol The standard name of the requested protocol.
      * @return a self-reference to be used to continue building your API request
      */
+    @SuppressWarnings("UnusedReturnValue")
     public RequestBuilder useRelaxedHTTPSValidation(String protocol) {
         addConfig(config().sslConfig(SSLConfig.sslConfig().relaxedHTTPSValidation(protocol)));
         return this;
     }
 
     /**
-     * Sets the expected target status code for the API request that you're currently building. By default this value is set to 200 but you can change it by calling this method.
+     * Sets the expected target status code for the API request that you're currently building. By default, this value is set to 200, but you can change it by calling this method.
      *
      * @param targetStatusCode the expected target status code.
      * @return a self-reference to be used to continue building your API request
@@ -121,7 +123,7 @@ public class RequestBuilder {
     /**
      * Sets the parameters (if any) for the API request that you're currently building. A request usually has only one of the following: urlArguments, parameters+type, or body
      *
-     * @param parameters a list of key/value pairs that will be sent as parameters with this API call, is nullable, Example: Arrays.asList(Arrays.asList("itemId", "123"), Arrays.asList("contents", XMLcontents));
+     * @param parameters     a list of key/value pairs that will be sent as parameters with this API call, is nullable, Example: Arrays.asList(Arrays.asList("itemId", "123"), Arrays.asList("contents", XMLcontents));
      * @param parametersType FORM, QUERY
      * @return a self-reference to be used to continue building your API request
      */
@@ -144,7 +146,7 @@ public class RequestBuilder {
     }
 
     /**
-     * Sets the content type for the API request that you're currently building. By default this value is set to ContentType.ANY but you can change it by calling this method.
+     * Sets the content type for the API request that you're currently building. By default, this value is set to ContentType.ANY but you can change it by calling this method.
      *
      * @param contentType Enumeration of common IANA content-types. This may be used to specify a request or response content-type more easily than specifying the full string each time. Example: ContentType.ANY
      * @return a self-reference to be used to continue building your API request
@@ -155,7 +157,7 @@ public class RequestBuilder {
     }
 
     /**
-     * Sets the content type for the API request that you're currently building. By default this value is set to ContentType.ANY but you can change it by calling this method.
+     * Sets the content type for the API request that you're currently building. By default, this value is set to ContentType.ANY but you can change it by calling this method.
      *
      * @param contentType String value representing IANA content-type.
      * @return a self-reference to be used to continue building your API request
@@ -206,9 +208,10 @@ public class RequestBuilder {
     /**
      * Append a config to the current session to be used in the current and all the following requests.
      *
-     * @param config   the rest assured config you want to add.
+     * @param config the rest assured config you want to add.
      * @return a self-reference to be used to continue building your API request
      */
+    @SuppressWarnings("UnusedReturnValue")
     public RequestBuilder addConfig(RestAssuredConfig config) {
         this.sessionConfigs.add(config);
         return this;
@@ -227,7 +230,7 @@ public class RequestBuilder {
     }
 
     /**
-     * Set the authentication method that will be used by the API request that you're currently building. By default this value is set to AuthenticationType.NONE but you can change it by calling this method. If you use thie method the authentication token will be saved automatically for all the following requests using the same session.
+     * Set the authentication method that will be used by the API request that you're currently building. By default, this value is set to AuthenticationType.NONE but you can change it by calling this method. If you use thie method the authentication token will be saved automatically for all the following requests using the same session.
      *
      * @param username           the value of the username that you will be using to authenticate the current API request.
      * @param password           the value of the password that you will be using to authenticate the current API request.
@@ -248,7 +251,7 @@ public class RequestBuilder {
      */
     public Response performRequest() {
         String request = session.prepareRequestURL(serviceURI, urlArguments, serviceName);
-        RequestSpecification specs = session.prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders,sessionConfigs, appendDefaultContentCharsetToContentTypeIfUndefined, urlEncodingEnabled);
+        RequestSpecification specs = session.prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders, sessionConfigs, appendDefaultContentCharsetToContentTypeIfUndefined, urlEncodingEnabled);
 
         switch (this.authenticationType) {
             case BASIC -> specs.auth().preemptive().basic(this.authenticationUsername, this.authenticationPassword);
@@ -278,7 +281,7 @@ public class RequestBuilder {
         } catch (Exception rootCauseException) {
             ReportManagerHelper.log(rootCauseException);
             if (response != null) {
-                RestActions.failAction(request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", requestBody,specs,
+                RestActions.failAction(request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", requestBody, specs,
                         response, rootCauseException);
             } else {
                 RestActions.failAction(request, rootCauseException);

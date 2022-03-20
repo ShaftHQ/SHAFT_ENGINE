@@ -16,7 +16,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
-public class SikuliActions implements ShaftDriver{
+public class SikuliActions implements ShaftDriver {
     private Screen screen;
     private App applicationWindow;
 

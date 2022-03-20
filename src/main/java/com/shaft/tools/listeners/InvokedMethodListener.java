@@ -6,15 +6,20 @@ import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.validation.ValidationsHelper;
-import io.qameta.allure.*;
+import io.qameta.allure.Issue;
+import io.qameta.allure.Issues;
+import io.qameta.allure.TmsLink;
 import io.qameta.allure.model.Link;
 import io.qameta.allure.util.AnnotationUtils;
 import org.testng.*;
 import org.testng.internal.ConfigurationMethod;
 import org.testng.internal.ConstructorOrMethod;
+
 import java.lang.reflect.Method;
 import java.util.*;
-import static com.shaft.tools.tms.XrayIntegrationHelper.*;
+
+import static com.shaft.tools.tms.XrayIntegrationHelper.createIssue;
+import static com.shaft.tools.tms.XrayIntegrationHelper.link2Tickets;
 
 public class InvokedMethodListener implements IInvokedMethodListener {
     private final List<List<String>> listOfOpenIssues = new ArrayList<>();
@@ -26,6 +31,21 @@ public class InvokedMethodListener implements IInvokedMethodListener {
     private int openIssuesForFailedTestsCounter = 0;
     private int openIssuesForPassedTestsCounter = 0;
     private int newIssuesForFailedTestsCounter = 0;
+
+    public static String createTestLog(List<String> output) {
+        StringBuilder builder = new StringBuilder();
+        for (String each : output) {
+            builder.append(each).append(System.lineSeparator());
+        }
+        String testLog = builder.toString();
+        if (testLog.length() >= 2) {
+            // Removing the last ","
+            return testLog.substring(0, builder.length() - 2);
+        } else {
+            return testLog;
+        }
+
+    }
 
     @Override
     public void beforeInvocation(IInvokedMethod method, ITestResult testResult) {
@@ -93,23 +113,23 @@ public class InvokedMethodListener implements IInvokedMethodListener {
     public void afterInvocation(IInvokedMethod method, ITestResult testResult) {
 
         if (!method.getTestMethod().getQualifiedName().contains("setupActivities")
-        && !method.getTestMethod().getQualifiedName().contains("teardownActivities")) {
+                && !method.getTestMethod().getQualifiedName().contains("teardownActivities")) {
             List<String> attachments = new ArrayList<>();
             String attachment;
             if (System.getProperty("videoParams_scope").trim().equals("TestMethod")) {
-                attachment=RecordManager.attachVideoRecording();
-                if(!attachment.equals(""))
-                attachments.add(attachment);
+                attachment = RecordManager.attachVideoRecording();
+                if (!attachment.equals(""))
+                    attachments.add(attachment);
             }
-            attachment= ScreenshotManager.attachAnimatedGif();
-            if(!attachment.equals(""))
+            attachment = ScreenshotManager.attachAnimatedGif();
+            if (!attachment.equals(""))
                 attachments.add(attachment);
             // configuration method attachment is not added to the report (Allure ->
             // threadContext.getCurrent(); -> empty)
-            String logText= createTestLog(Reporter.getOutput(testResult));
+            String logText = createTestLog(Reporter.getOutput(testResult));
             ReportManagerHelper.attachTestLog(testResult.getMethod().getMethodName(),
                     logText);
-            reportBugsToJIRA(attachments,logText,method,testResult);
+            reportBugsToJIRA(attachments, logText, method, testResult);
         }
 
         // resetting scope and config
@@ -223,33 +243,17 @@ public class InvokedMethodListener implements IInvokedMethodListener {
         listOfOpenIssuesForPassedTests.add(newIssue);
     }
 
-    public static String createTestLog(List<String> output) {
-        StringBuilder builder = new StringBuilder();
-        for (String each : output) {
-            builder.append(each).append(System.lineSeparator());
-        }
-        String testLog = builder.toString();
-        if (testLog.length() >= 2) {
-            // Removing the last ","
-            return testLog.substring(0, builder.length() - 2);
-        } else {
-            return testLog;
-        }
-
-    }
     /**
      * is called in afterInvocation() to report bugs in case of failure and if the integration is enabled
-     * */
-    private void reportBugsToJIRA(List<String> attachments,String logText,IInvokedMethod method, ITestResult testResult)
-    {
-        if(!testResult.isSuccess()
-                &&System.getProperty("jiraInteraction").trim().equals("true")
-                &&System.getProperty("ReportBugs").trim().equals("true"))
-        {
-            String bugID= createIssue(attachments, ReportManagerHelper.getTestMethodName(),logText);
-            if(bugID!=null
-                    &&method.isTestMethod()&& method.getTestMethod().getConstructorOrMethod().getMethod().isAnnotationPresent(TmsLink.class))
-                link2Tickets(bugID,method.getTestMethod().getConstructorOrMethod().getMethod().getAnnotation(TmsLink.class).value());
+     */
+    private void reportBugsToJIRA(List<String> attachments, String logText, IInvokedMethod method, ITestResult testResult) {
+        if (!testResult.isSuccess()
+                && System.getProperty("jiraInteraction").trim().equals("true")
+                && System.getProperty("ReportBugs").trim().equals("true")) {
+            String bugID = createIssue(attachments, ReportManagerHelper.getTestMethodName(), logText);
+            if (bugID != null
+                    && method.isTestMethod() && method.getTestMethod().getConstructorOrMethod().getMethod().isAnnotationPresent(TmsLink.class))
+                link2Tickets(bugID, method.getTestMethod().getConstructorOrMethod().getMethod().getAnnotation(TmsLink.class).value());
         }
     }
 }

@@ -6,7 +6,7 @@ import org.openqa.selenium.By;
 
 public class RadioButton extends Button {
     public static final String SELECTED = "selected";
-    By selectedLocator;
+    final By selectedLocator;
 
     public RadioButton(By buttonLocator, By selectedLocator) {
         super(buttonLocator);

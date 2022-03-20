@@ -18,9 +18,9 @@ public class Assertions {
     }
 
     /**
-     * Force fail the current test.
+     * Force fails the current test.
      *
-     * @param customLogMessage a custom message that will appended to this step in
+     * @param customLogMessage a custom message that will be appended to this step in
      *                         the execution report
      */
     public static void assertFail(String... customLogMessage) {
@@ -32,7 +32,7 @@ public class Assertions {
      *
      * @param expectedValue    the expected value (test data) of this assertion
      * @param actualValue      the actual value (calculated data) of this assertion
-     * @param customLogMessage a custom message that will appended to this step in
+     * @param customLogMessage a custom message that will be appended to this step in
      *                         the execution report
      */
     public static void assertEquals(Object expectedValue, Object actualValue, String... customLogMessage) {
@@ -51,7 +51,7 @@ public class Assertions {
      * @param assertionComparisonType AssertionComparisonType.EQUALS, CONTAINS,
      *                                MATCHES, CASE_INSENSITIVE
      * @param assertionType           AssertionType.POSITIVE, NEGATIVE
-     * @param customLogMessage        a custom message that will appended to this
+     * @param customLogMessage        a custom message that will be appended to this
      *                                step in the execution report
      */
     public static void assertEquals(Object expectedValue, Object actualValue,
@@ -67,7 +67,7 @@ public class Assertions {
      * Asserts that the object is null.
      *
      * @param object           the object under test
-     * @param customLogMessage a custom message that will appended to this step in
+     * @param customLogMessage a custom message that will be appended to this step in
      *                         the execution report
      */
     public static void assertNull(Object object, String... customLogMessage) {
@@ -80,7 +80,7 @@ public class Assertions {
      *
      * @param object           the object under test
      * @param assertionType    AssertionType.POSITIVE, NEGATIVE
-     * @param customLogMessage a custom message that will appended to this step in
+     * @param customLogMessage a custom message that will be appended to this step in
      *                         the execution report
      */
     public static void assertNull(Object object, AssertionType assertionType, String... customLogMessage) {
@@ -91,10 +91,10 @@ public class Assertions {
      * Asserts that the webElement found using the provided driver and locator
      * exists.
      *
-     * @param driver           the current instance of Selenium webdriver
+     * @param driver           the current instance of Selenium WebDriver
      * @param elementLocator   the locator of the webElement under test (By xpath,
      *                         id, selector, name ...etc)
-     * @param customLogMessage a custom message that will appended to this step in
+     * @param customLogMessage a custom message that will be appended to this step in
      *                         the execution report
      */
     public static void assertElementExists(WebDriver driver, By elementLocator, String... customLogMessage) {
@@ -106,11 +106,11 @@ public class Assertions {
      * exists if AssertionType is POSITIVE, or does not exist if AssertionType is
      * NEGATIVE.
      *
-     * @param driver           the current instance of Selenium webdriver
+     * @param driver           the current instance of Selenium WebDriver
      * @param elementLocator   the locator of the webElement under test (By xpath,
      *                         id, selector, name ...etc)
      * @param assertionType    AssertionType.POSITIVE, NEGATIVE
-     * @param customLogMessage a custom message that will appended to this step in
+     * @param customLogMessage a custom message that will be appended to this step in
      *                         the execution report
      */
     public static void assertElementExists(WebDriver driver, By elementLocator, AssertionType assertionType,
@@ -122,13 +122,13 @@ public class Assertions {
     /**
      * Asserts webElement attribute equals expectedValue.
      *
-     * @param driver                the current instance of Selenium webdriver
-     * @param elementLocator        the locator of the webElement under test (By xpath,
-     *                              id, selector, name ...etc)
-     * @param elementAttributeType  the desired attribute type of the webElement under test
-     * @param expectedValue         the expected value (test data) of this assertion
-     * @param customLogMessage      a custom message that will appended to this step in
-     *                              the execution report
+     * @param driver               the current instance of Selenium WebDriver
+     * @param elementLocator       the locator of the webElement under test (By xpath,
+     *                             id, selector, name ...etc)
+     * @param elementAttributeType the desired attribute type of the webElement under test
+     * @param expectedValue        the expected value (test data) of this assertion
+     * @param customLogMessage     a custom message that will be appended to this step in
+     *                             the execution report
      */
     public static void assertElementAttribute(WebDriver driver, By elementLocator, ElementAttributeType elementAttributeType,
                                               String expectedValue, String... customLogMessage) {
@@ -139,12 +139,12 @@ public class Assertions {
     /**
      * Asserts webElement attribute equals expectedValue.
      *
-     * @param driver           the current instance of Selenium webdriver
+     * @param driver           the current instance of Selenium WebDriver
      * @param elementLocator   the locator of the webElement under test (By xpath,
      *                         id, selector, name ...etc)
      * @param elementAttribute the desired attribute of the webElement under test
      * @param expectedValue    the expected value (test data) of this assertion
-     * @param customLogMessage a custom message that will appended to this step in
+     * @param customLogMessage a custom message that will be appended to this step in
      *                         the execution report
      */
     public static void assertElementAttribute(WebDriver driver, By elementLocator, String elementAttribute,
@@ -157,7 +157,7 @@ public class Assertions {
      * Asserts webElement attribute equals expectedValue if AssertionType is
      * POSITIVE, or does not equal expectedValue if AssertionType is NEGATIVE.
      *
-     * @param driver                  the current instance of Selenium webdriver
+     * @param driver                  the current instance of Selenium WebDriver
      * @param elementLocator          the locator of the webElement under test (By
      *                                xpath, id, selector, name ...etc)
      * @param elementAttributeType    the desired attribute type of the webElement under
@@ -167,7 +167,7 @@ public class Assertions {
      * @param assertionComparisonType AssertionComparisonType.EQUALS, CONTAINS,
      *                                MATCHES, CASE_INSENSITIVE
      * @param assertionType           AssertionType.POSITIVE, NEGATIVE
-     * @param customLogMessage        a custom message that will appended to this
+     * @param customLogMessage        a custom message that will be appended to this
      *                                step in the execution report
      */
     public static void assertElementAttribute(WebDriver driver, By elementLocator, ElementAttributeType elementAttributeType,
@@ -182,7 +182,7 @@ public class Assertions {
      * Asserts webElement attribute equals expectedValue if AssertionType is
      * POSITIVE, or does not equal expectedValue if AssertionType is NEGATIVE.
      *
-     * @param driver                  the current instance of Selenium webdriver
+     * @param driver                  the current instance of Selenium WebDriver
      * @param elementLocator          the locator of the webElement under test (By
      *                                xpath, id, selector, name ...etc)
      * @param elementAttribute        the desired attribute of the webElement under
@@ -192,7 +192,7 @@ public class Assertions {
      * @param assertionComparisonType AssertionComparisonType.EQUALS, CONTAINS,
      *                                MATCHES, CASE_INSENSITIVE
      * @param assertionType           AssertionType.POSITIVE, NEGATIVE
-     * @param customLogMessage        a custom message that will appended to this
+     * @param customLogMessage        a custom message that will be appended to this
      *                                step in the execution report
      */
     public static void assertElementAttribute(WebDriver driver, By elementLocator, String elementAttribute,
@@ -208,10 +208,10 @@ public class Assertions {
      * Asserts that the webElement found using the provided driver and locator
      * exists.
      *
-     * @param page           the current instance of Playwright
+     * @param page             the current instance of Playwright
      * @param elementLocator   the locator of the webElement under test (By xpath,
      *                         id, selector, name ...etc)
-     * @param customLogMessage a custom message that will appended to this step in
+     * @param customLogMessage a custom message that will be appended to this step in
      *                         the execution report
      */
     public static void assertElementExists(Page page, String elementLocator, String... customLogMessage) {
@@ -223,11 +223,11 @@ public class Assertions {
      * exists if AssertionType is POSITIVE, or does not exist if AssertionType is
      * NEGATIVE.
      *
-     * @param page           the current instance of Playwright
+     * @param page             the current instance of Playwright
      * @param elementLocator   the locator of the webElement under test (By xpath,
      *                         id, selector, name ...etc)
      * @param assertionType    AssertionType.POSITIVE, NEGATIVE
-     * @param customLogMessage a custom message that will appended to this step in
+     * @param customLogMessage a custom message that will be appended to this step in
      *                         the execution report
      */
     public static void assertElementExists(Page page, String elementLocator, AssertionType assertionType,
@@ -239,16 +239,16 @@ public class Assertions {
     /**
      * Asserts webElement attribute equals expectedValue.
      *
-     * @param page           the current instance of Playwright
-     * @param elementLocator        the locator of the webElement under test (By xpath,
-     *                              id, selector, name ...etc)
-     * @param elementAttributeType  the desired attribute type of the webElement under test
-     * @param expectedValue         the expected value (test data) of this assertion
-     * @param customLogMessage      a custom message that will appended to this step in
-     *                              the execution report
+     * @param page                 the current instance of Playwright
+     * @param elementLocator       the locator of the webElement under test (By xpath,
+     *                             id, selector, name ...etc)
+     * @param elementAttributeType the desired attribute type of the webElement under test
+     * @param expectedValue        the expected value (test data) of this assertion
+     * @param customLogMessage     a custom message that will be appended to this step in
+     *                             the execution report
      */
-    public static void assertElementAttributePage (Page page, String elementLocator, ElementAttributeType elementAttributeType,
-                                              String expectedValue, String... customLogMessage) {
+    public static void assertElementAttributePage(Page page, String elementLocator, ElementAttributeType elementAttributeType,
+                                                  String expectedValue, String... customLogMessage) {
         ValidationsHelper.validateElementAttribute(ValidationEnums.ValidationCategory.HARD_ASSERT, page, elementLocator, elementAttributeType.getValue(), expectedValue,
                 ValidationComparisonType.EQUALS, ValidationType.POSITIVE, customLogMessage);
     }
@@ -256,12 +256,12 @@ public class Assertions {
     /**
      * Asserts webElement attribute equals expectedValue.
      *
-     * @param page           the current instance of Playwright
+     * @param page             the current instance of Playwright
      * @param elementLocator   the locator of the webElement under test (By xpath,
      *                         id, selector, name ...etc)
      * @param elementAttribute the desired attribute of the webElement under test
      * @param expectedValue    the expected value (test data) of this assertion
-     * @param customLogMessage a custom message that will appended to this step in
+     * @param customLogMessage a custom message that will be appended to this step in
      *                         the execution report
      */
     public static void assertElementAttribute(Page page, String elementLocator, String elementAttribute,
@@ -274,7 +274,7 @@ public class Assertions {
      * Asserts webElement attribute equals expectedValue if AssertionType is
      * POSITIVE, or does not equal expectedValue if AssertionType is NEGATIVE.
      *
-     * @param page           the current instance of Playwright
+     * @param page                    the current instance of Playwright
      * @param elementLocator          the locator of the webElement under test (By
      *                                xpath, id, selector, name ...etc)
      * @param elementAttributeType    the desired attribute type of the webElement under
@@ -284,7 +284,7 @@ public class Assertions {
      * @param assertionComparisonType AssertionComparisonType.EQUALS, CONTAINS,
      *                                MATCHES, CASE_INSENSITIVE
      * @param assertionType           AssertionType.POSITIVE, NEGATIVE
-     * @param customLogMessage        a custom message that will appended to this
+     * @param customLogMessage        a custom message that will be appended to this
      *                                step in the execution report
      */
     public static void assertElementAttribute(Page page, String elementLocator, ElementAttributeType elementAttributeType,
@@ -299,7 +299,7 @@ public class Assertions {
      * Asserts webElement attribute equals expectedValue if AssertionType is
      * POSITIVE, or does not equal expectedValue if AssertionType is NEGATIVE.
      *
-     * @param page           the current instance of Playwright
+     * @param page                    the current instance of Playwright
      * @param elementLocator          the locator of the webElement under test (By
      *                                xpath, id, selector, name ...etc)
      * @param elementAttribute        the desired attribute of the webElement under
@@ -309,7 +309,7 @@ public class Assertions {
      * @param assertionComparisonType AssertionComparisonType.EQUALS, CONTAINS,
      *                                MATCHES, CASE_INSENSITIVE
      * @param assertionType           AssertionType.POSITIVE, NEGATIVE
-     * @param customLogMessage        a custom message that will appended to this
+     * @param customLogMessage        a custom message that will be appended to this
      *                                step in the execution report
      */
     public static void assertElementAttribute(Page page, String elementLocator, String elementAttribute,
@@ -323,12 +323,12 @@ public class Assertions {
     /**
      * Asserts webElement CSSProperty equals expectedValue.
      *
-     * @param driver           the current instance of Selenium webdriver
+     * @param driver           the current instance of Selenium WebDriver
      * @param elementLocator   the locator of the webElement under test (By xpath,
      *                         id, selector, name ...etc)
      * @param propertyName     the target CSS property of the webElement under test
      * @param expectedValue    the expected value (test data) of this assertion
-     * @param customLogMessage a custom message that will appended to this step in
+     * @param customLogMessage a custom message that will be appended to this step in
      *                         the execution report
      */
     public static void assertElementCSSProperty(WebDriver driver, By elementLocator, String propertyName,
@@ -341,7 +341,7 @@ public class Assertions {
      * Asserts webElement CSSProperty equals expectedValue if AssertionType is
      * POSITIVE, or does not equal expectedValue if AssertionType is NEGATIVE.
      *
-     * @param driver                  the current instance of Selenium webdriver
+     * @param driver                  the current instance of Selenium WebDriver
      * @param elementLocator          the locator of the webElement under test (By
      *                                xpath, id, selector, name ...etc)
      * @param propertyName            the target CSS property of the webElement
@@ -351,7 +351,7 @@ public class Assertions {
      * @param assertionComparisonType AssertionComparisonType.EQUALS, CONTAINS,
      *                                MATCHES, CASE_INSENSITIVE
      * @param assertionType           AssertionType.POSITIVE, NEGATIVE
-     * @param customLogMessage        a custom message that will appended to this
+     * @param customLogMessage        a custom message that will be appended to this
      *                                step in the execution report
      */
     public static void assertElementCSSProperty(WebDriver driver, By elementLocator, String propertyName,
@@ -366,12 +366,12 @@ public class Assertions {
      * Asserts browser attribute equals expectedValue. Supports
      * CurrentUrl, PageSource, Title, WindowHandle, WindowPosition, WindowSize
      *
-     * @param driver           the current instance of Selenium webdriver
+     * @param driver           the current instance of Selenium WebDriver
      * @param browserAttribute the desired attribute of the browser window
      *                         under test
      * @param expectedValue    the expected value (test data) of this
      *                         assertion
-     * @param customLogMessage a custom message that will appended to this
+     * @param customLogMessage a custom message that will be appended to this
      *                         step in the execution report
      */
     public static void assertBrowserAttribute(WebDriver driver, String browserAttribute, String expectedValue,
@@ -385,7 +385,7 @@ public class Assertions {
      * or does not equal expectedValue if AssertionType is NEGATIVE. Supports
      * CurrentUrl, PageSource, Title, WindowHandle, WindowPosition, WindowSize
      *
-     * @param driver                  the current instance of Selenium webdriver
+     * @param driver                  the current instance of Selenium WebDriver
      * @param browserAttribute        the desired attribute of the browser window
      *                                under test
      * @param expectedValue           the expected value (test data) of this
@@ -393,7 +393,7 @@ public class Assertions {
      * @param assertionComparisonType AssertionComparisonType.EQUALS, CONTAINS,
      *                                MATCHES, CASE_INSENSITIVE
      * @param assertionType           AssertionType.POSITIVE, NEGATIVE
-     * @param customLogMessage        a custom message that will appended to this
+     * @param customLogMessage        a custom message that will be appended to this
      *                                step in the execution report
      */
     public static void assertBrowserAttribute(WebDriver driver, String browserAttribute, String expectedValue,
@@ -405,13 +405,13 @@ public class Assertions {
     /**
      * Asserts browser attribute equals expectedValue. Supports
      *
-     * @param driver                the current instance of Selenium webdriver
-     * @param browserAttributeType  the desired attribute type of the browser window
-     *                              under test
-     * @param expectedValue         the expected value (test data) of this
-     *                              assertion
-     * @param customLogMessage      a custom message that will appended to this
-     *                              step in the execution report
+     * @param driver               the current instance of Selenium WebDriver
+     * @param browserAttributeType the desired attribute type of the browser window
+     *                             under test
+     * @param expectedValue        the expected value (test data) of this
+     *                             assertion
+     * @param customLogMessage     a custom message that will be appended to this
+     *                             step in the execution report
      */
     public static void assertBrowserAttribute(WebDriver driver, BrowserAttributeType browserAttributeType, String expectedValue,
                                               String... customLogMessage) {
@@ -423,7 +423,7 @@ public class Assertions {
      * Asserts browser attribute equals expectedValue if AssertionType is POSITIVE,
      * or does not equal expectedValue if AssertionType is NEGATIVE. Supports
      *
-     * @param driver                  the current instance of Selenium webdriver
+     * @param driver                  the current instance of Selenium WebDriver
      * @param browserAttributeType    the desired attribute type of the browser window
      *                                under test
      * @param expectedValue           the expected value (test data) of this
@@ -431,7 +431,7 @@ public class Assertions {
      * @param assertionComparisonType AssertionComparisonType.EQUALS, CONTAINS,
      *                                MATCHES, CASE_INSENSITIVE
      * @param assertionType           AssertionType.POSITIVE, NEGATIVE
-     * @param customLogMessage        a custom message that will appended to this
+     * @param customLogMessage        a custom message that will be appended to this
      *                                step in the execution report
      */
     public static void assertBrowserAttribute(WebDriver driver, BrowserAttributeType browserAttributeType, String expectedValue,
@@ -441,82 +441,82 @@ public class Assertions {
     }
 
     /*
-    * Asserts browser attribute equals expectedValue. Supports
-    * CurrentUrl, PageSource, Title, WindowHandle, WindowPosition, WindowSize
-    *
+     * Asserts browser attribute equals expectedValue. Supports
+     * CurrentUrl, PageSource, Title, WindowHandle, WindowPosition, WindowSize
+     *
      * @param page           the current instance of Playwright
-    * @param browserAttribute the desired attribute of the browser window
-    *                         under test
-    * @param expectedValue    the expected value (test data) of this
-    *                         assertion
-    * @param customLogMessage a custom message that will appended to this
-    *                         step in the execution report
-    */
-   public static void assertBrowserAttribute(Page page, String browserAttribute, String expectedValue,
-                                             String... customLogMessage) {
-       ValidationsHelper.validateBrowserAttribute(ValidationEnums.ValidationCategory.HARD_ASSERT, page, browserAttribute, expectedValue, ValidationComparisonType.EQUALS,
-               ValidationType.POSITIVE, customLogMessage);
-   }
+     * @param browserAttribute the desired attribute of the browser window
+     *                         under test
+     * @param expectedValue    the expected value (test data) of this
+     *                         assertion
+     * @param customLogMessage a custom message that will be appended to this
+     *                         step in the execution report
+     */
+    public static void assertBrowserAttribute(Page page, String browserAttribute, String expectedValue,
+                                              String... customLogMessage) {
+        ValidationsHelper.validateBrowserAttribute(ValidationEnums.ValidationCategory.HARD_ASSERT, page, browserAttribute, expectedValue, ValidationComparisonType.EQUALS,
+                ValidationType.POSITIVE, customLogMessage);
+    }
 
-   /**
-    * Asserts browser attribute equals expectedValue if AssertionType is POSITIVE,
-    * or does not equal expectedValue if AssertionType is NEGATIVE. Supports
-    * CurrentUrl, PageSource, Title, WindowHandle, WindowPosition, WindowSize
-    *
-     * @param page           the current instance of Playwright
-    * @param browserAttribute        the desired attribute of the browser window
-    *                                under test
-    * @param expectedValue           the expected value (test data) of this
-    *                                assertion
-    * @param assertionComparisonType AssertionComparisonType.EQUALS, CONTAINS,
-    *                                MATCHES, CASE_INSENSITIVE
-    * @param assertionType           AssertionType.POSITIVE, NEGATIVE
-    * @param customLogMessage        a custom message that will appended to this
-    *                                step in the execution report
-    */
-   public static void assertBrowserAttribute(Page page, String browserAttribute, String expectedValue,
-                                             AssertionComparisonType assertionComparisonType, AssertionType assertionType, String... customLogMessage) {
-       ValidationsHelper.validateBrowserAttribute(ValidationEnums.ValidationCategory.HARD_ASSERT, page, browserAttribute, expectedValue, ValidationComparisonType.valueOf(assertionComparisonType.toString()),
-               ValidationType.valueOf(assertionType.toString()), customLogMessage);
-   }
+    /**
+     * Asserts browser attribute equals expectedValue if AssertionType is POSITIVE,
+     * or does not equal expectedValue if AssertionType is NEGATIVE. Supports
+     * CurrentUrl, PageSource, Title, WindowHandle, WindowPosition, WindowSize
+     *
+     * @param page                    the current instance of Playwright
+     * @param browserAttribute        the desired attribute of the browser window
+     *                                under test
+     * @param expectedValue           the expected value (test data) of this
+     *                                assertion
+     * @param assertionComparisonType AssertionComparisonType.EQUALS, CONTAINS,
+     *                                MATCHES, CASE_INSENSITIVE
+     * @param assertionType           AssertionType.POSITIVE, NEGATIVE
+     * @param customLogMessage        a custom message that will be appended to this
+     *                                step in the execution report
+     */
+    public static void assertBrowserAttribute(Page page, String browserAttribute, String expectedValue,
+                                              AssertionComparisonType assertionComparisonType, AssertionType assertionType, String... customLogMessage) {
+        ValidationsHelper.validateBrowserAttribute(ValidationEnums.ValidationCategory.HARD_ASSERT, page, browserAttribute, expectedValue, ValidationComparisonType.valueOf(assertionComparisonType.toString()),
+                ValidationType.valueOf(assertionType.toString()), customLogMessage);
+    }
 
-   /**
-    * Asserts browser attribute equals expectedValue. Supports
-    *
-     * @param page           the current instance of Playwright
-    * @param browserAttributeType  the desired attribute type of the browser window
-    *                              under test
-    * @param expectedValue         the expected value (test data) of this
-    *                              assertion
-    * @param customLogMessage      a custom message that will appended to this
-    *                              step in the execution report
-    */
-   public static void assertBrowserAttribute(Page page, BrowserAttributeType browserAttributeType, String expectedValue,
-                                             String... customLogMessage) {
-       ValidationsHelper.validateBrowserAttribute(ValidationEnums.ValidationCategory.HARD_ASSERT, page, browserAttributeType.getValue(), expectedValue, ValidationComparisonType.EQUALS,
-               ValidationType.POSITIVE, customLogMessage);
-   }
+    /**
+     * Asserts browser attribute equals expectedValue. Supports
+     *
+     * @param page                 the current instance of Playwright
+     * @param browserAttributeType the desired attribute type of the browser window
+     *                             under test
+     * @param expectedValue        the expected value (test data) of this
+     *                             assertion
+     * @param customLogMessage     a custom message that will be appended to this
+     *                             step in the execution report
+     */
+    public static void assertBrowserAttribute(Page page, BrowserAttributeType browserAttributeType, String expectedValue,
+                                              String... customLogMessage) {
+        ValidationsHelper.validateBrowserAttribute(ValidationEnums.ValidationCategory.HARD_ASSERT, page, browserAttributeType.getValue(), expectedValue, ValidationComparisonType.EQUALS,
+                ValidationType.POSITIVE, customLogMessage);
+    }
 
-   /**
-    * Asserts browser attribute equals expectedValue if AssertionType is POSITIVE,
-    * or does not equal expectedValue if AssertionType is NEGATIVE. Supports
-    *
-     * @param page           the current instance of Playwright
-    * @param browserAttributeType    the desired attribute type of the browser window
-    *                                under test
-    * @param expectedValue           the expected value (test data) of this
-    *                                assertion
-    * @param assertionComparisonType AssertionComparisonType.EQUALS, CONTAINS,
-    *                                MATCHES, CASE_INSENSITIVE
-    * @param assertionType           AssertionType.POSITIVE, NEGATIVE
-    * @param customLogMessage        a custom message that will appended to this
-    *                                step in the execution report
-    */
-   public static void assertBrowserAttribute(Page page, BrowserAttributeType browserAttributeType, String expectedValue,
-                                             AssertionComparisonType assertionComparisonType, AssertionType assertionType, String... customLogMessage) {
-       ValidationsHelper.validateBrowserAttribute(ValidationEnums.ValidationCategory.HARD_ASSERT, page, browserAttributeType.getValue(), expectedValue, ValidationComparisonType.valueOf(assertionComparisonType.toString()),
-               ValidationType.valueOf(assertionType.toString()), customLogMessage);
-   }
+    /**
+     * Asserts browser attribute equals expectedValue if AssertionType is POSITIVE,
+     * or does not equal expectedValue if AssertionType is NEGATIVE. Supports
+     *
+     * @param page                    the current instance of Playwright
+     * @param browserAttributeType    the desired attribute type of the browser window
+     *                                under test
+     * @param expectedValue           the expected value (test data) of this
+     *                                assertion
+     * @param assertionComparisonType AssertionComparisonType.EQUALS, CONTAINS,
+     *                                MATCHES, CASE_INSENSITIVE
+     * @param assertionType           AssertionType.POSITIVE, NEGATIVE
+     * @param customLogMessage        a custom message that will be appended to this
+     *                                step in the execution report
+     */
+    public static void assertBrowserAttribute(Page page, BrowserAttributeType browserAttributeType, String expectedValue,
+                                              AssertionComparisonType assertionComparisonType, AssertionType assertionType, String... customLogMessage) {
+        ValidationsHelper.validateBrowserAttribute(ValidationEnums.ValidationCategory.HARD_ASSERT, page, browserAttributeType.getValue(), expectedValue, ValidationComparisonType.valueOf(assertionComparisonType.toString()),
+                ValidationType.valueOf(assertionType.toString()), customLogMessage);
+    }
 
     /**
      * Asserts that the expectedValue is related to the actualValue using the
@@ -529,7 +529,7 @@ public class Assertions {
      * @param comparativeRelationType assertComparativeRelation.GREATER_THAN,
      *                                GREATER_THAN_OR_EQUALS, LESS_THAN,
      *                                LESS_THAN_OR_EQUALS, EQUALS
-     * @param customLogMessage        a custom message that will appended to this
+     * @param customLogMessage        a custom message that will be appended to this
      *                                step in the execution report
      */
     public static void assertComparativeRelation(Number expectedValue, Number actualValue,
@@ -550,7 +550,7 @@ public class Assertions {
      *                                GREATER_THAN_OR_EQUALS, LESS_THAN,
      *                                LESS_THAN_OR_EQUALS, EQUALS
      * @param assertionType           AssertionType.POSITIVE, NEGATIVE
-     * @param customLogMessage        a custom message that will appended to this
+     * @param customLogMessage        a custom message that will be appended to this
      *                                step in the execution report
      */
     public static void assertComparativeRelation(Number expectedValue, Number actualValue,
@@ -566,7 +566,7 @@ public class Assertions {
      *                         with a /
      * @param fileName         The name of the target file (including its extension
      *                         if any)
-     * @param customLogMessage a custom message that will appended to this
+     * @param customLogMessage a custom message that will be appended to this
      *                         step in the execution report
      */
     public static void assertFileExists(String fileFolderName, String fileName,
@@ -584,7 +584,7 @@ public class Assertions {
      *                         if any)
      * @param numberOfRetries  number of times to try to find the file, given that
      *                         each retry is separated by a 500 millisecond wait time
-     * @param customLogMessage a custom message that will appended to this
+     * @param customLogMessage a custom message that will be appended to this
      *                         step in the execution report
      */
     public static void assertFileExists(String fileFolderName, String fileName, int numberOfRetries,
@@ -604,7 +604,7 @@ public class Assertions {
      * @param numberOfRetries  number of times to try to find the file, given that
      *                         each retry is separated by a 500 millisecond wait time
      * @param assertionType    AssertionType.POSITIVE, NEGATIVE
-     * @param customLogMessage a custom message that will appended to this
+     * @param customLogMessage a custom message that will be appended to this
      *                         step in the execution report
      */
     public static void assertFileExists(String fileFolderName, String fileName, int numberOfRetries,
@@ -617,7 +617,7 @@ public class Assertions {
      *
      * @param conditionalStatement the statement that will be evaluated to see if it
      *                             matches the expected result
-     * @param customLogMessage     a custom message that will appended to this
+     * @param customLogMessage     a custom message that will be appended to this
      *                             step in the execution report
      */
     public static void assertTrue(Boolean conditionalStatement, String... customLogMessage) {
@@ -631,7 +631,7 @@ public class Assertions {
      * @param conditionalStatement the statement that will be evaluated to see if it
      *                             matches the expected result
      * @param assertionType        AssertionType.POSITIVE, NEGATIVE
-     * @param customLogMessage     a custom message that will appended to this
+     * @param customLogMessage     a custom message that will be appended to this
      *                             step in the execution report
      */
     public static void assertTrue(Boolean conditionalStatement, AssertionType assertionType, String... customLogMessage) {
@@ -647,7 +647,7 @@ public class Assertions {
      * @param referenceJsonFilePath the full absolute path to the test data file
      *                              that will be used as a reference for this
      *                              comparison
-     * @param customLogMessage      a custom message that will appended to this
+     * @param customLogMessage      a custom message that will be appended to this
      *                              step in the execution report
      */
     public static void assertJSONFileContent(Response response, String referenceJsonFilePath, String... customLogMessage) {
@@ -666,7 +666,7 @@ public class Assertions {
      * @param comparisonType        ComparisonType.EQUALS, CONTAINS, MATCHES,
      *                              EQUALS_STRICT; Note that MATCHES ignores the
      *                              content ordering inside the JSON
-     * @param customLogMessage      a custom message that will appended to this
+     * @param customLogMessage      a custom message that will be appended to this
      *                              step in the execution report
      */
     public static void assertJSONFileContent(Response response, String referenceJsonFilePath,
@@ -688,7 +688,7 @@ public class Assertions {
      *                              EQUALS_STRICT; Note that MATCHES ignores the
      *                              content ordering inside the JSON
      * @param assertionType         AssertionType.POSITIVE, NEGATIVE
-     * @param customLogMessage      a custom message that will appended to this
+     * @param customLogMessage      a custom message that will be appended to this
      *                              step in the execution report
      */
     public static void assertJSONFileContent(Response response, String referenceJsonFilePath,
@@ -710,7 +710,7 @@ public class Assertions {
      *                              content ordering inside the JSON
      * @param jsonPathToTargetArray a jsonpath that will be parsed to point to the
      *                              target JSON Array
-     * @param customLogMessage      a custom message that will appended to this
+     * @param customLogMessage      a custom message that will be appended to this
      *                              step in the execution report
      */
     public static void assertJSONFileContent(Response response, String referenceJsonFilePath,
@@ -734,7 +734,7 @@ public class Assertions {
      * @param jsonPathToTargetArray a jsonpath that will be parsed to point to the
      *                              target JSON Array
      * @param assertionType         AssertionType.POSITIVE, NEGATIVE
-     * @param customLogMessage      a custom message that will appended to this
+     * @param customLogMessage      a custom message that will be appended to this
      *                              step in the execution report
      */
     public static void assertJSONFileContent(Response response, String referenceJsonFilePath,
@@ -745,10 +745,10 @@ public class Assertions {
     /**
      * Asserts that the current image of the target element matches the expected reference image. Uses OpenCV natively.
      *
-     * @param driver           the current instance of Selenium webdriver
+     * @param driver           the current instance of Selenium WebDriver
      * @param elementLocator   the locator of the webElement under test (By xpath,
      *                         id, selector, name ...etc)
-     * @param customLogMessage a custom message that will appended to this step in
+     * @param customLogMessage a custom message that will be appended to this step in
      *                         *                         the execution report
      */
     public static void assertElementMatches(WebDriver driver, By elementLocator,
@@ -760,11 +760,11 @@ public class Assertions {
      * Asserts that the current image of the target element matches the expected reference image if AssertionType is POSITIVE, or
      * doesn't match it if AssertionType is NEGATIVE. Uses OpenCV natively.
      *
-     * @param driver           the current instance of Selenium webdriver
+     * @param driver           the current instance of Selenium WebDriver
      * @param elementLocator   the locator of the webElement under test (By xpath,
      *                         id, selector, name ...etc)
      * @param assertionType    AssertionType.POSITIVE, NEGATIVE
-     * @param customLogMessage a custom message that will appended to this step in
+     * @param customLogMessage a custom message that will be appended to this step in
      *                         *                         the execution report
      */
     public static void assertElementMatches(WebDriver driver, By elementLocator, AssertionType assertionType,
@@ -775,11 +775,11 @@ public class Assertions {
     /**
      * Asserts that the current image of the target element matches the expected reference image using the desired VisualValidationEngine. Supports OpenCV natively, and Applitools Eyes. To use Eyes you need to configure your applitoolsApiKey in the path.properties file
      *
-     * @param driver                 the current instance of Selenium webdriver
+     * @param driver                 the current instance of Selenium WebDriver
      * @param elementLocator         the locator of the webElement under test (By xpath,
      *                               id, selector, name ...etc)
      * @param visualValidationEngine VisualValidationEngine.EXACT_OPENCV, EXACT_EYES, STRICT_EYES, CONTENT_EYES, LAYOUT_EYES
-     * @param customLogMessage       a custom message that will appended to this step in
+     * @param customLogMessage       a custom message that will be appended to this step in
      *                               *                         the execution report
      */
     public static void assertElementMatches(WebDriver driver, By elementLocator, VisualValidationEngine visualValidationEngine,
@@ -791,18 +791,19 @@ public class Assertions {
      * Asserts that the current image of the target element matches the expected reference image using the desired VisualValidationEngine if AssertionType is POSITIVE, or
      * doesn't match it if AssertionType is NEGATIVE. Supports OpenCV natively, and Applitools Eyes. To use Eyes you need to configure your applitoolsApiKey in the path.properties file
      *
-     * @param driver                 the current instance of Selenium webdriver
+     * @param driver                 the current instance of Selenium WebDriver
      * @param elementLocator         the locator of the webElement under test (By xpath,
      *                               id, selector, name ...etc)
      * @param visualValidationEngine VisualValidationEngine.EXACT_OPENCV, EXACT_EYES, STRICT_EYES, CONTENT_EYES, LAYOUT_EYES
      * @param assertionType          AssertionType.POSITIVE, NEGATIVE
-     * @param customLogMessage       a custom message that will appended to this step in
+     * @param customLogMessage       a custom message that will be appended to this step in
      *                               *                         the execution report
      */
     public static void assertElementMatches(WebDriver driver, By elementLocator, VisualValidationEngine visualValidationEngine, AssertionType assertionType,
                                             String... customLogMessage) {
         ValidationsHelper.validateElementMatches(ValidationEnums.ValidationCategory.HARD_ASSERT, driver, elementLocator, ValidationEnums.VisualValidationEngine.valueOf(visualValidationEngine.name()), ValidationType.valueOf(assertionType.toString()), customLogMessage);
     }
+
     /**
      * Assert that two objects are equal
      *
@@ -814,7 +815,7 @@ public class Assertions {
      *                         $.], please refer to these urls for examples:
      *                         https://support.smartbear.com/alertsite/docs/monitors/api/endpoint/jsonpath.html
      *                         http://jsonpath.com/
-     * @param customLogMessage a custom message that will appended to this step in
+     * @param customLogMessage a custom message that will be appended to this step in
      *                         the execution report
      */
     public static void assertApiResponseEquals(Response response, String expectedValue, String JSONPath, String... customLogMessage) {
@@ -834,7 +835,7 @@ public class Assertions {
      *                         $.], please refer to these urls for examples:
      *                         https://support.smartbear.com/alertsite/docs/monitors/api/endpoint/jsonpath.html
      *                         http://jsonpath.com/
-     * @param customLogMessage a custom message that will appended to this step in
+     * @param customLogMessage a custom message that will be appended to this step in
      *                         the execution report
      */
     public static void assertApiResponseEquals(Object response, String expectedValue, String JSONPath, String... customLogMessage) {
@@ -847,10 +848,10 @@ public class Assertions {
     /**
      * Asserts that the current image of the target element matches the expected reference image. Uses OpenCV natively.
      *
-     * @param page           the current instance of Playwright
+     * @param page             the current instance of Playwright
      * @param elementLocator   the locator of the webElement under test (By xpath,
      *                         id, selector, name ...etc)
-     * @param customLogMessage a custom message that will appended to this step in
+     * @param customLogMessage a custom message that will be appended to this step in
      *                         *                         the execution report
      */
     public static void assertElementMatches(Page page, String elementLocator,
@@ -862,11 +863,11 @@ public class Assertions {
      * Asserts that the current image of the target element matches the expected reference image if AssertionType is POSITIVE, or
      * doesn't match it if AssertionType is NEGATIVE. Uses OpenCV natively.
      *
-     * @param page           the current instance of Playwright
+     * @param page             the current instance of Playwright
      * @param elementLocator   the locator of the webElement under test (By xpath,
      *                         id, selector, name ...etc)
      * @param assertionType    AssertionType.POSITIVE, NEGATIVE
-     * @param customLogMessage a custom message that will appended to this step in
+     * @param customLogMessage a custom message that will be appended to this step in
      *                         *                         the execution report
      */
     public static void assertElementMatches(Page page, String elementLocator, AssertionType assertionType,
@@ -877,11 +878,11 @@ public class Assertions {
     /**
      * Asserts that the current image of the target element matches the expected reference image using the desired VisualValidationEngine. Supports OpenCV natively, and Applitools Eyes. To use Eyes you need to configure your applitoolsApiKey in the path.properties file
      *
-     * @param page           the current instance of Playwright
+     * @param page                   the current instance of Playwright
      * @param elementLocator         the locator of the webElement under test (By xpath,
      *                               id, selector, name ...etc)
      * @param visualValidationEngine VisualValidationEngine.EXACT_OPENCV, EXACT_EYES, STRICT_EYES, CONTENT_EYES, LAYOUT_EYES
-     * @param customLogMessage       a custom message that will appended to this step in
+     * @param customLogMessage       a custom message that will be appended to this step in
      *                               *                         the execution report
      */
     public static void assertElementMatches(Page page, String elementLocator, VisualValidationEngine visualValidationEngine,
@@ -893,12 +894,12 @@ public class Assertions {
      * Asserts that the current image of the target element matches the expected reference image using the desired VisualValidationEngine if AssertionType is POSITIVE, or
      * doesn't match it if AssertionType is NEGATIVE. Supports OpenCV natively, and Applitools Eyes. To use Eyes you need to configure your applitoolsApiKey in the path.properties file
      *
-     * @param page           the current instance of Playwright
+     * @param page                   the current instance of Playwright
      * @param elementLocator         the locator of the webElement under test (By xpath,
      *                               id, selector, name ...etc)
      * @param visualValidationEngine VisualValidationEngine.EXACT_OPENCV, EXACT_EYES, STRICT_EYES, CONTENT_EYES, LAYOUT_EYES
      * @param assertionType          AssertionType.POSITIVE, NEGATIVE
-     * @param customLogMessage       a custom message that will appended to this step in
+     * @param customLogMessage       a custom message that will be appended to this step in
      *                               *                         the execution report
      */
     public static void assertElementMatches(Page page, String elementLocator, VisualValidationEngine visualValidationEngine, AssertionType assertionType,

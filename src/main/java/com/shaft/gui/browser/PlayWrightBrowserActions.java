@@ -22,20 +22,11 @@ public class PlayWrightBrowserActions {
     private static final Boolean HEADLESS_EXECUTION = Boolean.valueOf(System.getProperty("headlessExecution").trim());
     private static final int NAVIGATION_TIMEOUT_INTEGER = Integer
             .parseInt(System.getProperty("browserNavigationTimeout").trim());
-    
+
     private static Page lastUsedPage;
 
     protected PlayWrightBrowserActions(Page page) {
-        lastUsedPage=page;
-    }
-    
-    /**
-     * Gets the current page URL and returns it as a string
-     *
-     * @return the URL that's currently open in the current page
-     */
-    public String getCurrentURL() {
-    	return getCurrentURL(lastUsedPage);
+        lastUsedPage = page;
     }
 
     /**
@@ -59,15 +50,6 @@ public class PlayWrightBrowserActions {
     /**
      * Gets the current window title and returns it as a string
      *
-     * @return the title of the current window
-     */
-    public String getCurrentWindowTitle() {
-    	return getCurrentWindowTitle(lastUsedPage);
-    }
-    
-    /**
-     * Gets the current window title and returns it as a string
-     *
      * @param page the current instance of PlayWright page
      * @return the title of the current window
      */
@@ -81,15 +63,6 @@ public class PlayWrightBrowserActions {
             failAction(page, currentWindowTitle, rootCauseException);
         }
         return currentWindowTitle;
-    }
-    
-    /**
-     * Gets the current page source and returns it as a string
-     *
-     * @return the source of the current page
-     */
-    public String getPageSource() {
-    	return getPageSource(lastUsedPage);
     }
 
     /**
@@ -109,15 +82,6 @@ public class PlayWrightBrowserActions {
         }
         return pageSource;
     }
-        
-    /**
-     * Gets the current window size and returns it as a string
-     *
-     * @return the size of the current window
-     */
-    public String getWindowSize() {
-    	return getWindowSize(lastUsedPage);
-    }
 
     /**
      * Gets the current window size and returns it as a string
@@ -136,54 +100,25 @@ public class PlayWrightBrowserActions {
         }
         return windowSize;
     }
-    
-    /**
-     * Navigates to targetUrl in case the current URL is different, else refreshes
-     * the current page
-     *
-     * @param targetUrl a string that represents the URL that you wish to navigate
-     *                  to
-     */
-    public PlayWrightBrowserActions navigateToURL(String targetUrl) {
-    	navigateToURL(lastUsedPage, targetUrl);
-    	return this;
-    }
 
     /**
      * Navigates to targetUrl in case the current URL is different, else refreshes
      * the current page
      *
-     * @param page    the current instance of PlayWright page
+     * @param page      the current instance of PlayWright page
      * @param targetUrl a string that represents the URL that you wish to navigate
      *                  to
      */
     public static void navigateToURL(Page page, String targetUrl) {
         navigateToURL(page, targetUrl, targetUrl);
     }
-    
-    /**
-     * Navigates to targetUrl in case the current URL is different, else refreshes
-     * the current page. Waits for successfully navigating to the final url after
-     * redirection.
-     *
-     * @param targetUrl                 a string that represents the URL that you
-     *                                  wish to navigate to
-     * @param targetUrlAfterRedirection a string that represents a part of the url
-     *                                  that should be present after redirection,
-     *                                  this string is used to confirm successful
-     *                                  navigation
-     */
-    public PlayWrightBrowserActions navigateToURL(String targetUrl, String targetUrlAfterRedirection) {
-    	navigateToURL(lastUsedPage, targetUrl, targetUrlAfterRedirection);
-    	return this;
-    }
 
     /**
      * Navigates to targetUrl in case the current URL is different, else refreshes
      * the current page. Waits for successfully navigating to the final url after
      * redirection.
      *
-     * @param page                    the current instance of PlayWright page
+     * @param page                      the current instance of PlayWright page
      * @param targetUrl                 a string that represents the URL that you
      *                                  wish to navigate to
      * @param targetUrlAfterRedirection a string that represents a part of the url
@@ -234,15 +169,6 @@ public class PlayWrightBrowserActions {
             failAction(page, targetUrl, rootCauseException);
         }
     }
-    
-    /**
-     * Navigates one step back from the browsers history
-     *
-     */
-    public PlayWrightBrowserActions navigateBack() {
-    	navigateBack(lastUsedPage);
-    	return this;
-    }
 
     /**
      * Navigates one step back from the browsers history
@@ -266,15 +192,6 @@ public class PlayWrightBrowserActions {
         } catch (Exception rootCauseException) {
             failAction(page, newURL, rootCauseException);
         }
-    }
-    
-    /**
-     * Navigates one step forward from the browsers history
-     *
-     */
-    public PlayWrightBrowserActions navigateForward() {
-    	navigateForward(lastUsedPage);
-    	return this;
     }
 
     /**
@@ -300,15 +217,6 @@ public class PlayWrightBrowserActions {
             failAction(page, newURL, rootCauseException);
         }
     }
-    
-    /**
-     * Attempts to refresh the current page
-     *
-     */
-    public PlayWrightBrowserActions refreshCurrentPage() {
-    	refreshCurrentPage(lastUsedPage);
-    	return this;
-    }
 
     /**
      * Attempts to refresh the current page
@@ -322,15 +230,6 @@ public class PlayWrightBrowserActions {
         // removed all exception handling as there was no comments on when and why this
         // exception happens
     }
-    
-    /**
-     * Closes the current browser window
-     *
-     */
-    public synchronized PlayWrightBrowserActions closeCurrentWindow() {
-    	closeCurrentWindow(lastUsedPage);
-    	return this;
-    }
 
     /**
      * Closes the current browser window
@@ -340,23 +239,14 @@ public class PlayWrightBrowserActions {
     public static synchronized void closeCurrentWindow(Page page) {
         if (page != null) {
             page.waitForLoadState(LoadState.NETWORKIDLE);
-                String lastPageSource = page.content();
-                DriverFactoryHelper.closePlayWrightDriver();
-                passAction(lastPageSource);
-                PlayWrightElementActions.setLastUsedPage(null);
+            String lastPageSource = page.content();
+            DriverFactoryHelper.closePlayWrightDriver();
+            passAction(lastPageSource);
+            PlayWrightElementActions.setLastUsedPage(null);
         } else {
             ReportManager.logDiscrete("Window is already closed and page object is null.");
             passAction(null);
         }
-    }
-    
-    /**
-     * Maximizes current window size based on screen size minus 5%
-     *
-     */
-    public PlayWrightBrowserActions maximizeWindow() {
-    	maximizeWindow(lastUsedPage);
-    	return this;
     }
 
     /**
@@ -375,31 +265,20 @@ public class PlayWrightBrowserActions {
 
         ReportManager.logDiscrete("Initial window size: " + initialWindowSize);
 
-            // attempt resize using toolkit
-            currentWindowSize = attemptMaximizeUsingToolkitAndJavascript(page, targetWidth, targetHeight);
+        // attempt resize using toolkit
+        currentWindowSize = attemptMaximizeUsingToolkitAndJavascript(page, targetWidth, targetHeight);
 
-            if ((currentWindowSize.height != targetHeight)
-                    || (currentWindowSize.width != targetWidth)) {
-                ReportManager.logDiscrete("skipping window maximization due to unknown error, marking step as passed.");
-            }
+        if ((currentWindowSize.height != targetHeight)
+                || (currentWindowSize.width != targetWidth)) {
+            ReportManager.logDiscrete("skipping window maximization due to unknown error, marking step as passed.");
+        }
         passAction(page, "New screen size is now: " + currentWindowSize);
     }
-    
-    /**
-     * Resizes the current window size based on the provided width and height
-     *
-     * @param width  the desired new width of the target window
-     * @param height the desired new height of the target window
-     */
-    public PlayWrightBrowserActions setWindowSize(int width, int height) {
-    	setWindowSize(lastUsedPage, width, height);
-    	return this;
-    }
 
     /**
      * Resizes the current window size based on the provided width and height
      *
-     * @param page the current instance of PlayWright page
+     * @param page   the current instance of PlayWright page
      * @param width  the desired new width of the target window
      * @param height the desired new height of the target window
      */
@@ -422,11 +301,11 @@ public class PlayWrightBrowserActions {
         if ((initialWindowSize.height == currentWindowSize.height)
                 && (initialWindowSize.width == currentWindowSize.width)) {
             page.evaluate(JavaScriptHelper.WINDOW_FOCUS.getValue());
-        	page.evaluate(JavaScriptHelper.WINDOW_RESET_LOCATION.getValue());
-        	page.evaluate(JavaScriptHelper.WINDOW_RESIZE.getValue()
+            page.evaluate(JavaScriptHelper.WINDOW_RESET_LOCATION.getValue());
+            page.evaluate(JavaScriptHelper.WINDOW_RESIZE.getValue()
                     .replace("$WIDTH", String.valueOf(width)).replace("$HEIGHT", String.valueOf(height)));
 
-        	viewportSize = page.viewportSize();
+            viewportSize = page.viewportSize();
             currentWindowSize = new Dimension(viewportSize.width, viewportSize.height);
             ReportManager.logDiscrete("Window size after JavascriptExecutor: " + currentWindowSize);
         }
@@ -489,7 +368,7 @@ public class PlayWrightBrowserActions {
         }
 
         if (page != null) {
-            attachments.add(ScreenshotManager.captureScreenShot(page, "", actionName, true));            
+            attachments.add(ScreenshotManager.captureScreenShot(page, "", actionName, true));
             ReportManagerHelper.log(message, attachments);
         } else if (!attachments.equals(new ArrayList<>())) {
             ReportManagerHelper.log(message, attachments);
@@ -512,24 +391,24 @@ public class PlayWrightBrowserActions {
 
     private static void navigateToNewURL(Page page, String targetUrl, String targetUrlAfterRedirection) {
         try {
-            page.navigate(targetUrl, new NavigateOptions().setTimeout(NAVIGATION_TIMEOUT_INTEGER*1000));
+            page.navigate(targetUrl, new NavigateOptions().setTimeout(NAVIGATION_TIMEOUT_INTEGER * 1000));
         } catch (Exception rootCauseException) {
             failAction(page, targetUrl, rootCauseException);
         }
-        
+
         page.waitForLoadState(LoadState.NETWORKIDLE);
         var currentUrl = page.url();
-        
-        if ("/".equals(String.valueOf(currentUrl.charAt(currentUrl.length()-1)))) {
-        	currentUrl = currentUrl.substring(0, currentUrl.length()-1);
+
+        if ("/".equals(String.valueOf(currentUrl.charAt(currentUrl.length() - 1)))) {
+            currentUrl = currentUrl.substring(0, currentUrl.length() - 1);
         }
-        
-        if ("/".equals(String.valueOf(targetUrlAfterRedirection.charAt(targetUrlAfterRedirection.length()-1)))) {
-        	targetUrlAfterRedirection = targetUrlAfterRedirection.substring(0, targetUrlAfterRedirection.length()-1);
+
+        if ("/".equals(String.valueOf(targetUrlAfterRedirection.charAt(targetUrlAfterRedirection.length() - 1)))) {
+            targetUrlAfterRedirection = targetUrlAfterRedirection.substring(0, targetUrlAfterRedirection.length() - 1);
         }
 
         if (!currentUrl.equals(targetUrlAfterRedirection)) {
-        	failAction(page, "Failed to navigate to \""+targetUrlAfterRedirection+"\" and ended up on \""+currentUrl+"\".");
+            failAction(page, "Failed to navigate to \"" + targetUrlAfterRedirection + "\" and ended up on \"" + currentUrl + "\".");
         }
     }
 
@@ -538,7 +417,7 @@ public class PlayWrightBrowserActions {
         int targetHeight = height;
         ViewportSize viewportSize;
         try {
-        	var toolkit = Toolkit.getDefaultToolkit();
+            var toolkit = Toolkit.getDefaultToolkit();
             if (Boolean.FALSE.equals(HEADLESS_EXECUTION)) {
                 targetWidth = (int) toolkit.getScreenSize().getWidth();
                 targetHeight = (int) toolkit.getScreenSize().getHeight();
@@ -547,14 +426,131 @@ public class PlayWrightBrowserActions {
             viewportSize = page.viewportSize();
             ReportManager.logDiscrete("Window size after Toolkit: " + viewportSize);
         } catch (HeadlessException e) {
-        	page.evaluate(JavaScriptHelper.WINDOW_FOCUS.getValue());
-        	page.evaluate(JavaScriptHelper.WINDOW_RESET_LOCATION.getValue());
-        	page.evaluate(JavaScriptHelper.WINDOW_RESIZE.getValue()
+            page.evaluate(JavaScriptHelper.WINDOW_FOCUS.getValue());
+            page.evaluate(JavaScriptHelper.WINDOW_RESET_LOCATION.getValue());
+            page.evaluate(JavaScriptHelper.WINDOW_RESIZE.getValue()
                     .replace("$WIDTH", String.valueOf(targetWidth)).replace("$HEIGHT", String.valueOf(targetHeight)));
             viewportSize = page.viewportSize();
             ReportManager.logDiscrete(
                     "Window size after JavascriptExecutor: " + viewportSize);
         }
-        return new Dimension (viewportSize.width,viewportSize.height);
+        return new Dimension(viewportSize.width, viewportSize.height);
+    }
+
+    /**
+     * Gets the current page URL and returns it as a string
+     *
+     * @return the URL that's currently open in the current page
+     */
+    public String getCurrentURL() {
+        return getCurrentURL(lastUsedPage);
+    }
+
+    /**
+     * Gets the current window title and returns it as a string
+     *
+     * @return the title of the current window
+     */
+    public String getCurrentWindowTitle() {
+        return getCurrentWindowTitle(lastUsedPage);
+    }
+
+    /**
+     * Gets the current page source and returns it as a string
+     *
+     * @return the source of the current page
+     */
+    public String getPageSource() {
+        return getPageSource(lastUsedPage);
+    }
+
+    /**
+     * Gets the current window size and returns it as a string
+     *
+     * @return the size of the current window
+     */
+    public String getWindowSize() {
+        return getWindowSize(lastUsedPage);
+    }
+
+    /**
+     * Navigates to targetUrl in case the current URL is different, else refreshes
+     * the current page
+     *
+     * @param targetUrl a string that represents the URL that you wish to navigate
+     *                  to
+     */
+    public PlayWrightBrowserActions navigateToURL(String targetUrl) {
+        navigateToURL(lastUsedPage, targetUrl);
+        return this;
+    }
+
+    /**
+     * Navigates to targetUrl in case the current URL is different, else refreshes
+     * the current page. Waits for successfully navigating to the final url after
+     * redirection.
+     *
+     * @param targetUrl                 a string that represents the URL that you
+     *                                  wish to navigate to
+     * @param targetUrlAfterRedirection a string that represents a part of the url
+     *                                  that should be present after redirection,
+     *                                  this string is used to confirm successful
+     *                                  navigation
+     */
+    public PlayWrightBrowserActions navigateToURL(String targetUrl, String targetUrlAfterRedirection) {
+        navigateToURL(lastUsedPage, targetUrl, targetUrlAfterRedirection);
+        return this;
+    }
+
+    /**
+     * Navigates one step back from the browsers history
+     */
+    public PlayWrightBrowserActions navigateBack() {
+        navigateBack(lastUsedPage);
+        return this;
+    }
+
+    /**
+     * Navigates one step forward from the browsers history
+     */
+    public PlayWrightBrowserActions navigateForward() {
+        navigateForward(lastUsedPage);
+        return this;
+    }
+
+    /**
+     * Attempts to refresh the current page
+     */
+    public PlayWrightBrowserActions refreshCurrentPage() {
+        refreshCurrentPage(lastUsedPage);
+        return this;
+    }
+
+    /**
+     * Closes the current browser window
+     */
+    public synchronized PlayWrightBrowserActions closeCurrentWindow() {
+        closeCurrentWindow(lastUsedPage);
+        return this;
+    }
+
+    /**
+     * Maximizes current window size based on screen size minus 5%
+     */
+    @SuppressWarnings("UnusedReturnValue")
+    public PlayWrightBrowserActions maximizeWindow() {
+        maximizeWindow(lastUsedPage);
+        return this;
+    }
+
+    /**
+     * Resizes the current window size based on the provided width and height
+     *
+     * @param width  the desired new width of the target window
+     * @param height the desired new height of the target window
+     */
+    public PlayWrightBrowserActions setWindowSize(int width, int height) {
+        setWindowSize(lastUsedPage, width, height);
+        return this;
     }
 }

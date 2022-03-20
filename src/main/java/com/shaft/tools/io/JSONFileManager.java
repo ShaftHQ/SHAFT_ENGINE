@@ -89,10 +89,10 @@ public class JSONFileManager {
      * @param jsonPath the desired jsonpath that points to the needed test data, it can be written manually or generated using helper tools such as https://jsonpathfinder.com/
      * @return the map value of the desired test data
      */
-    public Map<?,?> getTestDataAsMap(String jsonPath) {
+    public Map<?, ?> getTestDataAsMap(String jsonPath) {
         Object testData = getTestData(cleanJsonPath(jsonPath), DataType.MAP);
         if (testData != null) {
-            return (Map<?,?>) testData;
+            return (Map<?, ?>) testData;
         } else {
             return null;
         }
