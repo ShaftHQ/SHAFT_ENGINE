@@ -71,6 +71,7 @@ public class ValidationEnums {
         }
     }
 
+    @Deprecated
     public enum ElementAttribute {
         TEXT("text"), TAG_NAME("tagname"), SIZE("size"), SELECTED_TEXT("selectedtext");
 
@@ -85,6 +86,7 @@ public class ValidationEnums {
         }
     }
 
+    @Deprecated
     public enum BrowserAttribute {
         CURRENT_URL("currenturl"), PAGE_SOURCE("pagesource"), TITLE("title"), WINDOW_HANDLE("windowhandle"), WINDOW_POSITION("windowposition"), WINDOW_SIZE("windowsize");
 

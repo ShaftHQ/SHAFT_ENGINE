@@ -37,10 +37,35 @@ public class WebDriverBrowserValidationsBuilder {
      * @param browserAttribute the target browser attribute that will be checked against
      * @return a NativeValidationsBuilder object to continue building your validation
      */
+    @Deprecated
     public NativeValidationsBuilder attribute(ValidationEnums.BrowserAttribute browserAttribute) {
         this.validationMethod = "browserAttributeEquals";
         this.browserAttribute = browserAttribute.getValue();
         reportMessageBuilder.append("attribute \"").append(browserAttribute).append("\" ");
+        return new NativeValidationsBuilder(this);
+    }
+
+    /**
+     * Use this to check against the current page URL
+     *
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    public NativeValidationsBuilder url() {
+        this.validationMethod = "browserAttributeEquals";
+        this.browserAttribute = ValidationEnums.BrowserAttribute.CURRENT_URL.getValue();
+        reportMessageBuilder.append("URL ");
+        return new NativeValidationsBuilder(this);
+    }
+
+    /**
+     * Use this to check against the current page title
+     *
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    public NativeValidationsBuilder title() {
+        this.validationMethod = "browserAttributeEquals";
+        this.browserAttribute = ValidationEnums.BrowserAttribute.TITLE.getValue();
+        reportMessageBuilder.append("page title ");
         return new NativeValidationsBuilder(this);
     }
 
