@@ -88,6 +88,13 @@ public class JavaActions {
      */
     public static int compareTwoObjects(Object expectedValue, Object actualValue, int comparisonType,
                                         Boolean validationType) {
+        if ("null".equals(expectedValue)) {
+            expectedValue = null;
+        }
+
+        if ("null".equals(actualValue)) {
+            actualValue = null;
+        }
 
         if (Boolean.TRUE.equals(validationType)) {
             try {

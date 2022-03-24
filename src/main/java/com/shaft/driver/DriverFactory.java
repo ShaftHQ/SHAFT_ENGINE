@@ -7,7 +7,12 @@ import com.shaft.api.RestActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.db.DatabaseActions;
 import com.shaft.db.DatabaseActions.DatabaseType;
+import com.shaft.gui.browser.BrowserActions;
+import com.shaft.gui.browser.WebDriverBrowserActions;
+import com.shaft.gui.element.ElementActions;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.validation.Validations;
+import com.shaft.validation.ValidationsBuilder;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.WebDriver;
 import org.sikuli.script.App;
@@ -63,19 +68,10 @@ public class DriverFactory {
     /**
      * Creates a new Selenium WebDriver instance using BrowserStack, use this to test Native Mobile apps over BrowserStack
      *
-     * @return a new Selenium WebDriver instance using BrowserStack
-     */
-    public static WebDriver getBrowserStackDriver() {
-        return getBrowserStackDriver(new MutableCapabilities());
-    }
-
-    /**
-     * Creates a new Selenium WebDriver instance using BrowserStack, use this to test Native Mobile apps over BrowserStack
-     *
      * @param browserStackOptions custom browserstack options to be merged with the default in the browserStack.properties file
      * @return a new Selenium WebDriver instance using BrowserStack
      */
-    public static WebDriver getBrowserStackDriver(MutableCapabilities browserStackOptions) {
+    private static WebDriver getBrowserStackDriver(MutableCapabilities browserStackOptions) {
         String appUrl = System.getProperty("browserStack.appUrl");
         if ("".equals(appUrl)) {
             //TODO: there is a bug in the merge method and it doesn't respect the capabilities at all
@@ -138,6 +134,22 @@ public class DriverFactory {
         myapp.focus();
         ReportManager.log("Opened app: [" + myapp.getName() + "]...");
         return myapp;
+    }
+
+    public static ElementActions getElementActionsDriver(WebDriver driver) {
+        return new ElementActions(driver);
+    }
+
+    public static WebDriverBrowserActions getBrowserActionsDriver(WebDriver driver) {
+        return BrowserActions.performBrowserAction(driver);
+    }
+
+    public static ValidationsBuilder assertThat() {
+        return Validations.assertThat();
+    }
+
+    public static ValidationsBuilder verifyThat() {
+        return Validations.verifyThat();
     }
 
     /**
