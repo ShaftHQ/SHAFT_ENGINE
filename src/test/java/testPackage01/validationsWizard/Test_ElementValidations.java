@@ -50,8 +50,8 @@ public class Test_ElementValidations {
 
     @Test
     public void text() {
-        DriverFactory.getElementActionsDriver(driver).type(searchBox, "SHAFT_Engine");
-        DriverFactory.assertThat().element(driver, searchBox).text().isEqualTo("SHAFT_Engine").perform();
+        DriverFactory.getElementActionsDriver(driver).type(searchBox, "DriverFactory_Engine");
+        DriverFactory.assertThat().element(driver, searchBox).text().isEqualTo("DriverFactory_Engine").perform();
     }
 
     @Test

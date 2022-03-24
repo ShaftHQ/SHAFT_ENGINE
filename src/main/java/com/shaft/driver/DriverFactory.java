@@ -19,9 +19,9 @@ import org.sikuli.script.App;
 
 public class DriverFactory {
 
-    private DriverFactory() {
-        throw new IllegalStateException("Utility class");
-    }
+//    private DriverFactory() {
+//        throw new IllegalStateException("Utility class");
+//    }
 
     /**
      * Read the target Selenium WebDriver value from the execution.properties file

@@ -1,7 +1,6 @@
 package com.shaft.gui.element;
 
 import com.shaft.driver.DriverFactoryHelper;
-import com.shaft.driver.ShaftDriver;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManagerHelper;
@@ -16,7 +15,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
-public class SikuliActions implements ShaftDriver {
+public class SikuliActions {
     private Screen screen;
     private App applicationWindow;
 
