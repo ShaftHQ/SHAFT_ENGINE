@@ -141,7 +141,7 @@ public class WebDriverElementValidationsBuilder {
     public ValidationsExecutor isSelected() {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = "selected";
-        reportMessageBuilder.append("selected ");
+        reportMessageBuilder.append("is selected.");
         return new NativeValidationsBuilder(this).isTrue();
     }
 
@@ -153,7 +153,7 @@ public class WebDriverElementValidationsBuilder {
     public ValidationsExecutor isChecked() {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = "checked";
-        reportMessageBuilder.append("checked ");
+        reportMessageBuilder.append("is checked.");
         return new NativeValidationsBuilder(this).isTrue();
     }
 
@@ -165,7 +165,7 @@ public class WebDriverElementValidationsBuilder {
     public ValidationsExecutor isVisible() {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = "hidden";
-        reportMessageBuilder.append("hidden ");
+        reportMessageBuilder.append("is visible.");
         driver.findElement(By.xpath("")).getAttribute("");
         return new NativeValidationsBuilder(this).isNull();
     }
@@ -178,7 +178,7 @@ public class WebDriverElementValidationsBuilder {
     public ValidationsExecutor isEnabled() {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = "disabled";
-        reportMessageBuilder.append("disabled ");
+        reportMessageBuilder.append("is enabled.");
         return new NativeValidationsBuilder(this).isNull();
     }
 

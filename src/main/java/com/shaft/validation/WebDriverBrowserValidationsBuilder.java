@@ -65,7 +65,7 @@ public class WebDriverBrowserValidationsBuilder {
     public NativeValidationsBuilder title() {
         this.validationMethod = "browserAttributeEquals";
         this.browserAttribute = ValidationEnums.BrowserAttribute.TITLE.getValue();
-        reportMessageBuilder.append("page title ");
+        reportMessageBuilder.append("title ");
         return new NativeValidationsBuilder(this);
     }
 

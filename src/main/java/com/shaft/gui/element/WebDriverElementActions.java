@@ -1724,7 +1724,7 @@ public class WebDriverElementActions {
             }
         }
 
-        ReportManager.logDiscrete(message);
+//        ReportManager.logDiscrete(message);
         message = message.replace("Element Action: ", "");
         if (!attachments.equals(new ArrayList<>())) {
             ReportManagerHelper.log(message, attachments);
