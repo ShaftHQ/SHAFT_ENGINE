@@ -232,6 +232,32 @@ public class RestActions implements ShaftDriver {
         }
     }
 
+    /**
+     *
+     * @param response
+     * @param jsonPathToList The JSON path to the list of object inside of the full response
+     * @param jsonPathToValueNeeded The JSON path to the value you need to extract inside an object from the list. for example: id
+     * @param jsonPathToValueReference The JSON path that refers to the needed value inside an object from the list. for example: username
+     * @param valueReference The value of the reference JSON path
+     * @return The value you need from the object of the list
+     */
+    public static String getResponseJSONValueFromList(Response response, String jsonPathToList, String jsonPathToValueNeeded,
+                                                      String jsonPathToValueReference, String valueReference) {
+        List<Object> list = getResponseJSONValueAsList(response, jsonPathToList);
+        String value = "";
+        for (Object res : list) {
+            if (getResponseJSONValue(res, jsonPathToValueReference).equals(valueReference)) {
+                value = getResponseJSONValue(res, jsonPathToValueNeeded);
+            }
+        }
+        if (value.equals("")){
+            failAction("Can't find the reference value [" + valueReference + "] in the list with the [" + jsonPathToValueReference + "] JSON Path");
+        } else{
+            passAction(value);
+        }
+        return value;
+    }
+
     public static String getResponseXMLValue(Response response, String xmlPath) {
         String searchPool = "";
         try {
