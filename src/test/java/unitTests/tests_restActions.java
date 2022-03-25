@@ -5,6 +5,7 @@ import com.shaft.api.RestActions.RequestType;
 import com.shaft.validation.Assertions;
 import com.shaft.validation.Assertions.AssertionComparisonType;
 import com.shaft.validation.Assertions.AssertionType;
+import com.shaft.validation.Validations;
 import io.restassured.response.Response;
 import org.testng.annotations.Test;
 
@@ -52,4 +53,14 @@ public class tests_restActions {
 
         });
     }
+
+    @Test
+    public void validateUserId() {
+        RestActions apiObject = new RestActions("https://jsonplaceholder.typicode.com");
+        Response users = apiObject.buildNewRequest("/users", RequestType.GET).setTargetStatusCode(200).performRequest();
+
+        String uerId = RestActions.getResponseJSONValueFromList(users, "$", "id", "name", "Chelsey Dietrich");
+        Validations.assertThat().object(uerId).isEqualTo("5").perform();
+    }
+
 }
