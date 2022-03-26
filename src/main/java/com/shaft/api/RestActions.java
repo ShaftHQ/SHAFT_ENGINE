@@ -233,13 +233,14 @@ public class RestActions implements ShaftDriver {
     }
 
     /**
+     * Extracts a string value from an object of a list by reference of another attribute inside of the same object
      *
-     * @param response
+     * @param response The target API response object
      * @param jsonPathToList The JSON path to the list of object inside of the full response
-     * @param jsonPathToValueNeeded The JSON path to the value you need to extract inside an object from the list. for example: id
-     * @param jsonPathToValueReference The JSON path that refers to the needed value inside an object from the list. for example: username
-     * @param valueReference The value of the reference JSON path
-     * @return The value you need from the object of the list
+     * @param jsonPathToValueNeeded The JSON path to the attribute value you need to extract inside an object from the list. for example: id
+     * @param jsonPathToValueReference The JSON path that refers to the needed attribute value inside an object from the list. for example: username
+     * @param valueReference The attribute value of the reference JSON path
+     * @return A string value from the object of the list
      */
     public static String getResponseJSONValueFromList(Response response, String jsonPathToList, String jsonPathToValueNeeded,
                                                       String jsonPathToValueReference, String valueReference) {
