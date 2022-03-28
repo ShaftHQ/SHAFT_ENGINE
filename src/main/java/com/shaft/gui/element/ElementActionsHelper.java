@@ -62,7 +62,7 @@ class ElementActionsHelper {
         } while (!isFound && elapsedTime < ((long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER * ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION * 1000));
         List<Object> returnedValue = new LinkedList<>();
         returnedValue.add(currentScreenImage);
-        returnedValue.add(FileActions.readFromImageFile(elementReferenceScreenshot));
+        returnedValue.add(FileActions.getInstance().readFromImageFile(elementReferenceScreenshot));
         returnedValue.add(coordinates);
         return returnedValue;
     }

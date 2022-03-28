@@ -410,7 +410,7 @@ public class DriverFactoryHelper {
     }
 
     private static void setDriverOptions(String driverName, MutableCapabilities customDriverOptions) {
-        String downloadsFolderPath = FileActions.getAbsolutePath(System.getProperty("downloadsFolderPath"));
+        String downloadsFolderPath = FileActions.getInstance().getAbsolutePath(System.getProperty("downloadsFolderPath"));
         var driverType = getDriverTypeFromName(driverName);
 
         //get proxy server
@@ -958,7 +958,7 @@ public class DriverFactoryHelper {
 
         // handling custom launch options
         if (options == null) {
-            options = new LaunchOptions().setHeadless(HEADLESS_EXECUTION).setDownloadsPath(Path.of(FileActions.getAbsolutePath(System.getProperty("downloadsFolderPath"))));
+            options = new LaunchOptions().setHeadless(HEADLESS_EXECUTION).setDownloadsPath(Path.of(FileActions.getInstance().getAbsolutePath(System.getProperty("downloadsFolderPath"))));
         }
 
         // browser opens the browser session

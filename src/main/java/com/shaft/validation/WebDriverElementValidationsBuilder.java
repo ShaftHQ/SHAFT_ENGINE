@@ -125,11 +125,108 @@ public class WebDriverElementValidationsBuilder {
      * @param elementAttribute the target element attribute that will be checked against
      * @return a NativeValidationsBuilder object to continue building your validation
      */
+    @Deprecated
     public NativeValidationsBuilder attribute(ValidationEnums.ElementAttribute elementAttribute) {
         this.validationMethod = "elementAttributeEquals";
         this.elementAttribute = elementAttribute.getValue();
         reportMessageBuilder.append("attribute \"").append(elementAttribute).append("\" ");
         return new NativeValidationsBuilder(this);
+    }
+
+    /**
+     * Use this to check against the provided elements selected attribute
+     *
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    public ValidationsExecutor isSelected() {
+        this.validationMethod = "elementAttributeEquals";
+        this.elementAttribute = "selected";
+        reportMessageBuilder.append("is selected, selected attribute ");
+        return new NativeValidationsBuilder(this).isTrue();
+    }
+
+    /**
+     * Use this to check against the provided elements checked attribute
+     *
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    public ValidationsExecutor isChecked() {
+        this.validationMethod = "elementAttributeEquals";
+        this.elementAttribute = "checked";
+        reportMessageBuilder.append("is checked, checked attribute ");
+        return new NativeValidationsBuilder(this).isTrue();
+    }
+
+    /**
+     * Use this to check against the provided elements hidden attribute
+     *
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    public ValidationsExecutor isVisible() {
+        this.validationMethod = "elementAttributeEquals";
+        this.elementAttribute = "hidden";
+        reportMessageBuilder.append("is visible, hidden attribute ");
+        return new NativeValidationsBuilder(this).isEqualTo("null");
+    }
+
+    /**
+     * Use this to check against the provided elements disabled attribute
+     *
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    public ValidationsExecutor isEnabled() {
+        this.validationMethod = "elementAttributeEquals";
+        this.elementAttribute = "disabled";
+        reportMessageBuilder.append("is enabled, disabled attribute ");
+        return new NativeValidationsBuilder(this).isEqualTo("null");
+    }
+
+    /**
+     * Use this to check against the provided elements selected attribute
+     *
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    public ValidationsExecutor isNotSelected() {
+        this.validationMethod = "elementAttributeEquals";
+        this.elementAttribute = "selected";
+        reportMessageBuilder.append("is not selected, selected attribute ");
+        return new NativeValidationsBuilder(this).isEqualTo("null");
+    }
+
+    /**
+     * Use this to check against the provided elements checked attribute
+     *
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    public ValidationsExecutor isNotChecked() {
+        this.validationMethod = "elementAttributeEquals";
+        this.elementAttribute = "checked";
+        reportMessageBuilder.append("is not checked, checked attribute ");
+        return new NativeValidationsBuilder(this).isEqualTo("null");
+    }
+
+    /**
+     * Use this to check against the provided elements hidden attribute
+     *
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    public ValidationsExecutor isHidden() {
+        this.validationMethod = "elementAttributeEquals";
+        this.elementAttribute = "hidden";
+        reportMessageBuilder.append("is hidden, hidden attribute ");
+        return new NativeValidationsBuilder(this).isTrue();
+    }
+
+    /**
+     * Use this to check against the provided elements disabled attribute
+     *
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    public ValidationsExecutor isDisabled() {
+        this.validationMethod = "elementAttributeEquals";
+        this.elementAttribute = "disabled";
+        reportMessageBuilder.append("is disabled, disabled attribute ");
+        return new NativeValidationsBuilder(this).isTrue();
     }
 
     /**

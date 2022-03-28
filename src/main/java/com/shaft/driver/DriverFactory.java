@@ -14,9 +14,9 @@ import org.sikuli.script.App;
 
 public class DriverFactory {
 
-    private DriverFactory() {
-        throw new IllegalStateException("Utility class");
-    }
+//    private DriverFactory() {
+//        throw new IllegalStateException("Utility class");
+//    }
 
     /**
      * Read the target Selenium WebDriver value from the execution.properties file
@@ -63,19 +63,10 @@ public class DriverFactory {
     /**
      * Creates a new Selenium WebDriver instance using BrowserStack, use this to test Native Mobile apps over BrowserStack
      *
-     * @return a new Selenium WebDriver instance using BrowserStack
-     */
-    public static WebDriver getBrowserStackDriver() {
-        return getBrowserStackDriver(new MutableCapabilities());
-    }
-
-    /**
-     * Creates a new Selenium WebDriver instance using BrowserStack, use this to test Native Mobile apps over BrowserStack
-     *
      * @param browserStackOptions custom browserstack options to be merged with the default in the browserStack.properties file
      * @return a new Selenium WebDriver instance using BrowserStack
      */
-    public static WebDriver getBrowserStackDriver(MutableCapabilities browserStackOptions) {
+    private static WebDriver getBrowserStackDriver(MutableCapabilities browserStackOptions) {
         String appUrl = System.getProperty("browserStack.appUrl");
         if ("".equals(appUrl)) {
             //TODO: there is a bug in the merge method and it doesn't respect the capabilities at all

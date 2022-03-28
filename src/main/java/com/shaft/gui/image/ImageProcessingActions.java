@@ -60,9 +60,9 @@ public class ImageProcessingActions {
             File testFolder = new File(testFolderPath);
 
             // cleaning processing folders
-            FileActions.deleteFolder(refrenceFolder.getAbsolutePath() + DIRECTORY_PROCESSING);
-            FileActions.deleteFolder(testFolder.getAbsolutePath() + DIRECTORY_PROCESSING);
-            FileActions.deleteFolder(testFolder.getAbsolutePath() + DIRECTORY_FAILED);
+            FileActions.getInstance().deleteFolder(refrenceFolder.getAbsolutePath() + DIRECTORY_PROCESSING);
+            FileActions.getInstance().deleteFolder(testFolder.getAbsolutePath() + DIRECTORY_PROCESSING);
+            FileActions.getInstance().deleteFolder(testFolder.getAbsolutePath() + DIRECTORY_FAILED);
 
             // preparing objects for files
             File[] referenceFiles = refrenceFolder.listFiles();
@@ -80,7 +80,7 @@ public class ImageProcessingActions {
             if (referenceFiles.length == testFiles.length) {
                 // copy and rename reference screenshots to a processing directory
                 for (File refrenceScreenshot : referenceFiles) {
-                    FileActions.copyFile(refrenceScreenshot.getAbsolutePath(),
+                    FileActions.getInstance().copyFile(refrenceScreenshot.getAbsolutePath(),
                             refrenceScreenshot.getParent() + DIRECTORY_PROCESSING + fileCounter);
                     fileCounter++;
                 }
@@ -90,7 +90,7 @@ public class ImageProcessingActions {
 
                 fileCounter = 1;
                 for (File testScreenshot : testFiles) {
-                    FileActions.copyFile(testScreenshot.getAbsolutePath(),
+                    FileActions.getInstance().copyFile(testScreenshot.getAbsolutePath(),
                             testScreenshot.getParent() + DIRECTORY_PROCESSING + fileCounter);
                     fileCounter++;
                 }
@@ -112,8 +112,8 @@ public class ImageProcessingActions {
                         testProcessingFolder, threshhold);
 
                 // cleaning processing folders
-                FileActions.deleteFolder(refrenceFolder.getAbsolutePath() + DIRECTORY_PROCESSING);
-                FileActions.deleteFolder(testFolder.getAbsolutePath() + DIRECTORY_PROCESSING);
+                FileActions.getInstance().deleteFolder(refrenceFolder.getAbsolutePath() + DIRECTORY_PROCESSING);
+                FileActions.getInstance().deleteFolder(testFolder.getAbsolutePath() + DIRECTORY_PROCESSING);
 
             } else {
                 // fail because the number of screenshots don't match
@@ -221,7 +221,7 @@ public class ImageProcessingActions {
         Imgproc.threshold(imgSobel, imgThreshold, 0, 255, CV_THRESH_OTSU + CV_THRESH_BINARY);
 
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("debugMode")))) {
-            FileActions.createFolder("target/openCV/temp/");
+            FileActions.getInstance().createFolder("target/openCV/temp/");
             String timestamp = String.valueOf(System.currentTimeMillis());
             Imgcodecs.imwrite("target/openCV/temp/" + timestamp + "_1_True_Image.png", img);
             Imgcodecs.imwrite("target/openCV/temp/" + timestamp + "_2_imgGray.png", imgGray);
@@ -241,7 +241,7 @@ public class ImageProcessingActions {
             Mat templ_original = Imgcodecs.imread(referenceImagePath, Imgcodecs.IMREAD_COLOR);
 
             Mat img = preprocess(currentPageScreenshot);
-            Mat templ = preprocess(FileActions.readFromImageFile(referenceImagePath));
+            Mat templ = preprocess(FileActions.getInstance().readFromImageFile(referenceImagePath));
 
             // / Create the result matrix
             int resultCols = img.cols() - templ.cols() + 1;
@@ -291,7 +291,7 @@ public class ImageProcessingActions {
                 if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("debugMode")))) {
                     // debugging
                     try {
-                        FileActions.createFolder("target/openCV/");
+                        FileActions.getInstance().createFolder("target/openCV/");
                         String timestamp = String.valueOf(System.currentTimeMillis());
 
                         File output = new File("target/openCV/" + timestamp + "_1_templ.png");
@@ -328,7 +328,7 @@ public class ImageProcessingActions {
     }
 
     public static List<Integer> findImageWithinCurrentPage(String referenceImagePath, byte[] currentPageScreenshot) {
-        if (FileActions.doesFileExist(referenceImagePath)) {
+        if (FileActions.getInstance().doesFileExist(referenceImagePath)) {
             int maxNumberOfAttempts = 3;
             int attempts = 0;
             List<Integer> foundLocation = Collections.emptyList();
@@ -358,8 +358,8 @@ public class ImageProcessingActions {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
         String aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
         String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
-        if (FileActions.doesFileExist(referenceImagePath)) {
-            return FileActions.readFromImageFile(referenceImagePath);
+        if (FileActions.getInstance().doesFileExist(referenceImagePath)) {
+            return FileActions.getInstance().readFromImageFile(referenceImagePath);
         } else {
             return new byte[0];
         }
@@ -372,14 +372,14 @@ public class ImageProcessingActions {
             String aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
             String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
 
-            boolean doesReferenceFileExist = FileActions.doesFileExist(referenceImagePath);
+            boolean doesReferenceFileExist = FileActions.getInstance().doesFileExist(referenceImagePath);
 
             if (!Arrays.equals(elementScreenshot, new byte[]{})) {
                 if (!doesReferenceFileExist || !ImageProcessingActions.findImageWithinCurrentPage(referenceImagePath, elementScreenshot).equals(Collections.emptyList())) {
                     //pass: element found and matched || first time element
                     if (!doesReferenceFileExist) {
                         ReportManager.logDiscrete("Passing the test and saving a reference image");
-                        FileActions.writeToFile(aiFolderPath, hashedLocatorName + ".png", elementScreenshot);
+                        FileActions.getInstance().writeToFile(aiFolderPath, hashedLocatorName + ".png", elementScreenshot);
                     }
                     return true;
                 } else {
@@ -394,7 +394,7 @@ public class ImageProcessingActions {
                     //pass: element found using AI and new locator suggested || first time element
                     if (!doesReferenceFileExist) {
                         ReportManager.logDiscrete("Passing the test and saving a reference image");
-                        FileActions.writeToFile(aiFolderPath, hashedLocatorName + ".png", elementScreenshot);
+                        FileActions.getInstance().writeToFile(aiFolderPath, hashedLocatorName + ".png", elementScreenshot);
                     }
                     ScreenshotManager.setAiSupportedElementIdentification(initialState);
                     return true;
@@ -464,14 +464,14 @@ public class ImageProcessingActions {
             String aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
             String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
 
-            boolean doesReferenceFileExist = FileActions.doesFileExist(referenceImagePath);
+            boolean doesReferenceFileExist = FileActions.getInstance().doesFileExist(referenceImagePath);
 
             if (!Arrays.equals(elementScreenshot, new byte[]{})) {
                 if (!doesReferenceFileExist || !ImageProcessingActions.findImageWithinCurrentPage(referenceImagePath, elementScreenshot).equals(Collections.emptyList())) {
                     //pass: element found and matched || first time element
                     if (!doesReferenceFileExist) {
                         ReportManager.logDiscrete("Passing the test and saving a reference image");
-                        FileActions.writeToFile(aiFolderPath, hashedLocatorName + ".png", elementScreenshot);
+                        FileActions.getInstance().writeToFile(aiFolderPath, hashedLocatorName + ".png", elementScreenshot);
                     }
                     return true;
                 } else {
@@ -485,7 +485,7 @@ public class ImageProcessingActions {
                 if (!doesReferenceFileExist) {
                     //pass: element found using AI and new locator suggested || first time element
                     ReportManager.logDiscrete("Passing the test and saving a reference image");
-                    FileActions.writeToFile(aiFolderPath, hashedLocatorName + ".png", elementScreenshot);
+                    FileActions.getInstance().writeToFile(aiFolderPath, hashedLocatorName + ".png", elementScreenshot);
                     ScreenshotManager.setAiSupportedElementIdentification(initialState);
                     return true;
                 } else {
@@ -614,9 +614,9 @@ public class ImageProcessingActions {
             } catch (AssertionError e) {
                 ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
                 // copying image to failed images directory
-                FileActions.copyFile(screenshot.getAbsolutePath(),
+                FileActions.getInstance().copyFile(screenshot.getAbsolutePath(),
                         testProcessingFolder.getParent() + DIRECTORY_FAILED + relatedTestFileName + "_testImage");
-                FileActions.copyFile(
+                FileActions.getInstance().copyFile(
                         refrenceProcessingFolder + FileSystems.getDefault().getSeparator() + screenshot.getName(),
                         testProcessingFolder.getParent() + DIRECTORY_FAILED + relatedTestFileName + "_refrenceImage");
                 failedImagesCount++;

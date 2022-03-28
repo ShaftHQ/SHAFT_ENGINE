@@ -50,7 +50,7 @@ public class IOSBasicInteractionsTest {
         System.setProperty("browserStack.appName", "");
         System.setProperty("browserStack.appRelativeFilePath", "");
         System.setProperty("browserStack.appUrl", "bs://e2c374a22cf954e582b5c02e9a9f7cfd650a8325");
-        driver = DriverFactory.getBrowserStackDriver();
+        driver = DriverFactory.getDriver();
 
     }
 

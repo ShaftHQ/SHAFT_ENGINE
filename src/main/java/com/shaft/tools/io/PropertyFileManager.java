@@ -41,8 +41,8 @@ public class PropertyFileManager {
 
             // delete internal.properties old and new folder structure
             var internalPropertiesFilePath = "src/main/resources/properties/internal.properties";
-            if (FileActions.doesFileExist(internalPropertiesFilePath)) {
-                FileActions.deleteFile(FileActions.getAbsolutePath(internalPropertiesFilePath));
+            if (FileActions.getInstance().doesFileExist(internalPropertiesFilePath)) {
+                FileActions.getInstance().deleteFile(FileActions.getInstance().getAbsolutePath(internalPropertiesFilePath));
             }
 
             // read base system properties
@@ -94,7 +94,7 @@ public class PropertyFileManager {
         var app = appiumDesiredCapabilities.get("mobile_app");
         if (app != null && !app.isEmpty() &&
                 (app.startsWith("src\\") || app.startsWith("src/"))) {
-            appiumDesiredCapabilities.put("mobile_app", FileActions.getAbsolutePath(app));
+            appiumDesiredCapabilities.put("mobile_app", FileActions.getInstance().getAbsolutePath(app));
         }
         return appiumDesiredCapabilities;
     }
@@ -107,12 +107,12 @@ public class PropertyFileManager {
                 if (propertiesFolderPath.contains(".jar")) {
                     // unpacks default properties to target folder
                     URL url = new URL(propertiesFolderPath.substring(0, propertiesFolderPath.indexOf("!")));
-                    FileActions.unpackArchive(url, "target/");
+                    FileActions.getInstance().unpackArchive(url, "target/");
                     propertiesFolderPath = "target/resources/defaultProperties/";
                 }
                 // reading regular files
                 Collection<File> propertiesFilesList;
-                if (FileActions.doesFileExist(propertiesFolderPath)) {
+                if (FileActions.getInstance().doesFileExist(propertiesFolderPath)) {
                     propertiesFilesList = FileUtils.listFiles(new File(propertiesFolderPath), new String[]{"properties"},
                             true);
                     File propertyFile;

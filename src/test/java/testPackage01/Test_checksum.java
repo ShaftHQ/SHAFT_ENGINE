@@ -13,7 +13,7 @@ public class Test_checksum {
         String expectedHash = "5f389bb767ff94e5f39fd6d588fb4b8c4a46b7c69f8a129fc1c7be6c59f43f74";
 
         TerminalActions terminalSession = new TerminalActions();
-        String actualHash = FileActions.getFileChecksum(terminalSession, targetFileFolderPath, targetFileName);
+        String actualHash = FileActions.getInstance().getFileChecksum(terminalSession, targetFileFolderPath, targetFileName);
 
         Assertions.assertEquals(expectedHash, actualHash);
     }
@@ -32,7 +32,7 @@ public class Test_checksum {
 
         TerminalActions terminalSession = new TerminalActions(sshHostName, sshPortNumber, sshUsername,
                 sshKeyFileFolderName, sshKeyFileName);
-        String actualHash = FileActions.getFileChecksum(terminalSession, targetFileFolderPath, targetFileName);
+        String actualHash = FileActions.getInstance().getFileChecksum(terminalSession, targetFileFolderPath, targetFileName);
 
         Assertions.assertEquals(expectedHash, actualHash);
     }
@@ -54,7 +54,7 @@ public class Test_checksum {
 
         TerminalActions terminalSession = new TerminalActions(sshHostName, sshPortNumber, sshUsername,
                 sshKeyFileFolderName, sshKeyFileName, dockerName, dockerUsername);
-        String actualHash = FileActions.getFileChecksum(terminalSession, targetFileFolderPath, targetFileName,
+        String actualHash = FileActions.getInstance().getFileChecksum(terminalSession, targetFileFolderPath, targetFileName,
                 pathToTempDirectoryOnRemoteMachine);
 
         Assertions.assertEquals(expectedHash, actualHash);

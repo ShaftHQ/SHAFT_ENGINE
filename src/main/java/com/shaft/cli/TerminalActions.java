@@ -4,7 +4,6 @@ import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
-import com.shaft.driver.ShaftDriver;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
@@ -16,7 +15,7 @@ import java.io.InputStreamReader;
 import java.util.*;
 
 @SuppressWarnings("unused")
-public class TerminalActions implements ShaftDriver {
+public class TerminalActions {
     private String sshHostName = "";
     private String sshUsername;
     private String sshKeyFileFolderName;
@@ -262,7 +261,7 @@ public class TerminalActions implements ShaftDriver {
             config.put("StrictHostKeyChecking", "no");
             JSch jsch = new JSch();
             if (sshKeyFileName != null && !sshKeyFileName.equals("")) {
-                jsch.addIdentity(FileActions.getAbsolutePath(sshKeyFileFolderName, sshKeyFileName));
+                jsch.addIdentity(FileActions.getInstance().getAbsolutePath(sshKeyFileFolderName, sshKeyFileName));
             }
             session = jsch.getSession(sshUsername, sshHostName, sshPortNumber);
             session.setConfig(config);

@@ -575,7 +575,7 @@ public class ElementActions {
     public static void typeFileLocationForUpload(WebDriver driver, By elementLocator, String filePath) {
         if (filePath.startsWith("src")) {
             WebDriverElementActions.typeFileLocationForUpload(driver, elementLocator,
-                    FileActions.getAbsolutePath(filePath));
+                    FileActions.getInstance().getAbsolutePath(filePath));
         } else {
             WebDriverElementActions.typeFileLocationForUpload(driver, elementLocator, filePath);
         }

@@ -73,14 +73,14 @@ public class WebDriverElementActions {
                     System.setProperty(hashedLocatorName, newXpath);
                 }
 
-                if (FileActions.doesFileExist(aiFolderPath, AI_REFERENCE_FILE_NAME, 1)) {
+                if (FileActions.getInstance().doesFileExist(aiFolderPath, AI_REFERENCE_FILE_NAME, 1)) {
                     // append to current file content if the file already exists
-                    FileActions.writeToFile(aiFolderPath, AI_REFERENCE_FILE_NAME,
-                            FileActions.readFromFile(aiFolderPath, AI_REFERENCE_FILE_NAME) + System.lineSeparator()
+                    FileActions.getInstance().writeToFile(aiFolderPath, AI_REFERENCE_FILE_NAME,
+                            FileActions.getInstance().readFromFile(aiFolderPath, AI_REFERENCE_FILE_NAME) + System.lineSeparator()
                                     + hashedLocatorName + "=" + newXpath);
                 } else {
                     // writing for the first time
-                    FileActions.writeToFile(aiFolderPath, AI_REFERENCE_FILE_NAME, hashedLocatorName + "=" + newXpath);
+                    FileActions.getInstance().writeToFile(aiFolderPath, AI_REFERENCE_FILE_NAME, hashedLocatorName + "=" + newXpath);
                 }
                 setAiGeneratedXpath(newXpath);
                 return true;
@@ -1724,7 +1724,7 @@ public class WebDriverElementActions {
             }
         }
 
-        ReportManager.logDiscrete(message);
+//        ReportManager.logDiscrete(message);
         message = message.replace("Element Action: ", "");
         if (!attachments.equals(new ArrayList<>())) {
             ReportManagerHelper.log(message, attachments);
