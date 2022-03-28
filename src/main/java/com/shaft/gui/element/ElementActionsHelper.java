@@ -76,7 +76,8 @@ class ElementActionsHelper {
         expectedExceptions.add(org.openqa.selenium.StaleElementReferenceException.class);
         expectedExceptions.add(org.openqa.selenium.ElementNotInteractableException.class);
         if (validToCheckForVisibility) {
-            expectedExceptions.add(org.openqa.selenium.ElementNotVisibleException.class);
+//            expectedExceptions.add(org.openqa.selenium.ElementNotVisibleException.class);
+            expectedExceptions.add(org.openqa.selenium.InvalidElementStateException.class);
         }
         expectedExceptions.add(org.openqa.selenium.WebDriverException.class);
 
@@ -111,7 +112,8 @@ class ElementActionsHelper {
             ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
             expectedExceptions.add(org.openqa.selenium.NoSuchElementException.class);
             expectedExceptions.add(org.openqa.selenium.StaleElementReferenceException.class);
-            expectedExceptions.add(org.openqa.selenium.ElementNotVisibleException.class);
+//            expectedExceptions.add(org.openqa.selenium.ElementNotVisibleException.class);
+            expectedExceptions.add(org.openqa.selenium.InvalidElementStateException.class);
             expectedExceptions.add(org.openqa.selenium.WebDriverException.class);
             // UnsupportedCommandException getElementLocationOnceScrolledIntoView
             // TODO: appium -> swipe element into view
