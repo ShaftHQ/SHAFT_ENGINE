@@ -317,7 +317,7 @@ public class ScreenshotManager {
         }
 
         if (Boolean.TRUE.equals(AI_SUPPORTED_ELEMENT_IDENTIFICATION)) {
-            FileActions.createFolder(AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH);
+            FileActions.getInstance().createFolder(AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH);
             WebElement targetElement = driver.findElement(internalElementLocator);
             File screenshotFile = null;
             try {
@@ -328,12 +328,12 @@ public class ScreenshotManager {
             if (screenshotFile != null) {
                 String elementFileName = ImageProcessingActions.formatElementLocatorToImagePath(Objects.requireNonNull(internalElementLocator));
                 if (!targetElement.getTagName().equalsIgnoreCase("input")) {
-                    FileActions.copyFile(screenshotFile.getAbsolutePath(),
+                    FileActions.getInstance().copyFile(screenshotFile.getAbsolutePath(),
                             AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH + elementFileName + ".png");
                 } else {
-                    if (!FileActions.doesFileExist(AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH, elementFileName + ".png",
+                    if (!FileActions.getInstance().doesFileExist(AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH, elementFileName + ".png",
                             2)) {
-                        FileActions.copyFile(screenshotFile.getAbsolutePath(),
+                        FileActions.getInstance().copyFile(screenshotFile.getAbsolutePath(),
                                 AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH + elementFileName + ".png");
                     }
                 }
@@ -680,7 +680,7 @@ public class ScreenshotManager {
                 firstImage = Scalr.resize(firstImage, Scalr.Method.BALANCED, GIF_SIZE);
 
                 // create a new BufferedOutputStream
-                FileActions.createFile(SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME, gifFileName);
+                FileActions.getInstance().createFile(SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME, gifFileName);
                 gifOutputStream.set(new FileImageOutputStream(new File(gifRelativePathWithFileName)));
 
                 // create a gif sequence with the type of the first image, 500 milliseconds

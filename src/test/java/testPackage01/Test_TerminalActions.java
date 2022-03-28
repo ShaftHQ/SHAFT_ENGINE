@@ -15,11 +15,11 @@ public class Test_TerminalActions {
         String fileName = "generate_allure_report.sh";
         String shellResponse = "";
         TerminalActions terminalSession = new TerminalActions();
-        shellResponse = FileActions.copyFile(terminalSession, FileActions.getAbsolutePath(""),
-                FileActions.getAbsolutePath("copiedFiles"), fileName);
+        shellResponse = FileActions.getInstance().copyFile(terminalSession, FileActions.getInstance().getAbsolutePath(""),
+                FileActions.getInstance().getAbsolutePath("copiedFiles"), fileName);
         Assertions.assertEquals("sent", shellResponse, AssertionComparisonType.CONTAINS, AssertionType.POSITIVE);
 
-        shellResponse = FileActions.listFilesInDirectory(terminalSession, FileActions.getAbsolutePath("copiedFiles"));
+        shellResponse = FileActions.getInstance().listFilesInDirectory(terminalSession, FileActions.getInstance().getAbsolutePath("copiedFiles"));
         Assertions.assertEquals(fileName, shellResponse, AssertionComparisonType.CONTAINS, AssertionType.POSITIVE);
     }
 
@@ -27,10 +27,10 @@ public class Test_TerminalActions {
     public void remote_list() {
         TerminalActions terminalSession = new TerminalActions("35.184.27.139", 22, "incorta",
                 System.getProperty("testDataFolderPath"), "newAutomationEnvironment.key");
-        String shellResponse = FileActions.listFilesInDirectory(terminalSession, "");
+        String shellResponse = FileActions.getInstance().listFilesInDirectory(terminalSession, "");
         Assertions.assertEquals("backup", shellResponse, AssertionComparisonType.CONTAINS, AssertionType.POSITIVE);
 
-        shellResponse = FileActions.listFilesInDirectory(terminalSession, "/home/");
+        shellResponse = FileActions.getInstance().listFilesInDirectory(terminalSession, "/home/");
         Assertions.assertEquals("incorta", shellResponse, AssertionComparisonType.CONTAINS, AssertionType.POSITIVE);
     }
 
@@ -40,13 +40,13 @@ public class Test_TerminalActions {
                 System.getProperty("testDataFolderPath"), "newAutomationEnvironment.key", "analytics-mysql", "incorta");
         String shellResponse = "";
 
-        shellResponse = FileActions.listFilesInDirectory(terminalSession, "");
+        shellResponse = FileActions.getInstance().listFilesInDirectory(terminalSession, "");
         Assertions.assertEquals("bin", shellResponse, AssertionComparisonType.CONTAINS, AssertionType.POSITIVE);
 
-        shellResponse = FileActions.listFilesInDirectory(terminalSession, "/bin/");
+        shellResponse = FileActions.getInstance().listFilesInDirectory(terminalSession, "/bin/");
         Assertions.assertEquals("su", shellResponse, AssertionComparisonType.CONTAINS, AssertionType.POSITIVE);
 
-        shellResponse = FileActions.listFilesInDirectory(terminalSession, "lib/");
+        shellResponse = FileActions.getInstance().listFilesInDirectory(terminalSession, "lib/");
         Assertions.assertEquals("firmware", shellResponse, AssertionComparisonType.CONTAINS, AssertionType.POSITIVE);
     }
 

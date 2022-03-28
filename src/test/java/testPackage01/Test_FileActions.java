@@ -9,7 +9,7 @@ import org.testng.annotations.Test;
 public class Test_FileActions {
     @Test
     public void f() {
-        Assertions.assertEquals("", FileActions.listFilesInDirectory("/home/"), AssertionComparisonType.CONTAINS,
+        Assertions.assertEquals("", FileActions.getInstance().listFilesInDirectory("/home/"), AssertionComparisonType.CONTAINS,
                 AssertionType.POSITIVE);
     }
 }

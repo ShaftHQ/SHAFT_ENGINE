@@ -487,7 +487,7 @@ public class WebDriverBrowserActions {
         }
         message = message + ".";
 
-        ReportManager.logDiscrete(message);
+//        ReportManager.logDiscrete(message);
         message = message.replace("Browser Action: ", "");
         if (driver != null) {
             attachments.add(ScreenshotManager.captureScreenShot(driver, actionName, true));

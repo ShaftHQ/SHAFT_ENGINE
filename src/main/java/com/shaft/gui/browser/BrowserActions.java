@@ -5,7 +5,7 @@ import org.openqa.selenium.WebDriver;
 
 public class BrowserActions {
 
-    private BrowserActions() {
+    public BrowserActions() {
         throw new IllegalStateException("Utility class");
     }
 

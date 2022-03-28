@@ -55,23 +55,23 @@ public class LogsHelper {
     public static void attachPropertyFiles() {
         ReportManager.logDiscrete("Initializing Custom Properties...");
         System.setProperty("disableLogging", "true");
-        if (FileActions.doesFileExist(System.getProperty("propertiesFolderPath"))) {
-            var propertyFiles = Arrays.asList(FileActions.listFilesInDirectory(System.getProperty("propertiesFolderPath")).split(System.lineSeparator()));
-            propertyFiles.forEach(file -> ReportManagerHelper.attach("Properties", file.replace(".properties", ""), FileActions.readFromFile(System.getProperty("propertiesFolderPath") + File.separator + file)));
+        if (FileActions.getInstance().doesFileExist(System.getProperty("propertiesFolderPath"))) {
+            var propertyFiles = Arrays.asList(FileActions.getInstance().listFilesInDirectory(System.getProperty("propertiesFolderPath")).split(System.lineSeparator()));
+            propertyFiles.forEach(file -> ReportManagerHelper.attach("Properties", file.replace(".properties", ""), FileActions.getInstance().readFromFile(System.getProperty("propertiesFolderPath") + File.separator + file)));
         }
         System.setProperty("disableLogging", "false");
     }
 
     public static void attachCucumberReport() {
-        if (FileActions.doesFileExist("allure-results/cucumberReport.html")) {
-            ReportManagerHelper.attach("HTML", "Cucumber Execution Report", FileActions.readFromFile("allure-results/cucumberReport.html"));
+        if (FileActions.getInstance().doesFileExist("allure-results/cucumberReport.html")) {
+            ReportManagerHelper.attach("HTML", "Cucumber Execution Report", FileActions.getInstance().readFromFile("allure-results/cucumberReport.html"));
         }
     }
 
     public static void attachExtentReport() {
         ReportManagerHelper.extentReportsFlush();
-        if (Boolean.parseBoolean(System.getProperty("generateExtentReports").trim()) && FileActions.doesFileExist(ReportManagerHelper.getExtentReportFileName())) {
-            ReportManagerHelper.attach("HTML", "Extent Emailable Execution Report", FileActions.readFromFile(ReportManagerHelper.getExtentReportFileName()));
+        if (Boolean.parseBoolean(System.getProperty("generateExtentReports").trim()) && FileActions.getInstance().doesFileExist(ReportManagerHelper.getExtentReportFileName())) {
+            ReportManagerHelper.attach("HTML", "Extent Emailable Execution Report", FileActions.getInstance().readFromFile(ReportManagerHelper.getExtentReportFileName()));
         }
     }
 
