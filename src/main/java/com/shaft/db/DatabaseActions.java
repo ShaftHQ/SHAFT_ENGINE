@@ -18,6 +18,7 @@ public class DatabaseActions {
     private String dbName;
     private String username;
     private String password;
+    private String customConnectionString;
 
     /**
      * This constructor is used for initializing the database variables that are
@@ -44,6 +45,20 @@ public class DatabaseActions {
         } else {
             failAction("Database Type: \"" + databaseType + "\", IP: \"" + ip + "\", Port: \"" + port + "\", Name: \""
                     + name + "\", Username: \"" + username + "\", Password: \"" + password + "\"");
+        }
+    }
+
+    /**
+     * This constructor is used for initializing the database variables that are
+     * needed to create new connections and perform queries
+     *
+     * @param customConnectionString custom database connection string ex: "jdbc:oracle:thin:@dbServerIP:dbPort:dbName"
+     */
+    public DatabaseActions(String customConnectionString) {
+        if (!"".equals(customConnectionString)) {
+            this.customConnectionString = customConnectionString;
+        } else {
+            failAction("Custom Connection String: \"" + customConnectionString + "\"");
         }
     }
 
@@ -378,18 +393,23 @@ public class DatabaseActions {
     private Connection createConnection() {
         Connection connection = null;
         var connectionString = "";
-        try {
+        if (!this.customConnectionString.equals("")) {
+            connectionString = this.customConnectionString;
+        } else {
             switch (dbType) {
                 case MY_SQL -> connectionString = "jdbc:mysql://" + dbServerIP + ":" + dbPort + "/" + dbName;
                 case SQL_SERVER -> connectionString = "jdbc:sqlserver://" + dbServerIP + ":" + dbPort + ";databaseName=" + dbName;
                 case POSTGRE_SQL -> connectionString = "jdbc:postgresql://" + dbServerIP + ":" + dbPort + "/" + dbName;
                 case ORACLE -> connectionString = "jdbc:oracle:thin:@" + dbServerIP + ":" + dbPort + ":" + dbName;
+                case ORACLE_SERVICE_NAME -> connectionString = "jdbc:oracle:thin:@" + dbServerIP + ":" + dbPort + "/" + dbName;
                 case IBM_DB2 -> connectionString = "jdbc:db2://" + dbServerIP + ":" + dbPort + "/" + dbName;
                 default -> {
                     ReportManager.log("Database not supported");
                     failAction(dbType.toString());
                 }
             }
+        }
+        try {
             if (System.getProperty("databaseLoginTimeout") == null) {
                 PropertyFileManager.readPropertyFiles();
             }
@@ -452,7 +472,7 @@ public class DatabaseActions {
     }
 
     public enum DatabaseType {
-        MY_SQL, SQL_SERVER, POSTGRE_SQL, ORACLE, IBM_DB2
+        MY_SQL, SQL_SERVER, POSTGRE_SQL, ORACLE, ORACLE_SERVICE_NAME, IBM_DB2
     }
 
 }
