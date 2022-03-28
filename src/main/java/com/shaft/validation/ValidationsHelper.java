@@ -417,7 +417,7 @@ public class ValidationsHelper {
                                              ValidationType validationType, String... optionalCustomLogMessage) {
         processCustomLogMessage(optionalCustomLogMessage);
         boolean expectedValue = ValidationType.POSITIVE.equals(validationType);
-        boolean actualValue = FileActions.doesFileExist(fileFolderName, fileName, numberOfRetries);
+        boolean actualValue = FileActions.getInstance().doesFileExist(fileFolderName, fileName, numberOfRetries);
 
         String filePrefix = "File '";
         String[] expectedAttributeStates = {"' should exist, after up to '", "' should not exist, after up to '"};
@@ -444,7 +444,7 @@ public class ValidationsHelper {
                                                     ValidationType validationType, String... optionalCustomLogMessage) {
         processCustomLogMessage(optionalCustomLogMessage);
         boolean expectedValue = ValidationType.POSITIVE.equals(validationType);
-        boolean actualValue = FileActions.doesFileExist(fileFolderName, fileName, numberOfRetries);
+        boolean actualValue = FileActions.getInstance().doesFileExist(fileFolderName, fileName, numberOfRetries);
 
         String filePrefix = "File '";
         String[] expectedAttributeStates = {"' should exist, after up to '", "' should not exist, after up to '"};
@@ -615,7 +615,7 @@ public class ValidationsHelper {
 
         // prepare attachments
         List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected JSON Value",
-                RestActions.parseBodyToJson(FileActions.readFromFile(referenceJsonFilePath)));
+                RestActions.parseBodyToJson(FileActions.getInstance().readFromFile(referenceJsonFilePath)));
         List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual JSON Value",
                 RestActions.parseBodyToJson(response));
 
@@ -652,7 +652,7 @@ public class ValidationsHelper {
 
         // prepare attachments
         List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected JSON Value",
-                RestActions.parseBodyToJson(FileActions.readFromFile(referenceJsonFilePath)));
+                RestActions.parseBodyToJson(FileActions.getInstance().readFromFile(referenceJsonFilePath)));
         List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual JSON Value",
                 RestActions.parseBodyToJson(response));
 

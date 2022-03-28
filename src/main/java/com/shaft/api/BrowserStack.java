@@ -40,7 +40,7 @@ public class BrowserStack {
         // upload app to browserstack api
         List<Object> apkFile = new ArrayList<>();
         apkFile.add("file");
-        String appPath = FileActions.getAbsolutePath(relativePathToAppFile);
+        String appPath = FileActions.getInstance().getAbsolutePath(relativePathToAppFile);
         apkFile.add(new File(appPath));
         ReportManager.logDiscrete("BrowserStack appPath: " + appPath);
 

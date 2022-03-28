@@ -156,12 +156,12 @@ public class ValidationsExecutor {
                 if (fileName.contains(".pdf")) {
                     fileContent = PdfFileManager.readFileContent(folderRelativePath + fileName);
                 } else {
-                    fileContent = FileActions.readFromFile(folderRelativePath, fileName);
+                    fileContent = FileActions.getInstance().readFromFile(folderRelativePath, fileName);
                 }
                 ValidationsHelper.validateEquals(validationCategory, expectedValue, fileContent, validationComparisonType, validationType, customReportMessage);
             }
             case "fileChecksum" -> {
-                var fileChecksum = FileActions.getFileChecksum(new TerminalActions(), folderRelativePath, fileName);
+                var fileChecksum = FileActions.getInstance().getFileChecksum(new TerminalActions(), folderRelativePath, fileName);
                 ValidationsHelper.validateEquals(validationCategory, expectedValue, fileChecksum, validationComparisonType, validationType, customReportMessage);
             }
             default -> {

@@ -47,7 +47,7 @@ public class XrayIntegrationHelper {
     public static void importCucumberResults(String filepath) throws Exception {
 
         setup();
-        String reportPath = FileActions.getAbsolutePath(filepath);
+        String reportPath = FileActions.getInstance().getAbsolutePath(filepath);
         ReportManager.logDiscrete("uploading file: " + reportPath);
         ReportManager.logDiscrete("Length: " + new File(reportPath).length());
 
@@ -109,7 +109,7 @@ public class XrayIntegrationHelper {
      */
     public static void importTestNGResults(String filepath) {
         setup();
-        String reportPath = FileActions.getAbsolutePath(filepath);
+        String reportPath = FileActions.getInstance().getAbsolutePath(filepath);
         ReportManager.logDiscrete("uploading file: " + reportPath);
         ReportManager.logDiscrete("Length: " + new File(reportPath).length());
         try {

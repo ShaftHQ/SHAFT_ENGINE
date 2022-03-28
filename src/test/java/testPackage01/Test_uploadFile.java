@@ -25,7 +25,7 @@ public class Test_uploadFile {
     @Test
     public void uploadFile_invisibleUploadInput() {
         BrowserActions.navigateToURL(driver.get(), "https://fineuploader.com/demos.html#gallery-view");
-        ElementActions.typeFileLocationForUpload(driver.get(), By.xpath("//div[@id='fine-uploader-gallery']//input[@type='file']"), FileActions.getAbsolutePath("src/main/resources/images/", "shaft.png"));
+        ElementActions.typeFileLocationForUpload(driver.get(), By.xpath("//div[@id='fine-uploader-gallery']//input[@type='file']"), FileActions.getInstance().getAbsolutePath("src/main/resources/images/", "shaft.png"));
         Validations.assertThat().element(driver.get(), By.xpath("//div[@id='fine-uploader-gallery']//div[@class='qq-thumbnail-wrapper']/img")).attribute("src").contains("data:image/png;base64").perform();
     }
 

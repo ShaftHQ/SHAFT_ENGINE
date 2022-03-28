@@ -7,12 +7,7 @@ import com.shaft.api.RestActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.db.DatabaseActions;
 import com.shaft.db.DatabaseActions.DatabaseType;
-import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.browser.WebDriverBrowserActions;
-import com.shaft.gui.element.ElementActions;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.validation.Validations;
-import com.shaft.validation.ValidationsBuilder;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.WebDriver;
 import org.sikuli.script.App;
@@ -134,22 +129,6 @@ public class DriverFactory {
         myapp.focus();
         ReportManager.log("Opened app: [" + myapp.getName() + "]...");
         return myapp;
-    }
-
-    public static ElementActions getElementActionsDriver(WebDriver driver) {
-        return new ElementActions(driver);
-    }
-
-    public static WebDriverBrowserActions getBrowserActionsDriver(WebDriver driver) {
-        return BrowserActions.performBrowserAction(driver);
-    }
-
-    public static ValidationsBuilder assertThat() {
-        return Validations.assertThat();
-    }
-
-    public static ValidationsBuilder verifyThat() {
-        return Validations.verifyThat();
     }
 
     /**

@@ -433,7 +433,7 @@ public class ReportManagerHelper {
     private static void cleanExtentReportsDirectory() {
         if (Boolean.TRUE.equals(
                 Boolean.valueOf(System.getProperty("cleanExtentReportsDirectoryBeforeExecution")))) {
-            FileActions.deleteFolder(extentReportsFolderPath.substring(0, extentReportsFolderPath.length() - 1));
+            FileActions.getInstance().deleteFolder(extentReportsFolderPath.substring(0, extentReportsFolderPath.length() - 1));
         }
 
     }
@@ -697,7 +697,7 @@ public class ReportManagerHelper {
         if (Boolean.TRUE.equals(
                 Boolean.valueOf(System.getProperty("cleanAllureResultsDirectoryBeforeExecution")))) {
             try {
-                FileActions.deleteFolder(allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1));
+                FileActions.getInstance().deleteFolder(allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1));
             } catch (Throwable t) {
                 ReportManager.log("Failed to delete allure-results as it is currently open. Kindly restart your device to unlock the directory.");
             }
@@ -735,7 +735,7 @@ public class ReportManagerHelper {
             }
         }
         propertiesFileBuilder.append("</environment>");
-        FileActions.writeToFile(System.getProperty("allureResultsFolderPath"), "environment.xml",
+        FileActions.getInstance().writeToFile(System.getProperty("allureResultsFolderPath"), "environment.xml",
                 RestActions.formatXML(propertiesFileBuilder.toString()));
     }
 
@@ -744,23 +744,23 @@ public class ReportManagerHelper {
         // already exist
         String allureVersion = System.getProperty(ALLURE_VERSION_PROPERTY_NAME);
         allureBinaryPath = allureExtractionLocation + "allure-" + allureVersion + File.separator + "bin" + File.separator + "allure";
-        if (!FileActions.doesFileExist(allureBinaryPath)) {
+        if (!FileActions.getInstance().doesFileExist(allureBinaryPath)) {
             try {
                 //Runtime.getRuntime().exec("taskkill /F /IM java.exe");
-                FileActions.deleteFolder(allureExtractionLocation);
+                FileActions.getInstance().deleteFolder(allureExtractionLocation);
             } catch (AssertionError e) {
                 ReportManager.logDiscrete("Couldn't clear the allure extraction directory. Kindly terminate any running java process or restart your machine to fix this issue.");
                 ReportManagerHelper.log(e);
             }
             // download allure binary
-            URL allureArchive = FileActions.downloadFile(
+            URL allureArchive = FileActions.getInstance().downloadFile(
                     "https://repo.maven.apache.org/maven2/io/qameta/allure/allure-commandline/" + allureVersion
                             + "/allure-commandline-" + allureVersion + ".zip",
                     "target" + File.separator + "allureBinary.zip");
-            FileActions.unpackArchive(allureArchive, allureExtractionLocation);
+            FileActions.getInstance().unpackArchive(allureArchive, allureExtractionLocation);
             // extract allure from SHAFT_Engine jar
             URL allureSHAFTConfigArchive = ReportManagerHelper.class.getResource("/resources/allure/allureBinary_SHAFTEngineConfigFiles.zip");
-            FileActions.unpackArchive(allureSHAFTConfigArchive,
+            FileActions.getInstance().unpackArchive(allureSHAFTConfigArchive,
                     allureExtractionLocation + "allure-" + allureVersion + File.separator);
 
             if (!System.getProperty(TARGET_OS_PROPERTY_NAME).equals(OS_WINDOWS)
@@ -781,7 +781,7 @@ public class ReportManagerHelper {
                     "set path=" + allureExtractionLocation + "allure-" + allureVersion + "\\bin;" + System.getProperty("java.home") + "\\bin;%path%",
                     "allure serve " + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1),
                     "pause", "exit");
-            FileActions.writeToFile("", "generate_allure_report.bat", commandsToServeAllureReport);
+            FileActions.getInstance().writeToFile("", "generate_allure_report.bat", commandsToServeAllureReport);
         } else {
             // create Unix-based sh file
             commandsToServeAllureReport = Arrays
@@ -792,7 +792,7 @@ public class ReportManagerHelper {
                             "exit"
 
                     );
-            FileActions.writeToFile("", "generate_allure_report.sh", commandsToServeAllureReport);
+            FileActions.getInstance().writeToFile("", "generate_allure_report.sh", commandsToServeAllureReport);
             // make allure executable on Unix-based shells
             (new TerminalActions()).performTerminalCommand("chmod u+x generate_allure_report.sh");
         }
@@ -805,20 +805,20 @@ public class ReportManagerHelper {
             commandsToGenerateJDKBatFile = Arrays.asList("@echo off",
                     "set JAVA_HOME=" + System.getProperty("java.home"), "set M2=%M2_HOME%\\bin",
                     "set PATH=%JAVA_HOME%\\bin;%M2%;%PATH%", "echo %JAVA_HOME%", "echo %PATH%");
-            FileActions.writeToFile("", "generateJdk.bat", commandsToGenerateJDKBatFile);
+            FileActions.getInstance().writeToFile("", "generateJdk.bat", commandsToGenerateJDKBatFile);
 
             // create .sh file to run on git bash
             String ConcatenatedJDKPath = "/" + System.getProperty("java.home");
             String FinalJDKPath = ConcatenatedJDKPath.replace("\\", "/").replaceFirst(":", "");
             commandsToGenerateJDKShellFile = Arrays.asList("#!/bin/bash", "export JAVA_HOME=" + FinalJDKPath,
                     "export PATH=$JAVA_HOME/bin:$PATH", "echo $JAVA_HOME", "echo $PATH", "$SHELL");
-            FileActions.writeToFile("", "generateJdk.sh", commandsToGenerateJDKShellFile);
+            FileActions.getInstance().writeToFile("", "generateJdk.sh", commandsToGenerateJDKShellFile);
         } else {
 
             // create commands of Unix-based shells
             commandsToGenerateJDKShellFile = Arrays.asList("#!/bin/bash", "export JAVA_HOME=$(/usr/libexec/java_home)",
                     "export PATH=$JAVA_HOME/bin:$PATH", "source ~/.zshenv", "echo $JAVA_HOME", "echo $PATH", "exec bash");
-            FileActions.writeToFile("", "generateJdkMac.sh", commandsToGenerateJDKShellFile);
+            FileActions.getInstance().writeToFile("", "generateJdkMac.sh", commandsToGenerateJDKShellFile);
             // make JDK executable on Unix-based shells
             (new TerminalActions()).performTerminalCommand("chmod u+x generateJdk.sh");
         }
@@ -857,13 +857,13 @@ public class ReportManagerHelper {
                 "parent_path=$( cd \"$(dirname \"${BASH_SOURCE[0]}\")\" ; pwd -P )",
                 "cd \"$parent_path/allure/allure-" + System.getProperty(ALLURE_VERSION_PROPERTY_NAME) + "/bin/\"",
                 "bash allure open \"$parent_path/allure-report\"", "exit");
-        FileActions.writeToFile("generatedReport/", "open_allure_report.sh", commandsToOpenAllureReport);
+        FileActions.getInstance().writeToFile("generatedReport/", "open_allure_report.sh", commandsToOpenAllureReport);
 
         // create windows batch file
         commandsToOpenAllureReport = Arrays.asList("@echo off",
                 "set path=allure\\allure-" + System.getProperty(ALLURE_VERSION_PROPERTY_NAME) + "\\bin;" + System.getProperty("java.home") + ";%path%",
                 "allure open allure-report", "pause", "exit");
-        FileActions.writeToFile("generatedReport/", "open_allure_report.bat", commandsToOpenAllureReport);
+        FileActions.getInstance().writeToFile("generatedReport/", "open_allure_report.bat", commandsToOpenAllureReport);
 
     }
 
@@ -888,11 +888,11 @@ public class ReportManagerHelper {
     }
 
     private static void createAllureReportArchiveAndCleanGeneratedDirectory() {
-        if (FileActions.doesFileExist(allureExtractionLocation)) {
-            FileActions.copyFolder(FileActions.getAbsolutePath(allureExtractionLocation), "generatedReport/allure");
-            FileActions.zipFiles("generatedReport/", "generatedReport_" + new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date()) + ".zip");
+        if (FileActions.getInstance().doesFileExist(allureExtractionLocation)) {
+            FileActions.getInstance().copyFolder(FileActions.getInstance().getAbsolutePath(allureExtractionLocation), "generatedReport/allure");
+            FileActions.getInstance().zipFiles("generatedReport/", "generatedReport_" + new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date()) + ".zip");
         }
-        FileActions.deleteFile("generatedReport/");
+        FileActions.getInstance().deleteFile("generatedReport/");
     }
 
     public static void log(String logText, List<List<Object>> attachments) {

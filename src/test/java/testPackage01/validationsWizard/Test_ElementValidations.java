@@ -1,6 +1,7 @@
 package testPackage01.validationsWizard;
 
 import com.shaft.driver.DriverFactory;
+import com.shaft.driver.SHAFT;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.testng.annotations.AfterClass;
@@ -15,54 +16,54 @@ public class Test_ElementValidations {
 
     @Test
     public void exists() {
-        DriverFactory.assertThat().element(driver, googleLogo).exists().perform();
+        SHAFT.Validations.assertThat().element(driver, googleLogo).exists().perform();
     }
 
     @Test
     public void matchesReferenceImage() {
-        DriverFactory.assertThat().element(driver, googleLogo).matchesReferenceImage().perform();
+        SHAFT.Validations.assertThat().element(driver, googleLogo).matchesReferenceImage().perform();
     }
 
     @Test
     public void isVisible() {
-        DriverFactory.assertThat().element(driver, googleLogo).isVisible().perform();
+        SHAFT.Validations.assertThat().element(driver, googleLogo).isVisible().perform();
     }
 
     @Test
     public void isEnabled() {
-        DriverFactory.assertThat().element(driver, googleLogo).isEnabled().perform();
+        SHAFT.Validations.assertThat().element(driver, googleLogo).isEnabled().perform();
     }
 
     @Test
     public void isNotChecked() {
-        DriverFactory.assertThat().element(driver, googleLogo).isNotChecked().perform();
+        SHAFT.Validations.assertThat().element(driver, googleLogo).isNotChecked().perform();
     }
 
     @Test
     public void isNotSelected() {
-        DriverFactory.assertThat().element(driver, googleLogo).isNotSelected().perform();
+        SHAFT.Validations.assertThat().element(driver, googleLogo).isNotSelected().perform();
     }
 
     @Test
     public void attribute() {
-        DriverFactory.assertThat().element(driver, googleLogo).attribute("alt").isEqualTo("Google").perform();
+        SHAFT.Validations.assertThat().element(driver, googleLogo).attribute("alt").isEqualTo("Google").perform();
     }
 
     @Test
     public void text() {
-        DriverFactory.getElementActionsDriver(driver).type(searchBox, "DriverFactory_Engine");
-        DriverFactory.assertThat().element(driver, searchBox).text().isEqualTo("DriverFactory_Engine").perform();
+        SHAFT.GUI.WebDriver.performElementAction(driver).type(searchBox, "DriverFactory_Engine");
+        SHAFT.Validations.assertThat().element(driver, searchBox).text().isEqualTo("DriverFactory_Engine").perform();
     }
 
     @Test
     public void cssProperty() {
-        DriverFactory.assertThat().element(driver, googleLogo).cssProperty("max-width").isEqualTo("100%").perform();
+        SHAFT.Validations.assertThat().element(driver, googleLogo).cssProperty("max-width").isEqualTo("100%").perform();
     }
 
     @BeforeClass
     public void beforeClass() {
         driver = DriverFactory.getDriver();
-        DriverFactory.getBrowserActionsDriver(driver).navigateToURL(url);
+        SHAFT.GUI.WebDriver.performBrowserAction(driver).navigateToURL(url);
     }
 
     @AfterClass

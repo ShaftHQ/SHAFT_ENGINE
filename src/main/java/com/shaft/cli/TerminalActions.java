@@ -261,7 +261,7 @@ public class TerminalActions {
             config.put("StrictHostKeyChecking", "no");
             JSch jsch = new JSch();
             if (sshKeyFileName != null && !sshKeyFileName.equals("")) {
-                jsch.addIdentity(FileActions.getAbsolutePath(sshKeyFileFolderName, sshKeyFileName));
+                jsch.addIdentity(FileActions.getInstance().getAbsolutePath(sshKeyFileFolderName, sshKeyFileName));
             }
             session = jsch.getSession(sshUsername, sshHostName, sshPortNumber);
             session.setConfig(config);

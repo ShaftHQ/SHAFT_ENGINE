@@ -22,9 +22,9 @@ public class PdfFileManager {
 
     public PdfFileManager(String folderName, String fileName, int numberOfRetries) {
 
-        boolean doesFileExist = FileActions.doesFileExist(folderName, fileName, numberOfRetries);
+        boolean doesFileExist = FileActions.getInstance().doesFileExist(folderName, fileName, numberOfRetries);
 
-        file = new File(FileActions.getAbsolutePath(folderName, fileName));
+        file = new File(FileActions.getInstance().getAbsolutePath(folderName, fileName));
 
         if (!doesFileExist) {
             ReportManager.log("Couldn't find the provided file [" + file
@@ -32,6 +32,21 @@ public class PdfFileManager {
             Assert.fail("Couldn't find the provided file [" + file
                     + "]. It might need to wait more to download or the path isn't correct");
         }
+    }
+
+    public PdfFileManager(String pdfFilePath) {
+        boolean doesFileExist = FileActions.getInstance().doesFileExist(pdfFilePath);
+        file = new File(FileActions.getInstance().getAbsolutePath(pdfFilePath));
+        if (!doesFileExist) {
+            ReportManager.log("Couldn't find the provided file [" + file
+                    + "]. It might need to wait more to download or the path isn't correct");
+            Assert.fail("Couldn't find the provided file [" + file
+                    + "]. It might need to wait more to download or the path isn't correct");
+        }
+    }
+
+    public String readFileContent() {
+        return PdfFileManager.readFileContent(file.getPath());
     }
 
     /**
@@ -42,9 +57,9 @@ public class PdfFileManager {
      * @return a string value representing the entire content of the pdf file
      */
     public static String readFileContent(String relativeFilePath, boolean... deleteFileAfterReading) {
-        if (FileActions.doesFileExist(relativeFilePath)) {
+        if (FileActions.getInstance().doesFileExist(relativeFilePath)) {
             try {
-                var randomAccessBufferedFileInputStream = new RandomAccessBufferedFileInputStream(new File(FileActions.getAbsolutePath(relativeFilePath)));
+                var randomAccessBufferedFileInputStream = new RandomAccessBufferedFileInputStream(new File(FileActions.getInstance().getAbsolutePath(relativeFilePath)));
                 var pdfParser = new PDFParser(randomAccessBufferedFileInputStream);
                 pdfParser.parse();
                 var pdfTextStripper = new PDFTextStripper();
@@ -55,7 +70,7 @@ public class PdfFileManager {
                 if (deleteFileAfterReading != null
                         && deleteFileAfterReading.length > 0
                         && deleteFileAfterReading[0]) {
-                    FileActions.deleteFile(relativeFilePath);
+                    FileActions.getInstance().deleteFile(relativeFilePath);
                 }
                 return fileContent;
             } catch (java.io.IOException e) {

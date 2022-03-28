@@ -26,8 +26,8 @@ public class FileActions {
 
     private static final String ERROR_CANNOT_CREATE_DIRECTORY = "Could not create directory: ";
 
-    private FileActions() {
-        throw new IllegalStateException("Utility class");
+    public static FileActions getInstance() {
+        return new FileActions();
     }
 
     /**
@@ -38,7 +38,7 @@ public class FileActions {
      * @param destinationFilePath the full (absolute) path of the desired location
      *                            and file name for the newly created copied file
      */
-    public static void copyFile(String sourceFilePath, String destinationFilePath) {
+    public void copyFile(String sourceFilePath, String destinationFilePath) {
         File sourceFile = new File(sourceFilePath);
         File destinationFile = new File(destinationFilePath);
         copyFile(sourceFile, destinationFile);
@@ -58,8 +58,8 @@ public class FileActions {
      * @param fileName             target fileName
      * @return a string value that holds the result of this terminal command
      */
-    public static String copyFile(TerminalActions terminalSession, String sourceDirectory, String destinationDirectory,
-                                  String fileName) {
+    public String copyFile(TerminalActions terminalSession, String sourceDirectory, String destinationDirectory,
+                           String fileName) {
         String command;
         if (isTargetOSUnixBased()) {
             if (fileName.trim().equals("")) {
@@ -79,7 +79,7 @@ public class FileActions {
         return terminalLog;
     }
 
-    public static String listFilesInDirectory(String targetDirectory) {
+    public String listFilesInDirectory(String targetDirectory) {
         StringBuilder files = new StringBuilder();
         try {
             Collection<File> filesList = FileUtils.listFiles(new File(targetDirectory), TrueFileFilter.TRUE,
@@ -102,7 +102,7 @@ public class FileActions {
      * @param targetDirectory full path to the targetDirectory
      * @return a string value that holds the result of this terminal command
      */
-    public static String listFilesInDirectory(TerminalActions terminalSession, String targetDirectory) {
+    public String listFilesInDirectory(TerminalActions terminalSession, String targetDirectory) {
         List<String> commands;
         if (isTargetOSUnixBased()) {
             commands = Collections.singletonList("ls " + targetDirectory);
@@ -136,8 +136,8 @@ public class FileActions {
      *                                           afterwards
      * @return a string that holds the SHA256 checksum for the target file
      */
-    public static String getFileChecksum(TerminalActions terminalSession, String targetFileFolderPath,
-                                         String targetFileName, String... pathToTempDirectoryOnRemoteMachine) {
+    public String getFileChecksum(TerminalActions terminalSession, String targetFileFolderPath,
+                                  String targetFileName, String... pathToTempDirectoryOnRemoteMachine) {
 
         String targetFilePath = copyFileToLocalMachine(terminalSession, targetFileFolderPath, targetFileName,
                 pathToTempDirectoryOnRemoteMachine);
@@ -178,8 +178,8 @@ public class FileActions {
      * @return a string that holds the full absolute path (inside a temporary
      * folder) for the file that was copied to the local machine
      */
-    public static String copyFileToLocalMachine(TerminalActions terminalSession, String targetFileFolderPath,
-                                                String targetFileName, String... pathToTempDirectoryOnRemoteMachine) {
+    public String copyFileToLocalMachine(TerminalActions terminalSession, String targetFileFolderPath,
+                                         String targetFileName, String... pathToTempDirectoryOnRemoteMachine) {
         String targetFilePath = targetFileFolderPath + targetFileName;
         TerminalActions terminalSessionForRemoteMachine = new TerminalActions();
 
@@ -201,7 +201,7 @@ public class FileActions {
         // fetch file from terminal session to local machine
         if (terminalSession.isRemoteTerminal()) {
             // remote regular
-            String sshParameters = "-i " + FileActions.getAbsolutePath(terminalSession.getSshKeyFileFolderName(),
+            String sshParameters = "-i " + FileActions.getInstance().getAbsolutePath(terminalSession.getSshKeyFileFolderName(),
                     terminalSession.getSshKeyFileName()) + " -P " + terminalSession.getSshPortNumber();
 
             String pathToRemoteFileThatWillBeCopied = targetFilePath;
@@ -209,9 +209,9 @@ public class FileActions {
                     + pathToRemoteFileThatWillBeCopied;
 
             // creating local temp directory
-            String pathToLocalParentFolder = FileActions.getAbsolutePath("target/temp");
-            FileActions.deleteFolder(pathToLocalParentFolder);
-            FileActions.createFolder(pathToLocalParentFolder);
+            String pathToLocalParentFolder = FileActions.getInstance().getAbsolutePath("target/temp");
+            FileActions.getInstance().deleteFolder(pathToLocalParentFolder);
+            FileActions.getInstance().createFolder(pathToLocalParentFolder);
 
             String destination = pathToLocalParentFolder + "/" + targetFileName;
             targetFilePath = destination;
@@ -221,7 +221,7 @@ public class FileActions {
 
             // restricting file access to bypass jenkins issue
             (new TerminalActions()).performTerminalCommand("chmod 400 " + FileActions
-                    .getAbsolutePath(terminalSession.getSshKeyFileFolderName(), terminalSession.getSshKeyFileName()));
+                    .getInstance().getAbsolutePath(terminalSession.getSshKeyFileFolderName(), terminalSession.getSshKeyFileName()));
 
             (new TerminalActions()).performTerminalCommand(command);
         }
@@ -244,17 +244,17 @@ public class FileActions {
      * @param targetFilePath the full (absolute) path of the source file that will
      *                       be deleted
      */
-    public static void deleteFile(String targetFilePath) {
+    public void deleteFile(String targetFilePath) {
         FileUtils.deleteQuietly(new File(targetFilePath));
         passAction("Target File Path: \"" + targetFilePath + "\"");
     }
 
-    public static void writeToFile(String fileFolderName, String fileName, List<String> text) {
+    public void writeToFile(String fileFolderName, String fileName, List<String> text) {
         byte[] textToBytes = String.join(System.lineSeparator(), text).getBytes();
         writeToFile(fileFolderName, fileName, textToBytes);
     }
 
-    public static void writeToFile(String fileFolderName, String fileName, byte[] content) {
+    public void writeToFile(String fileFolderName, String fileName, byte[] content) {
         String absoluteFilePath = getAbsolutePath(fileFolderName, fileName);
         try {
             Path filePath = Paths.get(absoluteFilePath);
@@ -270,16 +270,16 @@ public class FileActions {
         }
     }
 
-    public static void writeToFile(String fileFolderName, String fileName, String text) {
+    public void writeToFile(String fileFolderName, String fileName, String text) {
         byte[] textToBytes = text.getBytes();
         writeToFile(fileFolderName, fileName, textToBytes);
     }
 
-    public static String readFromFile(String fileFolderName, String fileName) {
+    public String readFromFile(String fileFolderName, String fileName) {
         return readFromFile(fileFolderName + fileName);
     }
 
-    public static byte[] readFromImageFile(String pathToTargetImage) {
+    public byte[] readFromImageFile(String pathToTargetImage) {
         byte[] data = new byte[0];
         String absoluteFilePath = getAbsolutePath(pathToTargetImage);
         Path filePath = Paths.get(absoluteFilePath);
@@ -294,7 +294,7 @@ public class FileActions {
         return data;
     }
 
-    public static String readFromFile(String pathToTargetFile) {
+    public String readFromFile(String pathToTargetFile) {
         String absoluteFilePath = getAbsolutePath(pathToTargetFile);
         String text = FileManager.readFileToString(new File(absoluteFilePath));
         passAction("File Path: \"" + absoluteFilePath + "\"", text);
@@ -313,7 +313,7 @@ public class FileActions {
      *                        each retry is separated by a 500 millisecond wait time
      * @return true if the file exists, false if it doesn't
      */
-    public static boolean doesFileExist(String fileFolderName, String fileName, int numberOfRetries) {
+    public boolean doesFileExist(String fileFolderName, String fileName, int numberOfRetries) {
         boolean doesFileExit = false;
         int i = 0;
         while (i < numberOfRetries) {
@@ -337,7 +337,7 @@ public class FileActions {
         return doesFileExit;
     }
 
-    public static boolean doesFileExist(String targetFile) {
+    public boolean doesFileExist(String targetFile) {
         boolean doesFileExit = false;
         try {
             doesFileExit = (new File(targetFile)).getAbsoluteFile().exists();
@@ -360,7 +360,7 @@ public class FileActions {
      *                       any)
      * @return a string value that represents the full/absolute file/folder path
      */
-    public static String getAbsolutePath(String fileFolderName, String fileName) {
+    public String getAbsolutePath(String fileFolderName, String fileName) {
         String filePath = "";
         try {
             filePath = (new File(fileFolderName + fileName)).getAbsolutePath();
@@ -378,7 +378,7 @@ public class FileActions {
      * @param relativePath The location of the target file or folder, relative to the project's root directory, ending with a / if it's a folder
      * @return a string value that represents the full/absolute file/folder path
      */
-    public static String getAbsolutePath(String relativePath) {
+    public String getAbsolutePath(String relativePath) {
         String filePath = "";
         try {
             filePath = (new File(relativePath)).getAbsolutePath();
@@ -390,7 +390,7 @@ public class FileActions {
         return filePath;
     }
 
-    public static void copyFolder(String sourceFolderPath, String destinationFolderPath) {
+    public void copyFolder(String sourceFolderPath, String destinationFolderPath) {
         File sourceFolder = new File(sourceFolderPath);
         File destinationFolder = new File(destinationFolderPath);
         try {
@@ -403,7 +403,7 @@ public class FileActions {
         }
     }
 
-    public static void copyFolderFromJar(String sourceFolderPath, String destinationFolderPath) {
+    public void copyFolderFromJar(String sourceFolderPath, String destinationFolderPath) {
         try {
             URL url = new URL(sourceFolderPath.replace("file:", "jar:file:"));
             JarURLConnection jarConnection = (JarURLConnection) url.openConnection();
@@ -448,7 +448,7 @@ public class FileActions {
         }
     }
 
-    public static void deleteFolder(String folderPath) {
+    public void deleteFolder(String folderPath) {
         File directory = new File(folderPath);
         try {
             FileUtils.forceDelete(directory);
@@ -462,7 +462,7 @@ public class FileActions {
         }
     }
 
-    public static void createFolder(String folderPath) {
+    public void createFolder(String folderPath) {
         try {
             FileUtils.forceMkdir(new File(folderPath));
             passAction("Target Folder: \"" + folderPath + "\"");
@@ -472,7 +472,7 @@ public class FileActions {
         }
     }
 
-    public static void createFile(String folderPath, String fileName) {
+    public void createFile(String folderPath, String fileName) {
         try {
             FileUtils.forceMkdir(new File(folderPath));
             FileUtils.touch(new File(folderPath + fileName));
@@ -484,7 +484,7 @@ public class FileActions {
     }
 
     @SuppressWarnings("UnusedReturnValue")
-    public static boolean zipFiles(String srcFolder, String destZipFile) {
+    public boolean zipFiles(String srcFolder, String destZipFile) {
         boolean result = false;
         try {
             zipFolder(srcFolder, destZipFile);
@@ -498,7 +498,7 @@ public class FileActions {
     }
 
     @SuppressWarnings("UnusedReturnValue")
-    public static File unpackArchive(URL url, String destinationFolderPath) {
+    public File unpackArchive(URL url, String destinationFolderPath) {
         File targetDir = new File(destinationFolderPath);
         if (!targetDir.exists() && !targetDir.mkdirs()) {
             failAction("file: " + url.toString() + " to directory: " + destinationFolderPath);
@@ -511,7 +511,7 @@ public class FileActions {
             copyInputStream(in, out);
             out.close();
             unpacked = unpackArchive(zip, targetDir);
-            FileActions.deleteFile(zip.getAbsolutePath());
+            FileActions.getInstance().deleteFile(zip.getAbsolutePath());
             passAction("Target URL\"" + url + "\" | Destination Folder: \"" + destinationFolderPath + "\"");
         } catch (IOException rootCauseException) {
             ReportManagerHelper.log(rootCauseException);
@@ -520,12 +520,12 @@ public class FileActions {
         return unpacked;
     }
 
-    public static URL downloadFile(String targetFileURL, String destinationFilePath) {
+    public URL downloadFile(String targetFileURL, String destinationFilePath) {
         return downloadFile(targetFileURL, destinationFilePath, 0, 0);
     }
 
-    public static URL downloadFile(String targetFileURL, String destinationFilePath, int connectionTimeout,
-                                   int readTimeout) {
+    public URL downloadFile(String targetFileURL, String destinationFilePath, int connectionTimeout,
+                            int readTimeout) {
         if (targetFileURL != null && destinationFilePath != null) {
             // force logging
             boolean initialLoggingState = ReportManagerHelper.getDiscreteLogging();
@@ -557,28 +557,28 @@ public class FileActions {
         }
     }
 
-    private static void passAction(String testData) {
+    private void passAction(String testData) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         reportActionResult(actionName, testData, null, true);
     }
 
-    private static void passAction(String testData, String log) {
+    private void passAction(String testData, String log) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         reportActionResult(actionName, testData, log, true);
     }
 
-    private static void failAction(String testData, Exception... rootCauseException) {
+    private void failAction(String testData, Exception... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         failAction(actionName, testData, rootCauseException);
 
     }
 
-    private static void failAction(Exception... rootCauseException) {
+    private void failAction(Exception... rootCauseException) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
         failAction(actionName, null, rootCauseException);
     }
 
-    private static void failAction(String actionName, String testData, Exception... rootCauseException) {
+    private void failAction(String actionName, String testData, Exception... rootCauseException) {
         String message = reportActionResult(actionName, testData, null, false);
         if (rootCauseException != null && rootCauseException.length >= 1) {
             Assert.fail(message, rootCauseException[0]);
@@ -587,7 +587,7 @@ public class FileActions {
         }
     }
 
-    private static String reportActionResult(String actionName, String testData, String log, Boolean passFailStatus) {
+    private String reportActionResult(String actionName, String testData, String log, Boolean passFailStatus) {
         actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
@@ -626,7 +626,7 @@ public class FileActions {
         return message;
     }
 
-    private static boolean isTargetOSUnixBased() {
+    private boolean isTargetOSUnixBased() {
         if (System.getProperty("executionAddress") == null) {
             PropertyFileManager.readPropertyFiles();
         }
@@ -654,7 +654,7 @@ public class FileActions {
         }
     }
 
-    private static void copyFile(File sourceFile, File destinationFile) {
+    private void copyFile(File sourceFile, File destinationFile) {
         try {
             FileUtils.copyFile(sourceFile, destinationFile);
         } catch (IOException rootCauseException) {
@@ -663,7 +663,7 @@ public class FileActions {
         }
     }
 
-    private static void zipFolder(String srcFolder, String destZipFile) {
+    private void zipFolder(String srcFolder, String destZipFile) {
         /*
          * create the output stream to zip file result
          */
@@ -684,7 +684,7 @@ public class FileActions {
         }
     }
 
-    private static void addFileToZip(String path, String srcFile, ZipOutputStream zip, boolean flag)
+    private void addFileToZip(String path, String srcFile, ZipOutputStream zip, boolean flag)
             throws IOException {
         /*
          * create the file object for inputs
@@ -727,7 +727,7 @@ public class FileActions {
         }
     }
 
-    private static void addFolderToZip(String path, String srcFolder, ZipOutputStream zip) throws IOException {
+    private void addFolderToZip(String path, String srcFolder, ZipOutputStream zip) throws IOException {
         File folder = new File(srcFolder);
 
         /*
@@ -751,7 +751,7 @@ public class FileActions {
         }
     }
 
-    private static File unpackArchive(File theFile, File targetDir) throws IOException {
+    private File unpackArchive(File theFile, File targetDir) throws IOException {
         if (!theFile.exists()) {
             throw new IOException(theFile.getAbsolutePath() + " does not exist");
         }
@@ -784,7 +784,7 @@ public class FileActions {
         return theFile;
     }
 
-    private static void copyInputStream(InputStream in, OutputStream out) throws IOException {
+    private void copyInputStream(InputStream in, OutputStream out) throws IOException {
         byte[] buffer = new byte[1024];
         int len = in.read(buffer);
         while (len >= 0) {
@@ -795,7 +795,7 @@ public class FileActions {
         out.close();
     }
 
-    private static boolean buildDirectory(File file) {
+    private boolean buildDirectory(File file) {
         return !file.exists() && !file.mkdirs();
     }
 }

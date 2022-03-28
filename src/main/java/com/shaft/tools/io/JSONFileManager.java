@@ -132,7 +132,7 @@ public class JSONFileManager {
     private void initializeReader() {
         this.reader = null;
         try {
-            reader = new FileReader(FileActions.getAbsolutePath(jsonFilePath));
+            reader = new FileReader(FileActions.getInstance().getAbsolutePath(jsonFilePath));
         } catch (FileNotFoundException rootCauseException) {
             ReportManagerHelper.log(rootCauseException);
             ReportManager.log("Couldn't find the desired file. [" + jsonFilePath + "].");
