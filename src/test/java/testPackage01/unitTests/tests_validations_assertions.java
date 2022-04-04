@@ -75,7 +75,7 @@ public class tests_validations_assertions {
 
     @Test
     public void assertComparativeRelation_greaterThanOrEquals_true_greaterThan_expectedToPass() {
-        Validations.assertThat().number(1).isGreaterThanOrEquals(2).perform();
+        Validations.assertThat().number(10).isGreaterThanOrEquals(2).perform();
     }
 
     @Test
@@ -103,7 +103,7 @@ public class tests_validations_assertions {
 
     @Test
     public void assertComparativeRelation_greaterThanOrEquals_false_greaterThan_expectedToPass() {
-        Validations.assertThat().number(2).isLessThan(1).perform();
+        Validations.assertThat().number(1).isLessThan(10).perform();
     }
 
     @Test
