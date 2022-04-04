@@ -1,0 +1,15 @@
+
+################################################################################################################################################
+Starting Execution:	"99 out of 185" test cases in the current suite
+Test Method:		"testPackage01.Test_JsonCompareWithSpecialCharacters.specialCharacters_assertion"
+################################################################################################################################################
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "src/test/resources/testDataFiles/specialCharacters.json"". @04-04-2022 07:26:11.0720 AM
+[ReportManager] File Action "ReadFromFile" successfully performed. With the following test data "File Path: "/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/test/resources/testDataFiles/specialCharacters.json"". @04-04-2022 07:26:11.0721 AM
+[ReportManager] Successfully created attachment "File Action Actual Result - Command Log" @04-04-2022 07:26:11.0721 AM
+[ReportManager] Comparing the provided API response with the file at this path "src/test/resources/testDataFiles/specialCharacters.json", comparison type "CONTAINS" @04-04-2022 07:26:11.0721 AM
+[ReportManager] Compare json "src/test/resources/testDataFiles/specialCharacters.json". @04-04-2022 07:26:11.0745 AM
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "src/test/resources/testDataFiles/specialCharacters.json"". @04-04-2022 07:26:11.0745 AM
+[ReportManager] File Action "ReadFromFile" successfully performed. With the following test data "File Path: "/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/test/resources/testDataFiles/specialCharacters.json"". @04-04-2022 07:26:11.0745 AM
+[ReportManager] Assertion Passed: trying out the log message @04-04-2022 07:26:11.0755 AM
+[ReportManager] Successfully created attachment "Validation Test Data - Expected JSON Value" @04-04-2022 07:26:11.0755 AM
+[ReportManager] Successfully created attachment "Validation Test Data - Actual JSON Value" @04-04-2022 07:26:11.0755 A

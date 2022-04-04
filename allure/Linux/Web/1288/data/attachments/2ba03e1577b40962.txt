@@ -1,0 +1,7 @@
+
+################################################################################################################################################
+Starting Execution:	"125 out of 185" test cases in the current suite
+Test Method:		"unitTests.tests_browserActions.getPageSource"
+################################################################################################################################################
+[ReportManager] Get page source. @04-04-2022 07:37:57.0712 AM
+[ReportManager] Successfully created attachment "Browser Action Test Data - Get page source - Actual Value" @04-04-2022 07:37:57.0712 A

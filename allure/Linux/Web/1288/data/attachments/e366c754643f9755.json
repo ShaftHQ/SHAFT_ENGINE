@@ -1,0 +1,4 @@
+{
+  "variables": "{\"name\": \"sherlock holmes\",\"rocket\": \"221B Baker Street\"}",
+  "query": "mutation ($name: String, $rocket: String) {\n  insert_users(objects: {name: $name, rocket: $rocket}) {\n    returning {\n      name\n      rocket\n    }\n  }\n}"
+}

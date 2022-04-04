@@ -1,0 +1,12 @@
+
+################################################################################################################################################
+Starting Execution:	"48 out of 185" test cases in the current suite
+Test Method:		"testPackage01.Test_assertEquals.test_assertElementAttribute"
+################################################################################################################################################
+[ReportManager] Target URL: "https://www.google.com/ncr", and after redirection: "https://www.google.com" @04-04-2022 07:24:03.0637 AM
+[ReportManager] Initial URL: "data:," @04-04-2022 07:24:03.0706 AM
+[ReportManager] Navigate to url "https://www.google.com/ncr". @04-04-2022 07:24:04.0555 AM
+[ReportManager] Type "INC_004010050:Another SCHEDULER with the same name [Duplicate Job Name] already exists.". @04-04-2022 07:24:05.0243 AM
+[ReportManager] Get text "INC_004010050:Another SCHEDULER with the same name [Duplicate Job Name] already exists.". @04-04-2022 07:24:05.0360 AM
+[ReportManager] Assertion "ValidateElementAttribute" PASSED. Expected "Value Should be 'INC_004010050:Another SCHEDULER with the same name \[Duplicate Job Name\] already exists.' for the 'text' attribute, element locator 'By.name: q'" and Actual "INC_004010050:Another SCHEDULER with the same name [Duplicate Job Name] already exists.". Comparison Type "MATCHES". Validation Type "POSITIVE". @04-04-2022 07:24:05.0832 AM
+[ReportManager] Successfully created attachment "Screenshot - 1649057045714_test_assertElementAttribute_ValidateElementAttribute_passed" @04-04-2022 07:24:05.0833 A

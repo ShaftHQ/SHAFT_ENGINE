@@ -1,0 +1,6 @@
+
+################################################################################################################################################
+Starting Execution:	"16 out of 185" test cases in the current suite
+Test Method:		"testPackage01.SHAFTWizard.Test_Wizard_DB.test"
+################################################################################################################################################
+[ReportManager] Database Action "<init>" failed. With the following test data "Custom Connection String: """. @04-04-2022 07:22:15.0163 A

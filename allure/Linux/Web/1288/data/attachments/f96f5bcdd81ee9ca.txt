@@ -1,0 +1,14 @@
+
+################################################################################################################################################
+Starting Execution:	"41 out of 185" test cases in the current suite
+Test Method:		"testPackage01.Test_chainableElementActions.chainElementActions"
+################################################################################################################################################
+[ReportManager] Target URL: "https://www.google.com/ncr", and after redirection: "https://www.google.com" @04-04-2022 07:23:54.0673 AM
+[ReportManager] Initial URL: "data:," @04-04-2022 07:23:54.0765 AM
+[ReportManager] Navigate to url "https://www.google.com/ncr". @04-04-2022 07:23:55.0714 AM
+[ReportManager] Type "chained type 1". @04-04-2022 07:23:56.0132 AM
+[ReportManager] Type "chained type 2". @04-04-2022 07:23:56.0446 AM
+[ReportManager] Type append "345". @04-04-2022 07:23:56.0565 AM
+[ReportManager] Get text "chained type 2345". @04-04-2022 07:23:56.0708 AM
+[ReportManager] Assertion Passed: The Element located by "By.name: q" text is equal to "chained type 2345". @04-04-2022 07:23:57.0194 AM
+[ReportManager] Successfully created attachment "Screenshot - 1649057037077_chainElementActions_ValidateElementAttribute_passed" @04-04-2022 07:23:57.0195 A

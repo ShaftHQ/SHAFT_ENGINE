@@ -1,0 +1,10 @@
+
+################################################################################################################################################
+Starting Execution:	"51 out of 185" test cases in the current suite
+Test Method:		"testPackage01.Test_PDF.testPDF2"
+################################################################################################################################################
+[ReportManager] File Action "DoesFileExist" successfully performed. With the following test data "File Path: "src/test/resources/testDataFiles/sample.pdf"". @04-04-2022 07:24:06.0595 AM
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "src/test/resources/testDataFiles/sample.pdf"". @04-04-2022 07:24:06.0595 AM
+[ReportManager] Assertion Passed: Checking to see that the pdf file contains [A Simple PDF File] @04-04-2022 07:24:06.0612 AM
+[ReportManager] Successfully created attachment "Validation Test Data - Expected Value" @04-04-2022 07:24:06.0613 AM
+[ReportManager] Successfully created attachment "Validation Test Data - Actual Value" @04-04-2022 07:24:06.0613 A

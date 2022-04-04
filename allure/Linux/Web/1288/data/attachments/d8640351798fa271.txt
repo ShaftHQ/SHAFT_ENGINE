@@ -1,0 +1,19 @@
+
+################################################################################################################################################
+Starting Execution:	"47 out of 185" test cases in the current suite
+Test Method:		"testPackage01.Test_SelectedValue.simpleSelect"
+################################################################################################################################################
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 07:24:01.0626 AM
+[ReportManager] Attempting to run remotely on: "Linux-64 | GoogleChrome | http://localhost:4444/wd/hub", Headless Execution. @04-04-2022 07:24:01.0627 AM
+[ReportManager] Successfully Opened "GoogleChrome". @04-04-2022 07:24:01.0815 AM
+[ReportManager] Target URL: "https://yari-demos.prod.mdn.mozit.cloud/en-US/docs/Web/HTML/Element/select/_sample_.Basic_select.html" @04-04-2022 07:24:01.0815 AM
+[ReportManager] Initial URL: "data:," @04-04-2022 07:24:01.0913 AM
+[ReportManager] Navigate to url "https://yari-demos.prod.mdn.mozit.cloud/en-US/docs/Web/HTML/Element/select/_sample_.Basic_select.html". @04-04-2022 07:24:02.0186 AM
+[ReportManager] Select "Third Value". @04-04-2022 07:24:02.0586 AM
+[ReportManager] Get selected text "Third Value". @04-04-2022 07:24:02.0705 AM
+[ReportManager] Third Value @04-04-2022 07:24:02.0706 AM
+[ReportManager] Get selected text "Third Value". @04-04-2022 07:24:02.0862 AM
+[ReportManager] Assertion "ValidateElementAttribute" PASSED. Expected "Value Should be 'Third Value' for the 'selectedText' attribute, element locator 'By.tagName: select'" and Actual "Third Value". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 07:24:03.0278 AM
+[ReportManager] Successfully created attachment "Screenshot - 1649057043167_simpleSelect_ValidateElementAttribute_passed" @04-04-2022 07:24:03.0278 AM
+[ReportManager] Close current window. @04-04-2022 07:24:03.0403 AM
+[ReportManager] Successfully created attachment "Browser Action Test Data - Close current window - Actual Value" @04-04-2022 07:24:03.0404 A

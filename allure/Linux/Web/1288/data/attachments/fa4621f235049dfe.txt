@@ -1,0 +1,4 @@
+[2022-04-04T07:37:52.656Z] [WARNING] security - Error with Permissions-Policy header: Unrecognized feature: 'interest-cohort'.
+[2022-04-04T07:37:52.921Z] [WARNING] security - Error with Permissions-Policy header: Unrecognized feature: 'interest-cohort'.
+[2022-04-04T07:37:53.609Z] [WARNING] security - Error with Permissions-Policy header: Unrecognized feature: 'interest-cohort'.
+[2022-04-04T07:37:53.701Z] [WARNING] security - Error with Permissions-Policy header: Unrecognized feature: 'interest-cohort'.

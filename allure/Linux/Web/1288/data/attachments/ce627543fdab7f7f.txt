@@ -1,0 +1,18 @@
+
+################################################################################################################################################
+Starting Execution:	"12 out of 185" test cases in the current suite
+Test Method:		"testPackage01.Test_uploadFile.uploadFile_invisibleUploadInput"
+################################################################################################################################################
+[ReportManager] Target URL: "https://fineuploader.com/demos.html#gallery-view" @04-04-2022 07:22:02.0908 AM
+[ReportManager] Initial URL: "data:," @04-04-2022 07:22:03.0001 AM
+[ReportManager] Navigate to url "https://fineuploader.com/demos.html#gallery-view". @04-04-2022 07:22:05.0075 AM
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative File Path: "src/main/resources/images/shaft.png"". @04-04-2022 07:22:05.0076 AM
+[ReportManager] Successfully created attachment "File Action Actual Result - Command Log" @04-04-2022 07:22:05.0080 AM
+[ReportManager] Type file location for upload "/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/main/resources/images/shaft.png". @04-04-2022 07:22:05.0222 AM
+[ReportManager] Attempting to getAttribute "src" from elementLocator "By.xpath: //div[@id='fine-uploader-gallery']//div[@class='qq-thumbnail-wrapper']/img". @04-04-2022 07:22:05.0222 AM
+[ReportManager] Get attribute. @04-04-2022 07:22:05.0411 AM
+[ReportManager] Successfully created attachment "Element Action Test Data - Get attribute - Actual Value" @04-04-2022 07:22:05.0412 AM
+[ReportManager] Assertion Passed: The Element located by "By.xpath: //div[@id='fine-uploader-gallery']//div[@class='qq-thumbnail-wrapper']/img" attribute "src" contains "data:image/png;base64". @04-04-2022 07:22:05.0932 AM
+[ReportManager] Successfully created attachment "Validation Test Data - Expected Value" @04-04-2022 07:22:05.0932 AM
+[ReportManager] Successfully created attachment "Validation Test Data - Actual Value" @04-04-2022 07:22:05.0933 AM
+[ReportManager] Successfully created attachment "Screenshot - 1649056925791_uploadFile_invisibleUploadInput_ValidateElementAttribute_passed" @04-04-2022 07:22:05.0936 A

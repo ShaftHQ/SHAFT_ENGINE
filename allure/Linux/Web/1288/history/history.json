@@ -1,0 +1,3824 @@
+{
+  "c80eb0293658685903bd1fd24f492c08" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "7cd758167267ce36",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/7cd758167267ce36",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649056940395,
+        "stop" : 1649056942199,
+        "duration" : 1804
+      }
+    } ]
+  },
+  "5d486709805afb09377652af1cb44b43" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "4637a0286bec3eb3",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/4637a0286bec3eb3",
+      "status" : "skipped",
+      "statusDetails" : "Method testPackage01.TestJSPromptBox.acceptPromptAlertWithTextMessage() on instance testPackage01.TestJSPromptBox@4b6d92e depends on not successfully finished methods \n[testPackage01.TestJSPromptBox.assertOnConfirmPromptAlertWithoutTypingTextMessageResultText() on instance testPackage01.TestJSPromptBox@4b6d92e]",
+      "time" : {
+        "start" : 1649057034297,
+        "stop" : 1649057034302,
+        "duration" : 5
+      }
+    } ]
+  },
+  "2e5c0df455c7dfd9c79412a1a7c1b8c3" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "a49b5da2d03a6469",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/a49b5da2d03a6469",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649056935206,
+        "stop" : 1649056935211,
+        "duration" : 5
+      }
+    } ]
+  },
+  "7b0f8854a7aed9a150b2fc57963781fa" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "5626590405d77565",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/5626590405d77565",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057128569,
+        "stop" : 1649057128570,
+        "duration" : 1
+      }
+    } ]
+  },
+  "42db9a0b95e9103a321dfe36eb368c1b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "705059b64c640024",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/705059b64c640024",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649056916354,
+        "stop" : 1649056918327,
+        "duration" : 1973
+      }
+    } ]
+  },
+  "2314bd23a656a36ab83c22386848f0d4" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "159ea2ba83e1c95d",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/159ea2ba83e1c95d",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057002594,
+        "stop" : 1649057002966,
+        "duration" : 372
+      }
+    } ]
+  },
+  "9557c3315a180b8221de8066c242409a" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "14321c10214badd3",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/14321c10214badd3",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057883460,
+        "stop" : 1649057883723,
+        "duration" : 263
+      }
+    } ]
+  },
+  "3f6e5843fc6c685f5ebc75fde75ac218" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "2cde71d76788c3b8",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/2cde71d76788c3b8",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079376,
+        "stop" : 1649058079377,
+        "duration" : 1
+      }
+    } ]
+  },
+  "973cdadfe7b0529022bcd219aff55968" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "93b1bb3cb8caae07",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/93b1bb3cb8caae07",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057162253,
+        "stop" : 1649057162254,
+        "duration" : 1
+      }
+    } ]
+  },
+  "4a29903560362dbd17b5dd05d236bc8b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "7f67878de2187498",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/7f67878de2187498",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649056969986,
+        "stop" : 1649056970565,
+        "duration" : 579
+      }
+    } ]
+  },
+  "7ce456f557879027bc598b94d15d7182" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "77868b3fce66b4cb",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/77868b3fce66b4cb",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057899110,
+        "stop" : 1649057899112,
+        "duration" : 2
+      }
+    } ]
+  },
+  "7e80de2d453155ab307b931149cee737" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "c2c8413e43ec4d29",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/c2c8413e43ec4d29",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057131321,
+        "stop" : 1649057162151,
+        "duration" : 30830
+      }
+    } ]
+  },
+  "d22b5e6c4280f54bf49831434b9e5018" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "934b3b2f3dc69172",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/934b3b2f3dc69172",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079517,
+        "stop" : 1649058079517,
+        "duration" : 0
+      }
+    } ]
+  },
+  "d9c1f161fa2285acc4faca119ad8939" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "ce91c3f08fcbfb20",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/ce91c3f08fcbfb20",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649056915970,
+        "stop" : 1649056915978,
+        "duration" : 8
+      }
+    } ]
+  },
+  "d766de23786c53f441d161eddaf1215a" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "4b31fdc6382dc883",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/4b31fdc6382dc883",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057128557,
+        "stop" : 1649057128557,
+        "duration" : 0
+      }
+    } ]
+  },
+  "64a8852b286bab5ef838177e652e731e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "cebcd5d1960d1bc5",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/cebcd5d1960d1bc5",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079522,
+        "stop" : 1649058079523,
+        "duration" : 1
+      }
+    } ]
+  },
+  "bb31d8b47e1a96c6836334320447d229" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "2aeb6a66a42b5adf",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/2aeb6a66a42b5adf",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057821485,
+        "stop" : 1649057821908,
+        "duration" : 423
+      }
+    } ]
+  },
+  "eb85811949f431b7a228b6de557ce34e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "46b6e1b53d053a9f",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/46b6e1b53d053a9f",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057128626,
+        "stop" : 1649057128631,
+        "duration" : 5
+      }
+    } ]
+  },
+  "e025b82a7d1b9f5f8cfaebf774709daa" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "2242e4d3c655157d",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/2242e4d3c655157d",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649056940051,
+        "stop" : 1649056940171,
+        "duration" : 120
+      }
+    } ]
+  },
+  "89010c35d43262e5174c0abc3b833ff2" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "d373e78eff7968f",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/d373e78eff7968f",
+      "status" : "failed",
+      "statusDetails" : "Wait for alert to be present failed.",
+      "time" : {
+        "start" : 1649057003893,
+        "stop" : 1649057034277,
+        "duration" : 30384
+      }
+    } ]
+  },
+  "f5eb3e0657331ec851f236cbdec9dbc3" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "37967d2b5388fb06",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/37967d2b5388fb06",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079419,
+        "stop" : 1649058079421,
+        "duration" : 2
+      }
+    } ]
+  },
+  "d559bced8169d88c5be9f05e55e1d81b" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "3aea690c5f22124b",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/3aea690c5f22124b",
+      "status" : "failed",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079356,
+        "stop" : 1649058079356,
+        "duration" : 0
+      }
+    } ]
+  },
+  "936e6a9ee701fb7c11ed14ca761ff87e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "c77e8f6a1cb39eb1",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/c77e8f6a1cb39eb1",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649057670279,
+        "stop" : 1649057670279,
+        "duration" : 0
+      }
+    } ]
+  },
+  "b7fc3abf80e9bbdd5097280c59543cd9" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "6cd89fa51bfb26fe",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/6cd89fa51bfb26fe",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079506,
+        "stop" : 1649058079507,
+        "duration" : 1
+      }
+    } ]
+  },
+  "e13eda38936ccb8186efbcb0f47508c8" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "645ad2fbdcb754e8",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/645ad2fbdcb754e8",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057095420,
+        "stop" : 1649057096030,
+        "duration" : 610
+      }
+    } ]
+  },
+  "18ebb827f5e596bdd48750256bb3ed08" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "e912dd56279e9c3e",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/e912dd56279e9c3e",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057892842,
+        "stop" : 1649057895300,
+        "duration" : 2458
+      }
+    } ]
+  },
+  "17b5b8806ac7eb710c4c7956140eaecf" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "6abf9c6709b71f00",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/6abf9c6709b71f00",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649058392203,
+        "stop" : 1649058393491,
+        "duration" : 1288
+      }
+    } ]
+  },
+  "543aba825fdb7f502293cc600bf137ab" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "fa3d4b2354c6da7b",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/fa3d4b2354c6da7b",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649056935203,
+        "stop" : 1649056935204,
+        "duration" : 1
+      }
+    } ]
+  },
+  "fa8089fdd54895368300d31f35070cea" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "bfef94d2fcee26b3",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/bfef94d2fcee26b3",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079518,
+        "stop" : 1649058079519,
+        "duration" : 1
+      }
+    } ]
+  },
+  "19999555bce5de3735ec04b0e0646e14" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "4a80786aa5722f9a",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/4a80786aa5722f9a",
+      "status" : "skipped",
+      "statusDetails" : "Method testPackage01.TestJSAlertBox.assertOnConfirmAlertResultText() on instance testPackage01.TestJSAlertBox@20cece0b depends on not successfully finished methods \n[testPackage01.TestJSAlertBox.acceptAlert() on instance testPackage01.TestJSAlertBox@20cece0b]",
+      "time" : {
+        "start" : 1649057852247,
+        "stop" : 1649057852252,
+        "duration" : 5
+      }
+    } ]
+  },
+  "381ba714b0c66de2985d3ae81acb5e17" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "a41cd5990aaae583",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/a41cd5990aaae583",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057128575,
+        "stop" : 1649057128577,
+        "duration" : 2
+      }
+    } ]
+  },
+  "8a857219522d374b9811362ab4602182" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "188a840cc944697a",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/188a840cc944697a",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079428,
+        "stop" : 1649058079429,
+        "duration" : 1
+      }
+    } ]
+  },
+  "b1a09b6933c16fdc5feb53cd6bbf1690" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "a47688be81524111",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/a47688be81524111",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079431,
+        "stop" : 1649058079432,
+        "duration" : 1
+      }
+    } ]
+  },
+  "7c02c0395504a7a7869fd091b6dfff0b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "2bfbd7ed235b8c86",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/2bfbd7ed235b8c86",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649056913214,
+        "stop" : 1649056914544,
+        "duration" : 1330
+      }
+    } ]
+  },
+  "7546566432535191f8975bb3f3cb9a48" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "fe94afee648bc353",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/fe94afee648bc353",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057162256,
+        "stop" : 1649057162257,
+        "duration" : 1
+      }
+    } ]
+  },
+  "81dccf0fa5dda2c07b8a2e38642301d4" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "3632fa999de81192",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/3632fa999de81192",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057039092,
+        "stop" : 1649057041622,
+        "duration" : 2530
+      }
+    } ]
+  },
+  "24d179f984390efd4095c1ca70d9ae83" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "2de1af9cd3669ee0",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/2de1af9cd3669ee0",
+      "status" : "skipped",
+      "statusDetails" : "Method testPackage01.TestJSConfirmBox.assertOnConfirmAlertResultText() on instance testPackage01.TestJSConfirmBox@6726cc69 depends on not successfully finished methods \n[testPackage01.TestJSConfirmBox.acceptAlert() on instance testPackage01.TestJSConfirmBox@6726cc69]",
+      "time" : {
+        "start" : 1649057001437,
+        "stop" : 1649057001453,
+        "duration" : 16
+      }
+    } ]
+  },
+  "c5a92213d3cbe213658c780681a07039" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "d8430bce7e0f3c9e",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/d8430bce7e0f3c9e",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057896819,
+        "stop" : 1649057897015,
+        "duration" : 196
+      }
+    } ]
+  },
+  "533920f5a2f0b64ac5274dd751cde692" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "637dd126da18e2d",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/637dd126da18e2d",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649057670294,
+        "stop" : 1649057670294,
+        "duration" : 0
+      }
+    } ]
+  },
+  "5eb7f769276356accd4c25c7c882af5f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "3cb8d64cb6202096",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/3cb8d64cb6202096",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057097270,
+        "stop" : 1649057097905,
+        "duration" : 635
+      }
+    } ]
+  },
+  "50b134c4ce45667640a8b328092e77c" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "79a26e15a7843254",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/79a26e15a7843254",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649058259550,
+        "stop" : 1649058392201,
+        "duration" : 132651
+      }
+    } ]
+  },
+  "b27c77614b887aad9233c87f6d999b88" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "7f57ff69ecbf22cb",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/7f57ff69ecbf22cb",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057171665,
+        "stop" : 1649057171707,
+        "duration" : 42
+      }
+    } ]
+  },
+  "5514b76ba1dc4de2d7fa6ed8af87a94e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "6aad5d51120969d0",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/6aad5d51120969d0",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057870567,
+        "stop" : 1649057871710,
+        "duration" : 1143
+      }
+    } ]
+  },
+  "259a17265cbc92933de3cafb98400a6e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "1fc5834f405ba626",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/1fc5834f405ba626",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057100809,
+        "stop" : 1649057126557,
+        "duration" : 25748
+      }
+    } ]
+  },
+  "a55bf854e3301a0d60e84ba8c52fc696" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "24b285636f0d5a38",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/24b285636f0d5a38",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057165532,
+        "stop" : 1649057165768,
+        "duration" : 236
+      }
+    } ]
+  },
+  "29286b1e51fc227b9e82df438242ddee" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "c898e73e16cd378d",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/c898e73e16cd378d",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649056970577,
+        "stop" : 1649056970983,
+        "duration" : 406
+      }
+    } ]
+  },
+  "a727eb2e168fa948fc3c50825996c6a3" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "1b72fad649fc71a5",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/1b72fad649fc71a5",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649056931662,
+        "stop" : 1649056935154,
+        "duration" : 3492
+      }
+    } ]
+  },
+  "df8fe647273a141339dc9e82bb6d4858" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "4e0faa4f46d20488",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/4e0faa4f46d20488",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649056930623,
+        "stop" : 1649056931651,
+        "duration" : 1028
+      }
+    } ]
+  },
+  "8a4b6fbdb2fb99adceabd3a1832314da" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "f3df8cf55c469a19",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/f3df8cf55c469a19",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057171720,
+        "stop" : 1649057171756,
+        "duration" : 36
+      }
+    } ]
+  },
+  "8f7225c8a7be388cf13fecdcb10b58f2" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "6b6fa3d8598ffa30",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/6b6fa3d8598ffa30",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057128620,
+        "stop" : 1649057128621,
+        "duration" : 1
+      }
+    } ]
+  },
+  "449a6e184141d72ffe54fd6d696434a1" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "d15e938e2bfd1880",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/d15e938e2bfd1880",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079456,
+        "stop" : 1649058079456,
+        "duration" : 0
+      }
+    } ]
+  },
+  "4604ee6340e8cffa6c36a592668ef42b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "7583ae24299cc9fe",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/7583ae24299cc9fe",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079528,
+        "stop" : 1649058079529,
+        "duration" : 1
+      }
+    } ]
+  },
+  "544df7d2fdf8d5d984aa580e8196cbfd" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "20578e7847a4ba72",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/20578e7847a4ba72",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057037353,
+        "stop" : 1649057037354,
+        "duration" : 1
+      }
+    } ]
+  },
+  "8fbac502e2af59bbc9b8d6966d933655" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "3e302a7c23978e9e",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/3e302a7c23978e9e",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057891218,
+        "stop" : 1649057891565,
+        "duration" : 347
+      }
+    } ]
+  },
+  "819453a236d27cbe9411027dd3bfebaf" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "d023c20c816d6a35",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/d023c20c816d6a35",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649057352024,
+        "stop" : 1649057352025,
+        "duration" : 1
+      }
+    } ]
+  },
+  "fb7f8cd889260df26b212bf10e840f0b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "13b95247bfc68635",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/13b95247bfc68635",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649056969637,
+        "stop" : 1649056969979,
+        "duration" : 342
+      }
+    } ]
+  },
+  "41278362e80181fdd24eb6bcfdf1706d" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "65ea3c0c8d56b110",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/65ea3c0c8d56b110",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057049442,
+        "stop" : 1649057060073,
+        "duration" : 10631
+      }
+    } ]
+  },
+  "a668d1f7bbf0bd93bfbcd970b468fe16" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "2352c27da90b1d90",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/2352c27da90b1d90",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057899100,
+        "stop" : 1649057899101,
+        "duration" : 1
+      }
+    } ]
+  },
+  "ceff922ad3b0be43f47e1a6c9f6d6bb7" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "fa3a024c43f30fbe",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/fa3a024c43f30fbe",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057128542,
+        "stop" : 1649057128544,
+        "duration" : 2
+      }
+    } ]
+  },
+  "d29c9fb7cd6947e47db9b9fdd63ebebd" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "fe31933bc70409ab",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/fe31933bc70409ab",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057898289,
+        "stop" : 1649057898516,
+        "duration" : 227
+      }
+    } ]
+  },
+  "c88b9e1406b592eee831601849d31189" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "ec75b2ef6c5c3b74",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/ec75b2ef6c5c3b74",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057068492,
+        "stop" : 1649057094209,
+        "duration" : 25717
+      }
+    } ]
+  },
+  "eef38b1ce4f88333b32ebfb6abbceeaa" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "15fa3cb1a8c31e8e",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/15fa3cb1a8c31e8e",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057876261,
+        "stop" : 1649057876304,
+        "duration" : 43
+      }
+    } ]
+  },
+  "5702a1676b94e58bea6b43247a9f5f63" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "405eeb1be9f556bc",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/405eeb1be9f556bc",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057043636,
+        "stop" : 1649057045833,
+        "duration" : 2197
+      }
+    } ]
+  },
+  "83a32a0e6b9e166a66ff3d1085e0b2d9" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "5a0e399c0ab39f26",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/5a0e399c0ab39f26",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649056935200,
+        "stop" : 1649056935201,
+        "duration" : 1
+      }
+    } ]
+  },
+  "264074a39b89752d2d36dd84bd40d1a6" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "1348882be48a1da0",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/1348882be48a1da0",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079413,
+        "stop" : 1649058079414,
+        "duration" : 1
+      }
+    } ]
+  },
+  "476ac2975115e742d5e5e8c3b57ebdf4" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "c9571200650e29f6",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/c9571200650e29f6",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057879071,
+        "stop" : 1649057879095,
+        "duration" : 24
+      }
+    } ]
+  },
+  "bb7188203f90a1a2fad67230270ae7d6" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "f4340538f4f2906f",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/f4340538f4f2906f",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649056903406,
+        "stop" : 1649056906487,
+        "duration" : 3081
+      }
+    } ]
+  },
+  "2665e846a50930cc0c074f7f99a4ca8a" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "b58996a678c8301a",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/b58996a678c8301a",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649056915928,
+        "stop" : 1649056915965,
+        "duration" : 37
+      }
+    } ]
+  },
+  "1691af37f7c9ae9ee1c9cd54fed41695" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "ce7ec2d5cd1e6bf6",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/ce7ec2d5cd1e6bf6",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057128554,
+        "stop" : 1649057128555,
+        "duration" : 1
+      }
+    } ]
+  },
+  "c86091caae292bffb9efd84314332710" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "be4d0f0f5ce6876b",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/be4d0f0f5ce6876b",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057128578,
+        "stop" : 1649057128579,
+        "duration" : 1
+      }
+    } ]
+  },
+  "317e6cef9e3891b5a07975bb25bc5fb2" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "925456300a52d292",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/925456300a52d292",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057098032,
+        "stop" : 1649057098033,
+        "duration" : 1
+      }
+    } ]
+  },
+  "ac6789217d4b4a32d112e105cd2efa1f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "dbfc310595bd4ab7",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/dbfc310595bd4ab7",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079440,
+        "stop" : 1649058079441,
+        "duration" : 1
+      }
+    } ]
+  },
+  "2a27a2abfdee42bde8e58c16a0e0f5dd" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "3723009a4291c42f",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/3723009a4291c42f",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057128566,
+        "stop" : 1649057128567,
+        "duration" : 1
+      }
+    } ]
+  },
+  "bef677b60015e2d35d5030f6c3bfcf99" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "645da5f645baa0b9",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/645da5f645baa0b9",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079515,
+        "stop" : 1649058079515,
+        "duration" : 0
+      }
+    } ]
+  },
+  "8c403aaf85c1c2abafe0a9a5d008562b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "60bc1e3de141f532",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/60bc1e3de141f532",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649056965247,
+        "stop" : 1649056968180,
+        "duration" : 2933
+      }
+    } ]
+  },
+  "73ab699a7bc297c3e31288fa5b63a641" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "c1edc62ad92f6cdd",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/c1edc62ad92f6cdd",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649056935440,
+        "stop" : 1649056939901,
+        "duration" : 4461
+      }
+    } ]
+  },
+  "ada58dba4d4104022dc5d96f0cd4fe5" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "c6aaa36f5cc88f9b",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/c6aaa36f5cc88f9b",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649058079530,
+        "stop" : 1649058259548,
+        "duration" : 180018
+      }
+    } ]
+  },
+  "dc2cc42de249444fb1e5a25eaca827d0" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "fe30b9e199b2f63e",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/fe30b9e199b2f63e",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057129635,
+        "stop" : 1649057130171,
+        "duration" : 536
+      }
+    } ]
+  },
+  "1ef8e17d688014fbe6390ba22408aa7b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "bf8f42758775f7d0",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/bf8f42758775f7d0",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079444,
+        "stop" : 1649058079449,
+        "duration" : 5
+      }
+    } ]
+  },
+  "eb4868839e997e5aed90ae6a95488276" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "f87fdbbf1b2d4241",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/f87fdbbf1b2d4241",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079370,
+        "stop" : 1649058079370,
+        "duration" : 0
+      }
+    } ]
+  },
+  "2935f6195ae2ad2b57e1bc1f5cb3a205" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "d2a6a3c1c125036c",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/d2a6a3c1c125036c",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649056926343,
+        "stop" : 1649056930461,
+        "duration" : 4118
+      }
+    } ]
+  },
+  "e8b8340fde60dd2f177bd721ae597277" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "366986f64914d92e",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/366986f64914d92e",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057852599,
+        "stop" : 1649057854020,
+        "duration" : 1421
+      }
+    } ]
+  },
+  "8d1d2653d45ddc1144dd8fa258b167c2" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "365659eff9b6c63b",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/365659eff9b6c63b",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079452,
+        "stop" : 1649058079453,
+        "duration" : 1
+      }
+    } ]
+  },
+  "bdef01ca6cf8bbcc16448d374eaad143" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "41aca009dcd4f772",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/41aca009dcd4f772",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057128588,
+        "stop" : 1649057128591,
+        "duration" : 3
+      }
+    } ]
+  },
+  "a7e9d82b8312bf54112ba6b33d3a8577" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "894e36f011d637a4",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/894e36f011d637a4",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057128559,
+        "stop" : 1649057128560,
+        "duration" : 1
+      }
+    } ]
+  },
+  "7a5a0716c213c4b3784adbf28353af84" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "bc57e59101a4a6e0",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/bc57e59101a4a6e0",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057888059,
+        "stop" : 1649057889810,
+        "duration" : 1751
+      }
+    } ]
+  },
+  "f031b53e9f7c0028d5e3acbdc1200881" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "d4a9a571eb1ba5de",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/d4a9a571eb1ba5de",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649056942723,
+        "stop" : 1649056949516,
+        "duration" : 6793
+      }
+    } ]
+  },
+  "50a7bbf2e6e4c20e0204965d4abee130" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "83532011e133ea43",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/83532011e133ea43",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079366,
+        "stop" : 1649058079367,
+        "duration" : 1
+      }
+    } ]
+  },
+  "b9150818268b7ec2c8e5485db15d9400" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "7c0df0ef464edc86",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/7c0df0ef464edc86",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057899108,
+        "stop" : 1649057899109,
+        "duration" : 1
+      }
+    } ]
+  },
+  "f7635885016b46463315d3b46906bf7a" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "4784d0c31906f1af",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/4784d0c31906f1af",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079524,
+        "stop" : 1649058079525,
+        "duration" : 1
+      }
+    } ]
+  },
+  "c734c945744337829feb28da5f26c15e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "bd8ded88e924d1b7",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/bd8ded88e924d1b7",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649056935188,
+        "stop" : 1649056935197,
+        "duration" : 9
+      }
+    } ]
+  },
+  "aeb5cee17e087b903f52d29689300568" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "46056d6ea2364aad",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/46056d6ea2364aad",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649057352020,
+        "stop" : 1649057352020,
+        "duration" : 0
+      }
+    } ]
+  },
+  "a98fe8bcf288514fe4d68652f7efbe8e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "87a785fb15550475",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/87a785fb15550475",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649057670292,
+        "stop" : 1649057670292,
+        "duration" : 0
+      }
+    } ]
+  },
+  "badd6454e3076c44a673a71b57708fe0" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "f0410c7c3bbeea06",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/f0410c7c3bbeea06",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057034673,
+        "stop" : 1649057037202,
+        "duration" : 2529
+      }
+    } ]
+  },
+  "45dcfe76f1bd97f7cb03c724bcc68eb8" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "f9330df7e93fd117",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/f9330df7e93fd117",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079526,
+        "stop" : 1649058079527,
+        "duration" : 1
+      }
+    } ]
+  },
+  "a56697260ac1ade7b44ceede44b0438a" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "2d7a3164fe2d1652",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/2d7a3164fe2d1652",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057128572,
+        "stop" : 1649057128574,
+        "duration" : 2
+      }
+    } ]
+  },
+  "9829372d1b547228b4f16b7901ea9cc9" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "63b60c2cb57e8cdb",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/63b60c2cb57e8cdb",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057046595,
+        "stop" : 1649057046613,
+        "duration" : 18
+      }
+    } ]
+  },
+  "7b01ba3878dc2dba2c2c7f95381cb742" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "ceeed741830254f6",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/ceeed741830254f6",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057063020,
+        "stop" : 1649057063581,
+        "duration" : 561
+      }
+    } ]
+  },
+  "5cf45cc810e8dfc458ef474e637734f6" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "9c76e2aca9fbc11c",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/9c76e2aca9fbc11c",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079361,
+        "stop" : 1649058079362,
+        "duration" : 1
+      }
+    } ]
+  },
+  "4f509b7f8127a2b88f6b1a2dc70a2a2d" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "11bf94772cdce2a9",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/11bf94772cdce2a9",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057046553,
+        "stop" : 1649057046588,
+        "duration" : 35
+      }
+    } ]
+  },
+  "265ede85dd354b1c18327880ee92510d" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "6a88a1d0c4de809c",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/6a88a1d0c4de809c",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057854381,
+        "stop" : 1649057860510,
+        "duration" : 6129
+      }
+    } ]
+  },
+  "e9f5095fd5d47bf8f5c36cd72f1e335b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "e22a29f53c2c61f3",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/e22a29f53c2c61f3",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649057670287,
+        "stop" : 1649057670288,
+        "duration" : 1
+      }
+    } ]
+  },
+  "e167cb0f0b9e165fa2d11a66959b8c90" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "ca4af08952c10292",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/ca4af08952c10292",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057046023,
+        "stop" : 1649057046547,
+        "duration" : 524
+      }
+    } ]
+  },
+  "780378a4706344e151b2791aff941970" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "ba7a0d35465f7870",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/ba7a0d35465f7870",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057037347,
+        "stop" : 1649057037348,
+        "duration" : 1
+      }
+    } ]
+  },
+  "b59581a81571dbdc3929ef903c9a68af" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "9c634a2941f48ea4",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/9c634a2941f48ea4",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057164923,
+        "stop" : 1649057165529,
+        "duration" : 606
+      }
+    } ]
+  },
+  "6bfdcb3e2066e47f76cdc938949ea3b5" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "a23d62fe8789daad",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/a23d62fe8789daad",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057899113,
+        "stop" : 1649057899113,
+        "duration" : 0
+      }
+    } ]
+  },
+  "9c719c977867ad678cba36ac5ef0566e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "5bded1b6a5eb7986",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/5bded1b6a5eb7986",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649056910319,
+        "stop" : 1649056912720,
+        "duration" : 2401
+      }
+    } ]
+  },
+  "f2d8045cb196fac44acf056daf2910f1" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "78aabcbc264afa76",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/78aabcbc264afa76",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079513,
+        "stop" : 1649058079513,
+        "duration" : 0
+      }
+    } ]
+  },
+  "69bacfe7d32090425eadf00e77ec2fcd" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "1a7c66e2205d4da6",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/1a7c66e2205d4da6",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057127786,
+        "stop" : 1649057128430,
+        "duration" : 644
+      }
+    } ]
+  },
+  "8da2170c533f4aff45bc62dac6da1bf8" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "ab8c266e28219d0b",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/ab8c266e28219d0b",
+      "status" : "skipped",
+      "statusDetails" : "Method testPackage01.TestJSPromptBox.assertOnConfirmPromptAlertWithoutTypingTextMessageResultText() on instance testPackage01.TestJSPromptBox@4b6d92e depends on not successfully finished methods \n[testPackage01.TestJSPromptBox.acceptPromptAlertWithoutTypingTextMessage() on instance testPackage01.TestJSPromptBox@4b6d92e]",
+      "time" : {
+        "start" : 1649057034280,
+        "stop" : 1649057034295,
+        "duration" : 15
+      }
+    } ]
+  },
+  "19a9da5f20787f6a62b7cf5efdc0b4e3" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "ac631d4328a23718",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/ac631d4328a23718",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079424,
+        "stop" : 1649058079425,
+        "duration" : 1
+      }
+    } ]
+  },
+  "60da75bce66f0a062056dcf68a93a62e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "44bd7acc27bdfb27",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/44bd7acc27bdfb27",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649056907046,
+        "stop" : 1649056909858,
+        "duration" : 2812
+      }
+    } ]
+  },
+  "4864018d69af2693dbef3cc79f4b7427" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "f06ac13454250bd5",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/f06ac13454250bd5",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649056914758,
+        "stop" : 1649056914776,
+        "duration" : 18
+      }
+    } ]
+  },
+  "4417a672ef985b4faf9285ce39f0cc10" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "5031644117a80aad",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/5031644117a80aad",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057860835,
+        "stop" : 1649057862085,
+        "duration" : 1250
+      }
+    } ]
+  },
+  "83e3cd745c904b39ba98498d793686ca" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "31a6c2d7954e0615",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/31a6c2d7954e0615",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649056922908,
+        "stop" : 1649056925936,
+        "duration" : 3028
+      }
+    } ]
+  },
+  "7701a929ba556c35243f11ba7bc07226" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "ed27ea31abda4205",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/ed27ea31abda4205",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057899123,
+        "stop" : 1649057899124,
+        "duration" : 1
+      }
+    } ]
+  },
+  "402cf2e9c00429e23b6068d754dd4dbe" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "e301714bf7e8f4e5",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/e301714bf7e8f4e5",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079462,
+        "stop" : 1649058079463,
+        "duration" : 1
+      }
+    } ]
+  },
+  "f18d7d9f5bd5a5538a7079ad2eaa14f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "8b755ffcb3657984",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/8b755ffcb3657984",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057128609,
+        "stop" : 1649057128610,
+        "duration" : 1
+      }
+    } ]
+  },
+  "c549884c29f897da052d8b7f4fdcb073" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "69e0c00fa3ed081",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/69e0c00fa3ed081",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057872007,
+        "stop" : 1649057872257,
+        "duration" : 250
+      }
+    } ]
+  },
+  "61ae3289c295ee84141d88d3d0a1084c" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "c1e8f49342557df0",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/c1e8f49342557df0",
+      "status" : "failed",
+      "statusDetails" : "Database Action \"<init>\" failed. With the following test data \"Custom Connection String: \"\"\".",
+      "time" : {
+        "start" : 1649056935160,
+        "stop" : 1649056935173,
+        "duration" : 13
+      }
+    } ]
+  },
+  "9ea97b85f51a64632f0eccbb9a2eca3e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "e7cff3af11b969db",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/e7cff3af11b969db",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079502,
+        "stop" : 1649058079503,
+        "duration" : 1
+      }
+    } ]
+  },
+  "ee987874b5afbcff3eca43bdb5081291" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "8cec65941cf6ffdd",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/8cec65941cf6ffdd",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079435,
+        "stop" : 1649058079437,
+        "duration" : 2
+      }
+    } ]
+  },
+  "c6d3ce9689e0c5467257ac5580affbdc" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "5ec5ffec5884e647",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/5ec5ffec5884e647",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079358,
+        "stop" : 1649058079359,
+        "duration" : 1
+      }
+    } ]
+  },
+  "e88a34f039ffaa5a3e7ec815fbf7e0ee" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "58ef5823a7cb5116",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/58ef5823a7cb5116",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079499,
+        "stop" : 1649058079500,
+        "duration" : 1
+      }
+    } ]
+  },
+  "1e302c49c8f75fa918eb46dd6bc40b87" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "e530b11505295c03",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/e530b11505295c03",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057880526,
+        "stop" : 1649057880556,
+        "duration" : 30
+      }
+    } ]
+  },
+  "d5d715b3d739d9e30ec0c208231a5b19" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "43214cf142f52bd8",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/43214cf142f52bd8",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057047709,
+        "stop" : 1649057048269,
+        "duration" : 560
+      }
+    } ]
+  },
+  "fc481e47f6f435a37bd89a071e9ccc46" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "487637c0197646f6",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/487637c0197646f6",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649057670281,
+        "stop" : 1649057670282,
+        "duration" : 1
+      }
+    } ]
+  },
+  "a4a3705aa0579b42a1b50218e2c54e00" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "1eafa5c2f540f26a",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/1eafa5c2f540f26a",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649056921163,
+        "stop" : 1649056922548,
+        "duration" : 1385
+      }
+    } ]
+  },
+  "2b4beb423f2d0918a09c19ca2ce5f015" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "fcb9674e854b2b02",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/fcb9674e854b2b02",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649056962800,
+        "stop" : 1649056965245,
+        "duration" : 2445
+      }
+    } ]
+  },
+  "c6dcb54b426317f59b4b4510b6f28e6f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "8d27ba6a92171f7d",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/8d27ba6a92171f7d",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649057670289,
+        "stop" : 1649057670290,
+        "duration" : 1
+      }
+    } ]
+  },
+  "c8c76336a37556799805a49b42d957dc" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "78138a48ee3decf",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/78138a48ee3decf",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079468,
+        "stop" : 1649058079497,
+        "duration" : 29
+      }
+    } ]
+  },
+  "dbc6fbdd3600eccd40842e7fc2a996b7" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "de6e3195e2a84600",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/de6e3195e2a84600",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057873198,
+        "stop" : 1649057873469,
+        "duration" : 271
+      }
+    } ]
+  },
+  "f4e42247564f9e406ac4c030f5657555" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "be63efe563a39475",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/be63efe563a39475",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079520,
+        "stop" : 1649058079521,
+        "duration" : 1
+      }
+    } ]
+  },
+  "b4d9a91b46088e954c06abadd0ea633f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "b24e25469ba71ce6",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/b24e25469ba71ce6",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079379,
+        "stop" : 1649058079380,
+        "duration" : 1
+      }
+    } ]
+  },
+  "171d46d4135b76235154b42b11cb9d6f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "9171b4132f99c6e3",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/9171b4132f99c6e3",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079382,
+        "stop" : 1649058079411,
+        "duration" : 29
+      }
+    } ]
+  },
+  "f5f5d884f40a700315cef26011f085c6" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "b3cb2c8a0c4cc0b7",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/b3cb2c8a0c4cc0b7",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649056968477,
+        "stop" : 1649056968505,
+        "duration" : 28
+      }
+    } ]
+  },
+  "18f634cf5b3568c85a21c57b6cffaa85" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "8163d14ab980a059",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/8163d14ab980a059",
+      "status" : "skipped",
+      "statusDetails" : "Method testPackage01.TestJSPromptBox.assertOnConfirmPromptAlertWithTextMessageResultText() on instance testPackage01.TestJSPromptBox@4b6d92e depends on not successfully finished methods \n[testPackage01.TestJSPromptBox.acceptPromptAlertWithTextMessage() on instance testPackage01.TestJSPromptBox@4b6d92e]",
+      "time" : {
+        "start" : 1649057034304,
+        "stop" : 1649057034311,
+        "duration" : 7
+      }
+    } ]
+  },
+  "7b086c07a7672a87f96253ea13ac87a8" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "14ad062b53397cd6",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/14ad062b53397cd6",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057128582,
+        "stop" : 1649057128583,
+        "duration" : 1
+      }
+    } ]
+  },
+  "2502a22a0190a8d9d2d99a0b3742179f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "d2b912d5935ef200",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/d2b912d5935ef200",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057128617,
+        "stop" : 1649057128617,
+        "duration" : 0
+      }
+    } ]
+  },
+  "9136ef17ad732926a16ab8d92c6bf567" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "6202728563ab937c",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/6202728563ab937c",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649056968184,
+        "stop" : 1649056968419,
+        "duration" : 235
+      }
+    } ]
+  },
+  "9c149457b49558f6e51ed70eaa6cb83d" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "798fc8065fbaf7a4",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/798fc8065fbaf7a4",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057885070,
+        "stop" : 1649057886626,
+        "duration" : 1556
+      }
+    } ]
+  },
+  "a927bad4489beeee1ac4665341bb128" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "43bb751734d78ae8",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/43bb751734d78ae8",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057128624,
+        "stop" : 1649057128624,
+        "duration" : 0
+      }
+    } ]
+  },
+  "9ee600c4564b8a84210f113c6a571e46" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "9cff229ed83fe13c",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/9cff229ed83fe13c",
+      "status" : "failed",
+      "statusDetails" : "Wait for alert to be present failed.",
+      "time" : {
+        "start" : 1649057821913,
+        "stop" : 1649057852245,
+        "duration" : 30332
+      }
+    } ]
+  },
+  "b166e1c1837e7780d7033eca80f4a9c7" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "62ec5f79e8986546",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/62ec5f79e8986546",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057128549,
+        "stop" : 1649057128552,
+        "duration" : 3
+      }
+    } ]
+  },
+  "f8f970faae1267b4b5c08b241d01d5ce" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "ab3d9eff12eaa547",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/ab3d9eff12eaa547",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057882014,
+        "stop" : 1649057882038,
+        "duration" : 24
+      }
+    } ]
+  },
+  "f8b181c41d9f9edf4c60d33877099af8" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "ec202e85ab971f7f",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/ec202e85ab971f7f",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057128546,
+        "stop" : 1649057128547,
+        "duration" : 1
+      }
+    } ]
+  },
+  "ac7fea32beee7e3033b84a4d116cf947" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "af7f4f3e110626df",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/af7f4f3e110626df",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079465,
+        "stop" : 1649058079466,
+        "duration" : 1
+      }
+    } ]
+  },
+  "13bf298e1e204216e174902a46417745" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "210f923925620f96",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/210f923925620f96",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057037340,
+        "stop" : 1649057037341,
+        "duration" : 1
+      }
+    } ]
+  },
+  "8161aacdafcd0cb42d3204fe0672f36b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "e09c8f534172504a",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/e09c8f534172504a",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057037610,
+        "stop" : 1649057038866,
+        "duration" : 1256
+      }
+    } ]
+  },
+  "2b4f1cef406e9101284474f8f715b361" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "9160c20ac551593b",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/9160c20ac551593b",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057002981,
+        "stop" : 1649057003545,
+        "duration" : 564
+      }
+    } ]
+  },
+  "5aeeb05dac2ac013bdebccaa0aaf698e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "7d08a6036034a64f",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/7d08a6036034a64f",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079459,
+        "stop" : 1649058079460,
+        "duration" : 1
+      }
+    } ]
+  },
+  "4f4df079b1d809fbb754767db0a01e2f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "b87c2a88b1e0b6d2",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/b87c2a88b1e0b6d2",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649057670272,
+        "stop" : 1649057670274,
+        "duration" : 2
+      }
+    } ]
+  },
+  "50bcdd7464e6ba911e244a1b1a36da44" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "6b08932eabcccf7e",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/6b08932eabcccf7e",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057162434,
+        "stop" : 1649057164773,
+        "duration" : 2339
+      }
+    } ]
+  },
+  "e6016fd1907b3a0435b9f68cbecabd91" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "c15c6c65a6c983a7",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/c15c6c65a6c983a7",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057064915,
+        "stop" : 1649057065537,
+        "duration" : 622
+      }
+    } ]
+  },
+  "1d2f699b44814327bb7ff247318e9c4e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "22f4828df6bf64da",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/22f4828df6bf64da",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079373,
+        "stop" : 1649058079373,
+        "duration" : 0
+      }
+    } ]
+  },
+  "a3286ba2438900d0ed238b99b97c7891" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "aff65be24fdd1ae3",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/aff65be24fdd1ae3",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057899117,
+        "stop" : 1649057899121,
+        "duration" : 4
+      }
+    } ]
+  },
+  "abb72e27d987b2601e9ffbedb4ad837e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "7021c114d848af3f",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/7021c114d848af3f",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057128562,
+        "stop" : 1649057128563,
+        "duration" : 1
+      }
+    } ]
+  },
+  "eeb601a92e1e55857588ad433767f280" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "567e95da2c6a5de",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/567e95da2c6a5de",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057128605,
+        "stop" : 1649057128608,
+        "duration" : 3
+      }
+    } ]
+  },
+  "3b2afb193a21ad7584f3b3879b7e7304" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "95b63e3a918cf7c4",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/95b63e3a918cf7c4",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057862437,
+        "stop" : 1649057868770,
+        "duration" : 6333
+      }
+    } ]
+  },
+  "a7ae2e4757a67e15ea26bc18a732a5d0" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "b6b29c5597616aa7",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/b6b29c5597616aa7",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057899103,
+        "stop" : 1649057899104,
+        "duration" : 1
+      }
+    } ]
+  },
+  "2fdd1b1e4216687e4f48e717329d30ac" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "79623aac63f5441c",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/79623aac63f5441c",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057877678,
+        "stop" : 1649057877713,
+        "duration" : 35
+      }
+    } ]
+  },
+  "a861b2f90300876d9b9281725e416280" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "8906b7861c85d37",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/8906b7861c85d37",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057899106,
+        "stop" : 1649057899107,
+        "duration" : 1
+      }
+    } ]
+  },
+  "8f568206e17e876b394eac7436d24026" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "48a11e355228f6a9",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/48a11e355228f6a9",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057099043,
+        "stop" : 1649057099613,
+        "duration" : 570
+      }
+    } ]
+  },
+  "8462550d8c94ec5a4ee08184c5723334" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "dbb281bb6ddd6b8d",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/dbb281bb6ddd6b8d",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057128612,
+        "stop" : 1649057128614,
+        "duration" : 2
+      }
+    } ]
+  },
+  "6279582d02bb323ff2fca935852a8c5f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "e9b8be285f603a27",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/e9b8be285f603a27",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079508,
+        "stop" : 1649058079509,
+        "duration" : 1
+      }
+    } ]
+  },
+  "127389d9950e04e895798bb93e2e53ef" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "92fdaf568d2ac11d",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/92fdaf568d2ac11d",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057046620,
+        "stop" : 1649057046622,
+        "duration" : 2
+      }
+    } ]
+  },
+  "a2b4829c99b25b0f138408ac2f2752bd" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "c0ab05105c4b476",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/c0ab05105c4b476",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057168633,
+        "stop" : 1649057171508,
+        "duration" : 2875
+      }
+    } ]
+  },
+  "605cff6f7746d803bcbc232d25a70fa0" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "8ab01e85371fc352",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/8ab01e85371fc352",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057128592,
+        "stop" : 1649057128597,
+        "duration" : 5
+      }
+    } ]
+  },
+  "f7cea628e60912dec54c96e154519b67" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "2c70bc27bd4dd570",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/2c70bc27bd4dd570",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079416,
+        "stop" : 1649058079417,
+        "duration" : 1
+      }
+    } ]
+  },
+  "1f0fafbcfcffce619645851c43df5ae4" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "5dba1c23469a44c9",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/5dba1c23469a44c9",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057869190,
+        "stop" : 1649057870419,
+        "duration" : 1229
+      }
+    } ]
+  },
+  "f268085bbe60553e99786b2f5367193c" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "3a1b362602a4f312",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/3a1b362602a4f312",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649057670271,
+        "stop" : 1649057670271,
+        "duration" : 0
+      }
+    } ]
+  },
+  "7c21062b2157c9c5386d90359de23d53" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "8fd1374c41310681",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/8fd1374c41310681",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057003548,
+        "stop" : 1649057003882,
+        "duration" : 334
+      }
+    } ]
+  },
+  "f76e83298b125d9f8051305662bd868b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "6fc3d9a2c5cbfab2",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/6fc3d9a2c5cbfab2",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057066680,
+        "stop" : 1649057067304,
+        "duration" : 624
+      }
+    } ]
+  },
+  "8a583f3461f88d7c293779bde04a0e1d" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "3c663584f01221b0",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/3c663584f01221b0",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057061278,
+        "stop" : 1649057061841,
+        "duration" : 563
+      }
+    } ]
+  },
+  "36df61c5fa16064939f2168a752af02b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "6b4f01681bc1f979",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/6b4f01681bc1f979",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057041626,
+        "stop" : 1649057043405,
+        "duration" : 1779
+      }
+    } ]
+  },
+  "d20688892e8370917ded3954bd58a936" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "7868dc8dad44eaa2",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/7868dc8dad44eaa2",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079510,
+        "stop" : 1649058079511,
+        "duration" : 1
+      }
+    } ]
+  },
+  "d305933be8c1545e88e65f9f5733babf" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "1d4e104b5c9f4ed7",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/1d4e104b5c9f4ed7",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649056918336,
+        "stop" : 1649056921160,
+        "duration" : 2824
+      }
+    } ]
+  },
+  "8a87a21477193c438040ea0bf35f7853" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "ec2f51babbbeab8a",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/ec2f51babbbeab8a",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057128599,
+        "stop" : 1649057128602,
+        "duration" : 3
+      }
+    } ]
+  },
+  "3e73c6377dbba1c4391d565476180108" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "30aefddaf7ab20c4",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/30aefddaf7ab20c4",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057871721,
+        "stop" : 1649057872003,
+        "duration" : 282
+      }
+    } ]
+  },
+  "b916e3a3cf9aae34687e6cba489385fd" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "752e3fbdb377286",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/752e3fbdb377286",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057874876,
+        "stop" : 1649057874918,
+        "duration" : 42
+      }
+    } ]
+  },
+  "fa265a8627bd99827e3fc01138cc6263" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "783e35b9c0a0b6c1",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/783e35b9c0a0b6c1",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649056914780,
+        "stop" : 1649056915925,
+        "duration" : 1145
+      }
+    } ]
+  },
+  "faba7fd705e6197574156eaf96097b4f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "580ea9b42e18bd92",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/580ea9b42e18bd92",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649057670276,
+        "stop" : 1649057670277,
+        "duration" : 1
+      }
+    } ]
+  },
+  "8e6ae17900b012ee04473da72a15fef5" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "68351b6402f16267",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/68351b6402f16267",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649057670283,
+        "stop" : 1649057670286,
+        "duration" : 3
+      }
+    } ]
+  },
+  "afc8cfa07b82f889f102dc4910710386" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "e1822364104a6c60",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/e1822364104a6c60",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057165969,
+        "stop" : 1649057168294,
+        "duration" : 2325
+      }
+    } ]
+  },
+  "965c2444c02f716bd26141d4ef9c89dc" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "581ef5c559827b8b",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/581ef5c559827b8b",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649057352034,
+        "stop" : 1649057352035,
+        "duration" : 1
+      }
+    } ]
+  },
+  "4059f51a9d634b52b216f44f3bf27ccc" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "1defd9d7862ea195",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/1defd9d7862ea195",
+      "status" : "skipped",
+      "statusDetails" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "time" : {
+        "start" : 1649058079504,
+        "stop" : 1649058079505,
+        "duration" : 1
+      }
+    } ]
+  },
+  "33865050f01a74fce461b1ec0dbab96f" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "30e98f3a7f5639c1",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/30e98f3a7f5639c1",
+      "status" : "failed",
+      "statusDetails" : "Wait for alert to be present failed.",
+      "time" : {
+        "start" : 1649056970986,
+        "stop" : 1649057001427,
+        "duration" : 30441
+      }
+    } ]
+  },
+  "45512e220734b6213e89df6e5f078970" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "3b618591679383c9",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288//#testresult/3b618591679383c9",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649057899115,
+        "stop" : 1649057899116,
+        "duration" : 1
+      }
+    } ]
+  }
+}

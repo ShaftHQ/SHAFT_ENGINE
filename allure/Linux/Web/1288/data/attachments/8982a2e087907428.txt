@@ -1,0 +1,12 @@
+
+################################################################################################################################################
+Starting Execution:	"130 out of 185" test cases in the current suite
+Test Method:		"unitTests.tests_browserActions.navigateBack"
+################################################################################################################################################
+[ReportManager] Target URL: "https://www.google.com/ncr", and after redirection: "https://www.google.com" @04-04-2022 07:38:05.0071 AM
+[ReportManager] Initial URL: "https://duckduckgo.com" @04-04-2022 07:38:05.0108 AM
+[ReportManager] Navigate to url "https://www.google.com/ncr". @04-04-2022 07:38:05.0936 AM
+[ReportManager] Navigate back "https://duckduckgo.com/". @04-04-2022 07:38:06.0252 AM
+[ReportManager] Get current url "https://duckduckgo.com/". @04-04-2022 07:38:06.0288 AM
+[ReportManager] Assertion Passed: Confirming that navigating back was successful @04-04-2022 07:38:06.0624 AM
+[ReportManager] Successfully created attachment "Screenshot - 1649057886464_navigateBack_ValidateBrowserAttribute_passed" @04-04-2022 07:38:06.0625 A

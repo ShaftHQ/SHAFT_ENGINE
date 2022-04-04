@@ -1,0 +1,248 @@
+{
+  "uid" : "fa3d4b2354c6da7b",
+  "name" : "number",
+  "fullName" : "testPackage01.SHAFTWizard.Test_Wizard_StandaloneValidation.number",
+  "historyId" : "543aba825fdb7f502293cc600bf137ab",
+  "time" : {
+    "start" : 1649056935203,
+    "stop" : 1649056935204,
+    "duration" : 1
+  },
+  "status" : "passed",
+  "flaky" : false,
+  "newFailed" : false,
+  "beforeStages" : [ {
+    "name" : "setupActivities",
+    "time" : {
+      "start" : 1649056899698,
+      "stop" : 1649056900518,
+      "duration" : 820
+    },
+    "description" : "",
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Folder \"extent-reports\" was not found, it may have already been deleted.",
+      "time" : {
+        "start" : 1649056899856,
+        "stop" : 1649056899857,
+        "duration" : 1
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Folder \"extent-reports\" was not found, it may have already been deleted."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Terminal Action \"PerformTerminalCommands\" successfully performed. With the following test data \"Host Name: \"localHost\" | Command: \"chmod u+x generateJdk.sh\" | Exit Status: \"1\"\".",
+      "time" : {
+        "start" : 1649056900515,
+        "stop" : 1649056900517,
+        "duration" : 2
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "8056e34f68f45169",
+        "name" : "Terminal Action Actual Result - Command Log",
+        "source" : "8056e34f68f45169.txt",
+        "type" : "text/plain",
+        "size" : 64
+      } ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Terminal Action \"PerformTerminalCommands\" successfully performed. With the following test data \"Host Name: \"localHost\" | Command: \"chmod u+x generateJdk.sh\" | Exit Status: \"1\"\"."
+      }, {
+        "name" : "attachments",
+        "value" : "[[Terminal Action Actual Result, Command Log, chmod: cannot access 'generateJdk.sh': No such file or directory]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 1,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ {
+      "uid" : "624cad70d624c55a",
+      "name" : "SHAFT Links - Important",
+      "source" : "624cad70d624c55a.uri",
+      "type" : "text/uri-list",
+      "size" : 346
+    } ],
+    "parameters" : [ ],
+    "stepsCount" : 2,
+    "attachmentsCount" : 2,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  } ],
+  "testStage" : {
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Assertion Passed: \"3\" is greater than or equal to \"1\".",
+      "time" : {
+        "start" : 1649056935203,
+        "stop" : 1649056935204,
+        "duration" : 1
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "customLog",
+        "value" : "Assertion Passed: \"3\" is greater than or equal to \"1\"."
+      }, {
+        "name" : "stepLog",
+        "value" : "Assertion \"ValidateComparativeRelation\" PASSED. Expected \"1\" and Actual \"3\". Comparison Type \"GREATER_THAN_OR_EQUALS\". Validation Type \"POSITIVE\"."
+      }, {
+        "name" : "attachments",
+        "value" : "null"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ {
+      "uid" : "c814cb9dc5a37696",
+      "name" : "SHAFT Engine Logs - Current Method log: number",
+      "source" : "c814cb9dc5a37696.txt",
+      "type" : "text/plain",
+      "size" : 539
+    } ],
+    "parameters" : [ ],
+    "stepsCount" : 1,
+    "attachmentsCount" : 1,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  },
+  "afterStages" : [ {
+    "name" : "teardownActivities",
+    "time" : {
+      "start" : 1649058393508,
+      "stop" : 1649058394314,
+      "duration" : 806
+    },
+    "description" : "",
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Successfully Closed All Drivers.",
+      "time" : {
+        "start" : 1649058393635,
+        "stop" : 1649058393635,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Successfully Closed All Drivers."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Issue Summary: Total Issues = 7, New issues for Failed Tests = 5, Open issues for Passed Tests = 2, Open issues for Failed Tests = 0. Kindly check the attached Issue details.",
+      "time" : {
+        "start" : 1649058393644,
+        "stop" : 1649058393644,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "76dde7958d3753c6",
+        "name" : "SHAFT Engine Logs - Issues log CSV: 20220404-074633",
+        "source" : "76dde7958d3753c6.csv",
+        "type" : "text/csv",
+        "size" : 833
+      } ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Issue Summary: Total Issues = 7, New issues for Failed Tests = 5, Open issues for Passed Tests = 2, Open issues for Failed Tests = 0. Kindly check the attached Issue details."
+      }, {
+        "name" : "attachments",
+        "value" : "[[SHAFT Engine Logs, Issues log CSV: 20220404-074633, java.io.ByteArrayInputStream@6a50ead]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 1,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ {
+      "uid" : "892f13e702ea1217",
+      "name" : "Selenium WebDriver Logs - browser",
+      "source" : "892f13e702ea1217.txt",
+      "type" : "text/plain",
+      "size" : 294
+    }, {
+      "uid" : "4919222febc86fc3",
+      "name" : "SHAFT Engine Logs - Execution log: 20220404-074633",
+      "source" : "4919222febc86fc3.txt",
+      "type" : "text/plain",
+      "size" : 292502
+    }, {
+      "uid" : "86ea82a2bae8e670",
+      "name" : "HTML - Extent Emailable Execution Report",
+      "source" : "86ea82a2bae8e670.html",
+      "type" : "text/html",
+      "size" : 10712589
+    } ],
+    "parameters" : [ ],
+    "stepsCount" : 2,
+    "attachmentsCount" : 4,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  } ],
+  "labels" : [ {
+    "name" : "package",
+    "value" : "testPackage01.SHAFTWizard.Test_Wizard_StandaloneValidation"
+  }, {
+    "name" : "testClass",
+    "value" : "testPackage01.SHAFTWizard.Test_Wizard_StandaloneValidation"
+  }, {
+    "name" : "testMethod",
+    "value" : "number"
+  }, {
+    "name" : "parentSuite",
+    "value" : "Suite"
+  }, {
+    "name" : "suite",
+    "value" : "Test"
+  }, {
+    "name" : "subSuite",
+    "value" : "testPackage01.SHAFTWizard.Test_Wizard_StandaloneValidation"
+  }, {
+    "name" : "host",
+    "value" : "fv-az290-429"
+  }, {
+    "name" : "thread",
+    "value" : "3454@fv-az290-429.main(1)"
+  }, {
+    "name" : "framework",
+    "value" : "testng"
+  }, {
+    "name" : "language",
+    "value" : "java"
+  }, {
+    "name" : "resultFormat",
+    "value" : "allure2"
+  } ],
+  "parameters" : [ ],
+  "links" : [ ],
+  "hidden" : false,
+  "retry" : false,
+  "extra" : {
+    "severity" : "normal",
+    "retries" : [ ],
+    "categories" : [ ],
+    "tags" : [ ]
+  },
+  "source" : "fa3d4b2354c6da7b.json",
+  "parameterValues" : [ ]
+}

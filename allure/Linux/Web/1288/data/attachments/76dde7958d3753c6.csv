@@ -1,0 +1,7 @@
+1, Test Method "testPackage01.SHAFTWizard.Test_Wizard_DB.test" failed. Please investigate and open a new Issue if needed.
+2, Test Method "testPackage01.TestJSConfirmBox.acceptAlert" failed. Please investigate and open a new Issue if needed.
+3, Test Method "testPackage01.TestJSPromptBox.acceptPromptAlertWithoutTypingTextMessage" failed. Please investigate and open a new Issue if needed.
+4, Test Method "testPackage01.TestJSAlertBox.acceptAlert" failed. Please investigate and open a new Issue if needed.
+5, Test Method "dsl.testDsl.testButton" failed. Please investigate and open a new Issue if needed.
+6, Test Method "testPackage01.Test_SkipDueToIssue.skip" passed. Please validate and close this open issue "INC1".
+7, Test Method "testPackage01.Test_SkipDueToIssue.skip2" passed. Please validate and close this open issue "INC2".

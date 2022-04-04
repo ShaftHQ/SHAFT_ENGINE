@@ -1,0 +1,13 @@
+[2022-04-04T07:22:06.873Z] [SEVERE] https://securepubads.g.doubleclick.net/gpt/pubads_impl_2022032905.js?cb=31066034 9:202622 "[GPT] Invalid arguments: googletag.display('undefined')."
+[2022-04-04T07:22:06.880Z] [SEVERE] https://demo.guru99.com/web/20141011154238im_/http://www.megafileupload.com/skin/custom/images/delete.png - Failed to load resource: the server responded with a status of 404 ()
+[2022-04-04T07:22:06.880Z] [SEVERE] https://demo.guru99.com/web/20141011154238im_/http://www.megafileupload.com/skin/custom/images/add.gif - Failed to load resource: the server responded with a status of 404 ()
+[2022-04-04T07:22:06.952Z] [SEVERE] https://demo.guru99.com/test/upload/ 60 Mixed Content: The page at 'https://demo.guru99.com/test/upload/' was loaded over HTTPS, but requested an insecure stylesheet 'http://fonts.googleapis.com/css?family=Roboto+Condensed:400,700'. This request has been blocked; the content must be served over HTTPS.
+[2022-04-04T07:22:07.663Z] [SEVERE] https://www.guru99.com/media/jui/js/jquery.min.js - Failed to load resource: the server responded with a status of 404 ()
+[2022-04-04T07:22:07.674Z] [SEVERE] https://demo.guru99.com/test/upload/ 108:31 Uncaught ReferenceError: archive_analytics is not defined
+[2022-04-04T07:22:07.675Z] [SEVERE] https://demo.guru99.com/test/upload/ 224:7 Uncaught TypeError: Cannot read properties of null (reading 'appendChild')
+[2022-04-04T07:22:07.702Z] [SEVERE] https://demo.guru99.com/test/upload/ - Mixed Content: The page at 'https://demo.guru99.com/test/upload/' was loaded over HTTPS, but requested an insecure script 'http://demo.guru99.com/adsfooter.js'. This request has been blocked; the content must be served over HTTPS.
+[2022-04-04T07:22:07.735Z] [SEVERE] https://demo.guru99.com/web/20141016184353/http://www.megafileupload.com/skin/custom/img/borders.gif - Failed to load resource: the server responded with a status of 404 ()
+[2022-04-04T07:22:07.735Z] [SEVERE] https://demo.guru99.com/web/20141016184353/http://www.megafileupload.com/skin/custom/img/body_bg.gif - Failed to load resource: the server responded with a status of 404 ()
+[2022-04-04T07:22:07.742Z] [SEVERE] https://demo.guru99.com/web/20141011154238im_/http://www.megafileupload.com/skin/custom/images/add.gif - Failed to load resource: the server responded with a status of 404 ()
+[2022-04-04T07:22:07.742Z] [SEVERE] https://demo.guru99.com/web/20141016184353/http://www.megafileupload.com/skin/custom/img/txt_bg.gif - Failed to load resource: the server responded with a status of 404 ()
+[2022-04-04T07:22:09.751Z] [SEVERE] https://demo.guru99.com/echo/html/?delay=900000000 - Failed to load resource: the server responded with a status of 404 ()

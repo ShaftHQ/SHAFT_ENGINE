@@ -1,0 +1,8 @@
+
+################################################################################################################################################
+Starting Execution:	"52 out of 185" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f1"
+################################################################################################################################################
+[ReportManager] Assertion Passed: Checking valid user data @04-04-2022 07:24:06.0620 AM
+[ReportManager] Successfully created attachment "Validation Test Data - Expected Value" @04-04-2022 07:24:06.0621 AM
+[ReportManager] Successfully created attachment "Validation Test Data - Actual Value" @04-04-2022 07:24:06.0621 A

@@ -1,0 +1,26 @@
+
+################################################################################################################################################
+Starting Execution:	"120 out of 185" test cases in the current suite
+Test Method:		"unitTests.tests_restActions.validateUserEmail"
+################################################################################################################################################
+[ReportManager] Response status code: "200", status line: "HTTP/1.1 200 OK" @04-04-2022 07:37:51.0849 AM
+[ReportManager] Assertion Passed: Evaluating the actual response status code against the expected one... @04-04-2022 07:37:51.0849 AM
+[ReportManager] Perform request "GET | Target Status Code: 200 | Service URL: https://jsonplaceholder.typicode.com/users | Content Type: */* | Response Time: 124ms". @04-04-2022 07:37:51.0866 AM
+[ReportManager] Successfully created attachment "API Request - Specifications" @04-04-2022 07:37:51.0866 AM
+[ReportManager] Successfully created attachment "API Response - JSON Body" @04-04-2022 07:37:51.0866 AM
+[ReportManager] Assertion "ValidateEquals" PASSED. Expected and Actual values are attached. Comparison Type "CONTAINS". Validation Type "POSITIVE". @04-04-2022 07:37:51.0867 AM
+[ReportManager] Successfully created attachment "Validation Test Data - Expected Value" @04-04-2022 07:37:51.0867 AM
+[ReportManager] Successfully created attachment "Validation Test Data - Actual Value" @04-04-2022 07:37:51.0867 AM
+[ReportManager] Get response jsonvalue as list "$". @04-04-2022 07:37:51.0872 AM
+[ReportManager] Get response jsonvalue "name". @04-04-2022 07:37:51.0881 AM
+[ReportManager] Get response jsonvalue "email". @04-04-2022 07:37:51.0890 AM
+[ReportManager] Assertion "ValidateEquals" PASSED. Expected "Sincere@april.biz" and Actual "Sincere@april.biz". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 07:37:51.0890 AM
+[ReportManager] Get response jsonvalue "name". @04-04-2022 07:37:51.0899 AM
+[ReportManager] Get response jsonvalue "name". @04-04-2022 07:37:51.0949 AM
+[ReportManager] Get response jsonvalue "name". @04-04-2022 07:37:51.0958 AM
+[ReportManager] Get response jsonvalue "name". @04-04-2022 07:37:51.0967 AM
+[ReportManager] Get response jsonvalue "name". @04-04-2022 07:37:51.0974 AM
+[ReportManager] Get response jsonvalue "name". @04-04-2022 07:37:51.0981 AM
+[ReportManager] Get response jsonvalue "name". @04-04-2022 07:37:51.0988 AM
+[ReportManager] Get response jsonvalue "name". @04-04-2022 07:37:51.0995 AM
+[ReportManager] Get response jsonvalue "name". @04-04-2022 07:37:52.0002 A

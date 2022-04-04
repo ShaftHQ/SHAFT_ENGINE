@@ -1,0 +1,69 @@
+<html class="no-js" lang="en"><!--<![endif]--><head>
+    <script src="/js/vendor/298279967.js"></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <title>The Internet</title>
+    <link href="/css/app.css" rel="stylesheet">
+    <link href="/css/font-awesome.css" rel="stylesheet">
+    <script src="/js/vendor/jquery-1.11.3.min.js"></script>
+    <script src="/js/vendor/jquery-ui-1.11.4/jquery-ui.js"></script>
+    <script src="/js/foundation/foundation.js"></script><meta class="foundation-mq-small"><meta class="foundation-mq-medium"><meta class="foundation-mq-large"><style></style>
+    <script src="/js/foundation/foundation.alerts.js"></script>
+    <script>
+      $(document).foundation();
+    </script>
+  </head>
+  <body>
+    <div class="row">
+      <div id="flash-messages" class="large-12 columns">
+      
+        
+      
+        
+      
+        
+      
+      </div>
+    </div>
+    <div class="row">
+      <a href="https://github.com/tourdedave/the-internet"><img style="position: absolute; top: 0; right: 0; border: 0;" src="/img/forkme_right_green_007200.png" alt="Fork me on GitHub"></a>
+      <div id="content" class="large-12 columns">
+        <script>
+  $(function(){
+    $('#start button').click(function(){
+      $('#start').hide();
+      $('#start').before("<div id='loading'>Loading... <img src='/img/ajax-loader.gif'></div>");
+      setTimeout(function() {
+        $('#loading').hide();
+        $('#loading').before("<div id='finish' style='display:none'><h4>Hello World!</h4></div>")
+        $('#finish').show();
+      } , 5000 );
+    });
+  });
+</script>
+
+<div class="example">
+  <h3>Dynamically Loaded Page Elements</h3>
+  <h4>Example 2: Element rendered after the fact</h4>
+
+  <br>
+
+  <div id="finish" style=""><h4>Hello World!</h4></div><div id="loading" style="display: none;">Loading... <img src="/img/ajax-loader.gif"></div><div id="start" style="display: none;">
+    <button>Start</button>
+  </div>
+
+
+  <br>
+</div>
+
+      </div>
+    </div>
+    <div id="page-footer" class="row">
+      <div class="large-4 large-centered columns">
+        <hr>
+        <div style="text-align: center;">Powered by <a target="_blank" href="http://elementalselenium.com/">Elemental Selenium</a></div>
+      </div>
+    </div>
+  
+
+</body></html>

@@ -1,0 +1,14 @@
+
+################################################################################################################################################
+Starting Execution:	"184 out of 185" test cases in the current suite
+Test Method:		"dsl.testDsl.testCheckBox"
+################################################################################################################################################
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 07:44:19.0550 AM
+[ReportManager] Attempting to run remotely on: "Linux-64 | GoogleChrome | http://localhost:4444/wd/hub", Headless Execution. @04-04-2022 07:44:19.0551 AM
+[ReportManager] Successfully Opened "GoogleChrome". @04-04-2022 07:46:30.0401 AM
+[ReportManager] Target URL: "http://the-internet.herokuapp.com/" @04-04-2022 07:46:30.0403 AM
+[ReportManager] Initial URL: "data:," @04-04-2022 07:46:30.0458 AM
+[ReportManager] Navigate to url "http://the-internet.herokuapp.com/". @04-04-2022 07:46:31.0079 AM
+[ReportManager] Click "By.linkText: Checkboxes". @04-04-2022 07:46:31.0464 AM
+[ReportManager] Click "By.xpath: (//INPUT[@type='checkbox'])[1]". @04-04-2022 07:46:31.0763 AM
+[ReportManager] Click "By.xpath: (//INPUT[@type='checkbox'])[2]". @04-04-2022 07:46:32.0094 A

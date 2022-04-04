@@ -1,0 +1,8 @@
+
+################################################################################################################################################
+Starting Execution:	"135 out of 185" test cases in the current suite
+Test Method:		"unitTests.tests_browserActions.setWindowSize"
+################################################################################################################################################
+[ReportManager] Initial window size: (1920, 1080) @04-04-2022 07:38:18.0292 AM
+[ReportManager] Window size after SWD: (1280, 720) @04-04-2022 07:38:18.0514 AM
+[ReportManager] Set window size "New screen size is now: (1280, 720)". @04-04-2022 07:38:18.0515 A

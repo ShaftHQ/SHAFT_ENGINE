@@ -1,0 +1,18 @@
+
+################################################################################################################################################
+Starting Execution:	"93 out of 185" test cases in the current suite
+Test Method:		"testPackage01.Test_clipboardActions.typeTextAndCopyPaste"
+################################################################################################################################################
+[ReportManager] Target URL: "https://www.google.com/ncr", and after redirection: "https://www.google.com" @04-04-2022 07:26:02.0434 AM
+[ReportManager] Initial URL: "data:," @04-04-2022 07:26:02.0517 AM
+[ReportManager] Navigate to url "https://www.google.com/ncr". @04-04-2022 07:26:03.0391 AM
+[ReportManager] Type "FIRST". @04-04-2022 07:26:03.0807 AM
+[ReportManager] Clipboard actions "select all". @04-04-2022 07:26:03.0917 AM
+[ReportManager] Clipboard actions "copy". @04-04-2022 07:26:04.0076 AM
+[ReportManager] Clipboard actions "unselect". @04-04-2022 07:26:04.0148 AM
+[ReportManager] Clipboard actions "paste". @04-04-2022 07:26:04.0213 AM
+[ReportManager] Clipboard actions "select all". @04-04-2022 07:26:04.0308 AM
+[ReportManager] Type. @04-04-2022 07:26:04.0655 AM
+[ReportManager] Clipboard actions "cut". @04-04-2022 07:26:04.0656 AM
+[ReportManager] Clipboard actions "paste". @04-04-2022 07:26:04.0705 AM
+[ReportManager] Clipboard actions "paste". @04-04-2022 07:26:04.0772 A

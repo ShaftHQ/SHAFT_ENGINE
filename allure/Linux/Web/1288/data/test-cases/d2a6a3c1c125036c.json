@@ -1,0 +1,439 @@
+{
+  "uid" : "d2a6a3c1c125036c",
+  "name" : "uploadFile_visibleUploadInput",
+  "fullName" : "testPackage01.Test_uploadFile.uploadFile_visibleUploadInput",
+  "historyId" : "2935f6195ae2ad2b57e1bc1f5cb3a205",
+  "time" : {
+    "start" : 1649056926343,
+    "stop" : 1649056930461,
+    "duration" : 4118
+  },
+  "status" : "passed",
+  "flaky" : false,
+  "newFailed" : false,
+  "beforeStages" : [ {
+    "name" : "beforeMethod",
+    "time" : {
+      "start" : 1649056926119,
+      "stop" : 1649056926334,
+      "duration" : 215
+    },
+    "description" : "",
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Attempting to run remotely on: \"Linux-64 | GoogleChrome | http://localhost:4444/wd/hub\", Headless Execution.",
+      "time" : {
+        "start" : 1649056926122,
+        "stop" : 1649056926122,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Attempting to run remotely on: \"Linux-64 | GoogleChrome | http://localhost:4444/wd/hub\", Headless Execution."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Successfully Opened \"GoogleChrome\".",
+      "time" : {
+        "start" : 1649056926333,
+        "stop" : 1649056926334,
+        "duration" : 1
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Successfully Opened \"GoogleChrome\"."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ ],
+    "parameters" : [ ],
+    "stepsCount" : 2,
+    "attachmentsCount" : 0,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  }, {
+    "name" : "setupActivities",
+    "time" : {
+      "start" : 1649056899698,
+      "stop" : 1649056900518,
+      "duration" : 820
+    },
+    "description" : "",
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Folder \"extent-reports\" was not found, it may have already been deleted.",
+      "time" : {
+        "start" : 1649056899856,
+        "stop" : 1649056899857,
+        "duration" : 1
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Folder \"extent-reports\" was not found, it may have already been deleted."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Terminal Action \"PerformTerminalCommands\" successfully performed. With the following test data \"Host Name: \"localHost\" | Command: \"chmod u+x generateJdk.sh\" | Exit Status: \"1\"\".",
+      "time" : {
+        "start" : 1649056900515,
+        "stop" : 1649056900517,
+        "duration" : 2
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "8056e34f68f45169",
+        "name" : "Terminal Action Actual Result - Command Log",
+        "source" : "8056e34f68f45169.txt",
+        "type" : "text/plain",
+        "size" : 64
+      } ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Terminal Action \"PerformTerminalCommands\" successfully performed. With the following test data \"Host Name: \"localHost\" | Command: \"chmod u+x generateJdk.sh\" | Exit Status: \"1\"\"."
+      }, {
+        "name" : "attachments",
+        "value" : "[[Terminal Action Actual Result, Command Log, chmod: cannot access 'generateJdk.sh': No such file or directory]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 1,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ {
+      "uid" : "624cad70d624c55a",
+      "name" : "SHAFT Links - Important",
+      "source" : "624cad70d624c55a.uri",
+      "type" : "text/uri-list",
+      "size" : 346
+    } ],
+    "parameters" : [ ],
+    "stepsCount" : 2,
+    "attachmentsCount" : 2,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  } ],
+  "testStage" : {
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Navigate to url \"https://demo.guru99.com/test/upload/\".",
+      "time" : {
+        "start" : 1649056928383,
+        "stop" : 1649056928384,
+        "duration" : 1
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Navigate to url \"https://demo.guru99.com/test/upload/\"."
+      }, {
+        "name" : "attachments",
+        "value" : "[[]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Type file location for upload \"/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/main/resources/images/shaft.png\".",
+      "time" : {
+        "start" : 1649056928499,
+        "stop" : 1649056928499,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Type file location for upload \"/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/main/resources/images/shaft.png\"."
+      }, {
+        "name" : "attachments",
+        "value" : "[[]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Click \"By.id: terms\".",
+      "time" : {
+        "start" : 1649056928869,
+        "stop" : 1649056928869,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Click \"By.id: terms\"."
+      }, {
+        "name" : "attachments",
+        "value" : "[[]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Click \"By.id: submitbutton\".",
+      "time" : {
+        "start" : 1649056929216,
+        "stop" : 1649056929216,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Click \"By.id: submitbutton\"."
+      }, {
+        "name" : "attachments",
+        "value" : "[[]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Assertion Passed: The Element located by \"By.id: res\" attribute \"Text\" contains \"1 file\".",
+      "time" : {
+        "start" : 1649056930451,
+        "stop" : 1649056930452,
+        "duration" : 1
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "d6ee4dccb633004e",
+        "name" : "Screenshot - 1649056930283_uploadFile_visibleUploadInput_ValidateElementAttribute_passed",
+        "source" : "d6ee4dccb633004e.png",
+        "type" : "image/png",
+        "size" : 105546
+      } ],
+      "parameters" : [ {
+        "name" : "customLog",
+        "value" : "Assertion Passed: The Element located by \"By.id: res\" attribute \"Text\" contains \"1 file\"."
+      }, {
+        "name" : "stepLog",
+        "value" : "Assertion \"ValidateElementAttribute\" PASSED. Expected \"Value Should be '1 file' for the 'Text' attribute, element locator 'By.id: res'\" and Actual \"1 file\nhas been successfully uploaded.\". Comparison Type \"CONTAINS\". Validation Type \"POSITIVE\"."
+      }, {
+        "name" : "attachments",
+        "value" : "[[Screenshot, 1649056930283_uploadFile_visibleUploadInput_ValidateElementAttribute_passed, java.io.ByteArrayInputStream@65bd41d8]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 1,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ {
+      "uid" : "88212a271748f1e4",
+      "name" : "SHAFT Engine Logs - Current Method log: uploadFile_visibleUploadInput",
+      "source" : "88212a271748f1e4.txt",
+      "type" : "text/plain",
+      "size" : 1586
+    } ],
+    "parameters" : [ ],
+    "stepsCount" : 5,
+    "attachmentsCount" : 2,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  },
+  "afterStages" : [ {
+    "name" : "afterMethod",
+    "time" : {
+      "start" : 1649056930463,
+      "stop" : 1649056930618,
+      "duration" : 155
+    },
+    "description" : "",
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Close current window.",
+      "time" : {
+        "start" : 1649056930617,
+        "stop" : 1649056930618,
+        "duration" : 1
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "c7a03c5022643f64",
+        "name" : "Browser Action Test Data - Close current window - Actual Value",
+        "source" : "c7a03c5022643f64.xhtml",
+        "type" : "application/xhtml+xml",
+        "size" : 32609
+      } ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Close current window."
+      }, {
+        "name" : "attachments",
+        "value" : "[[Browser Action Test Data - Close current window, Actual Value, <html dir=\"LTR\" xmlns=\"http://www.w3.org/1999/xhtml\" lang=\"en\"><head>\n    \n <script type=\"text/javascript\" async=\"\" src=\"https://www.google-analytics.com/analytics.js\"></script><script src=\"https://securepubads.g.doubleclick.net/gpt/pubads_impl_page_level_ads_2022032905.js?cb=31066034\"></script><script async=\"\" defer=\"\" src=\"https://ccpa.privacymanager.io/1/ccpa.bundle.js\"></script><script type=\"text/javascript\" async=\"\" src=\"https://ccpa-wrapper.privacymanager.io/ccpa/75b86dcc-d9aa-4442-a859-bcb098cdb7d8/ccpa-liveramp.js\"></script><script async=\"async\" src=\"https://www.googletagservices.com/tag/js/gpt.js\"></script>\n<script>var gptadslots=[];\nvar googletag=googletag||{cmd:[]};\nwindow.googletag = window.googletag || {cmd: []};\nvar interstitialSlot, staticSlot, staticSlot1;\n</script>\n\n<script type=\"text/javascript\" src=\"//fdyn.pubwise.io/script/b7da2361-4ada-4374-9097-af748311b5fe/v3/dyn/pre_pws.js\"></script><meta http-equiv=\"origin-trial\" content=\"AxujKG9INjsZ8/gUq8+dTruNvk7RjZQ1oFhhgQbcTJKDnZfbzSTE81wvC2Hzaf3TW4avA76LTZEMdiedF1vIbA4AAABueyJvcmlnaW4iOiJodHRwczovL2ltYXNkay5nb29nbGVhcGlzLmNvbTo0NDMiLCJmZWF0dXJlIjoiVHJ1c3RUb2tlbnMiLCJleHBpcnkiOjE2NTI3NzQ0MDAsImlzVGhpcmRQYXJ0eSI6dHJ1ZX0=\"><meta http-equiv=\"origin-trial\" content=\"Azuce85ORtSnWe1MZDTv68qpaW3iHyfL9YbLRy0cwcCZwVnePnOmkUJlG8HGikmOwhZU22dElCcfrfX2HhrBPAkAAAB7eyJvcmlnaW4iOiJodHRwczovL2RvdWJsZWNsaWNrLm5ldDo0NDMiLCJmZWF0dXJlIjoiVHJ1c3RUb2tlbnMiLCJleHBpcnkiOjE2NTI3NzQ0MDAsImlzU3ViZG9tYWluIjp0cnVlLCJpc1RoaXJkUGFydHkiOnRydWV9\"><meta http-equiv=\"origin-trial\" content=\"A16nvcdeoOAqrJcmjLRpl1I6f3McDD8EfofAYTt/P/H4/AWwB99nxiPp6kA0fXoiZav908Z8etuL16laFPUdfQsAAACBeyJvcmlnaW4iOiJodHRwczovL2dvb2dsZXRhZ3NlcnZpY2VzLmNvbTo0NDMiLCJmZWF0dXJlIjoiVHJ1c3RUb2tlbnMiLCJleHBpcnkiOjE2NTI3NzQ0MDAsImlzU3ViZG9tYWluIjp0cnVlLCJpc1RoaXJkUGFydHkiOnRydWV9\"><meta http-equiv=\"origin-trial\" content=\"AxBHdr0J44vFBQtZUqX9sjiqf5yWZ/OcHRcRMN3H9TH+t90V/j3ENW6C8+igBZFXMJ7G3Pr8Dd13632aLng42wgAAACBeyJvcmlnaW4iOiJodHRwczovL2dvb2dsZXN5bmRpY2F0aW9uLmNvbTo0NDMiLCJmZWF0dXJlIjoiVHJ1c3RUb2tlbnMiLCJleHBpcnkiOjE2NTI3NzQ0MDAsImlzU3ViZG9tYWluIjp0cnVlLCJpc1RoaXJkUGFydHkiOnRydWV9\"><meta http-equiv=\"origin-trial\" content=\"A88BWHFjcawUfKU3lIejLoryXoyjooBXLgWmGh+hNcqMK44cugvsI5YZbNarYvi3roc1fYbHA1AVbhAtuHZflgEAAAB2eyJvcmlnaW4iOiJodHRwczovL2dvb2dsZS5jb206NDQzIiwiZmVhdHVyZSI6IlRydXN0VG9rZW5zIiwiZXhwaXJ5IjoxNjUyNzc0NDAwLCJpc1N1YmRvbWFpbiI6dHJ1ZSwiaXNUaGlyZFBhcnR5Ijp0cnVlfQ==\"><meta http-equiv=\"origin-trial\" content=\"A8FHS1NmdCwGqD9DwOicnHHY+y27kdWfxKa0YHSGDfv0CSpDKRHTQdQmZVPDUdaFWUsxdgVxlwAd6o+dhJykPA0AAACWeyJvcmlnaW4iOiJodHRwczovL2RvdWJsZWNsaWNrLm5ldDo0NDMiLCJmZWF0dXJlIjoiQ29udmVyc2lvbk1lYXN1cmVtZW50IiwiZXhwaXJ5IjoxNjQzMTU1MTk5LCJpc1N1YmRvbWFpbiI6dHJ1ZSwiaXNUaGlyZFBhcnR5Ijp0cnVlLCJ1c2FnZSI6InN1YnNldCJ9\"><meta http-equiv=\"origin-trial\" content=\"A8zdXi6dr1hwXEUjQrYiyYQGlU3557y5QWDnN0Lwgj9ePt66XMEvNkVWOEOWPd7TP9sBQ25X0Q15Lr1Nn4oGFQkAAACceyJvcmlnaW4iOiJodHRwczovL2dvb2dsZXN5bmRpY2F0aW9uLmNvbTo0NDMiLCJmZWF0dXJlIjoiQ29udmVyc2lvbk1lYXN1cmVtZW50IiwiZXhwaXJ5IjoxNjQzMTU1MTk5LCJpc1N1YmRvbWFpbiI6dHJ1ZSwiaXNUaGlyZFBhcnR5Ijp0cnVlLCJ1c2FnZSI6InN1YnNldCJ9\"><meta http-equiv=\"origin-trial\" content=\"A4/Htern2udN9w3yJK9QgWQxQFruxOXsXL7cW60DyCl0EZFGCSme/J33Q/WzF7bBkVvhEWDlcBiUyZaim5CpFQwAAACceyJvcmlnaW4iOiJodHRwczovL2dvb2dsZXRhZ3NlcnZpY2VzLmNvbTo0NDMiLCJmZWF0dXJlIjoiQ29udmVyc2lvbk1lYXN1cmVtZW50IiwiZXhwaXJ5IjoxNjQzMTU1MTk5LCJpc1N1YmRvbWFpbiI6dHJ1ZSwiaXNUaGlyZFBhcnR5Ijp0cnVlLCJ1c2FnZSI6InN1YnNldCJ9\"><script src=\"https://securepubads.g.doubleclick.net/gpt/pubads_impl_2022032905.js?cb=31066034\" async=\"\"></script>\n<script type=\"text/javascript\" src=\"//fdyn.pubwise.io/script/b7da2361-4ada-4374-9097-af748311b5fe/v3/dyn/pws.js\" async=\"\"></script>\n\n<script>\ngoogletag.cmd.push(function(){\ngoogletag.pubads().collapseEmptyDivs(true);\ngoogletag.pubads().disableInitialLoad();\n\n\ngptadslots['interstitial'] = googletag.defineOutOfPageSlot('/24132379/INTERSTITIAL_DemoGuru99', googletag.enums.OutOfPageFormat.INTERSTITIAL).addService(googletag.pubads());\n\n\ngoogletag.enableServices();\ngoogletag.pubads().setTargeting('TestMode', ['True']);\n});</script>\n\n<script async=\"\" src=\"https://fundingchoicesmessages.google.com/i/103512698?ers=3\"></script><script src=\"//btloader.com/tag?o=5764509824188416&amp;upapi=true\"></script><script async=\"\" src=\"https://fundingchoicesmessages.google.com/f/AGSKWxXtO1IaUWJRPqkPgocPoytjUay09tOGJ0Cj8-i2hP2P90s0RdJjAQRa_dFQW-D1N1zc5vs8i5UNyQdZ0YRlEQc=?fccs=W251bGwsbnVsbCxudWxsLG51bGwsbnVsbCxudWxsLFsxNjQ5MDU2OTI3LDI5MDAwMDAwXSwiNzVGRTVERDUtNUY0Ny00ODI5LUJEQzktNjNCMzBCQzhDQjQ2IiwiMEI0QTkzOTctRTkyRC00RURBLThEQjUtRTI0QjhCMkNCNDlGIixudWxsLFtudWxsLFs3XV0sImh0dHBzOi8vZGVtby5ndXJ1OTkuY29tL3Rlc3QvdXBsb2FkLyIsbnVsbCxbXV0\"></script><script async=\"\" src=\"https://fundingchoicesmessages.google.com/f/AGSKWxX3iEKguMXX9mZRXvm_lnuorQM1OK3FQJaiZ1gROHCHZzgPLvpbeE-2QGYcCaUtesMXASh9Cr0-SB3LhelqRSB3958PvQnsd9ApvO9JIlPyH4TX81NDkpwYjsjmGgVm66O44OovmwhfQCFFPV8WEak4HA3cTBuDwYSHN7Qcxa_ZgFvmWhx6F3FLld3i?fccs=W251bGwsbnVsbCxudWxsLG51bGwsbnVsbCxudWxsLFsxNjQ5MDU2OTI3LDExNzAwMDAwMF0sbnVsbCxudWxsLG51bGwsW251bGwsWzcsOV0sbnVsbCwyXSwiaHR0cHM6Ly9kZW1vLmd1cnU5OS5jb20vdGVzdC91cGxvYWQvIixudWxsLFtdXQ\"></script><link rel=\"preload\" href=\"https://adservice.google.com/adsid/integrator.js?domain=demo.guru99.com\" as=\"script\"><script type=\"text/javascript\" src=\"https://adservice.google.com/adsid/integrator.js?domain=demo.guru99.com\"></script><script async=\"\" src=\"https://fundingchoicesmessages.google.com/f/AGSKWxWpT4cHwBLPA4u1tZXm48Aag8w2s1PFZCQDH9_umdT-oFuJsZa3k7jpPFAU2-Yp8bWPNQ_xs_pa4zImgLnAWQoITm3jJIOw6mRdoQ08CnYJEwXWLii56GmwjbgNP77nuwvD6cd12Pg7O23RDdp_mWjjvXNfTj-1KgfHFBqCFXyeL0Iaw7Yje13DQfLO?fccs=W251bGwsbnVsbCxudWxsLG51bGwsbnVsbCxudWxsLFsxNjQ5MDU2OTI4LDg1MDAwMDAwMF0sbnVsbCxudWxsLG51bGwsW251bGwsWzcsOSw2XSxudWxsLDIsbnVsbCxudWxsLG51bGwsbnVsbCxudWxsLG51bGwsbnVsbCwxXSwiaHR0cHM6Ly9kZW1vLmd1cnU5OS5jb20vdGVzdC91cGxvYWQvIixudWxsLFtdXQ\"></script></head><body style=\"\" aria-hidden=\"false\"><div id=\"interstitial\">\n <script type=\"text/javascript\"> \n if (typeof(pubwise) != 'undefined' && pubwise.enabled === true) {\n pubwise.que.push(function() {              \n pubwise.renderAd('interstitial');\n      });\n    }else{\n googletag.cmd.push(function () {                    \n googletag.display('interstitial');\n googletag.pubads().refresh([gptadslots['interstitial']]);          \n      });\n    }\n </script>\n</div>\n\n<div id=\"static-ad-1\"></div>\n<script>\n        googletag.cmd.push(function() {\n        googletag.display(staticSlot);\n        });\n</script>   \n    \n    \n    \n    <meta name=\"robots\" content=\"nofollow, noindex\">\n    \n    <title>File Upload Demo</title>\n    \n   <link href=\"../css/bootstrap.min.css\" rel=\"stylesheet\">\n\n    <link href=\"../css/main.css\" rel=\"stylesheet\">\n    <link href=\"../css/custom.css\" rel=\"stylesheet\">\n    <link href=\"../css/slider-cars.css\" rel=\"stylesheet\"><iframe name=\"googlefcPresent\" style=\"display: none; width: 0px; height: 0px; border: none; z-index: -1000; left: -1000px; top: -1000px;\"></iframe>\n    <link href=\"../css/home-bar.css\" rel=\"stylesheet\"> \n   \t <link rel=\"stylesheet\" type=\"text/css\" href=\"../css/bd.css\">\n<style>\n.spinner {\n    opacity: 0;\n    display:none;\n    width: 20px;\n    height:10px;\n    -webkit-transition: opacity 0.25s, max-width 0.45s;\n    -moz-transition: opacity 0.25s, max-width 0.45s;\n    -o-transition: opacity 0.25s, max-width 0.45s;\n    transition: opacity 0.25s, max-width 0.45s;\n    /* Duration fixed since we animate additional hidden width */\n}\n.has-spinner.active {\n    cursor:progress;\n}\n.has-spinner.active .spinner {\n    display:inline-block;\n    opacity: 1;\n    max-width: 50px;\n    /* More than it will ever come, notice that this affects on animation duration */\n}\n.demo{\n  display:none; !important\n  }\n\n</style>\n<script src=\"//cdn.guru99.com/media/jui/js/jquery.min.js\"></script><iframe src=\"https://51f3bdece0679b553612e9cce5193fc3.safeframe.googlesyndication.com/safeframe/1-0-38/html/container.html\" style=\"visibility: hidden; display: none;\"></iframe><iframe name=\"__ccpaLocator\" style=\"display: none;\"></iframe><iframe name=\"__uspapiLocator\" style=\"display: none;\"></iframe><iframe name=\"__tcfapiLocator\" src=\"about:blank\" style=\"display: none; width: 0px; height: 0px; border: none; z-index: -1000; left: -1000px; top: -1000px;\"></iframe><iframe name=\"googlefcInactive\" src=\"about:blank\" style=\"display: none; width: 0px; height: 0px; border: none; z-index: -1000; left: -1000px; top: -1000px;\"></iframe><iframe name=\"googlefcLoaded\" src=\"about:blank\" style=\"display: none; width: 0px; height: 0px; border: none; z-index: -1000; left: -1000px; top: -1000px;\"></iframe><img src=\"https://ad.doubleclick.net/favicon.ico?ad=300x250&amp;ad_box_=1&amp;adnet=1&amp;showad=1&amp;size=250x250\" style=\"display: none !important; width: 1px !important; height: 1px !important;\"><img src=\"https://ad-delivery.net/px.gif?ch=1&amp;e=0.18701917894325382\" style=\"display: none !important; width: 1px !important; height: 1px !important;\"> \n<script src=\"https://code.jquery.com/jquery-1.10.2.js\"></script>\n<script type=\"text/javascript\">\n\n  (function () {\n    $(document).on(\"click\", \"#submitbutton\", function (event) {\n        var elem = $(event.currentTarget);\n        elem.addClass('active');\n        $('#res').hide();\n        \n        $.ajax({url:\"/echo/html/\",data: {delay:900000000}}).always(function(){\n            elem.removeClass('active');\n            $('#res').show();\n        });\n       \n    });\n})();\n\n</script>\n\n<script type=\"text/javascript\">archive_analytics.values.server_name=\"wwwb-app14.us.archive.org\";archive_analytics.values.server_ms=477;</script>\n<link type=\"text/css\" rel=\"stylesheet\" href=\"css/banner-styles.css\">\n\n\n\n<link href=\"css/style.css\" type=\"text/css\" rel=\"stylesheet\">\n\n<script language=\"JavaScript\">\n<!--\nvar NoFileSelected='You must select a file to upload!';\nvar SenderRequired='You need enter your email to send the download link!';\nvar EmailInvalid='Email address is invalid!';\nvar TOSUnchecked='Before upload,you must agree with our terms of services!';\nvar MaxUploadsGot = 'You have used out max uploads!';\nvar NeedRegister ='This feature need register to access!';\nvar UploadInvalid='Upload file is invalid!';\nvar AllowedFiletypes='Allowed';\nvar DisabledFiletypes='Disabled';\n\nvar FormUploadHint='Click \"browser\" to select a file from your PC to upload!';\nvar FlashUploadHint='Use Flash object upload files easily,Note:Flash 8 Player is required!';\nvar UrlUploadHint='Enter your file URL,we will fetch it for you,Format:/web/20141011154238/http://remote.com/file.ext';\nvar FTPUploadHint='Enter your ftp URL,we will fetch it for you,Format:anonymous ftp://domain.com/file.ext or ftp://username:password@domain.com/file.ext!';\nvar FlashNotLoaded='Wait a moment,flash object is not loaded!';\n\nvar skinWeb = '/web/20141011154238/http://www.megafileupload.com/skin/custom';\nvar max_uploads = '2';\nvar allowed_types  = '';\nvar disabled_types = 'php,exe,cgi';\nvar custom_fields  = 'descr,pw';\nvar cgi_prog_mode  = 'ajax';\nvar url_prog_mode  = 'ajax';\nvar ftp_prog_mode  = 'ajax';\n//-->\n</script>\n\n\n\n\n\n<!-- BEGIN WAYBACK TOOLBAR INSERT -->\n\n<script type=\"text/javascript\">//<![CDATA[\nvar __wm = (function(imgWidth,imgHeight,yearImgWidth,monthImgWidth){\nvar wbPrefix = \"/web/\";\nvar wbCurrentUrl = \"http://www.megafileupload.com/\";\n\nvar firstYear = 1996;\nvar displayDay = \"11\";\nvar displayMonth = \"Oct\";\nvar displayYear = \"2014\";\nvar prettyMonths = [\"Jan\",\"Feb\",\"Mar\",\"Apr\",\"May\",\"Jun\",\"Jul\",\"Aug\",\"Sep\",\"Oct\",\"Nov\",\"Dec\"];\nvar $D=document,$=function(n){return document.getElementById(n)};\nvar trackerVal,curYear = -1,curMonth = -1;\nvar yearTracker,monthTracker;\nfunction showTrackers(val) {\n  if (val===trackerVal) return;\n  var $ipp=$(\"wm-ipp\");\n  var $y=$(\"displayYearEl\"),$m=$(\"displayMonthEl\"),$d=$(\"displayDayEl\");\n  if (val) {\n    $ipp.className=\"hi\";\n  } else {\n    $ipp.className=\"\";\n    $y.innerHTML=displayYear;$m.innerHTML=displayMonth;$d.innerHTML=displayDay;\n  }\n  yearTracker.style.display=val?\"inline\":\"none\";\n  monthTracker.style.display=val?\"inline\":\"none\";\n  trackerVal = val;\n}\nfunction trackMouseMove(event,element) {\n  var eventX = getEventX(event);\n  var elementX = getElementX(element);\n  var xOff = Math.min(Math.max(0, eventX - elementX),imgWidth);\n  var monthOff = xOff % yearImgWidth;\n\n  var year = Math.floor(xOff / yearImgWidth);\n  var monthOfYear = Math.min(11,Math.floor(monthOff / monthImgWidth));\n  // 1 extra border pixel at the left edge of the year:\n  var month = (year * 12) + monthOfYear;\n  var day = monthOff % 2==1?15:1;\n  var dateString = zeroPad(year + firstYear) + zeroPad(monthOfYear+1,2) +\n    zeroPad(day,2) + \"000000\";\n\n  $(\"displayYearEl\").innerHTML=year+firstYear;\n  $(\"displayMonthEl\").innerHTML=prettyMonths[monthOfYear];\n  // looks too jarring when it changes..\n  //$(\"displayDayEl\").innerHTML=zeroPad(day,2);\n  var url = wbPrefix + dateString + '/' +  wbCurrentUrl;\n  $(\"wm-graph-anchor\").href=url;\n\n  if(curYear != year) {\n    var yrOff = year * yearImgWidth;\n    yearTracker.style.left = yrOff + \"px\";\n    curYear = year;\n  }\n  if(curMonth != month) {\n    var mtOff = year + (month * monthImgWidth) + 1;\n    monthTracker.style.left = mtOff + \"px\";\n    curMonth = month;\n  }\n}\nfunction hideToolbar() {\n  $(\"wm-ipp\").style.display=\"none\";\n}\nfunction bootstrap() {\n  var $spk=$(\"wm-ipp-sparkline\");\n  yearTracker=$D.createElement('div');\n  yearTracker.className='yt';\n  with(yearTracker.style){\n    display='none';width=yearImgWidth+\"px\";height=imgHeight+\"px\";\n  }\n  monthTracker=$D.createElement('div');\n  monthTracker.className='mt';\n  with(monthTracker.style){\n    display='none';width=monthImgWidth+\"px\";height=imgHeight+\"px\";\n  }\n  $spk.appendChild(yearTracker);\n  $spk.appendChild(monthTracker);\n\n  var $ipp=$(\"wm-ipp\");\n  $ipp&&disclaimElement($ipp);\n}\nreturn{st:showTrackers,mv:trackMouseMove,h:hideToolbar,bt:bootstrap};\n})(550, 27, 25, 2);//]]>\n</script>\n<style type=\"text/css\">\nbody {\n  margin-top:0 !important;\n  padding-top:0 !important;\n  min-width:800px !important;\n  background-color: #FFF;\n  font-family: 'Quicksand', sans-serif;\n    font-weight: 700;\n    font-size: 14px;\n}\na:visited {\n     color: #000; \n}\na:link {\n     color: #000; \n}\n</style>\n\n<script type=\"text/javascript\">__wm.bt();</script>\n<!-- END WAYBACK TOOLBAR INSERT -->\n\n<script> \n    $(function(){\n        $(\"#includedContent\").load(\"https://demo.guru99.com/topmenu.html\"); \n    });\n    </script> \n\t\n\t\n\t<div id=\"includedContent\">\n <!-- Global site tag (gtag.js) - Google Analytics -->\n<script async=\"\" src=\"https://www.googletagmanager.com/gtag/js?id=UA-1248015-24\"></script>\n<script>\n  window.dataLayer = window.dataLayer || [];\n  function gtag(){dataLayer.push(arguments);}\n  gtag('js', new Date());\n\n  gtag('config', 'UA-1248015-24');\n</script>  \n\n <div class=\"container-fluid\">\n        <!-- Top logo -->\n        <div class=\"row topper\">\n            <div class=\"col-md-4 header-section\">\n                <div class=\"logo\">\n                    <a href=\"#\" title=\"Home\" rel=\"home\" style=\"border: medium none;\"> <img src=\"/logo.png\" alt=\"Guru99 Demo Sites\" role=\"presentation\"> </a>\n                </div>\n                <div id=\"name-and-slogan\" style=\"padding-top: 0px;padding-left: 0px;\">\n                    <div id=\"site-name\" class=\"site-name\"><a href=\"#\" title=\"Home\" rel=\"home\" style=\"font-size:32px;\">Demo Site</a></div>\n                    \n                </div>\n            </div>\n            <div class=\"top-banner col-md-6\">\n               \n\n\n \n\n             \n\n            </div>\n        </div>\n        <!-- End Top -->\n        \n   \n<div class=\"row\">\n            <nav class=\"navbar navbar-default\" role=\"navigation\">\n                <div class=\"container\" style=\"padding-right: 0px;padding-left: 0px;\">\n                    <!-- Brand and toggle -->\n                   \n\n                    <!-- Nav links for toggling -->\n                    <div class=\"collapse navbar-collapse\" id=\"navbar-brand-centered\">\n                        <ul class=\"nav navbar-nav\">\n                            <li class=\"dropdown\">\n                                <a href=\"#\" class=\"dropdown-toggle\" data-toggle=\"dropdown\">Selenium\n\t\t\t\t\t  <b class=\"caret\"></b></a>\n                                <ul class=\"dropdown-menu\">\n                                    <li><a href=\"../../test/flash-testing.html\">Flash Movie Demo</a></li>\n                                    <li><a href=\"../../test/radio.html\">Radio &amp; Checkbox Demo</a></li> \n                                    <li><a href=\"../../test/table.html\">Table Demo</a></li> \n                                    <li><a href=\"../../test/link.html\">Accessing Link</a></li>\n                                    <li><a href=\"../../test/ajax.html\">Ajax Demo</a></li>\n                                    <li><a href=\"../../test/block.html\">Inside &amp; Outside Block Level Tag</a></li>\n                                    <li><a href=\"../../test/delete_customer.php\">Delete Customer Form</a></li>\n                                    <li><a href=\"../../test/yahoo.html\">Yahoo</a></li>\n                                    <li><a href=\"../../test/tooltip.html\">Tooltip</a></li>\n                                    <li><a href=\"../../test/upload/\">File Upload</a></li>\n                                    <li><a href=\"../../test/login.html\">Login</a></li>\n                                    <li><a href=\"../../test/social-icon.html\">Social Icon</a></li>\n                                    <li><a href=\"../../test/autoit.html\">Selenium Auto IT</a></li>\n                                    <li><a href=\"../../test/facebook.html\">Selenium IDE Test</a></li>\n                                    <li><a href=\"../../test/guru99home/\">Guru99 Demo Page</a></li>\n                                    <li><a href=\"../../test/guru99home/scrolling.html\">Scrollbar Demo</a></li>\n                                    <li><a href=\"../../test/image_upload/\">File Upload using Sikuli Demo</a></li>\n                                    <li><a href=\"../../test/cookie/selenium_aut.php\">Cookie Handling Demo</a></li>\n                                    <li><a href=\"../../test/drag_drop.html\">Drag and Drop Action</a></li>\n                                    <li><a href=\"../../test/\">Selenium DatePicker Demo</a></li>\n                                </ul>\n                            </li>\n                             <li class=\"dropdown\">\n                                <a href=\"http://demo.guru99.com/insurance/v1/index.php\">Insurance Project</a>\n                                \n                            </li>\n                           <li class=\"dropdown\">\n                                <a href=\"http://demo.guru99.com/Agile_Project/Agi_V1/\">Agile Project</a>\n                               \n                            </li>\n                            <li class=\"dropdown\">\n                                <a href=\"http://demo.guru99.com/V1/index.php\">Bank Project</a>\n                                \n                            </li>\n                            <li class=\"dropdown\">\n                               <a href=\"http://demo.guru99.com/Security/SEC_V1/index.php\">Security Project</a>\n                            </li>\n                            <li class=\"dropdown\"><a href=\"http://demo.guru99.com/telecom/index.html\">Telecom Project</a></li>\n                            \n                            <li class=\"dropdown\"><a href=\"http://demo.guru99.com/payment-gateway/index.php\">Payment Gateway Project</a></li>\n                            \n                            <li class=\"dropdown\"><a href=\"http://demo.guru99.com/test/newtours/\">New Tours</a></li>\n                            \n                            <li class=\"dropdown\">\n                                <a href=\"#\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" style=\"font-size: 14px;\">SEO\n\t\t\t\t\t  <b class=\"caret\"></b></a>\n                                <ul class=\"dropdown-menu\" style=\"font-size: 15px;\">\n                                   <li><a href=\"http://demo.guru99.com/seo/page-1.html\">Page-1</a></li>\n                                   <li><a href=\"http://demo.guru99.com/seo/page-2.html\">Page-2</a></li>\n                                   <li><a href=\"http://demo.guru99.com/seo/page-3.html\">Page-3</a></li>\n                                   <li><a href=\"http://demo.guru99.com/seo/page-4.html\">Page-4</a></li>\n                                   <li><a href=\"http://demo.guru99.com/seo/page-5.html\">Page-5</a></li>\n                                   <li><a href=\"http://demo.guru99.com/seo/page-6.html\">Page-6</a></li>\n                                </ul>\n                            </li>\n                        </ul>\n                        \n                        \n                    </div>\n                    <!-- /.navbar-collapse -->\n                </div>\n                <!-- /.container-fluid -->\n            </nav>\n        </div>\n         </div>\n</div>\n\n    <!-- ##### End Nav Bar ##### -->\n<div class=\"main_bg\">\n<div class=\"decor_bg\" style=\"background: #787C86;\">\n\n<div id=\"main\" class=\"main\">\n    \n\n\n\n \n    \n    <div style=\"text-align:center\">\n                  <!-- upload form start -->\n          <iframe width=\"0\" height=\"0\" name=\"uploadframe\" id=\"uploadframe\"></iframe>\n          <script>\n          var actions=new Array();\n          actions[1]='/web/20141011154238/http://212.7.194.85/cgi-bin/upload.cgi?sid=225b7867d510426ed86e1dcd57df2c69&maxfilesize=206000000&mode=ajax';\n          actions[2]='/web/20141011154238/http://212.7.194.85/uploading.php';\n          actions[3]='/web/20141011154238/http://212.7.194.85/uploading.php';\n          var progress_url='/web/20141011154238/http://212.7.194.85/progress.php';\n          var currentmode='1';\n          var flashPath='/web/20141011154238/http://www.megafileupload.com/includes/uploader.swf?UploadSession=225b7867d510426ed86e1dcd57df2c69&AccessKey=MTI=&ServerID=1';\n          var flashProgressPath = '/web/20141011154238/http://www.megafileupload.com/skin/custom/images/progress_bar.swf';\n          var use_flash_progress = parseInt(\"1\");\n          </script>\n          <div id=\"flashuploadobj\" style=\"top:-100px;left:-100px;position: absolute;visibility: visible;\"></div>\n\n          <form name=\"uploadform\" onsubmit=\"return postIt();\" action=\"/web/20141011154238/http://212.7.194.85/cgi-bin/upload.cgi?sid=225b7867d510426ed86e1dcd57df2c69&amp;maxfilesize=206000000\" method=\"post\" target=\"uploadframe\" enctype=\"multipart/form-data\">\n          <input type=\"hidden\" name=\"sessionid\" value=\"225b7867d510426ed86e1dcd57df2c69\">\n          <input type=\"hidden\" name=\"UploadSession\" value=\"225b7867d510426ed86e1dcd57df2c69\">\n          <input type=\"hidden\" name=\"AccessKey\" value=\"MTI=\">\n          <input type=\"hidden\" name=\"maxfilesize\" value=\"206000000\">\n          <input type=\"hidden\" name=\"phpuploadscript\" value=\"http://212.7.194.85/uploading.php\">\n          <input type=\"hidden\" name=\"returnurl\" value=\"http://www.megafileupload.com/cross.php\">\n\n          <div id=\"helpwindow\" style=\"display: none\">\n             <div class=\"info\">If you are interested in visiting one of the\n                  sponsored links during your upload,<br>please \"right click\" on\n                  the advertisement to avoid interruption of your upload.</div>\n          </div>\n\n          <div id=\"uploadwindow\">\n            <a name=\"up\"></a>\n\n\n            \n            \n\t\n            <div id=\"uploadmode1\" style=\"display:block\">\n                       \n            <div id=\"filelist\">\n             <div id=\"file_wraper0\">\n              <input type=\"file\" name=\"uploadfile_0\" class=\"upload_txt\" id=\"uploadfile_0\" size=\"40\">\n              <br>\n\t<div class=\"upload_options\">\n              <div id=\"file_options0\" style=\"display:none\">\n              <table>\n              <tbody><tr>\n                <td valign=\"bottom\" align=\"left\">\n                  <div class=\"field_title\">Meaningful file description (optional)</div>\n                  <textarea class=\"field_area\" id=\"file_descr_0\" name=\"file_descr[0]\" cols=\"50\" rows=\"10\"></textarea>\n                  <div class=\"field_title\">Password for download (optional)</div>\n                  <input type=\"text\" class=\"field_txt\" style=\"width:200px\" id=\"file_password_0\" name=\"file_password[0]\">\n                </td></tr>\n              </tbody></table>\n              </div>\n\t</div>\n             </div>\n            </div>\n                        </div>\n\n\t        <div id=\"flashversion\" style=\"display:none\">\n            You do not have the Flash plugin installed, or your browser does not support Javascript (you should enable it, perhaps?)\n\t        </div>\n            <div id=\"uploadmode4\" style=\"display:none\">\n                          <table id=\"uploadlist\" cellpadding=\"0\" cellspacing=\"0\" width=\"80%\">\n              <thead>\n              <tr><td>&nbsp;</td><td align=\"left\"><span class=\"field_title\"><b>File</b></span></td><td align=\"right\"><span class=\"field_title\"><b>Size</b></span></td><td>&nbsp;</td></tr>\n              </thead>\n              <tbody id=\"uploadlistbody\">\n              <tr><td></td><td></td></tr>\n              </tbody>\n              </table>\n              <table width=\"80%\" cellpadding=\"2\" cellspacing=\"0\" style=\"border-top:1px solid blue;\">\n              <tbody><tr><td>\n              <span class=\"field_title\">Please add files by using the<img src=\"/web/20141011154238im_/http://www.megafileupload.com/skin/custom/images/add.gif\" style=\"vertical-align:center\" alt=\"\"> icon in your lower right</span>\n              </td><td>\n              <span style=\"float:right;\"><a href=\"#up\" class=\"actionlink\" onclick=\"flashObj('flashUpload').addFiles();return false;\"><img src=\"/web/20141011154238im_/http://www.megafileupload.com/skin/custom/images/add.gif\" border=\"0\" alt=\"\"></a> <a href=\"#up\" class=\"actionlink\" onclick=\"flashObj('flashUpload').removeAllFiles();return false;\"><img src=\"/web/20141011154238im_/http://www.megafileupload.com/skin/custom/images/delete.png\" border=\"0\" alt=\"\"></a></span>\n              </td></tr>\n              </tbody></table>\n              <div id=\"flashoptions\" style=\"display:none\">\n              <table>\n              <tbody><tr>\n                <td valign=\"bottom\" align=\"left\" colspan=\"2\">\n                  <span class=\"field_title\">Edit <b><span id=\"flash_name\"></span></b></span>\n                  <input type=\"button\" onclick=\"save2Flash();\" value=\"Save\">\n                </td>\n              </tr>\n              <tr>\n                <td valign=\"bottom\" align=\"left\">\n                  <span class=\"field_title\"><b>Meaningful file description (optional)</b></span><br>\n                  <input type=\"text\" class=\"textinput\" style=\"width:200px\" id=\"flash_descr\" name=\"flash_descr\" value=\"\">\n                </td>\n                <td valign=\"bottom\" align=\"right\">\n                  <span class=\"field_title\"><b>Password for download (optional)</b></span><br>\n                  <input type=\"text\" class=\"textinput\" style=\"width:200px\" id=\"flash_password\" name=\"flash_password\">\n                </td>\n              </tr>\n              </tbody></table>\n              </div>\n                        </div>\n            \n            <div id=\"uploadmode2\" style=\"display:none\">\n                        <div class=\"warn\">This type of upload is disabled currently!please <a href=\"register.php\">register</a> to enable it!</div>\n                        </div>\n            \n            <div id=\"uploadmode3\" style=\"display:none\">\n                        <div class=\"warn\">This type of upload is disabled currently!please <a href=\"register.php\">register</a> to enable it!</div>\n                        </div>\n            <span class=\"field_title\" style=\"font-size:14px; color:#FFF;font-weight:400;\"><b>Select file to send(max 196.45 MB)</b></span>\n          </div>\n                    <div id=\"uploadoverview\" style=\"display: none; font-size: 9pt\"></div>\n          </form>\n          <script type=\"text/javascript\">\n            if(currentmode==4) buildFlashUpload(flashPath);\n          </script>\n          <!-- upload form end -->\n<!-- this is end -->    </div>\n    \n    \t        \n\n            <!-- email infomation start -->\n            <iframe width=\"0\" height=\"0\" name=\"emailframe\" id=\"emailframe\"></iframe>\n            <div id=\"emailwindow\">\n            <form name=\"emailform\" action=\"emaillinks.php\" method=\"post\" target=\"emailframe\">\n            <input type=\"hidden\" name=\"UploadSession\" value=\"225b7867d510426ed86e1dcd57df2c69\">\n            <input type=\"hidden\" name=\"AccessKey\" value=\"MTI=\">\n            <input type=\"hidden\" name=\"uploadmode\" value=\"1\">\n            <ul class=\"two_cols\">\n\t\t   \n\t\t    <li class=\"col_rgt\">\n\t\t    \n            <center><span class=\"field_title\" style=\"font-size:14px; color:#FFF;font-weight:400;\"><input type=\"checkbox\" class=\"field_check\" id=\"terms\" name=\"terms\"> I accept&nbsp;<a href=\"rules.php\" target=\"blank\" style=\"color:#FFF;\">terms of service</a></span></center> <br> <br> \n\n<div class=\"formbuttons\" style=\"text-align:center;\">\n    <button type=\"button\" id=\"submitbutton\" name=\"send\" class=\"btn buttoncolor has-spinner\" style=\"color:#000;\"> <span class=\"spinner\"><img src=\"images/spinner.gif\" width=\"15\" height=\"15\"></span>Submit File</button><br><br>\n    \n</div>\n\n<div class=\"formbuttons\">\n<h3 id=\"res\" class=\"demo\" style=\"color: rgb(255, 255, 255); display: block;\"><center>1 file <br>has been successfully uploaded.</center></h3>\n    \n</div>\n\t    \t</li>\n\t        </ul> \n\t\t\t</form>\n            </div>\n            <!-- email infomation end -->\n\n    \n\n    <div class=\"clear\"></div>\n\n<!-- //INCLUDEPHP helloworld.html -->\n\n\n\n\n\n</div>\n\n\n<br><br><br><br><br><br><br><br><br><br><br><br><br><br>\n</div>\n</div>\n\n<script src=\"http://demo.guru99.com/adsfooter.js\"></script>\n\n     <script src=\"../js/jquery.js\"></script>\n    <script src=\"../js/bootstrap.min.js\"></script>\n    <script src=\"../js/treemenu.js\"></script>\n    <script src=\"../js/slider-cars.js\"></script>\n    <script src=\"../js/home-bar.js\"></script>   \n\n<!-- Global site tag (gtag.js) - Google Analytics -->\n<script async=\"\" src=\"https://www.googletagmanager.com/gtag/js?id=UA-1248015-24\"></script>\n<script>\n  window.dataLayer = window.dataLayer || [];\n  function gtag(){dataLayer.push(arguments);}\n  gtag('js', new Date());\n\n  gtag('config', 'UA-1248015-24');\n</script>  \n\n\n\n\n\n\n\n\n\n\n<iframe src=\"https://www.google.com/recaptcha/api2/aframe\" width=\"0\" height=\"0\" style=\"display: none;\"></iframe></body><ins id=\"gpt_unit_/24132379/INTERSTITIAL_DemoGuru99_0\" style=\"display: none !important; width: 100vw !important; height: 100vh !important; inset: 0px auto auto 0px !important; clear: none !important; float: none !important; margin: 0px !important; max-height: none !important; max-width: none !important; opacity: 1 !important; overflow: visible !important; padding: 0px !important; position: fixed !important; vertical-align: baseline !important; visibility: visible !important; z-index: 2147483647 !important; background: transparent !important;\" data-google-query-id=\"CMLehOPv-fYCFVLowAodr9kKxw\" aria-hidden=\"true\" data-vignette-loaded=\"true\"><div id=\"google_ads_iframe_/24132379/INTERSTITIAL_DemoGuru99_0__container__\" style=\"border: 0pt none !important; display: inline-block !important; width: 100vw !important; height: 100vh !important; inset: auto !important; clear: none !important; float: none !important; margin: 0px !important; max-height: none !important; max-width: none !important; opacity: 1 !important; overflow: visible !important; padding: 0px !important; position: static !important; vertical-align: baseline !important; visibility: visible !important; z-index: auto !important;\"><iframe frameborder=\"0\" src=\"https://51f3bdece0679b553612e9cce5193fc3.safeframe.googlesyndication.com/safeframe/1-0-38/html/container.html\" id=\"google_ads_iframe_/24132379/INTERSTITIAL_DemoGuru99_0\" title=\"3rd party ad content\" name=\"\" scrolling=\"no\" marginwidth=\"0\" marginheight=\"0\" width=\"\" height=\"\" data-is-safeframe=\"true\" sandbox=\"allow-forms allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts allow-top-navigation-by-user-activation\" role=\"region\" aria-label=\"Advertisement\" tabindex=\"0\" data-google-container-id=\"1\" style=\"border: 0px !important; vertical-align: bottom !important; width: 100vw !important; height: 100vh !important; inset: 0px auto auto 0px !important; position: absolute !important; clear: none !important; display: inline !important; float: none !important; margin: 0px !important; max-height: none !important; max-width: none !important; opacity: 1 !important; overflow: visible !important; padding: 0px !important; visibility: visible !important; z-index: auto !important;\" data-load-complete=\"true\"></iframe></div></ins></html>]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 1,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ {
+      "uid" : "1bb57d734240621f",
+      "name" : "Selenium WebDriver Logs - browser",
+      "source" : "1bb57d734240621f.txt",
+      "type" : "text/plain",
+      "size" : 2701
+    } ],
+    "parameters" : [ ],
+    "stepsCount" : 1,
+    "attachmentsCount" : 2,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  }, {
+    "name" : "teardownActivities",
+    "time" : {
+      "start" : 1649058393508,
+      "stop" : 1649058394314,
+      "duration" : 806
+    },
+    "description" : "",
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Successfully Closed All Drivers.",
+      "time" : {
+        "start" : 1649058393635,
+        "stop" : 1649058393635,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Successfully Closed All Drivers."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Issue Summary: Total Issues = 7, New issues for Failed Tests = 5, Open issues for Passed Tests = 2, Open issues for Failed Tests = 0. Kindly check the attached Issue details.",
+      "time" : {
+        "start" : 1649058393644,
+        "stop" : 1649058393644,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "76dde7958d3753c6",
+        "name" : "SHAFT Engine Logs - Issues log CSV: 20220404-074633",
+        "source" : "76dde7958d3753c6.csv",
+        "type" : "text/csv",
+        "size" : 833
+      } ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Issue Summary: Total Issues = 7, New issues for Failed Tests = 5, Open issues for Passed Tests = 2, Open issues for Failed Tests = 0. Kindly check the attached Issue details."
+      }, {
+        "name" : "attachments",
+        "value" : "[[SHAFT Engine Logs, Issues log CSV: 20220404-074633, java.io.ByteArrayInputStream@6a50ead]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 1,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ {
+      "uid" : "892f13e702ea1217",
+      "name" : "Selenium WebDriver Logs - browser",
+      "source" : "892f13e702ea1217.txt",
+      "type" : "text/plain",
+      "size" : 294
+    }, {
+      "uid" : "4919222febc86fc3",
+      "name" : "SHAFT Engine Logs - Execution log: 20220404-074633",
+      "source" : "4919222febc86fc3.txt",
+      "type" : "text/plain",
+      "size" : 292502
+    }, {
+      "uid" : "86ea82a2bae8e670",
+      "name" : "HTML - Extent Emailable Execution Report",
+      "source" : "86ea82a2bae8e670.html",
+      "type" : "text/html",
+      "size" : 10712589
+    } ],
+    "parameters" : [ ],
+    "stepsCount" : 2,
+    "attachmentsCount" : 4,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  } ],
+  "labels" : [ {
+    "name" : "package",
+    "value" : "testPackage01.Test_uploadFile"
+  }, {
+    "name" : "testClass",
+    "value" : "testPackage01.Test_uploadFile"
+  }, {
+    "name" : "testMethod",
+    "value" : "uploadFile_visibleUploadInput"
+  }, {
+    "name" : "parentSuite",
+    "value" : "Suite"
+  }, {
+    "name" : "suite",
+    "value" : "Test"
+  }, {
+    "name" : "subSuite",
+    "value" : "testPackage01.Test_uploadFile"
+  }, {
+    "name" : "host",
+    "value" : "fv-az290-429"
+  }, {
+    "name" : "thread",
+    "value" : "3454@fv-az290-429.main(1)"
+  }, {
+    "name" : "framework",
+    "value" : "testng"
+  }, {
+    "name" : "language",
+    "value" : "java"
+  }, {
+    "name" : "resultFormat",
+    "value" : "allure2"
+  } ],
+  "parameters" : [ ],
+  "links" : [ ],
+  "hidden" : false,
+  "retry" : false,
+  "extra" : {
+    "severity" : "normal",
+    "retries" : [ ],
+    "categories" : [ ],
+    "tags" : [ ]
+  },
+  "source" : "d2a6a3c1c125036c.json",
+  "parameterValues" : [ ]
+}

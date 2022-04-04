@@ -1,0 +1,388 @@
+{
+  "uid" : "c9571200650e29f6",
+  "name" : "getWindowHandle",
+  "fullName" : "unitTests.tests_browserActions.getWindowHandle",
+  "historyId" : "476ac2975115e742d5e5e8c3b57ebdf4",
+  "time" : {
+    "start" : 1649057879071,
+    "stop" : 1649057879095,
+    "duration" : 24
+  },
+  "status" : "passed",
+  "flaky" : false,
+  "newFailed" : false,
+  "beforeStages" : [ {
+    "name" : "beforeMethod",
+    "time" : {
+      "start" : 1649057878219,
+      "stop" : 1649057879064,
+      "duration" : 845
+    },
+    "description" : "",
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Attempting to run remotely on: \"Linux-64 | GoogleChrome | http://localhost:4444/wd/hub\", Headless Execution.",
+      "time" : {
+        "start" : 1649057878220,
+        "stop" : 1649057878220,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Attempting to run remotely on: \"Linux-64 | GoogleChrome | http://localhost:4444/wd/hub\", Headless Execution."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Successfully Opened \"GoogleChrome\".",
+      "time" : {
+        "start" : 1649057878417,
+        "stop" : 1649057878417,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Successfully Opened \"GoogleChrome\"."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Navigate to url \"https://duckduckgo.com\".",
+      "time" : {
+        "start" : 1649057879064,
+        "stop" : 1649057879064,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Navigate to url \"https://duckduckgo.com\"."
+      }, {
+        "name" : "attachments",
+        "value" : "[[]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ ],
+    "parameters" : [ ],
+    "stepsCount" : 3,
+    "attachmentsCount" : 0,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  }, {
+    "name" : "setupActivities",
+    "time" : {
+      "start" : 1649056899698,
+      "stop" : 1649056900518,
+      "duration" : 820
+    },
+    "description" : "",
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Folder \"extent-reports\" was not found, it may have already been deleted.",
+      "time" : {
+        "start" : 1649056899856,
+        "stop" : 1649056899857,
+        "duration" : 1
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Folder \"extent-reports\" was not found, it may have already been deleted."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Terminal Action \"PerformTerminalCommands\" successfully performed. With the following test data \"Host Name: \"localHost\" | Command: \"chmod u+x generateJdk.sh\" | Exit Status: \"1\"\".",
+      "time" : {
+        "start" : 1649056900515,
+        "stop" : 1649056900517,
+        "duration" : 2
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "8056e34f68f45169",
+        "name" : "Terminal Action Actual Result - Command Log",
+        "source" : "8056e34f68f45169.txt",
+        "type" : "text/plain",
+        "size" : 64
+      } ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Terminal Action \"PerformTerminalCommands\" successfully performed. With the following test data \"Host Name: \"localHost\" | Command: \"chmod u+x generateJdk.sh\" | Exit Status: \"1\"\"."
+      }, {
+        "name" : "attachments",
+        "value" : "[[Terminal Action Actual Result, Command Log, chmod: cannot access 'generateJdk.sh': No such file or directory]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 1,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ {
+      "uid" : "624cad70d624c55a",
+      "name" : "SHAFT Links - Important",
+      "source" : "624cad70d624c55a.uri",
+      "type" : "text/uri-list",
+      "size" : 346
+    } ],
+    "parameters" : [ ],
+    "stepsCount" : 2,
+    "attachmentsCount" : 2,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  } ],
+  "testStage" : {
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Get window handle \"CDwindow-88AAE2F3FBD1DBF4803A0942C50E34D9\".",
+      "time" : {
+        "start" : 1649057879094,
+        "stop" : 1649057879094,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Get window handle \"CDwindow-88AAE2F3FBD1DBF4803A0942C50E34D9\"."
+      }, {
+        "name" : "attachments",
+        "value" : "[[]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ {
+      "uid" : "152dcb13103450d2",
+      "name" : "SHAFT Engine Logs - Current Method log: getWindowHandle",
+      "source" : "152dcb13103450d2.txt",
+      "type" : "text/plain",
+      "size" : 529
+    } ],
+    "parameters" : [ ],
+    "stepsCount" : 1,
+    "attachmentsCount" : 1,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  },
+  "afterStages" : [ {
+    "name" : "afterMethod",
+    "time" : {
+      "start" : 1649057879097,
+      "stop" : 1649057879613,
+      "duration" : 516
+    },
+    "description" : "",
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Navigate to url \"https://duckduckgo.com\".",
+      "time" : {
+        "start" : 1649057879467,
+        "stop" : 1649057879467,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Navigate to url \"https://duckduckgo.com\"."
+      }, {
+        "name" : "attachments",
+        "value" : "[[]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Close current window.",
+      "time" : {
+        "start" : 1649057879612,
+        "stop" : 1649057879613,
+        "duration" : 1
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "d746f023f5a8b06a",
+        "name" : "Browser Action Test Data - Close current window - Actual Value",
+        "source" : "d746f023f5a8b06a.html",
+        "type" : "text/html",
+        "size" : 38823
+      } ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Close current window."
+      }, {
+        "name" : "attachments",
+        "value" : "[[Browser Action Test Data - Close current window, Actual Value, <html class=\"js no-touch opacity csstransforms3d csstransitions svg cssfilters is-not-mobile-device full-urls breadcrumb-urls is-link-style-exp is-link-order-exp is-atb-fullbleed has-search-focus\" lang=\"en-US\"><!--<![endif]--><head>\n\t<meta http-equiv=\"X-UA-Compatible\" content=\"IE=Edge\">\n<meta http-equiv=\"content-type\" content=\"text/html; charset=UTF-8;charset=utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, user-scalable=1\">\n<meta name=\"HandheldFriendly\" content=\"true\">\n\n<link rel=\"canonical\" href=\"https://duckduckgo.com/\">\n\n<link rel=\"stylesheet\" href=\"/s2051.css\" type=\"text/css\">\n\n<link rel=\"stylesheet\" href=\"/o2051.css\" type=\"text/css\">\n\n\n\n<link rel=\"preload\" href=\"/font/ProximaNova-Reg-webfont.woff2\" as=\"font\" type=\"font/woff2\" crossorigin=\"anonymous\">\n<link rel=\"preload\" href=\"/font/ProximaNova-Sbold-webfont.woff2\" as=\"font\" type=\"font/woff2\" crossorigin=\"anonymous\">\n<link rel=\"preload\" href=\"/font/ProximaNova-ExtraBold-webfont.woff2\" as=\"font\" type=\"font/woff2\" crossorigin=\"anonymous\">\n\n<link rel=\"shortcut icon\" href=\"/favicon.ico\" type=\"image/x-icon\">\n<link rel=\"apple-touch-icon\" href=\"/assets/icons/meta/DDG-iOS-icon_60x60.png\">\n<link rel=\"apple-touch-icon\" sizes=\"76x76\" href=\"/assets/icons/meta/DDG-iOS-icon_76x76.png\">\n<link rel=\"apple-touch-icon\" sizes=\"120x120\" href=\"/assets/icons/meta/DDG-iOS-icon_120x120.png\">\n<link rel=\"apple-touch-icon\" sizes=\"152x152\" href=\"/assets/icons/meta/DDG-iOS-icon_152x152.png\">\n<link rel=\"image_src\" href=\"/assets/icons/meta/DDG-icon_256x256.png\">\n<link rel=\"manifest\" href=\"/manifest.json\">\n\n<meta name=\"twitter:card\" content=\"summary\">\n<meta name=\"twitter:site\" value=\"@duckduckgo\">\n\n<meta property=\"og:url\" content=\"https://duckduckgo.com/\">\n<meta property=\"og:site_name\" content=\"DuckDuckGo\">\n<meta property=\"og:image\" content=\"https://duckduckgo.com/assets/logo_social-media.png\">\n\n\n\t<title>DuckDuckGo — Privacy, simplified.</title>\n<meta property=\"og:title\" content=\"DuckDuckGo — Privacy, simplified.\">\n\n\n<meta property=\"og:description\" content=\"The Internet privacy company that empowers you to seamlessly take control of your personal information online, without any tradeoffs.\">\n<meta name=\"description\" content=\"The Internet privacy company that empowers you to seamlessly take control of your personal information online, without any tradeoffs.\">\n\n\n<link title=\"DuckDuckGo\" type=\"application/opensearchdescription+xml\" rel=\"search\" href=\"https://duckduckgo.com/opensearch.xml?atb=v319-6__\"><script type=\"application/ld+json\">{\"@context\":\"https://schema.org\",\"@type\":\"Organization\",\"name\":\"DuckDuckGo\",\"url\":\"http://duckduckgo.com/\",\"logo\":\"https://duckduckgo.com/assets/logo_social-media.png\"}</script></head>\n<body id=\"pg-index\" class=\"page-index body--home body--onboarding\">\n\t<script type=\"text/javascript\" src=\"/tl5.js\"></script>\n<script type=\"text/javascript\" src=\"/b5.js\"></script>\n<script type=\"text/javascript\" src=\"/lib/l129.js\"></script>\n<script type=\"text/javascript\" src=\"/locale/en_US/duckduckgo14.js\"></script>\n<script type=\"text/javascript\" src=\"/util/u623.js\"></script>\n<script type=\"text/javascript\" src=\"/d3058.js\"></script>\n\n\n<script type=\"text/javascript\" src=\"/h6.js\"></script>\n\n\n<script type=\"text/javascript\" src=\"/ti5.js\"></script>\n\n\n\n\t<div class=\"site-wrapper  site-wrapper--home  js-site-wrapper\">\n\t\n\t\t\n\t\t\t<div class=\"header-wrap--home  js-header-wrap\">\n\t<div class=\"header--aside js-header-aside\"><a class=\"header__button--menu  js-side-menu-open\" href=\"#\">⇶</a><div class=\"header--aside__item showcase header__label\"><span class=\"header__clickable js-hl-button\" data-type=\"showcase\"><span class=\"js-popout-trig\" aria-haspopup=\"true\" aria-label=\"Check out the list of things that we've also made.\" role=\"button\" aria-pressed=\"false\"><span id=\"wedonttrack\">Privacy, simplified.</span></span><span class=\"popout-trig  js-popout\"><span class=\"js-popout-link js-showcase-popout ddgsi ddgsi-down\" aria-hidden=\"true\" data-type=\"showcase\"></span><div class=\"modal modal--popout modal--popout--bottom-left modal--popout--sm  js-popout-main\" data-type=\"showcase\"><div class=\"modal__box\"><div class=\"modal__body\"><nav aria-labelledby=\"wedonttrack\"><section class=\"showcase__dropdown-top\"><ul aria-label=\"Here are some things that we made that you might like.\"><li class=\"fix showcase__dropdown__list\"><a href=\"/app\" class=\"eighteen js-hl-item\" aria-hidden=\"true\" data-type=\"showcase\" data-id=\"app\"><div class=\"woman-icon\"></div></a><a href=\"/app\" class=\"text-left showcase__link eighty js-hl-item\" data-type=\"showcase\" data-id=\"app\"><h1 class=\"showcase__heading\">Get Our App &amp; Extension</h1><p class=\"showcase__subheading\">Protect your data on every device.</p></a></li><li class=\"fix showcase__dropdown__list\"><a href=\"/newsletter\" class=\"eighteen js-hl-item\" aria-hidden=\"true\" data-type=\"showcase\" data-id=\"newsletter\"><div class=\"mailbox-icon\"></div></a><a href=\"/newsletter\" class=\"text-left showcase__link eighty js-hl-item\" data-type=\"showcase\" data-id=\"newsletter\"><h1 class=\"showcase__heading\">Privacy in Your Inbox</h1><p class=\"showcase__subheading\">Stay protected and informed with our privacy newsletters.</p></a></li><li class=\"fix showcase__dropdown__list\"><a href=\"https://spreadprivacy.com/tag/device-privacy-tips/\" class=\"eighteen js-hl-item\" aria-hidden=\"true\" data-type=\"showcase\" data-id=\"blog\"><div class=\"privacy-simplified-icon\"></div></a><a href=\"https://spreadprivacy.com/tag/device-privacy-tips/\" class=\"text-left showcase__link eighty js-hl-item\" data-type=\"showcase\" data-id=\"blog\"><h1 class=\"showcase__heading\">Protect Your Devices</h1><p class=\"showcase__subheading\">Check out our privacy device guides.</p></a></li><li class=\"fix showcase__dropdown__list\"><a href=\"https://duckduckgo.com/spread\" class=\"eighteen js-hl-item\" aria-hidden=\"true\" data-type=\"showcase\" data-id=\"spread\"><div class=\"spread-icon\"></div></a><a href=\"https://duckduckgo.com/spread\" class=\"text-left showcase__link eighty js-hl-item\" data-type=\"showcase\" data-id=\"spread\"><h1 class=\"showcase__heading\">Spread DuckDuckGo</h1><p class=\"showcase__subheading\">Help your friends and family join the Duck Side!</p></a></li></ul></section><section class=\"showcase__dropdown-bottom\"><ul class=\"text-left\" aria-label=\"We've got even more things for you.\"><li class=\"fix showcase__dropdown__list\"><a href=\"https://duckduckgo.com/donations\" class=\"eighteen showcase__icon js-hl-item\" aria-hidden=\"true\" data-type=\"showcase\" data-id=\"donations\"><div class=\"donations-icon\"></div></a><a href=\"https://duckduckgo.com/donations\" class=\"text-left showcase__link eighty showcase__text js-hl-item\" data-type=\"showcase\" data-id=\"donations\">$3,650,000 in privacy donations!</a></li><li class=\"fix showcase__dropdown__list\"><a href=\"https://duckduckgo.com/traffic\" class=\"eighteen showcase__icon js-hl-item\" aria-hidden=\"true\" data-type=\"showcase\" data-id=\"traffic\"><div class=\"traffic-icon\"></div></a><a href=\"https://duckduckgo.com/traffic\" class=\"text-left showcase__link eighty showcase__text js-hl-item\" data-type=\"showcase\" data-id=\"traffic\">Over 107 Billion anonymous searches.</a></li><li class=\"fix showcase__dropdown__list\"><a href=\"https://donttrack.us/\" class=\"eighteen showcase__icon js-hl-item\" aria-hidden=\"true\" data-type=\"showcase\" data-id=\"dnt\"><div class=\"privacy-tips-icon\"></div></a><a href=\"https://donttrack.us/\" class=\"text-left showcase__link eighty showcase__text js-hl-item\" data-type=\"showcase\" data-id=\"dnt\">Learn why reducing tracking is important.</a></li></ul></section></nav></div></div></div></span></span></div><div class=\"header--aside__item header--aside__social header__label social\"><span class=\"header__clickable js-hl-button\" data-type=\"social\"><span class=\"js-popout-trig header--aside__social-icon \" aria-haspopup=\"true\" aria-label=\"Keep in touch\" role=\"button\" aria-pressed=\"false\"><span class=\"ddgsi ddgsi-horn\" data-type=\"social\"></span></span><span class=\"popout-trig js-popout\"><span class=\"js-popout-link ddgsi ddgsi-down\" aria-hidden=\"true\" data-type=\"social\"></span><div class=\"modal modal--popout modal--popout--bottom-left modal--popout--sm  js-popout-main\" data-type=\"social\"><div class=\"modal__box\"><div class=\"modal__body\"><div class=\"social__link\"><a href=\"https://twitter.com/duckduckgo\" class=\"js-hl-item social__link__text\" data-type=\"social\" data-id=\"twitter\"><img class=\"social__icon js-lazysvg\" data-src=\"/assets/icons/header/twitter.svg\"><span>Twitter</span></a></div><div class=\"social__link\"><a href=\"https://reddit.com/r/duckduckgo\" class=\"js-hl-item social__link__text\" data-type=\"social\" data-id=\"reddit\"><img class=\"social__icon js-lazysvg\" data-src=\"/assets/icons/header/reddit.svg\"><span>Reddit</span></a></div><div class=\"social__link\"><a href=\"https://spreadprivacy.com\" class=\"js-hl-item social__link__text\" data-type=\"social\" data-id=\"blog\"><img class=\"social__icon js-lazysvg\" data-src=\"/assets/icons/header/blog.svg\"><span>Blog</span></a></div><div class=\"social__link\"><a href=\"https://duckduckgo.com/newsletter\" class=\"js-hl-item social__link__text\" data-type=\"social\" data-id=\"newsletter\"><img class=\"social__icon js-lazysvg\" data-src=\"/assets/icons/header/newsletter.svg\"><span>Newsletter</span></a></div></div></div></div></span></span></div></div>\n</div>\n\t\t\t<div id=\"\" class=\"content-wrap--home\">\n\t\t\t\t<div id=\"content_homepage\" class=\"content--home\" style=\"visibility: visible;\">\n\t\t\t\t\t<div class=\"cw--c\">\n\t\t\t\t\t\t\t\t<div class=\"logo-wrap--home\">\n\t\t\t<a id=\"logo_homepage_link\" class=\"logo_homepage\" href=\"/about\">\n\t\t\t\tAbout DuckDuckGo\n\t\t\t\t<span class=\"logo_homepage__tt\">Learn More</span>\n\t\t\t</a>\n\t\t</div>\n\n\t\t\t\t\t\t<div class=\"search-wrap--home\">\n\t\t\t\t\t\t\t<form id=\"search_form_homepage\" class=\"search--home  js-search-form search--adv search--focus\" name=\"x\" method=\"GET\" action=\"/\">\n    <input id=\"search_form_input_homepage\" class=\"js-search-input search__input--adv\" type=\"text\" autocomplete=\"off\" name=\"q\" tabindex=\"1\" value=\"\" autocapitalize=\"off\" autocorrect=\"off\" placeholder=\"Search the web without being tracked\">\n    <input id=\"search_button_homepage\" class=\"search__button  js-search-button\" type=\"submit\" tabindex=\"2\" value=\"S\">\n    <input id=\"search_form_input_clear\" class=\"search__clear  empty  js-search-clear\" type=\"button\" tabindex=\"3\" value=\"X\">\n    <div id=\"search_elements_hidden\" class=\"search__hidden  js-search-hidden\"><input type=\"hidden\" class=\"js-search-hidden-field\" name=\"t\" value=\"h_\"></div>\n<div class=\"search__autocomplete\"><div class=\"acp-wrap js-acp-wrap\"></div><div class=\"acp-footer is-hidden js-acp-footer\"><span class=\"acp-footer__instructions\">Shortcuts to other sites to search off DuckDuckGo</span><span class=\"acp-footer__link\"><a class=\"no-visited js-acp-footer-link\" href=\"/bang\">Learn More</a></span></div></div></form>\n\n\t\t\t\t\t\t</div>\n\t\t\n\t\n\n\t\t\t\t\t\t<!-- en_US All Settings -->\n<noscript>\n    <div class=\"tag-home\">\n        <div class=\"tag-home__wrapper\">\n            <div class=\"tag-home__item\">\n                Privacy, simplified&period;\n                <span class=\"hide--screen-xs\"><a href=\"/about\" class=\"tag-home__link\">Learn More</a>.</span>\n            </div>\n        </div>\n    </div>\n</noscript>\n<div class=\"tag-home  tag-home--slide  no-js__hide  js-tag-home\"><div class=\"tag-home__wrapper\"><div class=\"tag-home__item\">Privacy, simplified.<span class=\"hide--screen-xs\"> <a class=\"tag-home__link js-tag-item-link\" href=\"/spread\">Help Spread DuckDuckGo!</a></span></div></div></div>\n<div id=\"error_homepage\"></div>\n\n\n\t\n\t\t\n\t\t\t\t\t</div> <!-- cw -->\n\t\t\t\t<div class=\"badge-link badge-link--full badge-link--set-as-default js-badge-link\" lang=\"en-US\"><div class=\"badge-link__wrap js-badge-main-msg\"><div class=\"badge-link__content\"><h1 class=\"badge-link__title\">Tired of being tracked online? <span>We can help.</span></h1><p class=\"badge-link__subtitle\">We don't store your personal info. We don't follow you around with ads. We don't track you. Ever.</p><a class=\"badge-link__btn-wrap\" href=\"/install?t=h_\" target=\"_blank\"><span class=\"badge-link__btn btn btn--primary js-badge-link-button\">Add DuckDuckGo to Chrome</span></a><a href=\"https://chrome.google.com/webstore/detail/bkdgflcldnnnapblkhphbgpggdiikppg/reviews\" target=\"_blank\" class=\"badge-link__rating\" title=\"Average rating: 4.4 out of 5\"></a></div></div></div><div class=\"content-info\" lang=\"en-US\"><div class=\"content-info__title\">Privacy Protection For Any Device</div><div class=\"content-info__items \"><div class=\"content-info__items-wrap\"><div class=\"content-info__item\"><img class=\"content-info__item__icon\" src=\"/assets/add-to-browser/cppm/laptop.svg\" alt=\"a laptop with a lock on the screen and a red bird standing on it\"><div class=\"content-info__item__title\">Privacy Browser Extension</div><div class=\"content-info__item__subtitle\">Browse as usual, and we’ll take care of the rest. Get bundled private search, tracker blocking, and site encryption, all in one download, for <a href=\"https://duckduckgo.com/app\" target=\"_blank\" class=\"js-atb-tile-link content-info__item__link\" data-id=\"ext\">major browsers</a>.</div></div><div class=\"content-info__item\"><img class=\"content-info__item__icon\" src=\"/assets/home/landing/icons/search.svg\" alt=\"purple magnifying glass with a gold lock in the middle\"><div class=\"content-info__item__title\">Private Search Engine</div><div class=\"content-info__item__subtitle\">Search privately with our app or extension, add private web search to your favorite browser, or search directly at <span class=\"content-info__item__link js-atb-tile-link js-scroll-top\" data-id=\"st\">duckduckgo.com</span>.</div></div><div class=\"content-info__item\"><img class=\"content-info__item__icon\" src=\"/assets/add-to-browser/cppm/mobile.svg\" alt=\"a mobile phone with a lock on the screen\"><div class=\"content-info__item__title\">Privacy Browser App</div><div class=\"content-info__item__subtitle\">Our private browser for mobile comes equipped with our search engine, tracker blocker, encryption enforcer, and more. Available on <a href=\"https://duckduckgo.com/app\" target=\"_blank\" class=\"content-info__item__link js-atb-tile-link\" data-id=\"app\">iOS &amp; Android</a>.</div></div></div><!-- Background Curve --><svg class=\"content-info__curve\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1438 134\"><path d=\"M1438 1442H0V31.001S438.105 0 719 .001c280.896 0 719 31 719 31V1442z\" fill=\"currentColor\"></path></svg></div></div></div> <!-- content_homepage //-->\n\t\t\t</div> <!-- content_wrapper_homepage //-->\n\t\t\t<div id=\"footer_homepage\" class=\"foot-home  js-foot-home\"></div>\n\n<script type=\"text/javascript\">\n\t{function seterr(str) {\n\t\tvar error=document.getElementById('error_homepage');\n\t\terror.innerHTML=str;\n\t\t$(error).css('display','block');\n\t}\n\tvar err=new RegExp('[\\?\\&]e=([^\\&]+)');var errm=new Array();errm['2']='no search.';errm['3']='search too long.';errm['4']='not UTF\\u002d8 encoding.';errm['6']='too many search terms.';if (err.test(window.location.href)) seterr('Oops, '+(errm[RegExp.$1]?errm[RegExp.$1]:'there was an error.')+'&nbsp;Please try again.');};\n\t\n\tif (kurl) {\n\t  document.getElementById(\"logo_homepage_link\").href += (document.getElementById(\"logo_homepage_link\").href.indexOf('?')==-1 ? '?t=i' : '') + kurl;\n\t}\n</script>\n\n\t\t\n\t\n\t<div class=\"nav-menu--slideout\"><ul class=\"nav-menu__list\"><i class=\"nav-menu__close  js-side-menu-close\">X</i><ul class=\"nav-menu--theme\"><li class=\"nav-menu__heading\"><span>Settings</span></li><li class=\"nav-menu__item clear\"><a href=\"/settings#theme\" data-settings=\"1\">Themes</a></li><li class=\"nav-menu__item\"><a href=\"/settings\" tabindex=\"-1\" data-settings=\"1\">All Settings</a></li><li class=\"nav-menu__item\"><a href=\"/bangs\">!Bang Search Shortcuts</a></li></ul><ul><li class=\"nav-menu__heading\"><span>Privacy Essentials</span></li><li class=\"nav-menu__item\"><a href=\"https://duckduckgo.com/\">Private Search</a></li><li class=\"nav-menu__item\"><a href=\"/app\">App and Extension</a></li></ul><ul><li class=\"nav-menu__heading\"><span>Why Privacy</span></li><li class=\"nav-menu__item\"><a href=\"https://spreadprivacy.com/\">Privacy Blog</a></li><li class=\"nav-menu__item\"><a href=\"https://duckduckgo.com/newsletter\">Privacy Crash Course</a></li><li class=\"nav-menu__item\"><a href=\"/spread\">Help Spread Privacy</a></li></ul><ul><li class=\"nav-menu__heading\"><span>Who We Are</span></li><li class=\"nav-menu__item\"><a href=\"/about\">About Us</a></li><li class=\"nav-menu__item\"><a href=\"/privacy\">Privacy Policy</a></li><li class=\"nav-menu__item\"><a href=\"/hiring\">Careers</a></li><li class=\"nav-menu__item\"><a href=\"/press\">Press Kit</a></li></ul><ul><li class=\"nav-menu__heading\"><span>Keep in Touch</span></li><li class=\"nav-menu__item\"><a href=\"https://twitter.com/duckduckgo\">Twitter</a></li><li class=\"nav-menu__item\"><a href=\"https://reddit.com/r/duckduckgo\">Reddit</a></li><li class=\"nav-menu__item\"><a href=\"https://help.duckduckgo.com/\">Help</a></li></ul></ul></div><div class=\"onboarding-ed js-onboarding-ed onboarding-ed--faq\"><a class=\"onboarding-ed__arrow js-onboarding-ed-arrow\" style=\"display: none;\"><img src=\"/assets/onboarding/arrow.svg\" loading=\"lazy\" width=\"24\" height=\"24\"></a><div class=\"onboarding-ed__slide onboarding-ed__slide-1 js-onboarding-ed-slide js-onboarding-ed-slide-1\"><div class=\"onboarding-ed__content\"><h1 class=\"onboarding-ed__title js-onboarding-ed-balance-text\" style=\"\">We don’t store your<br data-owner=\"balance-text\">personal information. Ever.</h1><p class=\"onboarding-ed__subtitle js-onboarding-ed-balance-text\" style=\"\">Our privacy policy is simple: we don’t collect<br data-owner=\"balance-text\">or share any of your personal information.</p><div class=\"js-onboarding-ed-button-small-1\"><a class=\"btn onboarding-ed__button-small ddg-extension-hide\" href=\"/install?t=h_\" target=\"_blank\">Add DuckDuckGo to Chrome</a></div></div><div class=\"onboarding-ed__image-container js-onboarding-ed-image-container-1\"><img data-src=\"/assets/onboarding/bathroomguy/1-monster-v2--pre-animation.svg\" class=\"onboarding-ed__image--placeholder js-hp-lazysvg\" width=\"1200\" height=\"460\" loading=\"lazy\"></div></div><div class=\"onboarding-ed__slide onboarding-ed__slide-2 js-onboarding-ed-slide js-onboarding-ed-slide-2\"><div class=\"onboarding-ed__content onboarding-ed__content--more-shadow\"><h1 class=\"onboarding-ed__title js-onboarding-ed-balance-text\" style=\"\">We don’t follow you around with ads.</h1><p class=\"onboarding-ed__subtitle js-onboarding-ed-balance-text\" style=\"\">We don’t store your search history. We therefore have nothing to sell to advertisers that track you across the Internet.</p><div class=\"js-onboarding-ed-button-small-2\"><a class=\"btn onboarding-ed__button-small ddg-extension-hide\" href=\"/install?t=h_\" target=\"_blank\">Add DuckDuckGo to Chrome</a></div></div><div class=\"onboarding-ed__image-container js-onboarding-ed-image-container-2\"><img data-src=\"/assets/onboarding/bathroomguy/2-ghost-v2.svg\" class=\"onboarding-ed__image--placeholder js-hp-lazysvg\" width=\"1200\" height=\"460\" loading=\"lazy\" src=\"/assets/onboarding/bathroomguy/2-ghost-v2.svg\"></div></div><div class=\"onboarding-ed__slide onboarding-ed__slide-3 js-onboarding-ed-slide js-onboarding-ed-slide-3\"><div class=\"onboarding-ed__content\"><h1 class=\"onboarding-ed__title js-onboarding-ed-balance-text\" style=\"\">We don’t track you in or out of private browsing mode.</h1><p class=\"onboarding-ed__subtitle js-onboarding-ed-balance-text\" style=\"\">Other search engines track your searches even when you’re in private browsing mode. We don’t track you — period.</p><div class=\"js-onboarding-ed-button-small-3\"><a class=\"btn onboarding-ed__button-small ddg-extension-hide\" href=\"/install?t=h_\" target=\"_blank\">Add DuckDuckGo to Chrome</a></div></div><div class=\"onboarding-ed__image-container js-onboarding-ed-image-container-3\"><img data-src=\"/assets/onboarding/bathroomguy/3-bathtub-v2--no-animation.svg\" class=\"onboarding-ed__image--placeholder js-hp-lazysvg\" width=\"1200\" height=\"460\" loading=\"lazy\" src=\"/assets/onboarding/bathroomguy/3-bathtub-v2--no-animation.svg\"></div></div><div class=\"onboarding-ed__slide onboarding-ed__slide-4 js-onboarding-ed-slide js-onboarding-ed-slide-4\"><div class=\"onboarding-ed__close\"><span class=\"js-onboarding-ed-dismiss onboarding-ed__close-dismiss\">Dismiss forever</span><span class=\"ddgsi onboarding-ed__close-divider\">|</span> <span class=\"onboarding-ed__close-back js-onboarding-ed-back-to-search\">Back to search</span> </div><div class=\"onboarding-ed__content js-onboarding-ed-install\"><h1 class=\"onboarding-ed__title js-onboarding-ed-balance-text\" style=\"\">Switch to DuckDuckGo and take back your privacy!</h1><p class=\"onboarding-ed__subtitle js-onboarding-ed-balance-text\" style=\"\">No tracking, no ad targeting, just searching.</p><div class=\"js-onboarding-ed-button\"><a class=\"btn onboarding-ed__button ddg-extension-hide\" href=\"/install?t=h_\" target=\"_blank\">Add DuckDuckGo to Chrome</a></div></div><div class=\"onboarding-ed__content js-onboarding-ed-spread\" style=\"display:none\"><h1 class=\"onboarding-ed__title js-onboarding-ed-balance-text\" style=\"\">Already a fan?<br>Invite friends to the Duck Side!</h1><p class=\"onboarding-ed__subtitle js-onboarding-ed-balance-text\" style=\"\">Share DuckDuckGo and help friends take their privacy back!</p><div><a class=\"btn onboarding-ed__button onboarding-ed__tweet-button js-onboarding-ed-tweet-button\" target=\"_blank\" href=\"https://twitter.com/?status=DuckDuckGo%20is%20my%20search%20engine%20of%20choice.%20%23ComeToTheDuckSide%20-%20we%20have%20privacy.%20https%3A%2F%2Fduckduckgo.com%2F%231\">Tweet #ComeToTheDuckSide</a></div></div><div class=\"onboarding-ed__image-container js-onboarding-ed-image-container-4\"><img data-src=\"/assets/onboarding/bathroomguy/4-alpinist-v2.svg\" class=\"onboarding-ed__image--placeholder js-hp-lazysvg\" width=\"1200\" height=\"460\" loading=\"lazy\" src=\"/assets/onboarding/bathroomguy/4-alpinist-v2.svg\"></div></div></div><article id=\"faq\" class=\"faq\" vocab=\"https://schema.org/\" typeof=\"FAQPage\"><h2 property=\"name\" class=\"faq__title\">Frequently Asked Questions</h2><div class=\"faq__content\"><section class=\"js-faq-section faq__section\" property=\"mainEntity\" typeof=\"Question\"><header class=\"js-faq-header faq__header\" data-disabled=\"true\"><button class=\"faq__button\" aria-expanded=\"true\" aria-disabled=\"true\" aria-controls=\"faq-answer-0\" id=\"faq-btn-0\"><svg width=\"20\" height=\"21\" viewBox=\"0 0 20 21\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"10\" cy=\"10.5\" r=\"10\" transform=\"rotate(-180 10 10.5)\" fill=\"#E5E5E5\"></circle><path d=\"M9.94454 12.8483L13.5355 9.25736C13.7308 9.0621 14.0474 9.0621 14.2426 9.25736C14.4379 9.45262 14.4379 9.7692 14.2426 9.96447L10.3536 13.8536C10.2418 13.9653 10.0903 14.0131 9.94454 13.9969C9.79879 14.0131 9.64729 13.9653 9.53553 13.8536L5.64645 9.96447C5.45118 9.7692 5.45118 9.45262 5.64645 9.25736C5.84171 9.0621 6.15829 9.0621 6.35355 9.25736L9.94454 12.8483Z\" fill=\"#353748\"></path></svg></button><h3 class=\"faq__question\" property=\"name\">How does DuckDuckGo make money?</h3></header><div id=\"faq-answer-0\" role=\"region\" aria-labelledby=\"faq-btn-0\" class=\"js-faq-collapsible faq__collapsible\" data-collapsed=\"false\" property=\"acceptedAnswer\" typeof=\"Answer\"><div class=\"faq__answer\"><p property=\"text\">We make our money from private ads on our search engine. On other search engines, ads are based on profiles compiled about you using your personal information like search, browsing, and purchase history. Since we don’t collect that information, search ads on DuckDuckGo are based on the search results page you are viewing, not on you as a person. For example, if you search for cars, we’ll show you ads about cars.</p>&nbsp;<a property=\"url\" href=\"https://spreadprivacy.com/duckduckgo-revenue-model/\" target=\"_blank\" data-id=\"6-l\">Learn more</a>.</div></div></section><section class=\"js-faq-section faq__section\" property=\"mainEntity\" typeof=\"Question\"><header class=\"js-faq-header faq__header\" data-disabled=\"false\"><button class=\"faq__button\" aria-expanded=\"false\" aria-disabled=\"false\" aria-controls=\"faq-answer-1\" id=\"faq-btn-1\"><svg width=\"20\" height=\"21\" viewBox=\"0 0 20 21\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"10\" cy=\"10.5\" r=\"10\" transform=\"rotate(-180 10 10.5)\" fill=\"#E5E5E5\"></circle><path d=\"M9.94454 12.8483L13.5355 9.25736C13.7308 9.0621 14.0474 9.0621 14.2426 9.25736C14.4379 9.45262 14.4379 9.7692 14.2426 9.96447L10.3536 13.8536C10.2418 13.9653 10.0903 14.0131 9.94454 13.9969C9.79879 14.0131 9.64729 13.9653 9.53553 13.8536L5.64645 9.96447C5.45118 9.7692 5.45118 9.45262 5.64645 9.25736C5.84171 9.0621 6.15829 9.0621 6.35355 9.25736L9.94454 12.8483Z\" fill=\"#353748\"></path></svg></button><h3 class=\"faq__question\" property=\"name\">What does Google know about me?</h3></header><div id=\"faq-answer-1\" role=\"region\" aria-labelledby=\"faq-btn-1\" class=\"js-faq-collapsible faq__collapsible\" data-collapsed=\"true\" property=\"acceptedAnswer\" typeof=\"Answer\" style=\"height: 0px;\"><div class=\"faq__answer\"><p property=\"text\">Not only does Google keep your search history forever by default, their trackers have been found on 75% of the top million websites, which means they are tracking most everywhere you go on the Internet (unless you stop them with DuckDuckGo!). And that’s just the tip of the iceberg.</p>&nbsp;<a property=\"url\" href=\"https://spreadprivacy.com/what-does-google-know-about-me/\" target=\"_blank\" data-id=\"2-l\">Learn more</a>.</div></div></section><section class=\"js-faq-section faq__section\" property=\"mainEntity\" typeof=\"Question\"><header class=\"js-faq-header faq__header\" data-disabled=\"false\"><button class=\"faq__button\" aria-expanded=\"false\" aria-disabled=\"false\" aria-controls=\"faq-answer-2\" id=\"faq-btn-2\"><svg width=\"20\" height=\"21\" viewBox=\"0 0 20 21\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"10\" cy=\"10.5\" r=\"10\" transform=\"rotate(-180 10 10.5)\" fill=\"#E5E5E5\"></circle><path d=\"M9.94454 12.8483L13.5355 9.25736C13.7308 9.0621 14.0474 9.0621 14.2426 9.25736C14.4379 9.45262 14.4379 9.7692 14.2426 9.96447L10.3536 13.8536C10.2418 13.9653 10.0903 14.0131 9.94454 13.9969C9.79879 14.0131 9.64729 13.9653 9.53553 13.8536L5.64645 9.96447C5.45118 9.7692 5.45118 9.45262 5.64645 9.25736C5.84171 9.0621 6.15829 9.0621 6.35355 9.25736L9.94454 12.8483Z\" fill=\"#353748\"></path></svg></button><h3 class=\"faq__question\" property=\"name\">Why use DuckDuckGo instead of Google?</h3></header><div id=\"faq-answer-2\" role=\"region\" aria-labelledby=\"faq-btn-2\" class=\"js-faq-collapsible faq__collapsible\" data-collapsed=\"true\" property=\"acceptedAnswer\" typeof=\"Answer\" style=\"height: 0px;\"><div class=\"faq__answer\"><p property=\"text\">Ever notice ads constantly following you around? That’s in part because Google tracks your searches and hides trackers on millions of websites. By contrast, our private search engine doesn’t track your searches and our <a href=\"https://duckduckgo.com/app\" target=\"_blank\" data-id=\"1-t0\">DuckDuckGo browser extension and mobile app</a> block Google’s (and many other companies’) trackers across the Internet, helping to keep your browsing history more private, as it should be. And that’s just the beginning — by using DuckDuckGo you also escape the manipulation of the filter bubble and can use the Internet faster (after all that tracking code is disabled).</p>&nbsp;<a property=\"url\" href=\"https://spreadprivacy.com/why-use-duckduckgo-instead-of-google/\" target=\"_blank\" data-id=\"1-l\">Learn more</a>.</div></div></section><section class=\"js-faq-section faq__section\" property=\"mainEntity\" typeof=\"Question\"><header class=\"js-faq-header faq__header\" data-disabled=\"false\"><button class=\"faq__button\" aria-expanded=\"false\" aria-disabled=\"false\" aria-controls=\"faq-answer-3\" id=\"faq-btn-3\"><svg width=\"20\" height=\"21\" viewBox=\"0 0 20 21\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"10\" cy=\"10.5\" r=\"10\" transform=\"rotate(-180 10 10.5)\" fill=\"#E5E5E5\"></circle><path d=\"M9.94454 12.8483L13.5355 9.25736C13.7308 9.0621 14.0474 9.0621 14.2426 9.25736C14.4379 9.45262 14.4379 9.7692 14.2426 9.96447L10.3536 13.8536C10.2418 13.9653 10.0903 14.0131 9.94454 13.9969C9.79879 14.0131 9.64729 13.9653 9.53553 13.8536L5.64645 9.96447C5.45118 9.7692 5.45118 9.45262 5.64645 9.25736C5.84171 9.0621 6.15829 9.0621 6.35355 9.25736L9.94454 12.8483Z\" fill=\"#353748\"></path></svg></button><h3 class=\"faq__question\" property=\"name\">How do DuckDuckGo search results compare to Google’s?</h3></header><div id=\"faq-answer-3\" role=\"region\" aria-labelledby=\"faq-btn-3\" class=\"js-faq-collapsible faq__collapsible\" data-collapsed=\"true\" property=\"acceptedAnswer\" typeof=\"Answer\" style=\"height: 0px;\"><div class=\"faq__answer\"><p property=\"text\">DuckDuckGo search gives you truly private search results without tradeoffs in result quality. We have everything you’ve come to expect in an online search experience, and a few <a href=\"https://duckduckgo.com/bang\" target=\"_blank\" data-id=\"4-t0\">bonus features</a> that make searching the Internet not only private, but also a bit more fun! And, on top of that, because there is no search history on DuckDuckGo, you escape the filter bubble of manipulated results.</p>&nbsp;<a property=\"url\" href=\"https://spreadprivacy.com/is-duckduckgo-a-good-search-engine/\" target=\"_blank\" data-id=\"4-l\">Learn more</a>.</div></div></section><section class=\"js-faq-section faq__section\" property=\"mainEntity\" typeof=\"Question\"><header class=\"js-faq-header faq__header\" data-disabled=\"false\"><button class=\"faq__button\" aria-expanded=\"false\" aria-disabled=\"false\" aria-controls=\"faq-answer-4\" id=\"faq-btn-4\"><svg width=\"20\" height=\"21\" viewBox=\"0 0 20 21\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"10\" cy=\"10.5\" r=\"10\" transform=\"rotate(-180 10 10.5)\" fill=\"#E5E5E5\"></circle><path d=\"M9.94454 12.8483L13.5355 9.25736C13.7308 9.0621 14.0474 9.0621 14.2426 9.25736C14.4379 9.45262 14.4379 9.7692 14.2426 9.96447L10.3536 13.8536C10.2418 13.9653 10.0903 14.0131 9.94454 13.9969C9.79879 14.0131 9.64729 13.9653 9.53553 13.8536L5.64645 9.96447C5.45118 9.7692 5.45118 9.45262 5.64645 9.25736C5.84171 9.0621 6.15829 9.0621 6.35355 9.25736L9.94454 12.8483Z\" fill=\"#353748\"></path></svg></button><h3 class=\"faq__question\" property=\"name\">Is DuckDuckGo an “unfiltered” search engine?</h3></header><div id=\"faq-answer-4\" role=\"region\" aria-labelledby=\"faq-btn-4\" class=\"js-faq-collapsible faq__collapsible\" data-collapsed=\"true\" property=\"acceptedAnswer\" typeof=\"Answer\" style=\"height: 0px;\"><div class=\"faq__answer\"><p property=\"text\">Unlike some other search engines, we don’t alter search results based on someone’s previous search history. In fact, since we don’t track our users we don’t have access to search histories at all! Those other search engines show you results based on a data profile about you and your online activity (including your search history), and so can be slanted towards what they think you will click on the most based on this profiling. This effect is commonly known as the <a href=\"https://spreadprivacy.com/google-filter-bubble-study/\">search filter bubble</a>, but using DuckDuckGo can help you escape it. <br><br> This does not mean our search results are generally “unfiltered” because, for every search you make online, a search engine’s job is to filter millions of possible results down to a ranked order of just a handful. In other words, a search engine has to use algorithms programmed by people to determine what shows up first in the list of results, what shows up second, and so on. Otherwise, for every search you’d just get a completely random set of results, which of course wouldn’t be very useful.</p></div></div></section><section class=\"js-faq-section faq__section\" property=\"mainEntity\" typeof=\"Question\"><header class=\"js-faq-header faq__header\" data-disabled=\"false\"><button class=\"faq__button\" aria-expanded=\"false\" aria-disabled=\"false\" aria-controls=\"faq-answer-5\" id=\"faq-btn-5\"><svg width=\"20\" height=\"21\" viewBox=\"0 0 20 21\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"10\" cy=\"10.5\" r=\"10\" transform=\"rotate(-180 10 10.5)\" fill=\"#E5E5E5\"></circle><path d=\"M9.94454 12.8483L13.5355 9.25736C13.7308 9.0621 14.0474 9.0621 14.2426 9.25736C14.4379 9.45262 14.4379 9.7692 14.2426 9.96447L10.3536 13.8536C10.2418 13.9653 10.0903 14.0131 9.94454 13.9969C9.79879 14.0131 9.64729 13.9653 9.53553 13.8536L5.64645 9.96447C5.45118 9.7692 5.45118 9.45262 5.64645 9.25736C5.84171 9.0621 6.15829 9.0621 6.35355 9.25736L9.94454 12.8483Z\" fill=\"#353748\"></path></svg></button><h3 class=\"faq__question\" property=\"name\">Is DuckDuckGo owned by Google?</h3></header><div id=\"faq-answer-5\" role=\"region\" aria-labelledby=\"faq-btn-5\" class=\"js-faq-collapsible faq__collapsible\" data-collapsed=\"true\" property=\"acceptedAnswer\" typeof=\"Answer\" style=\"height: 0px;\"><div class=\"faq__answer\"><p property=\"text\">No, we are not and have never been owned by Google. We have been an independent company since our founding in 2008 and, unlike some other search engines, we don’t rely on Google’s results for any of our search results. You may notice that we offer a Google Chrome extension and a Google Android app, but these are also not in partnership with Google and actually aim to protect you from Google’s online trackers.</p></div></div></section><section class=\"js-faq-section faq__section\" property=\"mainEntity\" typeof=\"Question\"><header class=\"js-faq-header faq__header\" data-disabled=\"false\"><button class=\"faq__button\" aria-expanded=\"false\" aria-disabled=\"false\" aria-controls=\"faq-answer-6\" id=\"faq-btn-6\"><svg width=\"20\" height=\"21\" viewBox=\"0 0 20 21\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"10\" cy=\"10.5\" r=\"10\" transform=\"rotate(-180 10 10.5)\" fill=\"#E5E5E5\"></circle><path d=\"M9.94454 12.8483L13.5355 9.25736C13.7308 9.0621 14.0474 9.0621 14.2426 9.25736C14.4379 9.45262 14.4379 9.7692 14.2426 9.96447L10.3536 13.8536C10.2418 13.9653 10.0903 14.0131 9.94454 13.9969C9.79879 14.0131 9.64729 13.9653 9.53553 13.8536L5.64645 9.96447C5.45118 9.7692 5.45118 9.45262 5.64645 9.25736C5.84171 9.0621 6.15829 9.0621 6.35355 9.25736L9.94454 12.8483Z\" fill=\"#353748\"></path></svg></button><h3 class=\"faq__question\" property=\"name\">What’s the difference between using DuckDuckGo and Incognito mode?</h3></header><div id=\"faq-answer-6\" role=\"region\" aria-labelledby=\"faq-btn-6\" class=\"js-faq-collapsible faq__collapsible\" data-collapsed=\"true\" property=\"acceptedAnswer\" typeof=\"Answer\" style=\"height: 0px;\"><div class=\"faq__answer\"><p property=\"text\">It is a myth that you can’t be tracked while using so-called “Incognito” mode. In fact, Incognito mode mainly just deletes information on your computer and does nothing to stop Google from saving your searches, nor does it stop companies, Internet service providers, or governments from being able to track you across the Internet. By contrast, DuckDuckGo search is completely anonymous and if you add our app &amp; extension on top, we help keep you private when browsing off of search results.</p>&nbsp;<a property=\"url\" href=\"https://spreadprivacy.com/how-anonymous-is-duckduckgo/\" target=\"_blank\" data-id=\"3-l\">Learn more</a>.</div></div></section><section class=\"js-faq-section faq__section\" property=\"mainEntity\" typeof=\"Question\"><header class=\"js-faq-header faq__header\" data-disabled=\"false\"><button class=\"faq__button\" aria-expanded=\"false\" aria-disabled=\"false\" aria-controls=\"faq-answer-7\" id=\"faq-btn-7\"><svg width=\"20\" height=\"21\" viewBox=\"0 0 20 21\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"10\" cy=\"10.5\" r=\"10\" transform=\"rotate(-180 10 10.5)\" fill=\"#E5E5E5\"></circle><path d=\"M9.94454 12.8483L13.5355 9.25736C13.7308 9.0621 14.0474 9.0621 14.2426 9.25736C14.4379 9.45262 14.4379 9.7692 14.2426 9.96447L10.3536 13.8536C10.2418 13.9653 10.0903 14.0131 9.94454 13.9969C9.79879 14.0131 9.64729 13.9653 9.53553 13.8536L5.64645 9.96447C5.45118 9.7692 5.45118 9.45262 5.64645 9.25736C5.84171 9.0621 6.15829 9.0621 6.35355 9.25736L9.94454 12.8483Z\" fill=\"#353748\"></path></svg></button><h3 class=\"faq__question\" property=\"name\">How popular is DuckDuckGo?</h3></header><div id=\"faq-answer-7\" role=\"region\" aria-labelledby=\"faq-btn-7\" class=\"js-faq-collapsible faq__collapsible\" data-collapsed=\"true\" property=\"acceptedAnswer\" typeof=\"Answer\" style=\"height: 0px;\"><div class=\"faq__answer\"><p property=\"text\">We don’t track our users, so it’s actually impossible for us to know how many users in total are using our products. However, we are able to make an estimate based on the number of searches we get per month, <a href=\"https://duckduckgo.com/traffic\" target=\"_blank\" data-id=\"5-t0\">which we make public</a>. Our best guess — over 50 million people!</p>&nbsp;<a property=\"url\" href=\"https://spreadprivacy.com/how-many-people-use-duckduckgo/\" target=\"_blank\" data-id=\"5-l\">Learn more</a>.</div></div></section><section class=\"js-faq-section faq__section\" property=\"mainEntity\" typeof=\"Question\"><header class=\"js-faq-header faq__header\" data-disabled=\"false\"><button class=\"faq__button\" aria-expanded=\"false\" aria-disabled=\"false\" aria-controls=\"faq-answer-8\" id=\"faq-btn-8\"><svg width=\"20\" height=\"21\" viewBox=\"0 0 20 21\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"10\" cy=\"10.5\" r=\"10\" transform=\"rotate(-180 10 10.5)\" fill=\"#E5E5E5\"></circle><path d=\"M9.94454 12.8483L13.5355 9.25736C13.7308 9.0621 14.0474 9.0621 14.2426 9.25736C14.4379 9.45262 14.4379 9.7692 14.2426 9.96447L10.3536 13.8536C10.2418 13.9653 10.0903 14.0131 9.94454 13.9969C9.79879 14.0131 9.64729 13.9653 9.53553 13.8536L5.64645 9.96447C5.45118 9.7692 5.45118 9.45262 5.64645 9.25736C5.84171 9.0621 6.15829 9.0621 6.35355 9.25736L9.94454 12.8483Z\" fill=\"#353748\"></path></svg></button><h3 class=\"faq__question\" property=\"name\">How does the DuckDuckGo app &amp; extension work?</h3></header><div id=\"faq-answer-8\" role=\"region\" aria-labelledby=\"faq-btn-8\" class=\"js-faq-collapsible faq__collapsible\" data-collapsed=\"true\" property=\"acceptedAnswer\" typeof=\"Answer\" style=\"height: 0px;\"><div class=\"faq__answer\"><p property=\"text\">The DuckDuckGo Privacy Browser mobile app and Privacy Essentials desktop extension both come with our best-in-class tracker blocker, encryption enforcer, and private search engine – all in one simple package. This gives you all the key privacy protection tools to search and browse privately, curbing the constant monitoring of your Internet activity by companies like Google and Facebook.</p>&nbsp;<a property=\"url\" href=\"https://spreadprivacy.com/how-does-the-duckduckgo-app-extension-protect-my-privacy/\" target=\"_blank\" data-id=\"0-l\">Learn more</a>.</div></div></section></div>    </article><a class=\"btn btn--primary atb-button--faq ddg-extension-hide\" href=\"/install?t=h_\" target=\"_blank\">Add DuckDuckGo to Chrome</a></div> <!-- site-wrapper -->\n\n\n<iframe id=\"iframe_hidden\" src=\"/post3.html\"></iframe></body></html>]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 1,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ {
+      "uid" : "2e2de5c83029decd",
+      "name" : "Selenium WebDriver Logs - browser",
+      "source" : "2e2de5c83029decd.txt",
+      "type" : "text/plain",
+      "size" : 508
+    } ],
+    "parameters" : [ ],
+    "stepsCount" : 2,
+    "attachmentsCount" : 2,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  }, {
+    "name" : "teardownActivities",
+    "time" : {
+      "start" : 1649058393508,
+      "stop" : 1649058394314,
+      "duration" : 806
+    },
+    "description" : "",
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Successfully Closed All Drivers.",
+      "time" : {
+        "start" : 1649058393635,
+        "stop" : 1649058393635,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Successfully Closed All Drivers."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Issue Summary: Total Issues = 7, New issues for Failed Tests = 5, Open issues for Passed Tests = 2, Open issues for Failed Tests = 0. Kindly check the attached Issue details.",
+      "time" : {
+        "start" : 1649058393644,
+        "stop" : 1649058393644,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "76dde7958d3753c6",
+        "name" : "SHAFT Engine Logs - Issues log CSV: 20220404-074633",
+        "source" : "76dde7958d3753c6.csv",
+        "type" : "text/csv",
+        "size" : 833
+      } ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Issue Summary: Total Issues = 7, New issues for Failed Tests = 5, Open issues for Passed Tests = 2, Open issues for Failed Tests = 0. Kindly check the attached Issue details."
+      }, {
+        "name" : "attachments",
+        "value" : "[[SHAFT Engine Logs, Issues log CSV: 20220404-074633, java.io.ByteArrayInputStream@6a50ead]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 1,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ {
+      "uid" : "892f13e702ea1217",
+      "name" : "Selenium WebDriver Logs - browser",
+      "source" : "892f13e702ea1217.txt",
+      "type" : "text/plain",
+      "size" : 294
+    }, {
+      "uid" : "4919222febc86fc3",
+      "name" : "SHAFT Engine Logs - Execution log: 20220404-074633",
+      "source" : "4919222febc86fc3.txt",
+      "type" : "text/plain",
+      "size" : 292502
+    }, {
+      "uid" : "86ea82a2bae8e670",
+      "name" : "HTML - Extent Emailable Execution Report",
+      "source" : "86ea82a2bae8e670.html",
+      "type" : "text/html",
+      "size" : 10712589
+    } ],
+    "parameters" : [ ],
+    "stepsCount" : 2,
+    "attachmentsCount" : 4,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  } ],
+  "labels" : [ {
+    "name" : "package",
+    "value" : "unitTests.tests_browserActions"
+  }, {
+    "name" : "testClass",
+    "value" : "unitTests.tests_browserActions"
+  }, {
+    "name" : "testMethod",
+    "value" : "getWindowHandle"
+  }, {
+    "name" : "parentSuite",
+    "value" : "Suite"
+  }, {
+    "name" : "suite",
+    "value" : "Test"
+  }, {
+    "name" : "subSuite",
+    "value" : "unitTests.tests_browserActions"
+  }, {
+    "name" : "host",
+    "value" : "fv-az290-429"
+  }, {
+    "name" : "thread",
+    "value" : "3454@fv-az290-429.main(1)"
+  }, {
+    "name" : "framework",
+    "value" : "testng"
+  }, {
+    "name" : "language",
+    "value" : "java"
+  }, {
+    "name" : "resultFormat",
+    "value" : "allure2"
+  } ],
+  "parameters" : [ ],
+  "links" : [ ],
+  "hidden" : false,
+  "retry" : false,
+  "extra" : {
+    "severity" : "normal",
+    "retries" : [ ],
+    "categories" : [ ],
+    "tags" : [ ]
+  },
+  "source" : "c9571200650e29f6.json",
+  "parameterValues" : [ ]
+}

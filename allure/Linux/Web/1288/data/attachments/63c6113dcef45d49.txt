@@ -1,0 +1,13 @@
+
+################################################################################################################################################
+Starting Execution:	"97 out of 185" test cases in the current suite
+Test Method:		"testPackage01.Test_RelativeLocators.relativeLocatorsTest1"
+################################################################################################################################################
+[ReportManager] Target URL: "https://duckduckgo.com/" @04-04-2022 07:26:08.0633 AM
+[ReportManager] Initial URL: "data:," @04-04-2022 07:26:08.0682 AM
+[ReportManager] Navigate to url "https://duckduckgo.com/". @04-04-2022 07:26:09.0355 AM
+[ReportManager] Type "SHAFT_Engine". @04-04-2022 07:26:09.0744 AM
+[ReportManager] Key press "ENTER". @04-04-2022 07:26:10.0717 AM
+[ReportManager] Get text "Turboshaft - Wikipedia". @04-04-2022 07:26:10.0882 AM
+[ReportManager] Assertion Passed: The Element located by "Relative Locator: {root={xpath=//a[@class='result__a js-result-title-link']}, filters=[{kind=below, args=[{xpath=//input[@name='q']}]}]}" text does not equal "". @04-04-2022 07:26:11.0499 AM
+[ReportManager] Successfully created attachment "Screenshot - 1649057171327_relativeLocatorsTest1_ValidateElementAttribute_passed" @04-04-2022 07:26:11.0502 A

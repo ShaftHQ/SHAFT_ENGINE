@@ -1,0 +1,8 @@
+
+################################################################################################################################################
+Starting Execution:	"57 out of 185" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f14"
+################################################################################################################################################
+[ReportManager] Get text "Welcome to the-internet". @04-04-2022 07:24:25.0032 AM
+[ReportManager] Assertion Passed: Asserting that the header text is correct @04-04-2022 07:24:25.0535 AM
+[ReportManager] Successfully created attachment "Screenshot - 1649057065392_f14_ValidateElementAttribute_passed" @04-04-2022 07:24:25.0537 A

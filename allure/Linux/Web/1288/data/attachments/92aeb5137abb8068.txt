@@ -1,0 +1,10 @@
+
+################################################################################################################################################
+Starting Execution:	"185 out of 185" test cases in the current suite
+Test Method:		"dsl.testDsl.testLabel"
+################################################################################################################################################
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 07:46:32.0203 AM
+[ReportManager] Attempting to run remotely on: "Linux-64 | GoogleChrome | http://localhost:4444/wd/hub", Headless Execution. @04-04-2022 07:46:32.0203 AM
+[ReportManager] Successfully Opened "GoogleChrome". @04-04-2022 07:46:32.0380 AM
+[ReportManager] Get text "Welcome to the-internet". @04-04-2022 07:46:33.0481 AM
+[ReportManager] Assertion Passed: "Welcome to the-internet" is equal to "Welcome to the-internet". @04-04-2022 07:46:33.0481 A

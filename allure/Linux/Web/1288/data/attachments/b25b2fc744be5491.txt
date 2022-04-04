@@ -1,0 +1,6 @@
+
+################################################################################################################################################
+Starting Execution:	"20 out of 185" test cases in the current suite
+Test Method:		"testPackage01.SHAFTWizard.Test_Wizard_StandaloneValidation.object"
+################################################################################################################################################
+[ReportManager] Assertion Passed: "" is equal to "". @04-04-2022 07:22:15.0210 A

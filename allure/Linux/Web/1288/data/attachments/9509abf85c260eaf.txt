@@ -1,0 +1,6 @@
+
+################################################################################################################################################
+Starting Execution:	"124 out of 185" test cases in the current suite
+Test Method:		"unitTests.tests_browserActions.getCurrentWindowTitle"
+################################################################################################################################################
+[ReportManager] Get current window title "DuckDuckGo — Privacy, simplified.". @04-04-2022 07:37:56.0303 A

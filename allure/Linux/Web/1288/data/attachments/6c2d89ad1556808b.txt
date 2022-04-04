@@ -1,0 +1,24 @@
+
+################################################################################################################################################
+Starting Execution:	"121 out of 185" test cases in the current suite
+Test Method:		"unitTests.tests_restActions.validateUserId"
+################################################################################################################################################
+[ReportManager] Response status code: "200", status line: "HTTP/1.1 200 OK" @04-04-2022 07:37:52.0147 AM
+[ReportManager] Assertion Passed: Evaluating the actual response status code against the expected one... @04-04-2022 07:37:52.0148 AM
+[ReportManager] Perform request "GET | Target Status Code: 200 | Service URL: https://jsonplaceholder.typicode.com/users | Content Type: */* | Response Time: 136ms". @04-04-2022 07:37:52.0163 AM
+[ReportManager] Successfully created attachment "API Request - Specifications" @04-04-2022 07:37:52.0163 AM
+[ReportManager] Successfully created attachment "API Response - JSON Body" @04-04-2022 07:37:52.0163 AM
+[ReportManager] Get response jsonvalue as list "$". @04-04-2022 07:37:52.0168 AM
+[ReportManager] Get response jsonvalue "name". @04-04-2022 07:37:52.0176 AM
+[ReportManager] Get response jsonvalue "name". @04-04-2022 07:37:52.0185 AM
+[ReportManager] Get response jsonvalue "name". @04-04-2022 07:37:52.0192 AM
+[ReportManager] Get response jsonvalue "name". @04-04-2022 07:37:52.0203 AM
+[ReportManager] Get response jsonvalue "name". @04-04-2022 07:37:52.0210 AM
+[ReportManager] Get response jsonvalue "id". @04-04-2022 07:37:52.0221 AM
+[ReportManager] Get response jsonvalue "name". @04-04-2022 07:37:52.0228 AM
+[ReportManager] Get response jsonvalue "name". @04-04-2022 07:37:52.0235 AM
+[ReportManager] Get response jsonvalue "name". @04-04-2022 07:37:52.0242 AM
+[ReportManager] Get response jsonvalue "name". @04-04-2022 07:37:52.0249 AM
+[ReportManager] Get response jsonvalue "name". @04-04-2022 07:37:52.0256 AM
+[ReportManager] Get response jsonvalue from list "5". @04-04-2022 07:37:52.0256 AM
+[ReportManager] Assertion Passed: "5" is equal to "5". @04-04-2022 07:37:52.0256 A

@@ -1,0 +1,7 @@
+
+################################################################################################################################################
+Starting Execution:	"80 out of 185" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f36"
+################################################################################################################################################
+[ReportManager] File Action "DoesFileExist" successfully performed. With the following test data "File Path: "src/test/java/testPackage01/Test_NewValidationHelper.java"". @04-04-2022 07:25:28.0592 AM
+[ReportManager] Assertion "ValidateFileExists" PASSED. Expected "File 'src/test/java/testPackage01/Test_NewValidationHelper.java' should exist, after up to '1' retries" and Actual "File exists". Validation Type "POSITIVE". @04-04-2022 07:25:28.0596 A

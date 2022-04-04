@@ -1,0 +1,7 @@
+
+################################################################################################################################################
+Starting Execution:	"134 out of 185" test cases in the current suite
+Test Method:		"unitTests.tests_browserActions.refreshCurrentPage"
+################################################################################################################################################
+[ReportManager] Refresh current page. @04-04-2022 07:38:17.0014 AM
+[ReportManager] Successfully created attachment "Browser Action Test Data - Refresh current page - Actual Value" @04-04-2022 07:38:17.0014 A

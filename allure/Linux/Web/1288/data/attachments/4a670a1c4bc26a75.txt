@@ -1,0 +1,1 @@
+[2022-04-04T07:21:43.831Z] [WARNING] security - Error with Permissions-Policy header: Unrecognized feature: 'interest-cohort'.

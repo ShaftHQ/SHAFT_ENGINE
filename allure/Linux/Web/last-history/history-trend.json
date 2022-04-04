@@ -1,0 +1,13 @@
+[ {
+  "buildOrder" : 1288,
+  "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1288/",
+  "reportName" : "Allure Report with history",
+  "data" : {
+    "failed" : 8,
+    "broken" : 0,
+    "skipped" : 54,
+    "passed" : 126,
+    "unknown" : 0,
+    "total" : 188
+  }
+} ]

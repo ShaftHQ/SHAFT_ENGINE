@@ -1,0 +1,10 @@
+
+################################################################################################################################################
+Starting Execution:	"131 out of 185" test cases in the current suite
+Test Method:		"unitTests.tests_browserActions.navigateForward"
+################################################################################################################################################
+[ReportManager] Target URL: "https://www.google.com/ncr", and after redirection: "https://www.google.com" @04-04-2022 07:38:08.0059 AM
+[ReportManager] Initial URL: "https://duckduckgo.com" @04-04-2022 07:38:08.0101 AM
+[ReportManager] Navigate to url "https://www.google.com/ncr". @04-04-2022 07:38:08.0972 AM
+[ReportManager] Navigate back "https://duckduckgo.com/". @04-04-2022 07:38:09.0279 AM
+[ReportManager] Navigate forward "https://www.google.com/". @04-04-2022 07:38:09.0809 A

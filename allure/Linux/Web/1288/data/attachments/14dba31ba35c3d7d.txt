@@ -1,0 +1,11 @@
+
+################################################################################################################################################
+Starting Execution:	"26 out of 185" test cases in the current suite
+Test Method:		"testPackage01.Test_google_playwright.searchForQueryandAssertResultsNumDisplayed"
+Test Description:	"TC002 - Search for Query and Assert that the number of results is displayed"
+################################################################################################################################################
+[ReportManager] Element Action "Type" successfully performed. With the following test data "SHAFT_Engine". @04-04-2022 07:22:45.0454 AM
+[ReportManager] Element Action "KeyPress" successfully performed. With the following test data "Enter". @04-04-2022 07:22:45.0479 AM
+[ReportManager] Element Action "GetText" successfully performed. With the following test data "About 999,000 results (0.35 seconds) ". @04-04-2022 07:22:46.0047 AM
+[ReportManager] Assertion "ValidateElementAttribute" PASSED. Expected "Value Should not be '' for the 'text' attribute, element locator 'xpath=//div[@id='appbar']'" and Actual "About 999,000 results (0.35 seconds) ". Comparison Type "EQUALS". Validation Type "NEGATIVE". @04-04-2022 07:22:48.0166 AM
+[ReportManager] Successfully created attachment "Screenshot - 1649056968031_searchForQueryandAssertResultsNumDisplayed_ValidateElementAttribute_passed" @04-04-2022 07:22:48.0179 A

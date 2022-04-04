@@ -1,0 +1,350 @@
+{
+  "uid" : "8163d14ab980a059",
+  "name" : "assertOnConfirmPromptAlertWithTextMessageResultText",
+  "fullName" : "testPackage01.TestJSPromptBox.assertOnConfirmPromptAlertWithTextMessageResultText",
+  "historyId" : "18f634cf5b3568c85a21c57b6cffaa85",
+  "time" : {
+    "start" : 1649057034304,
+    "stop" : 1649057034311,
+    "duration" : 7
+  },
+  "status" : "skipped",
+  "statusMessage" : "Method testPackage01.TestJSPromptBox.assertOnConfirmPromptAlertWithTextMessageResultText() on instance testPackage01.TestJSPromptBox@4b6d92e depends on not successfully finished methods \n[testPackage01.TestJSPromptBox.acceptPromptAlertWithTextMessage() on instance testPackage01.TestJSPromptBox@4b6d92e]",
+  "statusTrace" : "java.lang.Throwable: Method testPackage01.TestJSPromptBox.assertOnConfirmPromptAlertWithTextMessageResultText() on instance testPackage01.TestJSPromptBox@4b6d92e depends on not successfully finished methods \n[testPackage01.TestJSPromptBox.acceptPromptAlertWithTextMessage() on instance testPackage01.TestJSPromptBox@4b6d92e]\n\tat org.testng.internal.invokers.TestInvoker.invokeTestMethods(TestInvoker.java:149)\n\tat org.testng.internal.invokers.TestMethodWorker.invokeTestMethods(TestMethodWorker.java:146)\n\tat org.testng.internal.invokers.TestMethodWorker.run(TestMethodWorker.java:128)\n\tat java.base/java.util.ArrayList.forEach(ArrayList.java:1511)\n\tat org.testng.TestRunner.privateRun(TestRunner.java:808)\n\tat org.testng.TestRunner.run(TestRunner.java:603)\n\tat org.testng.SuiteRunner.runTest(SuiteRunner.java:429)\n\tat org.testng.SuiteRunner.runSequentially(SuiteRunner.java:423)\n\tat org.testng.SuiteRunner.privateRun(SuiteRunner.java:383)\n\tat org.testng.SuiteRunner.run(SuiteRunner.java:326)\n\tat org.testng.SuiteRunnerWorker.runSuite(SuiteRunnerWorker.java:52)\n\tat org.testng.SuiteRunnerWorker.run(SuiteRunnerWorker.java:95)\n\tat org.testng.TestNG.runSuitesSequentially(TestNG.java:1249)\n\tat org.testng.TestNG.runSuitesLocally(TestNG.java:1169)\n\tat org.testng.TestNG.runSuites(TestNG.java:1092)\n\tat org.testng.TestNG.run(TestNG.java:1060)\n\tat org.apache.maven.surefire.testng.TestNGExecutor.run(TestNGExecutor.java:136)\n\tat org.apache.maven.surefire.testng.TestNGDirectoryTestSuite.executeMulti(TestNGDirectoryTestSuite.java:193)\n\tat org.apache.maven.surefire.testng.TestNGDirectoryTestSuite.execute(TestNGDirectoryTestSuite.java:94)\n\tat org.apache.maven.surefire.testng.TestNGProvider.invoke(TestNGProvider.java:145)\n\tat org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:428)\n\tat org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162)\n\tat org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:562)\n\tat org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:548)\n",
+  "flaky" : false,
+  "newFailed" : false,
+  "beforeStages" : [ {
+    "name" : "navigateToJSAlertPage",
+    "time" : {
+      "start" : 1649057001622,
+      "stop" : 1649057002584,
+      "duration" : 962
+    },
+    "description" : "",
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Attempting to run remotely on: \"Linux-64 | GoogleChrome | http://localhost:4444/wd/hub\", Headless Execution.",
+      "time" : {
+        "start" : 1649057001622,
+        "stop" : 1649057001622,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Attempting to run remotely on: \"Linux-64 | GoogleChrome | http://localhost:4444/wd/hub\", Headless Execution."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Successfully Opened \"GoogleChrome\".",
+      "time" : {
+        "start" : 1649057001805,
+        "stop" : 1649057001805,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Successfully Opened \"GoogleChrome\"."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Navigate to url \"http://the-internet.herokuapp.com/javascript_alerts\".",
+      "time" : {
+        "start" : 1649057002583,
+        "stop" : 1649057002584,
+        "duration" : 1
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Navigate to url \"http://the-internet.herokuapp.com/javascript_alerts\"."
+      }, {
+        "name" : "attachments",
+        "value" : "[[]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ ],
+    "parameters" : [ ],
+    "stepsCount" : 3,
+    "attachmentsCount" : 0,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  }, {
+    "name" : "setupActivities",
+    "time" : {
+      "start" : 1649056899698,
+      "stop" : 1649056900518,
+      "duration" : 820
+    },
+    "description" : "",
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Folder \"extent-reports\" was not found, it may have already been deleted.",
+      "time" : {
+        "start" : 1649056899856,
+        "stop" : 1649056899857,
+        "duration" : 1
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Folder \"extent-reports\" was not found, it may have already been deleted."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Terminal Action \"PerformTerminalCommands\" successfully performed. With the following test data \"Host Name: \"localHost\" | Command: \"chmod u+x generateJdk.sh\" | Exit Status: \"1\"\".",
+      "time" : {
+        "start" : 1649056900515,
+        "stop" : 1649056900517,
+        "duration" : 2
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "8056e34f68f45169",
+        "name" : "Terminal Action Actual Result - Command Log",
+        "source" : "8056e34f68f45169.txt",
+        "type" : "text/plain",
+        "size" : 64
+      } ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Terminal Action \"PerformTerminalCommands\" successfully performed. With the following test data \"Host Name: \"localHost\" | Command: \"chmod u+x generateJdk.sh\" | Exit Status: \"1\"\"."
+      }, {
+        "name" : "attachments",
+        "value" : "[[Terminal Action Actual Result, Command Log, chmod: cannot access 'generateJdk.sh': No such file or directory]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 1,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ {
+      "uid" : "624cad70d624c55a",
+      "name" : "SHAFT Links - Important",
+      "source" : "624cad70d624c55a.uri",
+      "type" : "text/uri-list",
+      "size" : 346
+    } ],
+    "parameters" : [ ],
+    "stepsCount" : 2,
+    "attachmentsCount" : 2,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  } ],
+  "testStage" : {
+    "status" : "skipped",
+    "statusMessage" : "Method testPackage01.TestJSPromptBox.assertOnConfirmPromptAlertWithTextMessageResultText() on instance testPackage01.TestJSPromptBox@4b6d92e depends on not successfully finished methods \n[testPackage01.TestJSPromptBox.acceptPromptAlertWithTextMessage() on instance testPackage01.TestJSPromptBox@4b6d92e]",
+    "statusTrace" : "java.lang.Throwable: Method testPackage01.TestJSPromptBox.assertOnConfirmPromptAlertWithTextMessageResultText() on instance testPackage01.TestJSPromptBox@4b6d92e depends on not successfully finished methods \n[testPackage01.TestJSPromptBox.acceptPromptAlertWithTextMessage() on instance testPackage01.TestJSPromptBox@4b6d92e]\n\tat org.testng.internal.invokers.TestInvoker.invokeTestMethods(TestInvoker.java:149)\n\tat org.testng.internal.invokers.TestMethodWorker.invokeTestMethods(TestMethodWorker.java:146)\n\tat org.testng.internal.invokers.TestMethodWorker.run(TestMethodWorker.java:128)\n\tat java.base/java.util.ArrayList.forEach(ArrayList.java:1511)\n\tat org.testng.TestRunner.privateRun(TestRunner.java:808)\n\tat org.testng.TestRunner.run(TestRunner.java:603)\n\tat org.testng.SuiteRunner.runTest(SuiteRunner.java:429)\n\tat org.testng.SuiteRunner.runSequentially(SuiteRunner.java:423)\n\tat org.testng.SuiteRunner.privateRun(SuiteRunner.java:383)\n\tat org.testng.SuiteRunner.run(SuiteRunner.java:326)\n\tat org.testng.SuiteRunnerWorker.runSuite(SuiteRunnerWorker.java:52)\n\tat org.testng.SuiteRunnerWorker.run(SuiteRunnerWorker.java:95)\n\tat org.testng.TestNG.runSuitesSequentially(TestNG.java:1249)\n\tat org.testng.TestNG.runSuitesLocally(TestNG.java:1169)\n\tat org.testng.TestNG.runSuites(TestNG.java:1092)\n\tat org.testng.TestNG.run(TestNG.java:1060)\n\tat org.apache.maven.surefire.testng.TestNGExecutor.run(TestNGExecutor.java:136)\n\tat org.apache.maven.surefire.testng.TestNGDirectoryTestSuite.executeMulti(TestNGDirectoryTestSuite.java:193)\n\tat org.apache.maven.surefire.testng.TestNGDirectoryTestSuite.execute(TestNGDirectoryTestSuite.java:94)\n\tat org.apache.maven.surefire.testng.TestNGProvider.invoke(TestNGProvider.java:145)\n\tat org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:428)\n\tat org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:162)\n\tat org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:562)\n\tat org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:548)\n",
+    "steps" : [ ],
+    "attachments" : [ {
+      "uid" : "dec33e70a8968157",
+      "name" : "SHAFT Engine Logs - Current Method log: assertOnConfirmPromptAlertWithTextMessageResultText",
+      "source" : "dec33e70a8968157.txt",
+      "type" : "text/plain",
+      "size" : 455
+    } ],
+    "parameters" : [ ],
+    "stepsCount" : 0,
+    "attachmentsCount" : 1,
+    "shouldDisplayMessage" : true,
+    "hasContent" : true
+  },
+  "afterStages" : [ {
+    "name" : "tearDownDriver",
+    "time" : {
+      "start" : 1649057034311,
+      "stop" : 1649057034452,
+      "duration" : 141
+    },
+    "description" : "",
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Close current window.",
+      "time" : {
+        "start" : 1649057034451,
+        "stop" : 1649057034451,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "af02e5a1ee6fff3f",
+        "name" : "Browser Action Test Data - Close current window - Actual Value",
+        "source" : "af02e5a1ee6fff3f.html",
+        "type" : "text/html",
+        "size" : 2483
+      } ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Close current window."
+      }, {
+        "name" : "attachments",
+        "value" : "[[Browser Action Test Data - Close current window, Actual Value, <html class=\"no-js\" lang=\"en\"><!--<![endif]--><head>\n    <script src=\"/js/vendor/298279967.js\"></script>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width\">\n    <title>The Internet</title>\n    <link href=\"/css/app.css\" rel=\"stylesheet\">\n    <link href=\"/css/font-awesome.css\" rel=\"stylesheet\">\n    <script src=\"/js/vendor/jquery-1.11.3.min.js\"></script>\n    <script src=\"/js/vendor/jquery-ui-1.11.4/jquery-ui.js\"></script>\n    <script src=\"/js/foundation/foundation.js\"></script><meta class=\"foundation-mq-small\"><meta class=\"foundation-mq-medium\"><meta class=\"foundation-mq-large\"><style></style>\n    <script src=\"/js/foundation/foundation.alerts.js\"></script>\n    <script>\n      $(document).foundation();\n    </script>\n  </head>\n  <body>\n    <div class=\"row\">\n      <div id=\"flash-messages\" class=\"large-12 columns\">\n      \n        \n      \n        \n      \n        \n      \n      </div>\n    </div>\n    <div class=\"row\">\n      <a href=\"https://github.com/tourdedave/the-internet\"><img style=\"position: absolute; top: 0; right: 0; border: 0;\" src=\"/img/forkme_right_green_007200.png\" alt=\"Fork me on GitHub\"></a>\n      <div id=\"content\" class=\"large-12 columns\">\n        <script>\n  function jsAlert() {\n    alert('I am a JS Alert');\n    log('You successfully clicked an alert');\n  }\n\n  function jsConfirm() {\n    var c = confirm('I am a JS Confirm');\n    var result = c === true ? 'Ok' : 'Cancel';\n    log('You clicked: ' + result);\n  }\n\n  function jsPrompt() {\n    var p = prompt('I am a JS prompt');\n    log('You entered: ' + p);\n  }\n\n  function log(msg) {\n    var result = document.getElementById('result');\n    result.innerHTML = msg;\n  }\n</script>\n<div class=\"example\">\n  <h3>JavaScript Alerts</h3>\n  <p>Here are some examples of different JavaScript alerts which can be troublesome for automation</p>\n  <ul style=\"list-style-type: none;\">\n    <li><button onclick=\"jsAlert()\">Click for JS Alert</button></li>\n    <li><button onclick=\"jsConfirm()\">Click for JS Confirm</button></li>\n    <li><button onclick=\"jsPrompt()\">Click for JS Prompt</button></li>\n  </ul>\n  <h4>Result:</h4>\n  <p id=\"result\" style=\"color:green\">You entered: </p>\n</div>\n\n      </div>\n    </div>\n    <div id=\"page-footer\" class=\"row\">\n      <div class=\"large-4 large-centered columns\">\n        <hr>\n        <div style=\"text-align: center;\">Powered by <a target=\"_blank\" href=\"http://elementalselenium.com/\">Elemental Selenium</a></div>\n      </div>\n    </div>\n  \n\n</body></html>]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 1,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ {
+      "uid" : "94e85d5b0524bd5",
+      "name" : "Selenium WebDriver Logs - browser",
+      "source" : "94e85d5b0524bd5.txt",
+      "type" : "text/plain",
+      "size" : 589
+    } ],
+    "parameters" : [ ],
+    "stepsCount" : 1,
+    "attachmentsCount" : 2,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  }, {
+    "name" : "teardownActivities",
+    "time" : {
+      "start" : 1649058393508,
+      "stop" : 1649058394314,
+      "duration" : 806
+    },
+    "description" : "",
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Successfully Closed All Drivers.",
+      "time" : {
+        "start" : 1649058393635,
+        "stop" : 1649058393635,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Successfully Closed All Drivers."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Issue Summary: Total Issues = 7, New issues for Failed Tests = 5, Open issues for Passed Tests = 2, Open issues for Failed Tests = 0. Kindly check the attached Issue details.",
+      "time" : {
+        "start" : 1649058393644,
+        "stop" : 1649058393644,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "76dde7958d3753c6",
+        "name" : "SHAFT Engine Logs - Issues log CSV: 20220404-074633",
+        "source" : "76dde7958d3753c6.csv",
+        "type" : "text/csv",
+        "size" : 833
+      } ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Issue Summary: Total Issues = 7, New issues for Failed Tests = 5, Open issues for Passed Tests = 2, Open issues for Failed Tests = 0. Kindly check the attached Issue details."
+      }, {
+        "name" : "attachments",
+        "value" : "[[SHAFT Engine Logs, Issues log CSV: 20220404-074633, java.io.ByteArrayInputStream@6a50ead]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 1,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ {
+      "uid" : "892f13e702ea1217",
+      "name" : "Selenium WebDriver Logs - browser",
+      "source" : "892f13e702ea1217.txt",
+      "type" : "text/plain",
+      "size" : 294
+    }, {
+      "uid" : "4919222febc86fc3",
+      "name" : "SHAFT Engine Logs - Execution log: 20220404-074633",
+      "source" : "4919222febc86fc3.txt",
+      "type" : "text/plain",
+      "size" : 292502
+    }, {
+      "uid" : "86ea82a2bae8e670",
+      "name" : "HTML - Extent Emailable Execution Report",
+      "source" : "86ea82a2bae8e670.html",
+      "type" : "text/html",
+      "size" : 10712589
+    } ],
+    "parameters" : [ ],
+    "stepsCount" : 2,
+    "attachmentsCount" : 4,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  } ],
+  "labels" : [ {
+    "name" : "package",
+    "value" : "testPackage01.TestJSPromptBox"
+  }, {
+    "name" : "testClass",
+    "value" : "testPackage01.TestJSPromptBox"
+  }, {
+    "name" : "testMethod",
+    "value" : "assertOnConfirmPromptAlertWithTextMessageResultText"
+  }, {
+    "name" : "parentSuite",
+    "value" : "Suite"
+  }, {
+    "name" : "suite",
+    "value" : "Test"
+  }, {
+    "name" : "subSuite",
+    "value" : "testPackage01.TestJSPromptBox"
+  }, {
+    "name" : "host",
+    "value" : "fv-az290-429"
+  }, {
+    "name" : "thread",
+    "value" : "3454@fv-az290-429.main(1)"
+  }, {
+    "name" : "framework",
+    "value" : "testng"
+  }, {
+    "name" : "language",
+    "value" : "java"
+  }, {
+    "name" : "resultFormat",
+    "value" : "allure2"
+  } ],
+  "parameters" : [ ],
+  "links" : [ ],
+  "hidden" : false,
+  "retry" : false,
+  "extra" : {
+    "severity" : "normal",
+    "retries" : [ ],
+    "categories" : [ ],
+    "tags" : [ ]
+  },
+  "source" : "8163d14ab980a059.json",
+  "parameterValues" : [ ]
+}

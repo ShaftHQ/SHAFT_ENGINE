@@ -1,0 +1,7 @@
+
+################################################################################################################################################
+Starting Execution:	"89 out of 185" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f8"
+################################################################################################################################################
+[ReportManager] Assertion "ValidateElementExists" PASSED. Expected "Element Should Exist, locator 'By.tagName: h1'" and Actual "Element Exists". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 07:25:30.0169 AM
+[ReportManager] Successfully created attachment "Screenshot - 1649057130042_f8_ValidateElementExists_passed" @04-04-2022 07:25:30.0170 A

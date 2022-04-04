@@ -1,0 +1,129 @@
+{
+  "uid" : "4b4757e66a1912dae1a509f688f20b0f",
+  "children" : [ {
+    "name" : "Product defects",
+    "children" : [ {
+      "name" : "Database Action \"<init>\" failed. With the following test data \"Custom Connection String: \"\"\".",
+      "children" : [ {
+        "name" : "test",
+        "uid" : "c1e8f49342557df0",
+        "parentUid" : "8ff6d3787cecf4e98ddc91a721ae64ad",
+        "status" : "failed",
+        "time" : {
+          "start" : 1649056935160,
+          "stop" : 1649056935173,
+          "duration" : 13
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "parameters" : [ ]
+      } ],
+      "uid" : "8ff6d3787cecf4e98ddc91a721ae64ad"
+    }, {
+      "name" : "Wait for alert to be present failed.",
+      "children" : [ {
+        "name" : "acceptAlert",
+        "uid" : "30e98f3a7f5639c1",
+        "parentUid" : "6e23ce99596fb81abaf9b62d8b16a1f1",
+        "status" : "failed",
+        "time" : {
+          "start" : 1649056970986,
+          "stop" : 1649057001427,
+          "duration" : 30441
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "parameters" : [ ]
+      }, {
+        "name" : "acceptPromptAlertWithoutTypingTextMessage",
+        "uid" : "d373e78eff7968f",
+        "parentUid" : "6e23ce99596fb81abaf9b62d8b16a1f1",
+        "status" : "failed",
+        "time" : {
+          "start" : 1649057003893,
+          "stop" : 1649057034277,
+          "duration" : 30384
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "parameters" : [ ]
+      }, {
+        "name" : "acceptAlert",
+        "uid" : "9cff229ed83fe13c",
+        "parentUid" : "6e23ce99596fb81abaf9b62d8b16a1f1",
+        "status" : "failed",
+        "time" : {
+          "start" : 1649057821913,
+          "stop" : 1649057852245,
+          "duration" : 30332
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "parameters" : [ ]
+      } ],
+      "uid" : "6e23ce99596fb81abaf9b62d8b16a1f1"
+    }, {
+      "name" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "children" : [ {
+        "name" : "beforeClass",
+        "uid" : "46056d6ea2364aad",
+        "parentUid" : "a65abb0a07b8481acb268e35a860409f",
+        "status" : "failed",
+        "time" : {
+          "start" : 1649057352020,
+          "stop" : 1649057352020,
+          "duration" : 0
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "parameters" : [ ]
+      }, {
+        "name" : "beforeClass",
+        "uid" : "3a1b362602a4f312",
+        "parentUid" : "a65abb0a07b8481acb268e35a860409f",
+        "status" : "failed",
+        "time" : {
+          "start" : 1649057670271,
+          "stop" : 1649057670271,
+          "duration" : 0
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "parameters" : [ ]
+      }, {
+        "name" : "testButton",
+        "uid" : "c6aaa36f5cc88f9b",
+        "parentUid" : "a65abb0a07b8481acb268e35a860409f",
+        "status" : "failed",
+        "time" : {
+          "start" : 1649058079530,
+          "stop" : 1649058259548,
+          "duration" : 180018
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "parameters" : [ ]
+      } ],
+      "uid" : "a65abb0a07b8481acb268e35a860409f"
+    }, {
+      "name" : "Navigate to new url failed \"https://www.google.com/ncr\".",
+      "children" : [ {
+        "name" : "beforeMethod",
+        "uid" : "3aea690c5f22124b",
+        "parentUid" : "afa22f3b46dfc44dbab893451de4b271",
+        "status" : "failed",
+        "time" : {
+          "start" : 1649058079356,
+          "stop" : 1649058079356,
+          "duration" : 0
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "parameters" : [ ]
+      } ],
+      "uid" : "afa22f3b46dfc44dbab893451de4b271"
+    } ],
+    "uid" : "8fb3a91ba5aaf9de24cc8a92edc82b5d"
+  } ],
+  "name" : "categories"
+}

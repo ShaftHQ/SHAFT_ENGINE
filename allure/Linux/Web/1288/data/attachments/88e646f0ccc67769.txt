@@ -1,0 +1,14 @@
+
+################################################################################################################################################
+Starting Execution:	"36 out of 185" test cases in the current suite
+Test Method:		"testPackage01.TestJSPromptBox.getAlertText"
+################################################################################################################################################
+[ReportManager] Click "By.xpath: //button[contains(text(),'Click for JS Prompt')]". @04-04-2022 07:23:23.0828 AM
+[ReportManager] Alert is present @04-04-2022 07:23:23.0839 AM
+[ReportManager] Alert Text is: [I am a JS prompt] @04-04-2022 07:23:23.0850 AM
+[ReportManager] Get alert text. @04-04-2022 07:23:23.0851 AM
+[ReportManager] Alert text is: [I am a JS prompt] @04-04-2022 07:23:23.0851 AM
+[ReportManager] Alert is present @04-04-2022 07:23:23.0861 AM
+[ReportManager] Alert Text is: [I am a JS prompt] @04-04-2022 07:23:23.0872 AM
+[ReportManager] Get alert text. @04-04-2022 07:23:23.0872 AM
+[ReportManager] Assertion Passed: "I am a JS prompt" is equal to "I am a JS prompt". @04-04-2022 07:23:23.0873 A

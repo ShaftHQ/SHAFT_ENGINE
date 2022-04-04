@@ -1,0 +1,116 @@
+
+################################################################################################################################################
+Starting Execution:	"119 out of 185" test cases in the current suite
+Test Method:		"unitTests.tests_restActions.getPostsAndAssertBodyForSpecificTitle"
+################################################################################################################################################
+[ReportManager] Response status code: "200", status line: "HTTP/1.1 200 OK" @04-04-2022 07:37:50.0750 AM
+[ReportManager] Assertion Passed: Evaluating the actual response status code against the expected one... @04-04-2022 07:37:50.0750 AM
+[ReportManager] Perform request "GET | Target Status Code: 200 | Service URL: https://jsonplaceholder.typicode.com/posts | Content Type: */* | Response Time: 173ms". @04-04-2022 07:37:50.0798 AM
+[ReportManager] Successfully created attachment "API Request - Specifications" @04-04-2022 07:37:50.0798 AM
+[ReportManager] Successfully created attachment "API Response - JSON Body" @04-04-2022 07:37:50.0799 AM
+[ReportManager] Get response jsonvalue as list. @04-04-2022 07:37:50.0809 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:50.0820 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:50.0834 AM
+[ReportManager] Get response jsonvalue "body". @04-04-2022 07:37:50.0843 AM
+[ReportManager] Assertion "ValidateEquals" PASSED. Expected "qui neque nisi nulla" and Actual "est rerum tempore vitae
+sequi sint nihil reprehenderit dolor beatae ea dolores neque
+fugiat blanditiis voluptate porro vel nihil molestiae ut reiciendis
+qui aperiam non debitis possimus qui neque nisi nulla". Comparison Type "CONTAINS". Validation Type "POSITIVE". @04-04-2022 07:37:50.0843 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:50.0859 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:50.0868 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:50.0881 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:50.0899 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:50.0907 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:50.0915 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:50.0930 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:50.0940 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:50.0953 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:50.0962 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:50.0970 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:50.0978 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:50.0986 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:50.0996 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0004 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0022 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0033 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0042 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0051 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0058 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0066 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0074 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0081 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0089 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0097 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0105 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0112 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0120 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0128 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0136 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0144 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0152 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0160 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0167 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0175 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0184 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0193 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0201 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0226 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0234 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0242 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0250 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0258 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0265 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0273 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0281 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0289 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0296 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0304 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0312 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0320 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0328 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0335 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0342 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0350 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0357 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0365 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0372 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0379 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0386 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0402 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0412 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0420 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0430 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0438 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0449 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0456 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0471 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0481 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0491 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0511 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0521 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0529 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0536 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0543 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0550 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0557 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0564 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0571 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0578 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0585 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0592 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0600 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0608 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0615 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0623 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0630 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0637 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0644 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0651 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0659 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0666 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0673 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0680 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0687 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0694 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0701 AM
+[ReportManager] Get response jsonvalue "title". @04-04-2022 07:37:51.0709 A

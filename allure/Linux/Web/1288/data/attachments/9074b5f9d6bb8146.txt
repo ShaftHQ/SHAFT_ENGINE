@@ -1,0 +1,6 @@
+
+################################################################################################################################################
+Starting Execution:	"77 out of 185" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f33"
+################################################################################################################################################
+[ReportManager] Assertion "ValidateTrue" FAILED. Expected "FALSE" and Actual "TRUE". Validation Type "NEGATIVE". @04-04-2022 07:25:28.0578 A

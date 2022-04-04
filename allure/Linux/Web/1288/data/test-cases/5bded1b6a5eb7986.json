@@ -1,0 +1,382 @@
+{
+  "uid" : "5bded1b6a5eb7986",
+  "name" : "TC001 - Test Drag and Drop function.",
+  "fullName" : "testPackage01.Test_dragAndDrop.dragAndDrop",
+  "historyId" : "9c719c977867ad678cba36ac5ef0566e",
+  "time" : {
+    "start" : 1649056910319,
+    "stop" : 1649056912720,
+    "duration" : 2401
+  },
+  "status" : "passed",
+  "flaky" : false,
+  "newFailed" : false,
+  "beforeStages" : [ {
+    "name" : "beforeMethod",
+    "time" : {
+      "start" : 1649056910078,
+      "stop" : 1649056910302,
+      "duration" : 224
+    },
+    "description" : "",
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Attempting to run remotely on: \"Linux-64 | GoogleChrome | http://localhost:4444/wd/hub\", Headless Execution.",
+      "time" : {
+        "start" : 1649056910079,
+        "stop" : 1649056910079,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Attempting to run remotely on: \"Linux-64 | GoogleChrome | http://localhost:4444/wd/hub\", Headless Execution."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Successfully Opened \"GoogleChrome\".",
+      "time" : {
+        "start" : 1649056910301,
+        "stop" : 1649056910302,
+        "duration" : 1
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Successfully Opened \"GoogleChrome\"."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ ],
+    "parameters" : [ ],
+    "stepsCount" : 2,
+    "attachmentsCount" : 0,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  }, {
+    "name" : "setupActivities",
+    "time" : {
+      "start" : 1649056899698,
+      "stop" : 1649056900518,
+      "duration" : 820
+    },
+    "description" : "",
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Folder \"extent-reports\" was not found, it may have already been deleted.",
+      "time" : {
+        "start" : 1649056899856,
+        "stop" : 1649056899857,
+        "duration" : 1
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Folder \"extent-reports\" was not found, it may have already been deleted."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Terminal Action \"PerformTerminalCommands\" successfully performed. With the following test data \"Host Name: \"localHost\" | Command: \"chmod u+x generateJdk.sh\" | Exit Status: \"1\"\".",
+      "time" : {
+        "start" : 1649056900515,
+        "stop" : 1649056900517,
+        "duration" : 2
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "8056e34f68f45169",
+        "name" : "Terminal Action Actual Result - Command Log",
+        "source" : "8056e34f68f45169.txt",
+        "type" : "text/plain",
+        "size" : 64
+      } ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Terminal Action \"PerformTerminalCommands\" successfully performed. With the following test data \"Host Name: \"localHost\" | Command: \"chmod u+x generateJdk.sh\" | Exit Status: \"1\"\"."
+      }, {
+        "name" : "attachments",
+        "value" : "[[Terminal Action Actual Result, Command Log, chmod: cannot access 'generateJdk.sh': No such file or directory]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 1,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ {
+      "uid" : "624cad70d624c55a",
+      "name" : "SHAFT Links - Important",
+      "source" : "624cad70d624c55a.uri",
+      "type" : "text/uri-list",
+      "size" : 346
+    } ],
+    "parameters" : [ ],
+    "stepsCount" : 2,
+    "attachmentsCount" : 2,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  } ],
+  "testStage" : {
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Navigate to url \"http://the-internet.herokuapp.com/drag_and_drop\".",
+      "time" : {
+        "start" : 1649056911284,
+        "stop" : 1649056911285,
+        "duration" : 1
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Navigate to url \"http://the-internet.herokuapp.com/drag_and_drop\"."
+      }, {
+        "name" : "attachments",
+        "value" : "[[]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Attempting Drag and Drop",
+      "time" : {
+        "start" : 1649056911285,
+        "stop" : 1649056911285,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Attempting Drag and Drop"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Drag and drop \"Start point: (492, 90), End point: (707, 90)\".",
+      "time" : {
+        "start" : 1649056912718,
+        "stop" : 1649056912719,
+        "duration" : 1
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Drag and drop \"Start point: (492, 90), End point: (707, 90)\"."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ {
+      "uid" : "b9279de30460daa6",
+      "name" : "SHAFT Engine Logs - Current Method log: dragAndDrop",
+      "source" : "b9279de30460daa6.txt",
+      "type" : "text/plain",
+      "size" : 935
+    } ],
+    "parameters" : [ ],
+    "stepsCount" : 3,
+    "attachmentsCount" : 1,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  },
+  "afterStages" : [ {
+    "name" : "afterMethod",
+    "time" : {
+      "start" : 1649056912726,
+      "stop" : 1649056912975,
+      "duration" : 249
+    },
+    "description" : "",
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Close current window.",
+      "time" : {
+        "start" : 1649056912974,
+        "stop" : 1649056912975,
+        "duration" : 1
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "89f809747819615a",
+        "name" : "Browser Action Test Data - Close current window - Actual Value",
+        "source" : "89f809747819615a.html",
+        "type" : "text/html",
+        "size" : 3361
+      } ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Close current window."
+      }, {
+        "name" : "attachments",
+        "value" : "[[Browser Action Test Data - Close current window, Actual Value, <html class=\"no-js\" lang=\"en\"><!--<![endif]--><head>\n    <script src=\"/js/vendor/298279967.js\"></script>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width\">\n    <title>The Internet</title>\n    <link href=\"/css/app.css\" rel=\"stylesheet\">\n    <link href=\"/css/font-awesome.css\" rel=\"stylesheet\">\n    <script src=\"/js/vendor/jquery-1.11.3.min.js\"></script>\n    <script src=\"/js/vendor/jquery-ui-1.11.4/jquery-ui.js\"></script>\n    <script src=\"/js/foundation/foundation.js\"></script><meta class=\"foundation-mq-small\"><meta class=\"foundation-mq-medium\"><meta class=\"foundation-mq-large\"><style></style>\n    <script src=\"/js/foundation/foundation.alerts.js\"></script>\n    <script>\n      $(document).foundation();\n    </script>\n  </head>\n  <body>\n    <div class=\"row\">\n      <div id=\"flash-messages\" class=\"large-12 columns\">\n      \n        \n      \n        \n      \n        \n      \n      </div>\n    </div>\n    <div class=\"row\">\n      <a href=\"https://github.com/tourdedave/the-internet\"><img style=\"position: absolute; top: 0; right: 0; border: 0;\" src=\"/img/forkme_right_green_007200.png\" alt=\"Fork me on GitHub\"></a>\n      <div id=\"content\" class=\"large-12 columns\">\n        <style>\n.columns {\n  width: 400px;\n}\n.column {\n  height: 150px;\n  width: 150px;\n  float: left;\n  border: 2px solid #666666;\n  background-color: #ccc;\n  margin-right: 5px;\n  text-align: center;\n  cursor: move;\n}\n.column.over {\n  border: 2px dashed #000;\n}\n</style>\n\n<div class=\"example\">\n  <h3>Drag and Drop</h3>\n  <div id=\"columns\">\n    <div class=\"column\" id=\"column-a\" draggable=\"true\" style=\"opacity: 0.4;\"><header>B</header></div>\n    <div class=\"column over\" id=\"column-b\" draggable=\"true\"><header>A</header></div>\n  </div>\n</div>\n\n<script>\nvar dragSrcEl = null;\n\nfunction handleDragStart(e) {\n  this.style.opacity = '0.4';\n\n  dragSrcEl = this;\n\n  e.dataTransfer.effectAllowed = 'move';\n  e.dataTransfer.setData('text/html', this.innerHTML);\n}\n\nfunction handleDragOver(e) {\n  if (e.preventDefault) {\n    e.preventDefault();\n  }\n\n  e.dataTransfer.dropEffect = 'move';\n\n  return false;\n}\n\nfunction handleDragEnter(e) {\n  this.classList.add('over');\n}\n\nfunction handleDragLeave(e) {\n  this.classList.remove('over');\n}\n\nfunction handleDrop(e) {\n  if (e.stopPropagation) {\n    e.stopPropagation();\n  }\n\n  if (dragSrcEl != this) {\n    dragSrcEl.innerHTML = this.innerHTML;\n    this.innerHTML = e.dataTransfer.getData('text/html');\n  }\n\n  return false;\n}\n\nfunction handleDragEnd(e) {\n  [].forEach.call(cols, function (col) {\n    col.classList.remove('over');\n  });\n  this.style.opacity = '1';\n}\n\nvar cols = document.querySelectorAll('#columns .column');\n[].forEach.call(cols, function(col) {\n  col.addEventListener('dragstart', handleDragStart, false);\n  col.addEventListener('dragenter', handleDragEnter, false);\n  col.addEventListener('dragover', handleDragOver, false);\n  col.addEventListener('dragleave', handleDragLeave, false);\n  col.addEventListener('drop', handleDrop, false);\n  col.addEventListener('dragend', handleDragEnd, false);\n});\n</script>\n\n      </div>\n    </div>\n    <div id=\"page-footer\" class=\"row\">\n      <div class=\"large-4 large-centered columns\">\n        <hr>\n        <div style=\"text-align: center;\">Powered by <a target=\"_blank\" href=\"http://elementalselenium.com/\">Elemental Selenium</a></div>\n      </div>\n    </div>\n  \n\n</body></html>]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 1,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ {
+      "uid" : "89313afcf4518025",
+      "name" : "Selenium WebDriver Logs - browser",
+      "source" : "89313afcf4518025.txt",
+      "type" : "text/plain",
+      "size" : 310
+    } ],
+    "parameters" : [ ],
+    "stepsCount" : 1,
+    "attachmentsCount" : 2,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  }, {
+    "name" : "teardownActivities",
+    "time" : {
+      "start" : 1649058393508,
+      "stop" : 1649058394314,
+      "duration" : 806
+    },
+    "description" : "",
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Successfully Closed All Drivers.",
+      "time" : {
+        "start" : 1649058393635,
+        "stop" : 1649058393635,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Successfully Closed All Drivers."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Issue Summary: Total Issues = 7, New issues for Failed Tests = 5, Open issues for Passed Tests = 2, Open issues for Failed Tests = 0. Kindly check the attached Issue details.",
+      "time" : {
+        "start" : 1649058393644,
+        "stop" : 1649058393644,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "76dde7958d3753c6",
+        "name" : "SHAFT Engine Logs - Issues log CSV: 20220404-074633",
+        "source" : "76dde7958d3753c6.csv",
+        "type" : "text/csv",
+        "size" : 833
+      } ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Issue Summary: Total Issues = 7, New issues for Failed Tests = 5, Open issues for Passed Tests = 2, Open issues for Failed Tests = 0. Kindly check the attached Issue details."
+      }, {
+        "name" : "attachments",
+        "value" : "[[SHAFT Engine Logs, Issues log CSV: 20220404-074633, java.io.ByteArrayInputStream@6a50ead]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 1,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ {
+      "uid" : "892f13e702ea1217",
+      "name" : "Selenium WebDriver Logs - browser",
+      "source" : "892f13e702ea1217.txt",
+      "type" : "text/plain",
+      "size" : 294
+    }, {
+      "uid" : "4919222febc86fc3",
+      "name" : "SHAFT Engine Logs - Execution log: 20220404-074633",
+      "source" : "4919222febc86fc3.txt",
+      "type" : "text/plain",
+      "size" : 292502
+    }, {
+      "uid" : "86ea82a2bae8e670",
+      "name" : "HTML - Extent Emailable Execution Report",
+      "source" : "86ea82a2bae8e670.html",
+      "type" : "text/html",
+      "size" : 10712589
+    } ],
+    "parameters" : [ ],
+    "stepsCount" : 2,
+    "attachmentsCount" : 4,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  } ],
+  "labels" : [ {
+    "name" : "package",
+    "value" : "testPackage01.Test_dragAndDrop"
+  }, {
+    "name" : "testClass",
+    "value" : "testPackage01.Test_dragAndDrop"
+  }, {
+    "name" : "testMethod",
+    "value" : "dragAndDrop"
+  }, {
+    "name" : "parentSuite",
+    "value" : "Suite"
+  }, {
+    "name" : "suite",
+    "value" : "Test"
+  }, {
+    "name" : "subSuite",
+    "value" : "testPackage01.Test_dragAndDrop"
+  }, {
+    "name" : "host",
+    "value" : "fv-az290-429"
+  }, {
+    "name" : "thread",
+    "value" : "3454@fv-az290-429.main(1)"
+  }, {
+    "name" : "framework",
+    "value" : "testng"
+  }, {
+    "name" : "language",
+    "value" : "java"
+  }, {
+    "name" : "resultFormat",
+    "value" : "allure2"
+  } ],
+  "parameters" : [ ],
+  "links" : [ ],
+  "hidden" : false,
+  "retry" : false,
+  "extra" : {
+    "severity" : "normal",
+    "retries" : [ ],
+    "categories" : [ ],
+    "tags" : [ ]
+  },
+  "source" : "5bded1b6a5eb7986.json",
+  "parameterValues" : [ ]
+}

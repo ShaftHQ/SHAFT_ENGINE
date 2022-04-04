@@ -1,0 +1,6 @@
+
+################################################################################################################################################
+Starting Execution:	"173 out of 185" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertEquals_true_expectedToPass"
+Test Description:	"Assert that assertEquals works as expected when the two values are equal."
+###############################################################################################################################################

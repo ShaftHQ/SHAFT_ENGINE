@@ -1,0 +1,1 @@
+Value Should be 'data:image/png;base64' for the 'src' attribute, element locator 'By.xpath: //div[@id='fine-uploader-gallery']//div[@class='qq-thumbnail-wrapper']/img'

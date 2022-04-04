@@ -1,0 +1,11 @@
+
+################################################################################################################################################
+Starting Execution:	"9 out of 185" test cases in the current suite
+Test Method:		"testPackage01.Test_google.navigateToURLandVerifyGoogleLogoIsDisplayed"
+Test Description:	"TC001 - Navigate to URL and Verify Google Logo is Displayed"
+################################################################################################################################################
+[ReportManager] Target URL: "https://www.google.com/ncr", and after redirection: "https://www.google.com" @04-04-2022 07:21:56.0354 AM
+[ReportManager] Initial URL: "data:," @04-04-2022 07:21:56.0469 AM
+[ReportManager] Navigate to url "https://www.google.com/ncr". @04-04-2022 07:21:57.0561 AM
+[ReportManager] Assertion Passed: The Element located by "By.xpath: //*[@id='hplogo' or @alt='Google']" exists. @04-04-2022 07:21:58.0321 AM
+[ReportManager] Successfully created attachment "Screenshot - 1649056918086_navigateToURLandVerifyGoogleLogoIsDisplayed_ValidateElementExists_passed" @04-04-2022 07:21:58.0327 A

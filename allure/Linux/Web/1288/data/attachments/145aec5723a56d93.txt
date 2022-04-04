@@ -1,0 +1,11 @@
+
+################################################################################################################################################
+Starting Execution:	"114 out of 185" test cases in the current suite
+Test Method:		"unitTests.tests_element_elementActions.waitForElementToBePresent_false_expectedToFail"
+################################################################################################################################################
+[ReportManager] Target URL: "https://www.google.com/ncr", and after redirection: "www.google.com" @04-04-2022 07:37:32.0600 AM
+[ReportManager] Initial URL: "data:," @04-04-2022 07:37:32.0673 AM
+[ReportManager] Navigate to url "https://www.google.com/ncr". @04-04-2022 07:37:33.0512 AM
+[ReportManager] Waiting for element to be present; elementLocator "By.xpath: //*[@id='hplogo' or @alt='Google']", numberOfTries"1", stateOfPresence"false"... @04-04-2022 07:37:33.0514 AM
+[ReportManager] Wait for element to be present failed "waited for the element's state of presence to be (false). Element locator (By.xpath: //*[@id='hplogo' or @alt='Google'])". @04-04-2022 07:37:34.0018 AM
+[ReportManager] Successfully created attachment "Screenshot - 1649057853835_waitForElementToBePresent_false_expectedToFail_Wait for element to be present_failed" @04-04-2022 07:37:34.0019 A
