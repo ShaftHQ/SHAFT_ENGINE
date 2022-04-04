@@ -1,0 +1,6 @@
+
+################################################################################################################################################
+Starting Execution:	"14 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertComparativeRelation_greaterThanOrEquals_true_greaterThan_expectedToFail"
+################################################################################################################################################
+[ReportManager] Assertion "ValidateComparativeRelation" FAILED. Expected "2" and Actual "1". Comparison Type "GREATER_THAN_OR_EQUALS". Validation Type "POSITIVE". @04-04-2022 19:39:41.0822 P

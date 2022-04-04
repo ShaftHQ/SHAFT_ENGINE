@@ -1,0 +1,6 @@
+
+################################################################################################################################################
+Starting Execution:	"175 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_google.clickNextThrice"
+Test Description:	"TC003 - Clicks the next button to make sure that the framework can scroll element into view before clicking it"
+###############################################################################################################################################

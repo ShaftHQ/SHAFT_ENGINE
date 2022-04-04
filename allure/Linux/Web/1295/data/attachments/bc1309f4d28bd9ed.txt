@@ -1,0 +1,21 @@
+
+################################################################################################################################################
+Starting Execution:	"1 out of 179" test cases in the current suite
+Test Method:		"dsl.testDsl.testButton"
+################################################################################################################################################
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 19:39:23.0777 PM
+[ReportManager] Attempting to run remotely on: "Linux-64 | GoogleChrome | http://localhost:4444/wd/hub", Headless Execution. @04-04-2022 19:39:23.0791 PM
+[ReportManager] Successfully Opened "GoogleChrome". @04-04-2022 19:39:26.0995 PM
+[ReportManager] Target URL: "http://the-internet.herokuapp.com/" @04-04-2022 19:39:27.0027 PM
+[ReportManager] Initial URL: "data:," @04-04-2022 19:39:27.0352 PM
+[ReportManager] Navigate to url "http://the-internet.herokuapp.com/". @04-04-2022 19:39:28.0209 PM
+[ReportManager] Click "By.linkText: Add/Remove Elements". @04-04-2022 19:39:28.0924 PM
+[ReportManager] Get text "Add Element". @04-04-2022 19:39:29.0141 PM
+[ReportManager] Assertion Passed: "Add Element" is equal to "Add Element". @04-04-2022 19:39:29.0159 PM
+[ReportManager] Assertion "ValidateEquals" PASSED. Expected "Add Element" and Actual "Add Element". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:39:29.0161 PM
+[ReportManager] Click "By.xpath: //button[text()='Add Element']". @04-04-2022 19:39:29.0707 PM
+[ReportManager] Attempting to getAttribute "disabled" from elementLocator "By.xpath: //button[text()='Add Element']". @04-04-2022 19:39:29.0707 PM
+[ReportManager] Get attribute. @04-04-2022 19:39:29.0876 PM
+[ReportManager] Get text "Delete". @04-04-2022 19:39:30.0033 PM
+[ReportManager] Assertion Passed: "Delete" is equal to "Delete". @04-04-2022 19:39:30.0034 PM
+[ReportManager] Assertion "ValidateEquals" PASSED. Expected "Delete" and Actual "Delete". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:39:30.0034 P

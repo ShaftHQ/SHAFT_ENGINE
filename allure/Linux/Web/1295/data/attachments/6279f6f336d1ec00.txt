@@ -1,0 +1,9 @@
+
+################################################################################################################################################
+Starting Execution:	"81 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_SHAFT_Wizard.cli"
+################################################################################################################################################
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "src/test/resources/testDataFiles/JsonFileTest.json"". @04-04-2022 19:57:46.0073 PM
+[ReportManager] File Action "ReadFromFile" successfully performed. With the following test data "File Path: "/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/test/resources/testDataFiles/JsonFileTest.json"". @04-04-2022 19:57:46.0080 PM
+[ReportManager] Successfully created attachment "File Action Actual Result - Command Log" @04-04-2022 19:57:46.0081 PM
+[ReportManager] Successfully created attachment "JSON - Custom Attachment" @04-04-2022 19:57:46.0082 P

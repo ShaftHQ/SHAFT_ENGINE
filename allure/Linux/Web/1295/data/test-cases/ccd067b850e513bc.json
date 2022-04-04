@@ -1,0 +1,343 @@
+{
+  "uid" : "ccd067b850e513bc",
+  "name" : "assertApiResponseEquals_expectedToPass",
+  "fullName" : "testPackage01.Test_AssertApiResponseEquals.assertApiResponseEquals_expectedToPass",
+  "historyId" : "e167cb0f0b9e165fa2d11a66959b8c90",
+  "time" : {
+    "start" : 1649104429823,
+    "stop" : 1649104430106,
+    "duration" : 283
+  },
+  "status" : "passed",
+  "flaky" : false,
+  "newFailed" : false,
+  "beforeStages" : [ {
+    "name" : "setupActivities",
+    "time" : {
+      "start" : 1649101162698,
+      "stop" : 1649101163623,
+      "duration" : 925
+    },
+    "description" : "",
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Folder \"extent-reports\" was not found, it may have already been deleted.",
+      "time" : {
+        "start" : 1649101162837,
+        "stop" : 1649101162839,
+        "duration" : 2
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Folder \"extent-reports\" was not found, it may have already been deleted."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Terminal Action \"PerformTerminalCommands\" successfully performed. With the following test data \"Host Name: \"localHost\" | Command: \"chmod u+x generateJdk.sh\" | Exit Status: \"1\"\".",
+      "time" : {
+        "start" : 1649101163619,
+        "stop" : 1649101163622,
+        "duration" : 3
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "e8e014d9d31ccbe9",
+        "name" : "Terminal Action Actual Result - Command Log",
+        "source" : "e8e014d9d31ccbe9.txt",
+        "type" : "text/plain",
+        "size" : 64
+      } ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Terminal Action \"PerformTerminalCommands\" successfully performed. With the following test data \"Host Name: \"localHost\" | Command: \"chmod u+x generateJdk.sh\" | Exit Status: \"1\"\"."
+      }, {
+        "name" : "attachments",
+        "value" : "[[Terminal Action Actual Result, Command Log, chmod: cannot access 'generateJdk.sh': No such file or directory]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 1,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ {
+      "uid" : "aa8540ab5ab8c289",
+      "name" : "SHAFT Links - Important",
+      "source" : "aa8540ab5ab8c289.uri",
+      "type" : "text/uri-list",
+      "size" : 346
+    } ],
+    "parameters" : [ ],
+    "stepsCount" : 2,
+    "attachmentsCount" : 2,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  } ],
+  "testStage" : {
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Assertion Passed: Evaluating the actual response status code against the expected one...",
+      "time" : {
+        "start" : 1649104429909,
+        "stop" : 1649104429909,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "customLog",
+        "value" : "Assertion Passed: Evaluating the actual response status code against the expected one..."
+      }, {
+        "name" : "stepLog",
+        "value" : "Assertion \"ValidateComparativeRelation\" PASSED. Expected \"200\" and Actual \"200\". Comparison Type \"EQUALS\". Validation Type \"POSITIVE\"."
+      }, {
+        "name" : "attachments",
+        "value" : "null"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "API Action \"PerformRequest\" successfully performed. With the following test data \"Request Type: \"GET\" | Target Status Code: \"200\" | Service URL: \"https://jsonplaceholder.typicode.com/users\" | Content Type: \"*/*\" | Response Time: \"76ms\"\".",
+      "time" : {
+        "start" : 1649104429935,
+        "stop" : 1649104429936,
+        "duration" : 1
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "76ead71894f11de2",
+        "name" : "API Request - Specifications",
+        "source" : "76ead71894f11de2.txt",
+        "type" : "text/plain",
+        "size" : 44
+      }, {
+        "uid" : "ae778741f747b785",
+        "name" : "API Response - JSON Body",
+        "source" : "ae778741f747b785.json",
+        "type" : "text/json",
+        "size" : 5645
+      } ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "API Action \"PerformRequest\" successfully performed. With the following test data \"Request Type: \"GET\" | Target Status Code: \"200\" | Service URL: \"https://jsonplaceholder.typicode.com/users\" | Content Type: \"*/*\" | Response Time: \"76ms\"\"."
+      }, {
+        "name" : "attachments",
+        "value" : "[[API Request, Specifications, Headers:\n_______________\n\nContent-Type=*/*\n\n], null, [API Response, JSON Body, java.io.ByteArrayInputStream@76c944ce]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 2,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Verification Passed: The API response extracted value from the JSON path \"email\" is equal to \"Sincere@april.biz\".",
+      "time" : {
+        "start" : 1649104429969,
+        "stop" : 1649104429969,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "customLog",
+        "value" : "Verification Passed: The API response extracted value from the JSON path \"email\" is equal to \"Sincere@april.biz\"."
+      }, {
+        "name" : "stepLog",
+        "value" : "Verification \"ValidateEquals\" PASSED. Expected \"Sincere@april.biz\" and Actual \"Sincere@april.biz\". Comparison Type \"EQUALS\". Validation Type \"POSITIVE\"."
+      }, {
+        "name" : "attachments",
+        "value" : "null"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Assertion Passed: The API response extracted value from the JSON path \"username\" is equal to \"Bret\".",
+      "time" : {
+        "start" : 1649104429978,
+        "stop" : 1649104429978,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "customLog",
+        "value" : "Assertion Passed: The API response extracted value from the JSON path \"username\" is equal to \"Bret\"."
+      }, {
+        "name" : "stepLog",
+        "value" : "Assertion \"ValidateEquals\" PASSED. Expected \"Bret\" and Actual \"Bret\". Comparison Type \"EQUALS\". Validation Type \"POSITIVE\"."
+      }, {
+        "name" : "attachments",
+        "value" : "null"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ {
+      "uid" : "a6e78c2cac2c4913",
+      "name" : "SHAFT Engine Logs - Current Method log: assertApiResponseEquals_expectedToPass",
+      "source" : "a6e78c2cac2c4913.txt",
+      "type" : "text/plain",
+      "size" : 3870
+    } ],
+    "parameters" : [ ],
+    "stepsCount" : 4,
+    "attachmentsCount" : 3,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  },
+  "afterStages" : [ {
+    "name" : "teardownActivities",
+    "time" : {
+      "start" : 1649105172781,
+      "stop" : 1649105173422,
+      "duration" : 641
+    },
+    "description" : "",
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Successfully Closed All Drivers.",
+      "time" : {
+        "start" : 1649105172881,
+        "stop" : 1649105172882,
+        "duration" : 1
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Successfully Closed All Drivers."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Issue Summary: Total Issues = 5, New issues for Failed Tests = 3, Open issues for Passed Tests = 2, Open issues for Failed Tests = 0. Kindly check the attached Issue details.",
+      "time" : {
+        "start" : 1649105172894,
+        "stop" : 1649105172895,
+        "duration" : 1
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "1136ba8fc6f84a27",
+        "name" : "SHAFT Engine Logs - Issues log CSV: 20220404-204612",
+        "source" : "1136ba8fc6f84a27.csv",
+        "type" : "text/csv",
+        "size" : 586
+      } ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Issue Summary: Total Issues = 5, New issues for Failed Tests = 3, Open issues for Passed Tests = 2, Open issues for Failed Tests = 0. Kindly check the attached Issue details."
+      }, {
+        "name" : "attachments",
+        "value" : "[[SHAFT Engine Logs, Issues log CSV: 20220404-204612, java.io.ByteArrayInputStream@1f2da372]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 1,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ {
+      "uid" : "232cfcbbc54da16",
+      "name" : "SHAFT Engine Logs - Execution log: 20220404-204612",
+      "source" : "232cfcbbc54da16.txt",
+      "type" : "text/plain",
+      "size" : 163439
+    }, {
+      "uid" : "2bc5870665e6bea9",
+      "name" : "HTML - Extent Emailable Execution Report",
+      "source" : "2bc5870665e6bea9.html",
+      "type" : "text/html",
+      "size" : 2055008
+    } ],
+    "parameters" : [ ],
+    "stepsCount" : 2,
+    "attachmentsCount" : 3,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  } ],
+  "labels" : [ {
+    "name" : "package",
+    "value" : "testPackage01.Test_AssertApiResponseEquals"
+  }, {
+    "name" : "testClass",
+    "value" : "testPackage01.Test_AssertApiResponseEquals"
+  }, {
+    "name" : "testMethod",
+    "value" : "assertApiResponseEquals_expectedToPass"
+  }, {
+    "name" : "parentSuite",
+    "value" : "Suite"
+  }, {
+    "name" : "suite",
+    "value" : "Test"
+  }, {
+    "name" : "subSuite",
+    "value" : "testPackage01.Test_AssertApiResponseEquals"
+  }, {
+    "name" : "host",
+    "value" : "fv-az213-733"
+  }, {
+    "name" : "thread",
+    "value" : "3679@fv-az213-733.main(1)"
+  }, {
+    "name" : "framework",
+    "value" : "testng"
+  }, {
+    "name" : "language",
+    "value" : "java"
+  }, {
+    "name" : "resultFormat",
+    "value" : "allure2"
+  } ],
+  "parameters" : [ ],
+  "links" : [ ],
+  "hidden" : false,
+  "retry" : false,
+  "extra" : {
+    "severity" : "normal",
+    "retries" : [ ],
+    "categories" : [ ],
+    "history" : {
+      "statistic" : {
+        "failed" : 0,
+        "broken" : 0,
+        "skipped" : 0,
+        "passed" : 2,
+        "unknown" : 0,
+        "total" : 2
+      },
+      "items" : [ {
+        "uid" : "383fffd76cb1c160",
+        "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/383fffd76cb1c160",
+        "status" : "passed",
+        "time" : {
+          "start" : 1649104387861,
+          "stop" : 1649104388307,
+          "duration" : 446
+        }
+      } ]
+    },
+    "tags" : [ ]
+  },
+  "source" : "ccd067b850e513bc.json",
+  "parameterValues" : [ ]
+}

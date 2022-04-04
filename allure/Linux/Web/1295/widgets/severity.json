@@ -1,0 +1,1981 @@
+[ {
+  "uid" : "b742b138abb07780",
+  "name" : "beforeMethod",
+  "time" : {
+    "start" : 1649101544100,
+    "stop" : 1649101544100,
+    "duration" : 0
+  },
+  "status" : "failed",
+  "severity" : "normal"
+}, {
+  "uid" : "9701cb542d51ed87",
+  "name" : "acceptPromptAlertWithTextMessage",
+  "time" : {
+    "start" : 1649104791571,
+    "stop" : 1649104791579,
+    "duration" : 8
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "4138ffa1017cb9bd",
+  "name" : "getAlertText",
+  "time" : {
+    "start" : 1649102626982,
+    "stop" : 1649102626992,
+    "duration" : 10
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "939dc50d2a08f39d",
+  "name" : "getWindowSize",
+  "time" : {
+    "start" : 1649101724792,
+    "stop" : 1649101724805,
+    "duration" : 13
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "bb611d5184d3a039",
+  "name" : "f25",
+  "time" : {
+    "start" : 1649104610844,
+    "stop" : 1649104610875,
+    "duration" : 31
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "a23bc61e8e4db346",
+  "name" : "assertComparativeRelation_greaterThanOrEquals_false_greaterThan_expectedToPass",
+  "time" : {
+    "start" : 1649101181747,
+    "stop" : 1649101181770,
+    "duration" : 23
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "d2aa3a5a2ad87e09",
+  "name" : "dynamicLoading_elementIsHidden",
+  "time" : {
+    "start" : 1649102987847,
+    "stop" : 1649102987856,
+    "duration" : 9
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "81541166e1caf972",
+  "name" : "navigateToURL",
+  "time" : {
+    "start" : 1649101724982,
+    "stop" : 1649101724997,
+    "duration" : 15
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "3a282cad7719b697",
+  "name" : "fullScreenWindow",
+  "time" : {
+    "start" : 1649101724447,
+    "stop" : 1649101724461,
+    "duration" : 14
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "d8c5ed0e1dc8cd61",
+  "name" : "f3_1",
+  "time" : {
+    "start" : 1649104611095,
+    "stop" : 1649104611105,
+    "duration" : 10
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "a90793d61a55fcc9",
+  "name" : "shadowdom",
+  "time" : {
+    "start" : 1649103888250,
+    "stop" : 1649103888264,
+    "duration" : 14
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "7a48d14a5d2f8524",
+  "name" : "f20",
+  "time" : {
+    "start" : 1649104610685,
+    "stop" : 1649104610693,
+    "duration" : 8
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "c316ae20208997d4",
+  "name" : "TC001 - Navigate to URL and Verify Google Logo is Displayed",
+  "time" : {
+    "start" : 1649104992531,
+    "stop" : 1649104992539,
+    "duration" : 8
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "11ac19e8aaefadb0",
+  "name" : "assertElementAttribute_false_literalComparison_expectedToFail",
+  "time" : {
+    "start" : 1649101362358,
+    "stop" : 1649101362398,
+    "duration" : 40
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "e33722ad34415d41",
+  "name" : "f16",
+  "time" : {
+    "start" : 1649104610487,
+    "stop" : 1649104610523,
+    "duration" : 36
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "d63e0aae0bd7e894",
+  "name" : "TC002 - Search for Query and Assert that the number of results is displayed",
+  "time" : {
+    "start" : 1649104992545,
+    "stop" : 1649104992555,
+    "duration" : 10
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "291ccfe7ce093efa",
+  "name" : "getPostsAndAssertBodyForSpecificTitle",
+  "time" : {
+    "start" : 1649101175394,
+    "stop" : 1649101181152,
+    "duration" : 5758
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "668fb26f471715a2",
+  "name" : "assertEquals_longCharacters",
+  "time" : {
+    "start" : 1649101363722,
+    "stop" : 1649101363745,
+    "duration" : 23
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "ce23cb0abf7d3ac8",
+  "name" : "f34",
+  "time" : {
+    "start" : 1649104611031,
+    "stop" : 1649104611041,
+    "duration" : 10
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "3fdc5172c1a45777",
+  "name" : "relativeLocatorsTest1",
+  "time" : {
+    "start" : 1649103168022,
+    "stop" : 1649103168033,
+    "duration" : 11
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "9bf04b6b48edbd41",
+  "name" : "uploadFile_visibleUploadInput",
+  "time" : {
+    "start" : 1649102265713,
+    "stop" : 1649102265722,
+    "duration" : 9
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "bde323699b27e5bb",
+  "name" : "Assert that assertEquals works as expected when the two values are equal.",
+  "time" : {
+    "start" : 1649101363827,
+    "stop" : 1649101363852,
+    "duration" : 25
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "df8925671fda698d",
+  "name" : "gui",
+  "time" : {
+    "start" : 1649102266103,
+    "stop" : 1649102446145,
+    "duration" : 180042
+  },
+  "status" : "failed",
+  "severity" : "normal"
+}, {
+  "uid" : "61728a6f7410702a",
+  "name" : "f37",
+  "time" : {
+    "start" : 1649104611082,
+    "stop" : 1649104611091,
+    "duration" : 9
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "9799d61d050e3c14",
+  "name" : "assertFileExists_false_expectedToFail",
+  "time" : {
+    "start" : 1649101363877,
+    "stop" : 1649101363897,
+    "duration" : 20
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "6d80b305333ea673",
+  "name" : "assertEquals_longCharacters_Discreet",
+  "time" : {
+    "start" : 1649101363748,
+    "stop" : 1649101363784,
+    "duration" : 36
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "e366b9539e2ab35b",
+  "name" : "testData",
+  "time" : {
+    "start" : 1649102446148,
+    "stop" : 1649102446899,
+    "duration" : 751
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "65bc2317555f6521",
+  "name" : "f11",
+  "time" : {
+    "start" : 1649104610235,
+    "stop" : 1649104610244,
+    "duration" : 9
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "9d3556f4c5f55c9c",
+  "name" : "TC002 - Test Drag and Drop by offset function.",
+  "time" : {
+    "start" : 1649101905406,
+    "stop" : 1649101905420,
+    "duration" : 14
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "75b29139425d7a3f",
+  "name" : "f36",
+  "time" : {
+    "start" : 1649104611057,
+    "stop" : 1649104611078,
+    "duration" : 21
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "ba2176742b03cd5",
+  "name" : "assertNull_true_expectedToPass",
+  "time" : {
+    "start" : 1649101364021,
+    "stop" : 1649101364036,
+    "duration" : 15
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "bbb2eafb6feb76b4",
+  "name" : "assertElementExists_true_multipleElementsFound_expectedToFail",
+  "time" : {
+    "start" : 1649101363586,
+    "stop" : 1649101363632,
+    "duration" : 46
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "bf41c732325f0af7",
+  "name" : "f6",
+  "time" : {
+    "start" : 1649104611214,
+    "stop" : 1649104611239,
+    "duration" : 25
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "1cce4186c5f51ee5",
+  "name" : "maximizeWindow",
+  "time" : {
+    "start" : 1649101724831,
+    "stop" : 1649101724845,
+    "duration" : 14
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "c3728f915b74911b",
+  "name" : "dragAndDropJquery",
+  "time" : {
+    "start" : 1649101905328,
+    "stop" : 1649101905349,
+    "duration" : 21
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "875022c85325b7ef",
+  "name" : "beforeMethod",
+  "time" : {
+    "start" : 1649102085562,
+    "stop" : 1649102085562,
+    "duration" : 0
+  },
+  "status" : "failed",
+  "severity" : "normal"
+}, {
+  "uid" : "859ae3e964d509cf",
+  "name" : "api",
+  "time" : {
+    "start" : 1649102265740,
+    "stop" : 1649102266065,
+    "duration" : 325
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "a54b2c20fa523c16",
+  "name" : "assertElementAttribute_type_true_literalComparison_expectedToPass",
+  "time" : {
+    "start" : 1649101363257,
+    "stop" : 1649101363275,
+    "duration" : 18
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "af69c830c7c92fb4",
+  "name" : "f23",
+  "time" : {
+    "start" : 1649104610798,
+    "stop" : 1649104610822,
+    "duration" : 24
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "54f403b2e401a4b3",
+  "name" : "assertComparativeRelation_greaterThanOrEquals_false_equals_expectedToPass",
+  "time" : {
+    "start" : 1649101181690,
+    "stop" : 1649101181710,
+    "duration" : 20
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "51668ad384b4af9f",
+  "name" : "assertElementAttribute_true_literalComparison_expectedToFail",
+  "time" : {
+    "start" : 1649101363002,
+    "stop" : 1649101363026,
+    "duration" : 24
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "13599528bf5ef09b",
+  "name" : "assertOnCancelAlertResultText",
+  "time" : {
+    "start" : 1649104791509,
+    "stop" : 1649104791533,
+    "duration" : 24
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "8c7b08f022651a87",
+  "name" : "assertOnConfirmPromptAlertWithTextMessageResultText",
+  "time" : {
+    "start" : 1649104791581,
+    "stop" : 1649104791589,
+    "duration" : 8
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "51ebe0125e60c70f",
+  "name" : "setWindowSize",
+  "time" : {
+    "start" : 1649101725151,
+    "stop" : 1649101725175,
+    "duration" : 24
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "73bf550e2b685cec",
+  "name" : "f3",
+  "time" : {
+    "start" : 1649104610930,
+    "stop" : 1649104610943,
+    "duration" : 13
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "e01db1818c9722a1",
+  "name" : "simpleSelect",
+  "time" : {
+    "start" : 1649103528179,
+    "stop" : 1649103708209,
+    "duration" : 180030
+  },
+  "status" : "failed",
+  "severity" : "normal"
+}, {
+  "uid" : "e871465195af16ab",
+  "name" : "beforeClass",
+  "time" : {
+    "start" : 1649104249541,
+    "stop" : 1649104249541,
+    "duration" : 0
+  },
+  "status" : "failed",
+  "severity" : "normal"
+}, {
+  "uid" : "e07ac027b242bba5",
+  "name" : "f8",
+  "time" : {
+    "start" : 1649104611312,
+    "stop" : 1649104611326,
+    "duration" : 14
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "b25983aa7e27c20a",
+  "name" : "assertComparativeRelation_greaterThanOrEquals_false_equals_expectedToFail",
+  "time" : {
+    "start" : 1649101181649,
+    "stop" : 1649101181682,
+    "duration" : 33
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "5f9a57f6b497f5c3",
+  "name" : "f5",
+  "time" : {
+    "start" : 1649104611140,
+    "stop" : 1649104611212,
+    "duration" : 72
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "89cfa07c6dcb467e",
+  "name" : "assertElementExists_true_expectedToFail",
+  "time" : {
+    "start" : 1649101363494,
+    "stop" : 1649101363510,
+    "duration" : 16
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "b2b4df65e29a855e",
+  "name" : "test_assertElementAttribute",
+  "time" : {
+    "start" : 1649105172725,
+    "stop" : 1649105172737,
+    "duration" : 12
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "db64a78cad797171",
+  "name" : "isNotChecked",
+  "time" : {
+    "start" : 1649104429690,
+    "stop" : 1649104429707,
+    "duration" : 17
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "34f494ab255be6b0",
+  "name" : "forceFail",
+  "time" : {
+    "start" : 1649104611418,
+    "stop" : 1649104611437,
+    "duration" : 19
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "f8562cd944694af8",
+  "name" : "f17",
+  "time" : {
+    "start" : 1649104610571,
+    "stop" : 1649104610590,
+    "duration" : 19
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "5151a695a115a8f9",
+  "name" : "acceptAlert",
+  "time" : {
+    "start" : 1649102807147,
+    "stop" : 1649102807155,
+    "duration" : 8
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "8921bbeaa17d62df",
+  "name" : "beforeMethod",
+  "time" : {
+    "start" : 1649102987844,
+    "stop" : 1649102987845,
+    "duration" : 1
+  },
+  "status" : "failed",
+  "severity" : "normal"
+}, {
+  "uid" : "5754cfb1a966d054",
+  "name" : "forceFail2",
+  "time" : {
+    "start" : 1649104611438,
+    "stop" : 1649104611446,
+    "duration" : 8
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "d8f214c74a796eec",
+  "name" : "beforeClass",
+  "time" : {
+    "start" : 1649105172723,
+    "stop" : 1649105172723,
+    "duration" : 0
+  },
+  "status" : "failed",
+  "severity" : "normal"
+}, {
+  "uid" : "81ed6570c1ba2b20",
+  "name" : "assertOnConfirmAlertResultText",
+  "time" : {
+    "start" : 1649102627010,
+    "stop" : 1649102627018,
+    "duration" : 8
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "d4e578ef188c6d7e",
+  "name" : "assertElementAttribute_true_caseInsensitiveComparison_expectedToFail",
+  "time" : {
+    "start" : 1649101362746,
+    "stop" : 1649101362762,
+    "duration" : 16
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "c531ce7a55515af",
+  "name" : "assertElementAttribute_false_regexComparison_expectedToPass",
+  "time" : {
+    "start" : 1649101362656,
+    "stop" : 1649101362680,
+    "duration" : 24
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "9256c2c4214f869f",
+  "name" : "f4",
+  "time" : {
+    "start" : 1649104611109,
+    "stop" : 1649104611131,
+    "duration" : 22
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "1561700af5e83608",
+  "name" : "text",
+  "time" : {
+    "start" : 1649104429778,
+    "stop" : 1649104429799,
+    "duration" : 21
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "4543b829a0405097",
+  "name" : "getPageSource",
+  "time" : {
+    "start" : 1649101724619,
+    "stop" : 1649101724634,
+    "duration" : 15
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "8d6c191bcf48be2d",
+  "name" : "assertOnCancelAlertResultText",
+  "time" : {
+    "start" : 1649102626968,
+    "stop" : 1649102626978,
+    "duration" : 10
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "3c39163ddb7b34df",
+  "name" : "checkAPI_ResponseSchema",
+  "time" : {
+    "start" : 1649103888277,
+    "stop" : 1649103889254,
+    "duration" : 977
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "5f9a9c3fc2fd97c4",
+  "name" : "testButton",
+  "time" : {
+    "start" : 1649101163757,
+    "stop" : 1649101170163,
+    "duration" : 6406
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "1553fd3c6870dca",
+  "name" : "f10",
+  "time" : {
+    "start" : 1649104610201,
+    "stop" : 1649104610215,
+    "duration" : 14
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "d2e2a2e0c7aee4bf",
+  "name" : "matchesReferenceImage",
+  "time" : {
+    "start" : 1649104429768,
+    "stop" : 1649104429776,
+    "duration" : 8
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "c3a3961a43b06e4",
+  "name" : "refreshCurrentPage",
+  "time" : {
+    "start" : 1649101725086,
+    "stop" : 1649101725103,
+    "duration" : 17
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "b2e3406eb684a918",
+  "name" : "beforeClass",
+  "time" : {
+    "start" : 1649104992526,
+    "stop" : 1649104992527,
+    "duration" : 1
+  },
+  "status" : "failed",
+  "severity" : "normal"
+}, {
+  "uid" : "abaab02cd82399c5",
+  "name" : "navigateForward",
+  "time" : {
+    "start" : 1649101724934,
+    "stop" : 1649101724942,
+    "duration" : 8
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "b6a25882ab4c7c77",
+  "name" : "beforeMethod",
+  "time" : {
+    "start" : 1649103888247,
+    "stop" : 1649103888247,
+    "duration" : 0
+  },
+  "status" : "failed",
+  "severity" : "normal"
+}, {
+  "uid" : "57586728fdbbfc38",
+  "name" : "f28",
+  "time" : {
+    "start" : 1649104610902,
+    "stop" : 1649104610918,
+    "duration" : 16
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "e8bdb1de9402de38",
+  "name" : "multipleSelect",
+  "time" : {
+    "start" : 1649103348133,
+    "stop" : 1649103528174,
+    "duration" : 180041
+  },
+  "status" : "failed",
+  "severity" : "normal"
+}, {
+  "uid" : "2c460dd8e5ff0500",
+  "name" : "assertElementAttribute_false_caseInsensitiveComparison_expectedToPass",
+  "time" : {
+    "start" : 1649101362080,
+    "stop" : 1649101362134,
+    "duration" : 54
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "f67f6f7035760f19",
+  "name" : "f15",
+  "time" : {
+    "start" : 1649104610429,
+    "stop" : 1649104610440,
+    "duration" : 11
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "eca3ded5f8aefa42",
+  "name" : "TC001 - Test Drag and Drop function.",
+  "time" : {
+    "start" : 1649101905375,
+    "stop" : 1649101905384,
+    "duration" : 9
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "794d75cb3b5ba974",
+  "name" : "beforeMethod",
+  "time" : {
+    "start" : 1649101905326,
+    "stop" : 1649101905326,
+    "duration" : 0
+  },
+  "status" : "failed",
+  "severity" : "normal"
+}, {
+  "uid" : "15a14f255df10c48",
+  "name" : "assertComparativeRelation_greaterThanOrEquals_true_equals_expectedToPass",
+  "time" : {
+    "start" : 1649101181791,
+    "stop" : 1649101181812,
+    "duration" : 21
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "ef0129650cdf6dee",
+  "name" : "assertComparativeRelation_greaterThanOrEquals_false_greaterThan_expectedToFail",
+  "time" : {
+    "start" : 1649101181721,
+    "stop" : 1649101181744,
+    "duration" : 23
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "4dddf9600aaf0fb1",
+  "name" : "f31",
+  "time" : {
+    "start" : 1649104610970,
+    "stop" : 1649104610990,
+    "duration" : 20
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "bc99399ad1cb57ce",
+  "name" : "assertElementAttribute_true_regexComparison_expectedToFail",
+  "time" : {
+    "start" : 1649101363126,
+    "stop" : 1649101363144,
+    "duration" : 18
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "f4d22aeccdab9163",
+  "name" : "assertFileExists_true_expectedToFail",
+  "time" : {
+    "start" : 1649101363922,
+    "stop" : 1649101363934,
+    "duration" : 12
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "51b7379803d73b29",
+  "name" : "f6_1",
+  "time" : {
+    "start" : 1649104611241,
+    "stop" : 1649104611250,
+    "duration" : 9
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "b604cf0313c2a8aa",
+  "name" : "f27",
+  "time" : {
+    "start" : 1649104610891,
+    "stop" : 1649104610901,
+    "duration" : 10
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "fae8353f88775682",
+  "name" : "assertElementAttribute_true_containsComparison_expectedToPass",
+  "time" : {
+    "start" : 1649101362945,
+    "stop" : 1649101362962,
+    "duration" : 17
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "8029fdef6ac7f67d",
+  "name" : "beforeMethod",
+  "time" : {
+    "start" : 1649101361961,
+    "stop" : 1649101361962,
+    "duration" : 1
+  },
+  "status" : "failed",
+  "severity" : "normal"
+}, {
+  "uid" : "230ee2f89dba46f",
+  "name" : "isNotSelected",
+  "time" : {
+    "start" : 1649104429715,
+    "stop" : 1649104429753,
+    "duration" : 38
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "bcc0b454c2bf3cef",
+  "name" : "f22",
+  "time" : {
+    "start" : 1649104610770,
+    "stop" : 1649104610778,
+    "duration" : 8
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "5125b706d9d74419",
+  "name" : "specialCharacters_assertion",
+  "time" : {
+    "start" : 1649104069412,
+    "stop" : 1649104069493,
+    "duration" : 81
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "df9e54571af9639a",
+  "name" : "waitForElementToBePresent_true_expectedToFail",
+  "time" : {
+    "start" : 1649101544257,
+    "stop" : 1649101544295,
+    "duration" : 38
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "5796cdcf37ab7e4d",
+  "name" : "testJDKGeneratedSuccessfully",
+  "time" : {
+    "start" : 1649105172748,
+    "stop" : 1649105172764,
+    "duration" : 16
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "7c826909f98f8614",
+  "name" : "test_assertElementAttribute",
+  "time" : {
+    "start" : 1649104069313,
+    "stop" : 1649104069332,
+    "duration" : 19
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "4f25f9b524b85459",
+  "name" : "testPDF1",
+  "time" : {
+    "start" : 1649104791599,
+    "stop" : 1649104791649,
+    "duration" : 50
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "a71036856c2c904e",
+  "name" : "specialCharacters",
+  "time" : {
+    "start" : 1649104069361,
+    "stop" : 1649104069406,
+    "duration" : 45
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "f71381d8b1a8f0bf",
+  "name" : "getCurrentURL",
+  "time" : {
+    "start" : 1649101724491,
+    "stop" : 1649101724508,
+    "duration" : 17
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "e8fd6b4d10466574",
+  "name" : "openBrowser",
+  "time" : {
+    "start" : 1649104610199,
+    "stop" : 1649104610199,
+    "duration" : 0
+  },
+  "status" : "failed",
+  "severity" : "normal"
+}, {
+  "uid" : "2a0cf7764fe75518",
+  "name" : "assertOnConfirmPromptAlertWithoutTypingTextMessageResultText",
+  "time" : {
+    "start" : 1649104791556,
+    "stop" : 1649104791569,
+    "duration" : 13
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "69bc35ed2111fa0c",
+  "name" : "assertComparativeRelation_greaterThanOrEquals_true_equals_expectedToFail",
+  "time" : {
+    "start" : 1649101181772,
+    "stop" : 1649101181789,
+    "duration" : 17
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "15fbf7505498a57f",
+  "name" : "assertElementExists_false_multipleElementsFound_expectedToFail",
+  "time" : {
+    "start" : 1649101363449,
+    "stop" : 1649101363462,
+    "duration" : 13
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "a245b94be6dac0c2",
+  "name" : "beforeMethod",
+  "time" : {
+    "start" : 1649103168018,
+    "stop" : 1649103168018,
+    "duration" : 0
+  },
+  "status" : "failed",
+  "severity" : "normal"
+}, {
+  "uid" : "eb2781f1dd819426",
+  "name" : "assertNull_true_expectedToFail",
+  "time" : {
+    "start" : 1649101364002,
+    "stop" : 1649101364019,
+    "duration" : 17
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "72b6cfc4a91b1816",
+  "name" : "f2",
+  "time" : {
+    "start" : 1649104992666,
+    "stop" : 1649104992690,
+    "duration" : 24
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "bff6f47d8848de29",
+  "name" : "assertEquals_true_expectedToFail",
+  "time" : {
+    "start" : 1649101363796,
+    "stop" : 1649101363820,
+    "duration" : 24
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "cbbde07702beb3a9",
+  "name" : "assertElementAttribute_false_containsComparison_expectedToFail",
+  "time" : {
+    "start" : 1649101362192,
+    "stop" : 1649101362220,
+    "duration" : 28
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "e48d8c1d92ec3b4d",
+  "name" : "navigateToJSAlertPage",
+  "time" : {
+    "start" : 1649104791485,
+    "stop" : 1649104791485,
+    "duration" : 0
+  },
+  "status" : "failed",
+  "severity" : "normal"
+}, {
+  "uid" : "87ecf8f5af6fbbc4",
+  "name" : "getWindowHandle",
+  "time" : {
+    "start" : 1649101724671,
+    "stop" : 1649101724687,
+    "duration" : 16
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "19457809d3b415c8",
+  "name" : "beforeClass",
+  "time" : {
+    "start" : 1649104429623,
+    "stop" : 1649104429623,
+    "duration" : 0
+  },
+  "status" : "failed",
+  "severity" : "normal"
+}, {
+  "uid" : "a151ac3e7e9dd59c",
+  "name" : "exists",
+  "time" : {
+    "start" : 1649104429668,
+    "stop" : 1649104429677,
+    "duration" : 9
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "af5878027cc5d3ea",
+  "name" : "assertElementAttribute_true_regexComparison_expectedToPass",
+  "time" : {
+    "start" : 1649101363182,
+    "stop" : 1649101363216,
+    "duration" : 34
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "21f436e027d55ebe",
+  "name" : "f2",
+  "time" : {
+    "start" : 1649104610648,
+    "stop" : 1649104610667,
+    "duration" : 19
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "a647ef515bafc086",
+  "name" : "attribute",
+  "time" : {
+    "start" : 1649104429626,
+    "stop" : 1649104429647,
+    "duration" : 21
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "ccd067b850e513bc",
+  "name" : "assertApiResponseEquals_expectedToPass",
+  "time" : {
+    "start" : 1649104429823,
+    "stop" : 1649104430106,
+    "duration" : 283
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "cc3819c569dc29b0",
+  "name" : "isEnabled",
+  "time" : {
+    "start" : 1649104429680,
+    "stop" : 1649104429688,
+    "duration" : 8
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "d9e1540aa8f669bd",
+  "name" : "assertElementAttribute_false_containsComparison_expectedToPass",
+  "time" : {
+    "start" : 1649101362275,
+    "stop" : 1649101362304,
+    "duration" : 29
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "a53c9950ddb4b319",
+  "name" : "TC003 - Clicks the next button to make sure that the framework can scroll element into view before clicking it",
+  "time" : {
+    "start" : 1649104992571,
+    "stop" : 1649104992629,
+    "duration" : 58
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "8725387221afef83",
+  "name" : "readStringFromJson",
+  "time" : {
+    "start" : 1649104430111,
+    "stop" : 1649104430133,
+    "duration" : 22
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "7d677b6c0852fcb3",
+  "name" : "f26",
+  "time" : {
+    "start" : 1649104610877,
+    "stop" : 1649104610885,
+    "duration" : 8
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "f91c5c12a7ab5b5e",
+  "name" : "assertElementExists_false_expectedToPass",
+  "time" : {
+    "start" : 1649101363382,
+    "stop" : 1649101363404,
+    "duration" : 22
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "18476bcae4822f12",
+  "name" : "f13",
+  "time" : {
+    "start" : 1649104610338,
+    "stop" : 1649104610357,
+    "duration" : 19
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "41f9e0cae487d39f",
+  "name" : "assertElementAttribute_false_literalComparison_expectedToPass",
+  "time" : {
+    "start" : 1649101362460,
+    "stop" : 1649101362487,
+    "duration" : 27
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "9955c245973d8b8d",
+  "name" : "chainElementActions",
+  "time" : {
+    "start" : 1649103348102,
+    "stop" : 1649103348117,
+    "duration" : 15
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "3d0743efb9931ef0",
+  "name" : "getJSAlertText",
+  "time" : {
+    "start" : 1649102807136,
+    "stop" : 1649102807145,
+    "duration" : 9
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "732217d2adf7357b",
+  "name" : "f29",
+  "time" : {
+    "start" : 1649104610921,
+    "stop" : 1649104610929,
+    "duration" : 8
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "2ac7c11d934905c",
+  "name" : "getAlertText",
+  "time" : {
+    "start" : 1649104791535,
+    "stop" : 1649104791542,
+    "duration" : 7
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "ef5c0b05a0a36ac8",
+  "name" : "assertEquals_true_expectedToPass__",
+  "time" : {
+    "start" : 1649101363858,
+    "stop" : 1649101363871,
+    "duration" : 13
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "42eab7027cc4dd",
+  "name" : "testCheckBox",
+  "time" : {
+    "start" : 1649101170318,
+    "stop" : 1649101173342,
+    "duration" : 3024
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "f72467c09e01f155",
+  "name" : "waitForElementToBePresent_false_expectedToFail",
+  "time" : {
+    "start" : 1649101544103,
+    "stop" : 1649101544117,
+    "duration" : 14
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "7cdbc1afd62d2624",
+  "name" : "TC001 - Navigate to URL and Verify Google Logo is Displayed",
+  "time" : {
+    "start" : 1649104805992,
+    "stop" : 1649104809360,
+    "duration" : 3368
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "5ea8a43409081cc",
+  "name" : "f",
+  "time" : {
+    "start" : 1649104992646,
+    "stop" : 1649104992664,
+    "duration" : 18
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "b208f008316bc84",
+  "name" : "sendGraphqlRequestUsingMutationAndVariables",
+  "time" : {
+    "start" : 1649102807196,
+    "stop" : 1649102807642,
+    "duration" : 446
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "edae4e4855a40aa8",
+  "name" : "cssProperty",
+  "time" : {
+    "start" : 1649104429651,
+    "stop" : 1649104429664,
+    "duration" : 13
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "cc3a7a81af1541a1",
+  "name" : "navigateToJSAlertPage",
+  "time" : {
+    "start" : 1649102807134,
+    "stop" : 1649102807134,
+    "duration" : 0
+  },
+  "status" : "failed",
+  "severity" : "normal"
+}, {
+  "uid" : "d178eeff0f295fa5",
+  "name" : "skip",
+  "time" : {
+    "start" : 1649102627062,
+    "stop" : 1649102627073,
+    "duration" : 11
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "579f67672946cdf6",
+  "name" : "navigateToJSAlertPage",
+  "time" : {
+    "start" : 1649102626952,
+    "stop" : 1649102626952,
+    "duration" : 0
+  },
+  "status" : "failed",
+  "severity" : "normal"
+}, {
+  "uid" : "6f294cdd838cc82c",
+  "name" : "assertElementAttribute_true_caseInsensitiveComparison_expectedToPass",
+  "time" : {
+    "start" : 1649101362806,
+    "stop" : 1649101362821,
+    "duration" : 15
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "324bf3172bfb6e91",
+  "name" : "beforeMethod",
+  "time" : {
+    "start" : 1649101724443,
+    "stop" : 1649101724444,
+    "duration" : 1
+  },
+  "status" : "failed",
+  "severity" : "normal"
+}, {
+  "uid" : "78ca56dd98c9703b",
+  "name" : "validateUserEmail",
+  "time" : {
+    "start" : 1649101181159,
+    "stop" : 1649101181427,
+    "duration" : 268
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "46cafdd420dfb7ab",
+  "name" : "f24",
+  "time" : {
+    "start" : 1649104610827,
+    "stop" : 1649104610842,
+    "duration" : 15
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "66f508cccdd48180",
+  "name" : "sendGraphqlRequestUsingQuery",
+  "time" : {
+    "start" : 1649102807646,
+    "stop" : 1649102807793,
+    "duration" : 147
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "1bbf422c13f550df",
+  "name" : "assertComparativeRelation_greaterThanOrEquals_true_greaterThan_expectedToPass",
+  "time" : {
+    "start" : 1649101181842,
+    "stop" : 1649101181867,
+    "duration" : 25
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "9c0e0796260f3e2c",
+  "name" : "dynamicLoading_elementIsRendered",
+  "time" : {
+    "start" : 1649102987897,
+    "stop" : 1649102987906,
+    "duration" : 9
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "4178d5c5272b9c41",
+  "name" : "getWindowPosition",
+  "time" : {
+    "start" : 1649101724743,
+    "stop" : 1649101724754,
+    "duration" : 11
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "bd4b522ca591b5a7",
+  "name" : "acceptAlert",
+  "time" : {
+    "start" : 1649102626996,
+    "stop" : 1649102627005,
+    "duration" : 9
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "d8e3a12d06a7f680",
+  "name" : "f6_2",
+  "time" : {
+    "start" : 1649104611252,
+    "stop" : 1649104611268,
+    "duration" : 16
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "a1b30fd7f16c0340",
+  "name" : "assertElementExists_true_expectedToPass",
+  "time" : {
+    "start" : 1649101363547,
+    "stop" : 1649101363560,
+    "duration" : 13
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "9f587394a7786a3e",
+  "name" : "assertEquals_false_expectedToFail",
+  "time" : {
+    "start" : 1649101363650,
+    "stop" : 1649101363686,
+    "duration" : 36
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "bd59dcf03cf116c",
+  "name" : "dismissAlert",
+  "time" : {
+    "start" : 1649102626954,
+    "stop" : 1649102626964,
+    "duration" : 10
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "a1b6c6a21ae415c3",
+  "name" : "isVisible",
+  "time" : {
+    "start" : 1649104429756,
+    "stop" : 1649104429765,
+    "duration" : 9
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "1c8ee7d80df16e4f",
+  "name" : "getCurrentWindowTitle",
+  "time" : {
+    "start" : 1649101724537,
+    "stop" : 1649101724563,
+    "duration" : 26
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "a6ddc83da5dbee39",
+  "name" : "waitForElementToBePresent_false_expectedToPass",
+  "time" : {
+    "start" : 1649101544147,
+    "stop" : 1649101544162,
+    "duration" : 15
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "b7f9b8ff3f422aca",
+  "name" : "f7",
+  "time" : {
+    "start" : 1649104611270,
+    "stop" : 1649104611281,
+    "duration" : 11
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "ea10f91a39528cb9",
+  "name" : "cli",
+  "time" : {
+    "start" : 1649102266072,
+    "stop" : 1649102266098,
+    "duration" : 26
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "3ecf1721a9e66e7",
+  "name" : "assertElementAttribute_false_regexComparison_expectedToFail",
+  "time" : {
+    "start" : 1649101362558,
+    "stop" : 1649101362599,
+    "duration" : 41
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "c3d625ac6518d65f",
+  "name" : "assertElementExists_false_expectedToFail",
+  "time" : {
+    "start" : 1649101363320,
+    "stop" : 1649101363343,
+    "duration" : 23
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "d537c50534988405",
+  "name" : "assertElementAttribute_false_caseInsensitiveComparison_expectedToFail",
+  "time" : {
+    "start" : 1649101361974,
+    "stop" : 1649101362020,
+    "duration" : 46
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "abc3aac1fd7f00d1",
+  "name" : "waitForElementToBePresent_moreThanOneElement_expectedToFail",
+  "time" : {
+    "start" : 1649101544204,
+    "stop" : 1649101544219,
+    "duration" : 15
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "177f4e78d4304bff",
+  "name" : "assertNull_false_expectedToPass",
+  "time" : {
+    "start" : 1649101363977,
+    "stop" : 1649101364000,
+    "duration" : 23
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "d5144efa60061fd9",
+  "name" : "assertElementAttribute_true_containsComparison_expectedToFail",
+  "time" : {
+    "start" : 1649101362856,
+    "stop" : 1649101362892,
+    "duration" : 36
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "91a4b3ea43af67e1",
+  "name" : "f30",
+  "time" : {
+    "start" : 1649104610947,
+    "stop" : 1649104610966,
+    "duration" : 19
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "682ee9e6a8fee866",
+  "name" : "navigateBack",
+  "time" : {
+    "start" : 1649101724876,
+    "stop" : 1649101724911,
+    "duration" : 35
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "cc9d8306e7f2ed53",
+  "name" : "dismissAlert",
+  "time" : {
+    "start" : 1649104791487,
+    "stop" : 1649104791504,
+    "duration" : 17
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "d35b58c140216e14",
+  "name" : "uploadFile_invisibleUploadInput",
+  "time" : {
+    "start" : 1649102265676,
+    "stop" : 1649102265685,
+    "duration" : 9
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "4141324a07e7189a",
+  "name" : "acceptPromptAlertWithoutTypingTextMessage",
+  "time" : {
+    "start" : 1649104791545,
+    "stop" : 1649104791554,
+    "duration" : 9
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "62aee2568c197adf",
+  "name" : "testLabel",
+  "time" : {
+    "start" : 1649101173354,
+    "stop" : 1649101174196,
+    "duration" : 842
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "84b2e56592a49f66",
+  "name" : "beforeMethod",
+  "time" : {
+    "start" : 1649102265673,
+    "stop" : 1649102265673,
+    "duration" : 0
+  },
+  "status" : "failed",
+  "severity" : "normal"
+}, {
+  "uid" : "3ac3efffec0c3044",
+  "name" : "f35",
+  "time" : {
+    "start" : 1649104611043,
+    "stop" : 1649104611054,
+    "duration" : 11
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "db9d69a185362b40",
+  "name" : "assertElementAttribute_true_literalComparison_expectedToPass",
+  "time" : {
+    "start" : 1649101363076,
+    "stop" : 1649101363092,
+    "duration" : 16
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "ec5dee8220120249",
+  "name" : "f14",
+  "time" : {
+    "start" : 1649104610393,
+    "stop" : 1649104610406,
+    "duration" : 13
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "69f9683d620ff844",
+  "name" : "f1",
+  "time" : {
+    "start" : 1649104430138,
+    "stop" : 1649104430149,
+    "duration" : 11
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "f0d0260d07a3c9a3",
+  "name" : "f12",
+  "time" : {
+    "start" : 1649104610294,
+    "stop" : 1649104610315,
+    "duration" : 21
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "9c2399e52cfd5458",
+  "name" : "navigateToURLWithRedirection",
+  "time" : {
+    "start" : 1649101725030,
+    "stop" : 1649101725055,
+    "duration" : 25
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "79fa3964775b5128",
+  "name" : "testIsElementClickable",
+  "time" : {
+    "start" : 1649102085565,
+    "stop" : 1649102085599,
+    "duration" : 34
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "1e85fc82743ec14",
+  "name" : "validateUserId",
+  "time" : {
+    "start" : 1649101181431,
+    "stop" : 1649101181639,
+    "duration" : 208
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "e0cbdd4253c5ca78",
+  "name" : "assertOnConfirmAlertResultText",
+  "time" : {
+    "start" : 1649102807157,
+    "stop" : 1649102807186,
+    "duration" : 29
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "2f3ffd506e673d1",
+  "name" : "beforeMethod",
+  "time" : {
+    "start" : 1649103348099,
+    "stop" : 1649103348099,
+    "duration" : 0
+  },
+  "status" : "failed",
+  "severity" : "normal"
+}, {
+  "uid" : "b0d6836b25d9ca6c",
+  "name" : "assertComparativeRelation_greaterThanOrEquals_true_greaterThan_expectedToFail",
+  "time" : {
+    "start" : 1649101181822,
+    "stop" : 1649101181837,
+    "duration" : 15
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "6f312b6da00c795",
+  "name" : "f32",
+  "time" : {
+    "start" : 1649104610992,
+    "stop" : 1649104611015,
+    "duration" : 23
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "7836fe39c66abb72",
+  "name" : "f21",
+  "time" : {
+    "start" : 1649104610732,
+    "stop" : 1649104610742,
+    "duration" : 10
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "ba311e98da0d56de",
+  "name" : "assertNull_false_expectedToFail",
+  "time" : {
+    "start" : 1649101363959,
+    "stop" : 1649101363971,
+    "duration" : 12
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "b9892ec694bb820e",
+  "name" : "f18",
+  "time" : {
+    "start" : 1649104610623,
+    "stop" : 1649104610631,
+    "duration" : 8
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "e88cff13f0a00369",
+  "name" : "f9",
+  "time" : {
+    "start" : 1649104611371,
+    "stop" : 1649104611387,
+    "duration" : 16
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "47da6d44d2c028cf",
+  "name" : "f33",
+  "time" : {
+    "start" : 1649104611017,
+    "stop" : 1649104611029,
+    "duration" : 12
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "9e7d3c65af1ea2b4",
+  "name" : "typeTextAndCopyPaste",
+  "time" : {
+    "start" : 1649104249545,
+    "stop" : 1649104249559,
+    "duration" : 14
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "7c497b45f1d3f1ca",
+  "name" : "f",
+  "time" : {
+    "start" : 1649101905433,
+    "stop" : 1649101905493,
+    "duration" : 60
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "ddc85176b05c0edf",
+  "name" : "assertFileExists_false_expectedToPass",
+  "time" : {
+    "start" : 1649101363901,
+    "stop" : 1649101363914,
+    "duration" : 13
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "15264bda927db953",
+  "name" : "skip2",
+  "time" : {
+    "start" : 1649102627077,
+    "stop" : 1649102627095,
+    "duration" : 18
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "d4ac7cead48e17c0",
+  "name" : "assertFileExists_true_expectedToPass",
+  "time" : {
+    "start" : 1649101363943,
+    "stop" : 1649101363953,
+    "duration" : 10
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "989a69ee1ba064d4",
+  "name" : "TC002 - Search for Query and Assert that the number of results is displayed",
+  "time" : {
+    "start" : 1649104809363,
+    "stop" : 1649104812100,
+    "duration" : 2737
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "b8676b94991e9f69",
+  "name" : "assertEquals_false_expectedToPass",
+  "time" : {
+    "start" : 1649101363695,
+    "stop" : 1649101363710,
+    "duration" : 15
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "bbfdc4dbe2082c29",
+  "name" : "getCellData_rowName_expectedToPass",
+  "time" : {
+    "start" : 1649101175362,
+    "stop" : 1649101175389,
+    "duration" : 27
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "dea89e776616684f",
+  "name" : "beforeClass",
+  "time" : {
+    "start" : 1649104069311,
+    "stop" : 1649104069311,
+    "duration" : 0
+  },
+  "status" : "failed",
+  "severity" : "normal"
+}, {
+  "uid" : "c4c42058529bed4d",
+  "name" : "waitForElementToBePresent_true_expectedToPass",
+  "time" : {
+    "start" : 1649101544340,
+    "stop" : 1649101544355,
+    "duration" : 15
+  },
+  "status" : "skipped",
+  "severity" : "normal"
+}, {
+  "uid" : "3849e89b1d8f6afb",
+  "name" : "testPDF2",
+  "time" : {
+    "start" : 1649104791661,
+    "stop" : 1649104791705,
+    "duration" : 44
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "af4264c053550c8a",
+  "name" : "doNotSkip",
+  "time" : {
+    "start" : 1649102627039,
+    "stop" : 1649102627055,
+    "duration" : 16
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "4cb0f2c140206509",
+  "name" : "TC003 - Clicks the next button to make sure that the framework can scroll element into view before clicking it",
+  "time" : {
+    "start" : 1649104812103,
+    "stop" : 1649104812378,
+    "duration" : 275
+  },
+  "status" : "passed",
+  "severity" : "normal"
+} ]

@@ -1,0 +1,13 @@
+
+################################################################################################################################################
+Starting Execution:	"101 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_SelectedValue.multipleSelect"
+################################################################################################################################################
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 20:15:48.0134 PM
+[ReportManager] Attempting to run remotely on: "Linux-64 | GoogleChrome | http://localhost:4444/wd/hub", Headless Execution. @04-04-2022 20:15:48.0134 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:18:48.0153 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:18:48.0153 PM
+[ReportManager] Failed to run remotely on: "Linux-64", "GoogleChrome", "http://localhost:4444/wd/hub". @04-04-2022 20:18:48.0153 PM
+[ReportManager] Driver Factory Action "createNewRemoteDriverInstance" failed. With the following test data "Unhandled Error.". @04-04-2022 20:18:48.0154 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:18:48.0154 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:18:48.0154 P

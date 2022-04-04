@@ -1,0 +1,10 @@
+
+################################################################################################################################################
+Starting Execution:	"119 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_JSONFileManager.readStringFromJson"
+################################################################################################################################################
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "src/test/resources/testDataFiles/simpleJSON.json"". @04-04-2022 20:33:50.0111 PM
+[ReportManager] Loaded Test Data: "src/test/resources/testDataFiles/simpleJSON.json". @04-04-2022 20:33:50.0112 PM
+[ReportManager] Successfully created attachment "Test Data - JSON" @04-04-2022 20:33:50.0113 PM
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "src/test/resources/testDataFiles/simpleJSON.json"". @04-04-2022 20:33:50.0114 PM
+[ReportManager] Assertion "ValidateEquals" PASSED. Expected "Mohab Mohie" and Actual "Mohab Mohie". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 20:33:50.0124 P

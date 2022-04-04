@@ -1,0 +1,6 @@
+
+################################################################################################################################################
+Starting Execution:	"75 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_dragAndDrop.dragAndDropByOffset"
+Test Description:	"TC002 - Test Drag and Drop by offset function."
+###############################################################################################################################################
