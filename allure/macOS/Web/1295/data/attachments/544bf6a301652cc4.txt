@@ -1,0 +1,10 @@
+
+################################################################################################################################################
+Starting Execution:	"143 out of 179" test cases in the current suite
+Test Method:		"testPackage01.validationsWizard.Test_ElementValidations.text"
+################################################################################################################################################
+[ReportManager] Type "DriverFactory_Engine". @04-04-2022 19:44:16.0122 PM
+[ReportManager] Get text "DriverFactory_Engine". @04-04-2022 19:44:16.0212 PM
+[ReportManager] Assertion Passed: The Element located by "By.name: q" text is equal to "DriverFactory_Engine". @04-04-2022 19:44:16.0520 PM
+[ReportManager] Successfully created attachment "Screenshot - 1649101456332_text_ValidateElementAttribute_passed" @04-04-2022 19:44:16.0559 PM
+[ReportManager] Assertion "ValidateElementAttribute" PASSED. Expected "Value Should be 'DriverFactory_Engine' for the 'text' attribute, element locator 'By.name: q'" and Actual "DriverFactory_Engine". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:44:16.0559 P

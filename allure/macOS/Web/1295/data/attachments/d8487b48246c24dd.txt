@@ -1,0 +1,6 @@
+
+################################################################################################################################################
+Starting Execution:	"66 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertNull_true_expectedToPass"
+################################################################################################################################################
+[ReportManager] Assertion "ValidateNull" PASSED. Expected "NULL" and Actual "NULL". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:41:49.0661 P

@@ -1,0 +1,11 @@
+
+################################################################################################################################################
+Starting Execution:	"154 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_dragAndDrop.dragAndDrop"
+Test Description:	"TC001 - Test Drag and Drop function."
+################################################################################################################################################
+[ReportManager] Target URL: "http://the-internet.herokuapp.com/drag_and_drop" @04-04-2022 19:44:33.0415 PM
+[ReportManager] Initial URL: "" @04-04-2022 19:44:33.0446 PM
+[ReportManager] Navigate to url "http://the-internet.herokuapp.com/drag_and_drop". @04-04-2022 19:44:33.0903 PM
+[ReportManager] Attempting Drag and Drop @04-04-2022 19:44:33.0903 PM
+[ReportManager] Drag and drop "Start point: (120, 89), End point: (335, 89)". @04-04-2022 19:44:34.0606 P

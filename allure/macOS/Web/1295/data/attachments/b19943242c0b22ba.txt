@@ -1,0 +1,24 @@
+
+################################################################################################################################################
+Starting Execution:	"174 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_SelectedValue.simpleSelect"
+################################################################################################################################################
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 19:47:46.0773 PM
+[ReportManager] Attempting to run locally on: "Mac-64 | GoogleChrome", Headless Execution. @04-04-2022 19:47:46.0773 PM
+[ReportManager] Identifying OS/Driver combination and selecting the correct driver version automatically. Please note that if a new driver executable will be downloaded it may take some time... @04-04-2022 19:47:46.0773 PM
+[ReportManager] Successfully Opened Google Chrome. @04-04-2022 19:47:47.0322 PM
+[ReportManager] Initial window size: (1920, 1080) @04-04-2022 19:47:47.0332 PM
+[ReportManager] Window size after SWD Maximize: (1920, 1080) @04-04-2022 19:47:47.0576 PM
+[ReportManager] Window size after Toolkit: (1920, 1080) @04-04-2022 19:47:48.0075 PM
+[ReportManager] Maximize window "New screen size is now: (1920, 1080)". @04-04-2022 19:47:48.0078 PM
+[ReportManager] Target URL: "https://yari-demos.prod.mdn.mozit.cloud/en-US/docs/Web/HTML/Element/select/_sample_.Basic_select.html" @04-04-2022 19:47:48.0078 PM
+[ReportManager] Initial URL: "data:," @04-04-2022 19:47:48.0106 PM
+[ReportManager] Navigate to url "https://yari-demos.prod.mdn.mozit.cloud/en-US/docs/Web/HTML/Element/select/_sample_.Basic_select.html". @04-04-2022 19:47:48.0378 PM
+[ReportManager] Select "Third Value". @04-04-2022 19:47:48.0642 PM
+[ReportManager] Get selected text "Third Value". @04-04-2022 19:47:48.0713 PM
+[ReportManager] Third Value @04-04-2022 19:47:48.0713 PM
+[ReportManager] Get selected text "Third Value". @04-04-2022 19:47:48.0778 PM
+[ReportManager] Assertion "ValidateElementAttribute" PASSED. Expected "Value Should be 'Third Value' for the 'selectedText' attribute, element locator 'By.tagName: select'" and Actual "Third Value". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:47:49.0359 PM
+[ReportManager] Successfully created attachment "Screenshot - 1649101669250_simpleSelect_ValidateElementAttribute_passed" @04-04-2022 19:47:49.0360 PM
+[ReportManager] Close current window. @04-04-2022 19:47:49.0628 PM
+[ReportManager] Successfully created attachment "Browser Action Test Data - Close current window - Actual Value" @04-04-2022 19:47:49.0629 P

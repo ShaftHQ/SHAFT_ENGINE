@@ -1,0 +1,15 @@
+
+################################################################################################################################################
+Starting Execution:	"159 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_chainableElementActions.chainElementActions"
+################################################################################################################################################
+[ReportManager] Target URL: "https://www.google.com/ncr", and after redirection: "https://www.google.com" @04-04-2022 19:44:45.0311 PM
+[ReportManager] Initial URL: "" @04-04-2022 19:44:45.0341 PM
+[ReportManager] Navigate to url "https://www.google.com/ncr". @04-04-2022 19:44:46.0765 PM
+[ReportManager] Type "chained type 1". @04-04-2022 19:44:47.0042 PM
+[ReportManager] Type "chained type 2". @04-04-2022 19:44:47.0334 PM
+[ReportManager] Type append "345". @04-04-2022 19:44:47.0388 PM
+[ReportManager] Get text "chained type 2345". @04-04-2022 19:44:47.0483 PM
+[ReportManager] Assertion Passed: The Element located by "By.name: q" text is equal to "chained type 2345". @04-04-2022 19:44:47.0791 PM
+[ReportManager] Successfully created attachment "Screenshot - 1649101487605_chainElementActions_ValidateElementAttribute_passed" @04-04-2022 19:44:47.0873 PM
+[ReportManager] Assertion "ValidateElementAttribute" PASSED. Expected "Value Should be 'chained type 2345' for the 'text' attribute, element locator 'By.name: q'" and Actual "chained type 2345". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:44:47.0873 P

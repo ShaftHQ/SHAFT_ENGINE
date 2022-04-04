@@ -1,0 +1,16 @@
+
+################################################################################################################################################
+Starting Execution:	"71 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_uploadFile.uploadFile_visibleUploadInput"
+################################################################################################################################################
+[ReportManager] Target URL: "https://demo.guru99.com/test/upload/" @04-04-2022 19:42:03.0296 PM
+[ReportManager] Initial URL: "" @04-04-2022 19:42:03.0353 PM
+[ReportManager] Navigate to url "https://demo.guru99.com/test/upload/". @04-04-2022 19:42:05.0404 PM
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "src/main/resources/images/shaft.png"". @04-04-2022 19:42:05.0405 PM
+[ReportManager] Type file location for upload "/Users/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/main/resources/images/shaft.png". @04-04-2022 19:42:05.0632 PM
+[ReportManager] Click "By.id: terms". @04-04-2022 19:42:07.0038 PM
+[ReportManager] Click "By.id: submitbutton". @04-04-2022 19:42:07.0342 PM
+[ReportManager] Get text "1 file has been successfully uploaded.". @04-04-2022 19:42:07.0518 PM
+[ReportManager] Assertion Passed: The Element located by "By.id: res" attribute "Text" contains "1 file". @04-04-2022 19:42:07.0668 PM
+[ReportManager] Successfully created attachment "Screenshot - 1649101327607_uploadFile_visibleUploadInput_ValidateElementAttribute_passed" @04-04-2022 19:42:07.0669 PM
+[ReportManager] Assertion "ValidateElementAttribute" PASSED. Expected "Value Should be '1 file' for the 'Text' attribute, element locator 'By.id: res'" and Actual "1 file has been successfully uploaded.". Comparison Type "CONTAINS". Validation Type "POSITIVE". @04-04-2022 19:42:07.0669 P

@@ -1,0 +1,10 @@
+
+################################################################################################################################################
+Starting Execution:	"140 out of 179" test cases in the current suite
+Test Method:		"testPackage01.validationsWizard.Test_ElementValidations.isNotSelected"
+################################################################################################################################################
+[ReportManager] Attempting to getAttribute "selected" from elementLocator "By.xpath: //img[@alt='Google']". @04-04-2022 19:44:14.0620 PM
+[ReportManager] Get attribute. @04-04-2022 19:44:14.0656 PM
+[ReportManager] Assertion Passed: The Element located by "By.xpath: //img[@alt='Google']" is not selected, selected attribute is equal to "null". @04-04-2022 19:44:14.0908 PM
+[ReportManager] Successfully created attachment "Screenshot - 1649101454771_isNotSelected_ValidateElementAttribute_passed" @04-04-2022 19:44:14.0909 PM
+[ReportManager] Assertion "ValidateElementAttribute" PASSED. Expected "Value Should be 'null' for the 'selected' attribute, element locator 'By.xpath: //img[@alt='Google']'" and Actual "null". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:44:14.0909 P

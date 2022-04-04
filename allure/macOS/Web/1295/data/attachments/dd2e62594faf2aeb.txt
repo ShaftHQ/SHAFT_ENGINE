@@ -1,0 +1,8 @@
+
+################################################################################################################################################
+Starting Execution:	"89 out of 179" test cases in the current suite
+Test Method:		"testPackage01.TestJSConfirmBox.dismissAlert"
+################################################################################################################################################
+[ReportManager] Click "By.xpath: //button[contains(text(),'Click for JS Confirm')]". @04-04-2022 19:43:30.0769 PM
+[ReportManager] Alert is present @04-04-2022 19:43:30.0785 PM
+[ReportManager] Dismiss alert. @04-04-2022 19:43:30.0793 P

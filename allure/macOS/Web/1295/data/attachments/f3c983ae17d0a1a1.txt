@@ -1,0 +1,1 @@
+/Users/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/main/resources/images/shaft.png

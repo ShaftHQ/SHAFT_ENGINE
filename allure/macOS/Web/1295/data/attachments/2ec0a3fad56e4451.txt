@@ -1,0 +1,5 @@
+
+################################################################################################################################################
+Starting Execution:	"77 out of 179" test cases in the current suite
+Test Method:		"testPackage01.TestJSPromptBox.assertOnConfirmPromptAlertWithoutTypingTextMessageResultText"
+###############################################################################################################################################

@@ -1,0 +1,15 @@
+{
+  "total" : 1,
+  "items" : [ {
+    "uid" : "29f4dcc45a0e26cd7c7462063cee854b",
+    "name" : "Suite",
+    "statistic" : {
+      "failed" : 8,
+      "broken" : 1,
+      "skipped" : 50,
+      "passed" : 124,
+      "unknown" : 0,
+      "total" : 183
+    }
+  } ]
+}

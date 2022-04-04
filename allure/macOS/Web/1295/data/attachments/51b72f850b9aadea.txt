@@ -1,0 +1,13 @@
+
+################################################################################################################################################
+Starting Execution:	"14 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_browserActions.navigateBack"
+################################################################################################################################################
+[ReportManager] Target URL: "https://www.google.com/ncr", and after redirection: "https://www.google.com" @04-04-2022 19:39:24.0463 PM
+[ReportManager] Initial URL: "https://duckduckgo.com" @04-04-2022 19:39:24.0569 PM
+[ReportManager] Navigate to url "https://www.google.com/ncr". @04-04-2022 19:39:25.0937 PM
+[ReportManager] Navigate back "https://duckduckgo.com/". @04-04-2022 19:39:26.0070 PM
+[ReportManager] Get current url "https://duckduckgo.com/". @04-04-2022 19:39:26.0108 PM
+[ReportManager] Get current url failed "https://duckduckgo.com/". @04-04-2022 19:39:26.0109 PM
+[ReportManager] Assertion Failed: Confirming that navigating back was successful @04-04-2022 19:39:26.0111 PM
+[ReportManager] Assertion "ValidateBrowserAttribute" FAILED. Expected "Value Should be 'https://duckduckgo.com' for the 'CurrentUrl' attribute" and Actual "Failed to read the desired browser attribute". Comparison Type "CONTAINS". Validation Type "POSITIVE". @04-04-2022 19:39:26.0111 P

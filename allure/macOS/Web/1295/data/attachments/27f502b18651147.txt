@@ -1,0 +1,17 @@
+
+################################################################################################################################################
+Starting Execution:	"178 out of 179" test cases in the current suite
+Test Method:		"dsl.testDsl.testCheckBox"
+################################################################################################################################################
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 19:47:52.0695 PM
+[ReportManager] Attempting to run locally on: "Mac-64 | Safari", Headless Execution. @04-04-2022 19:47:52.0695 PM
+[ReportManager] Successfully Opened Safari. @04-04-2022 19:47:53.0642 PM
+[ReportManager] Initial window size: (800, 600) @04-04-2022 19:47:53.0706 PM
+[ReportManager] Window size after SWD Maximize: (1176, 803) @04-04-2022 19:47:53.0743 PM
+[ReportManager] Maximize window "New screen size is now: (1176, 803)". @04-04-2022 19:47:53.0744 PM
+[ReportManager] Target URL: "http://the-internet.herokuapp.com/" @04-04-2022 19:47:53.0744 PM
+[ReportManager] Initial URL: "" @04-04-2022 19:47:53.0802 PM
+[ReportManager] Navigate to url "http://the-internet.herokuapp.com/". @04-04-2022 19:47:54.0566 PM
+[ReportManager] Click "By.linkText: Checkboxes". @04-04-2022 19:47:54.0905 PM
+[ReportManager] Click "By.xpath: (//INPUT[@type='checkbox'])[1]". @04-04-2022 19:47:56.0280 PM
+[ReportManager] Click "By.xpath: (//INPUT[@type='checkbox'])[2]". @04-04-2022 19:47:56.0524 P

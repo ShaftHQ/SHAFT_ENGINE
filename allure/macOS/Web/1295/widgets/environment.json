@@ -1,0 +1,487 @@
+[ {
+  "values" : [ "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web" ],
+  "name" : "URL"
+}, {
+  "values" : [ "SHAFT Engine v6.1.20220113" ],
+  "name" : "shaftEngineVersion"
+}, {
+  "values" : [ "17" ],
+  "name" : "java.specification.version"
+}, {
+  "values" : [ "8000" ],
+  "name" : "imitatePort"
+}, {
+  "values" : [ "http://www.azul.com/" ],
+  "name" : "java.vendor.url"
+}, {
+  "values" : [ "/Users/runner/hostedtoolcache/Java_Zulu_jdk/17.0.2-8/x64/lib" ],
+  "name" : "sun.boot.library.path"
+}, {
+  "values" : [ "/Users/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/target/surefire/surefirebooter15624502506984223675.jar /Users/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/target/surefire 2022-04-04T19-38-20_637-jvmRun1 surefire7385403752810147508tmp surefire_01554201545816029300tmp" ],
+  "name" : "sun.java.command"
+}, {
+  "values" : [ "release" ],
+  "name" : "jdk.debug"
+}, {
+  "values" : [ "true" ],
+  "name" : "autoMaximizeBrowserWindow"
+}, {
+  "values" : [ "false" ],
+  "name" : "attemptClearBeforeTypingUsingBackspace"
+}, {
+  "values" : [ "/Users/runner/work/SHAFT_ENGINE/SHAFT_ENGINE" ],
+  "name" : "basedir"
+}, {
+  "values" : [ "false" ],
+  "name" : "alwaysLogDiscreetly"
+}, {
+  "values" : [ "Oracle Corporation" ],
+  "name" : "java.vm.specification.vendor"
+}, {
+  "values" : [ "Java Platform API Specification" ],
+  "name" : "java.specification.name"
+}, {
+  "values" : [ "false" ],
+  "name" : "videoParams_recordVideo"
+}, {
+  "values" : [ "17.0.2+8-LTS" ],
+  "name" : "java.runtime.version"
+}, {
+  "values" : [ "true" ],
+  "name" : "forceCheckForElementVisibility"
+}, {
+  "values" : [ "true" ],
+  "name" : "cleanAllureResultsDirectoryBeforeExecution"
+}, {
+  "values" : [ "Zulu17.32+13-CA" ],
+  "name" : "java.vendor.version"
+}, {
+  "values" : [ "/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/" ],
+  "name" : "java.io.tmpdir"
+}, {
+  "values" : [ "30" ],
+  "name" : "databaseNetworkTimeout"
+}, {
+  "values" : [ "17.0.2" ],
+  "name" : "java.version"
+}, {
+  "values" : [ "target/surefire-reports/testng-results.xml" ],
+  "name" : "reportPath"
+}, {
+  "values" : [ "Java Virtual Machine Specification" ],
+  "name" : "java.vm.specification.name"
+}, {
+  "values" : [ "30" ],
+  "name" : "databaseLoginTimeout"
+}, {
+  "values" : [ "UTF-8" ],
+  "name" : "native.encoding"
+}, {
+  "values" : [ "/Users/runner/Library/Java/Extensions:/Library/Java/Extensions:/Network/Library/Java/Extensions:/System/Library/Java/Extensions:/usr/lib/java:." ],
+  "name" : "java.library.path"
+}, {
+  "values" : [ "Azul Systems, Inc." ],
+  "name" : "java.vendor"
+}, {
+  "values" : [ "1" ],
+  "name" : "screenshotParams_scalingFactor"
+}, {
+  "values" : [ "30" ],
+  "name" : "apiConnectionManagerTimeout"
+}, {
+  "values" : [ "src/test/resources" ],
+  "name" : "cucumber.features"
+}, {
+  "values" : [ "ValidationPointsOnly" ],
+  "name" : "screenshotParams_whenToTakeAScreenshot"
+}, {
+  "values" : [ "30" ],
+  "name" : "scriptExecutionTimeout"
+}, {
+  "values" : [ "true" ],
+  "name" : "screenshotParams_highlightElements"
+}, {
+  "values" : [ "UTC" ],
+  "name" : "user.timezone"
+}, {
+  "values" : [ "17" ],
+  "name" : "java.vm.specification.version"
+}, {
+  "values" : [ "!%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*Android.*], !%regex[.*IOS.*], !%regex[.*Windows.*]" ],
+  "name" : "test"
+}, {
+  "values" : [ "/Users/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/target/test-classes:/Users/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/target/classes:/Users/runner/.m2/repository/org/testng/testng/7.5/testng-7.5.jar:/Users/runner/.m2/repository/com/google/code/findbugs/jsr305/3.0.1/jsr305-3.0.1.jar:/Users/runner/.m2/repository/org/slf4j/slf4j-api/1.7.32/slf4j-api-1.7.32.jar:/Users/runner/.m2/repository/com/beust/jcommander/1.78/jcommander-1.78.jar:/Users/runner/.m2/repository/org/webjars/jquery/3.5.1/jquery-3.5.1.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-java/4.1.3/selenium-java-4.1.3.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-api/4.1.3/selenium-api-4.1.3.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-chrome-driver/4.1.3/selenium-chrome-driver-4.1.3.jar:/Users/runner/.m2/repository/com/google/auto/service/auto-service-annotations/1.0.1/auto-service-annotations-1.0.1.jar:/Users/runner/.m2/repository/com/google/auto/service/auto-service/1.0.1/auto-service-1.0.1.jar:/Users/runner/.m2/repository/com/google/auto/auto-common/1.2/auto-common-1.2.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-chromium-driver/4.1.3/selenium-chromium-driver-4.1.3.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-json/4.1.3/selenium-json-4.1.3.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-devtools-v85/4.1.3/selenium-devtools-v85-4.1.3.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-devtools-v97/4.1.3/selenium-devtools-v97-4.1.3.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-devtools-v98/4.1.3/selenium-devtools-v98-4.1.3.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-devtools-v99/4.1.3/selenium-devtools-v99-4.1.3.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-edge-driver/4.1.3/selenium-edge-driver-4.1.3.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-firefox-driver/4.1.3/selenium-firefox-driver-4.1.3.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-ie-driver/4.1.3/selenium-ie-driver-4.1.3.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-opera-driver/4.1.3/selenium-opera-driver-4.1.3.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-remote-driver/4.1.3/selenium-remote-driver-4.1.3.jar:/Users/runner/.m2/repository/io/netty/netty-codec-http/4.1.75.Final/netty-codec-http-4.1.75.Final.jar:/Users/runner/.m2/repository/io/netty/netty-transport-classes-epoll/4.1.75.Final/netty-transport-classes-epoll-4.1.75.Final.jar:/Users/runner/.m2/repository/io/netty/netty-transport-classes-kqueue/4.1.75.Final/netty-transport-classes-kqueue-4.1.75.Final.jar:/Users/runner/.m2/repository/io/netty/netty-transport-native-epoll/4.1.75.Final/netty-transport-native-epoll-4.1.75.Final.jar:/Users/runner/.m2/repository/io/netty/netty-transport-native-kqueue/4.1.75.Final/netty-transport-native-kqueue-4.1.75.Final.jar:/Users/runner/.m2/repository/io/netty/netty-transport-native-unix-common/4.1.75.Final/netty-transport-native-unix-common-4.1.75.Final.jar:/Users/runner/.m2/repository/io/opentelemetry/opentelemetry-api/1.12.0/opentelemetry-api-1.12.0.jar:/Users/runner/.m2/repository/io/opentelemetry/opentelemetry-context/1.12.0/opentelemetry-context-1.12.0.jar:/Users/runner/.m2/repository/io/opentelemetry/opentelemetry-exporter-logging/1.12.0/opentelemetry-exporter-logging-1.12.0.jar:/Users/runner/.m2/repository/io/opentelemetry/opentelemetry-sdk-metrics/1.12.0-alpha/opentelemetry-sdk-metrics-1.12.0-alpha.jar:/Users/runner/.m2/repository/io/opentelemetry/opentelemetry-sdk-logs/1.12.0-alpha/opentelemetry-sdk-logs-1.12.0-alpha.jar:/Users/runner/.m2/repository/io/opentelemetry/opentelemetry-sdk-common/1.12.0/opentelemetry-sdk-common-1.12.0.jar:/Users/runner/.m2/repository/io/opentelemetry/opentelemetry-sdk-extension-autoconfigure-spi/1.12.0/opentelemetry-sdk-extension-autoconfigure-spi-1.12.0.jar:/Users/runner/.m2/repository/io/opentelemetry/opentelemetry-sdk-extension-autoconfigure/1.12.0-alpha/opentelemetry-sdk-extension-autoconfigure-1.12.0-alpha.jar:/Users/runner/.m2/repository/io/opentelemetry/opentelemetry-sdk-trace/1.12.0/opentelemetry-sdk-trace-1.12.0.jar:/Users/runner/.m2/repository/io/opentelemetry/opentelemetry-sdk/1.12.0/opentelemetry-sdk-1.12.0.jar:/Users/runner/.m2/repository/io/opentelemetry/opentelemetry-semconv/1.12.0-alpha/opentelemetry-semconv-1.12.0-alpha.jar:/Users/runner/.m2/repository/io/ous/jtoml/2.0.0/jtoml-2.0.0.jar:/Users/runner/.m2/repository/net/bytebuddy/byte-buddy/1.12.8/byte-buddy-1.12.8.jar:/Users/runner/.m2/repository/org/asynchttpclient/async-http-client/2.12.3/async-http-client-2.12.3.jar:/Users/runner/.m2/repository/org/asynchttpclient/async-http-client-netty-utils/2.12.3/async-http-client-netty-utils-2.12.3.jar:/Users/runner/.m2/repository/io/netty/netty-codec-socks/4.1.60.Final/netty-codec-socks-4.1.60.Final.jar:/Users/runner/.m2/repository/io/netty/netty-handler-proxy/4.1.60.Final/netty-handler-proxy-4.1.60.Final.jar:/Users/runner/.m2/repository/io/netty/netty-transport-native-epoll/4.1.60.Final/netty-transport-native-epoll-4.1.60.Final-linux-x86_64.jar:/Users/runner/.m2/repository/io/netty/netty-transport-native-kqueue/4.1.60.Final/netty-transport-native-kqueue-4.1.60.Final-osx-x86_64.jar:/Users/runner/.m2/repository/com/typesafe/netty/netty-reactive-streams/2.0.4/netty-reactive-streams-2.0.4.jar:/Users/runner/.m2/repository/com/sun/activation/jakarta.activation/1.2.2/jakarta.activation-1.2.2.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-http/4.1.3/selenium-http-4.1.3.jar:/Users/runner/.m2/repository/dev/failsafe/failsafe/3.2.3/failsafe-3.2.3.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-safari-driver/4.1.3/selenium-safari-driver-4.1.3.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-support/4.1.3/selenium-support-4.1.3.jar:/Users/runner/.m2/repository/io/netty/netty-handler/4.1.75.Final/netty-handler-4.1.75.Final.jar:/Users/runner/.m2/repository/io/netty/netty-common/4.1.75.Final/netty-common-4.1.75.Final.jar:/Users/runner/.m2/repository/io/netty/netty-resolver/4.1.75.Final/netty-resolver-4.1.75.Final.jar:/Users/runner/.m2/repository/io/netty/netty-buffer/4.1.75.Final/netty-buffer-4.1.75.Final.jar:/Users/runner/.m2/repository/io/netty/netty-transport/4.1.75.Final/netty-transport-4.1.75.Final.jar:/Users/runner/.m2/repository/io/netty/netty-codec/4.1.75.Final/netty-codec-4.1.75.Final.jar:/Users/runner/.m2/repository/com/epam/healenium/healenium-web/3.2.2/healenium-web-3.2.2.jar:/Users/runner/.m2/repository/org/apache/maven/plugins/maven-surefire-plugin/3.0.0-M5/maven-surefire-plugin-3.0.0-M5.jar:/Users/runner/.m2/repository/org/apache/maven/surefire/maven-surefire-common/3.0.0-M5/maven-surefire-common-3.0.0-M5.jar:/Users/runner/.m2/repository/org/apache/maven/surefire/surefire-api/3.0.0-M5/surefire-api-3.0.0-M5.jar:/Users/runner/.m2/repository/org/apache/maven/surefire/surefire-logger-api/3.0.0-M5/surefire-logger-api-3.0.0-M5.jar:/Users/runner/.m2/repository/org/apache/maven/surefire/surefire-extensions-api/3.0.0-M5/surefire-extensions-api-3.0.0-M5.jar:/Users/runner/.m2/repository/org/apache/maven/surefire/surefire-booter/3.0.0-M5/surefire-booter-3.0.0-M5.jar:/Users/runner/.m2/repository/org/apache/maven/surefire/surefire-extensions-spi/3.0.0-M5/surefire-extensions-spi-3.0.0-M5.jar:/Users/runner/.m2/repository/org/apache/maven/maven-toolchain/3.0-alpha-2/maven-toolchain-3.0-alpha-2.jar:/Users/runner/.m2/repository/org/apache/maven/shared/maven-artifact-transfer/0.11.0/maven-artifact-transfer-0.11.0.jar:/Users/runner/.m2/repository/org/apache/maven/shared/maven-common-artifact-filters/3.0.1/maven-common-artifact-filters-3.0.1.jar:/Users/runner/.m2/repository/org/sonatype/sisu/sisu-inject-plexus/1.4.2/sisu-inject-plexus-1.4.2.jar:/Users/runner/.m2/repository/org/sonatype/sisu/sisu-inject-bean/1.4.2/sisu-inject-bean-1.4.2.jar:/Users/runner/.m2/repository/org/sonatype/sisu/sisu-guice/2.1.7/sisu-guice-2.1.7-noaop.jar:/Users/runner/.m2/repository/org/codehaus/plexus/plexus-java/1.0.5/plexus-java-1.0.5.jar:/Users/runner/.m2/repository/com/thoughtworks/qdox/qdox/2.0-M9/qdox-2.0-M9.jar:/Users/runner/.m2/repository/org/apache/maven/surefire/surefire-shared-utils/3.0.0-M4/surefire-shared-utils-3.0.0-M4.jar:/Users/runner/.m2/repository/org/apache/maven/maven-artifact/2.0.11/maven-artifact-2.0.11.jar:/Users/runner/.m2/repository/org/codehaus/plexus/plexus-utils/1.5.6/plexus-utils-1.5.6.jar:/Users/runner/.m2/repository/org/apache/maven/maven-compat/3.8.1/maven-compat-3.8.1.jar:/Users/runner/.m2/repository/org/apache/maven/maven-model/3.8.1/maven-model-3.8.1.jar:/Users/runner/.m2/repository/org/apache/maven/maven-model-builder/3.8.1/maven-model-builder-3.8.1.jar:/Users/runner/.m2/repository/javax/inject/javax.inject/1/javax.inject-1.jar:/Users/runner/.m2/repository/org/apache/maven/maven-builder-support/3.8.1/maven-builder-support-3.8.1.jar:/Users/runner/.m2/repository/org/eclipse/sisu/org.eclipse.sisu.inject/0.3.4/org.eclipse.sisu.inject-0.3.4.jar:/Users/runner/.m2/repository/org/apache/maven/maven-settings/3.8.1/maven-settings-3.8.1.jar:/Users/runner/.m2/repository/org/apache/maven/maven-settings-builder/3.8.1/maven-settings-builder-3.8.1.jar:/Users/runner/.m2/repository/org/sonatype/plexus/plexus-sec-dispatcher/1.4/plexus-sec-dispatcher-1.4.jar:/Users/runner/.m2/repository/org/sonatype/plexus/plexus-cipher/1.4/plexus-cipher-1.4.jar:/Users/runner/.m2/repository/org/apache/maven/maven-core/3.8.1/maven-core-3.8.1.jar:/Users/runner/.m2/repository/org/apache/maven/resolver/maven-resolver-spi/1.6.2/maven-resolver-spi-1.6.2.jar:/Users/runner/.m2/repository/org/apache/maven/shared/maven-shared-utils/3.2.1/maven-shared-utils-3.2.1.jar:/Users/runner/.m2/repository/com/google/inject/guice/4.2.1/guice-4.2.1-no_aop.jar:/Users/runner/.m2/repository/aopalliance/aopalliance/1.0/aopalliance-1.0.jar:/Users/runner/.m2/repository/org/apache/maven/maven-resolver-provider/3.8.1/maven-resolver-provider-3.8.1.jar:/Users/runner/.m2/repository/org/apache/maven/maven-repository-metadata/3.8.1/maven-repository-metadata-3.8.1.jar:/Users/runner/.m2/repository/org/apache/maven/resolver/maven-resolver-api/1.6.2/maven-resolver-api-1.6.2.jar:/Users/runner/.m2/repository/org/apache/maven/resolver/maven-resolver-util/1.6.2/maven-resolver-util-1.6.2.jar:/Users/runner/.m2/repository/org/apache/maven/resolver/maven-resolver-impl/1.6.2/maven-resolver-impl-1.6.2.jar:/Users/runner/.m2/repository/org/codehaus/plexus/plexus-interpolation/1.25/plexus-interpolation-1.25.jar:/Users/runner/.m2/repository/org/eclipse/sisu/org.eclipse.sisu.plexus/0.3.4/org.eclipse.sisu.plexus-0.3.4.jar:/Users/runner/.m2/repository/javax/enterprise/cdi-api/1.0/cdi-api-1.0.jar:/Users/runner/.m2/repository/javax/annotation/jsr250-api/1.0/jsr250-api-1.0.jar:/Users/runner/.m2/repository/org/codehaus/plexus/plexus-component-annotations/2.1.0/plexus-component-annotations-2.1.0.jar:/Users/runner/.m2/repository/org/apache/maven/wagon/wagon-provider-api/3.4.3/wagon-provider-api-3.4.3.jar:/Users/runner/.m2/repository/org/apache/maven/maven-plugin-api/3.8.1/maven-plugin-api-3.8.1.jar:/Users/runner/.m2/repository/org/codehaus/plexus/plexus-classworlds/2.6.0/plexus-classworlds-2.6.0.jar:/Users/runner/.m2/repository/com/typesafe/config/1.3.4/config-1.3.4.jar:/Users/runner/.m2/repository/com/epam/healenium/tree-comparing/0.4.10/tree-comparing-0.4.10.jar:/Users/runner/.m2/repository/org/jsoup/jsoup/1.11.3/jsoup-1.11.3.jar:/Users/runner/.m2/repository/org/apache/commons/commons-text/1.6/commons-text-1.6.jar:/Users/runner/.m2/repository/com/fasterxml/jackson/core/jackson-databind/2.13.1/jackson-databind-2.13.1.jar:/Users/runner/.m2/repository/com/fasterxml/jackson/core/jackson-annotations/2.13.1/jackson-annotations-2.13.1.jar:/Users/runner/.m2/repository/com/fasterxml/jackson/core/jackson-core/2.13.1/jackson-core-2.13.1.jar:/Users/runner/.m2/repository/org/apache/commons/commons-lang3/3.11/commons-lang3-3.11.jar:/Users/runner/.m2/repository/commons-codec/commons-codec/1.12/commons-codec-1.12.jar:/Users/runner/.m2/repository/com/squareup/okhttp3/okhttp/4.9.3/okhttp-4.9.3.jar:/Users/runner/.m2/repository/com/squareup/okio/okio/2.8.0/okio-2.8.0.jar:/Users/runner/.m2/repository/org/jetbrains/kotlin/kotlin-stdlib-common/1.4.0/kotlin-stdlib-common-1.4.0.jar:/Users/runner/.m2/repository/org/jetbrains/kotlin/kotlin-stdlib/1.4.10/kotlin-stdlib-1.4.10.jar:/Users/runner/.m2/repository/org/jetbrains/annotations/18.0.0/annotations-18.0.0.jar:/Users/runner/.m2/repository/org/mapstruct/mapstruct/1.4.2.Final/mapstruct-1.4.2.Final.jar:/Users/runner/.m2/repository/one/util/streamex/0.7.2/streamex-0.7.2.jar:/Users/runner/.m2/repository/org/mapstruct/mapstruct-processor/1.4.2.Final/mapstruct-processor-1.4.2.Final.jar:/Users/runner/.m2/repository/com/microsoft/playwright/playwright/1.20.1/playwright-1.20.1.jar:/Users/runner/.m2/repository/com/google/code/gson/gson/2.8.6/gson-2.8.6.jar:/Users/runner/.m2/repository/org/opentest4j/opentest4j/1.2.0/opentest4j-1.2.0.jar:/Users/runner/.m2/repository/com/microsoft/playwright/driver/1.20.1/driver-1.20.1.jar:/Users/runner/.m2/repository/com/microsoft/playwright/driver-bundle/1.20.1/driver-bundle-1.20.1.jar:/Users/runner/.m2/repository/io/appium/java-client/8.0.0/java-client-8.0.0.jar:/Users/runner/.m2/repository/cglib/cglib/3.3.0/cglib-3.3.0.jar:/Users/runner/.m2/repository/org/ow2/asm/asm/7.1/asm-7.1.jar:/Users/runner/.m2/repository/commons-validator/commons-validator/1.7/commons-validator-1.7.jar:/Users/runner/.m2/repository/commons-beanutils/commons-beanutils/1.9.4/commons-beanutils-1.9.4.jar:/Users/runner/.m2/repository/commons-digester/commons-digester/2.1/commons-digester-2.1.jar:/Users/runner/.m2/repository/commons-collections/commons-collections/3.2.2/commons-collections-3.2.2.jar:/Users/runner/.m2/repository/commons-io/commons-io/2.11.0/commons-io-2.11.0.jar:/Users/runner/.m2/repository/org/springframework/spring-context/5.3.16/spring-context-5.3.16.jar:/Users/runner/.m2/repository/org/springframework/spring-aop/5.3.16/spring-aop-5.3.16.jar:/Users/runner/.m2/repository/org/springframework/spring-beans/5.3.16/spring-beans-5.3.16.jar:/Users/runner/.m2/repository/org/springframework/spring-core/5.3.16/spring-core-5.3.16.jar:/Users/runner/.m2/repository/org/springframework/spring-jcl/5.3.16/spring-jcl-5.3.16.jar:/Users/runner/.m2/repository/org/springframework/spring-expression/5.3.16/spring-expression-5.3.16.jar:/Users/runner/.m2/repository/com/applitools/eyes-images-java4/4.14.0/eyes-images-java4-4.14.0.jar:/Users/runner/.m2/repository/com/applitools/eyes-common-java4/4.14.0/eyes-common-java4-4.14.0.jar:/Users/runner/.m2/repository/org/imgscalr/imgscalr-lib/4.2/imgscalr-lib-4.2.jar:/Users/runner/.m2/repository/com/helger/ph-css/6.1.1/ph-css-6.1.1.jar:/Users/runner/.m2/repository/com/helger/ph-commons/9.0.2/ph-commons-9.0.2.jar:/Users/runner/.m2/repository/com/applitools/eyes-sdk-core-java4/4.14.0/eyes-sdk-core-java4-4.14.0.jar:/Users/runner/.m2/repository/com/applitools/eyes-connectivity-java4-jersey2x/4.14.0/eyes-connectivity-java4-jersey2x-4.14.0.jar:/Users/runner/.m2/repository/org/glassfish/jersey/connectors/jersey-apache-connector/2.16/jersey-apache-connector-2.16.jar:/Users/runner/.m2/repository/org/glassfish/jersey/core/jersey-common/2.16/jersey-common-2.16.jar:/Users/runner/.m2/repository/javax/annotation/javax.annotation-api/1.2/javax.annotation-api-1.2.jar:/Users/runner/.m2/repository/org/glassfish/jersey/bundles/repackaged/jersey-guava/2.16/jersey-guava-2.16.jar:/Users/runner/.m2/repository/org/glassfish/hk2/osgi-resource-locator/1.0.1/osgi-resource-locator-1.0.1.jar:/Users/runner/.m2/repository/javax/ws/rs/javax.ws.rs-api/2.0.1/javax.ws.rs-api-2.0.1.jar:/Users/runner/.m2/repository/org/glassfish/jersey/core/jersey-client/2.16/jersey-client-2.16.jar:/Users/runner/.m2/repository/org/glassfish/hk2/hk2-api/2.4.0-b09/hk2-api-2.4.0-b09.jar:/Users/runner/.m2/repository/org/glassfish/hk2/hk2-utils/2.4.0-b09/hk2-utils-2.4.0-b09.jar:/Users/runner/.m2/repository/org/glassfish/hk2/external/aopalliance-repackaged/2.4.0-b09/aopalliance-repackaged-2.4.0-b09.jar:/Users/runner/.m2/repository/org/glassfish/hk2/external/javax.inject/2.4.0-b09/javax.inject-2.4.0-b09.jar:/Users/runner/.m2/repository/org/glassfish/hk2/hk2-locator/2.4.0-b09/hk2-locator-2.4.0-b09.jar:/Users/runner/.m2/repository/org/openpnp/opencv/4.5.1-2/opencv-4.5.1-2.jar:/Users/runner/.m2/repository/com/sikulix/sikulixapi/2.0.5/sikulixapi-2.0.5.jar:/Users/runner/.m2/repository/org/python/jython-slim/2.7.2/jython-slim-2.7.2.jar:/Users/runner/.m2/repository/org/antlr/antlr/3.5.2/antlr-3.5.2.jar:/Users/runner/.m2/repository/org/antlr/ST4/4.0.8/ST4-4.0.8.jar:/Users/runner/.m2/repository/javax/servlet/javax.servlet-api/3.1.0/javax.servlet-api-3.1.0.jar:/Users/runner/.m2/repository/org/antlr/antlr-runtime/3.5.2/antlr-runtime-3.5.2.jar:/Users/runner/.m2/repository/org/bouncycastle/bcpkix-jdk15on/1.62/bcpkix-jdk15on-1.62.jar:/Users/runner/.m2/repository/org/bouncycastle/bcprov-jdk15on/1.62/bcprov-jdk15on-1.62.jar:/Users/runner/.m2/repository/org/ow2/asm/asm-commons/7.1/asm-commons-7.1.jar:/Users/runner/.m2/repository/org/ow2/asm/asm-tree/7.1/asm-tree-7.1.jar:/Users/runner/.m2/repository/org/ow2/asm/asm-analysis/7.1/asm-analysis-7.1.jar:/Users/runner/.m2/repository/org/ow2/asm/asm-util/7.1/asm-util-7.1.jar:/Users/runner/.m2/repository/com/ibm/icu/icu4j/59.1/icu4j-59.1.jar:/Users/runner/.m2/repository/com/carrotsearch/java-sizeof/0.0.5/java-sizeof-0.0.5.jar:/Users/runner/.m2/repository/com/github/jnr/jffi/1.2.20/jffi-1.2.20.jar:/Users/runner/.m2/repository/com/github/jnr/jnr-netdb/1.1.6/jnr-netdb-1.1.6.jar:/Users/runner/.m2/repository/com/github/jnr/jnr-ffi/2.1.10/jnr-ffi-2.1.10.jar:/Users/runner/.m2/repository/com/github/jnr/jffi/1.2.19/jffi-1.2.19-native.jar:/Users/runner/.m2/repository/com/github/jnr/jnr-a64asm/1.0.0/jnr-a64asm-1.0.0.jar:/Users/runner/.m2/repository/com/github/jnr/jnr-x86asm/1.0.2/jnr-x86asm-1.0.2.jar:/Users/runner/.m2/repository/com/github/jnr/jnr-posix/3.0.50/jnr-posix-3.0.50.jar:/Users/runner/.m2/repository/com/github/jnr/jnr-constants/0.9.12/jnr-constants-0.9.12.jar:/Users/runner/.m2/repository/jline/jline/2.14.5/jline-2.14.5.jar:/Users/runner/.m2/repository/org/apache/ant/ant/1.9.7/ant-1.9.7.jar:/Users/runner/.m2/repository/org/apache/ant/ant-launcher/1.9.7/ant-launcher-1.9.7.jar:/Users/runner/.m2/repository/com/sikulix/sikulix2tigervnc/1.1.4/sikulix2tigervnc-1.1.4.jar:/Users/runner/.m2/repository/commons-cli/commons-cli/1.4/commons-cli-1.4.jar:/Users/runner/.m2/repository/org/apache/commons/commons-exec/1.3/commons-exec-1.3.jar:/Users/runner/.m2/repository/net/java/dev/jna/jna-platform/5.6.0/jna-platform-5.6.0.jar:/Users/runner/.m2/repository/net/java/dev/jna/jna/5.6.0/jna-5.6.0.jar:/Users/runner/.m2/repository/net/oneandone/reflections8/reflections8/0.11.6/reflections8-0.11.6.jar:/Users/runner/.m2/repository/org/javassist/javassist/3.22.0-GA/javassist-3.22.0-GA.jar:/Users/runner/.m2/repository/net/sourceforge/tess4j/tess4j/4.5.4/tess4j-4.5.4.jar:/Users/runner/.m2/repository/com/github/jai-imageio/jai-imageio-core/1.4.0/jai-imageio-core-1.4.0.jar:/Users/runner/.m2/repository/org/ghost4j/ghost4j/1.0.1/ghost4j-1.0.1.jar:/Users/runner/.m2/repository/org/apache/xmlgraphics/xmlgraphics-commons/1.4/xmlgraphics-commons-1.4.jar:/Users/runner/.m2/repository/com/lowagie/itext/2.1.7/itext-2.1.7.jar:/Users/runner/.m2/repository/org/apache/pdfbox/pdfbox-tools/2.0.21/pdfbox-tools-2.0.21.jar:/Users/runner/.m2/repository/org/apache/pdfbox/pdfbox-debugger/2.0.21/pdfbox-debugger-2.0.21.jar:/Users/runner/.m2/repository/org/apache/pdfbox/jbig2-imageio/3.0.3/jbig2-imageio-3.0.3.jar:/Users/runner/.m2/repository/net/sourceforge/lept4j/lept4j/1.13.2/lept4j-1.13.2.jar:/Users/runner/.m2/repository/org/jboss/jboss-vfs/3.2.15.Final/jboss-vfs-3.2.15.Final.jar:/Users/runner/.m2/repository/org/jboss/logging/jboss-logging/3.1.4.GA/jboss-logging-3.1.4.GA.jar:/Users/runner/.m2/repository/net/sf/py4j/py4j/0.10.9.1/py4j-0.10.9.1.jar:/Users/runner/.m2/repository/io/github/bonigarcia/webdrivermanager/5.1.0/webdrivermanager-5.1.0.jar:/Users/runner/.m2/repository/com/github/docker-java/docker-java/3.2.13/docker-java-3.2.13.jar:/Users/runner/.m2/repository/com/github/docker-java/docker-java-core/3.2.13/docker-java-core-3.2.13.jar:/Users/runner/.m2/repository/com/github/docker-java/docker-java-api/3.2.13/docker-java-api-3.2.13.jar:/Users/runner/.m2/repository/org/slf4j/jcl-over-slf4j/1.7.30/jcl-over-slf4j-1.7.30.jar:/Users/runner/.m2/repository/com/github/docker-java/docker-java-transport-httpclient5/3.2.13/docker-java-transport-httpclient5-3.2.13.jar:/Users/runner/.m2/repository/com/github/docker-java/docker-java-transport/3.2.13/docker-java-transport-3.2.13.jar:/Users/runner/.m2/repository/org/apache/httpcomponents/client5/httpclient5/5.0.3/httpclient5-5.0.3.jar:/Users/runner/.m2/repository/org/apache/httpcomponents/core5/httpcore5/5.0.2/httpcore5-5.0.2.jar:/Users/runner/.m2/repository/org/brotli/dec/0.1.2/dec-0.1.2.jar:/Users/runner/.m2/repository/org/apache/poi/poi/5.2.2/poi-5.2.2.jar:/Users/runner/.m2/repository/org/apache/commons/commons-collections4/4.4/commons-collections4-4.4.jar:/Users/runner/.m2/repository/org/apache/commons/commons-math3/3.6.1/commons-math3-3.6.1.jar:/Users/runner/.m2/repository/com/zaxxer/SparseBitSet/1.2/SparseBitSet-1.2.jar:/Users/runner/.m2/repository/org/apache/logging/log4j/log4j-api/2.17.2/log4j-api-2.17.2.jar:/Users/runner/.m2/repository/org/apache/poi/poi-ooxml/5.2.2/poi-ooxml-5.2.2.jar:/Users/runner/.m2/repository/org/apache/poi/poi-ooxml-lite/5.2.2/poi-ooxml-lite-5.2.2.jar:/Users/runner/.m2/repository/org/apache/xmlbeans/xmlbeans/5.0.3/xmlbeans-5.0.3.jar:/Users/runner/.m2/repository/org/apache/commons/commons-compress/1.21/commons-compress-1.21.jar:/Users/runner/.m2/repository/com/github/virtuald/curvesapi/1.07/curvesapi-1.07.jar:/Users/runner/.m2/repository/io/qameta/allure/allure-testng/2.17.3/allure-testng-2.17.3.jar:/Users/runner/.m2/repository/io/qameta/allure/allure-java-commons/2.17.3/allure-java-commons-2.17.3.jar:/Users/runner/.m2/repository/io/qameta/allure/allure-model/2.17.3/allure-model-2.17.3.jar:/Users/runner/.m2/repository/io/qameta/allure/allure-test-filter/2.17.3/allure-test-filter-2.17.3.jar:/Users/runner/.m2/repository/io/qameta/allure/allure-cucumber7-jvm/2.17.3/allure-cucumber7-jvm-2.17.3.jar:/Users/runner/.m2/repository/io/cucumber/gherkin/22.0.0/gherkin-22.0.0.jar:/Users/runner/.m2/repository/io/cucumber/messages/17.1.1/messages-17.1.1.jar:/Users/runner/.m2/repository/org/aspectj/aspectjweaver/1.9.7/aspectjweaver-1.9.7.jar:/Users/runner/.m2/repository/com/aventstack/extentreports/5.0.9/extentreports-5.0.9.jar:/Users/runner/.m2/repository/io/reactivex/rxjava3/rxjava/3.0.4/rxjava-3.0.4.jar:/Users/runner/.m2/repository/org/reactivestreams/reactive-streams/1.0.3/reactive-streams-1.0.3.jar:/Users/runner/.m2/repository/org/freemarker/freemarker/2.3.30/freemarker-2.3.30.jar:/Users/runner/.m2/repository/org/apache/pdfbox/pdfbox/2.0.25/pdfbox-2.0.25.jar:/Users/runner/.m2/repository/org/apache/pdfbox/fontbox/2.0.25/fontbox-2.0.25.jar:/Users/runner/.m2/repository/commons-logging/commons-logging/1.2/commons-logging-1.2.jar:/Users/runner/.m2/repository/io/rest-assured/rest-assured/5.0.0/rest-assured-5.0.0.jar:/Users/runner/.m2/repository/org/apache/groovy/groovy/4.0.1/groovy-4.0.1.jar:/Users/runner/.m2/repository/org/apache/groovy/groovy-xml/4.0.1/groovy-xml-4.0.1.jar:/Users/runner/.m2/repository/org/apache/httpcomponents/httpclient/4.5.13/httpclient-4.5.13.jar:/Users/runner/.m2/repository/org/apache/httpcomponents/httpcore/4.4.13/httpcore-4.4.13.jar:/Users/runner/.m2/repository/org/apache/httpcomponents/httpmime/4.5.13/httpmime-4.5.13.jar:/Users/runner/.m2/repository/org/hamcrest/hamcrest/2.1/hamcrest-2.1.jar:/Users/runner/.m2/repository/org/ccil/cowan/tagsoup/tagsoup/1.2.1/tagsoup-1.2.1.jar:/Users/runner/.m2/repository/io/rest-assured/json-path/5.0.0/json-path-5.0.0.jar:/Users/runner/.m2/repository/org/apache/groovy/groovy-json/4.0.1/groovy-json-4.0.1.jar:/Users/runner/.m2/repository/io/rest-assured/rest-assured-common/5.0.0/rest-assured-common-5.0.0.jar:/Users/runner/.m2/repository/io/rest-assured/xml-path/5.0.0/xml-path-5.0.0.jar:/Users/runner/.m2/repository/com/googlecode/json-simple/json-simple/1.1.1/json-simple-1.1.1.jar:/Users/runner/.m2/repository/org/skyscreamer/jsonassert/1.5.0/jsonassert-1.5.0.jar:/Users/runner/.m2/repository/com/vaadin/external/google/android-json/0.0.20131108.vaadin1/android-json-0.0.20131108.vaadin1.jar:/Users/runner/.m2/repository/eu/medsea/mimeutil/mime-util/2.1.3/mime-util-2.1.3.jar:/Users/runner/.m2/repository/io/rest-assured/json-schema-validator/5.0.0/json-schema-validator-5.0.0.jar:/Users/runner/.m2/repository/com/github/java-json-tools/json-schema-validator/2.2.14/json-schema-validator-2.2.14.jar:/Users/runner/.m2/repository/com/github/java-json-tools/jackson-coreutils-equivalence/1.0/jackson-coreutils-equivalence-1.0.jar:/Users/runner/.m2/repository/com/github/java-json-tools/jackson-coreutils/2.0/jackson-coreutils-2.0.jar:/Users/runner/.m2/repository/com/github/java-json-tools/msg-simple/1.2/msg-simple-1.2.jar:/Users/runner/.m2/repository/com/github/java-json-tools/btf/1.3/btf-1.3.jar:/Users/runner/.m2/repository/com/github/java-json-tools/json-schema-core/1.2.14/json-schema-core-1.2.14.jar:/Users/runner/.m2/repository/com/github/java-json-tools/uri-template/0.10/uri-template-0.10.jar:/Users/runner/.m2/repository/org/mozilla/rhino/1.7.7.2/rhino-1.7.7.2.jar:/Users/runner/.m2/repository/com/sun/mail/mailapi/1.6.2/mailapi-1.6.2.jar:/Users/runner/.m2/repository/joda-time/joda-time/2.10.5/joda-time-2.10.5.jar:/Users/runner/.m2/repository/com/googlecode/libphonenumber/libphonenumber/8.11.1/libphonenumber-8.11.1.jar:/Users/runner/.m2/repository/net/sf/jopt-simple/jopt-simple/5.0.4/jopt-simple-5.0.4.jar:/Users/runner/.m2/repository/com/jcraft/jsch/0.1.55/jsch-0.1.55.jar:/Users/runner/.m2/repository/mysql/mysql-connector-java/8.0.28/mysql-connector-java-8.0.28.jar:/Users/runner/.m2/repository/com/google/protobuf/protobuf-java/3.11.4/protobuf-java-3.11.4.jar:/Users/runner/.m2/repository/com/microsoft/sqlserver/mssql-jdbc/9.4.1.jre16-preview/mssql-jdbc-9.4.1.jre16-preview.jar:/Users/runner/.m2/repository/postgresql/postgresql/9.1-901-1.jdbc4/postgresql-9.1-901-1.jdbc4.jar:/Users/runner/.m2/repository/com/ibm/db2/jcc/db2jcc/db2jcc4/db2jcc-db2jcc4.jar:/Users/runner/.m2/repository/io/cucumber/cucumber-java/7.2.3/cucumber-java-7.2.3.jar:/Users/runner/.m2/repository/io/cucumber/cucumber-core/7.2.3/cucumber-core-7.2.3.jar:/Users/runner/.m2/repository/io/cucumber/cucumber-gherkin/7.2.3/cucumber-gherkin-7.2.3.jar:/Users/runner/.m2/repository/io/cucumber/cucumber-gherkin-messages/7.2.3/cucumber-gherkin-messages-7.2.3.jar:/Users/runner/.m2/repository/io/cucumber/tag-expressions/4.1.0/tag-expressions-4.1.0.jar:/Users/runner/.m2/repository/io/cucumber/cucumber-expressions/15.0.1/cucumber-expressions-15.0.1.jar:/Users/runner/.m2/repository/io/cucumber/datatable/7.2.3/datatable-7.2.3.jar:/Users/runner/.m2/repository/io/cucumber/cucumber-plugin/7.2.3/cucumber-plugin-7.2.3.jar:/Users/runner/.m2/repository/io/cucumber/docstring/7.2.3/docstring-7.2.3.jar:/Users/runner/.m2/repository/io/cucumber/html-formatter/17.0.0/html-formatter-17.0.0.jar:/Users/runner/.m2/repository/io/cucumber/ci-environment/8.1.0/ci-environment-8.1.0.jar:/Users/runner/.m2/repository/org/apiguardian/apiguardian-api/1.1.2/apiguardian-api-1.1.2.jar:/Users/runner/.m2/repository/io/cucumber/cucumber-testng/7.2.3/cucumber-testng-7.2.3.jar:/Users/runner/.m2/repository/io/cucumber/cucumber-picocontainer/7.2.3/cucumber-picocontainer-7.2.3.jar:/Users/runner/.m2/repository/org/picocontainer/picocontainer/2.15/picocontainer-2.15.jar:/Users/runner/.m2/repository/ws/schild/jave-all-deps/3.3.0/jave-all-deps-3.3.0.jar:/Users/runner/.m2/repository/ws/schild/jave-core/3.3.0/jave-core-3.3.0.jar:/Users/runner/.m2/repository/ws/schild/jave-nativebin-win32/3.3.0/jave-nativebin-win32-3.3.0.jar:/Users/runner/.m2/repository/ws/schild/jave-nativebin-win64/3.3.0/jave-nativebin-win64-3.3.0.jar:/Users/runner/.m2/repository/ws/schild/jave-nativebin-linux32/3.3.0/jave-nativebin-linux32-3.3.0.jar:/Users/runner/.m2/repository/ws/schild/jave-nativebin-linux64/3.3.0/jave-nativebin-linux64-3.3.0.jar:/Users/runner/.m2/repository/ws/schild/jave-nativebin-osx64/3.3.0/jave-nativebin-osx64-3.3.0.jar:/Users/runner/.m2/repository/ws/schild/jave-nativebin-osxm1/3.3.0/jave-nativebin-osxm1-3.3.0.jar:/Users/runner/.m2/repository/ws/schild/jave-nativebin-linux-arm32/3.3.0/jave-nativebin-linux-arm32-3.3.0.jar:/Users/runner/.m2/repository/ws/schild/jave-nativebin-linux-arm64/3.3.0/jave-nativebin-linux-arm64-3.3.0.jar:/Users/runner/.m2/repository/com/automation-remarks/video-recorder-testng/2.0/video-recorder-testng-2.0.jar:/Users/runner/.m2/repository/com/automation-remarks/video-recorder-core/2.0/video-recorder-core-2.0.jar:/Users/runner/.m2/repository/org/aeonbits/owner/owner-java8/1.0.10/owner-java8-1.0.10.jar:/Users/runner/.m2/repository/org/aeonbits/owner/owner/1.0.10/owner-1.0.10.jar:/Users/runner/.m2/repository/org/zeroturnaround/zt-exec/1.10/zt-exec-1.10.jar:/Users/runner/.m2/repository/org/awaitility/awaitility/3.1.6/awaitility-3.1.6.jar:/Users/runner/.m2/repository/org/hamcrest/hamcrest-library/1.3/hamcrest-library-1.3.jar:/Users/runner/.m2/repository/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar:/Users/runner/.m2/repository/org/objenesis/objenesis/2.6/objenesis-2.6.jar:/Users/runner/.m2/repository/org/json/json/20180813/json-20180813.jar:/Users/runner/.m2/repository/org/slf4j/slf4j-simple/1.7.35/slf4j-simple-1.7.35.jar:/Users/runner/.m2/repository/org/slf4j/log4j-over-slf4j/1.7.35/log4j-over-slf4j-1.7.35.jar:/Users/runner/.m2/repository/com/google/guava/guava/31.1-jre/guava-31.1-jre.jar:/Users/runner/.m2/repository/com/google/guava/failureaccess/1.0.1/failureaccess-1.0.1.jar:/Users/runner/.m2/repository/com/google/guava/listenablefuture/9999.0-empty-to-avoid-conflict-with-guava/listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar:/Users/runner/.m2/repository/org/checkerframework/checker-qual/3.12.0/checker-qual-3.12.0.jar:/Users/runner/.m2/repository/com/google/errorprone/error_prone_annotations/2.11.0/error_prone_annotations-2.11.0.jar:/Users/runner/.m2/repository/com/google/j2objc/j2objc-annotations/1.3/j2objc-annotations-1.3.jar:/Users/runner/.m2/repository/org/projectlombok/lombok/1.18.22/lombok-1.18.22.jar:" ],
+  "name" : "surefire.test.class.path"
+}, {
+  "values" : [ "true" ],
+  "name" : "automaticallyAssertResponseStatusCode"
+}, {
+  "values" : [ "/Users/runner" ],
+  "name" : "user.home"
+}, {
+  "values" : [ "UIAutomator2" ],
+  "name" : "mobile_automationName"
+}, {
+  "values" : [ "localhost" ],
+  "name" : "serverHost"
+}, {
+  "values" : [ "0" ],
+  "name" : "retryMaximumNumberOfAttempts"
+}, {
+  "values" : [ "0.5" ],
+  "name" : "score-cap"
+}, {
+  "values" : [ "7E7PgzBtwk4sWLUcF8Y5" ],
+  "name" : "browserStack.accessKey"
+}, {
+  "values" : [ "11.6.5" ],
+  "name" : "os.version"
+}, {
+  "values" : [ "false" ],
+  "name" : "reportTestCasesExecution"
+}, {
+  "values" : [ "30" ],
+  "name" : "pageLoadTimeout"
+}, {
+  "values" : [ "false" ],
+  "name" : "aiPoweredSelfHealingElementIdentification"
+}, {
+  "values" : [ "OpenJDK 64-Bit Server VM" ],
+  "name" : "java.vm.name"
+}, {
+  "values" : [ "30" ],
+  "name" : "apiConnectionTimeout"
+}, {
+  "values" : [ "true" ],
+  "name" : "forceCheckNavigationWasSuccessful"
+}, {
+  "values" : [ "x86_64" ],
+  "name" : "os.arch"
+}, {
+  "values" : [ "1" ],
+  "name" : "setVerbose"
+}, {
+  "values" : [ "NONE" ],
+  "name" : "setParallel"
+}, {
+  "values" : [ "allure-results/videos" ],
+  "name" : "video.folder"
+}, {
+  "values" : [ "true" ],
+  "name" : "setPreserveOrder"
+}, {
+  "values" : [ "false" ],
+  "name" : "skipTestsWithLinkedIssues"
+}, {
+  "values" : [ "false" ],
+  "name" : "clickUsingJavascriptWhenWebDriverClickFails"
+}, {
+  "values" : [ "true" ],
+  "name" : "disableLogging"
+}, {
+  "values" : [ ":" ],
+  "name" : "authorization"
+}, {
+  "values" : [ "0.2" ],
+  "name" : "screenshotParams_watermarkOpacity"
+}, {
+  "values" : [ "true" ],
+  "name" : "browserStack.debug"
+}, {
+  "values" : [ "Zero based" ],
+  "name" : "java.vm.compressedOopsMode"
+}, {
+  "values" : [ "Data" ],
+  "name" : "testDataColumnNamePrefix"
+}, {
+  "values" : [ "Mac-64" ],
+  "name" : "targetOperatingSystem"
+}, {
+  "values" : [ "src/main/resources/properties/" ],
+  "name" : "propertiesFolderPath"
+}, {
+  "values" : [ "true" ],
+  "name" : "screenshotParams_watermark"
+}, {
+  "values" : [ "7878" ],
+  "name" : "serverPort"
+}, {
+  "values" : [ "local|*.local|169.254/16|*.169.254/16" ],
+  "name" : "socksNonProxyHosts"
+}, {
+  "values" : [ "30" ],
+  "name" : "browserNavigationTimeout"
+}, {
+  "values" : [ "2.17.3" ],
+  "name" : "allureVersion"
+}, {
+  "values" : [ "DriverSession" ],
+  "name" : "videoParams_scope"
+}, {
+  "values" : [ "US" ],
+  "name" : "user.country"
+}, {
+  "values" : [ "SUN_STANDARD" ],
+  "name" : "sun.java.launcher"
+}, {
+  "values" : [ "underscore" ],
+  "name" : "cucumber.snippet-type"
+}, {
+  "values" : [ "30" ],
+  "name" : "apiSocketTimeout"
+}, {
+  "values" : [ "false" ],
+  "name" : "createAnimatedGif"
+}, {
+  "values" : [ "1" ],
+  "name" : "recovery-tries"
+}, {
+  "values" : [ "OpenJDK Runtime Environment" ],
+  "name" : "java.runtime.name"
+}, {
+  "values" : [ "true" ],
+  "name" : "generateExtentReports"
+}, {
+  "values" : [ "false" ],
+  "name" : "heal-enabled"
+}, {
+  "values" : [ "500" ],
+  "name" : "animatedGif_frameDelay"
+}, {
+  "values" : [ "true" ],
+  "name" : "forceCheckElementLocatorIsUnique"
+}, {
+  "values" : [ "false" ],
+  "name" : "captureWebDriverLogs"
+}, {
+  "values" : [ "1" ],
+  "name" : "setDataProviderThreadCount"
+}, {
+  "values" : [ "true" ],
+  "name" : "browserStack.networkLogs"
+}, {
+  "values" : [ "true" ],
+  "name" : "cucumber.publish.quiet"
+}, {
+  "values" : [ "64" ],
+  "name" : "sun.arch.data.model"
+}, {
+  "values" : [ "src/test/resources/testDataFiles/" ],
+  "name" : "testDataFolderPath"
+}, {
+  "values" : [ "https://" ],
+  "name" : "jiraUrl"
+}, {
+  "values" : [ "false" ],
+  "name" : "ReportBugs"
+}, {
+  "values" : [ "allure-results/" ],
+  "name" : "allureResultsFolderPath"
+}, {
+  "values" : [ "2" ],
+  "name" : "maximumPerformanceMode"
+}, {
+  "values" : [ "Oracle Corporation" ],
+  "name" : "java.specification.vendor"
+}, {
+  "values" : [ "extent-reports/" ],
+  "name" : "extentReportsFolderPath"
+}, {
+  "values" : [ "2022-01-18" ],
+  "name" : "java.version.date"
+}, {
+  "values" : [ "/Users/runner/hostedtoolcache/Java_Zulu_jdk/17.0.2-8/x64" ],
+  "name" : "java.home"
+}, {
+  "values" : [ "true" ],
+  "name" : "testng.dtd.http"
+}, {
+  "values" : [ "ALL" ],
+  "name" : "video.save.mode"
+}, {
+  "values" : [ "false" ],
+  "name" : "waitImplicitly"
+}, {
+  "values" : [ "HotSpot 64-Bit Tiered Compilers" ],
+  "name" : "sun.management.compiler"
+}, {
+  "values" : [ "false" ],
+  "name" : "generateAllureReportArchive"
+}, {
+  "values" : [ "images/shaft_white_bg.png" ],
+  "name" : "watermarkImagePath"
+}, {
+  "values" : [ "UTF-8" ],
+  "name" : "file.encoding"
+}, {
+  "values" : [ "30" ],
+  "name" : "dockerCommandTimeout"
+}, {
+  "values" : [ "5" ],
+  "name" : "attemptsBeforeThrowingElementNotFoundException"
+}, {
+  "values" : [ "30" ],
+  "name" : "implicitWaitTimeout"
+}, {
+  "values" : [ "info" ],
+  "name" : "org.slf4j.simpleLogger.defaultLogLevel"
+}, {
+  "values" : [ "true" ],
+  "name" : "cucumber.execution.strict"
+}, {
+  "values" : [ "UnicodeBig" ],
+  "name" : "sun.io.unicode.encoding"
+}, {
+  "values" : [ "local" ],
+  "name" : "executionAddress"
+}, {
+  "values" : [ "false" ],
+  "name" : "browserObjectSingleton"
+}, {
+  "values" : [ "target/downloadedFiles/" ],
+  "name" : "downloadsFolderPath"
+}, {
+  "values" : [ "Mac OS X" ],
+  "name" : "os.name"
+}, {
+  "values" : [ "local|*.local|169.254/16|*.169.254/16" ],
+  "name" : "http.nonProxyHosts"
+}, {
+  "values" : [ "1" ],
+  "name" : "setThreadCount"
+}, {
+  "values" : [ "src/main/resources/dynamicObjectRepository/" ],
+  "name" : "dynamicObjectRepositoryPath"
+}, {
+  "values" : [ "true" ],
+  "name" : "setGroupByInstances"
+}, {
+  "values" : [ "Regular" ],
+  "name" : "screenshotParams_screenshotType"
+}, {
+  "values" : [ "false" ],
+  "name" : "debugMode"
+}, {
+  "values" : [ "pretty, json:allure-results/cucumber.json, html:allure-results/cucumberReport.html, com.shaft.tools.listeners.CucumberTestRunnerListener" ],
+  "name" : "cucumber.plugin"
+}, {
+  "values" : [ ":" ],
+  "name" : "path.separator"
+}, {
+  "values" : [ "mohabmohie1" ],
+  "name" : "browserStack.username"
+}, {
+  "values" : [ "AI" ],
+  "name" : "screenshotParams_highlightMethod"
+}, {
+  "values" : [ "false" ],
+  "name" : "cucumber.ansi-colors.disabled"
+}, {
+  "values" : [ "lexical" ],
+  "name" : "cucumber.execution.order"
+}, {
+  "values" : [ "mixed mode, sharing" ],
+  "name" : "java.vm.info"
+}, {
+  "values" : [ "61.0" ],
+  "name" : "java.class.version"
+}, {
+  "values" : [ "UTF-8" ],
+  "name" : "sun.jnu.encoding"
+}, {
+  "values" : [ "Safari" ],
+  "name" : "targetBrowserName"
+}, {
+  "values" : [ "false" ],
+  "name" : "captureClickedElementText"
+}, {
+  "values" : [ "/" ],
+  "name" : "file.separator"
+}, {
+  "values" : [ "{}" ],
+  "name" : "allure.link.custom.pattern"
+}, {
+  "values" : [ "true" ],
+  "name" : "headlessExecution"
+}, {
+  "values" : [ "runner" ],
+  "name" : "user.name"
+}, {
+  "values" : [ "false" ],
+  "name" : "jiraInteraction"
+}, {
+  "values" : [ "true" ],
+  "name" : "cleanExtentReportsDirectoryBeforeExecution"
+}, {
+  "values" : [ "/Users/runner/.m2/repository" ],
+  "name" : "localRepository"
+}, {
+  "values" : [ "5" ],
+  "name" : "defaultElementIdentificationTimeout"
+}, {
+  "values" : [ "30" ],
+  "name" : "lazyLoadingTimeout"
+}, {
+  "values" : [ "true" ],
+  "name" : "waitForLazyLoading"
+}, {
+  "values" : [ "/Users/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/target/test-classes:/Users/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/target/classes:/Users/runner/.m2/repository/org/testng/testng/7.5/testng-7.5.jar:/Users/runner/.m2/repository/com/google/code/findbugs/jsr305/3.0.1/jsr305-3.0.1.jar:/Users/runner/.m2/repository/org/slf4j/slf4j-api/1.7.32/slf4j-api-1.7.32.jar:/Users/runner/.m2/repository/com/beust/jcommander/1.78/jcommander-1.78.jar:/Users/runner/.m2/repository/org/webjars/jquery/3.5.1/jquery-3.5.1.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-java/4.1.3/selenium-java-4.1.3.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-api/4.1.3/selenium-api-4.1.3.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-chrome-driver/4.1.3/selenium-chrome-driver-4.1.3.jar:/Users/runner/.m2/repository/com/google/auto/service/auto-service-annotations/1.0.1/auto-service-annotations-1.0.1.jar:/Users/runner/.m2/repository/com/google/auto/service/auto-service/1.0.1/auto-service-1.0.1.jar:/Users/runner/.m2/repository/com/google/auto/auto-common/1.2/auto-common-1.2.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-chromium-driver/4.1.3/selenium-chromium-driver-4.1.3.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-json/4.1.3/selenium-json-4.1.3.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-devtools-v85/4.1.3/selenium-devtools-v85-4.1.3.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-devtools-v97/4.1.3/selenium-devtools-v97-4.1.3.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-devtools-v98/4.1.3/selenium-devtools-v98-4.1.3.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-devtools-v99/4.1.3/selenium-devtools-v99-4.1.3.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-edge-driver/4.1.3/selenium-edge-driver-4.1.3.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-firefox-driver/4.1.3/selenium-firefox-driver-4.1.3.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-ie-driver/4.1.3/selenium-ie-driver-4.1.3.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-opera-driver/4.1.3/selenium-opera-driver-4.1.3.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-remote-driver/4.1.3/selenium-remote-driver-4.1.3.jar:/Users/runner/.m2/repository/io/netty/netty-codec-http/4.1.75.Final/netty-codec-http-4.1.75.Final.jar:/Users/runner/.m2/repository/io/netty/netty-transport-classes-epoll/4.1.75.Final/netty-transport-classes-epoll-4.1.75.Final.jar:/Users/runner/.m2/repository/io/netty/netty-transport-classes-kqueue/4.1.75.Final/netty-transport-classes-kqueue-4.1.75.Final.jar:/Users/runner/.m2/repository/io/netty/netty-transport-native-epoll/4.1.75.Final/netty-transport-native-epoll-4.1.75.Final.jar:/Users/runner/.m2/repository/io/netty/netty-transport-native-kqueue/4.1.75.Final/netty-transport-native-kqueue-4.1.75.Final.jar:/Users/runner/.m2/repository/io/netty/netty-transport-native-unix-common/4.1.75.Final/netty-transport-native-unix-common-4.1.75.Final.jar:/Users/runner/.m2/repository/io/opentelemetry/opentelemetry-api/1.12.0/opentelemetry-api-1.12.0.jar:/Users/runner/.m2/repository/io/opentelemetry/opentelemetry-context/1.12.0/opentelemetry-context-1.12.0.jar:/Users/runner/.m2/repository/io/opentelemetry/opentelemetry-exporter-logging/1.12.0/opentelemetry-exporter-logging-1.12.0.jar:/Users/runner/.m2/repository/io/opentelemetry/opentelemetry-sdk-metrics/1.12.0-alpha/opentelemetry-sdk-metrics-1.12.0-alpha.jar:/Users/runner/.m2/repository/io/opentelemetry/opentelemetry-sdk-logs/1.12.0-alpha/opentelemetry-sdk-logs-1.12.0-alpha.jar:/Users/runner/.m2/repository/io/opentelemetry/opentelemetry-sdk-common/1.12.0/opentelemetry-sdk-common-1.12.0.jar:/Users/runner/.m2/repository/io/opentelemetry/opentelemetry-sdk-extension-autoconfigure-spi/1.12.0/opentelemetry-sdk-extension-autoconfigure-spi-1.12.0.jar:/Users/runner/.m2/repository/io/opentelemetry/opentelemetry-sdk-extension-autoconfigure/1.12.0-alpha/opentelemetry-sdk-extension-autoconfigure-1.12.0-alpha.jar:/Users/runner/.m2/repository/io/opentelemetry/opentelemetry-sdk-trace/1.12.0/opentelemetry-sdk-trace-1.12.0.jar:/Users/runner/.m2/repository/io/opentelemetry/opentelemetry-sdk/1.12.0/opentelemetry-sdk-1.12.0.jar:/Users/runner/.m2/repository/io/opentelemetry/opentelemetry-semconv/1.12.0-alpha/opentelemetry-semconv-1.12.0-alpha.jar:/Users/runner/.m2/repository/io/ous/jtoml/2.0.0/jtoml-2.0.0.jar:/Users/runner/.m2/repository/net/bytebuddy/byte-buddy/1.12.8/byte-buddy-1.12.8.jar:/Users/runner/.m2/repository/org/asynchttpclient/async-http-client/2.12.3/async-http-client-2.12.3.jar:/Users/runner/.m2/repository/org/asynchttpclient/async-http-client-netty-utils/2.12.3/async-http-client-netty-utils-2.12.3.jar:/Users/runner/.m2/repository/io/netty/netty-codec-socks/4.1.60.Final/netty-codec-socks-4.1.60.Final.jar:/Users/runner/.m2/repository/io/netty/netty-handler-proxy/4.1.60.Final/netty-handler-proxy-4.1.60.Final.jar:/Users/runner/.m2/repository/io/netty/netty-transport-native-epoll/4.1.60.Final/netty-transport-native-epoll-4.1.60.Final-linux-x86_64.jar:/Users/runner/.m2/repository/io/netty/netty-transport-native-kqueue/4.1.60.Final/netty-transport-native-kqueue-4.1.60.Final-osx-x86_64.jar:/Users/runner/.m2/repository/com/typesafe/netty/netty-reactive-streams/2.0.4/netty-reactive-streams-2.0.4.jar:/Users/runner/.m2/repository/com/sun/activation/jakarta.activation/1.2.2/jakarta.activation-1.2.2.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-http/4.1.3/selenium-http-4.1.3.jar:/Users/runner/.m2/repository/dev/failsafe/failsafe/3.2.3/failsafe-3.2.3.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-safari-driver/4.1.3/selenium-safari-driver-4.1.3.jar:/Users/runner/.m2/repository/org/seleniumhq/selenium/selenium-support/4.1.3/selenium-support-4.1.3.jar:/Users/runner/.m2/repository/io/netty/netty-handler/4.1.75.Final/netty-handler-4.1.75.Final.jar:/Users/runner/.m2/repository/io/netty/netty-common/4.1.75.Final/netty-common-4.1.75.Final.jar:/Users/runner/.m2/repository/io/netty/netty-resolver/4.1.75.Final/netty-resolver-4.1.75.Final.jar:/Users/runner/.m2/repository/io/netty/netty-buffer/4.1.75.Final/netty-buffer-4.1.75.Final.jar:/Users/runner/.m2/repository/io/netty/netty-transport/4.1.75.Final/netty-transport-4.1.75.Final.jar:/Users/runner/.m2/repository/io/netty/netty-codec/4.1.75.Final/netty-codec-4.1.75.Final.jar:/Users/runner/.m2/repository/com/epam/healenium/healenium-web/3.2.2/healenium-web-3.2.2.jar:/Users/runner/.m2/repository/org/apache/maven/plugins/maven-surefire-plugin/3.0.0-M5/maven-surefire-plugin-3.0.0-M5.jar:/Users/runner/.m2/repository/org/apache/maven/surefire/maven-surefire-common/3.0.0-M5/maven-surefire-common-3.0.0-M5.jar:/Users/runner/.m2/repository/org/apache/maven/surefire/surefire-api/3.0.0-M5/surefire-api-3.0.0-M5.jar:/Users/runner/.m2/repository/org/apache/maven/surefire/surefire-logger-api/3.0.0-M5/surefire-logger-api-3.0.0-M5.jar:/Users/runner/.m2/repository/org/apache/maven/surefire/surefire-extensions-api/3.0.0-M5/surefire-extensions-api-3.0.0-M5.jar:/Users/runner/.m2/repository/org/apache/maven/surefire/surefire-booter/3.0.0-M5/surefire-booter-3.0.0-M5.jar:/Users/runner/.m2/repository/org/apache/maven/surefire/surefire-extensions-spi/3.0.0-M5/surefire-extensions-spi-3.0.0-M5.jar:/Users/runner/.m2/repository/org/apache/maven/maven-toolchain/3.0-alpha-2/maven-toolchain-3.0-alpha-2.jar:/Users/runner/.m2/repository/org/apache/maven/shared/maven-artifact-transfer/0.11.0/maven-artifact-transfer-0.11.0.jar:/Users/runner/.m2/repository/org/apache/maven/shared/maven-common-artifact-filters/3.0.1/maven-common-artifact-filters-3.0.1.jar:/Users/runner/.m2/repository/org/sonatype/sisu/sisu-inject-plexus/1.4.2/sisu-inject-plexus-1.4.2.jar:/Users/runner/.m2/repository/org/sonatype/sisu/sisu-inject-bean/1.4.2/sisu-inject-bean-1.4.2.jar:/Users/runner/.m2/repository/org/sonatype/sisu/sisu-guice/2.1.7/sisu-guice-2.1.7-noaop.jar:/Users/runner/.m2/repository/org/codehaus/plexus/plexus-java/1.0.5/plexus-java-1.0.5.jar:/Users/runner/.m2/repository/com/thoughtworks/qdox/qdox/2.0-M9/qdox-2.0-M9.jar:/Users/runner/.m2/repository/org/apache/maven/surefire/surefire-shared-utils/3.0.0-M4/surefire-shared-utils-3.0.0-M4.jar:/Users/runner/.m2/repository/org/apache/maven/maven-artifact/2.0.11/maven-artifact-2.0.11.jar:/Users/runner/.m2/repository/org/codehaus/plexus/plexus-utils/1.5.6/plexus-utils-1.5.6.jar:/Users/runner/.m2/repository/org/apache/maven/maven-compat/3.8.1/maven-compat-3.8.1.jar:/Users/runner/.m2/repository/org/apache/maven/maven-model/3.8.1/maven-model-3.8.1.jar:/Users/runner/.m2/repository/org/apache/maven/maven-model-builder/3.8.1/maven-model-builder-3.8.1.jar:/Users/runner/.m2/repository/javax/inject/javax.inject/1/javax.inject-1.jar:/Users/runner/.m2/repository/org/apache/maven/maven-builder-support/3.8.1/maven-builder-support-3.8.1.jar:/Users/runner/.m2/repository/org/eclipse/sisu/org.eclipse.sisu.inject/0.3.4/org.eclipse.sisu.inject-0.3.4.jar:/Users/runner/.m2/repository/org/apache/maven/maven-settings/3.8.1/maven-settings-3.8.1.jar:/Users/runner/.m2/repository/org/apache/maven/maven-settings-builder/3.8.1/maven-settings-builder-3.8.1.jar:/Users/runner/.m2/repository/org/sonatype/plexus/plexus-sec-dispatcher/1.4/plexus-sec-dispatcher-1.4.jar:/Users/runner/.m2/repository/org/sonatype/plexus/plexus-cipher/1.4/plexus-cipher-1.4.jar:/Users/runner/.m2/repository/org/apache/maven/maven-core/3.8.1/maven-core-3.8.1.jar:/Users/runner/.m2/repository/org/apache/maven/resolver/maven-resolver-spi/1.6.2/maven-resolver-spi-1.6.2.jar:/Users/runner/.m2/repository/org/apache/maven/shared/maven-shared-utils/3.2.1/maven-shared-utils-3.2.1.jar:/Users/runner/.m2/repository/com/google/inject/guice/4.2.1/guice-4.2.1-no_aop.jar:/Users/runner/.m2/repository/aopalliance/aopalliance/1.0/aopalliance-1.0.jar:/Users/runner/.m2/repository/org/apache/maven/maven-resolver-provider/3.8.1/maven-resolver-provider-3.8.1.jar:/Users/runner/.m2/repository/org/apache/maven/maven-repository-metadata/3.8.1/maven-repository-metadata-3.8.1.jar:/Users/runner/.m2/repository/org/apache/maven/resolver/maven-resolver-api/1.6.2/maven-resolver-api-1.6.2.jar:/Users/runner/.m2/repository/org/apache/maven/resolver/maven-resolver-util/1.6.2/maven-resolver-util-1.6.2.jar:/Users/runner/.m2/repository/org/apache/maven/resolver/maven-resolver-impl/1.6.2/maven-resolver-impl-1.6.2.jar:/Users/runner/.m2/repository/org/codehaus/plexus/plexus-interpolation/1.25/plexus-interpolation-1.25.jar:/Users/runner/.m2/repository/org/eclipse/sisu/org.eclipse.sisu.plexus/0.3.4/org.eclipse.sisu.plexus-0.3.4.jar:/Users/runner/.m2/repository/javax/enterprise/cdi-api/1.0/cdi-api-1.0.jar:/Users/runner/.m2/repository/javax/annotation/jsr250-api/1.0/jsr250-api-1.0.jar:/Users/runner/.m2/repository/org/codehaus/plexus/plexus-component-annotations/2.1.0/plexus-component-annotations-2.1.0.jar:/Users/runner/.m2/repository/org/apache/maven/wagon/wagon-provider-api/3.4.3/wagon-provider-api-3.4.3.jar:/Users/runner/.m2/repository/org/apache/maven/maven-plugin-api/3.8.1/maven-plugin-api-3.8.1.jar:/Users/runner/.m2/repository/org/codehaus/plexus/plexus-classworlds/2.6.0/plexus-classworlds-2.6.0.jar:/Users/runner/.m2/repository/com/typesafe/config/1.3.4/config-1.3.4.jar:/Users/runner/.m2/repository/com/epam/healenium/tree-comparing/0.4.10/tree-comparing-0.4.10.jar:/Users/runner/.m2/repository/org/jsoup/jsoup/1.11.3/jsoup-1.11.3.jar:/Users/runner/.m2/repository/org/apache/commons/commons-text/1.6/commons-text-1.6.jar:/Users/runner/.m2/repository/com/fasterxml/jackson/core/jackson-databind/2.13.1/jackson-databind-2.13.1.jar:/Users/runner/.m2/repository/com/fasterxml/jackson/core/jackson-annotations/2.13.1/jackson-annotations-2.13.1.jar:/Users/runner/.m2/repository/com/fasterxml/jackson/core/jackson-core/2.13.1/jackson-core-2.13.1.jar:/Users/runner/.m2/repository/org/apache/commons/commons-lang3/3.11/commons-lang3-3.11.jar:/Users/runner/.m2/repository/commons-codec/commons-codec/1.12/commons-codec-1.12.jar:/Users/runner/.m2/repository/com/squareup/okhttp3/okhttp/4.9.3/okhttp-4.9.3.jar:/Users/runner/.m2/repository/com/squareup/okio/okio/2.8.0/okio-2.8.0.jar:/Users/runner/.m2/repository/org/jetbrains/kotlin/kotlin-stdlib-common/1.4.0/kotlin-stdlib-common-1.4.0.jar:/Users/runner/.m2/repository/org/jetbrains/kotlin/kotlin-stdlib/1.4.10/kotlin-stdlib-1.4.10.jar:/Users/runner/.m2/repository/org/jetbrains/annotations/18.0.0/annotations-18.0.0.jar:/Users/runner/.m2/repository/org/mapstruct/mapstruct/1.4.2.Final/mapstruct-1.4.2.Final.jar:/Users/runner/.m2/repository/one/util/streamex/0.7.2/streamex-0.7.2.jar:/Users/runner/.m2/repository/org/mapstruct/mapstruct-processor/1.4.2.Final/mapstruct-processor-1.4.2.Final.jar:/Users/runner/.m2/repository/com/microsoft/playwright/playwright/1.20.1/playwright-1.20.1.jar:/Users/runner/.m2/repository/com/google/code/gson/gson/2.8.6/gson-2.8.6.jar:/Users/runner/.m2/repository/org/opentest4j/opentest4j/1.2.0/opentest4j-1.2.0.jar:/Users/runner/.m2/repository/com/microsoft/playwright/driver/1.20.1/driver-1.20.1.jar:/Users/runner/.m2/repository/com/microsoft/playwright/driver-bundle/1.20.1/driver-bundle-1.20.1.jar:/Users/runner/.m2/repository/io/appium/java-client/8.0.0/java-client-8.0.0.jar:/Users/runner/.m2/repository/cglib/cglib/3.3.0/cglib-3.3.0.jar:/Users/runner/.m2/repository/org/ow2/asm/asm/7.1/asm-7.1.jar:/Users/runner/.m2/repository/commons-validator/commons-validator/1.7/commons-validator-1.7.jar:/Users/runner/.m2/repository/commons-beanutils/commons-beanutils/1.9.4/commons-beanutils-1.9.4.jar:/Users/runner/.m2/repository/commons-digester/commons-digester/2.1/commons-digester-2.1.jar:/Users/runner/.m2/repository/commons-collections/commons-collections/3.2.2/commons-collections-3.2.2.jar:/Users/runner/.m2/repository/commons-io/commons-io/2.11.0/commons-io-2.11.0.jar:/Users/runner/.m2/repository/org/springframework/spring-context/5.3.16/spring-context-5.3.16.jar:/Users/runner/.m2/repository/org/springframework/spring-aop/5.3.16/spring-aop-5.3.16.jar:/Users/runner/.m2/repository/org/springframework/spring-beans/5.3.16/spring-beans-5.3.16.jar:/Users/runner/.m2/repository/org/springframework/spring-core/5.3.16/spring-core-5.3.16.jar:/Users/runner/.m2/repository/org/springframework/spring-jcl/5.3.16/spring-jcl-5.3.16.jar:/Users/runner/.m2/repository/org/springframework/spring-expression/5.3.16/spring-expression-5.3.16.jar:/Users/runner/.m2/repository/com/applitools/eyes-images-java4/4.14.0/eyes-images-java4-4.14.0.jar:/Users/runner/.m2/repository/com/applitools/eyes-common-java4/4.14.0/eyes-common-java4-4.14.0.jar:/Users/runner/.m2/repository/org/imgscalr/imgscalr-lib/4.2/imgscalr-lib-4.2.jar:/Users/runner/.m2/repository/com/helger/ph-css/6.1.1/ph-css-6.1.1.jar:/Users/runner/.m2/repository/com/helger/ph-commons/9.0.2/ph-commons-9.0.2.jar:/Users/runner/.m2/repository/com/applitools/eyes-sdk-core-java4/4.14.0/eyes-sdk-core-java4-4.14.0.jar:/Users/runner/.m2/repository/com/applitools/eyes-connectivity-java4-jersey2x/4.14.0/eyes-connectivity-java4-jersey2x-4.14.0.jar:/Users/runner/.m2/repository/org/glassfish/jersey/connectors/jersey-apache-connector/2.16/jersey-apache-connector-2.16.jar:/Users/runner/.m2/repository/org/glassfish/jersey/core/jersey-common/2.16/jersey-common-2.16.jar:/Users/runner/.m2/repository/javax/annotation/javax.annotation-api/1.2/javax.annotation-api-1.2.jar:/Users/runner/.m2/repository/org/glassfish/jersey/bundles/repackaged/jersey-guava/2.16/jersey-guava-2.16.jar:/Users/runner/.m2/repository/org/glassfish/hk2/osgi-resource-locator/1.0.1/osgi-resource-locator-1.0.1.jar:/Users/runner/.m2/repository/javax/ws/rs/javax.ws.rs-api/2.0.1/javax.ws.rs-api-2.0.1.jar:/Users/runner/.m2/repository/org/glassfish/jersey/core/jersey-client/2.16/jersey-client-2.16.jar:/Users/runner/.m2/repository/org/glassfish/hk2/hk2-api/2.4.0-b09/hk2-api-2.4.0-b09.jar:/Users/runner/.m2/repository/org/glassfish/hk2/hk2-utils/2.4.0-b09/hk2-utils-2.4.0-b09.jar:/Users/runner/.m2/repository/org/glassfish/hk2/external/aopalliance-repackaged/2.4.0-b09/aopalliance-repackaged-2.4.0-b09.jar:/Users/runner/.m2/repository/org/glassfish/hk2/external/javax.inject/2.4.0-b09/javax.inject-2.4.0-b09.jar:/Users/runner/.m2/repository/org/glassfish/hk2/hk2-locator/2.4.0-b09/hk2-locator-2.4.0-b09.jar:/Users/runner/.m2/repository/org/openpnp/opencv/4.5.1-2/opencv-4.5.1-2.jar:/Users/runner/.m2/repository/com/sikulix/sikulixapi/2.0.5/sikulixapi-2.0.5.jar:/Users/runner/.m2/repository/org/python/jython-slim/2.7.2/jython-slim-2.7.2.jar:/Users/runner/.m2/repository/org/antlr/antlr/3.5.2/antlr-3.5.2.jar:/Users/runner/.m2/repository/org/antlr/ST4/4.0.8/ST4-4.0.8.jar:/Users/runner/.m2/repository/javax/servlet/javax.servlet-api/3.1.0/javax.servlet-api-3.1.0.jar:/Users/runner/.m2/repository/org/antlr/antlr-runtime/3.5.2/antlr-runtime-3.5.2.jar:/Users/runner/.m2/repository/org/bouncycastle/bcpkix-jdk15on/1.62/bcpkix-jdk15on-1.62.jar:/Users/runner/.m2/repository/org/bouncycastle/bcprov-jdk15on/1.62/bcprov-jdk15on-1.62.jar:/Users/runner/.m2/repository/org/ow2/asm/asm-commons/7.1/asm-commons-7.1.jar:/Users/runner/.m2/repository/org/ow2/asm/asm-tree/7.1/asm-tree-7.1.jar:/Users/runner/.m2/repository/org/ow2/asm/asm-analysis/7.1/asm-analysis-7.1.jar:/Users/runner/.m2/repository/org/ow2/asm/asm-util/7.1/asm-util-7.1.jar:/Users/runner/.m2/repository/com/ibm/icu/icu4j/59.1/icu4j-59.1.jar:/Users/runner/.m2/repository/com/carrotsearch/java-sizeof/0.0.5/java-sizeof-0.0.5.jar:/Users/runner/.m2/repository/com/github/jnr/jffi/1.2.20/jffi-1.2.20.jar:/Users/runner/.m2/repository/com/github/jnr/jnr-netdb/1.1.6/jnr-netdb-1.1.6.jar:/Users/runner/.m2/repository/com/github/jnr/jnr-ffi/2.1.10/jnr-ffi-2.1.10.jar:/Users/runner/.m2/repository/com/github/jnr/jffi/1.2.19/jffi-1.2.19-native.jar:/Users/runner/.m2/repository/com/github/jnr/jnr-a64asm/1.0.0/jnr-a64asm-1.0.0.jar:/Users/runner/.m2/repository/com/github/jnr/jnr-x86asm/1.0.2/jnr-x86asm-1.0.2.jar:/Users/runner/.m2/repository/com/github/jnr/jnr-posix/3.0.50/jnr-posix-3.0.50.jar:/Users/runner/.m2/repository/com/github/jnr/jnr-constants/0.9.12/jnr-constants-0.9.12.jar:/Users/runner/.m2/repository/jline/jline/2.14.5/jline-2.14.5.jar:/Users/runner/.m2/repository/org/apache/ant/ant/1.9.7/ant-1.9.7.jar:/Users/runner/.m2/repository/org/apache/ant/ant-launcher/1.9.7/ant-launcher-1.9.7.jar:/Users/runner/.m2/repository/com/sikulix/sikulix2tigervnc/1.1.4/sikulix2tigervnc-1.1.4.jar:/Users/runner/.m2/repository/commons-cli/commons-cli/1.4/commons-cli-1.4.jar:/Users/runner/.m2/repository/org/apache/commons/commons-exec/1.3/commons-exec-1.3.jar:/Users/runner/.m2/repository/net/java/dev/jna/jna-platform/5.6.0/jna-platform-5.6.0.jar:/Users/runner/.m2/repository/net/java/dev/jna/jna/5.6.0/jna-5.6.0.jar:/Users/runner/.m2/repository/net/oneandone/reflections8/reflections8/0.11.6/reflections8-0.11.6.jar:/Users/runner/.m2/repository/org/javassist/javassist/3.22.0-GA/javassist-3.22.0-GA.jar:/Users/runner/.m2/repository/net/sourceforge/tess4j/tess4j/4.5.4/tess4j-4.5.4.jar:/Users/runner/.m2/repository/com/github/jai-imageio/jai-imageio-core/1.4.0/jai-imageio-core-1.4.0.jar:/Users/runner/.m2/repository/org/ghost4j/ghost4j/1.0.1/ghost4j-1.0.1.jar:/Users/runner/.m2/repository/org/apache/xmlgraphics/xmlgraphics-commons/1.4/xmlgraphics-commons-1.4.jar:/Users/runner/.m2/repository/com/lowagie/itext/2.1.7/itext-2.1.7.jar:/Users/runner/.m2/repository/org/apache/pdfbox/pdfbox-tools/2.0.21/pdfbox-tools-2.0.21.jar:/Users/runner/.m2/repository/org/apache/pdfbox/pdfbox-debugger/2.0.21/pdfbox-debugger-2.0.21.jar:/Users/runner/.m2/repository/org/apache/pdfbox/jbig2-imageio/3.0.3/jbig2-imageio-3.0.3.jar:/Users/runner/.m2/repository/net/sourceforge/lept4j/lept4j/1.13.2/lept4j-1.13.2.jar:/Users/runner/.m2/repository/org/jboss/jboss-vfs/3.2.15.Final/jboss-vfs-3.2.15.Final.jar:/Users/runner/.m2/repository/org/jboss/logging/jboss-logging/3.1.4.GA/jboss-logging-3.1.4.GA.jar:/Users/runner/.m2/repository/net/sf/py4j/py4j/0.10.9.1/py4j-0.10.9.1.jar:/Users/runner/.m2/repository/io/github/bonigarcia/webdrivermanager/5.1.0/webdrivermanager-5.1.0.jar:/Users/runner/.m2/repository/com/github/docker-java/docker-java/3.2.13/docker-java-3.2.13.jar:/Users/runner/.m2/repository/com/github/docker-java/docker-java-core/3.2.13/docker-java-core-3.2.13.jar:/Users/runner/.m2/repository/com/github/docker-java/docker-java-api/3.2.13/docker-java-api-3.2.13.jar:/Users/runner/.m2/repository/org/slf4j/jcl-over-slf4j/1.7.30/jcl-over-slf4j-1.7.30.jar:/Users/runner/.m2/repository/com/github/docker-java/docker-java-transport-httpclient5/3.2.13/docker-java-transport-httpclient5-3.2.13.jar:/Users/runner/.m2/repository/com/github/docker-java/docker-java-transport/3.2.13/docker-java-transport-3.2.13.jar:/Users/runner/.m2/repository/org/apache/httpcomponents/client5/httpclient5/5.0.3/httpclient5-5.0.3.jar:/Users/runner/.m2/repository/org/apache/httpcomponents/core5/httpcore5/5.0.2/httpcore5-5.0.2.jar:/Users/runner/.m2/repository/org/brotli/dec/0.1.2/dec-0.1.2.jar:/Users/runner/.m2/repository/org/apache/poi/poi/5.2.2/poi-5.2.2.jar:/Users/runner/.m2/repository/org/apache/commons/commons-collections4/4.4/commons-collections4-4.4.jar:/Users/runner/.m2/repository/org/apache/commons/commons-math3/3.6.1/commons-math3-3.6.1.jar:/Users/runner/.m2/repository/com/zaxxer/SparseBitSet/1.2/SparseBitSet-1.2.jar:/Users/runner/.m2/repository/org/apache/logging/log4j/log4j-api/2.17.2/log4j-api-2.17.2.jar:/Users/runner/.m2/repository/org/apache/poi/poi-ooxml/5.2.2/poi-ooxml-5.2.2.jar:/Users/runner/.m2/repository/org/apache/poi/poi-ooxml-lite/5.2.2/poi-ooxml-lite-5.2.2.jar:/Users/runner/.m2/repository/org/apache/xmlbeans/xmlbeans/5.0.3/xmlbeans-5.0.3.jar:/Users/runner/.m2/repository/org/apache/commons/commons-compress/1.21/commons-compress-1.21.jar:/Users/runner/.m2/repository/com/github/virtuald/curvesapi/1.07/curvesapi-1.07.jar:/Users/runner/.m2/repository/io/qameta/allure/allure-testng/2.17.3/allure-testng-2.17.3.jar:/Users/runner/.m2/repository/io/qameta/allure/allure-java-commons/2.17.3/allure-java-commons-2.17.3.jar:/Users/runner/.m2/repository/io/qameta/allure/allure-model/2.17.3/allure-model-2.17.3.jar:/Users/runner/.m2/repository/io/qameta/allure/allure-test-filter/2.17.3/allure-test-filter-2.17.3.jar:/Users/runner/.m2/repository/io/qameta/allure/allure-cucumber7-jvm/2.17.3/allure-cucumber7-jvm-2.17.3.jar:/Users/runner/.m2/repository/io/cucumber/gherkin/22.0.0/gherkin-22.0.0.jar:/Users/runner/.m2/repository/io/cucumber/messages/17.1.1/messages-17.1.1.jar:/Users/runner/.m2/repository/org/aspectj/aspectjweaver/1.9.7/aspectjweaver-1.9.7.jar:/Users/runner/.m2/repository/com/aventstack/extentreports/5.0.9/extentreports-5.0.9.jar:/Users/runner/.m2/repository/io/reactivex/rxjava3/rxjava/3.0.4/rxjava-3.0.4.jar:/Users/runner/.m2/repository/org/reactivestreams/reactive-streams/1.0.3/reactive-streams-1.0.3.jar:/Users/runner/.m2/repository/org/freemarker/freemarker/2.3.30/freemarker-2.3.30.jar:/Users/runner/.m2/repository/org/apache/pdfbox/pdfbox/2.0.25/pdfbox-2.0.25.jar:/Users/runner/.m2/repository/org/apache/pdfbox/fontbox/2.0.25/fontbox-2.0.25.jar:/Users/runner/.m2/repository/commons-logging/commons-logging/1.2/commons-logging-1.2.jar:/Users/runner/.m2/repository/io/rest-assured/rest-assured/5.0.0/rest-assured-5.0.0.jar:/Users/runner/.m2/repository/org/apache/groovy/groovy/4.0.1/groovy-4.0.1.jar:/Users/runner/.m2/repository/org/apache/groovy/groovy-xml/4.0.1/groovy-xml-4.0.1.jar:/Users/runner/.m2/repository/org/apache/httpcomponents/httpclient/4.5.13/httpclient-4.5.13.jar:/Users/runner/.m2/repository/org/apache/httpcomponents/httpcore/4.4.13/httpcore-4.4.13.jar:/Users/runner/.m2/repository/org/apache/httpcomponents/httpmime/4.5.13/httpmime-4.5.13.jar:/Users/runner/.m2/repository/org/hamcrest/hamcrest/2.1/hamcrest-2.1.jar:/Users/runner/.m2/repository/org/ccil/cowan/tagsoup/tagsoup/1.2.1/tagsoup-1.2.1.jar:/Users/runner/.m2/repository/io/rest-assured/json-path/5.0.0/json-path-5.0.0.jar:/Users/runner/.m2/repository/org/apache/groovy/groovy-json/4.0.1/groovy-json-4.0.1.jar:/Users/runner/.m2/repository/io/rest-assured/rest-assured-common/5.0.0/rest-assured-common-5.0.0.jar:/Users/runner/.m2/repository/io/rest-assured/xml-path/5.0.0/xml-path-5.0.0.jar:/Users/runner/.m2/repository/com/googlecode/json-simple/json-simple/1.1.1/json-simple-1.1.1.jar:/Users/runner/.m2/repository/org/skyscreamer/jsonassert/1.5.0/jsonassert-1.5.0.jar:/Users/runner/.m2/repository/com/vaadin/external/google/android-json/0.0.20131108.vaadin1/android-json-0.0.20131108.vaadin1.jar:/Users/runner/.m2/repository/eu/medsea/mimeutil/mime-util/2.1.3/mime-util-2.1.3.jar:/Users/runner/.m2/repository/io/rest-assured/json-schema-validator/5.0.0/json-schema-validator-5.0.0.jar:/Users/runner/.m2/repository/com/github/java-json-tools/json-schema-validator/2.2.14/json-schema-validator-2.2.14.jar:/Users/runner/.m2/repository/com/github/java-json-tools/jackson-coreutils-equivalence/1.0/jackson-coreutils-equivalence-1.0.jar:/Users/runner/.m2/repository/com/github/java-json-tools/jackson-coreutils/2.0/jackson-coreutils-2.0.jar:/Users/runner/.m2/repository/com/github/java-json-tools/msg-simple/1.2/msg-simple-1.2.jar:/Users/runner/.m2/repository/com/github/java-json-tools/btf/1.3/btf-1.3.jar:/Users/runner/.m2/repository/com/github/java-json-tools/json-schema-core/1.2.14/json-schema-core-1.2.14.jar:/Users/runner/.m2/repository/com/github/java-json-tools/uri-template/0.10/uri-template-0.10.jar:/Users/runner/.m2/repository/org/mozilla/rhino/1.7.7.2/rhino-1.7.7.2.jar:/Users/runner/.m2/repository/com/sun/mail/mailapi/1.6.2/mailapi-1.6.2.jar:/Users/runner/.m2/repository/joda-time/joda-time/2.10.5/joda-time-2.10.5.jar:/Users/runner/.m2/repository/com/googlecode/libphonenumber/libphonenumber/8.11.1/libphonenumber-8.11.1.jar:/Users/runner/.m2/repository/net/sf/jopt-simple/jopt-simple/5.0.4/jopt-simple-5.0.4.jar:/Users/runner/.m2/repository/com/jcraft/jsch/0.1.55/jsch-0.1.55.jar:/Users/runner/.m2/repository/mysql/mysql-connector-java/8.0.28/mysql-connector-java-8.0.28.jar:/Users/runner/.m2/repository/com/google/protobuf/protobuf-java/3.11.4/protobuf-java-3.11.4.jar:/Users/runner/.m2/repository/com/microsoft/sqlserver/mssql-jdbc/9.4.1.jre16-preview/mssql-jdbc-9.4.1.jre16-preview.jar:/Users/runner/.m2/repository/postgresql/postgresql/9.1-901-1.jdbc4/postgresql-9.1-901-1.jdbc4.jar:/Users/runner/.m2/repository/com/ibm/db2/jcc/db2jcc/db2jcc4/db2jcc-db2jcc4.jar:/Users/runner/.m2/repository/io/cucumber/cucumber-java/7.2.3/cucumber-java-7.2.3.jar:/Users/runner/.m2/repository/io/cucumber/cucumber-core/7.2.3/cucumber-core-7.2.3.jar:/Users/runner/.m2/repository/io/cucumber/cucumber-gherkin/7.2.3/cucumber-gherkin-7.2.3.jar:/Users/runner/.m2/repository/io/cucumber/cucumber-gherkin-messages/7.2.3/cucumber-gherkin-messages-7.2.3.jar:/Users/runner/.m2/repository/io/cucumber/tag-expressions/4.1.0/tag-expressions-4.1.0.jar:/Users/runner/.m2/repository/io/cucumber/cucumber-expressions/15.0.1/cucumber-expressions-15.0.1.jar:/Users/runner/.m2/repository/io/cucumber/datatable/7.2.3/datatable-7.2.3.jar:/Users/runner/.m2/repository/io/cucumber/cucumber-plugin/7.2.3/cucumber-plugin-7.2.3.jar:/Users/runner/.m2/repository/io/cucumber/docstring/7.2.3/docstring-7.2.3.jar:/Users/runner/.m2/repository/io/cucumber/html-formatter/17.0.0/html-formatter-17.0.0.jar:/Users/runner/.m2/repository/io/cucumber/ci-environment/8.1.0/ci-environment-8.1.0.jar:/Users/runner/.m2/repository/org/apiguardian/apiguardian-api/1.1.2/apiguardian-api-1.1.2.jar:/Users/runner/.m2/repository/io/cucumber/cucumber-testng/7.2.3/cucumber-testng-7.2.3.jar:/Users/runner/.m2/repository/io/cucumber/cucumber-picocontainer/7.2.3/cucumber-picocontainer-7.2.3.jar:/Users/runner/.m2/repository/org/picocontainer/picocontainer/2.15/picocontainer-2.15.jar:/Users/runner/.m2/repository/ws/schild/jave-all-deps/3.3.0/jave-all-deps-3.3.0.jar:/Users/runner/.m2/repository/ws/schild/jave-core/3.3.0/jave-core-3.3.0.jar:/Users/runner/.m2/repository/ws/schild/jave-nativebin-win32/3.3.0/jave-nativebin-win32-3.3.0.jar:/Users/runner/.m2/repository/ws/schild/jave-nativebin-win64/3.3.0/jave-nativebin-win64-3.3.0.jar:/Users/runner/.m2/repository/ws/schild/jave-nativebin-linux32/3.3.0/jave-nativebin-linux32-3.3.0.jar:/Users/runner/.m2/repository/ws/schild/jave-nativebin-linux64/3.3.0/jave-nativebin-linux64-3.3.0.jar:/Users/runner/.m2/repository/ws/schild/jave-nativebin-osx64/3.3.0/jave-nativebin-osx64-3.3.0.jar:/Users/runner/.m2/repository/ws/schild/jave-nativebin-osxm1/3.3.0/jave-nativebin-osxm1-3.3.0.jar:/Users/runner/.m2/repository/ws/schild/jave-nativebin-linux-arm32/3.3.0/jave-nativebin-linux-arm32-3.3.0.jar:/Users/runner/.m2/repository/ws/schild/jave-nativebin-linux-arm64/3.3.0/jave-nativebin-linux-arm64-3.3.0.jar:/Users/runner/.m2/repository/com/automation-remarks/video-recorder-testng/2.0/video-recorder-testng-2.0.jar:/Users/runner/.m2/repository/com/automation-remarks/video-recorder-core/2.0/video-recorder-core-2.0.jar:/Users/runner/.m2/repository/org/aeonbits/owner/owner-java8/1.0.10/owner-java8-1.0.10.jar:/Users/runner/.m2/repository/org/aeonbits/owner/owner/1.0.10/owner-1.0.10.jar:/Users/runner/.m2/repository/org/zeroturnaround/zt-exec/1.10/zt-exec-1.10.jar:/Users/runner/.m2/repository/org/awaitility/awaitility/3.1.6/awaitility-3.1.6.jar:/Users/runner/.m2/repository/org/hamcrest/hamcrest-library/1.3/hamcrest-library-1.3.jar:/Users/runner/.m2/repository/org/hamcrest/hamcrest-core/1.3/hamcrest-core-1.3.jar:/Users/runner/.m2/repository/org/objenesis/objenesis/2.6/objenesis-2.6.jar:/Users/runner/.m2/repository/org/json/json/20180813/json-20180813.jar:/Users/runner/.m2/repository/org/slf4j/slf4j-simple/1.7.35/slf4j-simple-1.7.35.jar:/Users/runner/.m2/repository/org/slf4j/log4j-over-slf4j/1.7.35/log4j-over-slf4j-1.7.35.jar:/Users/runner/.m2/repository/com/google/guava/guava/31.1-jre/guava-31.1-jre.jar:/Users/runner/.m2/repository/com/google/guava/failureaccess/1.0.1/failureaccess-1.0.1.jar:/Users/runner/.m2/repository/com/google/guava/listenablefuture/9999.0-empty-to-avoid-conflict-with-guava/listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar:/Users/runner/.m2/repository/org/checkerframework/checker-qual/3.12.0/checker-qual-3.12.0.jar:/Users/runner/.m2/repository/com/google/errorprone/error_prone_annotations/2.11.0/error_prone_annotations-2.11.0.jar:/Users/runner/.m2/repository/com/google/j2objc/j2objc-annotations/1.3/j2objc-annotations-1.3.jar:/Users/runner/.m2/repository/org/projectlombok/lombok/1.18.22/lombok-1.18.22.jar:" ],
+  "name" : "java.class.path"
+}, {
+  "values" : [ "Azul Systems, Inc." ],
+  "name" : "java.vm.vendor"
+}, {
+  "values" : [ "true" ],
+  "name" : "openAllureReportAfterExecution"
+}, {
+  "values" : [ "true" ],
+  "name" : "browserStack.acceptInsecureCerts"
+}, {
+  "values" : [ "true" ],
+  "name" : "forceCheckTextWasTypedCorrectly"
+}, {
+  "values" : [ "30" ],
+  "name" : "databaseQueryTimeout"
+}, {
+  "values" : [ "little" ],
+  "name" : "sun.cpu.endian"
+}, {
+  "values" : [ "en" ],
+  "name" : "user.language"
+}, {
+  "values" : [ "false" ],
+  "name" : "cucumber.execution.dry-run"
+}, {
+  "values" : [ "https:///{}" ],
+  "name" : "allure.link.tms.pattern"
+}, {
+  "values" : [ "false" ],
+  "name" : "cucumber.execution.wip"
+}, {
+  "values" : [ "/Users/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/target/surefire/surefirebooter15624502506984223675.jar" ],
+  "name" : "surefire.real.class.path"
+}, {
+  "values" : [ "30" ],
+  "name" : "shellSessionTimeout"
+}, {
+  "values" : [ "local|*.local|169.254/16|*.169.254/16" ],
+  "name" : "ftp.nonProxyHosts"
+}, {
+  "values" : [ "http://www.azul.com/support/" ],
+  "name" : "java.vendor.url.bug"
+}, {
+  "values" : [ "/Users/runner/work/SHAFT_ENGINE/SHAFT_ENGINE" ],
+  "name" : "user.dir"
+}, {
+  "values" : [ "ALL" ],
+  "name" : "video.mode"
+}, {
+  "values" : [ "1.22.0" ],
+  "name" : "browserStack.appiumVersion"
+}, {
+  "values" : [ "17.0.2+8-LTS" ],
+  "name" : "java.vm.version"
+}, {
+  "values" : [ "customCucumberSteps, com.shaft.cucumber" ],
+  "name" : "cucumber.glue"
+} ]

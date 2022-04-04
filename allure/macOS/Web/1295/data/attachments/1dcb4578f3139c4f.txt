@@ -1,0 +1,9 @@
+
+################################################################################################################################################
+Starting Execution:	"31 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertElementAttribute_false_containsComparison_expectedToFail"
+################################################################################################################################################
+[ReportManager] Type "Automation123". @04-04-2022 19:39:45.0403 PM
+[ReportManager] Get text "Automation123". @04-04-2022 19:39:45.0461 PM
+[ReportManager] Assertion "ValidateElementAttribute" FAILED. Expected "Value Should not be 'Automation' for the 'text' attribute, element locator 'By.name: q'" and Actual "Automation123". Comparison Type "CONTAINS". Validation Type "NEGATIVE". @04-04-2022 19:39:45.0643 PM
+[ReportManager] Successfully created attachment "Screenshot - 1649101185564_assertElementAttribute_false_containsComparison_expectedToFail_ValidateElementAttribute_failed" @04-04-2022 19:39:45.0644 P

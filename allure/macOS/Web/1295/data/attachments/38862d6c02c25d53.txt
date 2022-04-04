@@ -1,0 +1,9 @@
+
+################################################################################################################################################
+Starting Execution:	"45 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertElementAttribute_type_true_literalComparison_expectedToPass"
+################################################################################################################################################
+[ReportManager] Type "Automation!@#$%^&*()_+{}[]\';/.,". @04-04-2022 19:40:36.0180 PM
+[ReportManager] Get text "Automation!@#$%^&*()_+{}[]\';/.,". @04-04-2022 19:40:36.0243 PM
+[ReportManager] Assertion "ValidateElementAttribute" PASSED. Expected "Value Should be 'Automation!@#$%^&*()_+{}[]\';/.,' for the 'text' attribute, element locator 'By.name: q'" and Actual "Automation!@#$%^&*()_+{}[]\';/.,". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:40:36.0496 PM
+[ReportManager] Successfully created attachment "Screenshot - 1649101236415_assertElementAttribute_type_true_literalComparison_expectedToPass_ValidateElementAttribute_passed" @04-04-2022 19:40:36.0499 P

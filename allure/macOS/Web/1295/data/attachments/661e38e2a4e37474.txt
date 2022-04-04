@@ -1,0 +1,8 @@
+
+################################################################################################################################################
+Starting Execution:	"73 out of 179" test cases in the current suite
+Test Method:		"testPackage01.TestJSPromptBox.dismissAlert"
+################################################################################################################################################
+[ReportManager] Click "By.xpath: //button[contains(text(),'Click for JS Prompt')]". @04-04-2022 19:42:10.0726 PM
+[ReportManager] Alert is present @04-04-2022 19:42:10.0743 PM
+[ReportManager] Dismiss alert. @04-04-2022 19:42:10.0759 P

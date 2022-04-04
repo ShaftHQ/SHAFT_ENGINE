@@ -1,0 +1,7 @@
+
+################################################################################################################################################
+Starting Execution:	"60 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertFileExists_false_expectedToPass"
+################################################################################################################################################
+[ReportManager] File Action "DoesFileExist" successfully performed. With the following test data "File Path: "src/main/java/com/shaft/gui/element/ElementActions.java_fail"". @04-04-2022 19:41:49.0111 PM
+[ReportManager] Assertion "ValidateFileExists" PASSED. Expected "File 'src/main/java/com/shaft/gui/element/ElementActions.java_fail' should not exist, after up to '1' retries" and Actual "File does not exist". Validation Type "NEGATIVE". @04-04-2022 19:41:49.0112 P

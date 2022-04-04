@@ -1,0 +1,9 @@
+
+################################################################################################################################################
+Starting Execution:	"84 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_clipboardActions.typeTextAndCopyPaste"
+################################################################################################################################################
+[ReportManager] Target URL: "https://www.google.com/ncr", and after redirection: "https://www.google.com" @04-04-2022 19:42:51.0629 PM
+[ReportManager] Initial URL: "" @04-04-2022 19:42:51.0699 PM
+[ReportManager] Navigate to url "https://www.google.com/ncr". @04-04-2022 19:42:53.0530 PM
+[ReportManager] Type "FIRST". @04-04-2022 19:42:54.0252 P

@@ -1,0 +1,10 @@
+
+################################################################################################################################################
+Starting Execution:	"138 out of 179" test cases in the current suite
+Test Method:		"testPackage01.validationsWizard.Test_ElementValidations.isEnabled"
+################################################################################################################################################
+[ReportManager] Attempting to getAttribute "disabled" from elementLocator "By.xpath: //img[@alt='Google']". @04-04-2022 19:44:13.0949 PM
+[ReportManager] Get attribute. @04-04-2022 19:44:13.0990 PM
+[ReportManager] Assertion Passed: The Element located by "By.xpath: //img[@alt='Google']" is enabled, disabled attribute is equal to "null". @04-04-2022 19:44:14.0271 PM
+[ReportManager] Successfully created attachment "Screenshot - 1649101454115_isEnabled_ValidateElementAttribute_passed" @04-04-2022 19:44:14.0313 PM
+[ReportManager] Assertion "ValidateElementAttribute" PASSED. Expected "Value Should be 'null' for the 'disabled' attribute, element locator 'By.xpath: //img[@alt='Google']'" and Actual "null". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:44:14.0313 P

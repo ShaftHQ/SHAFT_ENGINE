@@ -1,0 +1,16 @@
+
+################################################################################################################################################
+Starting Execution:	"162 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_JsonCompareWithSpecialCharacters.specialCharacters_assertion"
+################################################################################################################################################
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "src/test/resources/testDataFiles/specialCharacters.json"". @04-04-2022 19:44:54.0349 PM
+[ReportManager] File Action "ReadFromFile" successfully performed. With the following test data "File Path: "/Users/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/test/resources/testDataFiles/specialCharacters.json"". @04-04-2022 19:44:54.0350 PM
+[ReportManager] Successfully created attachment "File Action Actual Result - Command Log" @04-04-2022 19:44:54.0436 PM
+[ReportManager] Comparing the provided API response with the file at this path "src/test/resources/testDataFiles/specialCharacters.json", comparison type "CONTAINS" @04-04-2022 19:44:54.0436 PM
+[ReportManager] API Action "CompareJSON" successfully performed. With the following test data "src/test/resources/testDataFiles/specialCharacters.json". @04-04-2022 19:44:54.0446 PM
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "src/test/resources/testDataFiles/specialCharacters.json"". @04-04-2022 19:44:54.0447 PM
+[ReportManager] File Action "ReadFromFile" successfully performed. With the following test data "File Path: "/Users/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/test/resources/testDataFiles/specialCharacters.json"". @04-04-2022 19:44:54.0447 PM
+[ReportManager] Assertion Passed: trying out the log message @04-04-2022 19:44:54.0452 PM
+[ReportManager] Successfully created attachment "Validation Test Data - Expected JSON Value" @04-04-2022 19:44:54.0534 PM
+[ReportManager] Successfully created attachment "Validation Test Data - Actual JSON Value" @04-04-2022 19:44:54.0576 PM
+[ReportManager] Assertion "ValidateJSONFileContent" PASSED. Expected "Response data should match the JSON File in this path 'src/test/resources/testDataFiles/specialCharacters.json'" and Actual "TRUE". Comparison Type "CONTAINS". Validation Type "POSITIVE". @04-04-2022 19:44:54.0576 P

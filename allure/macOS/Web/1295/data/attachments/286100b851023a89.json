@@ -1,0 +1,12 @@
+{
+  "data": {
+    "insert_users": {
+      "returning": [
+        {
+          "rocket": "221B Baker Street",
+          "name": "sherlock holmes"
+        }
+      ]
+    }
+  }
+}

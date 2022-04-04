@@ -1,0 +1,24 @@
+
+################################################################################################################################################
+Starting Execution:	"177 out of 179" test cases in the current suite
+Test Method:		"dsl.testDsl.testButton"
+################################################################################################################################################
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 19:47:50.0100 PM
+[ReportManager] Attempting to run locally on: "Mac-64 | Safari", Headless Execution. @04-04-2022 19:47:50.0100 PM
+[ReportManager] Successfully Opened Safari. @04-04-2022 19:47:51.0028 PM
+[ReportManager] Initial window size: (800, 600) @04-04-2022 19:47:51.0058 PM
+[ReportManager] Window size after SWD Maximize: (1176, 803) @04-04-2022 19:47:51.0090 PM
+[ReportManager] Maximize window "New screen size is now: (1176, 803)". @04-04-2022 19:47:51.0091 PM
+[ReportManager] Target URL: "http://the-internet.herokuapp.com/" @04-04-2022 19:47:51.0091 PM
+[ReportManager] Initial URL: "" @04-04-2022 19:47:51.0134 PM
+[ReportManager] Navigate to url "http://the-internet.herokuapp.com/". @04-04-2022 19:47:51.0712 PM
+[ReportManager] Click "By.linkText: Add/Remove Elements". @04-04-2022 19:47:51.0926 PM
+[ReportManager] Get text "Add Element". @04-04-2022 19:47:52.0043 PM
+[ReportManager] Assertion Passed: "Add Element" is equal to "Add Element". @04-04-2022 19:47:52.0044 PM
+[ReportManager] Assertion "ValidateEquals" PASSED. Expected "Add Element" and Actual "Add Element". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:47:52.0044 PM
+[ReportManager] Click "By.xpath: //button[text()='Add Element']". @04-04-2022 19:47:52.0340 PM
+[ReportManager] Attempting to getAttribute "disabled" from elementLocator "By.xpath: //button[text()='Add Element']". @04-04-2022 19:47:52.0340 PM
+[ReportManager] Get attribute. @04-04-2022 19:47:52.0428 PM
+[ReportManager] Get text "Delete". @04-04-2022 19:47:52.0467 PM
+[ReportManager] Assertion Passed: "Delete" is equal to "Delete". @04-04-2022 19:47:52.0467 PM
+[ReportManager] Assertion "ValidateEquals" PASSED. Expected "Delete" and Actual "Delete". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:47:52.0467 P

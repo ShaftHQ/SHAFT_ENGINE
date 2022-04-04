@@ -1,0 +1,9 @@
+
+################################################################################################################################################
+Starting Execution:	"6 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_browserActions.fullScreenWindow"
+################################################################################################################################################
+[ReportManager] Initial Windows Size: 1176x803 @04-04-2022 19:39:03.0065 PM
+[ReportManager] Current Windows Size after fullScreen: 1176x885 @04-04-2022 19:39:03.0447 PM
+[ReportManager] Full screen window. @04-04-2022 19:39:03.0479 PM
+[ReportManager] Successfully created attachment "Browser Action Test Data - Full screen window - Actual Value" @04-04-2022 19:39:03.0494 P

@@ -1,0 +1,6 @@
+
+################################################################################################################################################
+Starting Execution:	"52 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertEquals_false_expectedToFail"
+################################################################################################################################################
+[ReportManager] Assertion "ValidateEquals" FAILED. Expected "1" and Actual "1". Comparison Type "EQUALS". Validation Type "NEGATIVE". @04-04-2022 19:41:48.0504 P

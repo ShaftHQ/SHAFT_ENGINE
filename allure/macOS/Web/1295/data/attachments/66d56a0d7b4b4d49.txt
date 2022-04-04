@@ -1,0 +1,8 @@
+
+################################################################################################################################################
+Starting Execution:	"92 out of 179" test cases in the current suite
+Test Method:		"testPackage01.TestJSConfirmBox.acceptAlert"
+################################################################################################################################################
+[ReportManager] Alert is not present @04-04-2022 19:44:02.0331 PM
+[ReportManager] Wait for alert to be present failed. @04-04-2022 19:44:02.0510 PM
+[ReportManager] Successfully created attachment "Screenshot - 1649101442354_acceptAlert_Wait for alert to be present_failed" @04-04-2022 19:44:02.0592 P
