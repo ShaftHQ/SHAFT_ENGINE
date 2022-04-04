@@ -1,0 +1,15 @@
+
+################################################################################################################################################
+Starting Execution:	"146 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_sendGraphqlRequest.sendGraphqlRequestUsingMutationAndVariables"
+################################################################################################################################################
+[ReportManager] GraphQl Request is being Performed with the Following Parameters [Service URL: https://api.spacex.land/graphql | Request Body: {"variables":"{\"name\": \"sherlock holmes\",\"rocket\": \"221B Baker Street\"}","query":"mutation ($name: String, $rocket: String) {\n  insert_users(objects: {name: $name, rocket: $rocket}) {\n    returning {\n      name\n      rocket\n    }\n  }\n}"}" @04-04-2022 19:42:33.0767 PM
+[ReportManager] Response status code: "200", status line: "HTTP/1.1 200 OK" @04-04-2022 19:42:33.0997 PM
+[ReportManager] Assertion Passed: Evaluating the actual response status code against the expected one... @04-04-2022 19:42:33.0997 PM
+[ReportManager] Assertion "ValidateComparativeRelation" PASSED. Expected "200" and Actual "200". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:42:33.0997 PM
+[ReportManager] API Action "PerformRequest" successfully performed. With the following test data "Request Type: "POST" | Target Status Code: "200" | Service URL: "https://api.spacex.land/graphql" | Content Type: "application/json" | Response Time: "118ms"". @04-04-2022 19:42:34.0013 PM
+[ReportManager] Successfully created attachment "API Request - Specifications" @04-04-2022 19:42:34.0054 PM
+[ReportManager] Successfully created attachment "API Request - JSON Body" @04-04-2022 19:42:34.0137 PM
+[ReportManager] Successfully created attachment "API Response - JSON Body" @04-04-2022 19:42:34.0180 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "data.insert_users.returning[0].name". @04-04-2022 19:42:34.0244 PM
+[ReportManager] Assertion "ValidateEquals" PASSED. Expected "sherlock holmes" and Actual "sherlock holmes". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:42:34.0245 P

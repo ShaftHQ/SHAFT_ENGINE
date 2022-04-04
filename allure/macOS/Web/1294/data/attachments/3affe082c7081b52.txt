@@ -1,0 +1,129 @@
+
+################################################################################################################################################
+Starting Execution:	"179 out of 179" test cases in the current suite
+Test Method:		"dsl.testDsl.testLabel"
+################################################################################################################################################
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 19:44:31.0899 PM
+[ReportManager] Attempting to run locally on: "Mac-64 | Safari", Headless Execution. @04-04-2022 19:44:31.0899 PM
+[ReportManager] Successfully Opened Safari. @04-04-2022 19:44:32.0759 PM
+[ReportManager] Initial window size: (800, 600) @04-04-2022 19:44:32.0778 PM
+[ReportManager] Window size after SWD Maximize: (1176, 803) @04-04-2022 19:44:32.0793 PM
+[ReportManager] Maximize window "New screen size is now: (1176, 803)". @04-04-2022 19:44:32.0793 PM
+[ReportManager] Get text "Welcome to the-internet". @04-04-2022 19:44:33.0126 PM
+[ReportManager] org.openqa.selenium.TimeoutException:
+Expected condition failed: waiting for com.shaft.gui.element.ElementActionsHelper$$Lambda$641/0x00000008011491e0@295f6ee1 (tried for 5 second(s) with 1000 milliseconds interval)
+org.openqa.selenium.support.ui.FluentWait.timeoutException(FluentWait.java:263)
+org.openqa.selenium.support.ui.FluentWait.until(FluentWait.java:231)
+com.shaft.gui.element.ElementActionsHelper.waitForElementPresence(ElementActionsHelper.java:90)
+com.shaft.gui.element.ElementActionsHelper.waitForElementPresence(ElementActionsHelper.java:37)
+com.shaft.gui.element.WebDriverElementActions.getMatchingElementsCount(WebDriverElementActions.java:1495)
+com.shaft.gui.element.WebDriverElementActions.getElementsCount(WebDriverElementActions.java:562)
+com.shaft.gui.element.ElementActions.getElementsCount(ElementActions.java:253)
+com.shaft.gui.image.ScreenshotManager.internalCaptureScreenShot(ScreenshotManager.java:390)
+com.shaft.gui.image.ScreenshotManager.captureScreenShot(ScreenshotManager.java:142)
+com.shaft.validation.ValidationsHelper.reportValidationState(ValidationsHelper.java:821)
+com.shaft.validation.ValidationsHelper.pass(ValidationsHelper.java:562)
+com.shaft.validation.ValidationsHelper.validateEquals(ValidationsHelper.java:65)
+com.shaft.validation.ValidationsExecutor.perform(ValidationsExecutor.java:136)
+com.shaft.dsl.gui.Label.shouldHaveText(Label.java:22)
+dsl.testDsl.testLabel(testDsl.java:22)
+java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+java.base/java.lang.reflect.Method.invoke(Method.java:568)
+org.testng.internal.invokers.MethodInvocationHelper.invokeMethod(MethodInvocationHelper.java:135)
+org.testng.internal.invokers.TestInvoker.invokeMethod(TestInvoker.java:673)
+org.testng.internal.invokers.TestInvoker.invokeTestMethod(TestInvoker.java:220)
+org.testng.internal.invokers.MethodRunner.runInSequence(MethodRunner.java:50)
+org.testng.internal.invokers.TestInvoker$MethodInvocationAgent.invoke(TestInvoker.java:945)
+org.testng.internal.invokers.TestInvoker.invokeTestMethods(TestInvoker.java:193)
+org.testng.internal.invokers.TestMethodWorker.invokeTestMethods(TestMethodWorker.java:146)
+org.testng.internal.invokers.TestMethodWorker.run(TestMethodWorker.java:128)
+java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+org.testng.TestRunner.privateRun(TestRunner.java:808)
+org.testng.TestRunner.run(TestRunner.java:603)
+org.testng.SuiteRunner.runTest(SuiteRunner.java:429)
+org.testng.SuiteRunner.runSequentially(SuiteRunner.java:423)
+org.testng.SuiteRunner.privateRun(SuiteRunner.java:383)
+org.testng.SuiteRunner.run(SuiteRunner.java:326)
+org.testng.SuiteRunnerWorker.runSuite(SuiteRunnerWorker.java:52)
+org.testng.SuiteRunnerWorker.run(SuiteRunnerWorker.java:95)
+org.testng.TestNG.runSuitesSequentially(TestNG.java:1249)
+org.testng.TestNG.runSuitesLocally(TestNG.java:1169)
+org.testng.TestNG.runSuites(TestNG.java:1092)
+org.testng.TestNG.run(TestNG.java:1060)
+org.apache.maven.surefire.testng.TestNGExecutor.run(TestNGExecutor.java:151)
+org.apache.maven.surefire.testng.TestNGDirectoryTestSuite.executeMulti(TestNGDirectoryTestSuite.java:192)
+org.apache.maven.surefire.testng.TestNGDirectoryTestSuite.execute(TestNGDirectoryTestSuite.java:93)
+org.apache.maven.surefire.testng.TestNGProvider.invoke(TestNGProvider.java:155)
+org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:456)
+org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:169)
+org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:595)
+org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:581)
+
+Caused by: org.openqa.selenium.NoSuchSessionException:
+Session ID is null. Using WebDriver after calling quit()?
+Build info: version: '4.1.3', revision: '7b1ebf28ef'
+System info: host: 'Mac-1649100963972.local', ip: '10.212.0.120', os.name: 'Mac OS X', os.arch: 'x86_64', os.version: '11.6.5', java.version: '17.0.2'
+Driver info: org.openqa.selenium.safari.SafariDriver
+Command: [null, findElement {using=id, value=finish}]
+Capabilities {acceptInsecureCerts: false, browserName: Safari, browserVersion: 15.4, goog:loggingPrefs: {browser: ALL, client: ALL, driver: ALL, performance: ALL, profiler: ALL, server: ALL}, javascriptEnabled: true, pageLoadStrategy: normal, platform: MAC, platformName: MAC, safari:automaticInspection: false, safari:automaticProfiling: false, safari:diagnose: false, safari:platformBuildVersion: 20G527, safari:platformVersion: 11.6.5, safari:useSimulator: false, setWindowRect: true, strictFileInteractability: false, timeouts: {pageLoad: 30000, script: 30000}, webkit:WebRTC: {DisableICECandidateFiltering: false, DisableInsecureMediaCapture: false}}
+org.openqa.selenium.remote.HttpCommandExecutor.execute(HttpCommandExecutor.java:145)
+org.openqa.selenium.remote.service.DriverCommandExecutor.invokeExecute(DriverCommandExecutor.java:167)
+org.openqa.selenium.remote.service.DriverCommandExecutor.execute(DriverCommandExecutor.java:142)
+org.openqa.selenium.remote.RemoteWebDriver.execute(RemoteWebDriver.java:567)
+org.openqa.selenium.remote.ElementLocation$ElementFinder$2.findElement(ElementLocation.java:162)
+org.openqa.selenium.remote.ElementLocation.findElement(ElementLocation.java:60)
+org.openqa.selenium.remote.RemoteWebDriver.findElement(RemoteWebDriver.java:385)
+org.openqa.selenium.remote.RemoteWebDriver.findElement(RemoteWebDriver.java:377)
+com.shaft.gui.element.ElementActionsHelper.lambda$waitForElementPresence$0(ElementActionsHelper.java:93)
+org.openqa.selenium.support.ui.FluentWait.until(FluentWait.java:208)
+com.shaft.gui.element.ElementActionsHelper.waitForElementPresence(ElementActionsHelper.java:90)
+com.shaft.gui.element.ElementActionsHelper.waitForElementPresence(ElementActionsHelper.java:37)
+com.shaft.gui.element.WebDriverElementActions.getMatchingElementsCount(WebDriverElementActions.java:1495)
+com.shaft.gui.element.WebDriverElementActions.getElementsCount(WebDriverElementActions.java:562)
+com.shaft.gui.element.ElementActions.getElementsCount(ElementActions.java:253)
+com.shaft.gui.image.ScreenshotManager.internalCaptureScreenShot(ScreenshotManager.java:390)
+com.shaft.gui.image.ScreenshotManager.captureScreenShot(ScreenshotManager.java:142)
+com.shaft.validation.ValidationsHelper.reportValidationState(ValidationsHelper.java:821)
+com.shaft.validation.ValidationsHelper.pass(ValidationsHelper.java:562)
+com.shaft.validation.ValidationsHelper.validateEquals(ValidationsHelper.java:65)
+com.shaft.validation.ValidationsExecutor.perform(ValidationsExecutor.java:136)
+com.shaft.dsl.gui.Label.shouldHaveText(Label.java:22)
+dsl.testDsl.testLabel(testDsl.java:22)
+java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:77)
+java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+java.base/java.lang.reflect.Method.invoke(Method.java:568)
+org.testng.internal.invokers.MethodInvocationHelper.invokeMethod(MethodInvocationHelper.java:135)
+org.testng.internal.invokers.TestInvoker.invokeMethod(TestInvoker.java:673)
+org.testng.internal.invokers.TestInvoker.invokeTestMethod(TestInvoker.java:220)
+org.testng.internal.invokers.MethodRunner.runInSequence(MethodRunner.java:50)
+org.testng.internal.invokers.TestInvoker$MethodInvocationAgent.invoke(TestInvoker.java:945)
+org.testng.internal.invokers.TestInvoker.invokeTestMethods(TestInvoker.java:193)
+org.testng.internal.invokers.TestMethodWorker.invokeTestMethods(TestMethodWorker.java:146)
+org.testng.internal.invokers.TestMethodWorker.run(TestMethodWorker.java:128)
+java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+org.testng.TestRunner.privateRun(TestRunner.java:808)
+org.testng.TestRunner.run(TestRunner.java:603)
+org.testng.SuiteRunner.runTest(SuiteRunner.java:429)
+org.testng.SuiteRunner.runSequentially(SuiteRunner.java:423)
+org.testng.SuiteRunner.privateRun(SuiteRunner.java:383)
+org.testng.SuiteRunner.run(SuiteRunner.java:326)
+org.testng.SuiteRunnerWorker.runSuite(SuiteRunnerWorker.java:52)
+org.testng.SuiteRunnerWorker.run(SuiteRunnerWorker.java:95)
+org.testng.TestNG.runSuitesSequentially(TestNG.java:1249)
+org.testng.TestNG.runSuitesLocally(TestNG.java:1169)
+org.testng.TestNG.runSuites(TestNG.java:1092)
+org.testng.TestNG.run(TestNG.java:1060)
+org.apache.maven.surefire.testng.TestNGExecutor.run(TestNGExecutor.java:151)
+org.apache.maven.surefire.testng.TestNGDirectoryTestSuite.executeMulti(TestNGDirectoryTestSuite.java:192)
+org.apache.maven.surefire.testng.TestNGDirectoryTestSuite.execute(TestNGDirectoryTestSuite.java:93)
+org.apache.maven.surefire.testng.TestNGProvider.invoke(TestNGProvider.java:155)
+org.apache.maven.surefire.booter.ForkedBooter.runSuitesInProcess(ForkedBooter.java:456)
+org.apache.maven.surefire.booter.ForkedBooter.execute(ForkedBooter.java:169)
+org.apache.maven.surefire.booter.ForkedBooter.run(ForkedBooter.java:595)
+org.apache.maven.surefire.booter.ForkedBooter.main(ForkedBooter.java:581) @04-04-2022 19:44:38.0528 PM
+[ReportManager] An Exception Occured with this Message: Session ID is null. Using WebDriver after calling quit()?. @04-04-2022 19:44:38.0530 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.NoSuchSessionException" @04-04-2022 19:44:38.0531 PM
+[ReportManager] Assertion Passed: "Welcome to the-internet" is equal to "Welcome to the-internet". @04-04-2022 19:44:38.0531 P

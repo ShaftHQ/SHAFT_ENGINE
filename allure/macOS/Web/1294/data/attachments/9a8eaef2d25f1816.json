@@ -1,0 +1,163 @@
+{
+  "default": {},
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "examples": [
+    {
+      "country": "United States",
+      "places": [
+        {
+          "latitude": "34.0901",
+          "state": "California",
+          "state abbreviation": "CA",
+          "place name": "Beverly Hills",
+          "longitude": "-118.4065"
+        }
+      ],
+      "country abbreviation": "US",
+      "post code": "90210"
+    }
+  ],
+  "description": "The root schema comprises the entire JSON document.",
+  "additionalProperties": true,
+  "type": "object",
+  "title": "The root schema",
+  "required": [
+    "post code",
+    "country",
+    "country abbreviation",
+    "places"
+  ],
+  "properties": {
+    "country": {
+      "default": "",
+      "examples": [
+        "United States"
+      ],
+      "description": "An explanation about the purpose of this instance.",
+      "type": "string",
+      "title": "The country schema",
+      "$id": "#/properties/country"
+    },
+    "places": {
+      "default": [],
+      "examples": [
+        [
+          {
+            "latitude": "34.0901",
+            "state": "California",
+            "state abbreviation": "CA",
+            "place name": "Beverly Hills",
+            "longitude": "-118.4065"
+          }
+        ]
+      ],
+      "additionalItems": true,
+      "description": "An explanation about the purpose of this instance.",
+      "type": "array",
+      "title": "The places schema",
+      "items": {
+        "anyOf": [
+          {
+            "default": {},
+            "examples": [
+              {
+                "latitude": "34.0901",
+                "state": "California",
+                "state abbreviation": "CA",
+                "place name": "Beverly Hills",
+                "longitude": "-118.4065"
+              }
+            ],
+            "description": "An explanation about the purpose of this instance.",
+            "additionalProperties": true,
+            "type": "object",
+            "title": "The first anyOf schema",
+            "required": [
+              "place name",
+              "longitude",
+              "state",
+              "state abbreviation",
+              "latitude"
+            ],
+            "properties": {
+              "latitude": {
+                "default": "",
+                "examples": [
+                  "34.0901"
+                ],
+                "description": "An explanation about the purpose of this instance.",
+                "type": "string",
+                "title": "The latitude schema",
+                "$id": "#/properties/places/items/anyOf/0/properties/latitude"
+              },
+              "state": {
+                "default": "",
+                "examples": [
+                  "California"
+                ],
+                "description": "An explanation about the purpose of this instance.",
+                "type": "string",
+                "title": "The state schema",
+                "$id": "#/properties/places/items/anyOf/0/properties/state"
+              },
+              "state abbreviation": {
+                "default": "",
+                "examples": [
+                  "CA"
+                ],
+                "description": "An explanation about the purpose of this instance.",
+                "type": "string",
+                "title": "The state abbreviation schema",
+                "$id": "#/properties/places/items/anyOf/0/properties/state%20abbreviation"
+              },
+              "place name": {
+                "default": "",
+                "examples": [
+                  "Beverly Hills"
+                ],
+                "description": "An explanation about the purpose of this instance.",
+                "type": "string",
+                "title": "The place name schema",
+                "$id": "#/properties/places/items/anyOf/0/properties/place%20name"
+              },
+              "longitude": {
+                "default": "",
+                "examples": [
+                  "-118.4065"
+                ],
+                "description": "An explanation about the purpose of this instance.",
+                "type": "string",
+                "title": "The longitude schema",
+                "$id": "#/properties/places/items/anyOf/0/properties/longitude"
+              }
+            },
+            "$id": "#/properties/places/items/anyOf/0"
+          }
+        ],
+        "$id": "#/properties/places/items"
+      },
+      "$id": "#/properties/places"
+    },
+    "country abbreviation": {
+      "default": "",
+      "examples": [
+        "US"
+      ],
+      "description": "An explanation about the purpose of this instance.",
+      "type": "string",
+      "title": "The country abbreviation schema",
+      "$id": "#/properties/country%20abbreviation"
+    },
+    "post code": {
+      "default": "",
+      "examples": [
+        "90210"
+      ],
+      "description": "An explanation about the purpose of this instance.",
+      "type": "string",
+      "title": "The post code schema",
+      "$id": "#/properties/post%20code"
+    }
+  },
+  "$id": "http://example.com/example.json"
+}

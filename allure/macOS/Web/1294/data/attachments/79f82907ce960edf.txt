@@ -1,0 +1,16 @@
+
+################################################################################################################################################
+Starting Execution:	"160 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_RelativeLocators.relativeLocatorsTest1"
+################################################################################################################################################
+[ReportManager] Target URL: "https://duckduckgo.com/" @04-04-2022 19:43:05.0899 PM
+[ReportManager] Initial URL: "" @04-04-2022 19:43:05.0936 PM
+[ReportManager] Navigate to url "https://duckduckgo.com/". @04-04-2022 19:43:07.0008 PM
+[ReportManager] Type "SHAFT_Engine". @04-04-2022 19:43:07.0507 PM
+[ReportManager] Key press "ENTER". @04-04-2022 19:43:07.0634 PM
+[ReportManager] An Exception Occured with this Message: A JavaScript exception occured: Can't find variable: jQuery. @04-04-2022 19:43:07.0721 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.JavascriptException" @04-04-2022 19:43:07.0764 PM
+[ReportManager] Get text "GitHub - MohabMohie/SHAFT_ENGINE: SHAFT_ENGINE is a Test ...". @04-04-2022 19:43:09.0491 PM
+[ReportManager] Assertion Passed: The Element located by "Relative Locator: {root={xpath=//a[@class='result__a js-result-title-link']}, filters=[{kind=below, args=[{xpath=//input[@name='q']}]}]}" text does not equal "". @04-04-2022 19:43:09.0989 PM
+[ReportManager] Successfully created attachment "Screenshot - 1649101389768_relativeLocatorsTest1_ValidateElementAttribute_passed" @04-04-2022 19:43:10.0077 PM
+[ReportManager] Assertion "ValidateElementAttribute" PASSED. Expected "Value Should not be '' for the 'text' attribute, element locator '[unknown locator]'" and Actual "GitHub - MohabMohie/SHAFT_ENGINE: SHAFT_ENGINE is a Test ...". Comparison Type "EQUALS". Validation Type "NEGATIVE". @04-04-2022 19:43:10.0077 P

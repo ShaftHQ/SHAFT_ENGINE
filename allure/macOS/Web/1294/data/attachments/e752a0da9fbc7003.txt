@@ -1,0 +1,17 @@
+
+################################################################################################################################################
+Starting Execution:	"153 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_dragAndDrop.dragAndDropJquery"
+################################################################################################################################################
+[ReportManager] Target URL: "https://jqueryui.com/resources/demos/droppable/default.html" @04-04-2022 19:42:44.0445 PM
+[ReportManager] Initial URL: "" @04-04-2022 19:42:44.0474 PM
+[ReportManager] Navigate to url "https://jqueryui.com/resources/demos/droppable/default.html". @04-04-2022 19:42:44.0827 PM
+[ReportManager] Get text "Drop here". @04-04-2022 19:42:45.0017 PM
+[ReportManager] Drag and drop "Start point: (8, 18), End point: (8, 18)". @04-04-2022 19:42:46.0065 PM
+[ReportManager] Get text "Dropped!". @04-04-2022 19:42:46.0120 PM
+[ReportManager] Assertion Passed: Checking to see if the text has changed after performing drag and drop @04-04-2022 19:42:46.0121 PM
+[ReportManager] Assertion "ValidateEquals" PASSED. Expected "
+	Drop here
+" and Actual "
+	Dropped!
+". Comparison Type "EQUALS". Validation Type "NEGATIVE". @04-04-2022 19:42:46.0121 P

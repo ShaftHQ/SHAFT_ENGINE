@@ -1,0 +1,12 @@
+
+################################################################################################################################################
+Starting Execution:	"83 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_ShadowDOM.shadowdom"
+################################################################################################################################################
+[ReportManager] Target URL: "https://mdn.github.io/web-components-examples/popup-info-box-web-component/" @04-04-2022 19:41:05.0760 PM
+[ReportManager] Initial URL: "" @04-04-2022 19:41:05.0847 PM
+[ReportManager] Navigate to url "https://mdn.github.io/web-components-examples/popup-info-box-web-component/". @04-04-2022 19:41:06.0270 PM
+[ReportManager] Type "Typing into SHADOW DOM...". @04-04-2022 19:41:07.0111 PM
+[ReportManager] Get text "Typing into SHADOW DOM...". @04-04-2022 19:41:07.0234 PM
+[ReportManager] Assertion "ValidateElementAttribute" PASSED. Expected "Value Should be 'Typing into SHADOW DOM...' for the 'Text' attribute, element locator 'By.id: cvc'" and Actual "Typing into SHADOW DOM...". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:41:07.0640 PM
+[ReportManager] Successfully created attachment "Screenshot - 1649101267419_shadowdom_ValidateElementAttribute_passed" @04-04-2022 19:41:07.0723 P

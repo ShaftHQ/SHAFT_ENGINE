@@ -1,0 +1,588 @@
+{
+  "uid" : "54c3f727abd30725",
+  "name" : "simpleSelect",
+  "fullName" : "testPackage01.Test_SelectedValue.simpleSelect",
+  "historyId" : "36df61c5fa16064939f2168a752af02b",
+  "time" : {
+    "start" : 1649101462191,
+    "stop" : 1649101465431,
+    "duration" : 3240
+  },
+  "status" : "passed",
+  "flaky" : false,
+  "newFailed" : false,
+  "newBroken" : false,
+  "newPassed" : false,
+  "retriesCount" : 0,
+  "retriesStatusChange" : false,
+  "beforeStages" : [ {
+    "name" : "setupActivities",
+    "time" : {
+      "start" : 1649101067484,
+      "stop" : 1649101069851,
+      "duration" : 2367
+    },
+    "description" : "",
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Folder \"allure-results\" was not found, it may have already been deleted.",
+      "time" : {
+        "start" : 1649101067541,
+        "stop" : 1649101067543,
+        "duration" : 2
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Folder \"allure-results\" was not found, it may have already been deleted."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Folder \"/Users/runner/.m2/repository/allure/\" was not found, it may have already been deleted.",
+      "time" : {
+        "start" : 1649101067544,
+        "stop" : 1649101067544,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Folder \"/Users/runner/.m2/repository/allure/\" was not found, it may have already been deleted."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Downloading a file from this url \"https://repo.maven.apache.org/maven2/io/qameta/allure/allure-commandline/2.17.3/allure-commandline-2.17.3.zip\" to this directory \"target/allureBinary.zip\", please wait as downloading may take some time...",
+      "time" : {
+        "start" : 1649101067545,
+        "stop" : 1649101067545,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Downloading a file from this url \"https://repo.maven.apache.org/maven2/io/qameta/allure/allure-commandline/2.17.3/allure-commandline-2.17.3.zip\" to this directory \"target/allureBinary.zip\", please wait as downloading may take some time..."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Terminal Action \"PerformTerminalCommands\" successfully performed. With the following test data \"Host Name: \"localHost\" | Command: \"chmod u+x /Users/runner/.m2/repository/allure/allure-2.17.3/bin/allure\" | Exit Status: \"0\"\".",
+      "time" : {
+        "start" : 1649101068929,
+        "stop" : 1649101068929,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Terminal Action \"PerformTerminalCommands\" successfully performed. With the following test data \"Host Name: \"localHost\" | Command: \"chmod u+x /Users/runner/.m2/repository/allure/allure-2.17.3/bin/allure\" | Exit Status: \"0\"\"."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Terminal Action \"PerformTerminalCommands\" successfully performed. With the following test data \"Host Name: \"localHost\" | Command: \"chmod u+x generate_allure_report.sh\" | Exit Status: \"0\"\".",
+      "time" : {
+        "start" : 1649101068937,
+        "stop" : 1649101068937,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Terminal Action \"PerformTerminalCommands\" successfully performed. With the following test data \"Host Name: \"localHost\" | Command: \"chmod u+x generate_allure_report.sh\" | Exit Status: \"0\"\"."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Folder \"extent-reports\" was not found, it may have already been deleted.",
+      "time" : {
+        "start" : 1649101069047,
+        "stop" : 1649101069047,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Folder \"extent-reports\" was not found, it may have already been deleted."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Terminal Action \"PerformTerminalCommands\" successfully performed. With the following test data \"Host Name: \"localHost\" | Command: \"chmod u+x generateJdk.sh\" | Exit Status: \"1\"\".",
+      "time" : {
+        "start" : 1649101069848,
+        "stop" : 1649101069850,
+        "duration" : 2
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "79a3eda1f6111a18",
+        "name" : "Terminal Action Actual Result - Command Log",
+        "source" : "79a3eda1f6111a18.txt",
+        "type" : "text/plain",
+        "size" : 48
+      } ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Terminal Action \"PerformTerminalCommands\" successfully performed. With the following test data \"Host Name: \"localHost\" | Command: \"chmod u+x generateJdk.sh\" | Exit Status: \"1\"\"."
+      }, {
+        "name" : "attachments",
+        "value" : "[[Terminal Action Actual Result, Command Log, chmod: generateJdk.sh: No such file or directory]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 1,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ {
+      "uid" : "3e1b1b60ddce94c0",
+      "name" : "SHAFT Links - Important",
+      "source" : "3e1b1b60ddce94c0.uri",
+      "type" : "text/uri-list",
+      "size" : 346
+    }, {
+      "uid" : "b5e4ac1b3b9f2ac4",
+      "name" : "Properties - testNG",
+      "source" : "b5e4ac1b3b9f2ac4.properties",
+      "type" : "text/plain",
+      "size" : 492
+    }, {
+      "uid" : "13a0e646412c4315",
+      "name" : "Properties - ExecutionPlatform",
+      "source" : "13a0e646412c4315.properties",
+      "type" : "text/plain",
+      "size" : 419
+    }, {
+      "uid" : "24ef64a528d45df3",
+      "name" : "Properties - path",
+      "source" : "24ef64a528d45df3.properties",
+      "type" : "text/plain",
+      "size" : 687
+    }, {
+      "uid" : "e9265a929ccc2266",
+      "name" : "Properties - video",
+      "source" : "e9265a929ccc2266.properties",
+      "type" : "text/plain",
+      "size" : 763
+    }, {
+      "uid" : "5ba45803b32c3415",
+      "name" : "Properties - pattern",
+      "source" : "5ba45803b32c3415.properties",
+      "type" : "text/plain",
+      "size" : 566
+    }, {
+      "uid" : "284ebc4852074a9e",
+      "name" : "Properties - internal",
+      "source" : "284ebc4852074a9e.properties",
+      "type" : "text/plain",
+      "size" : 112
+    }, {
+      "uid" : "461661054dd0d19c",
+      "name" : "Properties - MobileCapabilities",
+      "source" : "461661054dd0d19c.properties",
+      "type" : "text/plain",
+      "size" : 470
+    }, {
+      "uid" : "324eddd482cb60da",
+      "name" : "Properties - cucumber",
+      "source" : "324eddd482cb60da.properties",
+      "type" : "text/plain",
+      "size" : 1316
+    }, {
+      "uid" : "d5e50745e75bafec",
+      "name" : "Properties - PlatformFlags",
+      "source" : "d5e50745e75bafec.properties",
+      "type" : "text/plain",
+      "size" : 765
+    }, {
+      "uid" : "4cd22ab193d44914",
+      "name" : "Properties - Timeouts",
+      "source" : "4cd22ab193d44914.properties",
+      "type" : "text/plain",
+      "size" : 722
+    }, {
+      "uid" : "e5ed0239ebb40a62",
+      "name" : "Properties - Reporting",
+      "source" : "e5ed0239ebb40a62.properties",
+      "type" : "text/plain",
+      "size" : 614
+    }, {
+      "uid" : "4643c07712529eb6",
+      "name" : "Properties - healenium",
+      "source" : "4643c07712529eb6.properties",
+      "type" : "text/plain",
+      "size" : 115
+    }, {
+      "uid" : "ed1410f4b09cecd",
+      "name" : "Properties - JiraXRay",
+      "source" : "ed1410f4b09cecd.properties",
+      "type" : "text/plain",
+      "size" : 559
+    }, {
+      "uid" : "88144b5833df4dbb",
+      "name" : "Properties - browserStack",
+      "source" : "88144b5833df4dbb.properties",
+      "type" : "text/plain",
+      "size" : 877
+    }, {
+      "uid" : "e5ed73f8d1f216fb",
+      "name" : "Properties - VisualValidations",
+      "source" : "e5ed73f8d1f216fb.properties",
+      "type" : "text/plain",
+      "size" : 711
+    } ],
+    "parameters" : [ ],
+    "stepsCount" : 7,
+    "attachmentsCount" : 17,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  } ],
+  "testStage" : {
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Attempting to run locally on: \"Mac-64 | GoogleChrome\", Headless Execution.",
+      "time" : {
+        "start" : 1649101462192,
+        "stop" : 1649101462192,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Attempting to run locally on: \"Mac-64 | GoogleChrome\", Headless Execution."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Successfully Opened Google Chrome.",
+      "time" : {
+        "start" : 1649101462845,
+        "stop" : 1649101462846,
+        "duration" : 1
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Successfully Opened Google Chrome."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Maximize window \"New screen size is now: (1920, 1080)\".",
+      "time" : {
+        "start" : 1649101463617,
+        "stop" : 1649101463617,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Maximize window \"New screen size is now: (1920, 1080)\"."
+      }, {
+        "name" : "attachments",
+        "value" : "[[]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Navigate to url \"https://yari-demos.prod.mdn.mozit.cloud/en-US/docs/Web/HTML/Element/select/_sample_.Basic_select.html\".",
+      "time" : {
+        "start" : 1649101463912,
+        "stop" : 1649101463912,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Navigate to url \"https://yari-demos.prod.mdn.mozit.cloud/en-US/docs/Web/HTML/Element/select/_sample_.Basic_select.html\"."
+      }, {
+        "name" : "attachments",
+        "value" : "[[]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Select \"Third Value\".",
+      "time" : {
+        "start" : 1649101464304,
+        "stop" : 1649101464304,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Select \"Third Value\"."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Get selected text \"Third Value\".",
+      "time" : {
+        "start" : 1649101464390,
+        "stop" : 1649101464390,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Get selected text \"Third Value\"."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Third Value",
+      "time" : {
+        "start" : 1649101464390,
+        "stop" : 1649101464391,
+        "duration" : 1
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Third Value"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Assertion \"ValidateElementAttribute\" PASSED. Expected \"Value Should be 'Third Value' for the 'selectedText' attribute, element locator 'By.tagName: select'\" and Actual \"Third Value\". Comparison Type \"EQUALS\". Validation Type \"POSITIVE\".",
+      "time" : {
+        "start" : 1649101465047,
+        "stop" : 1649101465048,
+        "duration" : 1
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "6ee3e61b47110f04",
+        "name" : "Screenshot - 1649101464941_simpleSelect_ValidateElementAttribute_passed",
+        "source" : "6ee3e61b47110f04.png",
+        "type" : "image/png",
+        "size" : 19880
+      } ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Assertion \"ValidateElementAttribute\" PASSED. Expected \"Value Should be 'Third Value' for the 'selectedText' attribute, element locator 'By.tagName: select'\" and Actual \"Third Value\". Comparison Type \"EQUALS\". Validation Type \"POSITIVE\"."
+      }, {
+        "name" : "attachments",
+        "value" : "[[Screenshot, 1649101464941_simpleSelect_ValidateElementAttribute_passed, java.io.ByteArrayInputStream@5622cf19]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 1,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Close current window.",
+      "time" : {
+        "start" : 1649101465429,
+        "stop" : 1649101465430,
+        "duration" : 1
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "33d6a25679bc464b",
+        "name" : "Browser Action Test Data - Close current window - Actual Value",
+        "source" : "33d6a25679bc464b.html",
+        "type" : "text/html",
+        "size" : 1329
+      } ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Close current window."
+      }, {
+        "name" : "attachments",
+        "value" : "[[Browser Action Test Data - Close current window, Actual Value, <html><head>\n        <meta charset=\"utf-8\">\n        <meta name=\"robots\" content=\"noindex, nofollow\">\n        <style type=\"text/css\">\n            body {\n              padding: 0;\n              margin: 0;\n            }\n\n            svg:not(:root) {\n              display: block;\n            }\n\n            .playable-code {\n              background-color: #f4f7f8;\n              border: none;\n              border-left: 6px solid #558abb;\n              border-width: medium medium medium 6px;\n              color: #4d4e53;\n              height: 100px;\n              width: 90%;\n              padding: 10px 10px 0;\n            }\n\n            .playable-canvas {\n              border: 1px solid #4d4e53;\n              border-radius: 2px;\n            }\n\n            .playable-buttons {\n              text-align: right;\n              width: 90%;\n              padding: 5px 10px 5px 26px;\n            }\n        </style>\n        \n        <title>&lt;select&gt;: The HTML Select element - basic_select - code sample</title>\n    </head>\n    <body>\n        \n            <!-- The second value will be selected initially -->\n<select name=\"choice\">\n  <option value=\"first\">First Value</option>\n  <option value=\"second\" selected=\"\">Second Value</option>\n  <option value=\"third\">Third Value</option>\n</select>\n\n        \n        \n    \n</body></html>]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 1,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ {
+      "uid" : "b187308deed4f8f7",
+      "name" : "SHAFT Engine Logs - Current Method log: simpleSelect",
+      "source" : "b187308deed4f8f7.txt",
+      "type" : "text/plain",
+      "size" : 2693
+    } ],
+    "parameters" : [ ],
+    "stepsCount" : 9,
+    "attachmentsCount" : 3,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  },
+  "afterStages" : [ {
+    "name" : "teardownActivities",
+    "time" : {
+      "start" : 1649101478575,
+      "stop" : 1649101479538,
+      "duration" : 963
+    },
+    "description" : "",
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Successfully Closed All Drivers.",
+      "time" : {
+        "start" : 1649101478982,
+        "stop" : 1649101478982,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Successfully Closed All Drivers."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Issue Summary: Total Issues = 8, New issues for Failed Tests = 6, Open issues for Passed Tests = 2, Open issues for Failed Tests = 0. Kindly check the attached Issue details.",
+      "time" : {
+        "start" : 1649101478993,
+        "stop" : 1649101478994,
+        "duration" : 1
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "fffe320ad4e1735b",
+        "name" : "SHAFT Engine Logs - Issues log CSV: 20220404-194438",
+        "source" : "fffe320ad4e1735b.csv",
+        "type" : "text/csv",
+        "size" : 950
+      } ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Issue Summary: Total Issues = 8, New issues for Failed Tests = 6, Open issues for Passed Tests = 2, Open issues for Failed Tests = 0. Kindly check the attached Issue details."
+      }, {
+        "name" : "attachments",
+        "value" : "[[SHAFT Engine Logs, Issues log CSV: 20220404-194438, java.io.ByteArrayInputStream@bcfba54]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 1,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ {
+      "uid" : "cdeafe0ba97c0061",
+      "name" : "SHAFT Engine Logs - Execution log: 20220404-194438",
+      "source" : "cdeafe0ba97c0061.txt",
+      "type" : "text/plain",
+      "size" : 246873
+    }, {
+      "uid" : "81021e771c514bd4",
+      "name" : "HTML - Extent Emailable Execution Report",
+      "source" : "81021e771c514bd4.html",
+      "type" : "text/html",
+      "size" : 9517245
+    } ],
+    "parameters" : [ ],
+    "stepsCount" : 2,
+    "attachmentsCount" : 3,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  } ],
+  "labels" : [ {
+    "name" : "package",
+    "value" : "testPackage01.Test_SelectedValue"
+  }, {
+    "name" : "testClass",
+    "value" : "testPackage01.Test_SelectedValue"
+  }, {
+    "name" : "testMethod",
+    "value" : "simpleSelect"
+  }, {
+    "name" : "parentSuite",
+    "value" : "Suite"
+  }, {
+    "name" : "suite",
+    "value" : "Test"
+  }, {
+    "name" : "subSuite",
+    "value" : "testPackage01.Test_SelectedValue"
+  }, {
+    "name" : "host",
+    "value" : "Mac-1649100963972.local"
+  }, {
+    "name" : "thread",
+    "value" : "2074@Mac-1649100963972.local.main(1)"
+  }, {
+    "name" : "framework",
+    "value" : "testng"
+  }, {
+    "name" : "language",
+    "value" : "java"
+  }, {
+    "name" : "resultFormat",
+    "value" : "allure2"
+  } ],
+  "parameters" : [ ],
+  "links" : [ ],
+  "hidden" : false,
+  "retry" : false,
+  "extra" : {
+    "severity" : "normal",
+    "retries" : [ ],
+    "categories" : [ ],
+    "tags" : [ ]
+  },
+  "source" : "54c3f727abd30725.json",
+  "parameterValues" : [ ]
+}

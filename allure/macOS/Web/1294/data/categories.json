@@ -1,0 +1,233 @@
+{
+  "uid" : "4b4757e66a1912dae1a509f688f20b0f",
+  "name" : "categories",
+  "children" : [ {
+    "name" : "Product defects",
+    "children" : [ {
+      "name" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "children" : [ {
+        "name" : "beforeMethod",
+        "uid" : "c90099eaae9bbcf1",
+        "parentUid" : "1d3e91f2b2189aa7aa0a8dcfdfded86f",
+        "status" : "failed",
+        "time" : {
+          "start" : 1649101107579,
+          "stop" : 1649101107580,
+          "duration" : 1
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "newPassed" : false,
+        "newBroken" : false,
+        "retriesCount" : 0,
+        "retriesStatusChange" : false,
+        "parameters" : [ ]
+      }, {
+        "name" : "beforeMethod",
+        "uid" : "f786d88117799ee8",
+        "parentUid" : "1d3e91f2b2189aa7aa0a8dcfdfded86f",
+        "status" : "failed",
+        "time" : {
+          "start" : 1649101155764,
+          "stop" : 1649101155764,
+          "duration" : 0
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "newPassed" : false,
+        "newBroken" : false,
+        "retriesCount" : 0,
+        "retriesStatusChange" : false,
+        "parameters" : [ ]
+      }, {
+        "name" : "beforeMethod",
+        "uid" : "e378475afa094d46",
+        "parentUid" : "1d3e91f2b2189aa7aa0a8dcfdfded86f",
+        "status" : "failed",
+        "time" : {
+          "start" : 1649101170036,
+          "stop" : 1649101170036,
+          "duration" : 0
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "newPassed" : false,
+        "newBroken" : false,
+        "retriesCount" : 0,
+        "retriesStatusChange" : false,
+        "parameters" : [ ]
+      }, {
+        "name" : "beforeClass",
+        "uid" : "16c43152b1b616fc",
+        "parentUid" : "1d3e91f2b2189aa7aa0a8dcfdfded86f",
+        "status" : "failed",
+        "time" : {
+          "start" : 1649101268702,
+          "stop" : 1649101268702,
+          "duration" : 0
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "newPassed" : false,
+        "newBroken" : false,
+        "retriesCount" : 0,
+        "retriesStatusChange" : false,
+        "parameters" : [ ]
+      }, {
+        "name" : "openBrowser",
+        "uid" : "d8f55bff06475e97",
+        "parentUid" : "1d3e91f2b2189aa7aa0a8dcfdfded86f",
+        "status" : "failed",
+        "time" : {
+          "start" : 1649101337774,
+          "stop" : 1649101337774,
+          "duration" : 0
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "newPassed" : false,
+        "newBroken" : false,
+        "retriesCount" : 0,
+        "retriesStatusChange" : false,
+        "parameters" : [ ]
+      }, {
+        "name" : "beforeMethod",
+        "uid" : "c030a31306163b03",
+        "parentUid" : "1d3e91f2b2189aa7aa0a8dcfdfded86f",
+        "status" : "failed",
+        "time" : {
+          "start" : 1649101468277,
+          "stop" : 1649101468277,
+          "duration" : 0
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "newPassed" : false,
+        "newBroken" : false,
+        "retriesCount" : 0,
+        "retriesStatusChange" : false,
+        "parameters" : [ ]
+      }, {
+        "name" : "testButton",
+        "uid" : "13061d497a233153",
+        "parentUid" : "1d3e91f2b2189aa7aa0a8dcfdfded86f",
+        "status" : "failed",
+        "time" : {
+          "start" : 1649101468284,
+          "stop" : 1649101468471,
+          "duration" : 187
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "newPassed" : false,
+        "newBroken" : false,
+        "retriesCount" : 0,
+        "retriesStatusChange" : false,
+        "parameters" : [ ]
+      } ],
+      "uid" : "1d3e91f2b2189aa7aa0a8dcfdfded86f"
+    }, {
+      "name" : "Wait for alert to be present failed.",
+      "children" : [ {
+        "name" : "acceptPromptAlertWithoutTypingTextMessage",
+        "uid" : "2146d93cccf6fc9a",
+        "parentUid" : "6e23ce99596fb81abaf9b62d8b16a1f1",
+        "status" : "failed",
+        "time" : {
+          "start" : 1649101174232,
+          "stop" : 1649101204951,
+          "duration" : 30719
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "newPassed" : false,
+        "newBroken" : false,
+        "retriesCount" : 0,
+        "retriesStatusChange" : false,
+        "parameters" : [ ]
+      }, {
+        "name" : "acceptAlert",
+        "uid" : "928c902151836f26",
+        "parentUid" : "6e23ce99596fb81abaf9b62d8b16a1f1",
+        "status" : "failed",
+        "time" : {
+          "start" : 1649101271074,
+          "stop" : 1649101301426,
+          "duration" : 30352
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "newPassed" : false,
+        "newBroken" : false,
+        "retriesCount" : 0,
+        "retriesStatusChange" : false,
+        "parameters" : [ ]
+      }, {
+        "name" : "acceptAlert",
+        "uid" : "98ac367337dd72a8",
+        "parentUid" : "6e23ce99596fb81abaf9b62d8b16a1f1",
+        "status" : "failed",
+        "time" : {
+          "start" : 1649101305915,
+          "stop" : 1649101336403,
+          "duration" : 30488
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "newPassed" : false,
+        "newBroken" : false,
+        "retriesCount" : 0,
+        "retriesStatusChange" : false,
+        "parameters" : [ ]
+      } ],
+      "uid" : "6e23ce99596fb81abaf9b62d8b16a1f1"
+    } ],
+    "uid" : "8fb3a91ba5aaf9de24cc8a92edc82b5d"
+  }, {
+    "name" : "Test defects",
+    "children" : [ {
+      "name" : "Build info: version: '4.1.3', revision: '7b1ebf28ef'\nSystem info: host: 'Mac-1649100963972.local', ip: '10.212.0.120', os.name: 'Mac OS X', os.arch: 'x86_64', os.version: '11.6.5', java.version: '17.0.2'\nDriver info: org.openqa.selenium.safari.SafariDriver\nCommand: [CA26C259-51CB-484E-A812-705D69BD3D55, getElementRect {id=node-3E6BEC48-7662-4ED0-8E94-6DEDE018A0BD}]\nCapabilities {acceptInsecureCerts: false, browserName: Safari, browserVersion: 15.4, goog:loggingPrefs: {browser: ALL, client: ALL, driver: ALL, performance: ALL, profiler: ALL, server: ALL}, javascriptEnabled: true, pageLoadStrategy: normal, platform: MAC, platformName: MAC, safari:automaticInspection: false, safari:automaticProfiling: false, safari:diagnose: false, safari:platformBuildVersion: 20G527, safari:platformVersion: 11.6.5, safari:useSimulator: false, setWindowRect: true, strictFileInteractability: false, timeouts: {pageLoad: 30000, script: 30000}, webkit:WebRTC: {DisableICECandidateFiltering: false, DisableInsecureMediaCapture: false}}\nElement: [[SafariDriver: Safari on MAC (CA26C259-51CB-484E-A812-705D69BD3D55)] -> id: finish]\nSession ID: CA26C259-51CB-484E-A812-705D69BD3D55",
+      "children" : [ {
+        "name" : "dynamicLoading_elementIsHidden",
+        "uid" : "ce75c62c41d874a1",
+        "parentUid" : "1b1ce1b4164cfc0780bada4386ae943b",
+        "status" : "broken",
+        "time" : {
+          "start" : 1649101466512,
+          "stop" : 1649101467846,
+          "duration" : 1334
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "newPassed" : false,
+        "newBroken" : false,
+        "retriesCount" : 0,
+        "retriesStatusChange" : false,
+        "parameters" : [ ]
+      } ],
+      "uid" : "1b1ce1b4164cfc0780bada4386ae943b"
+    }, {
+      "name" : "Index: 2, Size: 0",
+      "children" : [ {
+        "name" : "testLabel",
+        "uid" : "aff7b579fe20def5",
+        "parentUid" : "66fc2f9f6405f5e98aa8d7799fc30049",
+        "status" : "broken",
+        "time" : {
+          "start" : 1649101471899,
+          "stop" : 1649101478537,
+          "duration" : 6638
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "newPassed" : false,
+        "newBroken" : false,
+        "retriesCount" : 0,
+        "retriesStatusChange" : false,
+        "parameters" : [ ]
+      } ],
+      "uid" : "66fc2f9f6405f5e98aa8d7799fc30049"
+    } ],
+    "uid" : "bdbf199525818fae7a8651db9eafe741"
+  } ]
+}

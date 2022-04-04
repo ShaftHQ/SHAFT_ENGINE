@@ -1,0 +1,12 @@
+
+################################################################################################################################################
+Starting Execution:	"157 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_google.searchForQueryandAssertResultsNumDisplayed"
+Test Description:	"TC002 - Search for Query and Assert that the number of results is displayed"
+################################################################################################################################################
+[ReportManager] Type "SHAFT_Engine". @04-04-2022 19:42:56.0081 PM
+[ReportManager] Key press "Enter". @04-04-2022 19:42:56.0144 PM
+[ReportManager] Get text "About 689,000 results (0.35 seconds) Quick SettingsSee all settingsPrivacySearch historyYour data in SearchUsing SearchExplicit results filterLearn more about SafeSearchHide explicit resultsLanguagesEnglishAdvanced searchAppearanceLight themeDark themeDevice defaultSupportSearch help". @04-04-2022 19:42:57.0441 PM
+[ReportManager] Assertion Passed: The Element located by "By.id: appbar" text does not equal "". @04-04-2022 19:42:57.0797 PM
+[ReportManager] Successfully created attachment "Screenshot - 1649101377593_searchForQueryandAssertResultsNumDisplayed_ValidateElementAttribute_passed" @04-04-2022 19:42:57.0885 PM
+[ReportManager] Assertion "ValidateElementAttribute" PASSED. Expected "Value Should not be '' for the 'text' attribute, element locator 'By.id: appbar'" and Actual "About 689,000 results (0.35 seconds) Quick SettingsSee all settingsPrivacySearch historyYour data in SearchUsing SearchExplicit results filterLearn more about SafeSearchHide explicit resultsLanguagesEnglishAdvanced searchAppearanceLight themeDark themeDevice defaultSupportSearch help". Comparison Type "EQUALS". Validation Type "NEGATIVE". @04-04-2022 19:42:57.0885 P

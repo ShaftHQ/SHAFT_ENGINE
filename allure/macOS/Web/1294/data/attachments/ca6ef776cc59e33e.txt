@@ -1,0 +1,26 @@
+
+################################################################################################################################################
+Starting Execution:	"69 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_restActions.validateUserId"
+################################################################################################################################################
+[ReportManager] Response status code: "200", status line: "HTTP/1.1 200 OK" @04-04-2022 19:39:24.0696 PM
+[ReportManager] Assertion Passed: Evaluating the actual response status code against the expected one... @04-04-2022 19:39:24.0696 PM
+[ReportManager] Assertion "ValidateComparativeRelation" PASSED. Expected "200" and Actual "200". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:39:24.0697 PM
+[ReportManager] API Action "PerformRequest" successfully performed. With the following test data "Request Type: "GET" | Target Status Code: "200" | Service URL: "https://jsonplaceholder.typicode.com/users" | Content Type: "*/*" | Response Time: "48ms"". @04-04-2022 19:39:24.0725 PM
+[ReportManager] Successfully created attachment "API Request - Specifications" @04-04-2022 19:39:24.0726 PM
+[ReportManager] Successfully created attachment "API Response - JSON Body" @04-04-2022 19:39:24.0727 PM
+[ReportManager] API Action "GetResponseJSONValueAsList" successfully performed. With the following test data "$". @04-04-2022 19:39:24.0736 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:39:24.0750 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:39:24.0771 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:39:24.0787 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:39:24.0804 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:39:24.0818 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "id". @04-04-2022 19:39:24.0846 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:39:24.0876 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:39:24.0908 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:39:24.0926 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:39:24.0951 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:39:24.0972 PM
+[ReportManager] API Action "GetResponseJSONValueFromList" successfully performed. With the following test data "5". @04-04-2022 19:39:24.0972 PM
+[ReportManager] Assertion Passed: "5" is equal to "5". @04-04-2022 19:39:24.0974 PM
+[ReportManager] Assertion "ValidateEquals" PASSED. Expected "5" and Actual "5". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:39:24.0975 P

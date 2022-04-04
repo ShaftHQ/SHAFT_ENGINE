@@ -1,0 +1,18 @@
+
+################################################################################################################################################
+Starting Execution:	"5 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_element_elementActions.waitForElementToBePresent_true_expectedToPass"
+################################################################################################################################################
+[ReportManager] Target URL: "https://www.google.com/ncr", and after redirection: "www.google.com" @04-04-2022 19:38:25.0276 PM
+[ReportManager] Initial URL: "" @04-04-2022 19:38:25.0322 PM
+[ReportManager] Navigate to url "https://www.google.com/ncr". @04-04-2022 19:38:26.0912 PM
+[ReportManager] Waiting for element to be present; elementLocator "By.xpath: //*[@id='hplogo' or @alt='Google']", numberOfTries"1", stateOfPresence"true"... @04-04-2022 19:38:26.0912 PM
+[ReportManager] Wait for element to be present "waited for the element's state of presence to be (true). Element locator (By.xpath: //*[@id='hplogo' or @alt='Google'])". @04-04-2022 19:38:26.0942 PM
+[ReportManager] File Action "DoesFileExist" successfully performed. With the following test data "File Path: "src/main/resources/dynamicObjectRepository/unitTests_tests_element_elementActions_waitForElementToBePresent_true_expectedToPass_By_xpath_id_hplogo_or_alt_Google.png"". @04-04-2022 19:38:26.0951 PM
+[ReportManager] File Action "DoesFileExist" successfully performed. With the following test data "File Path: "src/main/resources/dynamicObjectRepository/unitTests_tests_element_elementActions_waitForElementToBePresent_true_expectedToPass_By_xpath_id_hplogo_or_alt_Google.png"". @04-04-2022 19:38:27.0019 PM
+[ReportManager] Passing the test and saving a reference image @04-04-2022 19:38:27.0019 PM
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative File Path: "src/main/resources/dynamicObjectRepository/unitTests_tests_element_elementActions_waitForElementToBePresent_true_expectedToPass_By_xpath_id_hplogo_or_alt_Google.png"". @04-04-2022 19:38:27.0019 PM
+[ReportManager] File Action "WriteToFile" successfully performed. With the following test data "Target File Path: "/Users/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/main/resources/dynamicObjectRepository/unitTests_tests_element_elementActions_waitForElementToBePresent_true_expectedToPass_By_xpath_id_hplogo_or_alt_Google.png"". @04-04-2022 19:38:27.0020 PM
+[ReportManager] Assertion Passed: Using Visual AI; OpenCV @04-04-2022 19:38:27.0022 PM
+[ReportManager] Successfully created attachment "Validation Test Data - Actual Screenshot" @04-04-2022 19:38:27.0023 PM
+[ReportManager] Assertion "ValidateElementMatches" PASSED. Expected "Element should match the reference screenshot" and Actual "TRUE". Comparison Type "EXACT_OPENCV". Validation Type "POSITIVE". @04-04-2022 19:38:27.0023 P

@@ -1,0 +1,10 @@
+
+################################################################################################################################################
+Starting Execution:	"177 out of 179" test cases in the current suite
+Test Method:		"dsl.testDsl.testButton"
+################################################################################################################################################
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 19:44:28.0285 PM
+[ReportManager] Attempting to run locally on: "Mac-64 | Safari", Headless Execution. @04-04-2022 19:44:28.0285 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 19:44:28.0468 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 19:44:28.0469 PM
+[ReportManager] Driver Factory Action "createNewLocalDriverInstanceForSafari" failed. With the following test data "Failed to create a session on DESKTOP_SAFARI". @04-04-2022 19:44:28.0469 P

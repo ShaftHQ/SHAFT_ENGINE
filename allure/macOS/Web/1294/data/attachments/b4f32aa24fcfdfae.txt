@@ -1,0 +1,9 @@
+
+################################################################################################################################################
+Starting Execution:	"38 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertElementAttribute_true_caseInsensitiveComparison_expectedToPass"
+################################################################################################################################################
+[ReportManager] Type "AUTOMATION". @04-04-2022 19:39:04.0076 PM
+[ReportManager] Get text "AUTOMATION". @04-04-2022 19:39:04.0180 PM
+[ReportManager] Assertion "ValidateElementAttribute" PASSED. Expected "Value Should be 'AutomaTion' for the 'text' attribute, element locator 'By.name: q'" and Actual "AUTOMATION". Comparison Type "CASE_INSENSITIVE". Validation Type "POSITIVE". @04-04-2022 19:39:04.0409 PM
+[ReportManager] Successfully created attachment "Screenshot - 1649101144308_assertElementAttribute_true_caseInsensitiveComparison_expectedToPass_ValidateElementAttribute_passed" @04-04-2022 19:39:04.0412 P

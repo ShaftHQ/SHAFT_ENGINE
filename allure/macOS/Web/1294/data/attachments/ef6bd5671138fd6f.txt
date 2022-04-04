@@ -1,0 +1,15 @@
+
+################################################################################################################################################
+Starting Execution:	"85 out of 179" test cases in the current suite
+Test Method:		"testPackage01.TestJSAlertBox.getJSAlertText"
+################################################################################################################################################
+[ReportManager] Click "By.xpath: //button[contains(text(),'Click for JS Alert')]". @04-04-2022 19:41:10.0802 PM
+[ReportManager] Alert is present @04-04-2022 19:41:10.0809 PM
+[ReportManager] Alert Text is: [I am a JS Alert] @04-04-2022 19:41:10.0824 PM
+[ReportManager] Get alert text. @04-04-2022 19:41:10.0825 PM
+[ReportManager] Alert text is: [I am a JS Alert] @04-04-2022 19:41:10.0826 PM
+[ReportManager] Alert is present @04-04-2022 19:41:10.0836 PM
+[ReportManager] Alert Text is: [I am a JS Alert] @04-04-2022 19:41:10.0852 PM
+[ReportManager] Get alert text. @04-04-2022 19:41:10.0854 PM
+[ReportManager] Assertion Passed: "I am a JS Alert" is equal to "I am a JS Alert". @04-04-2022 19:41:10.0854 PM
+[ReportManager] Assertion "ValidateEquals" PASSED. Expected "I am a JS Alert" and Actual "I am a JS Alert". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:41:10.0854 P

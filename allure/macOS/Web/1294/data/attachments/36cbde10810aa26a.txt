@@ -1,0 +1,10 @@
+
+################################################################################################################################################
+Starting Execution:	"155 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_dragAndDrop.dragAndDropByOffset"
+Test Description:	"TC002 - Test Drag and Drop by offset function."
+################################################################################################################################################
+[ReportManager] Target URL: "https://jqueryui.com/resources/demos/draggable/default.html" @04-04-2022 19:42:49.0958 PM
+[ReportManager] Initial URL: "" @04-04-2022 19:42:49.0987 PM
+[ReportManager] Navigate to url "https://jqueryui.com/resources/demos/draggable/default.html". @04-04-2022 19:42:50.0345 PM
+[ReportManager] Drag and drop by offset "Start point: (8, 8), End point: (108, 58)". @04-04-2022 19:42:51.0149 P

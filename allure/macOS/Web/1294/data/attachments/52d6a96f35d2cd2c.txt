@@ -1,0 +1,10 @@
+
+################################################################################################################################################
+Starting Execution:	"168 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_IsElementClickable.testIsElementClickable"
+################################################################################################################################################
+[ReportManager] Target URL: "https://the-internet.herokuapp.com/" @04-04-2022 19:43:19.0561 PM
+[ReportManager] Initial URL: "" @04-04-2022 19:43:19.0591 PM
+[ReportManager] Navigate to url "https://the-internet.herokuapp.com/". @04-04-2022 19:43:20.0222 PM
+[ReportManager] Is element clickable. @04-04-2022 19:43:20.0305 PM
+[ReportManager] Assertion "ValidateTrue" PASSED. Expected "TRUE" and Actual "TRUE". Validation Type "POSITIVE". @04-04-2022 19:43:20.0305 P

@@ -1,0 +1,3801 @@
+{
+  "c80eb0293658685903bd1fd24f492c08" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 1,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "ce75c62c41d874a1",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/ce75c62c41d874a1",
+      "status" : "broken",
+      "statusDetails" : "Build info: version: '4.1.3', revision: '7b1ebf28ef'\nSystem info: host: 'Mac-1649100963972.local', ip: '10.212.0.120', os.name: 'Mac OS X', os.arch: 'x86_64', os.version: '11.6.5', java.version: '17.0.2'\nDriver info: org.openqa.selenium.safari.SafariDriver\nCommand: [CA26C259-51CB-484E-A812-705D69BD3D55, getElementRect {id=node-3E6BEC48-7662-4ED0-8E94-6DEDE018A0BD}]\nCapabilities {acceptInsecureCerts: false, browserName: Safari, browserVersion: 15.4, goog:loggingPrefs: {browser: ALL, client: ALL, driver: ALL, performance: ALL, profiler: ALL, server: ALL}, javascriptEnabled: true, pageLoadStrategy: normal, platform: MAC, platformName: MAC, safari:automaticInspection: false, safari:automaticProfiling: false, safari:diagnose: false, safari:platformBuildVersion: 20G527, safari:platformVersion: 11.6.5, safari:useSimulator: false, setWindowRect: true, strictFileInteractability: false, timeouts: {pageLoad: 30000, script: 30000}, webkit:WebRTC: {DisableICECandidateFiltering: false, DisableInsecureMediaCapture: false}}\nElement: [[SafariDriver: Safari on MAC (CA26C259-51CB-484E-A812-705D69BD3D55)] -> id: finish]\nSession ID: CA26C259-51CB-484E-A812-705D69BD3D55",
+      "time" : {
+        "start" : 1649101466512,
+        "stop" : 1649101467846,
+        "duration" : 1334
+      }
+    } ]
+  },
+  "5d486709805afb09377652af1cb44b43" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "a87d2a0abe4a8307",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/a87d2a0abe4a8307",
+      "status" : "skipped",
+      "statusDetails" : "Method testPackage01.TestJSPromptBox.acceptPromptAlertWithTextMessage() on instance testPackage01.TestJSPromptBox@5e65afb6 depends on not successfully finished methods \n[testPackage01.TestJSPromptBox.assertOnConfirmPromptAlertWithoutTypingTextMessageResultText() on instance testPackage01.TestJSPromptBox@5e65afb6]",
+      "time" : {
+        "start" : 1649101205021,
+        "stop" : 1649101205029,
+        "duration" : 8
+      }
+    } ]
+  },
+  "7b0f8854a7aed9a150b2fc57963781fa" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "f1750e6f62738f68",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/f1750e6f62738f68",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101342035,
+        "stop" : 1649101342118,
+        "duration" : 83
+      }
+    } ]
+  },
+  "42db9a0b95e9103a321dfe36eb368c1b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "17b49803fa7c0632",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/17b49803fa7c0632",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101373101,
+        "stop" : 1649101375321,
+        "duration" : 2220
+      }
+    } ]
+  },
+  "2314bd23a656a36ab83c22386848f0d4" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "7982ca84e0253719",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/7982ca84e0253719",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101172665,
+        "stop" : 1649101173114,
+        "duration" : 449
+      }
+    } ]
+  },
+  "9557c3315a180b8221de8066c242409a" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "4c1ff7dd6ee19c5",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/4c1ff7dd6ee19c5",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101107660,
+        "stop" : 1649101107661,
+        "duration" : 1
+      }
+    } ]
+  },
+  "3f6e5843fc6c685f5ebc75fde75ac218" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "752b0b43e0f998af",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/752b0b43e0f998af",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101129105,
+        "stop" : 1649101130531,
+        "duration" : 1426
+      }
+    } ]
+  },
+  "973cdadfe7b0529022bcd219aff55968" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "6a2a64cb63471bd3",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/6a2a64cb63471bd3",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101344487,
+        "stop" : 1649101344569,
+        "duration" : 82
+      }
+    } ]
+  },
+  "4a29903560362dbd17b5dd05d236bc8b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "4d9f9aa81c267b97",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/4d9f9aa81c267b97",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101304871,
+        "stop" : 1649101305506,
+        "duration" : 635
+      }
+    } ]
+  },
+  "7ce456f557879027bc598b94d15d7182" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "246b0d247c8f7426",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/246b0d247c8f7426",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101108798,
+        "stop" : 1649101108799,
+        "duration" : 1
+      }
+    } ]
+  },
+  "d22b5e6c4280f54bf49831434b9e5018" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "4e72a37d2c13c2b1",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/4e72a37d2c13c2b1",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101156090,
+        "stop" : 1649101156091,
+        "duration" : 1
+      }
+    } ]
+  },
+  "78ea19100e80c1035dba15d878a0a444" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "2b6b701d0497eba7",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/2b6b701d0497eba7",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101355988,
+        "stop" : 1649101361060,
+        "duration" : 5072
+      }
+    } ]
+  },
+  "7e80de2d453155ab307b931149cee737" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "100deb2cad2121f8",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/100deb2cad2121f8",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101344277,
+        "stop" : 1649101344359,
+        "duration" : 82
+      }
+    } ]
+  },
+  "d766de23786c53f441d161eddaf1215a" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "367f452c83db7637",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/367f452c83db7637",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101341526,
+        "stop" : 1649101341611,
+        "duration" : 85
+      }
+    } ]
+  },
+  "d9c1f161fa2285acc4faca119ad8939" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "7396dac0eacd6948",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/7396dac0eacd6948",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101353639,
+        "stop" : 1649101353723,
+        "duration" : 84
+      }
+    } ]
+  },
+  "64a8852b286bab5ef838177e652e731e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "2876c59759c25ec1",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/2876c59759c25ec1",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101156101,
+        "stop" : 1649101156102,
+        "duration" : 1
+      }
+    } ]
+  },
+  "bb31d8b47e1a96c6836334320447d229" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "e9b838d3efdbe390",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/e9b838d3efdbe390",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101270570,
+        "stop" : 1649101270989,
+        "duration" : 419
+      }
+    } ]
+  },
+  "eb85811949f431b7a228b6de557ce34e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "71f1e45d7e02c430",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/71f1e45d7e02c430",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101343854,
+        "stop" : 1649101343896,
+        "duration" : 42
+      }
+    } ]
+  },
+  "e025b82a7d1b9f5f8cfaebf774709daa" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "61499c78342bdae",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/61499c78342bdae",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101361494,
+        "stop" : 1649101363233,
+        "duration" : 1739
+      }
+    } ]
+  },
+  "89010c35d43262e5174c0abc3b833ff2" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "2146d93cccf6fc9a",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/2146d93cccf6fc9a",
+      "status" : "failed",
+      "statusDetails" : "Wait for alert to be present failed.",
+      "time" : {
+        "start" : 1649101174232,
+        "stop" : 1649101204951,
+        "duration" : 30719
+      }
+    } ]
+  },
+  "f5eb3e0657331ec851f236cbdec9dbc3" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "16a52f93670af693",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/16a52f93670af693",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101147211,
+        "stop" : 1649101147989,
+        "duration" : 778
+      }
+    } ]
+  },
+  "d559bced8169d88c5be9f05e55e1d81b" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "f786d88117799ee8",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/f786d88117799ee8",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101155764,
+        "stop" : 1649101155764,
+        "duration" : 0
+      }
+    } ]
+  },
+  "936e6a9ee701fb7c11ed14ca761ff87e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "68d84859e640b1ab",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/68d84859e640b1ab",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101348594,
+        "stop" : 1649101349014,
+        "duration" : 420
+      }
+    } ]
+  },
+  "b7fc3abf80e9bbdd5097280c59543cd9" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "e0b8da0a63ff97f9",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/e0b8da0a63ff97f9",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101156071,
+        "stop" : 1649101156073,
+        "duration" : 2
+      }
+    } ]
+  },
+  "e13eda38936ccb8186efbcb0f47508c8" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "2d0477b313f71f0b",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/2d0477b313f71f0b",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101339671,
+        "stop" : 1649101339713,
+        "duration" : 42
+      }
+    } ]
+  },
+  "18ebb827f5e596bdd48750256bb3ed08" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "9e79659b4b62292d",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/9e79659b4b62292d",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101107692,
+        "stop" : 1649101107696,
+        "duration" : 4
+      }
+    } ]
+  },
+  "17b5b8806ac7eb710c4c7956140eaecf" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 1,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "aff7b579fe20def5",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/aff7b579fe20def5",
+      "status" : "broken",
+      "statusDetails" : "Index: 2, Size: 0",
+      "time" : {
+        "start" : 1649101471899,
+        "stop" : 1649101478537,
+        "duration" : 6638
+      }
+    } ]
+  },
+  "19999555bce5de3735ec04b0e0646e14" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "51d3bd43d6d21ffc",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/51d3bd43d6d21ffc",
+      "status" : "skipped",
+      "statusDetails" : "Method testPackage01.TestJSAlertBox.assertOnConfirmAlertResultText() on instance testPackage01.TestJSAlertBox@5633ed82 depends on not successfully finished methods \n[testPackage01.TestJSAlertBox.acceptAlert() on instance testPackage01.TestJSAlertBox@5633ed82]",
+      "time" : {
+        "start" : 1649101301513,
+        "stop" : 1649101301600,
+        "duration" : 87
+      }
+    } ]
+  },
+  "fa8089fdd54895368300d31f35070cea" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "2e69db38ee03418b",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/2e69db38ee03418b",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101156093,
+        "stop" : 1649101156095,
+        "duration" : 2
+      }
+    } ]
+  },
+  "381ba714b0c66de2985d3ae81acb5e17" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "56371ce0990fc2b5",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/56371ce0990fc2b5",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101342289,
+        "stop" : 1649101342372,
+        "duration" : 83
+      }
+    } ]
+  },
+  "8a857219522d374b9811362ab4602182" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "ef6cc9742cc051b7",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/ef6cc9742cc051b7",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101153842,
+        "stop" : 1649101155253,
+        "duration" : 1411
+      }
+    } ]
+  },
+  "b1a09b6933c16fdc5feb53cd6bbf1690" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "c0fe2e16618ce930",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/c0fe2e16618ce930",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101155766,
+        "stop" : 1649101155767,
+        "duration" : 1
+      }
+    } ]
+  },
+  "7c02c0395504a7a7869fd091b6dfff0b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "b108dbecaaf78238",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/b108dbecaaf78238",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101369958,
+        "stop" : 1649101371247,
+        "duration" : 1289
+      }
+    } ]
+  },
+  "7546566432535191f8975bb3f3cb9a48" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "e13e61e02058c208",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/e13e61e02058c208",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101344613,
+        "stop" : 1649101344698,
+        "duration" : 85
+      }
+    } ]
+  },
+  "81dccf0fa5dda2c07b8a2e38642301d4" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "5ee097db5dd45205",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/5ee097db5dd45205",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101455534,
+        "stop" : 1649101462187,
+        "duration" : 6653
+      }
+    } ]
+  },
+  "205c8f457ef688cf6d163c40609c62a5" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "c030a31306163b03",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/c030a31306163b03",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101468277,
+        "stop" : 1649101468277,
+        "duration" : 0
+      }
+    } ]
+  },
+  "24d179f984390efd4095c1ca70d9ae83" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "460a8be2f5201cd0",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/460a8be2f5201cd0",
+      "status" : "skipped",
+      "statusDetails" : "Method testPackage01.TestJSConfirmBox.assertOnConfirmAlertResultText() on instance testPackage01.TestJSConfirmBox@34d52ecd depends on not successfully finished methods \n[testPackage01.TestJSConfirmBox.acceptAlert() on instance testPackage01.TestJSConfirmBox@34d52ecd]",
+      "time" : {
+        "start" : 1649101336489,
+        "stop" : 1649101336576,
+        "duration" : 87
+      }
+    } ]
+  },
+  "533920f5a2f0b64ac5274dd751cde692" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "df098489a6e4ad0f",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/df098489a6e4ad0f",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101351895,
+        "stop" : 1649101353028,
+        "duration" : 1133
+      }
+    } ]
+  },
+  "c5a92213d3cbe213658c780681a07039" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "96ef12d70adbd19d",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/96ef12d70adbd19d",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101107703,
+        "stop" : 1649101107707,
+        "duration" : 4
+      }
+    } ]
+  },
+  "5eb7f769276356accd4c25c7c882af5f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "1b16ea9924ab4364",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/1b16ea9924ab4364",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101339921,
+        "stop" : 1649101339963,
+        "duration" : 42
+      }
+    } ]
+  },
+  "50b134c4ce45667640a8b328092e77c" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "2825d3599e0c8ee3",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/2825d3599e0c8ee3",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101468473,
+        "stop" : 1649101471897,
+        "duration" : 3424
+      }
+    } ]
+  },
+  "b27c77614b887aad9233c87f6d999b88" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "afb8ba3ea92c6c5a",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/afb8ba3ea92c6c5a",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101390599,
+        "stop" : 1649101391029,
+        "duration" : 430
+      }
+    } ]
+  },
+  "5514b76ba1dc4de2d7fa6ed8af87a94e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "7f507c9af05e5787",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/7f507c9af05e5787",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101156115,
+        "stop" : 1649101164362,
+        "duration" : 8247
+      }
+    } ]
+  },
+  "259a17265cbc92933de3cafb98400a6e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "60768e7eab2b987f",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/60768e7eab2b987f",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101340553,
+        "stop" : 1649101340635,
+        "duration" : 82
+      }
+    } ]
+  },
+  "a55bf854e3301a0d60e84ba8c52fc696" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "2ed84e302e018b92",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/2ed84e302e018b92",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101354371,
+        "stop" : 1649101354726,
+        "duration" : 355
+      }
+    } ]
+  },
+  "29286b1e51fc227b9e82df438242ddee" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "1b9c82cfa6cfc0d",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/1b9c82cfa6cfc0d",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101305590,
+        "stop" : 1649101305912,
+        "duration" : 322
+      }
+    } ]
+  },
+  "8a4b6fbdb2fb99adceabd3a1832314da" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "cec5d3e4b5cb82d8",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/cec5d3e4b5cb82d8",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101391074,
+        "stop" : 1649101391376,
+        "duration" : 302
+      }
+    } ]
+  },
+  "449a6e184141d72ffe54fd6d696434a1" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "9ca2d553bf1587e8",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/9ca2d553bf1587e8",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101155834,
+        "stop" : 1649101155835,
+        "duration" : 1
+      }
+    } ]
+  },
+  "8f7225c8a7be388cf13fecdcb10b58f2" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "d43c8e7e9a6ce7c",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/d43c8e7e9a6ce7c",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101343601,
+        "stop" : 1649101343644,
+        "duration" : 43
+      }
+    } ]
+  },
+  "4604ee6340e8cffa6c36a592668ef42b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "c13eac0b3a129558",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/c13eac0b3a129558",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101156112,
+        "stop" : 1649101156113,
+        "duration" : 1
+      }
+    } ]
+  },
+  "8fbac502e2af59bbc9b8d6966d933655" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "b1d17e049276ca2",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/b1d17e049276ca2",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101107684,
+        "stop" : 1649101107686,
+        "duration" : 2
+      }
+    } ]
+  },
+  "544df7d2fdf8d5d984aa580e8196cbfd" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "fd31c85817d0c20e",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/fd31c85817d0c20e",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101391676,
+        "stop" : 1649101391760,
+        "duration" : 84
+      }
+    } ]
+  },
+  "fb7f8cd889260df26b212bf10e840f0b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "6488248d1e45f68f",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/6488248d1e45f68f",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101304443,
+        "stop" : 1649101304787,
+        "duration" : 344
+      }
+    } ]
+  },
+  "41278362e80181fdd24eb6bcfdf1706d" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "8ccb53cf60d17c81",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/8ccb53cf60d17c81",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101338110,
+        "stop" : 1649101338193,
+        "duration" : 83
+      }
+    } ]
+  },
+  "a668d1f7bbf0bd93bfbcd970b468fe16" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "2bcae262e3447934",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/2bcae262e3447934",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101108751,
+        "stop" : 1649101108777,
+        "duration" : 26
+      }
+    } ]
+  },
+  "ceff922ad3b0be43f47e1a6c9f6d6bb7" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "efd8be66ed9740e0",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/efd8be66ed9740e0",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101341016,
+        "stop" : 1649101341101,
+        "duration" : 85
+      }
+    } ]
+  },
+  "d29c9fb7cd6947e47db9b9fdd63ebebd" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "8b4a3aef7431290a",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/8b4a3aef7431290a",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101107723,
+        "stop" : 1649101107725,
+        "duration" : 2
+      }
+    } ]
+  },
+  "c88b9e1406b592eee831601849d31189" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "b3f0e471e0691330",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/b3f0e471e0691330",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101339420,
+        "stop" : 1649101339462,
+        "duration" : 42
+      }
+    } ]
+  },
+  "eef38b1ce4f88333b32ebfb6abbceeaa" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "c7533f4072233e89",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/c7533f4072233e89",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101107620,
+        "stop" : 1649101107621,
+        "duration" : 1
+      }
+    } ]
+  },
+  "5702a1676b94e58bea6b43247a9f5f63" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "52d374fba179798",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/52d374fba179798",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101393216,
+        "stop" : 1649101397841,
+        "duration" : 4625
+      }
+    } ]
+  },
+  "264074a39b89752d2d36dd84bd40d1a6" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "b69c0bba5b551472",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/b69c0bba5b551472",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101139912,
+        "stop" : 1649101140799,
+        "duration" : 887
+      }
+    } ]
+  },
+  "a7f13c7258205c7561eec94d1b8d3f54" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "16c43152b1b616fc",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/16c43152b1b616fc",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101268702,
+        "stop" : 1649101268702,
+        "duration" : 0
+      }
+    } ]
+  },
+  "476ac2975115e742d5e5e8c3b57ebdf4" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "91babf65f4d16797",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/91babf65f4d16797",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101107639,
+        "stop" : 1649101107640,
+        "duration" : 1
+      }
+    } ]
+  },
+  "bb7188203f90a1a2fad67230270ae7d6" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "5fe7dcb5e0a48065",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/5fe7dcb5e0a48065",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101265760,
+        "stop" : 1649101267805,
+        "duration" : 2045
+      }
+    } ]
+  },
+  "2665e846a50930cc0c074f7f99a4ca8a" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "892d74b46e84165d",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/892d74b46e84165d",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101353372,
+        "stop" : 1649101353596,
+        "duration" : 224
+      }
+    } ]
+  },
+  "1691af37f7c9ae9ee1c9cd54fed41695" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "ee4581a614b1480f",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/ee4581a614b1480f",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101341399,
+        "stop" : 1649101341481,
+        "duration" : 82
+      }
+    } ]
+  },
+  "63649f69a4abb8dd3b565d89d813e4d" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "d8f55bff06475e97",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/d8f55bff06475e97",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101337774,
+        "stop" : 1649101337774,
+        "duration" : 0
+      }
+    } ]
+  },
+  "c86091caae292bffb9efd84314332710" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "1a519c1b014435f6",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/1a519c1b014435f6",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101342416,
+        "stop" : 1649101342498,
+        "duration" : 82
+      }
+    } ]
+  },
+  "317e6cef9e3891b5a07975bb25bc5fb2" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "704c26c832f21099",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/704c26c832f21099",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101340090,
+        "stop" : 1649101340174,
+        "duration" : 84
+      }
+    } ]
+  },
+  "ac6789217d4b4a32d112e105cd2efa1f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "e448a09059980b01",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/e448a09059980b01",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101155787,
+        "stop" : 1649101155788,
+        "duration" : 1
+      }
+    } ]
+  },
+  "2a27a2abfdee42bde8e58c16a0e0f5dd" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "492b9e550f38636b",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/492b9e550f38636b",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101341907,
+        "stop" : 1649101341990,
+        "duration" : 83
+      }
+    } ]
+  },
+  "bef677b60015e2d35d5030f6c3bfcf99" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "280a556f024016e4",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/280a556f024016e4",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101156086,
+        "stop" : 1649101156088,
+        "duration" : 2
+      }
+    } ]
+  },
+  "8c403aaf85c1c2abafe0a9a5d008562b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "22e5fe93e3a80756",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/22e5fe93e3a80756",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101446118,
+        "stop" : 1649101449277,
+        "duration" : 3159
+      }
+    } ]
+  },
+  "ada58dba4d4104022dc5d96f0cd4fe5" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "13061d497a233153",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/13061d497a233153",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101468284,
+        "stop" : 1649101468471,
+        "duration" : 187
+      }
+    } ]
+  },
+  "dc2cc42de249444fb1e5a25eaca827d0" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "ed31699c4a16d50f",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/ed31699c4a16d50f",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101344023,
+        "stop" : 1649101344106,
+        "duration" : 83
+      }
+    } ]
+  },
+  "1ef8e17d688014fbe6390ba22408aa7b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "67bd1ed3840c6d2a",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/67bd1ed3840c6d2a",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101155794,
+        "stop" : 1649101155795,
+        "duration" : 1
+      }
+    } ]
+  },
+  "eb4868839e997e5aed90ae6a95488276" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "4a998633202e1401",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/4a998633202e1401",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101121921,
+        "stop" : 1649101122448,
+        "duration" : 527
+      }
+    } ]
+  },
+  "2935f6195ae2ad2b57e1bc1f5cb3a205" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "ed9b7ed2cec2d2bd",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/ed9b7ed2cec2d2bd",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101170080,
+        "stop" : 1649101170163,
+        "duration" : 83
+      }
+    } ]
+  },
+  "e8b8340fde60dd2f177bd721ae597277" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "668e732c7a8846b5",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/668e732c7a8846b5",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101077154,
+        "stop" : 1649101085238,
+        "duration" : 8084
+      }
+    } ]
+  },
+  "8d1d2653d45ddc1144dd8fa258b167c2" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "65705e8280e666eb",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/65705e8280e666eb",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101155800,
+        "stop" : 1649101155827,
+        "duration" : 27
+      }
+    } ]
+  },
+  "a7e9d82b8312bf54112ba6b33d3a8577" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "70ab929840b2ac75",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/70ab929840b2ac75",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101341654,
+        "stop" : 1649101341737,
+        "duration" : 83
+      }
+    } ]
+  },
+  "bdef01ca6cf8bbcc16448d374eaad143" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "c07b4d51d6866bd4",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/c07b4d51d6866bd4",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101342670,
+        "stop" : 1649101342754,
+        "duration" : 84
+      }
+    } ]
+  },
+  "7a5a0716c213c4b3784adbf28353af84" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "838a7cac3117640a",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/838a7cac3117640a",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101107674,
+        "stop" : 1649101107675,
+        "duration" : 1
+      }
+    } ]
+  },
+  "f031b53e9f7c0028d5e3acbdc1200881" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "eed9b557f64d9978",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/eed9b557f64d9978",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101468279,
+        "stop" : 1649101468280,
+        "duration" : 1
+      }
+    } ]
+  },
+  "50a7bbf2e6e4c20e0204965d4abee130" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "83c4b93aceb48d3c",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/83c4b93aceb48d3c",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101118397,
+        "stop" : 1649101119063,
+        "duration" : 666
+      }
+    } ]
+  },
+  "b9150818268b7ec2c8e5485db15d9400" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "e9a378cc9c6a90d0",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/e9a378cc9c6a90d0",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101108794,
+        "stop" : 1649101108796,
+        "duration" : 2
+      }
+    } ]
+  },
+  "f7635885016b46463315d3b46906bf7a" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "7635a217f9d8aa11",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/7635a217f9d8aa11",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101156105,
+        "stop" : 1649101156106,
+        "duration" : 1
+      }
+    } ]
+  },
+  "a98fe8bcf288514fe4d68652f7efbe8e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "dd7702a1194a014a",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/dd7702a1194a014a",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101351475,
+        "stop" : 1649101351811,
+        "duration" : 336
+      }
+    } ]
+  },
+  "badd6454e3076c44a673a71b57708fe0" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "643e0e092f3fc46e",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/643e0e092f3fc46e",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101379860,
+        "stop" : 1649101384093,
+        "duration" : 4233
+      }
+    } ]
+  },
+  "45dcfe76f1bd97f7cb03c724bcc68eb8" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "660ec3874faf04ea",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/660ec3874faf04ea",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101156109,
+        "stop" : 1649101156110,
+        "duration" : 1
+      }
+    } ]
+  },
+  "a56697260ac1ade7b44ceede44b0438a" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "a3afabe1e8e94e7b",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/a3afabe1e8e94e7b",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101342162,
+        "stop" : 1649101342244,
+        "duration" : 82
+      }
+    } ]
+  },
+  "9829372d1b547228b4f16b7901ea9cc9" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "7533257d16c5fa8",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/7533257d16c5fa8",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101264406,
+        "stop" : 1649101264513,
+        "duration" : 107
+      }
+    } ]
+  },
+  "7b01ba3878dc2dba2c2c7f95381cb742" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "2010a2a099cb030",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/2010a2a099cb030",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101338659,
+        "stop" : 1649101338702,
+        "duration" : 43
+      }
+    } ]
+  },
+  "5cf45cc810e8dfc458ef474e637734f6" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "9fad7cbfb0b5de97",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/9fad7cbfb0b5de97",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101114768,
+        "stop" : 1649101115590,
+        "duration" : 822
+      }
+    } ]
+  },
+  "4f509b7f8127a2b88f6b1a2dc70a2a2d" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "156ef5b28d4a8e07",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/156ef5b28d4a8e07",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101205696,
+        "stop" : 1649101264260,
+        "duration" : 58564
+      }
+    } ]
+  },
+  "e9f5095fd5d47bf8f5c36cd72f1e335b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "c9c6d059259df8cd",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/c9c6d059259df8cd",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101350258,
+        "stop" : 1649101350763,
+        "duration" : 505
+      }
+    } ]
+  },
+  "265ede85dd354b1c18327880ee92510d" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "bcf89830cce7982",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/bcf89830cce7982",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101086508,
+        "stop" : 1649101093179,
+        "duration" : 6671
+      }
+    } ]
+  },
+  "e167cb0f0b9e165fa2d11a66959b8c90" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "cd17135bbdefe3bf",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/cd17135bbdefe3bf",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101170289,
+        "stop" : 1649101170822,
+        "duration" : 533
+      }
+    } ]
+  },
+  "780378a4706344e151b2791aff941970" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "5695a00ca5589dd3",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/5695a00ca5589dd3",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101391550,
+        "stop" : 1649101391633,
+        "duration" : 83
+      }
+    } ]
+  },
+  "b59581a81571dbdc3929ef903c9a68af" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "f216aba69c261efd",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/f216aba69c261efd",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101353767,
+        "stop" : 1649101354287,
+        "duration" : 520
+      }
+    } ]
+  },
+  "6bfdcb3e2066e47f76cdc938949ea3b5" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "f9afd06259c073ec",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/f9afd06259c073ec",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101108802,
+        "stop" : 1649101108803,
+        "duration" : 1
+      }
+    } ]
+  },
+  "9c719c977867ad678cba36ac5ef0566e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "d4fa2b7909f84135",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/d4fa2b7909f84135",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101367470,
+        "stop" : 1649101368714,
+        "duration" : 1244
+      }
+    } ]
+  },
+  "f2d8045cb196fac44acf056daf2910f1" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "3a1c352794b66e87",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/3a1c352794b66e87",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101156083,
+        "stop" : 1649101156084,
+        "duration" : 1
+      }
+    } ]
+  },
+  "8da2170c533f4aff45bc62dac6da1bf8" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "510709d05a9a14a4",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/510709d05a9a14a4",
+      "status" : "skipped",
+      "statusDetails" : "Method testPackage01.TestJSPromptBox.assertOnConfirmPromptAlertWithoutTypingTextMessageResultText() on instance testPackage01.TestJSPromptBox@5e65afb6 depends on not successfully finished methods \n[testPackage01.TestJSPromptBox.acceptPromptAlertWithoutTypingTextMessage() on instance testPackage01.TestJSPromptBox@5e65afb6]",
+      "time" : {
+        "start" : 1649101204985,
+        "stop" : 1649101204991,
+        "duration" : 6
+      }
+    } ]
+  },
+  "69bacfe7d32090425eadf00e77ec2fcd" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "11264eafa1b40954",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/11264eafa1b40954",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101340804,
+        "stop" : 1649101340887,
+        "duration" : 83
+      }
+    } ]
+  },
+  "19a9da5f20787f6a62b7cf5efdc0b4e3" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "740893df8e414a2e",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/740893df8e414a2e",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101150610,
+        "stop" : 1649101151277,
+        "duration" : 667
+      }
+    } ]
+  },
+  "60da75bce66f0a062056dcf68a93a62e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "e95d2d69ea2faafe",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/e95d2d69ea2faafe",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101364445,
+        "stop" : 1649101366166,
+        "duration" : 1721
+      }
+    } ]
+  },
+  "4864018d69af2693dbef3cc79f4b7427" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "5169ed197c8646cf",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/5169ed197c8646cf",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101302075,
+        "stop" : 1649101302427,
+        "duration" : 352
+      }
+    } ]
+  },
+  "4417a672ef985b4faf9285ce39f0cc10" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "7ee6dee9906eb8f7",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/7ee6dee9906eb8f7",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101094485,
+        "stop" : 1649101096057,
+        "duration" : 1572
+      }
+    } ]
+  },
+  "83e3cd745c904b39ba98498d793686ca" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "ee8acfb63fbf7ba",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/ee8acfb63fbf7ba",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101166068,
+        "stop" : 1649101169032,
+        "duration" : 2964
+      }
+    } ]
+  },
+  "f18d7d9f5bd5a5538a7079ad2eaa14f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "97cf26540382d949",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/97cf26540382d949",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101343220,
+        "stop" : 1649101343262,
+        "duration" : 42
+      }
+    } ]
+  },
+  "402cf2e9c00429e23b6068d754dd4dbe" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "976f711e32832ea7",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/976f711e32832ea7",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101155846,
+        "stop" : 1649101155847,
+        "duration" : 1
+      }
+    } ]
+  },
+  "7701a929ba556c35243f11ba7bc07226" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "b8f2715ba04f232b",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/b8f2715ba04f232b",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101108813,
+        "stop" : 1649101108814,
+        "duration" : 1
+      }
+    } ]
+  },
+  "c549884c29f897da052d8b7f4fdcb073" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "32f8487a8ebaf84a",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/32f8487a8ebaf84a",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101164640,
+        "stop" : 1649101164976,
+        "duration" : 336
+      }
+    } ]
+  },
+  "752ff414fedc28caa8dbb53b2fab4283" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "69b0be5f43c29233",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/69b0be5f43c29233",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101355367,
+        "stop" : 1649101355904,
+        "duration" : 537
+      }
+    } ]
+  },
+  "9ea97b85f51a64632f0eccbb9a2eca3e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "75a7eae755facf72",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/75a7eae755facf72",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101156036,
+        "stop" : 1649101156039,
+        "duration" : 3
+      }
+    } ]
+  },
+  "c6d3ce9689e0c5467257ac5580affbdc" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "3114df7de10d3389",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/3114df7de10d3389",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101111117,
+        "stop" : 1649101112100,
+        "duration" : 983
+      }
+    } ]
+  },
+  "ee987874b5afbcff3eca43bdb5081291" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "31c67f8444b84647",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/31c67f8444b84647",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101155780,
+        "stop" : 1649101155782,
+        "duration" : 2
+      }
+    } ]
+  },
+  "e88a34f039ffaa5a3e7ec815fbf7e0ee" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "2e0bba945f30b8d9",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/2e0bba945f30b8d9",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101156029,
+        "stop" : 1649101156031,
+        "duration" : 2
+      }
+    } ]
+  },
+  "9a1f1bbe3e5b531a7c1359f8ff393cf3" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "e378475afa094d46",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/e378475afa094d46",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101170036,
+        "stop" : 1649101170036,
+        "duration" : 0
+      }
+    } ]
+  },
+  "1e302c49c8f75fa918eb46dd6bc40b87" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "f44821f00c78cb83",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/f44821f00c78cb83",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101107646,
+        "stop" : 1649101107647,
+        "duration" : 1
+      }
+    } ]
+  },
+  "d5d715b3d739d9e30ec0c208231a5b19" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "41a20898b0df51cd",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/41a20898b0df51cd",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101337859,
+        "stop" : 1649101337943,
+        "duration" : 84
+      }
+    } ]
+  },
+  "fc481e47f6f435a37bd89a071e9ccc46" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "8cf7e21530e89a20",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/8cf7e21530e89a20",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101349098,
+        "stop" : 1649101349589,
+        "duration" : 491
+      }
+    } ]
+  },
+  "2b4beb423f2d0918a09c19ca2ce5f015" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "b200a37c7242477c",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/b200a37c7242477c",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101441782,
+        "stop" : 1649101446115,
+        "duration" : 4333
+      }
+    } ]
+  },
+  "a4a3705aa0579b42a1b50218e2c54e00" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "dd8fa92565e0abf1",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/dd8fa92565e0abf1",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101378011,
+        "stop" : 1649101378266,
+        "duration" : 255
+      }
+    } ]
+  },
+  "c8c76336a37556799805a49b42d957dc" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "ef9b8b149fb284d",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/ef9b8b149fb284d",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101156020,
+        "stop" : 1649101156021,
+        "duration" : 1
+      }
+    } ]
+  },
+  "c6dcb54b426317f59b4b4510b6f28e6f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "6941e77cf80d5cf9",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/6941e77cf80d5cf9",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101350846,
+        "stop" : 1649101351428,
+        "duration" : 582
+      }
+    } ]
+  },
+  "f4e42247564f9e406ac4c030f5657555" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "c6eb0bc3150edca0",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/c6eb0bc3150edca0",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101156097,
+        "stop" : 1649101156098,
+        "duration" : 1
+      }
+    } ]
+  },
+  "b4d9a91b46088e954c06abadd0ea633f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "fbf440b70243e78",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/fbf440b70243e78",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101133116,
+        "stop" : 1649101134053,
+        "duration" : 937
+      }
+    } ]
+  },
+  "dbc6fbdd3600eccd40842e7fc2a996b7" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "9148dbd98ba406be",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/9148dbd98ba406be",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101107588,
+        "stop" : 1649101107604,
+        "duration" : 16
+      }
+    } ]
+  },
+  "171d46d4135b76235154b42b11cb9d6f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "c08f6a0e61e514c7",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/c08f6a0e61e514c7",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101136653,
+        "stop" : 1649101137486,
+        "duration" : 833
+      }
+    } ]
+  },
+  "18f634cf5b3568c85a21c57b6cffaa85" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "312fba7eb5b87e2c",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/312fba7eb5b87e2c",
+      "status" : "skipped",
+      "statusDetails" : "Method testPackage01.TestJSPromptBox.assertOnConfirmPromptAlertWithTextMessageResultText() on instance testPackage01.TestJSPromptBox@5e65afb6 depends on not successfully finished methods \n[testPackage01.TestJSPromptBox.acceptPromptAlertWithTextMessage() on instance testPackage01.TestJSPromptBox@5e65afb6]",
+      "time" : {
+        "start" : 1649101205057,
+        "stop" : 1649101205064,
+        "duration" : 7
+      }
+    } ]
+  },
+  "f5f5d884f40a700315cef26011f085c6" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "7da4d46183e38370",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/7da4d46183e38370",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101391885,
+        "stop" : 1649101392146,
+        "duration" : 261
+      }
+    } ]
+  },
+  "7b086c07a7672a87f96253ea13ac87a8" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "22cac7a5e6922871",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/22cac7a5e6922871",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101342542,
+        "stop" : 1649101342625,
+        "duration" : 83
+      }
+    } ]
+  },
+  "2502a22a0190a8d9d2d99a0b3742179f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "317c2c1db762a9a0",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/317c2c1db762a9a0",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101343475,
+        "stop" : 1649101343517,
+        "duration" : 42
+      }
+    } ]
+  },
+  "9136ef17ad732926a16ab8d92c6bf567" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "f3741b4dc072c350",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/f3741b4dc072c350",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101449280,
+        "stop" : 1649101449553,
+        "duration" : 273
+      }
+    } ]
+  },
+  "9c149457b49558f6e51ed70eaa6cb83d" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "eb1b3fd4cf9405f0",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/eb1b3fd4cf9405f0",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101107666,
+        "stop" : 1649101107668,
+        "duration" : 2
+      }
+    } ]
+  },
+  "a927bad4489beeee1ac4665341bb128" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "1e7c9f0c91fd2e1d",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/1e7c9f0c91fd2e1d",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101343727,
+        "stop" : 1649101343770,
+        "duration" : 43
+      }
+    } ]
+  },
+  "9ee600c4564b8a84210f113c6a571e46" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "928c902151836f26",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/928c902151836f26",
+      "status" : "failed",
+      "statusDetails" : "Wait for alert to be present failed.",
+      "time" : {
+        "start" : 1649101271074,
+        "stop" : 1649101301426,
+        "duration" : 30352
+      }
+    } ]
+  },
+  "b166e1c1837e7780d7033eca80f4a9c7" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "ade1da9c0a517f4f",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/ade1da9c0a517f4f",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101341271,
+        "stop" : 1649101341355,
+        "duration" : 84
+      }
+    } ]
+  },
+  "f8f970faae1267b4b5c08b241d01d5ce" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "cd1ec4a98307e11",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/cd1ec4a98307e11",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101107653,
+        "stop" : 1649101107654,
+        "duration" : 1
+      }
+    } ]
+  },
+  "f8b181c41d9f9edf4c60d33877099af8" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "abaa4634410883eb",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/abaa4634410883eb",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101341146,
+        "stop" : 1649101341228,
+        "duration" : 82
+      }
+    } ]
+  },
+  "ac7fea32beee7e3033b84a4d116cf947" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "7b9f1bdf5e9b312b",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/7b9f1bdf5e9b312b",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101155892,
+        "stop" : 1649101155974,
+        "duration" : 82
+      }
+    } ]
+  },
+  "13bf298e1e204216e174902a46417745" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "7cc47c2490e7bdc7",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/7cc47c2490e7bdc7",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101391420,
+        "stop" : 1649101391503,
+        "duration" : 83
+      }
+    } ]
+  },
+  "8161aacdafcd0cb42d3204fe0672f36b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "a4acc1ac0bbc3d65",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/a4acc1ac0bbc3d65",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101399561,
+        "stop" : 1649101400347,
+        "duration" : 786
+      }
+    } ]
+  },
+  "2b4f1cef406e9101284474f8f715b361" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "6513646c3df19137",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/6513646c3df19137",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101173201,
+        "stop" : 1649101173740,
+        "duration" : 539
+      }
+    } ]
+  },
+  "5aeeb05dac2ac013bdebccaa0aaf698e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "7b030cbbd6ce1360",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/7b030cbbd6ce1360",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101155840,
+        "stop" : 1649101155841,
+        "duration" : 1
+      }
+    } ]
+  },
+  "50bcdd7464e6ba911e244a1b1a36da44" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "4b2c8ea5fafab7ef",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/4b2c8ea5fafab7ef",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101268747,
+        "stop" : 1649101268829,
+        "duration" : 82
+      }
+    } ]
+  },
+  "4f4df079b1d809fbb754767db0a01e2f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "12f653b5411e3804",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/12f653b5411e3804",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101347337,
+        "stop" : 1649101347937,
+        "duration" : 600
+      }
+    } ]
+  },
+  "44fd6e02b15df64d483ba5e34074041a" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "e1c8291c13b78f79",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/e1c8291c13b78f79",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101361143,
+        "stop" : 1649101361410,
+        "duration" : 267
+      }
+    } ]
+  },
+  "1d2f699b44814327bb7ff247318e9c4e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "c79655a77bdf1de4",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/c79655a77bdf1de4",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101125151,
+        "stop" : 1649101126218,
+        "duration" : 1067
+      }
+    } ]
+  },
+  "e6016fd1907b3a0435b9f68cbecabd91" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "78a04f8cd30792f",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/78a04f8cd30792f",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101338915,
+        "stop" : 1649101338957,
+        "duration" : 42
+      }
+    } ]
+  },
+  "a3286ba2438900d0ed238b99b97c7891" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "86724ae61111f6ec",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/86724ae61111f6ec",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101108809,
+        "stop" : 1649101108811,
+        "duration" : 2
+      }
+    } ]
+  },
+  "3b2afb193a21ad7584f3b3879b7e7304" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "d54f7c8675bdd1a3",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/d54f7c8675bdd1a3",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101097108,
+        "stop" : 1649101103954,
+        "duration" : 6846
+      }
+    } ]
+  },
+  "abb72e27d987b2601e9ffbedb4ad837e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "d035cadb4f53091c",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/d035cadb4f53091c",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101341780,
+        "stop" : 1649101341863,
+        "duration" : 83
+      }
+    } ]
+  },
+  "eeb601a92e1e55857588ad433767f280" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "ee4289a2a8bd341",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/ee4289a2a8bd341",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101343094,
+        "stop" : 1649101343136,
+        "duration" : 42
+      }
+    } ]
+  },
+  "a7ae2e4757a67e15ea26bc18a732a5d0" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "5f979b524c5faa8c",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/5f979b524c5faa8c",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101108780,
+        "stop" : 1649101108787,
+        "duration" : 7
+      }
+    } ]
+  },
+  "2fdd1b1e4216687e4f48e717329d30ac" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "473b2f477636157b",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/473b2f477636157b",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101107632,
+        "stop" : 1649101107633,
+        "duration" : 1
+      }
+    } ]
+  },
+  "a861b2f90300876d9b9281725e416280" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "80173655a044733e",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/80173655a044733e",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101108790,
+        "stop" : 1649101108792,
+        "duration" : 2
+      }
+    } ]
+  },
+  "8f568206e17e876b394eac7436d24026" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "92c632df8783d767",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/92c632df8783d767",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101340300,
+        "stop" : 1649101340383,
+        "duration" : 83
+      }
+    } ]
+  },
+  "8462550d8c94ec5a4ee08184c5723334" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "d611420510f33f90",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/d611420510f33f90",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101343347,
+        "stop" : 1649101343390,
+        "duration" : 43
+      }
+    } ]
+  },
+  "6279582d02bb323ff2fca935852a8c5f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "48a8ca52566fd94a",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/48a8ca52566fd94a",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101156075,
+        "stop" : 1649101156077,
+        "duration" : 2
+      }
+    } ]
+  },
+  "127389d9950e04e895798bb93e2e53ef" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "7fc0f43c7d874a9",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/7fc0f43c7d874a9",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101337218,
+        "stop" : 1649101337427,
+        "duration" : 209
+      }
+    } ]
+  },
+  "4caaf7363b41d601b60a62091b2440ca" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "c90099eaae9bbcf1",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/c90099eaae9bbcf1",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101107579,
+        "stop" : 1649101107580,
+        "duration" : 1
+      }
+    } ]
+  },
+  "a2b4829c99b25b0f138408ac2f2752bd" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "457903f994bba5d6",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/457903f994bba5d6",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101385898,
+        "stop" : 1649101390123,
+        "duration" : 4225
+      }
+    } ]
+  },
+  "6fa66b54c7bfcd4048f5f6afb4b4b8fc" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "b8c273c01b708ba5",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/b8c273c01b708ba5",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101354769,
+        "stop" : 1649101355283,
+        "duration" : 514
+      }
+    } ]
+  },
+  "605cff6f7746d803bcbc232d25a70fa0" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "8f76677a21ce182",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/8f76677a21ce182",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101342839,
+        "stop" : 1649101342882,
+        "duration" : 43
+      }
+    } ]
+  },
+  "f7cea628e60912dec54c96e154519b67" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "197d323cedfcbe3a",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/197d323cedfcbe3a",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101143542,
+        "stop" : 1649101144413,
+        "duration" : 871
+      }
+    } ]
+  },
+  "1f0fafbcfcffce619645851c43df5ae4" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "c25aa7f3ae7b2b1",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/c25aa7f3ae7b2b1",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101105276,
+        "stop" : 1649101107024,
+        "duration" : 1748
+      }
+    } ]
+  },
+  "7c21062b2157c9c5386d90359de23d53" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "deb7a79de44868bf",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/deb7a79de44868bf",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101173823,
+        "stop" : 1649101174188,
+        "duration" : 365
+      }
+    } ]
+  },
+  "f76e83298b125d9f8051305662bd868b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "adfc4bd3da57d73b",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/adfc4bd3da57d73b",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101339167,
+        "stop" : 1649101339210,
+        "duration" : 43
+      }
+    } ]
+  },
+  "8a583f3461f88d7c293779bde04a0e1d" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "bcfb029e44d2cb4a",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/bcfb029e44d2cb4a",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101338362,
+        "stop" : 1649101338450,
+        "duration" : 88
+      }
+    } ]
+  },
+  "36df61c5fa16064939f2168a752af02b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "54c3f727abd30725",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/54c3f727abd30725",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101462191,
+        "stop" : 1649101465431,
+        "duration" : 3240
+      }
+    } ]
+  },
+  "d305933be8c1545e88e65f9f5733babf" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "e8205c2b69ec4ac1",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/e8205c2b69ec4ac1",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101375405,
+        "stop" : 1649101377927,
+        "duration" : 2522
+      }
+    } ]
+  },
+  "d20688892e8370917ded3954bd58a936" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "fd37f3020690887f",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/fd37f3020690887f",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101156079,
+        "stop" : 1649101156081,
+        "duration" : 2
+      }
+    } ]
+  },
+  "8a87a21477193c438040ea0bf35f7853" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "aa546ede9eb88e0a",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/aa546ede9eb88e0a",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101342966,
+        "stop" : 1649101343009,
+        "duration" : 43
+      }
+    } ]
+  },
+  "3e73c6377dbba1c4391d565476180108" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "486abe803ce3e918",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/486abe803ce3e918",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101164367,
+        "stop" : 1649101164637,
+        "duration" : 270
+      }
+    } ]
+  },
+  "b916e3a3cf9aae34687e6cba489385fd" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "17c8628aca63700",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/17c8628aca63700",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101107613,
+        "stop" : 1649101107615,
+        "duration" : 2
+      }
+    } ]
+  },
+  "faba7fd705e6197574156eaf96097b4f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "879b8946c2d4c9fe",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/879b8946c2d4c9fe",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101348021,
+        "stop" : 1649101348511,
+        "duration" : 490
+      }
+    } ]
+  },
+  "fa265a8627bd99827e3fc01138cc6263" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "5a93aabcd352ca6b",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/5a93aabcd352ca6b",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101205534,
+        "stop" : 1649101205654,
+        "duration" : 120
+      }
+    } ]
+  },
+  "8e6ae17900b012ee04473da72a15fef5" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "e9ed14a648e82f13",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/e9ed14a648e82f13",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101349673,
+        "stop" : 1649101350173,
+        "duration" : 500
+      }
+    } ]
+  },
+  "afc8cfa07b82f889f102dc4910710386" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "f541a0e18055a73c",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/f541a0e18055a73c",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101450629,
+        "stop" : 1649101455151,
+        "duration" : 4522
+      }
+    } ]
+  },
+  "33865050f01a74fce461b1ec0dbab96f" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "98ac367337dd72a8",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/98ac367337dd72a8",
+      "status" : "failed",
+      "statusDetails" : "Wait for alert to be present failed.",
+      "time" : {
+        "start" : 1649101305915,
+        "stop" : 1649101336403,
+        "duration" : 30488
+      }
+    } ]
+  },
+  "4059f51a9d634b52b216f44f3bf27ccc" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "ef93be84bf4ac846",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/ef93be84bf4ac846",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewLocalDriverInstanceForSafari\" failed. With the following test data \"Failed to create a session on DESKTOP_SAFARI\".",
+      "time" : {
+        "start" : 1649101156066,
+        "stop" : 1649101156067,
+        "duration" : 1
+      }
+    } ]
+  },
+  "45512e220734b6213e89df6e5f078970" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "8af79252965ecc2b",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/macOS/Web/1294//#testresult/8af79252965ecc2b",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101108806,
+        "stop" : 1649101108807,
+        "duration" : 1
+      }
+    } ]
+  }
+}
