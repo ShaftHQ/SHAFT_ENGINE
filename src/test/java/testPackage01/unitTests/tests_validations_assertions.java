@@ -5,6 +5,7 @@ import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.validation.Assertions;
+import com.shaft.validation.Assertions.AssertionComparisonType;
 import com.shaft.validation.Assertions.AssertionType;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
