@@ -86,7 +86,6 @@ public class ValidationEnums {
         }
     }
 
-    @Deprecated
     public enum BrowserAttribute {
         CURRENT_URL("currenturl"), PAGE_SOURCE("pagesource"), TITLE("title"), WINDOW_HANDLE("windowhandle"), WINDOW_POSITION("windowposition"), WINDOW_SIZE("windowsize");
 

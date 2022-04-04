@@ -1,140 +1,209 @@
 package com.shaft.driver;
 
-import com.microsoft.playwright.BrowserType;
-import com.microsoft.playwright.Page;
+import com.shaft.api.RequestBuilder;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.db.DatabaseActions;
-import com.shaft.driver.DriverFactory.DriverType;
 import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.browser.PlayWrightBrowserActions;
 import com.shaft.gui.browser.WebDriverBrowserActions;
 import com.shaft.gui.element.ElementActions;
-import com.shaft.tools.io.*;
-import com.shaft.validation.ValidationsBuilder;
+import com.shaft.tools.io.ExcelFileManager;
+import com.shaft.tools.io.JSONFileManager;
+import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
+import com.shaft.validation.RestValidationsBuilder;
+import io.restassured.config.RestAssuredConfig;
+import io.restassured.response.Response;
 import org.openqa.selenium.MutableCapabilities;
-import org.sikuli.script.App;
 
 import java.io.InputStream;
 
 @SuppressWarnings("unused")
 public class SHAFT {
-
     public static class GUI {
         public static class WebDriver {
-            public static org.openqa.selenium.WebDriver getDriver() {
-                return DriverFactory.getDriver();
+            private ThreadLocal<org.openqa.selenium.WebDriver> driverThreadLocal = new ThreadLocal<>();
+
+            public WebDriver() {
+                driverThreadLocal.set(DriverFactory.getDriver());
             }
 
-            public static org.openqa.selenium.WebDriver getDriver(DriverType driverType) {
-                return DriverFactory.getDriver(driverType);
+            public WebDriver(DriverFactory.DriverType driverType) {
+                driverThreadLocal.set(DriverFactory.getDriver(driverType));
             }
 
-            public static org.openqa.selenium.WebDriver getDriver(DriverType driverType, MutableCapabilities mutableCapabilities) {
-                return DriverFactory.getDriver(driverType, mutableCapabilities);
+            public WebDriver(DriverFactory.DriverType driverType, MutableCapabilities mutableCapabilities) {
+                driverThreadLocal.set(DriverFactory.getDriver(driverType, mutableCapabilities));
             }
 
-            public static void closeDriver() {
+            public void quit() {
                 DriverFactory.closeAllDrivers();
             }
 
-            public static void closeDriver(org.openqa.selenium.WebDriver driver) {
-                BrowserActions.closeCurrentWindow(driver);
+            public ElementActions element() {
+                return new ElementActions(driverThreadLocal.get());
             }
 
-            public static ElementActions performElementAction(org.openqa.selenium.WebDriver driver) {
-                return new ElementActions(driver);
+            public WebDriverBrowserActions browser() {
+                return BrowserActions.performBrowserAction(driverThreadLocal.get());
             }
 
-            public static WebDriverBrowserActions performBrowserAction(org.openqa.selenium.WebDriver driver) {
-                return BrowserActions.performBrowserAction(driver);
+            public WizardHelpers.WebDriverAssertions assertThat() {
+                return new WizardHelpers.WebDriverAssertions(driverThreadLocal);
+            }
+
+            public WizardHelpers.WebDriverVerifications verifyThat() {
+                return new WizardHelpers.WebDriverVerifications(driverThreadLocal);
+            }
+
+            /**
+             * Returns the current Selenium WebDriver instance for custom manipulation
+             *
+             * @return the current Selenium WebDriver instance for custom manipulation
+             */
+            public org.openqa.selenium.WebDriver getDriver() {
+                return driverThreadLocal.get();
             }
         }
 
-        public static class Playwright {
-            public static Page getDriver() {
-                return DriverFactory.getPlaywrightDriver();
-            }
-
-            public static Page getDriver(DriverType driverType) {
-                return DriverFactory.getPlaywrightDriver(driverType);
-            }
-
-            public static Page getDriver(DriverType driverType, BrowserType.LaunchOptions launchOptions) {
-                return DriverFactory.getPlaywrightDriver(driverType, launchOptions);
-            }
-
-            public static void closeDriver() {
-                DriverFactory.closePlayWrightDriver();
-            }
-
-            public static void closeDriver(Page page) {
-                PlayWrightBrowserActions.closeCurrentWindow(page);
-            }
-        }
-
-        public static class Sikuli {
-            public static App getDriver(String applicationName) {
-                return DriverFactory.getSikuliApp(applicationName);
-            }
-
-            public static void closeDriver(App application) {
-                DriverFactory.closeSikuliApp(application);
-            }
-        }
+//        public static class Playwright {
+//            public static Page getDriver() {
+//                return DriverFactory.getPlaywrightDriver();
+//            }
+//
+//            public static Page getDriver(DriverType driverType) {
+//                return DriverFactory.getPlaywrightDriver(driverType);
+//            }
+//
+//            public static Page getDriver(DriverType driverType, BrowserType.LaunchOptions launchOptions) {
+//                return DriverFactory.getPlaywrightDriver(driverType, launchOptions);
+//            }
+//
+//            public static void closeDriver() {
+//                DriverFactory.closePlayWrightDriver();
+//            }
+//
+//            public static void closeDriver(Page page) {
+//                PlayWrightBrowserActions.closeCurrentWindow(page);
+//            }
+//        }
+//
+//        public static class Sikuli {
+//            public static App getDriver(String applicationName) {
+//                return DriverFactory.getSikuliApp(applicationName);
+//            }
+//
+//            public static void closeDriver(App application) {
+//                DriverFactory.closeSikuliApp(application);
+//            }
+//        }
     }
 
     public static class API {
-        public static RestActions getDriver(String serviceURI) {
-            return new RestActions(serviceURI);
+        private RestActions session;
+        private String serviceURI;
+
+        public API(String serviceURI) {
+            session = new RestActions(serviceURI);
+        }
+
+        public RequestBuilder get(String serviceName) {
+            return session.buildNewRequest(serviceName, RestActions.RequestType.GET);
+        }
+
+        public RequestBuilder post(String serviceName) {
+            return session.buildNewRequest(serviceName, RestActions.RequestType.POST);
+        }
+
+        public RequestBuilder patch(String serviceName) {
+            return session.buildNewRequest(serviceName, RestActions.RequestType.PATCH);
+        }
+
+        public RequestBuilder delete(String serviceName) {
+            return session.buildNewRequest(serviceName, RestActions.RequestType.DELETE);
+        }
+
+        public RequestBuilder put(String serviceName) {
+            return session.buildNewRequest(serviceName, RestActions.RequestType.PUT);
+        }
+
+        public void addConfig(RestAssuredConfig restAssuredConfig) {
+            session.addConfigVariable(restAssuredConfig);
+        }
+
+        public void addHeader(String key, String value) {
+            session.addHeaderVariable(key, value);
+        }
+
+        public RestValidationsBuilder assertThatResponse() {
+            return com.shaft.validation.Validations.assertThat().response(RestActions.getLastResponse());
+        }
+
+        public RestValidationsBuilder verifyThatResponse() {
+            return com.shaft.validation.Validations.verifyThat().response(RestActions.getLastResponse());
+        }
+
+        public Response getResponse() {
+            return RestActions.getLastResponse();
         }
     }
 
     public static class CLI {
-        public static TerminalActions performCLIAction() {
+        public TerminalActions terminal() {
             return new TerminalActions();
         }
 
-        public static FileActions performFileAction() {
+        public FileActions file() {
             return new FileActions();
         }
     }
 
     public static class DB {
-        public static DatabaseActions performDatabaseActions(DatabaseActions.DatabaseType databaseType, String ip, String port, String name, String username,
-                                                             String password) {
+        public DatabaseActions performDatabaseActions(DatabaseActions.DatabaseType databaseType, String ip, String port, String name, String username,
+                                                      String password) {
             return new DatabaseActions(databaseType, ip, port, name, username, password);
         }
 
-        public static DatabaseActions performDatabaseActions(String customConnectionString) {
+        public DatabaseActions performDatabaseActions(String customConnectionString) {
             return new DatabaseActions(customConnectionString);
         }
     }
 
     public static class Validations {
-        public static ValidationsBuilder assertThat() {
-            return com.shaft.validation.Validations.assertThat();
+        public static WizardHelpers.StandaloneAssertions assertThat() {
+            return new WizardHelpers.StandaloneAssertions();
         }
 
-        public static ValidationsBuilder verifyThat() {
-            return com.shaft.validation.Validations.verifyThat();
+        public static WizardHelpers.StandaloneVerifications verifyThat() {
+            return new WizardHelpers.StandaloneVerifications();
         }
     }
 
     public static class TestData {
-        public static JSONFileManager json(String jsonFilePath) {
-            return new JSONFileManager(jsonFilePath);
+        public static class JSON extends JSONFileManager {
+            /**
+             * Creates a new instance of the test data json reader using the target json
+             * file path
+             *
+             * @param jsonFilePath target test data json file path
+             */
+            public JSON(String jsonFilePath) {
+                super(jsonFilePath);
+            }
         }
 
-        public static ExcelFileManager excel(String excelFilePath) {
-            return new ExcelFileManager(excelFilePath);
+        public static class EXCEL extends ExcelFileManager {
+            /**
+             * Creates a new instance of the test data Excel reader using the target Excel
+             * file path
+             *
+             * @param excelFilePath target test data Excel file path
+             */
+            public EXCEL(String excelFilePath) {
+                super(excelFilePath);
+            }
         }
-
-        public static PdfFileManager pdf(String pdfFilePath) {
-            return new PdfFileManager(pdfFilePath);
-        }
-
     }
 
     public static class Report {
