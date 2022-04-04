@@ -25,7 +25,7 @@ jobs:
           node-version: '16'
       - name: Set up Native Selenium Grid
         if: runner.os == 'Linux'
-        run: docker-compose -f src/main/resources/docker-compose/selenium4.yml up --remove-orphans -d
+        run: docker-compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=4 --scale edge=0 --scale firefox=0 -d
       - name: Set up JDK 17
         uses: actions/setup-java@v2
         with:
@@ -57,77 +57,77 @@ jobs:
         with:
           ref: gh-pages
           path: gh-pages
-
-      - name: Generate Allure Report on Linux
-        uses: simple-elf/allure-report-action@master
-        if: runner.os == 'Linux'
-        id: allure-report
-        with:
-          gh_pages: gh-pages
-          allure_results: allure-results
-          allure_report: allure-report
-          allure_history: allure-history
-          subfolder: allure/${{ runner.os }}/Web
-          keep_reports: 20
-          github_repo: ${{ github.repository }}
-          github_repo_owner: MohabMohie
-          github_run_num: ${{ github.run_number }}
-
-      - name: Generate Allure Report on MacOS
-        if: runner.os == 'macOS'
-        continue-on-error: true
-        env:
-          INPUT_GH_PAGES: gh-pages
-          INPUT_ALLURE_RESULTS: allure-results
-          INPUT_ALLURE_REPORT: allure-report
-          INPUT_ALLURE_HISTORY: allure-history
-          INPUT_SUBFOLDER: allure/${{ runner.os }}/Web
-          INPUT_KEEP_REPORTS: 20
-          INPUT_GITHUB_REPO: ${{ github.repository }}
-          INPUT_GITHUB_REPO_OWNER: MohabMohie
-          GITHUB_WORKSPACE: ${{ github.workspace }}
-          INPUT_GITHUB_RUN_NUM: ${{ github.run_number }}
-        run: |
-          npm install -g allure-commandline --save-dev
-          chmod +x generate_allure_report_with_history.sh
-          sh generate_allure_report_with_history.sh
-
-      - name: Generate Allure Report on Windows
-        if: runner.os == 'Windows'
-        continue-on-error: true
-        env:
-          INPUT_GH_PAGES: gh-pages
-          INPUT_ALLURE_RESULTS: allure-results
-          INPUT_ALLURE_REPORT: allure-report
-          INPUT_ALLURE_HISTORY: allure-history
-          INPUT_SUBFOLDER: allure/${{ runner.os }}/Web
-          INPUT_KEEP_REPORTS: 20
-          INPUT_GITHUB_REPO: ${{ github.repository }}
-          INPUT_GITHUB_REPO_OWNER: MohabMohie
-          GITHUB_WORKSPACE: ${{ github.workspace }}
-          INPUT_GITHUB_RUN_NUM: ${{ github.run_number }}
-        run: |
-          iwr -useb get.scoop.sh | iex
-          scoop install allure
-          Bash generate_allure_report_with_history.sh
-
-      - name: Deploy Allure report to Github Pages
-        if: always()
-        continue-on-error: true
-        uses: peaceiris/actions-gh-pages@v3.8.0
-        with:
-          personal_token: ${{ secrets.PERSONAL_TOKEN }}
-#          deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
-          publish_dir: allure-history/allure
-          destination_dir: allure
-          publish_branch: gh-pages
-      - name: Post the link to the Allure report
-        continue-on-error: true
-        if: always()
-        uses: Sibz/github-status-action@v1.1.6
-        with: 
-            authToken: ${{secrets.GITHUB_TOKEN}}
-            context: 'Allure Test Execution Report'
-            state: 'success'
-            sha: ${{ github.event.pull_request.head.sha }}
-            target_url: https://mohabmohie.github.io/SHAFT_ENGINE/allure/${{ runner.os }}/Web/${{ github.run_number }}
+#
+#      - name: Generate Allure Report on Linux
+#        uses: simple-elf/allure-report-action@master
+#        if: runner.os == 'Linux'
+#        id: allure-report
+#        with:
+#          gh_pages: gh-pages
+#          allure_results: allure-results
+#          allure_report: allure-report
+#          allure_history: allure-history
+#          subfolder: allure/${{ runner.os }}/Web
+#          keep_reports: 20
+#          github_repo: ${{ github.repository }}
+#          github_repo_owner: MohabMohie
+#          github_run_num: ${{ github.run_number }}
+#
+#      - name: Generate Allure Report on MacOS
+#        if: runner.os == 'macOS'
+#        continue-on-error: true
+#        env:
+#          INPUT_GH_PAGES: gh-pages
+#          INPUT_ALLURE_RESULTS: allure-results
+#          INPUT_ALLURE_REPORT: allure-report
+#          INPUT_ALLURE_HISTORY: allure-history
+#          INPUT_SUBFOLDER: allure/${{ runner.os }}/Web
+#          INPUT_KEEP_REPORTS: 20
+#          INPUT_GITHUB_REPO: ${{ github.repository }}
+#          INPUT_GITHUB_REPO_OWNER: MohabMohie
+#          GITHUB_WORKSPACE: ${{ github.workspace }}
+#          INPUT_GITHUB_RUN_NUM: ${{ github.run_number }}
+#        run: |
+#          npm install -g allure-commandline --save-dev
+#          chmod +x generate_allure_report_with_history.sh
+#          sh generate_allure_report_with_history.sh
+#
+#      - name: Generate Allure Report on Windows
+#        if: runner.os == 'Windows'
+#        continue-on-error: true
+#        env:
+#          INPUT_GH_PAGES: gh-pages
+#          INPUT_ALLURE_RESULTS: allure-results
+#          INPUT_ALLURE_REPORT: allure-report
+#          INPUT_ALLURE_HISTORY: allure-history
+#          INPUT_SUBFOLDER: allure/${{ runner.os }}/Web
+#          INPUT_KEEP_REPORTS: 20
+#          INPUT_GITHUB_REPO: ${{ github.repository }}
+#          INPUT_GITHUB_REPO_OWNER: MohabMohie
+#          GITHUB_WORKSPACE: ${{ github.workspace }}
+#          INPUT_GITHUB_RUN_NUM: ${{ github.run_number }}
+#        run: |
+#          iwr -useb get.scoop.sh | iex
+#          scoop install allure
+#          Bash generate_allure_report_with_history.sh
+#
+#      - name: Deploy Allure report to Github Pages
+#        if: always()
+#        continue-on-error: true
+#        uses: peaceiris/actions-gh-pages@v3.8.0
+#        with:
+#          personal_token: ${{ secrets.PERSONAL_TOKEN }}
+##          deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
+#          publish_dir: allure-history/allure
+#          destination_dir: allure
+#          publish_branch: gh-pages
+#      - name: Post the link to the Allure report
+#        continue-on-error: true
+#        if: always()
+#        uses: Sibz/github-status-action@v1.1.6
+#        with:
+#            authToken: ${{secrets.GITHUB_TOKEN}}
+#            context: 'Allure Test Execution Report'
+#            state: 'success'
+#            sha: ${{ github.event.pull_request.head.sha }}
+#            target_url: https://mohabmohie.github.io/SHAFT_ENGINE/allure/${{ runner.os }}/Web/${{ github.run_number }}

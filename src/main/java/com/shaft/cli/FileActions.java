@@ -1,6 +1,7 @@
 package com.shaft.cli;
 
 import com.google.common.hash.Hashing;
+import com.shaft.tools.io.PdfFileManager;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
@@ -273,6 +274,10 @@ public class FileActions {
     public void writeToFile(String fileFolderName, String fileName, String text) {
         byte[] textToBytes = text.getBytes();
         writeToFile(fileFolderName, fileName, textToBytes);
+    }
+
+    public String readFromPdfFile(String fileFolderName, String fileName) {
+        return new PdfFileManager(fileFolderName + fileName).readFileContent();
     }
 
     public String readFromFile(String fileFolderName, String fileName) {

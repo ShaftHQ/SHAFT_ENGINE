@@ -1,15 +1,13 @@
-package unitTests;
+package testPackage01.unitTests;
 
 import com.shaft.api.RestActions;
 import com.shaft.api.RestActions.RequestType;
-import com.shaft.validation.Assertions;
-import com.shaft.validation.Assertions.AssertionComparisonType;
-import com.shaft.validation.Assertions.AssertionType;
 import com.shaft.validation.Validations;
 import io.restassured.response.Response;
 import org.testng.annotations.Test;
 
 import java.util.List;
+import java.util.Objects;
 
 public class tests_restActions {
 
@@ -21,10 +19,9 @@ public class tests_restActions {
         Response posts = RestActions.buildNewRequest(serviceURI, "posts", RequestType.GET).performRequest();
 
         List<Object> postsList = RestActions.getResponseJSONValueAsList(posts, "");
-        postsList.forEach(post -> {
-            if (RestActions.getResponseJSONValue(post, "title").equals("qui est esse")) {
-                Assertions.assertEquals("qui neque nisi nulla", RestActions.getResponseJSONValue(post, "body"),
-                        AssertionComparisonType.CONTAINS, AssertionType.POSITIVE);
+        Objects.requireNonNull(postsList).forEach(post -> {
+            if (Objects.equals(RestActions.getResponseJSONValue(post, "title"), "qui est esse")) {
+                Validations.assertThat().response(post).extractedJsonValue("body").contains("qui neque nisi nulla").perform();
             }
         });
     }
@@ -41,14 +38,11 @@ public class tests_restActions {
     public void validateUserEmail() {
         RestActions apiObject = new RestActions("https://jsonplaceholder.typicode.com");
         Response users = apiObject.buildNewRequest("/users", RequestType.GET).setTargetStatusCode(200).performRequest();
+        Validations.assertThat().object(RestActions.getResponseBody(users)).contains("Leanne Graham").perform();
 
-        Assertions.assertEquals("Leanne Graham", RestActions.getResponseBody(users), Assertions.AssertionComparisonType.CONTAINS,
-                Assertions.AssertionType.POSITIVE);
-
-        RestActions.getResponseJSONValueAsList(users, "$").forEach(user -> {
-            if (RestActions.getResponseJSONValue(user, "name").equals("Leanne Graham")) {
-                Assertions.assertEquals("Sincere@april.biz", RestActions.getResponseJSONValue(user, "email"),
-                        Assertions.AssertionComparisonType.EQUALS, Assertions.AssertionType.POSITIVE);
+        Objects.requireNonNull(RestActions.getResponseJSONValueAsList(users, "$")).forEach(user -> {
+            if (Objects.equals(RestActions.getResponseJSONValue(user, "name"), "Leanne Graham")) {
+                Validations.assertThat().response(user).extractedJsonValue("email").equals("Sincere@april.biz");
             }
 
         });

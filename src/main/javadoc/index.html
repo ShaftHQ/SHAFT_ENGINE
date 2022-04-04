@@ -276,7 +276,7 @@
                                                            value="true"> Headless
                                                 </label>
                                             </div>
-                                            <span class="help-block">• This only works for Chrome and Firefox.</span>
+                                            <span class="help-block">• This only works for Chrome, Firefox and Edge.</span>
                                         </div>
                                     </div>
 
@@ -2153,7 +2153,7 @@
     // headless execution configuration
     $("input[name=targetBrowserName]").click(function () {
         var selectedBrowser = $("input[name=targetBrowserName]:checked").val();
-        if (selectedBrowser == "Safari" || selectedBrowser == "MicrosoftEdge" || selectedBrowser == "MicrosoftInternetExplorer") {
+        if (selectedBrowser == "Safari" || selectedBrowser == "MicrosoftInternetExplorer") {
             $("label[for=headlessExecution-0]").attr("style", "color:#A9A9A9");
             $("input[id=headlessExecution-0]").click();
             $("input[id=headlessExecution-0]").attr("disabled", true);
