@@ -7,6 +7,7 @@ import com.google.gson.JsonParser;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
+import com.shaft.tools.support.JavaActions;
 import com.shaft.validation.Validations;
 import eu.medsea.mimeutil.MimeUtil;
 import eu.medsea.mimeutil.MimeUtil2;
@@ -68,6 +69,11 @@ public class RestActions {
     private final Map<String, Object> sessionCookies;
     private final List<RestAssuredConfig> sessionConfigs;
     private String headerAuthorization;
+    static Response lastResponse;
+
+    public static Response getLastResponse() {
+        return lastResponse;
+    }
 
     public RestActions(String serviceURI) {
         initializeSystemProperties(System.getProperty("apiConnectionTimeout") == null);
@@ -445,12 +451,13 @@ public class RestActions {
 
     private static String reportActionResult(String actionName, String testData, Object requestBody, RequestSpecification specs, Response response,
                                              Boolean isDiscrete, List<Object> expectedFileBodyAttachment, Boolean passFailStatus) {
-        actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
+//        actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
+        actionName = JavaActions.convertToSentenceCase(actionName);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
-            message = "API Action \"" + actionName + "\" successfully performed.";
+            message = "API Action: " + actionName;
         } else {
-            message = "API Action \"" + actionName + "\" failed.";
+            message = "API Action: " + actionName + " failed";
         }
 
         List<List<Object>> attachments = new ArrayList<>();
@@ -459,8 +466,10 @@ public class RestActions {
                     testData);
             attachments.add(actualValueAttachment);
         } else if (testData != null && !testData.isEmpty()) {
-            message = message + " With the following test data \"" + testData + "\".";
+            message = message + " \"" + testData.trim() + "\"";
         }
+        message = message + ".";
+        message = message.replace("API Action: ", "");
 
         Boolean initialLoggingState = ReportManagerHelper.getDiscreteLogging();
         if (Boolean.TRUE.equals(isDiscrete)) {
@@ -1012,131 +1021,6 @@ public class RestActions {
         return this;
     }
 
-    /**
-     * Attempts to perform a request to a REST API, then checks the response status code, if it matches the target code the step is passed and the response is returned. Otherwise, the action fails.
-     *
-     * @param requestType      POST, GET, PATCH, DELETE, PUT
-     * @param targetStatusCode default success code is 200
-     * @param serviceName      /servicePATH/serviceNAME
-     * @return Response; returns the full response object for further manipulation
-     */
-    @Deprecated
-    public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName) {
-        return performRequest(
-                new Object[]{requestType, targetStatusCode, serviceName, null, null, null, null, ContentType.ANY.toString()});
-    }
-
-    /**
-     * Attempts to perform a request to a REST API, then checks the response status code, if it matches the target code the step is passed and the response is returned. Otherwise, the action fails.
-     *
-     * @param requestType      POST, GET, PATCH, DELETE, PUT
-     * @param targetStatusCode default success code is 200
-     * @param serviceName      /servicePATH/serviceNAME
-     * @param urlArguments     '&amp;' separated arguments without a preceding '?',
-     *                         is nullable, Example:
-     *                         "username=test&amp;password=test"
-     * @return Response; returns the full response object for further manipulation
-     */
-    @Deprecated
-    public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName,
-                                   String urlArguments) {
-        return performRequest(new Object[]{requestType, targetStatusCode, serviceName, urlArguments, null, null, null,
-                ContentType.ANY.toString()});
-    }
-
-    /**
-     * Attempts to perform a request to a REST API, then checks the response status code, if it matches the target code the step is passed and the response is returned. Otherwise, the action fails.
-     *
-     * @param requestType      POST, GET, PATCH, DELETE, PUT
-     * @param targetStatusCode default success code is 200
-     * @param serviceName      /servicePATH/serviceNAME
-     * @param contentType      Enumeration of common IANA content-types. This may be
-     *                         used to specify a request or response content-type
-     *                         more easily than specifying the full string each
-     *                         time. Example: ContentType.ANY
-     * @return Response; returns the full response object for further manipulation
-     */
-    @Deprecated
-    public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName,
-                                   ContentType contentType) {
-        return performRequest(
-                new Object[]{requestType, targetStatusCode, serviceName, null, null, null, null, contentType.toString()});
-    }
-
-    /**
-     * Attempts to perform a request to a REST API, then checks the response status code, if it matches the target code the step is passed and the response is returned. Otherwise, the action fails.
-     *
-     * @param requestType      POST, GET, PATCH, DELETE, PUT
-     * @param targetStatusCode default success code is 200
-     * @param serviceName      /servicePATH/serviceNAME
-     * @param contentType      Enumeration of common IANA content-types. This may be
-     *                         used to specify a request or response content-type
-     *                         more easily than specifying the full string each
-     *                         time. Example: ContentType.ANY
-     * @param urlArguments     '&amp;' separated arguments without a preceding '?',
-     *                         is nullable, Example:
-     *                         "username=test&amp;password=test"
-     * @return Response; returns the full response object for further manipulation
-     */
-    @Deprecated
-    public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName,
-                                   ContentType contentType, String urlArguments) {
-        return performRequest(new Object[]{requestType, targetStatusCode, serviceName, urlArguments, null, null, null,
-                contentType.toString()});
-    }
-
-    /**
-     * Attempts to perform a request to a REST API, then checks the response status code, if it matches the target code the step is passed and the response is returned. Otherwise, the action fails.
-     *
-     * @param requestType      POST, GET, PATCH, DELETE, PUT
-     * @param targetStatusCode default success code is 200
-     * @param serviceName      /servicePATH/serviceNAME
-     * @param parameters       a list of key/value pairs that will be sent as
-     *                         parameters with this API call, is nullable, Example:
-     *                         Arrays.asList(Arrays.asList("itemId", "123"),
-     *                         Arrays.asList("contents", XMLcontents));
-     * @param parametersType   FORM, QUERY
-     * @param contentType      Enumeration of common IANA content-types. This may be
-     *                         used to specify a request or response content-type
-     *                         more easily than specifying the full string each
-     *                         time. Example: ContentType.ANY
-     * @return Response; returns the full response object for further manipulation
-     */
-    @Deprecated
-    public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName,
-                                   List<List<Object>> parameters, ParametersType parametersType, ContentType contentType) {
-        return performRequest(new Object[]{requestType, targetStatusCode, serviceName, null, parameters,
-                parametersType, null, contentType.toString()});
-    }
-
-    /**
-     * Attempts to perform a request to a REST API, then checks the response status code, if it matches the target code the step is passed and the response is returned. Otherwise, the action fails.
-     *
-     * @param requestType      POST, GET, PATCH, DELETE, PUT
-     * @param targetStatusCode default success code is 200
-     * @param serviceName      /servicePATH/serviceNAME
-     * @param requestBody      Specify an Object request content that will
-     *                         automatically be serialized to JSON or XML and sent
-     *                         with the request. If the object is a primitive or
-     *                         Number the object will be converted to a String and
-     *                         put in the request body. This works for the POST, PUT
-     *                         and PATCH methods only. Trying to do this for the
-     *                         other http methods will cause an exception to be
-     *                         thrown, is nullable in case there is no body for that
-     *                         request
-     * @param contentType      Enumeration of common IANA content-types. This may be
-     *                         used to specify a request or response content-type
-     *                         more easily than specifying the full string each
-     *                         time. Example: ContentType.ANY
-     * @return Response; returns the full response object for further manipulation
-     */
-    @Deprecated
-    public Response performRequest(RequestType requestType, int targetStatusCode, String serviceName,
-                                   Object requestBody, ContentType contentType) {
-        return performRequest(
-                new Object[]{requestType, targetStatusCode, serviceName, null, null, null, requestBody, contentType.toString()});
-    }
-
     protected String prepareRequestURL(String serviceURI, String urlArguments, String serviceName) {
         if (urlArguments != null && !urlArguments.equals("")) {
             return serviceURI + serviceName + ARGUMENTSEPARATOR + urlArguments;
@@ -1273,84 +1157,6 @@ public class RestActions {
         }
     }
 
-    /**
-     * Attempts to perform POST/PATCH/GET/DELETE request to a REST API, then checks
-     * the response status code, if it matches the target code the step is passed
-     * and the response is returned. Otherwise, the action fails and NULL is
-     * returned.
-     *
-     * @param params 0.requestType      POST/PATCH/GET/DELETE
-     *               1.targetStatusCode default success code is 200
-     *               2.serviceName      /servicePATH/serviceNAME
-     *               3.urlArguments     '&amp;' separated arguments without a preceding '?',
-     *               is nullable, Example:
-     *               "username=test&amp;password=test"
-     *               4.parameters   a list of key/value pairs that will be sent as
-     *               parameters with this API call, is nullable, Example:
-     *               Arrays.asList(Arrays.asList("itemId", "123"),
-     *               Arrays.asList("contents", XMLcontents));
-     *               5.parametersType
-     *               6.requestBody      Specify an Object request content that will
-     *               automatically be serialized to JSON or XML and sent
-     *               with the request. If the object is a primitive or
-     *               Number the object will be converted to a String and
-     *               put in the request body. This works for the POST, PUT
-     *               and PATCH methods only. Trying to do this for the
-     *               other http methods will cause an exception to be
-     *               thrown, is nullable in case there is no body for that
-     *               request
-     *               7.contentType      Enumeration of common IANA content-types. This may be
-     *               used to specify a request or response content-type
-     *               more easily than specifying the full string each
-     *               time. Example: ContentType.ANY
-     * @return Response; returns the full response object for further manipulation
-     */
-    @Deprecated
-    protected Response performRequest(Object[] params) {
-        RequestType requestType = (RequestType) params[0];
-        int targetStatusCode = (int) params[1];
-        String serviceName = (String) params[2];
-        String urlArguments = (String) params[3];
-        @SuppressWarnings("unchecked")
-        List<List<Object>> parameters = (List<List<Object>>) params[4];
-        ParametersType parametersType = (ParametersType) params[5];
-        Object requestBody = params[6];
-        String contentType = (String) params[7];
-
-        String request = prepareRequestURL(serviceURI, urlArguments, serviceName);
-
-        RequestSpecification specs = prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders, sessionConfigs, true, true);
-
-        Response response = null;
-        try {
-            if (requestType.equals(RequestType.POST) || requestType.equals(RequestType.PATCH)
-                    || requestType.equals(RequestType.PUT) || requestType.equals(RequestType.GET)
-                    || requestType.equals(RequestType.DELETE)) {
-                response = sendRequest(requestType, request, specs);
-            } else {
-                failAction(request);
-            }
-
-            boolean responseStatus = evaluateResponseStatusCode(Objects.requireNonNull(response), targetStatusCode);
-            String reportMessage = prepareReportMessage(response, targetStatusCode, requestType, serviceName,
-                    contentType, urlArguments);
-            if (!"".equals(reportMessage) && Boolean.TRUE.equals(responseStatus)) {
-                passAction(reportMessage, requestBody, specs, response);
-            } else {
-                failAction(reportMessage, requestBody, specs, response);
-            }
-        } catch (Exception rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
-            if (response != null) {
-                failAction(request + ", Response Time: " + response.timeIn(TimeUnit.MILLISECONDS) + "ms", requestBody, specs,
-                        response, rootCauseException);
-            } else {
-                failAction(request, rootCauseException);
-            }
-        }
-        return response;
-    }
-
     String prepareReportMessage(Response response, int targetStatusCode, RequestType requestType,
                                 String serviceName, String contentType, String urlArguments) {
         if (response != null) {
@@ -1358,14 +1164,14 @@ public class RestActions {
             extractHeadersFromResponse(response);
 
             StringBuilder reportMessage = new StringBuilder();
-            reportMessage.append("Request Type: \"").append(requestType).append("\"");
-            reportMessage.append(" | Target Status Code: \"").append(targetStatusCode).append("\"");
-            reportMessage.append(" | Service URL: \"").append(serviceURI).append(serviceName).append("\"");
-            reportMessage.append(" | Content Type: \"").append(contentType).append("\"");
-            reportMessage.append(" | Response Time: \"").append(response.timeIn(TimeUnit.MILLISECONDS)).append("ms\"");
+            reportMessage.append(requestType);
+            reportMessage.append(" | Target Status Code: ").append(targetStatusCode);
+            reportMessage.append(" | Service URL: ").append(serviceURI).append(serviceName);
+            reportMessage.append(" | Content Type: ").append(contentType);
+            reportMessage.append(" | Response Time: ").append(response.timeIn(TimeUnit.MILLISECONDS)).append("ms");
 
             if (urlArguments != null) {
-                reportMessage.append(" | URL Arguments: \"").append(urlArguments).append("\"");
+                reportMessage.append(" | URL Arguments: ").append(urlArguments);
             }
 
             return reportMessage.toString().trim();

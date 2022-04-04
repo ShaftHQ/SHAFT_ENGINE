@@ -900,7 +900,7 @@ public class ReportManagerHelper {
             createLogEntry(logText);
             if (attachments != null && attachments.size() > 0) {
                 attachments.forEach(attachment -> {
-                    if (attachment != null) {
+                    if (attachment != null && !attachment.isEmpty()) {
                         if (attachment.get(2) instanceof String) {
                             attachAsStep(attachment.get(0).toString(), attachment.get(1).toString(),
                                     new ByteArrayInputStream(attachment.get(2).toString().getBytes()));
@@ -958,7 +958,7 @@ public class ReportManagerHelper {
                 }
             });
         }
-        createReportEntry(stepLog, false);
+//        createReportEntry(stepLog, false);
     }
 
     /**

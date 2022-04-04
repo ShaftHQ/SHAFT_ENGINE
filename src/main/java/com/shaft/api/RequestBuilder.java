@@ -249,6 +249,15 @@ public class RequestBuilder {
      *
      * @return Response; returns the full response object for further manipulation
      */
+    public Response perform() {
+        return performRequest();
+    }
+
+    /**
+     * After you finish building your request, use this method to trigger the request and get back the response object.
+     *
+     * @return Response; returns the full response object for further manipulation
+     */
     public Response performRequest() {
         String request = session.prepareRequestURL(serviceURI, urlArguments, serviceName);
         RequestSpecification specs = session.prepareRequestSpecs(parameters, parametersType, requestBody, contentType, sessionCookies, sessionHeaders, sessionConfigs, appendDefaultContentCharsetToContentTypeIfUndefined, urlEncodingEnabled);
@@ -287,6 +296,7 @@ public class RequestBuilder {
                 RestActions.failAction(request, rootCauseException);
             }
         }
+        RestActions.lastResponse = response;
         return response;
     }
 
