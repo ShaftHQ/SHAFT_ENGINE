@@ -1,0 +1,102 @@
+{
+  "uid" : "4b4757e66a1912dae1a509f688f20b0f",
+  "name" : "categories",
+  "children" : [ {
+    "name" : "Product defects",
+    "children" : [ {
+      "name" : "Identify unique element failed \"element locator is NULL.\".",
+      "children" : [ {
+        "name" : "scrollInExpandableLists_horizontalScrolling_insideElement",
+        "uid" : "d123f401683f885c",
+        "parentUid" : "9571a3637b0649ecc1af1bd6608edaaf",
+        "status" : "failed",
+        "time" : {
+          "start" : 1649101461847,
+          "stop" : 1649101466553,
+          "duration" : 4706
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "newPassed" : false,
+        "newBroken" : false,
+        "retriesCount" : 0,
+        "retriesStatusChange" : false,
+        "parameters" : [ ]
+      }, {
+        "name" : "scrollInExpandableLists_verticalScrolling_insideElement",
+        "uid" : "cf4aa6a8fffa29d8",
+        "parentUid" : "9571a3637b0649ecc1af1bd6608edaaf",
+        "status" : "failed",
+        "time" : {
+          "start" : 1649101482469,
+          "stop" : 1649101485071,
+          "duration" : 2602
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "newPassed" : false,
+        "newBroken" : false,
+        "retriesCount" : 0,
+        "retriesStatusChange" : false,
+        "parameters" : [ ]
+      }, {
+        "name" : "scrollInExpandableLists_verticalScrolling_insideElement2",
+        "uid" : "827b692b11e1b5cb",
+        "parentUid" : "9571a3637b0649ecc1af1bd6608edaaf",
+        "status" : "failed",
+        "time" : {
+          "start" : 1649101497561,
+          "stop" : 1649101502497,
+          "duration" : 4936
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "newPassed" : false,
+        "newBroken" : false,
+        "retriesCount" : 0,
+        "retriesStatusChange" : false,
+        "parameters" : [ ]
+      }, {
+        "name" : "scrollInExpandableLists_verticalScrolling_insideScreen",
+        "uid" : "7be3ba740433c24e",
+        "parentUid" : "9571a3637b0649ecc1af1bd6608edaaf",
+        "status" : "failed",
+        "time" : {
+          "start" : 1649101519119,
+          "stop" : 1649101536937,
+          "duration" : 17818
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "newPassed" : false,
+        "newBroken" : false,
+        "retriesCount" : 0,
+        "retriesStatusChange" : false,
+        "parameters" : [ ]
+      } ],
+      "uid" : "9571a3637b0649ecc1af1bd6608edaaf"
+    }, {
+      "name" : "Tap failed \"Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.\".",
+      "children" : [ {
+        "name" : "visualElementIdentification_samedpi",
+        "uid" : "a31427037439f5b4",
+        "parentUid" : "6352a48e45adda87828efb124b89cc7a",
+        "status" : "failed",
+        "time" : {
+          "start" : 1649101603891,
+          "stop" : 1649101629246,
+          "duration" : 25355
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "newPassed" : false,
+        "newBroken" : false,
+        "retriesCount" : 0,
+        "retriesStatusChange" : false,
+        "parameters" : [ ]
+      } ],
+      "uid" : "6352a48e45adda87828efb124b89cc7a"
+    } ],
+    "uid" : "8fb3a91ba5aaf9de24cc8a92edc82b5d"
+  } ]
+}

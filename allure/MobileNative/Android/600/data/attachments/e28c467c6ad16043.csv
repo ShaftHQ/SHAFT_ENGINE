@@ -1,0 +1,5 @@
+1, Test Method "testPackage01.appium.AndroidBasicInteractionsTest.scrollInExpandableLists_horizontalScrolling_insideElement" failed. Please investigate and open a new Issue if needed.
+2, Test Method "testPackage01.appium.AndroidBasicInteractionsTest.scrollInExpandableLists_verticalScrolling_insideElement" failed. Please investigate and open a new Issue if needed.
+3, Test Method "testPackage01.appium.AndroidBasicInteractionsTest.scrollInExpandableLists_verticalScrolling_insideElement2" failed. Please investigate and open a new Issue if needed.
+4, Test Method "testPackage01.appium.AndroidBasicInteractionsTest.scrollInExpandableLists_verticalScrolling_insideScreen" failed. Please investigate and open a new Issue if needed.
+5, Test Method "testPackage01.appium.AndroidBasicInteractionsTest.visualElementIdentification_samedpi" failed. Please investigate and open a new Issue if needed.

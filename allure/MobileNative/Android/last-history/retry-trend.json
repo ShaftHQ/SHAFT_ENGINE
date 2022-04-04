@@ -1,0 +1,9 @@
+[ {
+  "buildOrder" : 600,
+  "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/MobileNative/Android/600/",
+  "reportName" : "Allure Report with history",
+  "data" : {
+    "run" : 7,
+    "retry" : 0
+  }
+} ]

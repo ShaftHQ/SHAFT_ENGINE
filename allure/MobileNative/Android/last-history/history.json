@@ -1,0 +1,147 @@
+{
+  "52c3cbf56fab7052b382aedcd21178e6" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "d123f401683f885c",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/MobileNative/Android/600//#testresult/d123f401683f885c",
+      "status" : "failed",
+      "statusDetails" : "Identify unique element failed \"element locator is NULL.\".",
+      "time" : {
+        "start" : 1649101461847,
+        "stop" : 1649101466553,
+        "duration" : 4706
+      }
+    } ]
+  },
+  "24b479e3afe5f5d25d11c1341062bb6f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "b7fc8d84a4ef8255",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/MobileNative/Android/600//#testresult/b7fc8d84a4ef8255",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101559529,
+        "stop" : 1649101566339,
+        "duration" : 6810
+      }
+    } ]
+  },
+  "3e1f346a813ab824d2bf2d95f8e7f656" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "cb72f925d9c54d09",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/MobileNative/Android/600//#testresult/cb72f925d9c54d09",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101579107,
+        "stop" : 1649101590546,
+        "duration" : 11439
+      }
+    } ]
+  },
+  "559a89ee48e22a8b20baab043bc44947" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "7be3ba740433c24e",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/MobileNative/Android/600//#testresult/7be3ba740433c24e",
+      "status" : "failed",
+      "statusDetails" : "Identify unique element failed \"element locator is NULL.\".",
+      "time" : {
+        "start" : 1649101519119,
+        "stop" : 1649101536937,
+        "duration" : 17818
+      }
+    } ]
+  },
+  "5a887665918e73cc9eca181adb2714c6" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "827b692b11e1b5cb",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/MobileNative/Android/600//#testresult/827b692b11e1b5cb",
+      "status" : "failed",
+      "statusDetails" : "Identify unique element failed \"element locator is NULL.\".",
+      "time" : {
+        "start" : 1649101497561,
+        "stop" : 1649101502497,
+        "duration" : 4936
+      }
+    } ]
+  },
+  "400927def6193b091203ec0a55fad150" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "a31427037439f5b4",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/MobileNative/Android/600//#testresult/a31427037439f5b4",
+      "status" : "failed",
+      "statusDetails" : "Tap failed \"Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.\".",
+      "time" : {
+        "start" : 1649101603891,
+        "stop" : 1649101629246,
+        "duration" : 25355
+      }
+    } ]
+  },
+  "98a0141d0f5afeb2434c1e32a004b780" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "cf4aa6a8fffa29d8",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/MobileNative/Android/600//#testresult/cf4aa6a8fffa29d8",
+      "status" : "failed",
+      "statusDetails" : "Identify unique element failed \"element locator is NULL.\".",
+      "time" : {
+        "start" : 1649101482469,
+        "stop" : 1649101485071,
+        "duration" : 2602
+      }
+    } ]
+  }
+}
