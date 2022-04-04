@@ -1,0 +1,1585 @@
+################################################################################################################################################
+Detected SHAFT Engine Version: "SHAFT Engine v6.1.20220113"
+################################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"1 out of 179" test cases in the current suite
+Test Method:		"dsl.testDsl.testButton"
+################################################################################################################################################
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 19:38:44.0501 PM
+[ReportManager] Attempting to run remotely on: "Linux-64 | GoogleChrome | http://localhost:4444/wd/hub", Headless Execution. @04-04-2022 19:38:44.0513 PM
+[ReportManager] Successfully Opened "GoogleChrome". @04-04-2022 19:38:47.0121 PM
+[ReportManager] Target URL: "http://the-internet.herokuapp.com/" @04-04-2022 19:38:47.0133 PM
+[ReportManager] Initial URL: "data:," @04-04-2022 19:38:47.0394 PM
+[ReportManager] Navigate to url "http://the-internet.herokuapp.com/". @04-04-2022 19:38:48.0530 PM
+[ReportManager] Click "By.linkText: Add/Remove Elements". @04-04-2022 19:38:49.0256 PM
+[ReportManager] Get text "Add Element". @04-04-2022 19:38:49.0501 PM
+[ReportManager] Assertion Passed: "Add Element" is equal to "Add Element". @04-04-2022 19:38:49.0525 PM
+[ReportManager] Assertion "ValidateEquals" PASSED. Expected "Add Element" and Actual "Add Element". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:38:49.0525 PM
+[ReportManager] Click "By.xpath: //button[text()='Add Element']". @04-04-2022 19:38:49.0973 PM
+[ReportManager] Attempting to getAttribute "disabled" from elementLocator "By.xpath: //button[text()='Add Element']". @04-04-2022 19:38:49.0974 PM
+[ReportManager] Get attribute. @04-04-2022 19:38:50.0172 PM
+[ReportManager] Get text "Delete". @04-04-2022 19:38:50.0345 PM
+[ReportManager] Assertion Passed: "Delete" is equal to "Delete". @04-04-2022 19:38:50.0345 PM
+[ReportManager] Assertion "ValidateEquals" PASSED. Expected "Delete" and Actual "Delete". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:38:50.0346 P
+
+################################################################################################################################################
+Starting Execution:	"2 out of 179" test cases in the current suite
+Test Method:		"dsl.testDsl.testCheckBox"
+################################################################################################################################################
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 19:38:50.0558 PM
+[ReportManager] Attempting to run remotely on: "Linux-64 | GoogleChrome | http://localhost:4444/wd/hub", Headless Execution. @04-04-2022 19:38:50.0559 PM
+[ReportManager] Successfully Opened "GoogleChrome". @04-04-2022 19:38:50.0999 PM
+[ReportManager] Target URL: "http://the-internet.herokuapp.com/" @04-04-2022 19:38:50.0999 PM
+[ReportManager] Initial URL: "data:," @04-04-2022 19:38:51.0120 PM
+[ReportManager] Navigate to url "http://the-internet.herokuapp.com/". @04-04-2022 19:38:51.0903 PM
+[ReportManager] Click "By.linkText: Checkboxes". @04-04-2022 19:38:52.0420 PM
+[ReportManager] Click "By.xpath: (//INPUT[@type='checkbox'])[1]". @04-04-2022 19:38:52.0796 PM
+[ReportManager] Click "By.xpath: (//INPUT[@type='checkbox'])[2]". @04-04-2022 19:38:53.0181 P
+
+################################################################################################################################################
+Starting Execution:	"3 out of 179" test cases in the current suite
+Test Method:		"dsl.testDsl.testLabel"
+################################################################################################################################################
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 19:38:53.0286 PM
+[ReportManager] Attempting to run remotely on: "Linux-64 | GoogleChrome | http://localhost:4444/wd/hub", Headless Execution. @04-04-2022 19:38:53.0287 PM
+[ReportManager] Successfully Opened "GoogleChrome". @04-04-2022 19:38:53.0524 PM
+[ReportManager] Get text "Welcome to the-internet". @04-04-2022 19:38:54.0165 PM
+[ReportManager] Assertion Passed: "Welcome to the-internet" is equal to "Welcome to the-internet". @04-04-2022 19:38:54.0166 PM
+[ReportManager] Assertion "ValidateEquals" PASSED. Expected "Welcome to the-internet" and Actual "Welcome to the-internet". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:38:54.0166 P
+[ReportManager] Loaded Test Data: "src/test/resources/testDataFiles/testSuite01/TestData.xlsx". @04-04-2022 19:38:55.0040 PM
+[ReportManager] Successfully created attachment "Test Data - Excel" @04-04-2022 19:38:55.0042 P
+
+################################################################################################################################################
+Starting Execution:	"4 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_io_excelFileManager.getCellData_rowName_expectedToPass"
+################################################################################################################################################
+[ReportManager] testRowData. @04-04-2022 19:38:55.0110 P
+
+################################################################################################################################################
+Starting Execution:	"5 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_restActions.getPostsAndAssertBodyForSpecificTitle"
+################################################################################################################################################
+[ReportManager] Response status code: "200", status line: "HTTP/1.1 200 OK" @04-04-2022 19:38:57.0029 PM
+[ReportManager] Assertion Passed: Evaluating the actual response status code against the expected one... @04-04-2022 19:38:57.0031 PM
+[ReportManager] Assertion "ValidateComparativeRelation" PASSED. Expected "200" and Actual "200". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:38:57.0031 PM
+[ReportManager] API Action "PerformRequest" successfully performed. With the following test data "Request Type: "GET" | Target Status Code: "200" | Service URL: "https://jsonplaceholder.typicode.com/posts" | Content Type: "*/*" | Response Time: "762ms"". @04-04-2022 19:38:58.0035 PM
+[ReportManager] Successfully created attachment "API Request - Specifications" @04-04-2022 19:38:58.0036 PM
+[ReportManager] Successfully created attachment "API Response - JSON Body" @04-04-2022 19:38:58.0243 PM
+[ReportManager] API Action "GetResponseJSONValueAsList" successfully performed. @04-04-2022 19:38:58.0275 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0301 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0320 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "body". @04-04-2022 19:38:58.0339 PM
+[ReportManager] Assertion "ValidateEquals" PASSED. Expected "qui neque nisi nulla" and Actual "est rerum tempore vitae
+sequi sint nihil reprehenderit dolor beatae ea dolores neque
+fugiat blanditiis voluptate porro vel nihil molestiae ut reiciendis
+qui aperiam non debitis possimus qui neque nisi nulla". Comparison Type "CONTAINS". Validation Type "POSITIVE". @04-04-2022 19:38:58.0343 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0356 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0368 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0390 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0409 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0428 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0437 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0446 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0453 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0461 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0503 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0540 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0561 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0575 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0587 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0603 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0612 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0621 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0635 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0650 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0667 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0678 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0696 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0708 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0718 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0734 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0745 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0754 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0771 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0783 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0793 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0803 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0814 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0832 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0839 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0851 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0864 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0875 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0882 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0901 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0909 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0917 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0925 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0935 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0947 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0956 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0965 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0974 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0990 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:58.0999 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0007 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0016 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0023 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0034 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0041 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0048 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0057 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0064 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0073 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0083 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0152 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0160 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0167 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0174 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0180 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0187 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0193 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0205 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0211 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0218 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0224 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0230 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0237 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0243 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0259 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0272 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0287 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0294 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0314 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0333 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0343 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0368 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0379 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0391 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0435 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0452 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0468 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0487 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0494 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0518 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0526 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0533 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0541 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0548 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0555 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0562 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0569 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0577 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "title". @04-04-2022 19:38:59.0583 P
+
+################################################################################################################################################
+Starting Execution:	"6 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_restActions.validateUserEmail"
+################################################################################################################################################
+[ReportManager] Response status code: "200", status line: "HTTP/1.1 200 OK" @04-04-2022 19:38:59.0693 PM
+[ReportManager] Assertion Passed: Evaluating the actual response status code against the expected one... @04-04-2022 19:38:59.0693 PM
+[ReportManager] Assertion "ValidateComparativeRelation" PASSED. Expected "200" and Actual "200". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:38:59.0693 PM
+[ReportManager] API Action "PerformRequest" successfully performed. With the following test data "Request Type: "GET" | Target Status Code: "200" | Service URL: "https://jsonplaceholder.typicode.com/users" | Content Type: "*/*" | Response Time: "73ms"". @04-04-2022 19:38:59.0720 PM
+[ReportManager] Successfully created attachment "API Request - Specifications" @04-04-2022 19:38:59.0720 PM
+[ReportManager] Successfully created attachment "API Response - JSON Body" @04-04-2022 19:38:59.0721 PM
+[ReportManager] Assertion "ValidateEquals" PASSED. Expected and Actual values are attached. Comparison Type "CONTAINS". Validation Type "POSITIVE". @04-04-2022 19:38:59.0721 PM
+[ReportManager] Successfully created attachment "Validation Test Data - Expected Value" @04-04-2022 19:38:59.0721 PM
+[ReportManager] Successfully created attachment "Validation Test Data - Actual Value" @04-04-2022 19:38:59.0722 PM
+[ReportManager] API Action "GetResponseJSONValueAsList" successfully performed. With the following test data "$". @04-04-2022 19:38:59.0725 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:38:59.0734 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "email". @04-04-2022 19:38:59.0742 PM
+[ReportManager] Assertion "ValidateEquals" PASSED. Expected "Sincere@april.biz" and Actual "Sincere@april.biz". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:38:59.0742 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:38:59.0749 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:38:59.0763 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:38:59.0771 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:38:59.0778 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:38:59.0785 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:38:59.0791 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:38:59.0797 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:38:59.0807 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:38:59.0818 P
+
+################################################################################################################################################
+Starting Execution:	"7 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_restActions.validateUserId"
+################################################################################################################################################
+[ReportManager] Response status code: "200", status line: "HTTP/1.1 200 OK" @04-04-2022 19:38:59.0913 PM
+[ReportManager] Assertion Passed: Evaluating the actual response status code against the expected one... @04-04-2022 19:38:59.0914 PM
+[ReportManager] Assertion "ValidateComparativeRelation" PASSED. Expected "200" and Actual "200". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:38:59.0914 PM
+[ReportManager] API Action "PerformRequest" successfully performed. With the following test data "Request Type: "GET" | Target Status Code: "200" | Service URL: "https://jsonplaceholder.typicode.com/users" | Content Type: "*/*" | Response Time: "71ms"". @04-04-2022 19:38:59.0930 PM
+[ReportManager] Successfully created attachment "API Request - Specifications" @04-04-2022 19:38:59.0931 PM
+[ReportManager] Successfully created attachment "API Response - JSON Body" @04-04-2022 19:38:59.0931 PM
+[ReportManager] API Action "GetResponseJSONValueAsList" successfully performed. With the following test data "$". @04-04-2022 19:38:59.0938 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:38:59.0945 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:38:59.0952 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:38:59.0962 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:38:59.0971 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:38:59.0978 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "id". @04-04-2022 19:38:59.0986 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:38:59.0992 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:39:00.0000 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:39:00.0009 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:39:00.0018 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:39:00.0028 PM
+[ReportManager] API Action "GetResponseJSONValueFromList" successfully performed. With the following test data "5". @04-04-2022 19:39:00.0028 PM
+[ReportManager] Assertion Passed: "5" is equal to "5". @04-04-2022 19:39:00.0028 PM
+[ReportManager] Assertion "ValidateEquals" PASSED. Expected "5" and Actual "5". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:39:00.0029 P
+
+################################################################################################################################################
+Starting Execution:	"8 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertComparativeRelation_greaterThanOrEquals_false_equals_expectedToFail"
+################################################################################################################################################
+[ReportManager] Assertion "ValidateComparativeRelation" FAILED. Expected "1" and Actual "1". Comparison Type "GREATER_THAN_OR_EQUALS". Validation Type "NEGATIVE". @04-04-2022 19:39:00.0058 P
+
+################################################################################################################################################
+Starting Execution:	"9 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertComparativeRelation_greaterThanOrEquals_false_equals_expectedToPass"
+################################################################################################################################################
+[ReportManager] Assertion "ValidateComparativeRelation" PASSED. Expected "2" and Actual "1". Comparison Type "GREATER_THAN_OR_EQUALS". Validation Type "NEGATIVE". @04-04-2022 19:39:00.0083 P
+
+################################################################################################################################################
+Starting Execution:	"10 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertComparativeRelation_greaterThanOrEquals_false_greaterThan_expectedToFail"
+################################################################################################################################################
+[ReportManager] Assertion "ValidateComparativeRelation" FAILED. Expected "1" and Actual "2". Comparison Type "GREATER_THAN_OR_EQUALS". Validation Type "NEGATIVE". @04-04-2022 19:39:00.0118 P
+
+################################################################################################################################################
+Starting Execution:	"11 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertComparativeRelation_greaterThanOrEquals_false_greaterThan_expectedToPass"
+################################################################################################################################################
+[ReportManager] Assertion "ValidateComparativeRelation" PASSED. Expected "2" and Actual "1". Comparison Type "GREATER_THAN_OR_EQUALS". Validation Type "NEGATIVE". @04-04-2022 19:39:00.0130 P
+
+################################################################################################################################################
+Starting Execution:	"12 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertComparativeRelation_greaterThanOrEquals_true_equals_expectedToFail"
+################################################################################################################################################
+[ReportManager] Assertion "ValidateComparativeRelation" FAILED. Expected "1" and Actual "0". Comparison Type "GREATER_THAN_OR_EQUALS". Validation Type "POSITIVE". @04-04-2022 19:39:00.0152 P
+
+################################################################################################################################################
+Starting Execution:	"13 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertComparativeRelation_greaterThanOrEquals_true_equals_expectedToPass"
+################################################################################################################################################
+[ReportManager] Assertion "ValidateComparativeRelation" PASSED. Expected "1" and Actual "1". Comparison Type "GREATER_THAN_OR_EQUALS". Validation Type "POSITIVE". @04-04-2022 19:39:00.0186 P
+
+################################################################################################################################################
+Starting Execution:	"14 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertComparativeRelation_greaterThanOrEquals_true_greaterThan_expectedToFail"
+################################################################################################################################################
+[ReportManager] Assertion "ValidateComparativeRelation" FAILED. Expected "2" and Actual "1". Comparison Type "GREATER_THAN_OR_EQUALS". Validation Type "POSITIVE". @04-04-2022 19:39:00.0207 P
+
+################################################################################################################################################
+Starting Execution:	"15 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertComparativeRelation_greaterThanOrEquals_true_greaterThan_expectedToPass"
+################################################################################################################################################
+[ReportManager] Assertion "ValidateComparativeRelation" PASSED. Expected "1" and Actual "2". Comparison Type "GREATER_THAN_OR_EQUALS". Validation Type "POSITIVE". @04-04-2022 19:39:00.0227 P
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 19:39:00.0249 PM
+[ReportManager] Attempting to run remotely on: "Linux-64 | GoogleChrome | http://localhost:4444/wd/hub", Headless Execution. @04-04-2022 19:39:00.0249 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 19:42:00.0268 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 19:42:00.0269 PM
+[ReportManager] Failed to run remotely on: "Linux-64", "GoogleChrome", "http://localhost:4444/wd/hub". @04-04-2022 19:42:00.0269 PM
+[ReportManager] Driver Factory Action "createNewRemoteDriverInstance" failed. With the following test data "Unhandled Error.". @04-04-2022 19:42:00.0270 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 19:42:00.0270 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 19:42:00.0272 P
+
+################################################################################################################################################
+Starting Execution:	"16 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertElementAttribute_false_caseInsensitiveComparison_expectedToFail"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"17 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertElementAttribute_false_caseInsensitiveComparison_expectedToPass"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"18 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertElementAttribute_false_containsComparison_expectedToFail"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"19 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertElementAttribute_false_containsComparison_expectedToPass"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"20 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertElementAttribute_false_literalComparison_expectedToFail"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"21 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertElementAttribute_false_literalComparison_expectedToPass"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"22 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertElementAttribute_false_regexComparison_expectedToFail"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"23 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertElementAttribute_false_regexComparison_expectedToPass"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"24 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertElementAttribute_true_caseInsensitiveComparison_expectedToFail"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"25 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertElementAttribute_true_caseInsensitiveComparison_expectedToPass"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"26 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertElementAttribute_true_containsComparison_expectedToFail"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"27 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertElementAttribute_true_containsComparison_expectedToPass"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"28 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertElementAttribute_true_literalComparison_expectedToFail"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"29 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertElementAttribute_true_literalComparison_expectedToPass"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"30 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertElementAttribute_true_regexComparison_expectedToFail"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"31 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertElementAttribute_true_regexComparison_expectedToPass"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"32 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertElementAttribute_type_true_literalComparison_expectedToPass"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"33 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertElementExists_false_expectedToFail"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"34 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertElementExists_false_expectedToPass"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"35 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertElementExists_false_multipleElementsFound_expectedToFail"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"36 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertElementExists_true_expectedToFail"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"37 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertElementExists_true_expectedToPass"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"38 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertElementExists_true_multipleElementsFound_expectedToFail"
+###############################################################################################################################################
+
+
+################################################################################################################################################
+Starting Execution:	"39 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertEquals_false_expectedToFail"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"40 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertEquals_false_expectedToPass"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"41 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertEquals_longCharacters"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"42 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertEquals_longCharacters_Discreet"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"43 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertEquals_true_expectedToFail"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"44 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertEquals_true_expectedToPass"
+Test Description:	"Assert that assertEquals works as expected when the two values are equal."
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"45 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertEquals_true_expectedToPass__"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"46 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertFileExists_false_expectedToFail"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"47 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertFileExists_false_expectedToPass"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"48 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertFileExists_true_expectedToFail"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"49 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertFileExists_true_expectedToPass"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"50 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertNull_false_expectedToFail"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"51 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertNull_false_expectedToPass"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"52 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertNull_true_expectedToFail"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"53 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_validations_assertions.assertNull_true_expectedToPass"
+###############################################################################################################################################
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 19:42:02.0200 PM
+[ReportManager] Attempting to run remotely on: "Linux-64 | GoogleChrome | http://localhost:4444/wd/hub", Headless Execution. @04-04-2022 19:42:02.0201 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 19:45:02.0216 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 19:45:02.0216 PM
+[ReportManager] Failed to run remotely on: "Linux-64", "GoogleChrome", "http://localhost:4444/wd/hub". @04-04-2022 19:45:02.0217 PM
+[ReportManager] Driver Factory Action "createNewRemoteDriverInstance" failed. With the following test data "Unhandled Error.". @04-04-2022 19:45:02.0217 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 19:45:02.0217 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 19:45:02.0218 P
+
+################################################################################################################################################
+Starting Execution:	"54 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_element_elementActions.waitForElementToBePresent_false_expectedToFail"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"55 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_element_elementActions.waitForElementToBePresent_false_expectedToPass"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"56 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_element_elementActions.waitForElementToBePresent_moreThanOneElement_expectedToFail"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"57 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_element_elementActions.waitForElementToBePresent_true_expectedToFail"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"58 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_element_elementActions.waitForElementToBePresent_true_expectedToPass"
+###############################################################################################################################################
+
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 19:45:02.0457 PM
+[ReportManager] Attempting to run remotely on: "Linux-64 | GoogleChrome | http://localhost:4444/wd/hub", Headless Execution. @04-04-2022 19:45:02.0457 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 19:48:02.0490 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 19:48:02.0490 PM
+[ReportManager] Failed to run remotely on: "Linux-64", "GoogleChrome", "http://localhost:4444/wd/hub". @04-04-2022 19:48:02.0491 PM
+[ReportManager] Driver Factory Action "createNewRemoteDriverInstance" failed. With the following test data "Unhandled Error.". @04-04-2022 19:48:02.0491 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 19:48:02.0491 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 19:48:02.0492 P
+
+################################################################################################################################################
+Starting Execution:	"59 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_browserActions.fullScreenWindow"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"60 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_browserActions.getCurrentURL"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"61 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_browserActions.getCurrentWindowTitle"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"62 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_browserActions.getPageSource"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"63 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_browserActions.getWindowHandle"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"64 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_browserActions.getWindowPosition"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"65 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_browserActions.getWindowSize"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"66 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_browserActions.maximizeWindow"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"67 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_browserActions.navigateBack"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"68 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_browserActions.navigateForward"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"69 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_browserActions.navigateToURL"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"70 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_browserActions.navigateToURLWithRedirection"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"71 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_browserActions.refreshCurrentPage"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"72 out of 179" test cases in the current suite
+Test Method:		"unitTests.tests_browserActions.setWindowSize"
+###############################################################################################################################################
+
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 19:48:03.0107 PM
+[ReportManager] Attempting to run remotely on: "Linux-64 | GoogleChrome | http://localhost:4444/wd/hub", Headless Execution. @04-04-2022 19:48:03.0107 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 19:51:03.0130 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 19:51:03.0131 PM
+[ReportManager] Failed to run remotely on: "Linux-64", "GoogleChrome", "http://localhost:4444/wd/hub". @04-04-2022 19:51:03.0131 PM
+[ReportManager] Driver Factory Action "createNewRemoteDriverInstance" failed. With the following test data "Unhandled Error.". @04-04-2022 19:51:03.0134 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 19:51:03.0134 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 19:51:03.0135 P
+
+################################################################################################################################################
+Starting Execution:	"73 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_dragAndDrop.dragAndDropJquery"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"74 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_dragAndDrop.dragAndDrop"
+Test Description:	"TC001 - Test Drag and Drop function."
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"75 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_dragAndDrop.dragAndDropByOffset"
+Test Description:	"TC002 - Test Drag and Drop by offset function."
+###############################################################################################################################################
+
+
+################################################################################################################################################
+Starting Execution:	"76 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_testData.f"
+################################################################################################################################################
+[ReportManager] Loaded Test Data: "src/test/resources/testDataFiles/testSuite01/TestData.xlsx". @04-04-2022 19:51:03.0294 PM
+[ReportManager] Successfully created attachment "Test Data - Excel" @04-04-2022 19:51:03.0294 PM
+[ReportManager] Last Column Number is: [3]. Zero-based. @04-04-2022 19:51:03.0297 P
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 19:51:03.0323 PM
+[ReportManager] Attempting to run remotely on: "Linux-64 | GoogleChrome | http://localhost:4444/wd/hub", Headless Execution. @04-04-2022 19:51:03.0324 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 19:54:03.0338 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 19:54:03.0339 PM
+[ReportManager] Failed to run remotely on: "Linux-64", "GoogleChrome", "http://localhost:4444/wd/hub". @04-04-2022 19:54:03.0339 PM
+[ReportManager] Driver Factory Action "createNewRemoteDriverInstance" failed. With the following test data "Unhandled Error.". @04-04-2022 19:54:03.0339 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 19:54:03.0339 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 19:54:03.0339 P
+
+################################################################################################################################################
+Starting Execution:	"77 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_IsElementClickable.testIsElementClickable"
+###############################################################################################################################################
+
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 19:54:03.0389 PM
+[ReportManager] Attempting to run remotely on: "Linux-64 | GoogleChrome | http://localhost:4444/wd/hub", Headless Execution. @04-04-2022 19:54:03.0389 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 19:57:03.0402 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 19:57:03.0403 PM
+[ReportManager] Failed to run remotely on: "Linux-64", "GoogleChrome", "http://localhost:4444/wd/hub". @04-04-2022 19:57:03.0403 PM
+[ReportManager] Driver Factory Action "createNewRemoteDriverInstance" failed. With the following test data "Unhandled Error.". @04-04-2022 19:57:03.0404 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 19:57:03.0404 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 19:57:03.0405 P
+
+################################################################################################################################################
+Starting Execution:	"78 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_uploadFile.uploadFile_invisibleUploadInput"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"79 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_uploadFile.uploadFile_visibleUploadInput"
+###############################################################################################################################################
+
+
+################################################################################################################################################
+Starting Execution:	"80 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_SHAFT_Wizard.api"
+################################################################################################################################################
+[ReportManager] Response status code: "200", status line: "HTTP/1.1 200 OK" @04-04-2022 19:57:03.0644 PM
+[ReportManager] Assertion Passed: Evaluating the actual response status code against the expected one... @04-04-2022 19:57:03.0645 PM
+[ReportManager] Assertion "ValidateComparativeRelation" PASSED. Expected "200" and Actual "200". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:57:03.0645 PM
+[ReportManager] API Action "PerformRequest" successfully performed. With the following test data "Request Type: "GET" | Target Status Code: "200" | Service URL: "https://jsonplaceholder.typicode.com/users" | Content Type: "*/*" | Response Time: "131ms"". @04-04-2022 19:57:03.0669 PM
+[ReportManager] Successfully created attachment "API Request - Specifications" @04-04-2022 19:57:03.0670 PM
+[ReportManager] Successfully created attachment "API Response - JSON Body" @04-04-2022 19:57:03.0670 PM
+[ReportManager] API Action "GetResponseJSONValueAsList" successfully performed. With the following test data "$". @04-04-2022 19:57:03.0674 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:57:03.0732 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "email". @04-04-2022 19:57:03.0744 PM
+[ReportManager] Verification Passed: The API response extracted value from the JSON path "email" is equal to "Sincere@april.biz". @04-04-2022 19:57:03.0744 PM
+[ReportManager] Verification "ValidateEquals" PASSED. Expected "Sincere@april.biz" and Actual "Sincere@april.biz". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:57:03.0744 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "username". @04-04-2022 19:57:03.0751 PM
+[ReportManager] Assertion Passed: The API response extracted value from the JSON path "username" is equal to "Bret". @04-04-2022 19:57:03.0751 PM
+[ReportManager] Assertion "ValidateEquals" PASSED. Expected "Bret" and Actual "Bret". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:57:03.0752 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:57:03.0759 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:57:03.0770 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:57:03.0777 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:57:03.0787 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:57:03.0794 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:57:03.0808 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:57:03.0816 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:57:03.0822 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:57:03.0830 P
+
+################################################################################################################################################
+Starting Execution:	"81 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_SHAFT_Wizard.cli"
+################################################################################################################################################
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "src/test/resources/testDataFiles/JsonFileTest.json"". @04-04-2022 19:57:03.0842 PM
+[ReportManager] File Action "ReadFromFile" successfully performed. With the following test data "File Path: "/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/test/resources/testDataFiles/JsonFileTest.json"". @04-04-2022 19:57:03.0850 PM
+[ReportManager] Successfully created attachment "File Action Actual Result - Command Log" @04-04-2022 19:57:03.0850 PM
+[ReportManager] Successfully created attachment "JSON - Custom Attachment" @04-04-2022 19:57:03.0855 P
+
+################################################################################################################################################
+Starting Execution:	"82 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_SHAFT_Wizard.gui"
+################################################################################################################################################
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 19:57:03.0877 PM
+[ReportManager] Attempting to run remotely on: "Linux-64 | GoogleChrome | http://localhost:4444/wd/hub", Headless Execution. @04-04-2022 19:57:03.0877 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:00:03.0917 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:00:03.0917 PM
+[ReportManager] Failed to run remotely on: "Linux-64", "GoogleChrome", "http://localhost:4444/wd/hub". @04-04-2022 20:00:03.0918 PM
+[ReportManager] Driver Factory Action "createNewRemoteDriverInstance" failed. With the following test data "Unhandled Error.". @04-04-2022 20:00:03.0918 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:00:03.0919 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:00:03.0919 P
+
+################################################################################################################################################
+Starting Execution:	"83 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_SHAFT_Wizard.testData"
+################################################################################################################################################
+[ReportManager] File Action "DoesFileExist" successfully performed. With the following test data "File Path: "src/test/resources/testDataFiles/sample.pdf"". @04-04-2022 20:00:03.0942 PM
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "src/test/resources/testDataFiles/sample.pdf"". @04-04-2022 20:00:03.0942 PM
+[ReportManager] File Action "DoesFileExist" successfully performed. With the following test data "File Path: "/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/test/resources/testDataFiles/sample.pdf"". @04-04-2022 20:00:03.0942 PM
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/test/resources/testDataFiles/sample.pdf"". @04-04-2022 20:00:03.0943 PM
+[ReportManager] Successfully created attachment "PDF - Custom Attachment" @04-04-2022 20:00:04.0375 P
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 20:00:04.0390 PM
+[ReportManager] Attempting to run remotely on: "Linux-64 | GoogleChrome | http://localhost:4444/wd/hub", Headless Execution. @04-04-2022 20:00:04.0390 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:03:04.0407 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:03:04.0407 PM
+[ReportManager] Failed to run remotely on: "Linux-64", "GoogleChrome", "http://localhost:4444/wd/hub". @04-04-2022 20:03:04.0408 PM
+[ReportManager] Driver Factory Action "createNewRemoteDriverInstance" failed. With the following test data "Unhandled Error.". @04-04-2022 20:03:04.0409 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:03:04.0409 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:03:04.0409 P
+
+################################################################################################################################################
+Starting Execution:	"84 out of 179" test cases in the current suite
+Test Method:		"testPackage01.TestJSConfirmBox.dismissAlert"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"85 out of 179" test cases in the current suite
+Test Method:		"testPackage01.TestJSConfirmBox.assertOnCancelAlertResultText"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"86 out of 179" test cases in the current suite
+Test Method:		"testPackage01.TestJSConfirmBox.getAlertText"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"87 out of 179" test cases in the current suite
+Test Method:		"testPackage01.TestJSConfirmBox.acceptAlert"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"88 out of 179" test cases in the current suite
+Test Method:		"testPackage01.TestJSConfirmBox.assertOnConfirmAlertResultText"
+###############################################################################################################################################
+
+
+################################################################################################################################################
+Starting Execution:	"89 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_SkipDueToIssue.doNotSkip"
+################################################################################################################################################
+[ReportManager] This should not be skipped. @04-04-2022 20:03:04.0582 P
+
+################################################################################################################################################
+Starting Execution:	"90 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_SkipDueToIssue.skip"
+################################################################################################################################################
+[ReportManager] This should be skipped. @04-04-2022 20:03:04.0605 P
+
+################################################################################################################################################
+Starting Execution:	"91 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_SkipDueToIssue.skip2"
+################################################################################################################################################
+[ReportManager] This should be skipped. @04-04-2022 20:03:04.0620 P
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 20:03:04.0648 PM
+[ReportManager] Attempting to run remotely on: "Linux-64 | GoogleChrome | http://localhost:4444/wd/hub", Headless Execution. @04-04-2022 20:03:04.0648 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:06:04.0670 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:06:04.0670 PM
+[ReportManager] Failed to run remotely on: "Linux-64", "GoogleChrome", "http://localhost:4444/wd/hub". @04-04-2022 20:06:04.0670 PM
+[ReportManager] Driver Factory Action "createNewRemoteDriverInstance" failed. With the following test data "Unhandled Error.". @04-04-2022 20:06:04.0670 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:06:04.0671 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:06:04.0671 P
+
+################################################################################################################################################
+Starting Execution:	"92 out of 179" test cases in the current suite
+Test Method:		"testPackage01.TestJSAlertBox.getJSAlertText"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"93 out of 179" test cases in the current suite
+Test Method:		"testPackage01.TestJSAlertBox.acceptAlert"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"94 out of 179" test cases in the current suite
+Test Method:		"testPackage01.TestJSAlertBox.assertOnConfirmAlertResultText"
+###############################################################################################################################################
+
+
+################################################################################################################################################
+Starting Execution:	"95 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_sendGraphqlRequest.sendGraphqlRequestUsingMutationAndVariables"
+################################################################################################################################################
+[ReportManager] GraphQl Request is being Performed with the Following Parameters [Service URL: https://api.spacex.land/graphql | Request Body: {"variables":"{\"name\": \"sherlock holmes\",\"rocket\": \"221B Baker Street\"}","query":"mutation ($name: String, $rocket: String) {\n  insert_users(objects: {name: $name, rocket: $rocket}) {\n    returning {\n      name\n      rocket\n    }\n  }\n}"}" @04-04-2022 20:06:04.0807 PM
+[ReportManager] Response status code: "200", status line: "HTTP/1.1 200 OK" @04-04-2022 20:06:05.0332 PM
+[ReportManager] Assertion Passed: Evaluating the actual response status code against the expected one... @04-04-2022 20:06:05.0333 PM
+[ReportManager] Assertion "ValidateComparativeRelation" PASSED. Expected "200" and Actual "200". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 20:06:05.0333 PM
+[ReportManager] API Action "PerformRequest" successfully performed. With the following test data "Request Type: "POST" | Target Status Code: "200" | Service URL: "https://api.spacex.land/graphql" | Content Type: "application/json" | Response Time: "469ms"". @04-04-2022 20:06:05.0346 PM
+[ReportManager] Successfully created attachment "API Request - Specifications" @04-04-2022 20:06:05.0346 PM
+[ReportManager] Successfully created attachment "API Request - JSON Body" @04-04-2022 20:06:05.0347 PM
+[ReportManager] Successfully created attachment "API Response - JSON Body" @04-04-2022 20:06:05.0347 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "data.insert_users.returning[0].name". @04-04-2022 20:06:05.0393 PM
+[ReportManager] Assertion "ValidateEquals" PASSED. Expected "sherlock holmes" and Actual "sherlock holmes". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 20:06:05.0393 P
+
+################################################################################################################################################
+Starting Execution:	"96 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_sendGraphqlRequest.sendGraphqlRequestUsingQuery"
+################################################################################################################################################
+[ReportManager] GraphQl Request is being Performed with the Following Parameters [Service URL: https://api.spacex.land/graphql | Request Body: {"query":"{company {ceo}}"}" @04-04-2022 20:06:05.0409 PM
+[ReportManager] Response status code: "200", status line: "HTTP/1.1 200 OK" @04-04-2022 20:06:05.0595 PM
+[ReportManager] Assertion Passed: Evaluating the actual response status code against the expected one... @04-04-2022 20:06:05.0595 PM
+[ReportManager] Assertion "ValidateComparativeRelation" PASSED. Expected "200" and Actual "200". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 20:06:05.0596 PM
+[ReportManager] API Action "PerformRequest" successfully performed. With the following test data "Request Type: "POST" | Target Status Code: "200" | Service URL: "https://api.spacex.land/graphql" | Content Type: "application/json" | Response Time: "181ms"". @04-04-2022 20:06:05.0607 PM
+[ReportManager] Successfully created attachment "API Request - Specifications" @04-04-2022 20:06:05.0608 PM
+[ReportManager] Successfully created attachment "API Request - JSON Body" @04-04-2022 20:06:05.0608 PM
+[ReportManager] Successfully created attachment "API Response - JSON Body" @04-04-2022 20:06:05.0609 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "data.company.ceo". @04-04-2022 20:06:05.0617 PM
+[ReportManager] Assertion "ValidateEquals" PASSED. Expected "Elon Musk" and Actual "Elon Musk". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 20:06:05.0617 P
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 20:06:05.0640 PM
+[ReportManager] Attempting to run remotely on: "Linux-64 | GoogleChrome | http://localhost:4444/wd/hub", Headless Execution. @04-04-2022 20:06:05.0640 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:09:05.0661 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:09:05.0661 PM
+[ReportManager] Failed to run remotely on: "Linux-64", "GoogleChrome", "http://localhost:4444/wd/hub". @04-04-2022 20:09:05.0661 PM
+[ReportManager] Driver Factory Action "createNewRemoteDriverInstance" failed. With the following test data "Unhandled Error.". @04-04-2022 20:09:05.0662 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:09:05.0662 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:09:05.0663 P
+
+################################################################################################################################################
+Starting Execution:	"97 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_dynamicLoading.dynamicLoading_elementIsHidden"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"98 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_dynamicLoading.dynamicLoading_elementIsRendered"
+###############################################################################################################################################
+
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 20:09:05.0766 PM
+[ReportManager] Attempting to run remotely on: "Linux-64 | GoogleChrome | http://localhost:4444/wd/hub", Headless Execution. @04-04-2022 20:09:05.0767 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:12:05.0786 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:12:05.0787 PM
+[ReportManager] Failed to run remotely on: "Linux-64", "GoogleChrome", "http://localhost:4444/wd/hub". @04-04-2022 20:12:05.0787 PM
+[ReportManager] Driver Factory Action "createNewRemoteDriverInstance" failed. With the following test data "Unhandled Error.". @04-04-2022 20:12:05.0787 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:12:05.0787 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:12:05.0788 P
+
+################################################################################################################################################
+Starting Execution:	"99 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_RelativeLocators.relativeLocatorsTest1"
+###############################################################################################################################################
+
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 20:12:05.0852 PM
+[ReportManager] Attempting to run remotely on: "Linux-64 | GoogleChrome | http://localhost:4444/wd/hub", Headless Execution. @04-04-2022 20:12:05.0853 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:15:05.0866 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:15:05.0867 PM
+[ReportManager] Failed to run remotely on: "Linux-64", "GoogleChrome", "http://localhost:4444/wd/hub". @04-04-2022 20:15:05.0867 PM
+[ReportManager] Driver Factory Action "createNewRemoteDriverInstance" failed. With the following test data "Unhandled Error.". @04-04-2022 20:15:05.0867 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:15:05.0867 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:15:05.0867 P
+
+################################################################################################################################################
+Starting Execution:	"100 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_chainableElementActions.chainElementActions"
+###############################################################################################################################################
+
+
+################################################################################################################################################
+Starting Execution:	"101 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_SelectedValue.multipleSelect"
+################################################################################################################################################
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 20:15:05.0956 PM
+[ReportManager] Attempting to run remotely on: "Linux-64 | GoogleChrome | http://localhost:4444/wd/hub", Headless Execution. @04-04-2022 20:15:05.0957 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:18:05.0972 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:18:05.0973 PM
+[ReportManager] Failed to run remotely on: "Linux-64", "GoogleChrome", "http://localhost:4444/wd/hub". @04-04-2022 20:18:05.0973 PM
+[ReportManager] Driver Factory Action "createNewRemoteDriverInstance" failed. With the following test data "Unhandled Error.". @04-04-2022 20:18:05.0973 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:18:05.0974 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:18:05.0974 P
+
+################################################################################################################################################
+Starting Execution:	"102 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_SelectedValue.simpleSelect"
+################################################################################################################################################
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 20:18:05.0992 PM
+[ReportManager] Attempting to run remotely on: "Linux-64 | GoogleChrome | http://localhost:4444/wd/hub", Headless Execution. @04-04-2022 20:18:05.0993 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:21:06.0023 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:21:06.0024 PM
+[ReportManager] Failed to run remotely on: "Linux-64", "GoogleChrome", "http://localhost:4444/wd/hub". @04-04-2022 20:21:06.0024 PM
+[ReportManager] Driver Factory Action "createNewRemoteDriverInstance" failed. With the following test data "Unhandled Error.". @04-04-2022 20:21:06.0024 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:21:06.0024 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:21:06.0025 P
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 20:21:06.0056 PM
+[ReportManager] Attempting to run remotely on: "Linux-64 | GoogleChrome | http://localhost:4444/wd/hub", Headless Execution. @04-04-2022 20:21:06.0056 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:24:06.0069 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:24:06.0069 PM
+[ReportManager] Failed to run remotely on: "Linux-64", "GoogleChrome", "http://localhost:4444/wd/hub". @04-04-2022 20:24:06.0070 PM
+[ReportManager] Driver Factory Action "createNewRemoteDriverInstance" failed. With the following test data "Unhandled Error.". @04-04-2022 20:24:06.0070 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:24:06.0070 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:24:06.0070 P
+
+################################################################################################################################################
+Starting Execution:	"103 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_ShadowDOM.shadowdom"
+###############################################################################################################################################
+
+
+################################################################################################################################################
+Starting Execution:	"104 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_MatchJsonSchema.checkAPI_ResponseSchema"
+################################################################################################################################################
+[ReportManager] Response status code: "200", status line: "HTTP/1.1 200 OK" @04-04-2022 20:24:06.0238 PM
+[ReportManager] Assertion Passed: Evaluating the actual response status code against the expected one... @04-04-2022 20:24:06.0238 PM
+[ReportManager] Assertion "ValidateComparativeRelation" PASSED. Expected "200" and Actual "200". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 20:24:06.0238 PM
+[ReportManager] API Action "PerformRequest" successfully performed. With the following test data "Request Type: "GET" | Target Status Code: "200" | Service URL: "http://api.zippopotam.us/us/90210" | Content Type: "*/*" | Response Time: "98ms"". @04-04-2022 20:24:06.0254 PM
+[ReportManager] Successfully created attachment "API Request - Specifications" @04-04-2022 20:24:06.0254 PM
+[ReportManager] Successfully created attachment "API Response - JSON Body" @04-04-2022 20:24:06.0255 PM
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "src/test/resources/testDataFiles/schema.json"". @04-04-2022 20:24:06.0255 PM
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/test/resources/testDataFiles/schema.json"". @04-04-2022 20:24:07.0205 PM
+[ReportManager] File Action "ReadFromFile" successfully performed. With the following test data "File Path: "/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/test/resources/testDataFiles/schema.json"". @04-04-2022 20:24:07.0206 PM
+[ReportManager] Assertion Passed: The API response schema matches that in this file "src/test/resources/testDataFiles/schema.json". @04-04-2022 20:24:07.0215 PM
+[ReportManager] Successfully created attachment "Validation Test Data - Expected JSON Value" @04-04-2022 20:24:07.0216 PM
+[ReportManager] Successfully created attachment "Validation Test Data - Actual JSON Value" @04-04-2022 20:24:07.0216 PM
+[ReportManager] Assertion "ValidateResponseFileSchema" PASSED. Expected "Response data should match the JSON File in this path '/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/test/resources/testDataFiles/schema.json'" and Actual "TRUE". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 20:24:07.0216 P
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 20:24:07.0230 PM
+[ReportManager] Attempting to run remotely on: "Linux-64 | GoogleChrome | http://localhost:4444/wd/hub", Headless Execution. @04-04-2022 20:24:07.0231 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:27:07.0243 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:27:07.0243 PM
+[ReportManager] Failed to run remotely on: "Linux-64", "GoogleChrome", "http://localhost:4444/wd/hub". @04-04-2022 20:27:07.0244 PM
+[ReportManager] Driver Factory Action "createNewRemoteDriverInstance" failed. With the following test data "Unhandled Error.". @04-04-2022 20:27:07.0244 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:27:07.0245 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:27:07.0246 P
+
+################################################################################################################################################
+Starting Execution:	"105 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_verifyEquals.test_assertElementAttribute"
+###############################################################################################################################################
+
+
+################################################################################################################################################
+Starting Execution:	"106 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_JsonCompareWithSpecialCharacters.specialCharacters"
+################################################################################################################################################
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "src/test/resources/testDataFiles/specialCharacters.json"". @04-04-2022 20:27:07.0307 PM
+[ReportManager] File Action "ReadFromFile" successfully performed. With the following test data "File Path: "/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/test/resources/testDataFiles/specialCharacters.json"". @04-04-2022 20:27:07.0308 PM
+[ReportManager] Successfully created attachment "File Action Actual Result - Command Log" @04-04-2022 20:27:07.0308 PM
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "src/test/resources/testDataFiles/specialCharacters.json"". @04-04-2022 20:27:07.0308 PM
+[ReportManager] Comparing the provided API response with the file at this path "/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/test/resources/testDataFiles/specialCharacters.json", comparison type "EQUALS" @04-04-2022 20:27:07.0309 PM
+[ReportManager] API Action "CompareJSON" successfully performed. With the following test data "/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/test/resources/testDataFiles/specialCharacters.json". @04-04-2022 20:27:07.0316 PM
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/test/resources/testDataFiles/specialCharacters.json"". @04-04-2022 20:27:07.0316 PM
+[ReportManager] File Action "ReadFromFile" successfully performed. With the following test data "File Path: "/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/test/resources/testDataFiles/specialCharacters.json"". @04-04-2022 20:27:07.0316 PM
+[ReportManager] Verification Passed: The API response is equal to the contents of this file "src/test/resources/testDataFiles/specialCharacters.json". @04-04-2022 20:27:07.0319 PM
+[ReportManager] Successfully created attachment "Validation Test Data - Expected JSON Value" @04-04-2022 20:27:07.0320 PM
+[ReportManager] Successfully created attachment "Validation Test Data - Actual JSON Value" @04-04-2022 20:27:07.0320 PM
+[ReportManager] Verification "ValidateJSONFileContent" PASSED. Expected "Response data should match the JSON File in this path '/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/test/resources/testDataFiles/specialCharacters.json'" and Actual "TRUE". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 20:27:07.0321 P
+
+################################################################################################################################################
+Starting Execution:	"107 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_JsonCompareWithSpecialCharacters.specialCharacters_assertion"
+################################################################################################################################################
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "src/test/resources/testDataFiles/specialCharacters.json"". @04-04-2022 20:27:07.0368 PM
+[ReportManager] File Action "ReadFromFile" successfully performed. With the following test data "File Path: "/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/test/resources/testDataFiles/specialCharacters.json"". @04-04-2022 20:27:07.0368 PM
+[ReportManager] Successfully created attachment "File Action Actual Result - Command Log" @04-04-2022 20:27:07.0369 PM
+[ReportManager] Comparing the provided API response with the file at this path "src/test/resources/testDataFiles/specialCharacters.json", comparison type "CONTAINS" @04-04-2022 20:27:07.0369 PM
+[ReportManager] API Action "CompareJSON" successfully performed. With the following test data "src/test/resources/testDataFiles/specialCharacters.json". @04-04-2022 20:27:07.0435 PM
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "src/test/resources/testDataFiles/specialCharacters.json"". @04-04-2022 20:27:07.0435 PM
+[ReportManager] File Action "ReadFromFile" successfully performed. With the following test data "File Path: "/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/test/resources/testDataFiles/specialCharacters.json"". @04-04-2022 20:27:07.0435 PM
+[ReportManager] Assertion Passed: trying out the log message @04-04-2022 20:27:07.0449 PM
+[ReportManager] Successfully created attachment "Validation Test Data - Expected JSON Value" @04-04-2022 20:27:07.0450 PM
+[ReportManager] Successfully created attachment "Validation Test Data - Actual JSON Value" @04-04-2022 20:27:07.0450 PM
+[ReportManager] Assertion "ValidateJSONFileContent" PASSED. Expected "Response data should match the JSON File in this path 'src/test/resources/testDataFiles/specialCharacters.json'" and Actual "TRUE". Comparison Type "CONTAINS". Validation Type "POSITIVE". @04-04-2022 20:27:07.0450 P
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 20:27:07.0466 PM
+[ReportManager] Attempting to run remotely on: "Linux-64 | GoogleChrome | http://localhost:4444/wd/hub", Headless Execution. @04-04-2022 20:27:07.0467 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:30:07.0479 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:30:07.0480 PM
+[ReportManager] Failed to run remotely on: "Linux-64", "GoogleChrome", "http://localhost:4444/wd/hub". @04-04-2022 20:30:07.0480 PM
+[ReportManager] Driver Factory Action "createNewRemoteDriverInstance" failed. With the following test data "Unhandled Error.". @04-04-2022 20:30:07.0481 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:30:07.0481 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:30:07.0481 P
+
+################################################################################################################################################
+Starting Execution:	"108 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_clipboardActions.typeTextAndCopyPaste"
+###############################################################################################################################################
+
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 20:30:07.0546 PM
+[ReportManager] Attempting to run remotely on: "Linux-64 | GoogleChrome | http://localhost:4444/wd/hub", Headless Execution. @04-04-2022 20:30:07.0546 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:33:07.0569 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:33:07.0570 PM
+[ReportManager] Failed to run remotely on: "Linux-64", "GoogleChrome", "http://localhost:4444/wd/hub". @04-04-2022 20:33:07.0570 PM
+[ReportManager] Driver Factory Action "createNewRemoteDriverInstance" failed. With the following test data "Unhandled Error.". @04-04-2022 20:33:07.0570 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:33:07.0570 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:33:07.0571 P
+
+################################################################################################################################################
+Starting Execution:	"109 out of 179" test cases in the current suite
+Test Method:		"testPackage01.validationsWizard.Test_ElementValidations.attribute"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"110 out of 179" test cases in the current suite
+Test Method:		"testPackage01.validationsWizard.Test_ElementValidations.cssProperty"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"111 out of 179" test cases in the current suite
+Test Method:		"testPackage01.validationsWizard.Test_ElementValidations.exists"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"112 out of 179" test cases in the current suite
+Test Method:		"testPackage01.validationsWizard.Test_ElementValidations.isEnabled"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"113 out of 179" test cases in the current suite
+Test Method:		"testPackage01.validationsWizard.Test_ElementValidations.isNotChecked"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"114 out of 179" test cases in the current suite
+Test Method:		"testPackage01.validationsWizard.Test_ElementValidations.isNotSelected"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"115 out of 179" test cases in the current suite
+Test Method:		"testPackage01.validationsWizard.Test_ElementValidations.isVisible"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"116 out of 179" test cases in the current suite
+Test Method:		"testPackage01.validationsWizard.Test_ElementValidations.matchesReferenceImage"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"117 out of 179" test cases in the current suite
+Test Method:		"testPackage01.validationsWizard.Test_ElementValidations.text"
+###############################################################################################################################################
+
+
+################################################################################################################################################
+Starting Execution:	"118 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_AssertApiResponseEquals.assertApiResponseEquals_expectedToPass"
+################################################################################################################################################
+[ReportManager] Response status code: "200", status line: "HTTP/1.1 200 OK" @04-04-2022 20:33:08.0023 PM
+[ReportManager] Assertion Passed: Evaluating the actual response status code against the expected one... @04-04-2022 20:33:08.0023 PM
+[ReportManager] Assertion "ValidateComparativeRelation" PASSED. Expected "200" and Actual "200". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 20:33:08.0024 PM
+[ReportManager] API Action "PerformRequest" successfully performed. With the following test data "Request Type: "GET" | Target Status Code: "200" | Service URL: "https://jsonplaceholder.typicode.com/users" | Content Type: "*/*" | Response Time: "152ms"". @04-04-2022 20:33:08.0063 PM
+[ReportManager] Successfully created attachment "API Request - Specifications" @04-04-2022 20:33:08.0063 PM
+[ReportManager] Successfully created attachment "API Response - JSON Body" @04-04-2022 20:33:08.0064 PM
+[ReportManager] API Action "GetResponseJSONValueAsList" successfully performed. With the following test data "$". @04-04-2022 20:33:08.0070 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 20:33:08.0090 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "email". @04-04-2022 20:33:08.0134 PM
+[ReportManager] Verification Passed: The API response extracted value from the JSON path "email" is equal to "Sincere@april.biz". @04-04-2022 20:33:08.0135 PM
+[ReportManager] Verification "ValidateEquals" PASSED. Expected "Sincere@april.biz" and Actual "Sincere@april.biz". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 20:33:08.0135 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "username". @04-04-2022 20:33:08.0154 PM
+[ReportManager] Assertion Passed: The API response extracted value from the JSON path "username" is equal to "Bret". @04-04-2022 20:33:08.0154 PM
+[ReportManager] Assertion "ValidateEquals" PASSED. Expected "Bret" and Actual "Bret". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 20:33:08.0154 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 20:33:08.0170 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 20:33:08.0195 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 20:33:08.0208 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 20:33:08.0222 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 20:33:08.0234 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 20:33:08.0245 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 20:33:08.0259 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 20:33:08.0276 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 20:33:08.0296 P
+
+################################################################################################################################################
+Starting Execution:	"119 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_JSONFileManager.readStringFromJson"
+################################################################################################################################################
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "src/test/resources/testDataFiles/simpleJSON.json"". @04-04-2022 20:33:08.0315 PM
+[ReportManager] Loaded Test Data: "src/test/resources/testDataFiles/simpleJSON.json". @04-04-2022 20:33:08.0315 PM
+[ReportManager] Successfully created attachment "Test Data - JSON" @04-04-2022 20:33:08.0317 PM
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "src/test/resources/testDataFiles/simpleJSON.json"". @04-04-2022 20:33:08.0319 PM
+[ReportManager] Assertion "ValidateEquals" PASSED. Expected "Mohab Mohie" and Actual "Mohab Mohie". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 20:33:08.0335 P
+
+################################################################################################################################################
+Starting Execution:	"120 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f1"
+################################################################################################################################################
+[ReportManager] Assertion Passed: Checking valid user data @04-04-2022 20:33:08.0352 PM
+[ReportManager] Successfully created attachment "Validation Test Data - Expected Value" @04-04-2022 20:33:08.0352 PM
+[ReportManager] Successfully created attachment "Validation Test Data - Actual Value" @04-04-2022 20:33:08.0353 PM
+[ReportManager] Assertion "ValidateEquals" PASSED. Expected and Actual values are attached. Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 20:33:08.0353 P
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 20:33:08.0366 PM
+[ReportManager] Attempting to run remotely on: "Linux-64 | GoogleChrome | http://localhost:4444/wd/hub", Headless Execution. @04-04-2022 20:33:08.0367 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:36:08.0392 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:36:08.0392 PM
+[ReportManager] Failed to run remotely on: "Linux-64", "GoogleChrome", "http://localhost:4444/wd/hub". @04-04-2022 20:36:08.0392 PM
+[ReportManager] Driver Factory Action "createNewRemoteDriverInstance" failed. With the following test data "Unhandled Error.". @04-04-2022 20:36:08.0393 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:36:08.0393 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:36:08.0393 P
+
+################################################################################################################################################
+Starting Execution:	"121 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f10"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"122 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f11"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"123 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f12"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"124 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f13"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"125 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f14"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"126 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f15"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"127 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f16"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"128 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f17"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"129 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f18"
+###############################################################################################################################################
+
+
+################################################################################################################################################
+Starting Execution:	"130 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f2"
+###############################################################################################################################################
+
+
+################################################################################################################################################
+Starting Execution:	"131 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f20"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"132 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f21"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"133 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f22"
+###############################################################################################################################################
+
+
+################################################################################################################################################
+Starting Execution:	"134 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f23"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"135 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f24"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"136 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f25"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"137 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f26"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"138 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f27"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"139 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f28"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"140 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f29"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"141 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f3"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"142 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f30"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"143 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f31"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"144 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f32"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"145 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f33"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"146 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f34"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"147 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f35"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"148 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f36"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"149 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f37"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"150 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f3_1"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"151 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f4"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"152 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f5"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"153 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f6"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"154 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f6_1"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"155 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f6_2"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"156 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f7"
+###############################################################################################################################################
+
+
+################################################################################################################################################
+Starting Execution:	"157 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f8"
+###############################################################################################################################################
+
+
+
+################################################################################################################################################
+Starting Execution:	"158 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.f9"
+###############################################################################################################################################
+
+
+################################################################################################################################################
+Starting Execution:	"159 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.forceFail"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"160 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_NewValidationHelper.forceFail2"
+###############################################################################################################################################
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 20:36:09.0745 PM
+[ReportManager] Attempting to run remotely on: "Linux-64 | GoogleChrome | http://localhost:4444/wd/hub", Headless Execution. @04-04-2022 20:36:09.0745 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:39:09.0757 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:39:09.0757 PM
+[ReportManager] Failed to run remotely on: "Linux-64", "GoogleChrome", "http://localhost:4444/wd/hub". @04-04-2022 20:39:09.0758 PM
+[ReportManager] Driver Factory Action "createNewRemoteDriverInstance" failed. With the following test data "Unhandled Error.". @04-04-2022 20:39:09.0758 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:39:09.0758 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:39:09.0759 P
+
+################################################################################################################################################
+Starting Execution:	"161 out of 179" test cases in the current suite
+Test Method:		"testPackage01.TestJSPromptBox.dismissAlert"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"162 out of 179" test cases in the current suite
+Test Method:		"testPackage01.TestJSPromptBox.assertOnCancelAlertResultText"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"163 out of 179" test cases in the current suite
+Test Method:		"testPackage01.TestJSPromptBox.getAlertText"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"164 out of 179" test cases in the current suite
+Test Method:		"testPackage01.TestJSPromptBox.acceptPromptAlertWithoutTypingTextMessage"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"165 out of 179" test cases in the current suite
+Test Method:		"testPackage01.TestJSPromptBox.assertOnConfirmPromptAlertWithoutTypingTextMessageResultText"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"166 out of 179" test cases in the current suite
+Test Method:		"testPackage01.TestJSPromptBox.acceptPromptAlertWithTextMessage"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"167 out of 179" test cases in the current suite
+Test Method:		"testPackage01.TestJSPromptBox.assertOnConfirmPromptAlertWithTextMessageResultText"
+###############################################################################################################################################
+
+
+################################################################################################################################################
+Starting Execution:	"168 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_PDF.testPDF1"
+################################################################################################################################################
+[ReportManager] File Action "DoesFileExist" successfully performed. With the following test data "File Path: "src/test/resources/testDataFiles/sample.pdf"". @04-04-2022 20:39:09.0928 PM
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "src/test/resources/testDataFiles/sample.pdf"". @04-04-2022 20:39:09.0928 PM
+[ReportManager] Assertion Passed: Checking to see that the pdf file contains [A Simple PDF File] @04-04-2022 20:39:09.0945 PM
+[ReportManager] Successfully created attachment "Validation Test Data - Expected Value" @04-04-2022 20:39:09.0946 PM
+[ReportManager] Successfully created attachment "Validation Test Data - Actual Value" @04-04-2022 20:39:09.0946 PM
+[ReportManager] Assertion "ValidateEquals" PASSED. Expected and Actual values are attached. Comparison Type "CONTAINS". Validation Type "POSITIVE". @04-04-2022 20:39:09.0946 P
+
+################################################################################################################################################
+Starting Execution:	"169 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_PDF.testPDF2"
+################################################################################################################################################
+[ReportManager] File Action "DoesFileExist" successfully performed. With the following test data "File Path: "src/test/resources/testDataFiles/sample.pdf"". @04-04-2022 20:39:09.0962 PM
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "src/test/resources/testDataFiles/sample.pdf"". @04-04-2022 20:39:09.0963 PM
+[ReportManager] Assertion Passed: Checking to see that the pdf file contains [A Simple PDF File] @04-04-2022 20:39:09.0986 PM
+[ReportManager] Successfully created attachment "Validation Test Data - Expected Value" @04-04-2022 20:39:09.0986 PM
+[ReportManager] Successfully created attachment "Validation Test Data - Actual Value" @04-04-2022 20:39:09.0987 PM
+[ReportManager] Assertion "ValidateEquals" PASSED. Expected and Actual values are attached. Comparison Type "CONTAINS". Validation Type "POSITIVE". @04-04-2022 20:39:09.0987 P
+[ReportManager] Loaded Test Data: "src/test/resources/testDataFiles/testSuite01/TestData.xlsx". @04-04-2022 20:39:10.0069 PM
+[ReportManager] Successfully created attachment "Test Data - Excel" @04-04-2022 20:39:10.0069 PM
+[ReportManager] Attempting to run using Playwright locally on: "Linux-64 | GoogleChrome", Headless Execution. @04-04-2022 20:39:25.0302 PM
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 20:39:25.0303 PM
+[ReportManager] Initial window size: (1280, 720) @04-04-2022 20:39:25.0635 PM
+[ReportManager] Window size after Toolkit: com.microsoft.playwright.options.ViewportSize@71b326bf @04-04-2022 20:39:25.0676 PM
+[ReportManager] Browser Action "MaximizeWindow" successfully performed. With the following test data "New screen size is now: (1920, 1080)". @04-04-2022 20:39:25.0678 P
+
+################################################################################################################################################
+Starting Execution:	"170 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_google_playwright.navigateToURLandVerifyGoogleLogoIsDisplayed"
+Test Description:	"TC001 - Navigate to URL and Verify Google Logo is Displayed"
+################################################################################################################################################
+[ReportManager] Target URL: "https://www.google.com/ncr", and after redirection: "https://www.google.com" @04-04-2022 20:39:25.0704 PM
+[ReportManager] Initial URL: "about:blank" @04-04-2022 20:39:26.0118 PM
+[ReportManager] Browser Action "NavigateToURL" successfully performed. With the following test data "https://www.google.com/ncr". @04-04-2022 20:39:28.0328 PM
+[ReportManager] Assertion "ValidateElementExists" PASSED. Expected "Element Should Exist, locator 'xpath=//*[@id='hplogo' or @alt='Google']'" and Actual "Element Exists". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 20:39:29.0527 PM
+[ReportManager] Successfully created attachment "Screenshot - 1649104769116_navigateToURLandVerifyGoogleLogoIsDisplayed_ValidateElementExists_passed" @04-04-2022 20:39:29.0563 P
+
+################################################################################################################################################
+Starting Execution:	"171 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_google_playwright.searchForQueryandAssertResultsNumDisplayed"
+Test Description:	"TC002 - Search for Query and Assert that the number of results is displayed"
+################################################################################################################################################
+[ReportManager] Element Action "Type" successfully performed. With the following test data "SHAFT_Engine". @04-04-2022 20:39:30.0019 PM
+[ReportManager] Element Action "KeyPress" successfully performed. With the following test data "Enter". @04-04-2022 20:39:30.0080 PM
+[ReportManager] Element Action "GetText" successfully performed. With the following test data "About 689,000 results (0.44 seconds) ". @04-04-2022 20:39:30.0800 PM
+[ReportManager] Assertion "ValidateElementAttribute" PASSED. Expected "Value Should not be '' for the 'text' attribute, element locator 'xpath=//div[@id='appbar']'" and Actual "About 689,000 results (0.44 seconds) ". Comparison Type "EQUALS". Validation Type "NEGATIVE". @04-04-2022 20:39:32.0689 PM
+[ReportManager] Successfully created attachment "Screenshot - 1649104772489_searchForQueryandAssertResultsNumDisplayed_ValidateElementAttribute_passed" @04-04-2022 20:39:32.0696 P
+
+################################################################################################################################################
+Starting Execution:	"172 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_google_playwright.clickNextThrice"
+Test Description:	"TC003 - Clicks the next button to make sure that the framework can scroll element into view before clicking it"
+################################################################################################################################################
+[ReportManager] Element Action "Click" successfully performed. With the following test data "Next". @04-04-2022 20:39:33.0095 P
+[ReportManager] Failed to find video recording. @04-04-2022 20:39:33.0108 PM
+[ReportManager] Successfully Closed PlayWright Driver. @04-04-2022 20:39:33.0165 P
+[ReportManager] Loaded Test Data: "src/test/resources/testDataFiles/testSuite01/TestData.xlsx". @04-04-2022 20:39:33.0221 PM
+[ReportManager] Successfully created attachment "Test Data - Excel" @04-04-2022 20:39:33.0222 PM
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 20:39:33.0222 PM
+[ReportManager] Attempting to run remotely on: "Linux-64 | GoogleChrome | http://localhost:4444/wd/hub", Headless Execution. @04-04-2022 20:39:33.0223 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:42:33.0232 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:42:33.0232 PM
+[ReportManager] Failed to run remotely on: "Linux-64", "GoogleChrome", "http://localhost:4444/wd/hub". @04-04-2022 20:42:33.0233 PM
+[ReportManager] Driver Factory Action "createNewRemoteDriverInstance" failed. With the following test data "Unhandled Error.". @04-04-2022 20:42:33.0233 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:42:33.0234 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:42:33.0234 P
+
+################################################################################################################################################
+Starting Execution:	"173 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_google.navigateToURLandVerifyGoogleLogoIsDisplayed"
+Test Description:	"TC001 - Navigate to URL and Verify Google Logo is Displayed"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"174 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_google.searchForQueryandAssertResultsNumDisplayed"
+Test Description:	"TC002 - Search for Query and Assert that the number of results is displayed"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"175 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_google.clickNextThrice"
+Test Description:	"TC003 - Clicks the next button to make sure that the framework can scroll element into view before clicking it"
+###############################################################################################################################################
+
+
+################################################################################################################################################
+Starting Execution:	"176 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_JsonActions.f"
+###############################################################################################################################################
+
+################################################################################################################################################
+Starting Execution:	"177 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_JsonActions.f2"
+###############################################################################################################################################
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative Folder Path: "target/downloadedFiles/"". @04-04-2022 20:42:33.0427 PM
+[ReportManager] Attempting to run remotely on: "Linux-64 | GoogleChrome | http://localhost:4444/wd/hub", Headless Execution. @04-04-2022 20:42:33.0427 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:45:33.0443 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:45:33.0443 PM
+[ReportManager] Failed to run remotely on: "Linux-64", "GoogleChrome", "http://localhost:4444/wd/hub". @04-04-2022 20:45:33.0443 PM
+[ReportManager] Driver Factory Action "createNewRemoteDriverInstance" failed. With the following test data "Unhandled Error.". @04-04-2022 20:45:33.0444 PM
+[ReportManager] An Exception Occured with this Message: Could not start a new session. Possible causes are invalid address of the remote server or browser start-up failure.. @04-04-2022 20:45:33.0444 PM
+[ReportManager] Successfully created attachment "Exception Stack Trace - org.openqa.selenium.SessionNotCreatedException" @04-04-2022 20:45:33.0444 P
+
+################################################################################################################################################
+Starting Execution:	"178 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_assertEquals.test_assertElementAttribute"
+###############################################################################################################################################
+
+
+################################################################################################################################################
+Starting Execution:	"179 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_checkJDKShellFilesGenerated.testJDKGeneratedSuccessfully"
+################################################################################################################################################
+[ReportManager] Configuring JDK @04-04-2022 20:45:33.0520 PM
+[ReportManager] File Action "GetAbsolutePath" successfully performed. With the following test data "Relative File Path: "generateJdkMac.sh"". @04-04-2022 20:45:33.0520 PM
+[ReportManager] File Action "WriteToFile" successfully performed. With the following test data "Target File Path: "/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/generateJdkMac.sh"". @04-04-2022 20:45:33.0520 PM
+[ReportManager] Attempting to perform the following command locally. Command: "chmod u+x generateJdk.sh" @04-04-2022 20:45:33.0520 PM
+[ReportManager] Terminal Action "PerformTerminalCommands" successfully performed. With the following test data "Host Name: "localHost" | Command: "chmod u+x generateJdk.sh" | Exit Status: "1"". @04-04-2022 20:45:33.0535 PM
+[ReportManager] Successfully created attachment "Terminal Action Actual Result - Command Log" @04-04-2022 20:45:33.0539 PM
+[ReportManager] Assertion Passed: "[#!/bin/bash, export JAVA_HOME=$(/usr/libexec/java_home), export PATH=$JAVA_HOME/bin:$PATH, source ~/.zshenv, echo $JAVA_HOME, echo $PATH, exec bash]" contains "JAVA_HOME=$(/usr/libexec/java_home)". @04-04-2022 20:45:33.0539 PM
+[ReportManager] Assertion "ValidateEquals" PASSED. Expected "JAVA_HOME=$(/usr/libexec/java_home)" and Actual "[#!/bin/bash, export JAVA_HOME=$(/usr/libexec/java_home), export PATH=$JAVA_HOME/bin:$PATH, source ~/.zshenv, echo $JAVA_HOME, echo $PATH, exec bash]". Comparison Type "CONTAINS". Validation Type "POSITIVE". @04-04-2022 20:45:33.0539 P
+[ReportManager] Successfully created attachment "SHAFT Engine Logs - Execution log" @04-04-2022 20:45:33.0708 PM
+
+################################################################################################################################################
+This test run was powered by SHAFT Engine Version: "SHAFT Engine v6.1.20220113"
+SHAFT Engine is licensed under the MIT License: [https://github.com/MohabMohie/SHAFT_ENGINE/blob/master/LICENSE].
+################################################################################################################################################

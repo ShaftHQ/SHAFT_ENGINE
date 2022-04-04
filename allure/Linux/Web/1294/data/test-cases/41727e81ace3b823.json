@@ -1,0 +1,296 @@
+{
+  "uid" : "41727e81ace3b823",
+  "name" : "getPostsAndAssertBodyForSpecificTitle",
+  "fullName" : "unitTests.tests_restActions.getPostsAndAssertBodyForSpecificTitle",
+  "historyId" : "5514b76ba1dc4de2d7fa6ed8af87a94e",
+  "time" : {
+    "start" : 1649101135147,
+    "stop" : 1649101139603,
+    "duration" : 4456
+  },
+  "status" : "passed",
+  "flaky" : false,
+  "newFailed" : false,
+  "beforeStages" : [ {
+    "name" : "setupActivities",
+    "time" : {
+      "start" : 1649101123451,
+      "stop" : 1649101124362,
+      "duration" : 911
+    },
+    "description" : "",
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Folder \"extent-reports\" was not found, it may have already been deleted.",
+      "time" : {
+        "start" : 1649101123611,
+        "stop" : 1649101123613,
+        "duration" : 2
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Folder \"extent-reports\" was not found, it may have already been deleted."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Terminal Action \"PerformTerminalCommands\" successfully performed. With the following test data \"Host Name: \"localHost\" | Command: \"chmod u+x generateJdk.sh\" | Exit Status: \"1\"\".",
+      "time" : {
+        "start" : 1649101124359,
+        "stop" : 1649101124361,
+        "duration" : 2
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "9719d16ba04935cf",
+        "name" : "Terminal Action Actual Result - Command Log",
+        "source" : "9719d16ba04935cf.txt",
+        "type" : "text/plain",
+        "size" : 64
+      } ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Terminal Action \"PerformTerminalCommands\" successfully performed. With the following test data \"Host Name: \"localHost\" | Command: \"chmod u+x generateJdk.sh\" | Exit Status: \"1\"\"."
+      }, {
+        "name" : "attachments",
+        "value" : "[[Terminal Action Actual Result, Command Log, chmod: cannot access 'generateJdk.sh': No such file or directory]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 1,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ {
+      "uid" : "22ad6fbccf32bae3",
+      "name" : "SHAFT Links - Important",
+      "source" : "22ad6fbccf32bae3.uri",
+      "type" : "text/uri-list",
+      "size" : 346
+    } ],
+    "parameters" : [ ],
+    "stepsCount" : 2,
+    "attachmentsCount" : 2,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  } ],
+  "testStage" : {
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Assertion Passed: Evaluating the actual response status code against the expected one...",
+      "time" : {
+        "start" : 1649101137031,
+        "stop" : 1649101137031,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "customLog",
+        "value" : "Assertion Passed: Evaluating the actual response status code against the expected one..."
+      }, {
+        "name" : "stepLog",
+        "value" : "Assertion \"ValidateComparativeRelation\" PASSED. Expected \"200\" and Actual \"200\". Comparison Type \"EQUALS\". Validation Type \"POSITIVE\"."
+      }, {
+        "name" : "attachments",
+        "value" : "null"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "API Action \"PerformRequest\" successfully performed. With the following test data \"Request Type: \"GET\" | Target Status Code: \"200\" | Service URL: \"https://jsonplaceholder.typicode.com/posts\" | Content Type: \"*/*\" | Response Time: \"762ms\"\".",
+      "time" : {
+        "start" : 1649101138035,
+        "stop" : 1649101138244,
+        "duration" : 209
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "b6a9e1ab1a4251ab",
+        "name" : "API Request - Specifications",
+        "source" : "b6a9e1ab1a4251ab.txt",
+        "type" : "text/plain",
+        "size" : 44
+      }, {
+        "uid" : "36e4e3461461b926",
+        "name" : "API Response - JSON Body",
+        "source" : "36e4e3461461b926.json",
+        "type" : "text/json",
+        "size" : 27520
+      } ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "API Action \"PerformRequest\" successfully performed. With the following test data \"Request Type: \"GET\" | Target Status Code: \"200\" | Service URL: \"https://jsonplaceholder.typicode.com/posts\" | Content Type: \"*/*\" | Response Time: \"762ms\"\"."
+      }, {
+        "name" : "attachments",
+        "value" : "[[API Request, Specifications, Headers:\n_______________\n\nContent-Type=*/*\n\n], null, [API Response, JSON Body, java.io.ByteArrayInputStream@47c9b8ee]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 2,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Assertion \"ValidateEquals\" PASSED. Expected \"qui neque nisi nulla\" and Actual \"est rerum tempore vitae\nsequi sint nihil reprehenderit dolor beatae ea dolores neque\nfugiat blanditiis voluptate porro vel nihil molestiae ut reiciendis\nqui aperiam non debitis possimus qui neque nisi nulla\". Comparison Type \"CONTAINS\". Validation Type \"POSITIVE\".",
+      "time" : {
+        "start" : 1649101138342,
+        "stop" : 1649101138343,
+        "duration" : 1
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Assertion \"ValidateEquals\" PASSED. Expected \"qui neque nisi nulla\" and Actual \"est rerum tempore vitae\nsequi sint nihil reprehenderit dolor beatae ea dolores neque\nfugiat blanditiis voluptate porro vel nihil molestiae ut reiciendis\nqui aperiam non debitis possimus qui neque nisi nulla\". Comparison Type \"CONTAINS\". Validation Type \"POSITIVE\"."
+      }, {
+        "name" : "attachments",
+        "value" : "null"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ {
+      "uid" : "4f1fd49e9893fbd6",
+      "name" : "SHAFT Engine Logs - Current Method log: getPostsAndAssertBodyForSpecificTitle",
+      "source" : "4f1fd49e9893fbd6.txt",
+      "type" : "text/plain",
+      "size" : 16091
+    } ],
+    "parameters" : [ ],
+    "stepsCount" : 3,
+    "attachmentsCount" : 3,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  },
+  "afterStages" : [ {
+    "name" : "teardownActivities",
+    "time" : {
+      "start" : 1649105133578,
+      "stop" : 1649105134319,
+      "duration" : 741
+    },
+    "description" : "",
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Successfully Closed All Drivers.",
+      "time" : {
+        "start" : 1649105133691,
+        "stop" : 1649105133691,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Successfully Closed All Drivers."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Issue Summary: Total Issues = 5, New issues for Failed Tests = 3, Open issues for Passed Tests = 2, Open issues for Failed Tests = 0. Kindly check the attached Issue details.",
+      "time" : {
+        "start" : 1649105133707,
+        "stop" : 1649105133708,
+        "duration" : 1
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "4844fa62f7616061",
+        "name" : "SHAFT Engine Logs - Issues log CSV: 20220404-204533",
+        "source" : "4844fa62f7616061.csv",
+        "type" : "text/csv",
+        "size" : 586
+      } ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Issue Summary: Total Issues = 5, New issues for Failed Tests = 3, Open issues for Passed Tests = 2, Open issues for Failed Tests = 0. Kindly check the attached Issue details."
+      }, {
+        "name" : "attachments",
+        "value" : "[[SHAFT Engine Logs, Issues log CSV: 20220404-204533, java.io.ByteArrayInputStream@6c1c7ebc]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 1,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ {
+      "uid" : "e82d8c21c5e89333",
+      "name" : "SHAFT Engine Logs - Execution log: 20220404-204533",
+      "source" : "e82d8c21c5e89333.txt",
+      "type" : "text/plain",
+      "size" : 163440
+    }, {
+      "uid" : "7d2cb7b000f357b",
+      "name" : "HTML - Extent Emailable Execution Report",
+      "source" : "7d2cb7b000f357b.html",
+      "type" : "text/html",
+      "size" : 2055115
+    } ],
+    "parameters" : [ ],
+    "stepsCount" : 2,
+    "attachmentsCount" : 3,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  } ],
+  "labels" : [ {
+    "name" : "package",
+    "value" : "unitTests.tests_restActions"
+  }, {
+    "name" : "testClass",
+    "value" : "unitTests.tests_restActions"
+  }, {
+    "name" : "testMethod",
+    "value" : "getPostsAndAssertBodyForSpecificTitle"
+  }, {
+    "name" : "parentSuite",
+    "value" : "Suite"
+  }, {
+    "name" : "suite",
+    "value" : "Test"
+  }, {
+    "name" : "subSuite",
+    "value" : "unitTests.tests_restActions"
+  }, {
+    "name" : "host",
+    "value" : "fv-az397-767"
+  }, {
+    "name" : "thread",
+    "value" : "3487@fv-az397-767.main(1)"
+  }, {
+    "name" : "framework",
+    "value" : "testng"
+  }, {
+    "name" : "language",
+    "value" : "java"
+  }, {
+    "name" : "resultFormat",
+    "value" : "allure2"
+  } ],
+  "parameters" : [ ],
+  "links" : [ ],
+  "hidden" : false,
+  "retry" : false,
+  "extra" : {
+    "severity" : "normal",
+    "retries" : [ ],
+    "categories" : [ ],
+    "tags" : [ ]
+  },
+  "source" : "41727e81ace3b823.json",
+  "parameterValues" : [ ]
+}

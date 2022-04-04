@@ -1,0 +1,28 @@
+
+################################################################################################################################################
+Starting Execution:	"80 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_SHAFT_Wizard.api"
+################################################################################################################################################
+[ReportManager] Response status code: "200", status line: "HTTP/1.1 200 OK" @04-04-2022 19:57:03.0644 PM
+[ReportManager] Assertion Passed: Evaluating the actual response status code against the expected one... @04-04-2022 19:57:03.0645 PM
+[ReportManager] Assertion "ValidateComparativeRelation" PASSED. Expected "200" and Actual "200". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:57:03.0645 PM
+[ReportManager] API Action "PerformRequest" successfully performed. With the following test data "Request Type: "GET" | Target Status Code: "200" | Service URL: "https://jsonplaceholder.typicode.com/users" | Content Type: "*/*" | Response Time: "131ms"". @04-04-2022 19:57:03.0669 PM
+[ReportManager] Successfully created attachment "API Request - Specifications" @04-04-2022 19:57:03.0670 PM
+[ReportManager] Successfully created attachment "API Response - JSON Body" @04-04-2022 19:57:03.0670 PM
+[ReportManager] API Action "GetResponseJSONValueAsList" successfully performed. With the following test data "$". @04-04-2022 19:57:03.0674 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:57:03.0732 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "email". @04-04-2022 19:57:03.0744 PM
+[ReportManager] Verification Passed: The API response extracted value from the JSON path "email" is equal to "Sincere@april.biz". @04-04-2022 19:57:03.0744 PM
+[ReportManager] Verification "ValidateEquals" PASSED. Expected "Sincere@april.biz" and Actual "Sincere@april.biz". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:57:03.0744 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "username". @04-04-2022 19:57:03.0751 PM
+[ReportManager] Assertion Passed: The API response extracted value from the JSON path "username" is equal to "Bret". @04-04-2022 19:57:03.0751 PM
+[ReportManager] Assertion "ValidateEquals" PASSED. Expected "Bret" and Actual "Bret". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:57:03.0752 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:57:03.0759 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:57:03.0770 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:57:03.0777 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:57:03.0787 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:57:03.0794 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:57:03.0808 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:57:03.0816 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:57:03.0822 PM
+[ReportManager] API Action "GetResponseJSONValue" successfully performed. With the following test data "name". @04-04-2022 19:57:03.0830 P

@@ -1,0 +1,4122 @@
+{
+  "c80eb0293658685903bd1fd24f492c08" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "b92d8e4227f34ef4",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/b92d8e4227f34ef4",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649102945690,
+        "stop" : 1649102945702,
+        "duration" : 12
+      }
+    } ]
+  },
+  "9557c3315a180b8221de8066c242409a" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "257515a24bb41c9b",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/257515a24bb41c9b",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101682817,
+        "stop" : 1649101682826,
+        "duration" : 9
+      }
+    } ]
+  },
+  "3f6e5843fc6c685f5ebc75fde75ac218" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "379dc78dc3711e54",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/379dc78dc3711e54",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101320684,
+        "stop" : 1649101320710,
+        "duration" : 26
+      }
+    } ]
+  },
+  "78ea19100e80c1035dba15d878a0a444" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "dd2ba2ccff2c1d28",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/dd2ba2ccff2c1d28",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649102223875,
+        "stop" : 1649102403936,
+        "duration" : 180061
+      }
+    } ]
+  },
+  "d22b5e6c4280f54bf49831434b9e5018" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "e99bd8ed5bb8fdd3",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/e99bd8ed5bb8fdd3",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101322017,
+        "stop" : 1649101322027,
+        "duration" : 10
+      }
+    } ]
+  },
+  "d766de23786c53f441d161eddaf1215a" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "abeaadbdb726fa57",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/abeaadbdb726fa57",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104569308,
+        "stop" : 1649104569317,
+        "duration" : 9
+      }
+    } ]
+  },
+  "64a8852b286bab5ef838177e652e731e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "e4189ba7aca60420",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/e4189ba7aca60420",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101322052,
+        "stop" : 1649101322117,
+        "duration" : 65
+      }
+    } ]
+  },
+  "bb31d8b47e1a96c6836334320447d229" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "4634874c20225185",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/4634874c20225185",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649102764690,
+        "stop" : 1649102764704,
+        "duration" : 14
+      }
+    } ]
+  },
+  "eb85811949f431b7a228b6de557ce34e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "165328e43032adba",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/165328e43032adba",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104569583,
+        "stop" : 1649104569590,
+        "duration" : 7
+      }
+    } ]
+  },
+  "936e6a9ee701fb7c11ed14ca761ff87e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "80b30f4eccdf9131",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/80b30f4eccdf9131",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104387654,
+        "stop" : 1649104387673,
+        "duration" : 19
+      }
+    } ]
+  },
+  "e13eda38936ccb8186efbcb0f47508c8" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "76085aaf1ae6122c",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/76085aaf1ae6122c",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104568880,
+        "stop" : 1649104568893,
+        "duration" : 13
+      }
+    } ]
+  },
+  "17b5b8806ac7eb710c4c7956140eaecf" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "35ff4d742fd42082",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/35ff4d742fd42082",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101133286,
+        "stop" : 1649101134176,
+        "duration" : 890
+      }
+    } ]
+  },
+  "fa8089fdd54895368300d31f35070cea" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "4770d54fcdb04cfe",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/4770d54fcdb04cfe",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101322031,
+        "stop" : 1649101322040,
+        "duration" : 9
+      }
+    } ]
+  },
+  "381ba714b0c66de2985d3ae81acb5e17" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "6a2378e22c6737f6",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/6a2378e22c6737f6",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104569387,
+        "stop" : 1649104569395,
+        "duration" : 8
+      }
+    } ]
+  },
+  "7546566432535191f8975bb3f3cb9a48" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "3b4d09c76b572a7",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/3b4d09c76b572a7",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104569733,
+        "stop" : 1649104569743,
+        "duration" : 10
+      }
+    } ]
+  },
+  "205c8f457ef688cf6d163c40609c62a5" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "a0bbc068699c94f3",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/a0bbc068699c94f3",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649102945688,
+        "stop" : 1649102945688,
+        "duration" : 0
+      }
+    } ]
+  },
+  "24d179f984390efd4095c1ca70d9ae83" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "8b329e3015077773",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/8b329e3015077773",
+      "status" : "skipped",
+      "statusDetails" : "Method testPackage01.TestJSConfirmBox.assertOnConfirmAlertResultText() on instance testPackage01.TestJSConfirmBox@78d6447a depends on not successfully finished methods \n[testPackage01.TestJSConfirmBox.acceptAlert() on instance testPackage01.TestJSConfirmBox@78d6447a]",
+      "time" : {
+        "start" : 1649102584562,
+        "stop" : 1649102584571,
+        "duration" : 9
+      }
+    } ]
+  },
+  "533920f5a2f0b64ac5274dd751cde692" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "8a62bbd8e8be15e7",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/8a62bbd8e8be15e7",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104387829,
+        "stop" : 1649104387845,
+        "duration" : 16
+      }
+    } ]
+  },
+  "b27c77614b887aad9233c87f6d999b88" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "1daa3445bce9b929",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/1daa3445bce9b929",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649104027301,
+        "stop" : 1649104027357,
+        "duration" : 56
+      }
+    } ]
+  },
+  "5514b76ba1dc4de2d7fa6ed8af87a94e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "41727e81ace3b823",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/41727e81ace3b823",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101135147,
+        "stop" : 1649101139603,
+        "duration" : 4456
+      }
+    } ]
+  },
+  "259a17265cbc92933de3cafb98400a6e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "b874eac3d153c67d",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/b874eac3d153c67d",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104569087,
+        "stop" : 1649104569101,
+        "duration" : 14
+      }
+    } ]
+  },
+  "a55bf854e3301a0d60e84ba8c52fc696" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "8cba2af3ade25099",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/8cba2af3ade25099",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649102765408,
+        "stop" : 1649102765628,
+        "duration" : 220
+      }
+    } ]
+  },
+  "29286b1e51fc227b9e82df438242ddee" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "ed6727767eeadc2",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/ed6727767eeadc2",
+      "status" : "skipped",
+      "statusDetails" : "Method testPackage01.TestJSConfirmBox.getAlertText() on instance testPackage01.TestJSConfirmBox@78d6447a depends on not successfully finished methods \n[testPackage01.TestJSConfirmBox.assertOnCancelAlertResultText() on instance testPackage01.TestJSConfirmBox@78d6447a]",
+      "time" : {
+        "start" : 1649102584501,
+        "stop" : 1649102584542,
+        "duration" : 41
+      }
+    } ]
+  },
+  "8a4b6fbdb2fb99adceabd3a1832314da" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "d12dd74d392ba6bb",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/d12dd74d392ba6bb",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649104027368,
+        "stop" : 1649104027463,
+        "duration" : 95
+      }
+    } ]
+  },
+  "8f7225c8a7be388cf13fecdcb10b58f2" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "d5c9b08ffca8cff1",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/d5c9b08ffca8cff1",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104569564,
+        "stop" : 1649104569572,
+        "duration" : 8
+      }
+    } ]
+  },
+  "4604ee6340e8cffa6c36a592668ef42b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "4aeeb67c66302345",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/4aeeb67c66302345",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101322190,
+        "stop" : 1649101322199,
+        "duration" : 9
+      }
+    } ]
+  },
+  "fb7f8cd889260df26b212bf10e840f0b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "98dcae9ebea2d7af",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/98dcae9ebea2d7af",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649102584435,
+        "stop" : 1649102584452,
+        "duration" : 17
+      }
+    } ]
+  },
+  "41278362e80181fdd24eb6bcfdf1706d" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "1927becaa20fd560",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/1927becaa20fd560",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104568475,
+        "stop" : 1649104568487,
+        "duration" : 12
+      }
+    } ]
+  },
+  "a668d1f7bbf0bd93bfbcd970b468fe16" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "5b4f5aae80f2e646",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/5b4f5aae80f2e646",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101135076,
+        "stop" : 1649101135140,
+        "duration" : 64
+      }
+    } ]
+  },
+  "c88b9e1406b592eee831601849d31189" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "6db665e7d2f1a512",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/6db665e7d2f1a512",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104568832,
+        "stop" : 1649104568845,
+        "duration" : 13
+      }
+    } ]
+  },
+  "eef38b1ce4f88333b32ebfb6abbceeaa" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "33d71f5caaea8cca",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/33d71f5caaea8cca",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101682596,
+        "stop" : 1649101682606,
+        "duration" : 10
+      }
+    } ]
+  },
+  "5702a1676b94e58bea6b43247a9f5f63" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "489690c8f3acd98",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/489690c8f3acd98",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649105133473,
+        "stop" : 1649105133501,
+        "duration" : 28
+      }
+    } ]
+  },
+  "264074a39b89752d2d36dd84bd40d1a6" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "17d27800e35d9e8b",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/17d27800e35d9e8b",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101320888,
+        "stop" : 1649101320927,
+        "duration" : 39
+      }
+    } ]
+  },
+  "a7f13c7258205c7561eec94d1b8d3f54" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "9805a275d80b2131",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/9805a275d80b2131",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104207503,
+        "stop" : 1649104207503,
+        "duration" : 0
+      }
+    } ]
+  },
+  "63649f69a4abb8dd3b565d89d813e4d" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "6de1db9e6aaed52d",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/6de1db9e6aaed52d",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104568419,
+        "stop" : 1649104568419,
+        "duration" : 0
+      }
+    } ]
+  },
+  "8b9be90512c59bf9064ee6e55de87b5b" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "7dd8bb929ee92dec",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/7dd8bb929ee92dec",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649103125816,
+        "stop" : 1649103125816,
+        "duration" : 0
+      }
+    } ]
+  },
+  "73c5f119851040f50040f0d7daeaaf92" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "46e7ba55a5d269b7",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/46e7ba55a5d269b7",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649102043361,
+        "stop" : 1649102043361,
+        "duration" : 0
+      }
+    } ]
+  },
+  "2a27a2abfdee42bde8e58c16a0e0f5dd" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "e40eb063b16e20a6",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/e40eb063b16e20a6",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104569350,
+        "stop" : 1649104569359,
+        "duration" : 9
+      }
+    } ]
+  },
+  "bef677b60015e2d35d5030f6c3bfcf99" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "dd0ce9460e6c9cc9",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/dd0ce9460e6c9cc9",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101321979,
+        "stop" : 1649101322004,
+        "duration" : 25
+      }
+    } ]
+  },
+  "8d1d2653d45ddc1144dd8fa258b167c2" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "2938b742a6c4123",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/2938b742a6c4123",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101321436,
+        "stop" : 1649101321445,
+        "duration" : 9
+      }
+    } ]
+  },
+  "a7e9d82b8312bf54112ba6b33d3a8577" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "dbf19fb3ecf28e9f",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/dbf19fb3ecf28e9f",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104569319,
+        "stop" : 1649104569335,
+        "duration" : 16
+      }
+    } ]
+  },
+  "50a7bbf2e6e4c20e0204965d4abee130" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "e1325840951b6012",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/e1325840951b6012",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101320489,
+        "stop" : 1649101320502,
+        "duration" : 13
+      }
+    } ]
+  },
+  "b9150818268b7ec2c8e5485db15d9400" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "3d69af8c052de062",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/3d69af8c052de062",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101140117,
+        "stop" : 1649101140127,
+        "duration" : 10
+      }
+    } ]
+  },
+  "a98fe8bcf288514fe4d68652f7efbe8e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "6391ec48f9f95695",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/6391ec48f9f95695",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104387798,
+        "stop" : 1649104387821,
+        "duration" : 23
+      }
+    } ]
+  },
+  "badd6454e3076c44a673a71b57708fe0" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "611ff95eb56aa696",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/611ff95eb56aa696",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649103305929,
+        "stop" : 1649103305943,
+        "duration" : 14
+      }
+    } ]
+  },
+  "45dcfe76f1bd97f7cb03c724bcc68eb8" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "71c9b16cf2732a8a",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/71c9b16cf2732a8a",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101322162,
+        "stop" : 1649101322176,
+        "duration" : 14
+      }
+    } ]
+  },
+  "7b01ba3878dc2dba2c2c7f95381cb742" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "f63c0efae6014474",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/f63c0efae6014474",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104568596,
+        "stop" : 1649104568628,
+        "duration" : 32
+      }
+    } ]
+  },
+  "5cf45cc810e8dfc458ef474e637734f6" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "9ac8885e43c5c0cf",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/9ac8885e43c5c0cf",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101320423,
+        "stop" : 1649101320441,
+        "duration" : 18
+      }
+    } ]
+  },
+  "4f509b7f8127a2b88f6b1a2dc70a2a2d" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "7e4d46da62fe829b",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/7e4d46da62fe829b",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649104749927,
+        "stop" : 1649104749956,
+        "duration" : 29
+      }
+    } ]
+  },
+  "e9f5095fd5d47bf8f5c36cd72f1e335b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "7e9d12f3a687e1a6",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/7e9d12f3a687e1a6",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104387741,
+        "stop" : 1649104387762,
+        "duration" : 21
+      }
+    } ]
+  },
+  "780378a4706344e151b2791aff941970" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "ea1a1072da5e778f",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/ea1a1072da5e778f",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649102584605,
+        "stop" : 1649102584615,
+        "duration" : 10
+      }
+    } ]
+  },
+  "f2d8045cb196fac44acf056daf2910f1" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "f455f7ca46cf8e51",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/f455f7ca46cf8e51",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101321950,
+        "stop" : 1649101321975,
+        "duration" : 25
+      }
+    } ]
+  },
+  "8d8bc3243be13b86081acc03bc25b3a" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "96f77d2acd5f0b1f",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/96f77d2acd5f0b1f",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649102764687,
+        "stop" : 1649102764687,
+        "duration" : 0
+      }
+    } ]
+  },
+  "69bacfe7d32090425eadf00e77ec2fcd" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "97b1236ac452b855",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/97b1236ac452b855",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104569150,
+        "stop" : 1649104569169,
+        "duration" : 19
+      }
+    } ]
+  },
+  "8da2170c533f4aff45bc62dac6da1bf8" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "1f9f8ec0858400a4",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/1f9f8ec0858400a4",
+      "status" : "skipped",
+      "statusDetails" : "Method testPackage01.TestJSPromptBox.assertOnConfirmPromptAlertWithoutTypingTextMessageResultText() on instance testPackage01.TestJSPromptBox@5d21202d depends on not successfully finished methods \n[testPackage01.TestJSPromptBox.acceptPromptAlertWithoutTypingTextMessage() on instance testPackage01.TestJSPromptBox@5d21202d]",
+      "time" : {
+        "start" : 1649104749874,
+        "stop" : 1649104749885,
+        "duration" : 11
+      }
+    } ]
+  },
+  "60da75bce66f0a062056dcf68a93a62e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "320083d99d9808ab",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/320083d99d9808ab",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101863163,
+        "stop" : 1649101863180,
+        "duration" : 17
+      }
+    } ]
+  },
+  "4417a672ef985b4faf9285ce39f0cc10" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "ea62d7daa1b25792",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/ea62d7daa1b25792",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101502317,
+        "stop" : 1649101502340,
+        "duration" : 23
+      }
+    } ]
+  },
+  "c549884c29f897da052d8b7f4fdcb073" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "e80155e34e8d452f",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/e80155e34e8d452f",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101139838,
+        "stop" : 1649101140048,
+        "duration" : 210
+      }
+    } ]
+  },
+  "be08429cbbc69ee74084bbd32edd89b8" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "839eaf3889a9022e",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/839eaf3889a9022e",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649102584431,
+        "stop" : 1649102584431,
+        "duration" : 0
+      }
+    } ]
+  },
+  "9ea97b85f51a64632f0eccbb9a2eca3e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "cb42491ed47e1746",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/cb42491ed47e1746",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101321854,
+        "stop" : 1649101321873,
+        "duration" : 19
+      }
+    } ]
+  },
+  "e88a34f039ffaa5a3e7ec815fbf7e0ee" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "50d6818d885c137f",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/50d6818d885c137f",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101321828,
+        "stop" : 1649101321852,
+        "duration" : 24
+      }
+    } ]
+  },
+  "9a1f1bbe3e5b531a7c1359f8ff393cf3" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "e88d12099433a3e8",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/e88d12099433a3e8",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649102223423,
+        "stop" : 1649102223423,
+        "duration" : 0
+      }
+    } ]
+  },
+  "fc481e47f6f435a37bd89a071e9ccc46" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "b9411c0d8a5e03ea",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/b9411c0d8a5e03ea",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104387684,
+        "stop" : 1649104387718,
+        "duration" : 34
+      }
+    } ]
+  },
+  "a4a3705aa0579b42a1b50218e2c54e00" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "8f965617463375f7",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/8f965617463375f7",
+      "status" : "skipped",
+      "statusDetails" : "Method testPackage01.Test_google.clickNextThrice() on instance testPackage01.Test_google@730f9695 depends on not successfully finished methods \n[testPackage01.Test_google.searchForQueryandAssertResultsNumDisplayed() on instance testPackage01.Test_google@730f9695]",
+      "time" : {
+        "start" : 1649104953338,
+        "stop" : 1649104953365,
+        "duration" : 27
+      }
+    } ]
+  },
+  "c6dcb54b426317f59b4b4510b6f28e6f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "c8d768c2da53bfff",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/c8d768c2da53bfff",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104387773,
+        "stop" : 1649104387789,
+        "duration" : 16
+      }
+    } ]
+  },
+  "f4e42247564f9e406ac4c030f5657555" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "37ddfc5ae2222daa",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/37ddfc5ae2222daa",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101322041,
+        "stop" : 1649101322050,
+        "duration" : 9
+      }
+    } ]
+  },
+  "f5f5d884f40a700315cef26011f085c6" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "84c8783b00b473f1",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/84c8783b00b473f1",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649104388314,
+        "stop" : 1649104388347,
+        "duration" : 33
+      }
+    } ]
+  },
+  "9136ef17ad732926a16ab8d92c6bf567" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "7e8a5d738e4b13c5",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/7e8a5d738e4b13c5",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649104772710,
+        "stop" : 1649104773107,
+        "duration" : 397
+      }
+    } ]
+  },
+  "4f4df079b1d809fbb754767db0a01e2f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "5222e98f419b472e",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/5222e98f419b472e",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104387605,
+        "stop" : 1649104387638,
+        "duration" : 33
+      }
+    } ]
+  },
+  "5aeeb05dac2ac013bdebccaa0aaf698e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "ccc08bae9df40794",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/ccc08bae9df40794",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101321628,
+        "stop" : 1649101321638,
+        "duration" : 10
+      }
+    } ]
+  },
+  "50bcdd7464e6ba911e244a1b1a36da44" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "4db1dedd719e9a7b",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/4db1dedd719e9a7b",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104207508,
+        "stop" : 1649104207525,
+        "duration" : 17
+      }
+    } ]
+  },
+  "44fd6e02b15df64d483ba5e34074041a" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "70bb6883e3bd590b",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/70bb6883e3bd590b",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649102403938,
+        "stop" : 1649102404388,
+        "duration" : 450
+      }
+    } ]
+  },
+  "eeb601a92e1e55857588ad433767f280" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "a28a82a5702ce36e",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/a28a82a5702ce36e",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104569502,
+        "stop" : 1649104569516,
+        "duration" : 14
+      }
+    } ]
+  },
+  "3b2afb193a21ad7584f3b3879b7e7304" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "85f3ca1127104512",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/85f3ca1127104512",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101502369,
+        "stop" : 1649101502383,
+        "duration" : 14
+      }
+    } ]
+  },
+  "2fdd1b1e4216687e4f48e717329d30ac" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "24f196b6a1b767c5",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/24f196b6a1b767c5",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101682643,
+        "stop" : 1649101682656,
+        "duration" : 13
+      }
+    } ]
+  },
+  "8f568206e17e876b394eac7436d24026" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "bd50ca055c85e13e",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/bd50ca055c85e13e",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104569005,
+        "stop" : 1649104569039,
+        "duration" : 34
+      }
+    } ]
+  },
+  "8462550d8c94ec5a4ee08184c5723334" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "c9390c2f88927692",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/c9390c2f88927692",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104569540,
+        "stop" : 1649104569548,
+        "duration" : 8
+      }
+    } ]
+  },
+  "127389d9950e04e895798bb93e2e53ef" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "13ee00f6c8f28cac",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/13ee00f6c8f28cac",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649104388351,
+        "stop" : 1649104388363,
+        "duration" : 12
+      }
+    } ]
+  },
+  "f7cea628e60912dec54c96e154519b67" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "526a81f4f9d563e9",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/526a81f4f9d563e9",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101320984,
+        "stop" : 1649101321009,
+        "duration" : 25
+      }
+    } ]
+  },
+  "6fa66b54c7bfcd4048f5f6afb4b4b8fc" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "6b3406e47f5b55d5",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/6b3406e47f5b55d5",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649102223504,
+        "stop" : 1649102223839,
+        "duration" : 335
+      }
+    } ]
+  },
+  "1f0fafbcfcffce619645851c43df5ae4" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "3e98f90f856f874e",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/3e98f90f856f874e",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101502415,
+        "stop" : 1649101502431,
+        "duration" : 16
+      }
+    } ]
+  },
+  "7c21062b2157c9c5386d90359de23d53" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "c52000b049f9737c",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/c52000b049f9737c",
+      "status" : "skipped",
+      "statusDetails" : "Method testPackage01.TestJSPromptBox.getAlertText() on instance testPackage01.TestJSPromptBox@5d21202d depends on not successfully finished methods \n[testPackage01.TestJSPromptBox.assertOnCancelAlertResultText() on instance testPackage01.TestJSPromptBox@5d21202d]",
+      "time" : {
+        "start" : 1649104749821,
+        "stop" : 1649104749839,
+        "duration" : 18
+      }
+    } ]
+  },
+  "8a583f3461f88d7c293779bde04a0e1d" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "9059f64768b03eeb",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/9059f64768b03eeb",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104568524,
+        "stop" : 1649104568551,
+        "duration" : 27
+      }
+    } ]
+  },
+  "36df61c5fa16064939f2168a752af02b" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "a98e0805655633bb",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/a98e0805655633bb",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649103485992,
+        "stop" : 1649103666044,
+        "duration" : 180052
+      }
+    } ]
+  },
+  "faba7fd705e6197574156eaf96097b4f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "145138e5cacd3755",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/145138e5cacd3755",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104387640,
+        "stop" : 1649104387652,
+        "duration" : 12
+      }
+    } ]
+  },
+  "afc8cfa07b82f889f102dc4910710386" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "b81bb0242cc750d0",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/b81bb0242cc750d0",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104027273,
+        "stop" : 1649104027283,
+        "duration" : 10
+      }
+    } ]
+  },
+  "33865050f01a74fce461b1ec0dbab96f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "7c92f4c502d9394f",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/7c92f4c502d9394f",
+      "status" : "skipped",
+      "statusDetails" : "Method testPackage01.TestJSConfirmBox.acceptAlert() on instance testPackage01.TestJSConfirmBox@78d6447a depends on not successfully finished methods \n[testPackage01.TestJSConfirmBox.getAlertText() on instance testPackage01.TestJSConfirmBox@78d6447a]",
+      "time" : {
+        "start" : 1649102584545,
+        "stop" : 1649102584558,
+        "duration" : 13
+      }
+    } ]
+  },
+  "45512e220734b6213e89df6e5f078970" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "fcf46849308cecd8",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/fcf46849308cecd8",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101140185,
+        "stop" : 1649101140205,
+        "duration" : 20
+      }
+    } ]
+  },
+  "5d486709805afb09377652af1cb44b43" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "857394c7912fa147",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/857394c7912fa147",
+      "status" : "skipped",
+      "statusDetails" : "Method testPackage01.TestJSPromptBox.acceptPromptAlertWithTextMessage() on instance testPackage01.TestJSPromptBox@5d21202d depends on not successfully finished methods \n[testPackage01.TestJSPromptBox.assertOnConfirmPromptAlertWithoutTypingTextMessageResultText() on instance testPackage01.TestJSPromptBox@5d21202d]",
+      "time" : {
+        "start" : 1649104749888,
+        "stop" : 1649104749898,
+        "duration" : 10
+      }
+    } ]
+  },
+  "7b0f8854a7aed9a150b2fc57963781fa" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "47fb7390a766d647",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/47fb7390a766d647",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104569361,
+        "stop" : 1649104569374,
+        "duration" : 13
+      }
+    } ]
+  },
+  "42db9a0b95e9103a321dfe36eb368c1b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "61ff1f7c6ce797e9",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/61ff1f7c6ce797e9",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104953271,
+        "stop" : 1649104953301,
+        "duration" : 30
+      }
+    } ]
+  },
+  "2314bd23a656a36ab83c22386848f0d4" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "db8f36d253e1d5a4",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/db8f36d253e1d5a4",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104749791,
+        "stop" : 1649104749805,
+        "duration" : 14
+      }
+    } ]
+  },
+  "973cdadfe7b0529022bcd219aff55968" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "cd87856a74d0c14d",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/cd87856a74d0c14d",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104569721,
+        "stop" : 1649104569730,
+        "duration" : 9
+      }
+    } ]
+  },
+  "4a29903560362dbd17b5dd05d236bc8b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "542c2e9721b34771",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/542c2e9721b34771",
+      "status" : "skipped",
+      "statusDetails" : "Method testPackage01.TestJSConfirmBox.assertOnCancelAlertResultText() on instance testPackage01.TestJSConfirmBox@78d6447a depends on not successfully finished methods \n[testPackage01.TestJSConfirmBox.dismissAlert() on instance testPackage01.TestJSConfirmBox@78d6447a]",
+      "time" : {
+        "start" : 1649102584463,
+        "stop" : 1649102584493,
+        "duration" : 30
+      }
+    } ]
+  },
+  "7ce456f557879027bc598b94d15d7182" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "40cf109c775714b8",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/40cf109c775714b8",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101140129,
+        "stop" : 1649101140150,
+        "duration" : 21
+      }
+    } ]
+  },
+  "7e80de2d453155ab307b931149cee737" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "da51f18ef3a48d67",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/da51f18ef3a48d67",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104569694,
+        "stop" : 1649104569706,
+        "duration" : 12
+      }
+    } ]
+  },
+  "d9c1f161fa2285acc4faca119ad8939" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "6be010dbc0c887cf",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/6be010dbc0c887cf",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649104953413,
+        "stop" : 1649104953425,
+        "duration" : 12
+      }
+    } ]
+  },
+  "e025b82a7d1b9f5f8cfaebf774709daa" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "111800d7b7c2eb42",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/111800d7b7c2eb42",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649103846135,
+        "stop" : 1649103847229,
+        "duration" : 1094
+      }
+    } ]
+  },
+  "89010c35d43262e5174c0abc3b833ff2" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "853007b34a3a2061",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/853007b34a3a2061",
+      "status" : "skipped",
+      "statusDetails" : "Method testPackage01.TestJSPromptBox.acceptPromptAlertWithoutTypingTextMessage() on instance testPackage01.TestJSPromptBox@5d21202d depends on not successfully finished methods \n[testPackage01.TestJSPromptBox.getAlertText() on instance testPackage01.TestJSPromptBox@5d21202d]",
+      "time" : {
+        "start" : 1649104749845,
+        "stop" : 1649104749866,
+        "duration" : 21
+      }
+    } ]
+  },
+  "f5eb3e0657331ec851f236cbdec9dbc3" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "4e4546143d052023",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/4e4546143d052023",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101321070,
+        "stop" : 1649101321082,
+        "duration" : 12
+      }
+    } ]
+  },
+  "d559bced8169d88c5be9f05e55e1d81b" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "2f2a22e2bb1bd0d1",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/2f2a22e2bb1bd0d1",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101320331,
+        "stop" : 1649101320332,
+        "duration" : 1
+      }
+    } ]
+  },
+  "18ebb827f5e596bdd48750256bb3ed08" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "54a2524a17add55",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/54a2524a17add55",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101682962,
+        "stop" : 1649101682987,
+        "duration" : 25
+      }
+    } ]
+  },
+  "b7fc3abf80e9bbdd5097280c59543cd9" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "dea4afd96980c0c",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/dea4afd96980c0c",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101321894,
+        "stop" : 1649101321904,
+        "duration" : 10
+      }
+    } ]
+  },
+  "19999555bce5de3735ec04b0e0646e14" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "4bd1c0865178983c",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/4bd1c0865178983c",
+      "status" : "skipped",
+      "statusDetails" : "Method testPackage01.TestJSAlertBox.assertOnConfirmAlertResultText() on instance testPackage01.TestJSAlertBox@1e469dfd depends on not successfully finished methods \n[testPackage01.TestJSAlertBox.acceptAlert() on instance testPackage01.TestJSAlertBox@1e469dfd]",
+      "time" : {
+        "start" : 1649102764752,
+        "stop" : 1649102764763,
+        "duration" : 11
+      }
+    } ]
+  },
+  "8a857219522d374b9811362ab4602182" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "bd72535a5f9f8126",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/bd72535a5f9f8126",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101321170,
+        "stop" : 1649101321179,
+        "duration" : 9
+      }
+    } ]
+  },
+  "b1a09b6933c16fdc5feb53cd6bbf1690" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "441c7bf68fa86cda",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/441c7bf68fa86cda",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101321209,
+        "stop" : 1649101321221,
+        "duration" : 12
+      }
+    } ]
+  },
+  "7c02c0395504a7a7869fd091b6dfff0b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "b24ed583b0097c6b",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/b24ed583b0097c6b",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101863243,
+        "stop" : 1649101863252,
+        "duration" : 9
+      }
+    } ]
+  },
+  "81dccf0fa5dda2c07b8a2e38642301d4" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "6bbe1ea11e55dc42",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/6bbe1ea11e55dc42",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649103305956,
+        "stop" : 1649103485989,
+        "duration" : 180033
+      }
+    } ]
+  },
+  "c5a92213d3cbe213658c780681a07039" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "23afba7c377455e8",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/23afba7c377455e8",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101683015,
+        "stop" : 1649101683027,
+        "duration" : 12
+      }
+    } ]
+  },
+  "5eb7f769276356accd4c25c7c882af5f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "d8c06a10d88695cf",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/d8c06a10d88695cf",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104568928,
+        "stop" : 1649104568942,
+        "duration" : 14
+      }
+    } ]
+  },
+  "50b134c4ce45667640a8b328092e77c" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "6b514ffe053cbf24",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/6b514ffe053cbf24",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101130558,
+        "stop" : 1649101133275,
+        "duration" : 2717
+      }
+    } ]
+  },
+  "dc14fdecaa31f3cfa8569151c3166a72" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "6d7329c5cae930d5",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/6d7329c5cae930d5",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649103305926,
+        "stop" : 1649103305926,
+        "duration" : 0
+      }
+    } ]
+  },
+  "2d96a049b36887300bbfa221c383a7c3" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "f8e4ccb544c3b28e",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/f8e4ccb544c3b28e",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104749789,
+        "stop" : 1649104749789,
+        "duration" : 0
+      }
+    } ]
+  },
+  "449a6e184141d72ffe54fd6d696434a1" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "2e3b301b99cfe55c",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/2e3b301b99cfe55c",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101321531,
+        "stop" : 1649101321579,
+        "duration" : 48
+      }
+    } ]
+  },
+  "8fbac502e2af59bbc9b8d6966d933655" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "f7b0db911d5134f9",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/f7b0db911d5134f9",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101682934,
+        "stop" : 1649101682942,
+        "duration" : 8
+      }
+    } ]
+  },
+  "544df7d2fdf8d5d984aa580e8196cbfd" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "41424acb8fef34ef",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/41424acb8fef34ef",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649102584620,
+        "stop" : 1649102584638,
+        "duration" : 18
+      }
+    } ]
+  },
+  "ceff922ad3b0be43f47e1a6c9f6d6bb7" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "42364fc78af03216",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/42364fc78af03216",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104569218,
+        "stop" : 1649104569273,
+        "duration" : 55
+      }
+    } ]
+  },
+  "d29c9fb7cd6947e47db9b9fdd63ebebd" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "b456a87062ee41a2",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/b456a87062ee41a2",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101683068,
+        "stop" : 1649101683091,
+        "duration" : 23
+      }
+    } ]
+  },
+  "d117b46cc7c34cd5954cdf85dcde7a70" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "cebfce7cfd9b590c",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/cebfce7cfd9b590c",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104027270,
+        "stop" : 1649104027270,
+        "duration" : 0
+      }
+    } ]
+  },
+  "476ac2975115e742d5e5e8c3b57ebdf4" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "3e7ea8254434555c",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/3e7ea8254434555c",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101682681,
+        "stop" : 1649101682690,
+        "duration" : 9
+      }
+    } ]
+  },
+  "bb7188203f90a1a2fad67230270ae7d6" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "a75e244f2243e099",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/a75e244f2243e099",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649103846092,
+        "stop" : 1649103846106,
+        "duration" : 14
+      }
+    } ]
+  },
+  "1691af37f7c9ae9ee1c9cd54fed41695" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "d13ee2fabced085d",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/d13ee2fabced085d",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104569297,
+        "stop" : 1649104569306,
+        "duration" : 9
+      }
+    } ]
+  },
+  "2665e846a50930cc0c074f7f99a4ca8a" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "c627298109283d65",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/c627298109283d65",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649104953380,
+        "stop" : 1649104953411,
+        "duration" : 31
+      }
+    } ]
+  },
+  "c86091caae292bffb9efd84314332710" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "47bce9e15dedaafa",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/47bce9e15dedaafa",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104569398,
+        "stop" : 1649104569409,
+        "duration" : 11
+      }
+    } ]
+  },
+  "317e6cef9e3891b5a07975bb25bc5fb2" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "4ae1df05c7a1452b",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/4ae1df05c7a1452b",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104568956,
+        "stop" : 1649104568980,
+        "duration" : 24
+      }
+    } ]
+  },
+  "ac6789217d4b4a32d112e105cd2efa1f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "c0cd9e3586804307",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/c0cd9e3586804307",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101321312,
+        "stop" : 1649101321327,
+        "duration" : 15
+      }
+    } ]
+  },
+  "f849d1221555efa6cb50152cbe24dd8b" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "6c653dbbaeea02e5",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/6c653dbbaeea02e5",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101502249,
+        "stop" : 1649101502249,
+        "duration" : 0
+      }
+    } ]
+  },
+  "8c403aaf85c1c2abafe0a9a5d008562b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "8ed34211017e6080",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/8ed34211017e6080",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649104769586,
+        "stop" : 1649104772706,
+        "duration" : 3120
+      }
+    } ]
+  },
+  "ada58dba4d4104022dc5d96f0cd4fe5" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "8aa0b118376d14f5",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/8aa0b118376d14f5",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101124485,
+        "stop" : 1649101130474,
+        "duration" : 5989
+      }
+    } ]
+  },
+  "dc2cc42de249444fb1e5a25eaca827d0" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "e4b6c6dc5dad96ab",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/e4b6c6dc5dad96ab",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104569609,
+        "stop" : 1649104569650,
+        "duration" : 41
+      }
+    } ]
+  },
+  "1ef8e17d688014fbe6390ba22408aa7b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "4627e111fb2768db",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/4627e111fb2768db",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101321385,
+        "stop" : 1649101321398,
+        "duration" : 13
+      }
+    } ]
+  },
+  "eb4868839e997e5aed90ae6a95488276" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "f936741e9c090b4f",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/f936741e9c090b4f",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101320543,
+        "stop" : 1649101320556,
+        "duration" : 13
+      }
+    } ]
+  },
+  "2935f6195ae2ad2b57e1bc1f5cb3a205" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "b26ed3c7a01e4cc2",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/b26ed3c7a01e4cc2",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649102223467,
+        "stop" : 1649102223483,
+        "duration" : 16
+      }
+    } ]
+  },
+  "e8b8340fde60dd2f177bd721ae597277" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "8e06e38ed489fb4b",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/8e06e38ed489fb4b",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101502251,
+        "stop" : 1649101502263,
+        "duration" : 12
+      }
+    } ]
+  },
+  "bdef01ca6cf8bbcc16448d374eaad143" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "aa196733f3f194a6",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/aa196733f3f194a6",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104569444,
+        "stop" : 1649104569457,
+        "duration" : 13
+      }
+    } ]
+  },
+  "7a5a0716c213c4b3784adbf28353af84" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "e3edb2fea54e6033",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/e3edb2fea54e6033",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101682895,
+        "stop" : 1649101682902,
+        "duration" : 7
+      }
+    } ]
+  },
+  "f031b53e9f7c0028d5e3acbdc1200881" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "35436193eaaeb198",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/35436193eaaeb198",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649102945737,
+        "stop" : 1649102945749,
+        "duration" : 12
+      }
+    } ]
+  },
+  "f7635885016b46463315d3b46906bf7a" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "262f1ab064092759",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/262f1ab064092759",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101322121,
+        "stop" : 1649101322156,
+        "duration" : 35
+      }
+    } ]
+  },
+  "a56697260ac1ade7b44ceede44b0438a" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "333cf8d8788484ed",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/333cf8d8788484ed",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104569377,
+        "stop" : 1649104569385,
+        "duration" : 8
+      }
+    } ]
+  },
+  "9829372d1b547228b4f16b7901ea9cc9" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "2019bddbc3ef68a5",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/2019bddbc3ef68a5",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649104749960,
+        "stop" : 1649104749999,
+        "duration" : 39
+      }
+    } ]
+  },
+  "265ede85dd354b1c18327880ee92510d" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "67618c611e1180aa",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/67618c611e1180aa",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101502289,
+        "stop" : 1649101502297,
+        "duration" : 8
+      }
+    } ]
+  },
+  "e167cb0f0b9e165fa2d11a66959b8c90" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "383fffd76cb1c160",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/383fffd76cb1c160",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649104387861,
+        "stop" : 1649104388307,
+        "duration" : 446
+      }
+    } ]
+  },
+  "b59581a81571dbdc3929ef903c9a68af" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "8695acefc7918b25",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/8695acefc7918b25",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649102764805,
+        "stop" : 1649102765405,
+        "duration" : 600
+      }
+    } ]
+  },
+  "9c719c977867ad678cba36ac5ef0566e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "6789c4b8e5c557f6",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/6789c4b8e5c557f6",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101863212,
+        "stop" : 1649101863221,
+        "duration" : 9
+      }
+    } ]
+  },
+  "6bfdcb3e2066e47f76cdc938949ea3b5" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "b224cc83982cb392",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/b224cc83982cb392",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101140152,
+        "stop" : 1649101140182,
+        "duration" : 30
+      }
+    } ]
+  },
+  "19a9da5f20787f6a62b7cf5efdc0b4e3" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "5f36cceb1a043307",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/5f36cceb1a043307",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101321125,
+        "stop" : 1649101321134,
+        "duration" : 9
+      }
+    } ]
+  },
+  "4864018d69af2693dbef3cc79f4b7427" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "f517f82df3f29a37",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/f517f82df3f29a37",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649105133520,
+        "stop" : 1649105133557,
+        "duration" : 37
+      }
+    } ]
+  },
+  "83e3cd745c904b39ba98498d793686ca" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "8d9256a4a604fee0",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/8d9256a4a604fee0",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649102223425,
+        "stop" : 1649102223435,
+        "duration" : 10
+      }
+    } ]
+  },
+  "7701a929ba556c35243f11ba7bc07226" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "9eb468746c0b8339",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/9eb468746c0b8339",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101140227,
+        "stop" : 1649101140247,
+        "duration" : 20
+      }
+    } ]
+  },
+  "f18d7d9f5bd5a5538a7079ad2eaa14f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "2ee7ed83ad2470e2",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/2ee7ed83ad2470e2",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104569521,
+        "stop" : 1649104569538,
+        "duration" : 17
+      }
+    } ]
+  },
+  "402cf2e9c00429e23b6068d754dd4dbe" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "e1caea1b62d50ad5",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/e1caea1b62d50ad5",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101321681,
+        "stop" : 1649101321697,
+        "duration" : 16
+      }
+    } ]
+  },
+  "752ff414fedc28caa8dbb53b2fab4283" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "8eb8cd7695795b72",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/8eb8cd7695795b72",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649102223841,
+        "stop" : 1649102223867,
+        "duration" : 26
+      }
+    } ]
+  },
+  "ee987874b5afbcff3eca43bdb5081291" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "955b9fc1954f9623",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/955b9fc1954f9623",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101321263,
+        "stop" : 1649101321275,
+        "duration" : 12
+      }
+    } ]
+  },
+  "c6d3ce9689e0c5467257ac5580affbdc" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "2ef6337b1b13857d",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/2ef6337b1b13857d",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101320341,
+        "stop" : 1649101320373,
+        "duration" : 32
+      }
+    } ]
+  },
+  "1e302c49c8f75fa918eb46dd6bc40b87" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "bd7e82f3261aafca",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/bd7e82f3261aafca",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101682718,
+        "stop" : 1649101682727,
+        "duration" : 9
+      }
+    } ]
+  },
+  "d5d715b3d739d9e30ec0c208231a5b19" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "905c890b0c76c3ad",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/905c890b0c76c3ad",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104568423,
+        "stop" : 1649104568438,
+        "duration" : 15
+      }
+    } ]
+  },
+  "2b4beb423f2d0918a09c19ca2ce5f015" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "2b5fc55fa85b32bd",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/2b5fc55fa85b32bd",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649104765703,
+        "stop" : 1649104769581,
+        "duration" : 3878
+      }
+    } ]
+  },
+  "c8c76336a37556799805a49b42d957dc" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "2d4be243f7c41226",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/2d4be243f7c41226",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101321791,
+        "stop" : 1649101321800,
+        "duration" : 9
+      }
+    } ]
+  },
+  "dbc6fbdd3600eccd40842e7fc2a996b7" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "9e93325283209031",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/9e93325283209031",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101682518,
+        "stop" : 1649101682528,
+        "duration" : 10
+      }
+    } ]
+  },
+  "b4d9a91b46088e954c06abadd0ea633f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "327f413f2fd50461",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/327f413f2fd50461",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101320756,
+        "stop" : 1649101320766,
+        "duration" : 10
+      }
+    } ]
+  },
+  "171d46d4135b76235154b42b11cb9d6f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "3a2d0144081a7377",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/3a2d0144081a7377",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101320792,
+        "stop" : 1649101320808,
+        "duration" : 16
+      }
+    } ]
+  },
+  "18f634cf5b3568c85a21c57b6cffaa85" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "f50cb3efeb563160",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/f50cb3efeb563160",
+      "status" : "skipped",
+      "statusDetails" : "Method testPackage01.TestJSPromptBox.assertOnConfirmPromptAlertWithTextMessageResultText() on instance testPackage01.TestJSPromptBox@5d21202d depends on not successfully finished methods \n[testPackage01.TestJSPromptBox.acceptPromptAlertWithTextMessage() on instance testPackage01.TestJSPromptBox@5d21202d]",
+      "time" : {
+        "start" : 1649104749902,
+        "stop" : 1649104749913,
+        "duration" : 11
+      }
+    } ]
+  },
+  "7b086c07a7672a87f96253ea13ac87a8" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "f7051357b21c9f4",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/f7051357b21c9f4",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104569411,
+        "stop" : 1649104569442,
+        "duration" : 31
+      }
+    } ]
+  },
+  "2502a22a0190a8d9d2d99a0b3742179f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "62dacc75ff6169a4",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/62dacc75ff6169a4",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104569553,
+        "stop" : 1649104569562,
+        "duration" : 9
+      }
+    } ]
+  },
+  "9c149457b49558f6e51ed70eaa6cb83d" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "4015d3eac5c7ccbc",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/4015d3eac5c7ccbc",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101682851,
+        "stop" : 1649101682861,
+        "duration" : 10
+      }
+    } ]
+  },
+  "a927bad4489beeee1ac4665341bb128" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "7897a25302f5dc28",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/7897a25302f5dc28",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104569574,
+        "stop" : 1649104569581,
+        "duration" : 7
+      }
+    } ]
+  },
+  "9ee600c4564b8a84210f113c6a571e46" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "42ad05db761daafc",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/42ad05db761daafc",
+      "status" : "skipped",
+      "statusDetails" : "Method testPackage01.TestJSAlertBox.acceptAlert() on instance testPackage01.TestJSAlertBox@1e469dfd depends on not successfully finished methods \n[testPackage01.TestJSAlertBox.getJSAlertText() on instance testPackage01.TestJSAlertBox@1e469dfd]",
+      "time" : {
+        "start" : 1649102764708,
+        "stop" : 1649102764738,
+        "duration" : 30
+      }
+    } ]
+  },
+  "b166e1c1837e7780d7033eca80f4a9c7" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "7ce3d5bb13ff8fbb",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/7ce3d5bb13ff8fbb",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104569286,
+        "stop" : 1649104569295,
+        "duration" : 9
+      }
+    } ]
+  },
+  "f8f970faae1267b4b5c08b241d01d5ce" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "985cf01ffbd5fe4f",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/985cf01ffbd5fe4f",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101682755,
+        "stop" : 1649101682770,
+        "duration" : 15
+      }
+    } ]
+  },
+  "f8b181c41d9f9edf4c60d33877099af8" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "9dbd15891b6dc22e",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/9dbd15891b6dc22e",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104569275,
+        "stop" : 1649104569284,
+        "duration" : 9
+      }
+    } ]
+  },
+  "ac7fea32beee7e3033b84a4d116cf947" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "e4acbeafaa11485f",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/e4acbeafaa11485f",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101321738,
+        "stop" : 1649101321747,
+        "duration" : 9
+      }
+    } ]
+  },
+  "13bf298e1e204216e174902a46417745" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "32793de17cf7188",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/32793de17cf7188",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649102584582,
+        "stop" : 1649102584589,
+        "duration" : 7
+      }
+    } ]
+  },
+  "8161aacdafcd0cb42d3204fe0672f36b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "8fee010f75a19c1e",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/8fee010f75a19c1e",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649102043363,
+        "stop" : 1649102043378,
+        "duration" : 15
+      }
+    } ]
+  },
+  "2b4f1cef406e9101284474f8f715b361" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "dec8080b6753249a",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/dec8080b6753249a",
+      "status" : "skipped",
+      "statusDetails" : "Method testPackage01.TestJSPromptBox.assertOnCancelAlertResultText() on instance testPackage01.TestJSPromptBox@5d21202d depends on not successfully finished methods \n[testPackage01.TestJSPromptBox.dismissAlert() on instance testPackage01.TestJSPromptBox@5d21202d]",
+      "time" : {
+        "start" : 1649104749808,
+        "stop" : 1649104749818,
+        "duration" : 10
+      }
+    } ]
+  },
+  "e6016fd1907b3a0435b9f68cbecabd91" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "2d95767977e8d270",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/2d95767977e8d270",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104568665,
+        "stop" : 1649104568691,
+        "duration" : 26
+      }
+    } ]
+  },
+  "1d2f699b44814327bb7ff247318e9c4e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "12353aae4c2aa67e",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/12353aae4c2aa67e",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101320618,
+        "stop" : 1649101320640,
+        "duration" : 22
+      }
+    } ]
+  },
+  "a3286ba2438900d0ed238b99b97c7891" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "afebdfdd23128912",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/afebdfdd23128912",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101140207,
+        "stop" : 1649101140225,
+        "duration" : 18
+      }
+    } ]
+  },
+  "abb72e27d987b2601e9ffbedb4ad837e" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "eea86c98156a3d3d",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/eea86c98156a3d3d",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104569338,
+        "stop" : 1649104569347,
+        "duration" : 9
+      }
+    } ]
+  },
+  "a7ae2e4757a67e15ea26bc18a732a5d0" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "f6e4847e3a845875",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/f6e4847e3a845875",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101140056,
+        "stop" : 1649101140080,
+        "duration" : 24
+      }
+    } ]
+  },
+  "a861b2f90300876d9b9281725e416280" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "840feba479190b84",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/840feba479190b84",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101140082,
+        "stop" : 1649101140115,
+        "duration" : 33
+      }
+    } ]
+  },
+  "6279582d02bb323ff2fca935852a8c5f" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "d2de46a0902540a8",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/d2de46a0902540a8",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101321915,
+        "stop" : 1649101321929,
+        "duration" : 14
+      }
+    } ]
+  },
+  "4caaf7363b41d601b60a62091b2440ca" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "105d89811286a20e",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/105d89811286a20e",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101682516,
+        "stop" : 1649101682516,
+        "duration" : 0
+      }
+    } ]
+  },
+  "a2b4829c99b25b0f138408ac2f2752bd" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "e223ada8c18fc7bc",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/e223ada8c18fc7bc",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649103125818,
+        "stop" : 1649103125836,
+        "duration" : 18
+      }
+    } ]
+  },
+  "605cff6f7746d803bcbc232d25a70fa0" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "551ee136375abb46",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/551ee136375abb46",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104569461,
+        "stop" : 1649104569483,
+        "duration" : 22
+      }
+    } ]
+  },
+  "f268085bbe60553e99786b2f5367193c" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "b8706f4a632ed19",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/b8706f4a632ed19",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104387603,
+        "stop" : 1649104387603,
+        "duration" : 0
+      }
+    } ]
+  },
+  "f76e83298b125d9f8051305662bd868b" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "a402b5924607e445",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/a402b5924607e445",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104568752,
+        "stop" : 1649104568767,
+        "duration" : 15
+      }
+    } ]
+  },
+  "34d77cbcbcc5df0b4c82bebc27122d3c" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "ccf1cf627c7a3428",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/ccf1cf627c7a3428",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649105133470,
+        "stop" : 1649105133470,
+        "duration" : 0
+      }
+    } ]
+  },
+  "3eb11789332d0a8a7240fdea94bc9975" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "930bce58b1b550df",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/930bce58b1b550df",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101863160,
+        "stop" : 1649101863160,
+        "duration" : 0
+      }
+    } ]
+  },
+  "d20688892e8370917ded3954bd58a936" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "593d2e41264ea733",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/593d2e41264ea733",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101321934,
+        "stop" : 1649101321944,
+        "duration" : 10
+      }
+    } ]
+  },
+  "d305933be8c1545e88e65f9f5733babf" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "3debb00722701fab",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/3debb00722701fab",
+      "status" : "skipped",
+      "statusDetails" : "Method testPackage01.Test_google.searchForQueryandAssertResultsNumDisplayed() on instance testPackage01.Test_google@730f9695 depends on not successfully finished methods \n[testPackage01.Test_google.navigateToURLandVerifyGoogleLogoIsDisplayed() on instance testPackage01.Test_google@730f9695]",
+      "time" : {
+        "start" : 1649104953308,
+        "stop" : 1649104953324,
+        "duration" : 16
+      }
+    } ]
+  },
+  "8a87a21477193c438040ea0bf35f7853" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "fc66e701c273df31",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/fc66e701c273df31",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104569485,
+        "stop" : 1649104569496,
+        "duration" : 11
+      }
+    } ]
+  },
+  "3e73c6377dbba1c4391d565476180108" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "72fc795ec785d9f7",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/72fc795ec785d9f7",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101139605,
+        "stop" : 1649101139833,
+        "duration" : 228
+      }
+    } ]
+  },
+  "6e9653d87bb48d922bf324da35e579ef" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "2a5fe772c4cc0699",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/2a5fe772c4cc0699",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649103846088,
+        "stop" : 1649103846089,
+        "duration" : 1
+      }
+    } ]
+  },
+  "b916e3a3cf9aae34687e6cba489385fd" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "46b539f9172fd528",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/46b539f9172fd528",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101682555,
+        "stop" : 1649101682563,
+        "duration" : 8
+      }
+    } ]
+  },
+  "fa265a8627bd99827e3fc01138cc6263" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 1,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "991e9f43aec1311f",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/991e9f43aec1311f",
+      "status" : "passed",
+      "time" : {
+        "start" : 1649101863265,
+        "stop" : 1649101863322,
+        "duration" : 57
+      }
+    } ]
+  },
+  "8e6ae17900b012ee04473da72a15fef5" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "bb2f26e997570bf5",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/bb2f26e997570bf5",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104387721,
+        "stop" : 1649104387734,
+        "duration" : 13
+      }
+    } ]
+  },
+  "33576b2e5330e9a51886bfc6433b9108" : {
+    "statistic" : {
+      "failed" : 1,
+      "broken" : 0,
+      "skipped" : 0,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "3d93eb29fc3c6c0f",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/3d93eb29fc3c6c0f",
+      "status" : "failed",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649104953267,
+        "stop" : 1649104953267,
+        "duration" : 0
+      }
+    } ]
+  },
+  "4059f51a9d634b52b216f44f3bf27ccc" : {
+    "statistic" : {
+      "failed" : 0,
+      "broken" : 0,
+      "skipped" : 1,
+      "passed" : 0,
+      "unknown" : 0,
+      "total" : 1
+    },
+    "items" : [ {
+      "uid" : "1b2599800c305c3",
+      "reportUrl" : "https://MohabMohie.github.io/SHAFT_ENGINE/allure/Linux/Web/1294//#testresult/1b2599800c305c3",
+      "status" : "skipped",
+      "statusDetails" : "Driver Factory Action \"createNewRemoteDriverInstance\" failed. With the following test data \"Unhandled Error.\".",
+      "time" : {
+        "start" : 1649101321874,
+        "stop" : 1649101321891,
+        "duration" : 17
+      }
+    } ]
+  }
+}

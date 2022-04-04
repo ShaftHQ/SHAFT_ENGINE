@@ -1,0 +1,311 @@
+{
+  "uid" : "111800d7b7c2eb42",
+  "name" : "checkAPI_ResponseSchema",
+  "fullName" : "testPackage01.Test_MatchJsonSchema.checkAPI_ResponseSchema",
+  "historyId" : "e025b82a7d1b9f5f8cfaebf774709daa",
+  "time" : {
+    "start" : 1649103846135,
+    "stop" : 1649103847229,
+    "duration" : 1094
+  },
+  "status" : "passed",
+  "flaky" : false,
+  "newFailed" : false,
+  "beforeStages" : [ {
+    "name" : "setupActivities",
+    "time" : {
+      "start" : 1649101123451,
+      "stop" : 1649101124362,
+      "duration" : 911
+    },
+    "description" : "",
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Folder \"extent-reports\" was not found, it may have already been deleted.",
+      "time" : {
+        "start" : 1649101123611,
+        "stop" : 1649101123613,
+        "duration" : 2
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Folder \"extent-reports\" was not found, it may have already been deleted."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Terminal Action \"PerformTerminalCommands\" successfully performed. With the following test data \"Host Name: \"localHost\" | Command: \"chmod u+x generateJdk.sh\" | Exit Status: \"1\"\".",
+      "time" : {
+        "start" : 1649101124359,
+        "stop" : 1649101124361,
+        "duration" : 2
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "9719d16ba04935cf",
+        "name" : "Terminal Action Actual Result - Command Log",
+        "source" : "9719d16ba04935cf.txt",
+        "type" : "text/plain",
+        "size" : 64
+      } ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Terminal Action \"PerformTerminalCommands\" successfully performed. With the following test data \"Host Name: \"localHost\" | Command: \"chmod u+x generateJdk.sh\" | Exit Status: \"1\"\"."
+      }, {
+        "name" : "attachments",
+        "value" : "[[Terminal Action Actual Result, Command Log, chmod: cannot access 'generateJdk.sh': No such file or directory]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 1,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ {
+      "uid" : "22ad6fbccf32bae3",
+      "name" : "SHAFT Links - Important",
+      "source" : "22ad6fbccf32bae3.uri",
+      "type" : "text/uri-list",
+      "size" : 346
+    } ],
+    "parameters" : [ ],
+    "stepsCount" : 2,
+    "attachmentsCount" : 2,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  } ],
+  "testStage" : {
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Assertion Passed: Evaluating the actual response status code against the expected one...",
+      "time" : {
+        "start" : 1649103846238,
+        "stop" : 1649103846238,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "customLog",
+        "value" : "Assertion Passed: Evaluating the actual response status code against the expected one..."
+      }, {
+        "name" : "stepLog",
+        "value" : "Assertion \"ValidateComparativeRelation\" PASSED. Expected \"200\" and Actual \"200\". Comparison Type \"EQUALS\". Validation Type \"POSITIVE\"."
+      }, {
+        "name" : "attachments",
+        "value" : "null"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "API Action \"PerformRequest\" successfully performed. With the following test data \"Request Type: \"GET\" | Target Status Code: \"200\" | Service URL: \"http://api.zippopotam.us/us/90210\" | Content Type: \"*/*\" | Response Time: \"98ms\"\".",
+      "time" : {
+        "start" : 1649103846254,
+        "stop" : 1649103846255,
+        "duration" : 1
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "62f677eee18754c5",
+        "name" : "API Request - Specifications",
+        "source" : "62f677eee18754c5.txt",
+        "type" : "text/plain",
+        "size" : 44
+      }, {
+        "uid" : "4275e172c68faa5c",
+        "name" : "API Response - JSON Body",
+        "source" : "4275e172c68faa5c.json",
+        "type" : "text/json",
+        "size" : 279
+      } ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "API Action \"PerformRequest\" successfully performed. With the following test data \"Request Type: \"GET\" | Target Status Code: \"200\" | Service URL: \"http://api.zippopotam.us/us/90210\" | Content Type: \"*/*\" | Response Time: \"98ms\"\"."
+      }, {
+        "name" : "attachments",
+        "value" : "[[API Request, Specifications, Headers:\n_______________\n\nContent-Type=*/*\n\n], null, [API Response, JSON Body, java.io.ByteArrayInputStream@1094fb98]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 2,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Assertion Passed: The API response schema matches that in this file \"src/test/resources/testDataFiles/schema.json\".",
+      "time" : {
+        "start" : 1649103847215,
+        "stop" : 1649103847217,
+        "duration" : 2
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "7d945c9d9d9a070a",
+        "name" : "Validation Test Data - Expected JSON Value",
+        "source" : "7d945c9d9d9a070a.json",
+        "type" : "text/json",
+        "size" : 5037
+      }, {
+        "uid" : "347382518cdc7266",
+        "name" : "Validation Test Data - Actual JSON Value",
+        "source" : "347382518cdc7266.json",
+        "type" : "text/json",
+        "size" : 279
+      } ],
+      "parameters" : [ {
+        "name" : "customLog",
+        "value" : "Assertion Passed: The API response schema matches that in this file \"src/test/resources/testDataFiles/schema.json\"."
+      }, {
+        "name" : "stepLog",
+        "value" : "Assertion \"ValidateResponseFileSchema\" PASSED. Expected \"Response data should match the JSON File in this path '/home/runner/work/SHAFT_ENGINE/SHAFT_ENGINE/src/test/resources/testDataFiles/schema.json'\" and Actual \"TRUE\". Comparison Type \"EQUALS\". Validation Type \"POSITIVE\"."
+      }, {
+        "name" : "attachments",
+        "value" : "[[Validation Test Data, Expected JSON Value, java.io.ByteArrayInputStream@e50c1f6], [Validation Test Data, Actual JSON Value, java.io.ByteArrayInputStream@523d07cc]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 2,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ {
+      "uid" : "62244907a48851d4",
+      "name" : "SHAFT Engine Logs - Current Method log: checkAPI_ResponseSchema",
+      "source" : "62244907a48851d4.txt",
+      "type" : "text/plain",
+      "size" : 2736
+    } ],
+    "parameters" : [ ],
+    "stepsCount" : 3,
+    "attachmentsCount" : 5,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  },
+  "afterStages" : [ {
+    "name" : "teardownActivities",
+    "time" : {
+      "start" : 1649105133578,
+      "stop" : 1649105134319,
+      "duration" : 741
+    },
+    "description" : "",
+    "status" : "passed",
+    "steps" : [ {
+      "name" : "Successfully Closed All Drivers.",
+      "time" : {
+        "start" : 1649105133691,
+        "stop" : 1649105133691,
+        "duration" : 0
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Successfully Closed All Drivers."
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 0,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    }, {
+      "name" : "Issue Summary: Total Issues = 5, New issues for Failed Tests = 3, Open issues for Passed Tests = 2, Open issues for Failed Tests = 0. Kindly check the attached Issue details.",
+      "time" : {
+        "start" : 1649105133707,
+        "stop" : 1649105133708,
+        "duration" : 1
+      },
+      "status" : "passed",
+      "steps" : [ ],
+      "attachments" : [ {
+        "uid" : "4844fa62f7616061",
+        "name" : "SHAFT Engine Logs - Issues log CSV: 20220404-204533",
+        "source" : "4844fa62f7616061.csv",
+        "type" : "text/csv",
+        "size" : 586
+      } ],
+      "parameters" : [ {
+        "name" : "logText",
+        "value" : "Issue Summary: Total Issues = 5, New issues for Failed Tests = 3, Open issues for Passed Tests = 2, Open issues for Failed Tests = 0. Kindly check the attached Issue details."
+      }, {
+        "name" : "attachments",
+        "value" : "[[SHAFT Engine Logs, Issues log CSV: 20220404-204533, java.io.ByteArrayInputStream@6c1c7ebc]]"
+      } ],
+      "stepsCount" : 0,
+      "attachmentsCount" : 1,
+      "shouldDisplayMessage" : false,
+      "hasContent" : true
+    } ],
+    "attachments" : [ {
+      "uid" : "e82d8c21c5e89333",
+      "name" : "SHAFT Engine Logs - Execution log: 20220404-204533",
+      "source" : "e82d8c21c5e89333.txt",
+      "type" : "text/plain",
+      "size" : 163440
+    }, {
+      "uid" : "7d2cb7b000f357b",
+      "name" : "HTML - Extent Emailable Execution Report",
+      "source" : "7d2cb7b000f357b.html",
+      "type" : "text/html",
+      "size" : 2055115
+    } ],
+    "parameters" : [ ],
+    "stepsCount" : 2,
+    "attachmentsCount" : 3,
+    "shouldDisplayMessage" : false,
+    "hasContent" : true
+  } ],
+  "labels" : [ {
+    "name" : "package",
+    "value" : "testPackage01.Test_MatchJsonSchema"
+  }, {
+    "name" : "testClass",
+    "value" : "testPackage01.Test_MatchJsonSchema"
+  }, {
+    "name" : "testMethod",
+    "value" : "checkAPI_ResponseSchema"
+  }, {
+    "name" : "parentSuite",
+    "value" : "Suite"
+  }, {
+    "name" : "suite",
+    "value" : "Test"
+  }, {
+    "name" : "subSuite",
+    "value" : "testPackage01.Test_MatchJsonSchema"
+  }, {
+    "name" : "host",
+    "value" : "fv-az397-767"
+  }, {
+    "name" : "thread",
+    "value" : "3487@fv-az397-767.main(1)"
+  }, {
+    "name" : "framework",
+    "value" : "testng"
+  }, {
+    "name" : "language",
+    "value" : "java"
+  }, {
+    "name" : "resultFormat",
+    "value" : "allure2"
+  } ],
+  "parameters" : [ ],
+  "links" : [ ],
+  "hidden" : false,
+  "retry" : false,
+  "extra" : {
+    "severity" : "normal",
+    "retries" : [ ],
+    "categories" : [ ],
+    "tags" : [ ]
+  },
+  "source" : "111800d7b7c2eb42.json",
+  "parameterValues" : [ ]
+}

@@ -1,0 +1,6 @@
+
+################################################################################################################################################
+Starting Execution:	"173 out of 179" test cases in the current suite
+Test Method:		"testPackage01.Test_google.navigateToURLandVerifyGoogleLogoIsDisplayed"
+Test Description:	"TC001 - Navigate to URL and Verify Google Logo is Displayed"
+###############################################################################################################################################
