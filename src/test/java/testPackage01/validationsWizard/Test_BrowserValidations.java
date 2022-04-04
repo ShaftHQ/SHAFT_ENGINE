@@ -1,7 +1,7 @@
 package testPackage01.validationsWizard;
 
 import com.shaft.driver.DriverFactory;
-import com.shaft.driver.SHAFT;
+import com.shaft.gui.browser.BrowserActions;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.WebDriver;
 import org.testng.annotations.AfterClass;
@@ -10,7 +10,6 @@ import org.testng.annotations.Test;
 
 public class Test_BrowserValidations {
     private WebDriver driver;
-    private String url = "https://www.google.com/";
 
     @Test
     public void url() {
@@ -25,7 +24,8 @@ public class Test_BrowserValidations {
     @BeforeClass
     public void beforeClass() {
         driver = DriverFactory.getDriver();
-        new SHAFT.GUI.WebDriver().browser().navigateToURL(url);
+        String url = "https://www.google.com/";
+        BrowserActions.navigateToURL(driver, url);
     }
 
     @AfterClass

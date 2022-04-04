@@ -1,4 +1,4 @@
-package dsl;
+package testPackage01.dsl;
 
 import com.shaft.driver.DriverFactory;
 import com.shaft.dsl.gui.Button;
@@ -11,16 +11,16 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.testng.annotations.Test;
 
-public class testDsl {
+public class Test_Dsl {
     @Test
-    void testLabel()
-    {
+    void testLabel() {
         WebDriver driver = DriverFactory.getDriver();
         driver.navigate().to("http://the-internet.herokuapp.com/");
         Element.setDriver(driver);
-        Label label= new Label(By.xpath("//*[contains(text(),'Welcome to the-internet')]"));
+        Label label = new Label(By.xpath("//*[contains(text(),'Welcome to the-internet')]"));
         label.shouldHaveText("Welcome to the-internet");
     }
+
     @Test
     void testButton()
     {
@@ -34,7 +34,7 @@ public class testDsl {
         btn.isEnabled();
         Button btn1= new Button(By.xpath("//button[text()='Delete']"));
         btn1.shouldHaveText("Delete");
-        driver.quit();
+        DriverFactory.closeAllDrivers();
     }
     @Test
     void testCheckBox()
@@ -47,6 +47,6 @@ public class testDsl {
         cb1.click();
         CheckBox cb2 = new CheckBox(By.xpath("(//INPUT[@type='checkbox'])[2]"),By.xpath("(//INPUT[@type='checkbox'])[2]"));
         cb2.click();
-        driver.quit();
+        DriverFactory.closeAllDrivers();
     }
 }

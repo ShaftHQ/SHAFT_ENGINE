@@ -1,13 +1,11 @@
-package unitTests;
+package testPackage01.unitTests;
 
 import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.validation.Assertions;
-import com.shaft.validation.Assertions.AssertionComparisonType;
 import com.shaft.validation.Assertions.AssertionType;
-import com.shaft.validation.Assertions.ComparativeRelationType;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -28,7 +26,7 @@ public class tests_validations_assertions {
 
     @Test
     public void assertEquals_true_expectedToPass__() {
-        Assertions.assertEquals(1, 1, AssertionComparisonType.EQUALS, AssertionType.POSITIVE);
+        Validations.assertThat().number(1).isEqualTo(1).perform();
     }
 
     @Test
@@ -45,16 +43,16 @@ public class tests_validations_assertions {
     public void assertEquals_longCharacters_Discreet() {
         boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
         ReportManagerHelper.setDiscreteLogging(true);
-        Assertions.assertEquals(
-                "1LH5pROcDBjjQk0t0mCr0lXuzQu9lcGj28kY8R1H81X67eVAQJgWQhILiRWVPUgZ6uCtK5cnBkF55Jr9vYngjGO1Iyf0Mktv6lruDlL9T8MAUPcUZJGHZtji6nIeadujDSNmWMj5d6C8zlFqw0CRqBU0hO5adIasHgBSNoLotAjce3NGXoDwAlp3rYreeV16VIyZXROQY",
-                "1LH5pROcDBjjQk0t0mCr0lXuzQu9lcGj28kY8R1H81X67eVAQJgWQhILiRWVPUgZ6uCtK5cnBkF55Jr9vYngjGO1Iyf0Mktv6lruDlL9T8MAUPcUZJGHZtji6nIeadujDSNmWMj5d6C8zlFqw0CRqBU0hO5adIasHgBSNoLotAjce3NGXoDwAlp3rYreeV16VIyZXROQY");
+        Validations.assertThat().object("1LH5pROcDBjjQk0t0mCr0lXuzQu9lcGj28kY8R1H81X67eVAQJgWQhILiRWVPUgZ6uCtK5cnBkF55Jr9vYngjGO1Iyf0Mktv6lruDlL9T8MAUPcUZJGHZtji6nIeadujDSNmWMj5d6C8zlFqw0CRqBU0hO5adIasHgBSNoLotAjce3NGXoDwAlp3rYreeV16VIyZXROQY")
+                .isEqualTo("1LH5pROcDBjjQk0t0mCr0lXuzQu9lcGj28kY8R1H81X67eVAQJgWQhILiRWVPUgZ6uCtK5cnBkF55Jr9vYngjGO1Iyf0Mktv6lruDlL9T8MAUPcUZJGHZtji6nIeadujDSNmWMj5d6C8zlFqw0CRqBU0hO5adIasHgBSNoLotAjce3NGXoDwAlp3rYreeV16VIyZXROQY")
+                .perform();
         ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
     }
 
     @Test
     public void assertEquals_true_expectedToFail() {
         try {
-            Assertions.assertEquals(1, 2);
+            Validations.assertThat().number(1).equals(2);
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -62,41 +60,13 @@ public class tests_validations_assertions {
 
     @Test
     public void assertEquals_false_expectedToPass() {
-        Assertions.assertEquals(1, 2, AssertionComparisonType.EQUALS, AssertionType.NEGATIVE);
+        Validations.assertThat().number(1).doesNotEqual(2);
     }
 
     @Test
     public void assertEquals_false_expectedToFail() {
         try {
-            Assertions.assertEquals(1, 1, AssertionComparisonType.EQUALS, AssertionType.NEGATIVE);
-        } catch (AssertionError e) {
-            Assert.assertTrue(true);
-        }
-    }
-
-    @Test
-    public void assertNull_true_expectedToPass() {
-        Assertions.assertNull(null, AssertionType.POSITIVE);
-    }
-
-    @Test
-    public void assertNull_true_expectedToFail() {
-        try {
-            Assertions.assertNull(1, AssertionType.POSITIVE);
-        } catch (AssertionError e) {
-            Assert.assertTrue(true);
-        }
-    }
-
-    @Test
-    public void assertNull_false_expectedToPass() {
-        Assertions.assertNull(1, AssertionType.NEGATIVE);
-    }
-
-    @Test
-    public void assertNull_false_expectedToFail() {
-        try {
-            Assertions.assertNull(null, AssertionType.NEGATIVE);
+            Validations.assertThat().number(1).doesNotEqual(1);
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -104,21 +74,18 @@ public class tests_validations_assertions {
 
     @Test
     public void assertComparativeRelation_greaterThanOrEquals_true_greaterThan_expectedToPass() {
-        Assertions.assertComparativeRelation(1, 2, ComparativeRelationType.GREATER_THAN_OR_EQUALS,
-                AssertionType.POSITIVE);
+        Validations.assertThat().number(1).isGreaterThanOrEquals(2).perform();
     }
 
     @Test
     public void assertComparativeRelation_greaterThanOrEquals_true_equals_expectedToPass() {
-        Assertions.assertComparativeRelation(1, 1, ComparativeRelationType.GREATER_THAN_OR_EQUALS,
-                AssertionType.POSITIVE);
+        Validations.assertThat().number(1).isGreaterThanOrEquals(1).perform();
     }
 
     @Test
     public void assertComparativeRelation_greaterThanOrEquals_true_greaterThan_expectedToFail() {
         try {
-            Assertions.assertComparativeRelation(2, 1, ComparativeRelationType.GREATER_THAN_OR_EQUALS,
-                    AssertionType.POSITIVE);
+            Validations.assertThat().number(2).isGreaterThanOrEquals(1).perform();
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -127,8 +94,7 @@ public class tests_validations_assertions {
     @Test
     public void assertComparativeRelation_greaterThanOrEquals_true_equals_expectedToFail() {
         try {
-            Assertions.assertComparativeRelation(1, 0, ComparativeRelationType.GREATER_THAN_OR_EQUALS,
-                    AssertionType.POSITIVE);
+            Validations.assertThat().number(1).isGreaterThanOrEquals(0).perform();
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -136,31 +102,13 @@ public class tests_validations_assertions {
 
     @Test
     public void assertComparativeRelation_greaterThanOrEquals_false_greaterThan_expectedToPass() {
-        Assertions.assertComparativeRelation(2, 1, ComparativeRelationType.GREATER_THAN_OR_EQUALS,
-                AssertionType.NEGATIVE);
-    }
-
-    @Test
-    public void assertComparativeRelation_greaterThanOrEquals_false_equals_expectedToPass() {
-        Assertions.assertComparativeRelation(2, 1, ComparativeRelationType.GREATER_THAN_OR_EQUALS,
-                AssertionType.NEGATIVE);
+        Validations.assertThat().number(2).isLessThan(1).perform();
     }
 
     @Test
     public void assertComparativeRelation_greaterThanOrEquals_false_greaterThan_expectedToFail() {
         try {
-            Assertions.assertComparativeRelation(1, 2, ComparativeRelationType.GREATER_THAN_OR_EQUALS,
-                    AssertionType.NEGATIVE);
-        } catch (AssertionError e) {
-            Assert.assertTrue(true);
-        }
-    }
-
-    @Test
-    public void assertComparativeRelation_greaterThanOrEquals_false_equals_expectedToFail() {
-        try {
-            Assertions.assertComparativeRelation(1, 1, ComparativeRelationType.GREATER_THAN_OR_EQUALS,
-                    AssertionType.NEGATIVE);
+            Validations.assertThat().number(1).isLessThan(2).perform();
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -168,13 +116,13 @@ public class tests_validations_assertions {
 
     @Test(groups = {"WebBased"})
     public void assertElementExists_true_expectedToPass() {
-        Assertions.assertElementExists(driver, GoogleSearch.googleLogo_image, AssertionType.POSITIVE);
+        Validations.assertThat().element(driver, GoogleSearch.googleLogo_image).exists().perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementExists_true_expectedToFail() {
         try {
-            Assertions.assertElementExists(driver, By.id("fakeElement"), AssertionType.POSITIVE);
+            Validations.assertThat().element(driver, By.id("fakeElement")).exists().perform();
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -182,13 +130,13 @@ public class tests_validations_assertions {
 
     @Test(groups = {"WebBased"})
     public void assertElementExists_false_expectedToPass() {
-        Assertions.assertElementExists(driver, By.id("fakeElement"), AssertionType.NEGATIVE);
+        Validations.assertThat().element(driver, By.id("fakeElement")).doesNotExist().perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementExists_false_expectedToFail() {
         try {
-            Assertions.assertElementExists(driver, By.id("hplogo"), AssertionType.NEGATIVE);
+            Validations.assertThat().element(driver, By.id("hplogo")).doesNotExist().perform();
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }

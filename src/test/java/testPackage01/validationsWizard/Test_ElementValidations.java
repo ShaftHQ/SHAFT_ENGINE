@@ -1,7 +1,8 @@
 package testPackage01.validationsWizard;
 
 import com.shaft.driver.DriverFactory;
-import com.shaft.driver.SHAFT;
+import com.shaft.gui.browser.BrowserActions;
+import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -11,9 +12,8 @@ import org.testng.annotations.Test;
 
 public class Test_ElementValidations {
     private WebDriver driver;
-    private String url = "https://www.google.com/";
-    private By googleLogo = By.xpath("//img[@alt='Google']");
-    private By searchBox = By.name("q");
+    private final By googleLogo = By.xpath("//img[@alt='Google']");
+    private final By searchBox = By.name("q");
 
     @Test
     public void exists() {
@@ -52,7 +52,7 @@ public class Test_ElementValidations {
 
     @Test
     public void text() {
-        new SHAFT.GUI.WebDriver().element().type(searchBox, "DriverFactory_Engine");
+        ElementActions.type(driver, searchBox, "DriverFactory_Engine");
         Validations.assertThat().element(driver, searchBox).text().isEqualTo("DriverFactory_Engine").perform();
     }
 
@@ -64,7 +64,8 @@ public class Test_ElementValidations {
     @BeforeClass
     public void beforeClass() {
         driver = DriverFactory.getDriver();
-        new SHAFT.GUI.WebDriver().browser().navigateToURL(url);
+        String url = "https://www.google.com/";
+        BrowserActions.navigateToURL(driver, url);
     }
 
     @AfterClass

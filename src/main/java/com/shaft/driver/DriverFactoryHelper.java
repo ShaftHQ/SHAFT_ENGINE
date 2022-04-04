@@ -306,11 +306,11 @@ public class DriverFactoryHelper {
         if (testData != null) {
             message = message + " With the following test data \"" + testData + "\".";
         }
-        ReportManager.log(message);
         if (rootCauseException != null && rootCauseException.length >= 1) {
             ReportManagerHelper.log(rootCauseException[0]);
             Assert.fail(message, rootCauseException[0]);
         } else {
+            ReportManager.log(message);
             Assert.fail(message);
         }
     }
@@ -487,25 +487,19 @@ public class DriverFactoryHelper {
                 }
                 options.setCapability(CapabilityType.PLATFORM_NAME, getDesiredOperatingSystem());
                 options.setHeadless(HEADLESS_EXECUTION);
-                if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
-                    // https://developers.google.com/web/updates/2017/04/headless-chrome
-//                    options.addArguments("--headless"); // only if you are ACTUALLY running headless
-                    // https://stackoverflow.com/questions/43541925/how-can-i-set-the-browser-window-size-when-using-google-chrome-headless
-                    options.addArguments("--window-size=1920,1080");
-                }
                 if (Boolean.TRUE.equals(AUTO_MAXIMIZE) && !isMobileWebExecution() && !OperatingSystemType.MACOS.equals(getOperatingSystemFromName(targetOperatingSystem))) {
                     options.addArguments("--start-maximized");
                 }
                 if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("captureWebDriverLogs").trim()))) {
                     options.setCapability(CapabilityType.LOGGING_PREFS, logPrefs);
                 }
-                options.addArguments("--enable-automation"); // https://stackoverflow.com/a/43840128/1689770
-                options.addArguments("--no-sandbox"); //https://stackoverflow.com/a/50725918/1689770
-                options.addArguments("--disable-infobars"); //https://stackoverflow.com/a/43840128/1689770
-                options.addArguments("--disable-dev-shm-usage"); //https://stackoverflow.com/a/50725918/1689770
-                options.addArguments("--disable-browser-side-navigation"); //https://stackoverflow.com/a/49123152/1689770
-                options.addArguments("--disable-gpu"); //https://stackoverflow.com/questions/51959986/how-to-solve-selenium-chromedriver-timed-out-receiving-message-from-renderer-exc
-                options.addArguments("--remote-debugging-port=9222"); //https://stackoverflow.com/questions/50642308/webdriverexception-unknown-error-devtoolsactiveport-file-doesnt-exist-while-t/60168019#60168019
+//                options.addArguments("--enable-automation"); // https://stackoverflow.com/a/43840128/1689770
+//                options.addArguments("--no-sandbox"); //https://stackoverflow.com/a/50725918/1689770
+//                options.addArguments("--disable-infobars"); //https://stackoverflow.com/a/43840128/1689770
+//                options.addArguments("--disable-dev-shm-usage"); //https://stackoverflow.com/a/50725918/1689770
+//                options.addArguments("--disable-browser-side-navigation"); //https://stackoverflow.com/a/49123152/1689770
+//                options.addArguments("--disable-gpu"); //https://stackoverflow.com/questions/51959986/how-to-solve-selenium-chromedriver-timed-out-receiving-message-from-renderer-exc
+//                options.addArguments("--remote-debugging-port=9222"); //https://stackoverflow.com/questions/50642308/webdriverexception-unknown-error-devtoolsactiveport-file-doesnt-exist-while-t/60168019#60168019
                 Map<String, Object> chromePreferences = new HashMap<>();
                 chromePreferences.put("profile.default_content_settings.popups", 0);
                 chromePreferences.put("download.prompt_for_download", "false");
@@ -861,10 +855,14 @@ public class DriverFactoryHelper {
                 driver.set(createNewRemoteDriverInstance(internalDriverName));
             }
 
+            if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
+                driver.get().manage().window().setSize(new Dimension(1920, 1080));
+            }
+
             if (!isMobileNativeExecution()) {
                 JavaScriptWaitManager.setDriver(driver.get());
                 if (Boolean.TRUE.equals(AUTO_MAXIMIZE) && !isMobileWebExecution()
-                        && (!DriverType.DESKTOP_CHROME.equals(getDriverTypeFromName(internalDriverName)) || OperatingSystemType.MACOS.equals(getOperatingSystemFromName(targetOperatingSystem)))) {
+                        && OperatingSystemType.MACOS.equals(getOperatingSystemFromName(targetOperatingSystem))) {
                     BrowserActions.maximizeWindow(driver.get());
                 }
             }

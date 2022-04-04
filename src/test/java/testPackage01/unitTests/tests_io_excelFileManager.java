@@ -1,4 +1,4 @@
-package unitTests;
+package testPackage01.unitTests;
 
 import com.shaft.tools.io.ExcelFileManager;
 import com.shaft.tools.io.ReportManager;

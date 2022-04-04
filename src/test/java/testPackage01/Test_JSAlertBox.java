@@ -4,7 +4,6 @@ import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -12,7 +11,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-public class TestJSAlertBox {
+public class Test_JSAlertBox {
 
     private static final By JS_AlertBox = By.xpath("//button[contains(text(),'Click for JS Alert')]");
     private static final By JS_ResultText = By.id("result");
@@ -38,11 +37,12 @@ public class TestJSAlertBox {
 
     @Test(dependsOnMethods = "getJSAlertText")
     public void acceptAlert() {
+        ElementActions.click(driver, JS_AlertBox);
         ElementActions.performAlertAction(driver).acceptAlert();
     }
 
     @Test(dependsOnMethods = "acceptAlert")
     public void assertOnConfirmAlertResultText() {
-        Validations.assertThat().element(driver, JS_ResultText).attribute(ValidationEnums.ElementAttribute.TEXT).isEqualTo("You successfully clicked an alert").perform();
+        Validations.assertThat().element(driver, JS_ResultText).text().isEqualTo("You successfully clicked an alert").perform();
     }
 }
