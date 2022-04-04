@@ -1,6 +1,0 @@
-
-################################################################################################################################################
-Starting Execution:	"19 out of 185" test cases in the current suite
-Test Method:		"testPackage01.SHAFTWizard.Test_Wizard_StandaloneValidation.number"
-################################################################################################################################################
-[ReportManager] Assertion Passed: "3" is greater than or equal to "1". @04-04-2022 07:22:15.0204 A

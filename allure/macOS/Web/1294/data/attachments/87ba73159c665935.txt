@@ -1,9 +1,0 @@
-
-################################################################################################################################################
-Starting Execution:	"29 out of 179" test cases in the current suite
-Test Method:		"unitTests.tests_validations_assertions.assertElementAttribute_false_caseInsensitiveComparison_expectedToFail"
-################################################################################################################################################
-[ReportManager] Type "AUTOMATION". @04-04-2022 19:38:31.0549 PM
-[ReportManager] Get text "AUTOMATION". @04-04-2022 19:38:31.0651 PM
-[ReportManager] Assertion "ValidateElementAttribute" FAILED. Expected "Value Should not be 'AutomaTion' for the 'text' attribute, element locator 'By.name: q'" and Actual "AUTOMATION". Comparison Type "CASE_INSENSITIVE". Validation Type "NEGATIVE". @04-04-2022 19:38:32.0093 PM
-[ReportManager] Successfully created attachment "Screenshot - 1649101111957_assertElementAttribute_false_caseInsensitiveComparison_expectedToFail_ValidateElementAttribute_failed" @04-04-2022 19:38:32.0098 P

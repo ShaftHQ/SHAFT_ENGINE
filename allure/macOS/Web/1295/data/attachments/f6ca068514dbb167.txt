@@ -1,8 +1,0 @@
-
-################################################################################################################################################
-Starting Execution:	"16 out of 179" test cases in the current suite
-Test Method:		"unitTests.tests_browserActions.navigateToURL"
-################################################################################################################################################
-[ReportManager] Target URL: "https://duckduckgo.com" @04-04-2022 19:39:32.0830 PM
-[ReportManager] Initial URL: "https://duckduckgo.com" @04-04-2022 19:39:32.0861 PM
-[ReportManager] Navigate to url "https://duckduckgo.com". @04-04-2022 19:39:33.0349 P

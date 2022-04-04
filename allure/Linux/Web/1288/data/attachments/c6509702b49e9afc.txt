@@ -1,6 +1,0 @@
-
-################################################################################################################################################
-Starting Execution:	"72 out of 185" test cases in the current suite
-Test Method:		"testPackage01.Test_NewValidationHelper.f29"
-################################################################################################################################################
-[ReportManager] Assertion "ValidateComparativeRelation" PASSED. Expected "11" and Actual "11". Comparison Type "LESS_THAN_OR_EQUALS". Validation Type "POSITIVE". @04-04-2022 07:25:28.0562 A

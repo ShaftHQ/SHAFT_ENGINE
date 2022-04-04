@@ -1,7 +1,0 @@
-
-################################################################################################################################################
-Starting Execution:	"48 out of 179" test cases in the current suite
-Test Method:		"unitTests.tests_validations_assertions.assertElementExists_false_multipleElementsFound_expectedToFail"
-################################################################################################################################################
-[ReportManager] Assertion "ValidateElementExists" FAILED. Expected "Element Should not Exist, locator 'By.xpath: //div'" and Actual "Element Exists but is not unique". Comparison Type "EQUALS". Validation Type "NEGATIVE". @04-04-2022 19:41:06.0500 PM
-[ReportManager] Successfully created attachment "Screenshot - 1649101266428_assertElementExists_false_multipleElementsFound_expectedToFail_ValidateElementExists_failed" @04-04-2022 19:41:06.0502 P

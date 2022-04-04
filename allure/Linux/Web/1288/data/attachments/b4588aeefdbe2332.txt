@@ -1,6 +1,0 @@
-
-################################################################################################################################################
-Starting Execution:	"91 out of 185" test cases in the current suite
-Test Method:		"testPackage01.Test_NewValidationHelper.forceFail"
-################################################################################################################################################
-[ReportManager] Assertion "ValidateFail" FAILED. Successfully force failed the test. @04-04-2022 07:26:02.0254 A

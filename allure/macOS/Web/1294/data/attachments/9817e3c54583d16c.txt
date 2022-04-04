@@ -1,5 +1,0 @@
-
-################################################################################################################################################
-Starting Execution:	"51 out of 179" test cases in the current suite
-Test Method:		"unitTests.tests_validations_assertions.assertElementExists_true_multipleElementsFound_expectedToFail"
-###############################################################################################################################################

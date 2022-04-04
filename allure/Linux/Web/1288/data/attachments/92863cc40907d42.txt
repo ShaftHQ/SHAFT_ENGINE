@@ -1,6 +1,0 @@
-
-################################################################################################################################################
-Starting Execution:	"144 out of 185" test cases in the current suite
-Test Method:		"unitTests.tests_validations_assertions.assertComparativeRelation_greaterThanOrEquals_true_greaterThan_expectedToPass"
-################################################################################################################################################
-[ReportManager] Assertion "ValidateComparativeRelation" PASSED. Expected "1" and Actual "2". Comparison Type "GREATER_THAN_OR_EQUALS". Validation Type "POSITIVE". @04-04-2022 07:38:19.0124 A

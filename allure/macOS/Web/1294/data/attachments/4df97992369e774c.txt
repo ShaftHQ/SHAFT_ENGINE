@@ -1,8 +1,0 @@
-
-################################################################################################################################################
-Starting Execution:	"137 out of 179" test cases in the current suite
-Test Method:		"testPackage01.validationsWizard.Test_ElementValidations.exists"
-################################################################################################################################################
-[ReportManager] Assertion Passed: The Element located by "By.xpath: //img[@alt='Google']" exists. @04-04-2022 19:42:28.0888 PM
-[ReportManager] Successfully created attachment "Screenshot - 1649101348727_exists_ValidateElementExists_passed" @04-04-2022 19:42:28.0971 PM
-[ReportManager] Assertion "ValidateElementExists" PASSED. Expected "Element Should Exist, locator 'By.xpath: //img[@alt='Google']'" and Actual "Element Exists". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:42:28.0971 P

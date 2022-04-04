@@ -1,8 +1,0 @@
-
-################################################################################################################################################
-Starting Execution:	"129 out of 185" test cases in the current suite
-Test Method:		"unitTests.tests_browserActions.maximizeWindow"
-################################################################################################################################################
-[ReportManager] Initial window size: (1920, 1080) @04-04-2022 07:38:03.0464 AM
-[ReportManager] Window size after Toolkit: (1920, 1080) @04-04-2022 07:38:03.0716 AM
-[ReportManager] Maximize window "New screen size is now: (1920, 1080)". @04-04-2022 07:38:03.0721 A

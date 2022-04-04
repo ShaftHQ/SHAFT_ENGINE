@@ -1,6 +1,0 @@
-
-################################################################################################################################################
-Starting Execution:	"18 out of 185" test cases in the current suite
-Test Method:		"testPackage01.SHAFTWizard.Test_Wizard_StandaloneValidation.forceFail"
-################################################################################################################################################
-[ReportManager] Assertion Failed: Force fail. @04-04-2022 07:22:15.0201 A

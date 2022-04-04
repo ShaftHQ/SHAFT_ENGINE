@@ -1,1 +1,0 @@
-[2022-04-04T07:21:50.840Z] [SEVERE] http://298279967.log.optimizely.com/event?a=298279967&d=298279967&y=false&n=http%3A%2F%2Fthe-internet.herokuapp.com%2Fdrag_and_drop&u=oeu1649056910770r0.028399527938053115&wxhr=true&t=1649056910774&f=298349752,318188263 - Failed to load resource: net::ERR_NAME_NOT_RESOLVED

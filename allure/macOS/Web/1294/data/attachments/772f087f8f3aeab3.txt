@@ -1,9 +1,0 @@
-
-################################################################################################################################################
-Starting Execution:	"32 out of 179" test cases in the current suite
-Test Method:		"unitTests.tests_validations_assertions.assertElementAttribute_false_containsComparison_expectedToPass"
-################################################################################################################################################
-[ReportManager] Type "Automation123". @04-04-2022 19:38:42.0220 PM
-[ReportManager] Get text "Automation123". @04-04-2022 19:38:42.0280 PM
-[ReportManager] Assertion "ValidateElementAttribute" PASSED. Expected "Value Should not be 'Automation1234' for the 'text' attribute, element locator 'By.name: q'" and Actual "Automation123". Comparison Type "CONTAINS". Validation Type "NEGATIVE". @04-04-2022 19:38:42.0446 PM
-[ReportManager] Successfully created attachment "Screenshot - 1649101122375_assertElementAttribute_false_containsComparison_expectedToPass_ValidateElementAttribute_passed" @04-04-2022 19:38:42.0447 P

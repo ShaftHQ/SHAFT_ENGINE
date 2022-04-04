@@ -1,8 +1,0 @@
-
-################################################################################################################################################
-Starting Execution:	"35 out of 185" test cases in the current suite
-Test Method:		"testPackage01.TestJSPromptBox.assertOnCancelAlertResultText"
-################################################################################################################################################
-[ReportManager] Get text "You entered: null". @04-04-2022 07:23:23.0073 AM
-[ReportManager] Assertion Passed: The Element located by "By.id: result" attribute "TEXT" is equal to "You entered: null". @04-04-2022 07:23:23.0537 AM
-[ReportManager] Successfully created attachment "Screenshot - 1649057003412_assertOnCancelAlertResultText_ValidateElementAttribute_passed" @04-04-2022 07:23:23.0538 A

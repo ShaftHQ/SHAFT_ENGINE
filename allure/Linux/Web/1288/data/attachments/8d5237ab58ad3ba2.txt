@@ -1,8 +1,0 @@
-
-################################################################################################################################################
-Starting Execution:	"58 out of 185" test cases in the current suite
-Test Method:		"testPackage01.Test_NewValidationHelper.f15"
-################################################################################################################################################
-[ReportManager] Get text "Welcome to the-internet". @04-04-2022 07:24:26.0791 AM
-[ReportManager] Assertion "ValidateElementAttribute" FAILED. Expected "Value Should not be 'Welcome' for the 'text' attribute, element locator 'By.tagName: h1'" and Actual "Welcome to the-internet". Comparison Type "CONTAINS". Validation Type "NEGATIVE". @04-04-2022 07:24:27.0302 AM
-[ReportManager] Successfully created attachment "Screenshot - 1649057067176_f15_ValidateElementAttribute_failed" @04-04-2022 07:24:27.0303 A

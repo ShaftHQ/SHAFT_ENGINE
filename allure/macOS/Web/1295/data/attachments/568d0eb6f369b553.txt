@@ -1,9 +1,0 @@
-
-################################################################################################################################################
-Starting Execution:	"43 out of 179" test cases in the current suite
-Test Method:		"unitTests.tests_validations_assertions.assertElementAttribute_true_regexComparison_expectedToFail"
-################################################################################################################################################
-[ReportManager] Type "Automation123". @04-04-2022 19:40:28.0406 PM
-[ReportManager] Get text "Automation123". @04-04-2022 19:40:28.0488 PM
-[ReportManager] Assertion "ValidateElementAttribute" FAILED. Expected "Value Should be 'Automation' for the 'text' attribute, element locator 'By.name: q'" and Actual "Automation123". Comparison Type "MATCHES". Validation Type "POSITIVE". @04-04-2022 19:40:28.0766 PM
-[ReportManager] Successfully created attachment "Screenshot - 1649101228677_assertElementAttribute_true_regexComparison_expectedToFail_ValidateElementAttribute_failed" @04-04-2022 19:40:28.0768 P

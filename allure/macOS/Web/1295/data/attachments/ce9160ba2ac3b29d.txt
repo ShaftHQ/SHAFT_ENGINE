@@ -1,7 +1,0 @@
-
-################################################################################################################################################
-Starting Execution:	"158 out of 179" test cases in the current suite
-Test Method:		"testPackage01.Test_google.clickNextThrice"
-Test Description:	"TC003 - Clicks the next button to make sure that the framework can scroll element into view before clicking it"
-################################################################################################################################################
-[ReportManager] Click "By.xpath: //span[text()='Next']". @04-04-2022 19:44:43.0866 P

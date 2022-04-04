@@ -1,8 +1,0 @@
-
-################################################################################################################################################
-Starting Execution:	"61 out of 185" test cases in the current suite
-Test Method:		"testPackage01.Test_NewValidationHelper.f18"
-################################################################################################################################################
-[ReportManager] Get text "Welcome to the-internet". @04-04-2022 07:24:57.0397 AM
-[ReportManager] Assertion "ValidateElementAttribute" PASSED. Expected "Value Should not be 'no' for the 'text' attribute, element locator 'By.tagName: h1'" and Actual "Welcome to the-internet". Comparison Type "CONTAINS". Validation Type "NEGATIVE". @04-04-2022 07:24:57.0903 AM
-[ReportManager] Successfully created attachment "Screenshot - 1649057097764_f18_ValidateElementAttribute_passed" @04-04-2022 07:24:57.0905 A

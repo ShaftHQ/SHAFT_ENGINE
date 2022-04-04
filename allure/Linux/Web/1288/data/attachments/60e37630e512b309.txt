@@ -1,8 +1,0 @@
-
-################################################################################################################################################
-Starting Execution:	"63 out of 185" test cases in the current suite
-Test Method:		"testPackage01.Test_NewValidationHelper.f20"
-################################################################################################################################################
-[ReportManager] Get size "(970, 61)". @04-04-2022 07:24:59.0125 AM
-[ReportManager] Assertion "ValidateElementAttribute" PASSED. Expected "Value Should not be 'a' for the 'size' attribute, element locator 'By.tagName: h1'" and Actual "(970, 61)". Comparison Type "CONTAINS". Validation Type "NEGATIVE". @04-04-2022 07:24:59.0611 AM
-[ReportManager] Successfully created attachment "Screenshot - 1649057099484_f20_ValidateElementAttribute_passed" @04-04-2022 07:24:59.0612 A

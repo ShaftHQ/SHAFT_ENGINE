@@ -1,8 +1,0 @@
-
-################################################################################################################################################
-Starting Execution:	"37 out of 185" test cases in the current suite
-Test Method:		"testPackage01.TestJSPromptBox.acceptPromptAlertWithoutTypingTextMessage"
-################################################################################################################################################
-[ReportManager] Alert is not present @04-04-2022 07:23:53.0961 AM
-[ReportManager] Wait for alert to be present failed. @04-04-2022 07:23:54.0268 AM
-[ReportManager] Successfully created attachment "Screenshot - 1649057034117_acceptPromptAlertWithoutTypingTextMessage_Wait for alert to be present_failed" @04-04-2022 07:23:54.0269 A

@@ -1,6 +1,0 @@
-
-################################################################################################################################################
-Starting Execution:	"58 out of 179" test cases in the current suite
-Test Method:		"unitTests.tests_validations_assertions.assertEquals_true_expectedToPass__"
-################################################################################################################################################
-[ReportManager] Assertion "ValidateEquals" PASSED. Expected "1" and Actual "1". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:41:48.0536 P

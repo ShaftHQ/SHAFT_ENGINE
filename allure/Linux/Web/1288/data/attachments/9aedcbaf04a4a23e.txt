@@ -1,6 +1,0 @@
-
-################################################################################################################################################
-Starting Execution:	"87 out of 185" test cases in the current suite
-Test Method:		"testPackage01.Test_NewValidationHelper.f6_2"
-################################################################################################################################################
-[ReportManager] Assertion Failed: Making sure that null string is not equal to null object @04-04-2022 07:25:28.0624 A

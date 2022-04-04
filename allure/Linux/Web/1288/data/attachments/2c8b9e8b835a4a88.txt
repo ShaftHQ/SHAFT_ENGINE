@@ -1,1 +1,0 @@
-[2022-04-04T07:24:58.646Z] [SEVERE] https://298279967.log.optimizely.com/event?a=298279967&d=298279967&y=false&n=https%3A%2F%2Fthe-internet.herokuapp.com%2F&u=oeu1649057098625r0.0415590009993978&wxhr=true&t=1649057098629&f=298349752,318188263 - Failed to load resource: net::ERR_NAME_NOT_RESOLVED

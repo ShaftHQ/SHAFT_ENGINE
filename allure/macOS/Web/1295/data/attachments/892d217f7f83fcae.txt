@@ -1,9 +1,0 @@
-
-################################################################################################################################################
-Starting Execution:	"136 out of 179" test cases in the current suite
-Test Method:		"testPackage01.validationsWizard.Test_ElementValidations.cssProperty"
-################################################################################################################################################
-[ReportManager] Get cssproperty "100%". @04-04-2022 19:44:12.0845 PM
-[ReportManager] Assertion Passed: The Element located by "By.xpath: //img[@alt='Google']" CSS property "max-width" is equal to "100%". @04-04-2022 19:44:13.0163 PM
-[ReportManager] Successfully created attachment "Screenshot - 1649101452971_cssProperty_ValidateElementCSSProperty_passed" @04-04-2022 19:44:13.0247 PM
-[ReportManager] Assertion "ValidateElementCSSProperty" PASSED. Expected "Value Should be '100%' for the 'max-width' CSS property, element locator 'By.xpath: //img[@alt='Google']'" and Actual "100%". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:44:13.0248 P

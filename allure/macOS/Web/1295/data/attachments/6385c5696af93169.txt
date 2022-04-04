@@ -1,9 +1,0 @@
-
-################################################################################################################################################
-Starting Execution:	"40 out of 179" test cases in the current suite
-Test Method:		"unitTests.tests_validations_assertions.assertElementAttribute_true_containsComparison_expectedToPass"
-################################################################################################################################################
-[ReportManager] Type "Automation123". @04-04-2022 19:40:16.0850 PM
-[ReportManager] Get text "Automation123". @04-04-2022 19:40:16.0922 PM
-[ReportManager] Assertion "ValidateElementAttribute" PASSED. Expected "Value Should be 'Automation' for the 'text' attribute, element locator 'By.name: q'" and Actual "Automation123". Comparison Type "CONTAINS". Validation Type "POSITIVE". @04-04-2022 19:40:17.0096 PM
-[ReportManager] Successfully created attachment "Screenshot - 1649101217024_assertElementAttribute_true_containsComparison_expectedToPass_ValidateElementAttribute_passed" @04-04-2022 19:40:17.0098 P

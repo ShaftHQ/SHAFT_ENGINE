@@ -1,6 +1,0 @@
-
-################################################################################################################################################
-Starting Execution:	"75 out of 185" test cases in the current suite
-Test Method:		"testPackage01.Test_NewValidationHelper.f31"
-################################################################################################################################################
-[ReportManager] Assertion "ValidateTrue" PASSED. Expected "TRUE" and Actual "TRUE". Validation Type "POSITIVE". @04-04-2022 07:25:28.0573 A

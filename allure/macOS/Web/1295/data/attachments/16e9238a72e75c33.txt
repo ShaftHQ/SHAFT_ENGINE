@@ -1,8 +1,0 @@
-
-################################################################################################################################################
-Starting Execution:	"57 out of 179" test cases in the current suite
-Test Method:		"unitTests.tests_validations_assertions.assertEquals_true_expectedToPass"
-Test Description:	"Assert that assertEquals works as expected when the two values are equal."
-################################################################################################################################################
-[ReportManager] Verification Passed: "1" is equal to "1". @04-04-2022 19:41:48.0532 PM
-[ReportManager] Verification "ValidateComparativeRelation" PASSED. Expected "1" and Actual "1". Comparison Type "EQUALS". Validation Type "POSITIVE". @04-04-2022 19:41:48.0532 P

@@ -1,7 +1,0 @@
-
-################################################################################################################################################
-Starting Execution:	"55 out of 185" test cases in the current suite
-Test Method:		"testPackage01.Test_NewValidationHelper.f12"
-################################################################################################################################################
-[ReportManager] Assertion "ValidateElementExists" FAILED. Expected "Element Should not Exist, locator 'By.tagName: h1'" and Actual "Element Exists". Comparison Type "EQUALS". Validation Type "NEGATIVE". @04-04-2022 07:24:21.0838 AM
-[ReportManager] Successfully created attachment "Screenshot - 1649057061712_f12_ValidateElementExists_failed" @04-04-2022 07:24:21.0840 A

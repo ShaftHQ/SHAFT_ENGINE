@@ -1,8 +1,0 @@
-
-################################################################################################################################################
-Starting Execution:	"6 out of 185" test cases in the current suite
-Test Method:		"testPackage01.Test_testData.f"
-################################################################################################################################################
-[ReportManager] Loaded Test Data: "src/test/resources/testDataFiles/testSuite01/TestData.xlsx". @04-04-2022 07:21:55.0913 AM
-[ReportManager] Successfully created attachment "Test Data - Excel" @04-04-2022 07:21:55.0914 AM
-[ReportManager] Last Column Number is: [3]. Zero-based. @04-04-2022 07:21:55.0923 A
