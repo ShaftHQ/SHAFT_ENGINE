@@ -1,33 +1,18 @@
-# https://github.com/SeleniumHQ/docker-selenium
-# To execute this docker-compose yml file use `docker-compose -f selenium4.yml up --scale chrome=4 --scale edge=0 --scale firefox=0 -d`
+# https://github.com/SeleniumHQ/docker-selenium#dynamic-grid
+# Ensure that you create the ./assets and ./NodeDocker/config.toml you can get a sample config file from the above link
+# To execute this docker-compose yml file use `docker-compose -f selenium4.yml up --remove-orphans -d`
 # Add the `-d` flag at the end for detached execution
 # http://localhost:4444/grid/console
 # To stop the execution, hit Ctrl+C, and then `docker-compose -f selenium4.yml down --remove-orphans`
 version: "3"
 services:
-   chrome:
-      image: selenium/node-chrome:4.1.2
+   node-docker:
+      image: selenium/node-docker:4.1.3-20220327
       shm_size: 2gb
-      depends_on:
-         - selenium-hub
-      environment:
-         - SE_EVENT_BUS_HOST=selenium-hub
-         - SE_EVENT_BUS_PUBLISH_PORT=4442
-         - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
-
-   edge:
-      image: selenium/node-edge:4.1.2
-      shm_size: 2gb
-      depends_on:
-         - selenium-hub
-      environment:
-         - SE_EVENT_BUS_HOST=selenium-hub
-         - SE_EVENT_BUS_PUBLISH_PORT=4442
-         - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
-
-   firefox:
-      image: selenium/node-firefox:4.1.2
-      shm_size: 2gb
+      volumes:
+         - ./assets:/opt/selenium/assets
+         - ./NodeDocker/config.toml:/opt/bin/config.toml
+         - /var/run/docker.sock:/var/run/docker.sock
       depends_on:
          - selenium-hub
       environment:
@@ -36,7 +21,7 @@ services:
          - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
 
    selenium-hub:
-      image: selenium/hub:4.1.2
+      image: selenium/hub:4.1.3-20220327
       container_name: selenium-hub
       ports:
          - "4442:4442"

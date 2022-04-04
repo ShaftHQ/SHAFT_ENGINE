@@ -9,12 +9,25 @@ import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class Test_Dsl {
+    WebDriver driver;
+
+    @BeforeMethod
+    void beforeMethod() {
+        driver = DriverFactory.getDriver();
+    }
+
+    @AfterMethod
+    void afterMethod() {
+        DriverFactory.closeAllDrivers();
+    }
+
     @Test
     void testLabel() {
-        WebDriver driver = DriverFactory.getDriver();
         driver.navigate().to("http://the-internet.herokuapp.com/");
         Element.setDriver(driver);
         Label label = new Label(By.xpath("//*[contains(text(),'Welcome to the-internet')]"));
@@ -24,7 +37,6 @@ public class Test_Dsl {
     @Test
     void testButton()
     {
-        WebDriver driver = DriverFactory.getDriver();
         BrowserActions.navigateToURL(driver,"http://the-internet.herokuapp.com/");
         ElementActions.click(driver,By.linkText("Add/Remove Elements"));
         Element.setDriver(driver);
@@ -34,12 +46,10 @@ public class Test_Dsl {
         btn.isEnabled();
         Button btn1= new Button(By.xpath("//button[text()='Delete']"));
         btn1.shouldHaveText("Delete");
-        DriverFactory.closeAllDrivers();
     }
     @Test
     void testCheckBox()
     {
-        WebDriver driver = DriverFactory.getDriver();
         Element.setDriver(driver);
         BrowserActions.navigateToURL(driver,"http://the-internet.herokuapp.com/");
         ElementActions.click(driver,By.linkText("Checkboxes"));
@@ -47,6 +57,5 @@ public class Test_Dsl {
         cb1.click();
         CheckBox cb2 = new CheckBox(By.xpath("(//INPUT[@type='checkbox'])[2]"),By.xpath("(//INPUT[@type='checkbox'])[2]"));
         cb2.click();
-        DriverFactory.closeAllDrivers();
     }
 }
