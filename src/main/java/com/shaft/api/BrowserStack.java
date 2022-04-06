@@ -101,11 +101,13 @@ public class BrowserStack {
         // set properties
         System.setProperty("executionAddress", username + ":" + password + "@" + hubUrl);
         System.setProperty("browserName", System.getProperty("targetBrowserName"));
-        System.setProperty("browserVersion", System.getProperty("browserStack.browserVersion"));
 
         MutableCapabilities browserStackCapabilities = new MutableCapabilities();
+        var browserVersion = System.getProperty("browserStack.browserVersion");
+        if (browserVersion!=null && !"".equals(browserVersion.trim())) {
+            browserStackCapabilities.setCapability("browserVersion", System.getProperty("browserStack.browserVersion"));
+        }
         HashMap<String, Object> browserstackOptions = new HashMap<>();
-        browserstackOptions.put("seleniumVersion", System.getProperty("browserStack.seleniumVersion"));
         if (os.toLowerCase().contains("mac")){
             browserstackOptions.put("os", "OS X");
         } else if (os.toLowerCase().contains("windows")){
@@ -113,6 +115,7 @@ public class BrowserStack {
         }
         browserstackOptions.put("osVersion", osVersion);
         browserstackOptions.put("local", System.getProperty("browserStack.local"));
+        browserstackOptions.put("seleniumVersion", System.getProperty("browserStack.seleniumVersion"));
         browserStackCapabilities.setCapability("bstack:options", browserstackOptions);
 
         passAction(testData);

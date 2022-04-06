@@ -531,7 +531,7 @@ public class DriverFactoryHelper {
             case DESKTOP_SAFARI -> {
                 sfOptions = new SafariOptions();
                 if (customDriverOptions != null) {
-                    sfOptions = (SafariOptions) customDriverOptions;
+                    sfOptions = sfOptions.merge(customDriverOptions);
                 }
                 sfOptions.setCapability(CapabilityType.PLATFORM_NAME, getDesiredOperatingSystem());
                 if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("captureWebDriverLogs").trim()))) {

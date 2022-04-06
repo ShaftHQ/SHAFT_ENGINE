@@ -74,7 +74,7 @@ public class DriverFactory {
                 // this means it's a web execution (desktop or mobile)
                 browserStackOptions = BrowserStack.setupDesktopWebExecution().merge(browserStackOptions);
                 // TODO: support web mobile execution
-                return DriverFactoryHelper.getDriver(DriverFactoryHelper.getDriverTypeFromName(System.getProperty("targetBrowserName")));
+                return DriverFactoryHelper.getDriver(DriverFactoryHelper.getDriverTypeFromName(System.getProperty("targetBrowserName")),browserStackOptions);
             }else {
                 // this is the new native app scenario
                 //TODO: there is a bug in the merge method and it doesn't respect the capabilities at all
