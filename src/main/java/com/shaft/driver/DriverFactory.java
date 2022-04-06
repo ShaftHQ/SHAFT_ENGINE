@@ -69,14 +69,26 @@ public class DriverFactory {
     private static WebDriver getBrowserStackDriver(MutableCapabilities browserStackOptions) {
         String appUrl = System.getProperty("browserStack.appUrl");
         if ("".equals(appUrl)) {
-            //TODO: there is a bug in the merge method and it doesn't respect the capabilities at all
-            browserStackOptions = BrowserStack.setupNativeAppExecution(System.getProperty("browserStack.username"), System.getProperty("browserStack.accessKey"),
-                    System.getProperty("browserStack.deviceName"), System.getProperty("browserStack.platformVersion"), System.getProperty("browserStack.appRelativeFilePath"), System.getProperty("browserStack.appName")).merge(browserStackOptions);
+            // new native app OR web execution
+            if ("".equals(System.getProperty("browserStack.appRelativeFilePath"))){
+                // this means it's a web execution (desktop or mobile)
+                browserStackOptions = BrowserStack.setupDesktopWebExecution().merge(browserStackOptions);
+                // TODO: support web mobile execution
+                return DriverFactoryHelper.getDriver(DriverFactoryHelper.getDriverTypeFromName(System.getProperty("targetBrowserName")),browserStackOptions);
+            }else {
+                // this is the new native app scenario
+                //TODO: there is a bug in the merge method and it doesn't respect the capabilities at all
+                browserStackOptions = BrowserStack.setupNativeAppExecution(System.getProperty("browserStack.username"), System.getProperty("browserStack.accessKey"),
+                        System.getProperty("browserStack.deviceName"), System.getProperty("browserStack.platformVersion"), System.getProperty("browserStack.appRelativeFilePath"), System.getProperty("browserStack.appName")).merge(browserStackOptions);
+                return DriverFactoryHelper.getDriver(DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
+            }
         } else {
+            // this is the existing version from a native app scenario
             browserStackOptions = BrowserStack.setupNativeAppExecution(System.getProperty("browserStack.username"), System.getProperty("browserStack.accessKey"),
                     System.getProperty("browserStack.deviceName"), System.getProperty("browserStack.platformVersion"), appUrl).merge(browserStackOptions);
+            return DriverFactoryHelper.getDriver(DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
         }
-        return DriverFactoryHelper.getDriver(DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
+
     }
 
     /**

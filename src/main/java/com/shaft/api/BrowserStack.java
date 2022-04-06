@@ -90,12 +90,43 @@ public class BrowserStack {
         return browserStackCapabilities;
     }
 
+    public static MutableCapabilities setupDesktopWebExecution(){
+        ReportManager.logDiscrete("Setting up BrowserStack configuration for desktop web execution...");
+        String username = System.getProperty("browserStack.username");
+        String password = System.getProperty("browserStack.accessKey");
+        String os = System.getProperty("targetOperatingSystem");
+        String osVersion = System.getProperty("browserStack.osVersion");
+
+        String testData = "Username: " + username + ", Password: " + password + ", Operating System: " + os + ", Operating System Version: " + osVersion;
+        // set properties
+        System.setProperty("executionAddress", username + ":" + password + "@" + hubUrl);
+        System.setProperty("browserName", System.getProperty("targetBrowserName"));
+
+        MutableCapabilities browserStackCapabilities = new MutableCapabilities();
+        var browserVersion = System.getProperty("browserStack.browserVersion");
+        if (browserVersion!=null && !"".equals(browserVersion.trim())) {
+            browserStackCapabilities.setCapability("browserVersion", System.getProperty("browserStack.browserVersion"));
+        }
+        HashMap<String, Object> browserstackOptions = new HashMap<>();
+        if (os.toLowerCase().contains("mac")){
+            browserstackOptions.put("os", "OS X");
+        } else if (os.toLowerCase().contains("windows")){
+            browserstackOptions.put("os", "Windows");
+        }
+        browserstackOptions.put("osVersion", osVersion);
+        browserstackOptions.put("local", System.getProperty("browserStack.local"));
+        browserstackOptions.put("seleniumVersion", System.getProperty("browserStack.seleniumVersion"));
+        browserStackCapabilities.setCapability("bstack:options", browserstackOptions);
+
+        passAction(testData);
+        return browserStackCapabilities;
+    }
+
     private static MutableCapabilities setBrowserStackProperties(String username, String password, String deviceName, String osVersion, String appUrl) {
         System.setProperty("executionAddress", username + ":" + password + "@" + hubUrl);
         System.setProperty("mobile_deviceName", deviceName);
         System.setProperty("mobile_platformVersion", osVersion);
         System.setProperty("mobile_app", appUrl);
-
         MutableCapabilities browserStackCapabilities = new MutableCapabilities();
         HashMap<String, Object> browserstackOptions = new HashMap<>();
         browserstackOptions.put("appiumVersion", System.getProperty("browserStack.appiumVersion"));
