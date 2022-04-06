@@ -41,22 +41,23 @@ jobs:
           if [ "$RUNNER_OS" == "Linux" ]; then
                mvn test -DexecutionAddress="localhost:4444" -DtargetOperatingSystem="Linux-64" -DmaximumPerformanceMode="2" -DtargetBrowserName="GoogleChrome" -Dtest="!%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*Android.*], !%regex[.*IOS.*], !%regex[.*Windows.*]"
           elif [ "$RUNNER_OS" == "macOS" ]; then
-               mvn test -DexecutionAddress="local" -DtargetOperatingSystem="Mac-64" -DmaximumPerformanceMode="2" -DtargetBrowserName="Safari" -Dtest="!%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*Android.*], !%regex[.*IOS.*], !%regex[.*Windows.*]"
+               mvn test -DexecutionAddress="browserstack" -DtargetOperatingSystem="Mac-64" -DmaximumPerformanceMode="1" -DtargetBrowserName="Safari" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Monterey" "-DbrowserStack.browserVersion=15.3" -Dtest="!%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*Android.*], !%regex[.*IOS.*], !%regex[.*Windows.*]"
           else
                echo "$RUNNER_OS not supported"
                exit 1
           fi
+#               mvn test -DexecutionAddress="local" -DtargetOperatingSystem="Mac-64" -DmaximumPerformanceMode="1" -DtargetBrowserName="Safari" -Dtest="!%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*Android.*], !%regex[.*IOS.*], !%regex[.*Windows.*]"
       - name: Run tests on Windows
         if: runner.os == 'Windows'
         continue-on-error: true
         run: mvn test -DexecutionAddress="local" -DtargetOperatingSystem="Windows-64" -DmaximumPerformanceMode="2" -DtargetBrowserName="MicrosoftEdge" -Dtest="!%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*Android.*], !%regex[.*IOS.*], !%regex[.*Windows.*]"
-      - name: Get Allure history
-        continue-on-error: true
-        uses: actions/checkout@v3
-        if: always()
-        with:
-          ref: gh-pages
-          path: gh-pages
+#      - name: Get Allure history
+#        continue-on-error: true
+#        uses: actions/checkout@v3
+#        if: always()
+#        with:
+#          ref: gh-pages
+#          path: gh-pages
 #
 #      - name: Generate Allure Report on Linux
 #        uses: simple-elf/allure-report-action@master

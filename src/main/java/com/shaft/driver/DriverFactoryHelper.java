@@ -315,7 +315,7 @@ public class DriverFactoryHelper {
         }
     }
 
-    private static DriverType getDriverTypeFromName(String driverName) {
+    static DriverType getDriverTypeFromName(String driverName) {
         int values = DriverType.values().length;
         for (var i = 0; i < values; i++) {
             if (Arrays.asList(DriverType.values()).get(i).getValue().equalsIgnoreCase(driverName.trim())) {
@@ -531,7 +531,7 @@ public class DriverFactoryHelper {
             case DESKTOP_SAFARI -> {
                 sfOptions = new SafariOptions();
                 if (customDriverOptions != null) {
-                    sfOptions = (SafariOptions) customDriverOptions;
+                    sfOptions = sfOptions.merge(customDriverOptions);
                 }
                 sfOptions.setCapability(CapabilityType.PLATFORM_NAME, getDesiredOperatingSystem());
                 if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("captureWebDriverLogs").trim()))) {
