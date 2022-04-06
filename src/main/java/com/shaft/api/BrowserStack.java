@@ -90,7 +90,7 @@ public class BrowserStack {
         return browserStackCapabilities;
     }
 
-    public static MutableCapabilities setupDesktopWebExecution() {
+    public static MutableCapabilities setupDesktopWebExecution(){
         ReportManager.logDiscrete("Setting up BrowserStack configuration for desktop web execution...");
         String username = System.getProperty("browserStack.username");
         String password = System.getProperty("browserStack.accessKey");
@@ -106,9 +106,9 @@ public class BrowserStack {
         MutableCapabilities browserStackCapabilities = new MutableCapabilities();
         HashMap<String, Object> browserstackOptions = new HashMap<>();
         browserstackOptions.put("seleniumVersion", System.getProperty("browserStack.seleniumVersion"));
-        if (os.toLowerCase().contains("mac")) {
+        if (os.toLowerCase().contains("mac")){
             browserstackOptions.put("os", "OS X");
-        } else if (os.toLowerCase().contains("windows")) {
+        } else if (os.toLowerCase().contains("windows")){
             browserstackOptions.put("os", "Windows");
         }
         browserstackOptions.put("osVersion", osVersion);

@@ -70,12 +70,12 @@ public class DriverFactory {
         String appUrl = System.getProperty("browserStack.appUrl");
         if ("".equals(appUrl)) {
             // new native app OR web execution
-            if ("".equals(System.getProperty("browserStack.appRelativeFilePath"))) {
+            if ("".equals(System.getProperty("browserStack.appRelativeFilePath"))){
                 // this means it's a web execution (desktop or mobile)
                 browserStackOptions = BrowserStack.setupDesktopWebExecution().merge(browserStackOptions);
                 // TODO: support web mobile execution
                 return DriverFactoryHelper.getDriver(DriverFactoryHelper.getDriverTypeFromName(System.getProperty("targetBrowserName")));
-            } else {
+            }else {
                 // this is the new native app scenario
                 //TODO: there is a bug in the merge method and it doesn't respect the capabilities at all
                 browserStackOptions = BrowserStack.setupNativeAppExecution(System.getProperty("browserStack.username"), System.getProperty("browserStack.accessKey"),

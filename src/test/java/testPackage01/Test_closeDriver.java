@@ -5,12 +5,12 @@ import com.shaft.gui.browser.BrowserActions;
 import org.testng.annotations.Test;
 
 public class Test_closeDriver {
-    //    @BeforeClass
-    public void beforeClass() {
+//    @BeforeClass
+    public void beforeClass(){
         // remote browserstack server
-        System.setProperty("executionAddress", "browserstack");
-        System.setProperty("targetOperatingSystem", "Mac-64");
-        System.setProperty("targetBrowserName", "Safari");
+        System.setProperty("executionAddress","browserstack");
+        System.setProperty("targetOperatingSystem","Mac-64");
+        System.setProperty("targetBrowserName","Safari");
         System.setProperty("browserStack.os", "OS X");
         System.setProperty("browserStack.osVersion", "Monterey");
         System.setProperty("browserStack.local", "false");
