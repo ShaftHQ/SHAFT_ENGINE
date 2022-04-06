@@ -315,7 +315,7 @@ public class DriverFactoryHelper {
         }
     }
 
-    private static DriverType getDriverTypeFromName(String driverName) {
+    static DriverType getDriverTypeFromName(String driverName) {
         int values = DriverType.values().length;
         for (var i = 0; i < values; i++) {
             if (Arrays.asList(DriverType.values()).get(i).getValue().equalsIgnoreCase(driverName.trim())) {
