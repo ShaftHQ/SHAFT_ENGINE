@@ -56,7 +56,7 @@
 
         <maven-resources-plugin.version>3.2.0</maven-resources-plugin.version>
         <maven-compiler-plugin.version>3.10.1</maven-compiler-plugin.version>
-        <maven-surefire-plugin.version>3.0.0-M5</maven-surefire-plugin.version>
+        <maven-surefire-plugin.version>3.0.0-M6</maven-surefire-plugin.version>
         <maven-shade-plugin.version>3.2.1</maven-shade-plugin.version>
         <maven-jar-plugin.version>3.2.2</maven-jar-plugin.version>
         <maven-javadoc-plugin.version>3.3.2</maven-javadoc-plugin.version>
@@ -72,7 +72,7 @@
         <applitools-eyes.version>4.14.0</applitools-eyes.version>
         <sikulixapi.version>2.0.5</sikulixapi.version> <!-- Do not update before running the test locally -->
 
-        <jave-all-deps.version>3.1.1</jave-all-deps.version>
+        <jave-all-deps.version>3.3.0</jave-all-deps.version>
         <video-recorder-testng.version>2.0</video-recorder-testng.version>
 
 		<pdfbox.version>2.0.25</pdfbox.version>
