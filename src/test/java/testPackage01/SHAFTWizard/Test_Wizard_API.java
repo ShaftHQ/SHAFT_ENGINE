@@ -10,6 +10,6 @@ public class Test_Wizard_API {
     public void test() {
         driver = new SHAFT.API("http://api.zippopotam.us/");
         driver.get("us/90210").perform();
-        driver.assertThatResponse().matchesSchema("src/test/resources/testDataFiles/schema.json").perform();
+        driver.assertThatResponse().matchesSchema("schema.json").perform();
     }
 }

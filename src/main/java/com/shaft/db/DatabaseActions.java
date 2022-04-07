@@ -410,9 +410,9 @@ public class DatabaseActions {
             }
         }
         try {
-            if (System.getProperty("databaseLoginTimeout") == null) {
-                PropertyFileManager.readPropertyFiles();
-            }
+//            if (System.getProperty("databaseLoginTimeout") == null) {
+//                PropertyFileManager.readPropertyFiles();
+//            }
             DriverManager.setLoginTimeout(Integer.parseInt(System.getProperty("databaseLoginTimeout")));
             connection = DriverManager.getConnection(connectionString, username, password);
             if (!dbType.toString().equals("MY_SQL") && !dbType.toString().equals("POSTGRE_SQL")) {

@@ -50,6 +50,6 @@ public class Test_RelativeLocators {
 
     @AfterMethod
     public void afterMethod(){
-        BrowserActions.closeCurrentWindow(driver.get());
+        DriverFactory.closeAllDrivers();
     }
 }
