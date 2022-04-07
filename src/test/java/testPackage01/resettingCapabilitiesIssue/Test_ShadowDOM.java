@@ -1,4 +1,4 @@
-package testPackage01;
+package testPackage01.resettingCapabilitiesIssue;
 
 import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;

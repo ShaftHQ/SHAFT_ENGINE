@@ -287,9 +287,9 @@ public class TerminalActions {
 
         // refactor long command for dockerized execution
         if (isDockerizedTerminal()) {
-            if (System.getProperty("dockerCommandTimeout") == null) {
-                PropertyFileManager.readPropertyFiles();
-            }
+//            if (System.getProperty("dockerCommandTimeout") == null) {
+//                PropertyFileManager.readPropertyFiles();
+//            }
             command.insert(0, "docker exec -u " + dockerUsername + " -i " + dockerName + " timeout "
                     + Integer.parseInt(System.getProperty("dockerCommandTimeout")) + " sh -c '");
             command.append("'");

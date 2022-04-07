@@ -1,5 +1,6 @@
 package com.shaft.tools.support;
 
+import com.shaft.cli.FileActions;
 import com.shaft.tools.io.ReportManagerHelper;
 import org.testng.Assert;
 
@@ -208,5 +209,19 @@ public class JavaActions {
     private static String capitalizeFirst(String word) {
         return word.substring(0, 1).toUpperCase()
                 + word.substring(1).toLowerCase();
+    }
+
+    public static String appendTestDataToRelativePath(String relativePath){
+        if (FileActions.getInstance().doesFileExist(relativePath)){
+            //file path is valid
+            return relativePath;
+        } else{
+            if (relativePath.startsWith("/")){
+                //remove extra slash at the beginning if applicable
+                relativePath = relativePath.substring(1);
+            }
+            return System.getProperty("testDataFolderPath")+relativePath;
+        }
+
     }
 }

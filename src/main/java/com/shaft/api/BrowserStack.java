@@ -116,6 +116,10 @@ public class BrowserStack {
         browserstackOptions.put("osVersion", osVersion);
         browserstackOptions.put("local", System.getProperty("browserStack.local"));
         browserstackOptions.put("seleniumVersion", System.getProperty("browserStack.seleniumVersion"));
+        String geoLocation = System.getProperty("browserStack.geoLocation");
+        if (geoLocation!= null && !"".equals(geoLocation)) {
+            browserstackOptions.put("geoLocation", System.getProperty("browserStack.geoLocation"));
+        }
         browserStackCapabilities.setCapability("bstack:options", browserstackOptions);
 
         passAction(testData);

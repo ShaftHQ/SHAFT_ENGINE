@@ -2,6 +2,7 @@ package com.shaft.validation;
 
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
+import com.shaft.tools.support.JavaActions;
 
 
 public class RestValidationsBuilder {
@@ -29,6 +30,7 @@ public class RestValidationsBuilder {
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
     public ValidationsExecutor isEqualToFileContent(String fileRelativePath) {
+        fileRelativePath = JavaActions.appendTestDataToRelativePath(fileRelativePath);
         this.validationMethod = "responseEqualsFileContent";
         this.fileAbsolutePath = FileActions.getInstance().getAbsolutePath(fileRelativePath);
         this.restComparisonType = RestActions.ComparisonType.EQUALS;
@@ -44,6 +46,7 @@ public class RestValidationsBuilder {
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
     public ValidationsExecutor doesNotEqualFileContent(String fileRelativePath) {
+        fileRelativePath = JavaActions.appendTestDataToRelativePath(fileRelativePath);
         this.validationMethod = "responseEqualsFileContent";
         this.fileAbsolutePath = FileActions.getInstance().getAbsolutePath(fileRelativePath);
         this.restComparisonType = RestActions.ComparisonType.EQUALS;
@@ -59,6 +62,7 @@ public class RestValidationsBuilder {
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
     public ValidationsExecutor containsFileContent(String fileRelativePath) {
+        fileRelativePath = JavaActions.appendTestDataToRelativePath(fileRelativePath);
         this.validationMethod = "responseEqualsFileContent";
         this.fileAbsolutePath = FileActions.getInstance().getAbsolutePath(fileRelativePath);
         this.restComparisonType = RestActions.ComparisonType.CONTAINS;
@@ -74,6 +78,7 @@ public class RestValidationsBuilder {
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
     public ValidationsExecutor doesNotContainFileContent(String fileRelativePath) {
+        fileRelativePath = JavaActions.appendTestDataToRelativePath(fileRelativePath);
         this.validationMethod = "responseEqualsFileContent";
         this.fileAbsolutePath = FileActions.getInstance().getAbsolutePath(fileRelativePath);
         this.restComparisonType = RestActions.ComparisonType.CONTAINS;
@@ -105,6 +110,7 @@ public class RestValidationsBuilder {
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
     public ValidationsExecutor matchesSchema(String fileRelativePath) {
+        fileRelativePath = JavaActions.appendTestDataToRelativePath(fileRelativePath);
         this.validationMethod = "checkResponseSchema";
         this.fileAbsolutePath = FileActions.getInstance().getAbsolutePath(fileRelativePath);
         this.restComparisonType = RestActions.ComparisonType.EQUALS;
@@ -120,6 +126,7 @@ public class RestValidationsBuilder {
      * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
      */
     public ValidationsExecutor doesNotMatchSchema(String fileRelativePath) {
+        fileRelativePath = JavaActions.appendTestDataToRelativePath(fileRelativePath);
         this.validationMethod = "checkResponseSchema";
         this.fileAbsolutePath = FileActions.getInstance().getAbsolutePath(fileRelativePath);
         this.restComparisonType = RestActions.ComparisonType.EQUALS;
