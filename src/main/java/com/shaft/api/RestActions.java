@@ -783,9 +783,9 @@ public class RestActions {
     }
 
     private static void initializeSystemProperties(boolean readPropertyFilesBeforeInitializing) {
-        if (readPropertyFilesBeforeInitializing) {
-            PropertyFileManager.readPropertyFiles();
-        }
+//        if (readPropertyFilesBeforeInitializing) {
+//            PropertyFileManager.readPropertyFiles();
+//        }
         HTTP_SOCKET_TIMEOUT = Integer.parseInt(System.getProperty("apiSocketTimeout"));
         // timeout between two consecutive data packets in seconds
         HTTP_CONNECTION_TIMEOUT = Integer.parseInt(System.getProperty("apiConnectionTimeout"));

@@ -24,7 +24,7 @@ public class DriverFactory {
      * @return a new Selenium WebDriver instance
      */
     public static WebDriver getDriver() {
-        if (System.getProperty("executionAddress").equals("browserstack")) {
+        if (System.getProperty("executionAddress").contains("browserstack")) {
             return getBrowserStackDriver(new MutableCapabilities());
         } else {
             return DriverFactoryHelper.getDriver();
@@ -135,7 +135,7 @@ public class DriverFactory {
      * @return a sikuli App instance that can be used to perform SikuliActions
      */
     public static App getSikuliApp(String applicationName) {
-        DriverFactoryHelper.initializeSystemProperties(System.getProperty("targetBrowserName") == null);
+//        DriverFactoryHelper.initializeSystemProperties();
         var myapp = new App(applicationName);
         myapp.waitForWindow(Integer.parseInt(System.getProperty("browserNavigationTimeout")));
         myapp.focus();

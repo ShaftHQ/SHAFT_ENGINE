@@ -1,6 +1,7 @@
 package com.shaft.tools.io;
 
 import com.shaft.cli.FileActions;
+import com.shaft.tools.support.JavaActions;
 import io.restassured.path.json.JsonPath;
 import io.restassured.path.json.exception.JsonPathException;
 import org.testng.Assert;
@@ -24,6 +25,7 @@ public class JSONFileManager {
      * @param jsonFilePath target test data json file path
      */
     public JSONFileManager(String jsonFilePath) {
+        jsonFilePath = JavaActions.appendTestDataToRelativePath(jsonFilePath);
         this.jsonFilePath = jsonFilePath;
         initializeReader();
         List<List<Object>> attachments = new ArrayList<>();

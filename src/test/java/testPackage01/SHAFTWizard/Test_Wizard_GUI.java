@@ -26,7 +26,7 @@ public class Test_Wizard_GUI {
     @BeforeClass
     public void beforeClass() {
         driver = new SHAFT.GUI.WebDriver();
-        testData = new SHAFT.TestData.JSON("src/test/resources/testDataFiles/simpleJSON.json");
+        testData = new SHAFT.TestData.JSON("simpleJSON.json");
     }
 
     @AfterClass

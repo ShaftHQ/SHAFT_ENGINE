@@ -1,6 +1,7 @@
 package com.shaft.tools.io;
 
 import com.shaft.cli.FileActions;
+import com.shaft.driver.DriverFactory;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
 
@@ -99,7 +100,7 @@ public class PropertyFileManager {
         return appiumDesiredCapabilities;
     }
 
-    public static synchronized void readPropertyFiles(String propertiesFolderPath) {
+    private static synchronized void readPropertyFiles(String propertiesFolderPath) {
         if (propertiesFolderPath != null) {
             ReportManager.logDiscrete("Reading properties directory: " + propertiesFolderPath);
             try {
@@ -178,7 +179,7 @@ public class PropertyFileManager {
                 System.setProperty("debugMode", String.valueOf(false));
                 System.setProperty("captureClickedElementText", String.valueOf(false));
                 System.setProperty("headlessExecution", String.valueOf(false));
-                if (maximumPerformanceMode.equals("2")) System.setProperty("headlessExecution", String.valueOf(true));
+                if (maximumPerformanceMode.equals("2") && DriverFactory.DriverType.DESKTOP_SAFARI.getValue().equals(System.getProperty("targetBrowserName"))) System.setProperty("headlessExecution", String.valueOf(true));
             }
             case "false", "0" -> {
             }

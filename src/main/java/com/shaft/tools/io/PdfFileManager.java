@@ -1,6 +1,7 @@
 package com.shaft.tools.io;
 
 import com.shaft.cli.FileActions;
+import com.shaft.tools.support.JavaActions;
 import org.apache.commons.io.FileUtils;
 import org.apache.pdfbox.cos.COSDocument;
 import org.apache.pdfbox.io.RandomAccessBufferedFileInputStream;
@@ -35,6 +36,7 @@ public class PdfFileManager {
     }
 
     public PdfFileManager(String pdfFilePath) {
+        pdfFilePath= JavaActions.appendTestDataToRelativePath(pdfFilePath);
         boolean doesFileExist = FileActions.getInstance().doesFileExist(pdfFilePath);
         file = new File(FileActions.getInstance().getAbsolutePath(pdfFilePath));
         if (!doesFileExist) {

@@ -1,4 +1,4 @@
-package testPackage01;
+package testPackage01.resettingCapabilitiesIssue;
 
 import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactory;

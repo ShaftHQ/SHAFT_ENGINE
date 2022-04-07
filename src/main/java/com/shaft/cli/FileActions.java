@@ -5,6 +5,7 @@ import com.shaft.tools.io.PdfFileManager;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
+import com.shaft.tools.support.JavaActions;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
@@ -279,6 +280,9 @@ public class FileActions {
     public String readFromPdfFile(String fileFolderName, String fileName) {
         return new PdfFileManager(fileFolderName + fileName).readFileContent();
     }
+    public String readFromPdfFile(String relativeFilePath) {
+        return new PdfFileManager(relativeFilePath).readFileContent();
+    }
 
     public String readFromFile(String fileFolderName, String fileName) {
         return readFromFile(fileFolderName + fileName);
@@ -384,6 +388,8 @@ public class FileActions {
      * @return a string value that represents the full/absolute file/folder path
      */
     public String getAbsolutePath(String relativePath) {
+        relativePath= JavaActions.appendTestDataToRelativePath(relativePath);
+
         String filePath = "";
         try {
             filePath = (new File(relativePath)).getAbsolutePath();
@@ -632,9 +638,9 @@ public class FileActions {
     }
 
     private boolean isTargetOSUnixBased() {
-        if (System.getProperty("executionAddress") == null) {
-            PropertyFileManager.readPropertyFiles();
-        }
+//        if (System.getProperty("executionAddress") == null) {
+//            PropertyFileManager.readPropertyFiles();
+//        }
         if (System.getProperty("executionAddress").trim().equals("local")) {
             // local execution
             if (SystemUtils.IS_OS_WINDOWS) {

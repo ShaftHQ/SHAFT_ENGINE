@@ -56,8 +56,8 @@ import java.util.logging.Level;
 
 public class DriverFactoryHelper {
     // TODO: implement pass and fail actions to enable initial factory method screenshot and append it to animated GIF
-    private static final Map<String, Map<String, WebDriver>> drivers = new HashMap<>();
-    private static final ThreadLocal<SelfHealingDriver> selfHealingDriver = new ThreadLocal<>();
+    private static Map<String, Map<String, WebDriver>> drivers = new HashMap<>();
+    private static ThreadLocal<SelfHealingDriver> selfHealingDriver = new ThreadLocal<>();
     private static Boolean AUTO_MAXIMIZE;
     private static Boolean HEADLESS_EXECUTION;
     private static String EXECUTION_ADDRESS;
@@ -68,7 +68,7 @@ public class DriverFactoryHelper {
     // Default | MozillaFirefox | MicrosoftInternetExplorer | GoogleChrome |
     // MicrosoftEdge | Safari
     private static String TARGET_MOBILE_BROWSER_NAME;
-    private static String WEBDRIVERMANAGER_MESSAGE = "Identifying OS/Browser combination and selecting the correct driver version automatically. Please note that if a new driver executable will be downloaded it may take some time...";
+    private static final String WEBDRIVERMANAGER_MESSAGE = "Identifying OS/Driver combination and selecting the correct driver version automatically. Please note that if a new driver executable will be downloaded it may take some time...";
     private static int PAGE_LOAD_TIMEOUT;
     private static int SCRIPT_TIMEOUT;
     private static int IMPLICIT_WAIT_TIMEOUT;
@@ -173,7 +173,7 @@ public class DriverFactoryHelper {
      * @return a sikuli App instance that can be used to perform SikuliActions
      */
     protected static App getSikuliApp(String applicationName) {
-        initializeSystemProperties(System.getProperty("targetBrowserName") == null);
+        initializeSystemProperties();
         var myapp = new App(applicationName);
         myapp.waitForWindow(Integer.parseInt(System.getProperty("browserNavigationTimeout")));
         myapp.focus();
@@ -700,21 +700,27 @@ public class DriverFactoryHelper {
     private static void setValueToRemoteDriverInstance(String driverName, DriverType driverType, DesiredCapabilities mobileDesiredCapabilities) throws MalformedURLException {
         switch (driverType) {
             case DESKTOP_FIREFOX:
+                ReportManager.logDiscrete(ffOptions.toString());
                 driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), ffOptions));
                 break;
             case DESKTOP_INTERNET_EXPLORER:
+                ReportManager.logDiscrete(ieOptions.toString());
                 driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), ieOptions));
                 break;
             case DESKTOP_CHROME:
+                ReportManager.logDiscrete(chOptions.toString());
                 driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), chOptions));
                 break;
             case DESKTOP_EDGE:
+                ReportManager.logDiscrete(edOptions.toString());
                 driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), edOptions));
                 break;
             case DESKTOP_SAFARI:
                 if (!isMobileExecution()) {
+                    ReportManager.logDiscrete(sfOptions.toString());
                     driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), sfOptions));
                 } else {
+                    ReportManager.logDiscrete(mobileDesiredCapabilities.toString());
                     driver.set(new AppiumDriver(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
                 }
                 break;
@@ -724,15 +730,18 @@ public class DriverFactoryHelper {
                 mobileDesiredCapabilities.setCapability("chromedriverExecutable",
                         WebDriverManager.chromedriver().getDownloadedDriverPath());
 //         mobileDesiredCapabilities.setCapability("appium:chromeOptions", Map.of("w3c", false));
+                ReportManager.logDiscrete(mobileDesiredCapabilities.toString());
                 driver.set(new AppiumDriver(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
                 break;
             case APPIUM_CHROMIUM:
                 WebDriverManager.chromedriver().browserVersion(System.getProperty("MobileBrowserVersion")).setup();
                 mobileDesiredCapabilities.setCapability("chromedriverExecutable",
                         WebDriverManager.chromedriver().getDownloadedDriverPath());
+                ReportManager.logDiscrete(mobileDesiredCapabilities.toString());
                 driver.set(new AppiumDriver(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
                 break;
             case APPIUM_BROWSER, APPIUM_MOBILE_NATIVE:
+                ReportManager.logDiscrete(mobileDesiredCapabilities.toString());
                 if ("Android".equals(targetOperatingSystem)) {
                     driver.set(new AndroidDriver(new URL(TARGET_HUB_URL), mobileDesiredCapabilities));
                 } else if ("iOS".equals(targetOperatingSystem)) {
@@ -823,7 +832,7 @@ public class DriverFactoryHelper {
      * @return a singleton driver instance
      */
     private static synchronized WebDriver getDriver(String driverName, MutableCapabilities customDriverOptions) {
-        initializeSystemProperties(System.getProperty("targetBrowserName") == null);
+        initializeSystemProperties();
         String internalDriverName = driverName;
         if (internalDriverName == null) {
             internalDriverName = TARGET_DRIVER_NAME;
@@ -881,10 +890,10 @@ public class DriverFactoryHelper {
         return driver.get();
     }
 
-    protected static void initializeSystemProperties(boolean readPropertyFilesBeforeInitializing) {
-        if (readPropertyFilesBeforeInitializing) {
-            PropertyFileManager.readPropertyFiles();
-        }
+    protected static void initializeSystemProperties() {
+//        if (readPropertyFilesBeforeInitializing) {
+//            PropertyFileManager.readPropertyFiles();
+//        }
         AUTO_MAXIMIZE = Boolean
                 .valueOf(System.getProperty("autoMaximizeBrowserWindow").trim());
         HEADLESS_EXECUTION = Boolean.valueOf(System.getProperty("headlessExecution").trim());
@@ -896,7 +905,6 @@ public class DriverFactoryHelper {
         // Default | MozillaFirefox | MicrosoftInternetExplorer | GoogleChrome |
         // MicrosoftEdge | Safari
         TARGET_MOBILE_BROWSER_NAME = System.getProperty("mobile_browserName");
-        WEBDRIVERMANAGER_MESSAGE = "Identifying OS/Driver combination and selecting the correct driver version automatically. Please note that if a new driver executable will be downloaded it may take some time...";
         PAGE_LOAD_TIMEOUT = Integer.parseInt(System.getProperty("pageLoadTimeout"));
         SCRIPT_TIMEOUT = Integer.parseInt(System.getProperty("scriptExecutionTimeout"));
         IMPLICIT_WAIT_TIMEOUT = Integer.parseInt(System.getProperty("implicitWaitTimeout"));
@@ -914,17 +922,17 @@ public class DriverFactoryHelper {
     }
 
     protected static Page getPlaywrightDriver() {
-        initializeSystemProperties(System.getProperty("targetBrowserName") == null);
+        initializeSystemProperties();
         return getPlaywrightDriver(TARGET_DRIVER_NAME, null);
     }
 
     protected static Page getPlaywrightDriver(DriverFactory.DriverType driverType) {
-        initializeSystemProperties(System.getProperty("targetBrowserName") == null);
+        initializeSystemProperties();
         return getPlaywrightDriver(driverType.getValue(), null);
     }
 
     protected static Page getPlaywrightDriver(DriverFactory.DriverType driverType, LaunchOptions options) {
-        initializeSystemProperties(System.getProperty("targetBrowserName") == null);
+        initializeSystemProperties();
         return getPlaywrightDriver(driverType.getValue(), options);
     }
 

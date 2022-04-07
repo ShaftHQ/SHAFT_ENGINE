@@ -1,5 +1,6 @@
 package com.shaft.tools.io;
 
+import com.shaft.tools.support.JavaActions;
 import org.apache.poi.EmptyFileException;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DateUtil;
@@ -35,6 +36,7 @@ public class ExcelFileManager {
      * @param excelFilePath target test data Excel file path
      */
     public ExcelFileManager(String excelFilePath) {
+        excelFilePath = JavaActions.appendTestDataToRelativePath(excelFilePath);
         initializeVariables();
         this.excelFilePath = excelFilePath;
         try {
