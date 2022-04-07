@@ -72,7 +72,7 @@
         <applitools-eyes.version>4.14.0</applitools-eyes.version>
         <sikulixapi.version>2.0.5</sikulixapi.version> <!-- Do not update before running the test locally -->
 
-        <jave-all-deps.version>3.3.0</jave-all-deps.version>
+        <jave-all-deps.version>3.3.1</jave-all-deps.version>
         <video-recorder-testng.version>2.0</video-recorder-testng.version>
 
 		<pdfbox.version>2.0.25</pdfbox.version>
