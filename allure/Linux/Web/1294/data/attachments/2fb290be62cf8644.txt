@@ -1,5 +1,0 @@
-
-################################################################################################################################################
-Starting Execution:	"21 out of 179" test cases in the current suite
-Test Method:		"unitTests.tests_validations_assertions.assertElementAttribute_false_literalComparison_expectedToPass"
-###############################################################################################################################################
