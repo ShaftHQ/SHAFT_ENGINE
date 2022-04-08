@@ -53,7 +53,7 @@ public class Test_JSPromptBox {
 
     @Test(dependsOnMethods = "acceptPromptAlertWithoutTypingTextMessage")
     public void assertOnConfirmPromptAlertWithoutTypingTextMessageResultText() {
-        Validations.assertThat().element(driver, JS_ResultText).text().isEqualTo("You entered:").perform();
+        Validations.assertThat().element(driver, JS_ResultText).text().contains("You entered:").perform();
     }
 
     @Test(dependsOnMethods = "assertOnConfirmPromptAlertWithoutTypingTextMessageResultText")
