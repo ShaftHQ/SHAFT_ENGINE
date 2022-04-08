@@ -533,7 +533,17 @@ public class ElementActions {
     public static void switchToWindow(WebDriver driver, String nameOrHandle) {
         WebDriverElementActions.switchToWindow(driver, nameOrHandle);
     }
-
+    
+    /**
+     * Switches focus to another Tap
+     *
+     * @param driver       the current instance of Selenium webdriver
+     * @param URL The name of the URL you want to navigate to
+     */
+    public static void switchToNewTap(WebDriver driver, String URL) {
+        WebDriverElementActions.switchToNewTap(driver, URL);
+    }
+    
     /**
      * Checks if there is any text in an element, clears it, then types the required
      * string into the target element.
