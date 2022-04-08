@@ -1,5 +1,6 @@
 package com.shaft.driver;
 
+import com.google.common.annotations.Beta;
 import com.shaft.api.RequestBuilder;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
@@ -20,8 +21,11 @@ import org.openqa.selenium.MutableCapabilities;
 import java.io.InputStream;
 
 @SuppressWarnings("unused")
+@Beta
 public class SHAFT {
+    @Beta
     public static class GUI {
+        @Beta
         public static class WebDriver {
             private ThreadLocal<org.openqa.selenium.WebDriver> driverThreadLocal = new ThreadLocal<>();
 
@@ -99,7 +103,7 @@ public class SHAFT {
 //            }
 //        }
     }
-
+    @Beta
     public static class API {
         private RestActions session;
         private String serviceURI;
@@ -149,6 +153,7 @@ public class SHAFT {
         }
     }
 
+    @Beta
     public static class CLI {
         public TerminalActions terminal() {
             return new TerminalActions();
@@ -159,6 +164,7 @@ public class SHAFT {
         }
     }
 
+    @Beta
     public static class DB {
         public DatabaseActions performDatabaseActions(DatabaseActions.DatabaseType databaseType, String ip, String port, String name, String username,
                                                       String password) {
@@ -170,6 +176,7 @@ public class SHAFT {
         }
     }
 
+    @Beta
     public static class Validations {
         public static WizardHelpers.StandaloneAssertions assertThat() {
             return new WizardHelpers.StandaloneAssertions();
@@ -180,7 +187,9 @@ public class SHAFT {
         }
     }
 
+    @Beta
     public static class TestData {
+        @Beta
         public static class JSON extends JSONFileManager {
             /**
              * Creates a new instance of the test data json reader using the target json
@@ -192,7 +201,7 @@ public class SHAFT {
                 super(jsonFilePath);
             }
         }
-
+        @Beta
         public static class EXCEL extends ExcelFileManager {
             /**
              * Creates a new instance of the test data Excel reader using the target Excel
@@ -205,7 +214,7 @@ public class SHAFT {
             }
         }
     }
-
+    @Beta
     public static class Report {
         public static void log(String message) {
             ReportManager.logDiscrete(message);
