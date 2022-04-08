@@ -1167,6 +1167,7 @@ public class WebDriverElementActions {
                 failAction(driver, null, rootCauseException);  
             }
     }
+
     /**
      * Checks if there is any text in an element, clears it, then types the required
      * string into the target element.
