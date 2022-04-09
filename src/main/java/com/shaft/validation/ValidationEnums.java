@@ -31,6 +31,7 @@ public class ValidationEnums {
     }
 
     public enum VisualValidationEngine {
+        EXACT_SHUTTERBUG,
         EXACT_OPENCV,
         EXACT_EYES,
         STRICT_EYES,
