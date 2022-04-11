@@ -2,7 +2,6 @@ package com.shaft.gui.element;
 
 import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactoryHelper;
-import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
@@ -1130,42 +1129,6 @@ public class WebDriverElementActions {
         } else {
             failAction(driver, internalElementLocator);
         }
-    }
-
-    /**
-     * Switches focus to another window
-     *
-     * @param driver       the current instance of Selenium webdriver
-     * @param nameOrHandle The name of the window or the handle as returned by
-     *                     ElementActions.getWindowHandle(WebDriver driver)
-     */
-    public static void switchToWindow(WebDriver driver, String nameOrHandle) {
-        if (driver.getWindowHandles().contains(nameOrHandle)) {
-            driver.switchTo().window(nameOrHandle);
-            WebDriverElementActions.passAction(driver, nameOrHandle);
-        } else {
-            WebDriverElementActions.failAction(driver, nameOrHandle, null);
-        }
-    }
-    /**
-     * Switches focus to another Tap
-     *
-     * @param driver       the current instance of Selenium webdriver
-     * @param URL The name of the URL you want to navigate to
-     */
-    public static void switchToNewTap(WebDriver driver, String URL) {
-    	try {
-        	driver.switchTo().newWindow(WindowType.TAB);
-        	BrowserActions.navigateToURL(driver, URL);	
-        	if (driver.getCurrentUrl().contains(URL)) {
-            WebDriverElementActions.passAction(driver, URL);
-        	} else {
-        		 WebDriverElementActions.failAction(driver, URL,null);
-        	}
-        	}
-        catch (Exception rootCauseException) {
-                failAction(driver, null, rootCauseException);  
-            }
     }
 
     /**

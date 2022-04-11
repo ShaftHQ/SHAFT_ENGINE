@@ -11,7 +11,7 @@ import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
 
-public class Test_SwitchToNewTap {
+public class Test_SwitchToNewTab {
 	ThreadLocal<WebDriver> driver = new ThreadLocal<>();
 
 	@Test
@@ -19,7 +19,7 @@ public class Test_SwitchToNewTap {
 		BrowserActions.navigateToURL(driver.get(), "https://duckduckgo.com/");
 		By searchbar = By.id("search_form_input_homepage");
 		new ElementActions(driver.get()).type(searchbar, "SHAFT_Engine").keyPress(searchbar, Keys.ENTER);
-		ElementActions.switchToNewTap(driver.get(), "https://www.google.com/");
+		BrowserActions.switchToNewTab(driver.get(), "https://www.google.com/");
 
 	}
 

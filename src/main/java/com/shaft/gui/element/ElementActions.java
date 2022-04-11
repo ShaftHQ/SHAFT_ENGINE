@@ -524,25 +524,6 @@ public class ElementActions {
     }
 
     /**
-     * Switches focus to another window
-     *
-     * @param driver       the current instance of Selenium webdriver
-     * @param nameOrHandle The name of the window or the handle as returned by
-     *                     ElementActions.getWindowHandle(WebDriver driver)
-     */
-    public static void switchToWindow(WebDriver driver, String nameOrHandle) {
-        WebDriverElementActions.switchToWindow(driver, nameOrHandle);
-    }
-    /**
-     * Switches focus to another Tap
-     *
-     * @param driver       the current instance of Selenium webdriver
-     * @param URL The name of the URL you want to navigate to
-     */
-    public static void switchToNewTap(WebDriver driver, String URL) {
-        WebDriverElementActions.switchToNewTap(driver, URL);
-    }
-    /**
      * Checks if there is any text in an element, clears it, then types the required
      * string into the target element.
      *
@@ -960,18 +941,6 @@ public class ElementActions {
      */
     public ElementActions switchToIframe(By elementLocator) {
         switchToIframe(WebDriverElementActions.getLastUsedDriver(), elementLocator);
-        return this;
-    }
-
-    /**
-     * Switches focus to another window
-     *
-     * @param nameOrHandle The name of the window or the handle as returned by
-     *                     ElementActions.getWindowHandle(WebDriver driver)
-     * @return a self-reference to be used to chain actions
-     */
-    public ElementActions switchToWindow(String nameOrHandle) {
-        switchToWindow(WebDriverElementActions.getLastUsedDriver(), nameOrHandle);
         return this;
     }
 
