@@ -192,5 +192,4 @@ public class BrowserActions {
     	WebDriverBrowserActions.switchToWindow(driver, nameOrHandle);
     }
 
-    
 }
