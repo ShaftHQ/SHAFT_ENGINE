@@ -170,5 +170,26 @@ public class BrowserActions {
     public static void fullScreenWindow(WebDriver driver) {
         WebDriverBrowserActions.fullScreenWindow(driver);
     }
+    
+    /**
+     * Switches focus to another Tap
+     *
+     * @param driver       the current instance of Selenium webdriver
+     * @param URL The name of the URL you want to navigate to
+     */
+    public static void switchToNewTab(WebDriver driver, String URL) {
+    	WebDriverBrowserActions.switchToNewTab(driver, URL);
+    }
+    
+    /**
+     * Switches focus to another window
+     *
+     * @param driver       the current instance of Selenium webdriver
+     * @param nameOrHandle The name of the window or the handle as returned by
+     *                     ElementActions.getWindowHandle(WebDriver driver)
+     */
+    public static void switchToWindow(WebDriver driver, String nameOrHandle) {
+    	WebDriverBrowserActions.switchToWindow(driver, nameOrHandle);
+    }
 
 }
