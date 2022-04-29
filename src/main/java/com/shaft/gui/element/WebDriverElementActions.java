@@ -1132,22 +1132,6 @@ public class WebDriverElementActions {
     }
 
     /**
-     * Switches focus to another window
-     *
-     * @param driver       the current instance of Selenium webdriver
-     * @param nameOrHandle The name of the window or the handle as returned by
-     *                     ElementActions.getWindowHandle(WebDriver driver)
-     */
-    public static void switchToWindow(WebDriver driver, String nameOrHandle) {
-        if (driver.getWindowHandles().contains(nameOrHandle)) {
-            driver.switchTo().window(nameOrHandle);
-            WebDriverElementActions.passAction(driver, nameOrHandle);
-        } else {
-            WebDriverElementActions.failAction(driver, nameOrHandle, null);
-        }
-    }
-
-    /**
      * Checks if there is any text in an element, clears it, then types the required
      * string into the target element.
      *

@@ -31,6 +31,10 @@ public class WebDriverBrowserActions {
     protected WebDriverBrowserActions(WebDriver driver) {
         lastUsedDriver = driver;
     }
+    
+    protected static WebDriver getLastUsedDriver() {
+        return lastUsedDriver;
+    }
 
     /**
      * Gets the current page URL and returns it as a string
@@ -740,6 +744,76 @@ public class WebDriverBrowserActions {
      */
     public WebDriverBrowserActions fullScreenWindow() {
         fullScreenWindow(lastUsedDriver);
+        return this;
+    }
+    
+    /**
+     * Switches focus to another Tap
+     *
+     * @param driver       the current instance of Selenium webdriver
+     * @param URL The name of the URL you want to navigate to
+     * @return 
+     */
+    public static void switchToNewTab(WebDriver driver, String URL) {
+    	try {
+    		String HandleBeforeNavigation = getWindowHandle(driver);
+        	driver.switchTo().newWindow(WindowType.TAB);
+        	String HandleAfterNavigation = getWindowHandle(driver);
+        	BrowserActions.navigateToURL(driver, URL);	
+        	if (!HandleBeforeNavigation.equals(HandleAfterNavigation)) {
+        		 passAction(driver, URL);
+        		 ReportManager.logDiscrete("The New Tab handle is " + HandleAfterNavigation);
+        	}
+        	else {
+        		ReportManager.logDiscrete("The New Tab handle isn't opened and the handle opened is " + HandleAfterNavigation);
+        		failAction(driver, URL, HandleAfterNavigation);	
+        	}
+        	if (driver.getCurrentUrl().contains(URL)) {
+            passAction(driver, URL);
+        	} else {
+        		 failAction(driver, URL);
+        	}
+        	}
+        catch (Exception rootCauseException) {
+                failAction(driver, null, rootCauseException);  
+            }
+    }
+    
+    /**
+     * Switches focus to another Tap
+     *
+     * @param URL The name of the URL you want to navigate to
+     */
+    public WebDriverBrowserActions switchToNewTab(String URL) {
+    	switchToNewTab(lastUsedDriver,URL);
+		return this;
+    }
+    
+    /**
+     * Switches focus to another window
+     *
+     * @param driver       the current instance of Selenium webdriver
+     * @param nameOrHandle The name of the window or the handle as returned by
+     *                     ElementActions.getWindowHandle(WebDriver driver)
+     */
+    public static void switchToWindow(WebDriver driver, String nameOrHandle) {
+        if (driver.getWindowHandles().contains(nameOrHandle)) {
+            driver.switchTo().window(nameOrHandle);
+            passAction(driver, nameOrHandle);
+        } else {
+            failAction(driver, nameOrHandle);
+        }
+    }
+    
+    /**
+     * Switches focus to another window
+     *
+     * @param nameOrHandle The name of the window or the handle as returned by
+     *                     ElementActions.getWindowHandle(WebDriver driver)
+     * @return a self-reference to be used to chain actions
+     */
+    public WebDriverBrowserActions switchToWindow(String nameOrHandle) {
+        switchToWindow(getLastUsedDriver(), nameOrHandle);
         return this;
     }
 }
