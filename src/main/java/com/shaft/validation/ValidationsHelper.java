@@ -487,12 +487,25 @@ public class ValidationsHelper {
         }
 
         if (ElementActions.getElementsCount(driver, elementLocator) == 1) {
-            byte[] elementScreenshot = ScreenshotManager.takeElementScreenshot(driver, elementLocator);
+            byte[] elementScreenshot = new byte[0];
+
+            Boolean actualResult=false;
+
+                elementScreenshot = ScreenshotManager.takeElementScreenshot(driver, elementLocator);
+                actualResult = ImageProcessingActions.compareAgainstBaseline(driver, elementLocator, elementScreenshot, ImageProcessingActions.VisualValidationEngine.valueOf(visualValidationEngine.name()));
+
             List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Screenshot",
                     elementScreenshot);
             attachments.add(actualValueAttachment);
 
-            Boolean actualResult = ImageProcessingActions.compareAgainstBaseline(driver, elementLocator, elementScreenshot, ImageProcessingActions.VisualValidationEngine.valueOf(visualValidationEngine.name()));
+            if (visualValidationEngine.equals(VisualValidationEngine.EXACT_SHUTTERBUG) && !actualResult){
+                //if shutterbug and failed, get differences screenshot
+                byte[] shutterbugDifferencesImage = ImageProcessingActions.getShutterbugDifferencesImage(elementLocator);
+                List<Object> differencesAttachment = Arrays.asList("Validation Test Data", "Differences",
+                        shutterbugDifferencesImage);
+                attachments.add(differencesAttachment);
+            }
+
             if (expectedResult.equals(actualResult)) {
                 pass(validationCategory, reportedExpectedResult.toString(), String.valueOf(actualResult).toUpperCase(), visualValidationEngine, validationType, attachments);
             } else {
