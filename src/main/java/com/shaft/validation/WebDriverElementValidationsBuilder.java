@@ -49,7 +49,7 @@ public class WebDriverElementValidationsBuilder {
     }
 
     /**
-     * Use this to check that the target element matches a reference image (using the Artificial Intelligence library OpenCV).
+     * Use this to check that the target element matches a reference image (using the Artificial Intelligence library SHUTTERBUG).
      * On the first test run this method will take a screenshot of the target element and the test will pass, and on following runs the element will be compared against that reference image.
      * The reference images are stored under src/test/resources/DynamicObjectRepository for later maintenance
      *
@@ -58,8 +58,8 @@ public class WebDriverElementValidationsBuilder {
     public ValidationsExecutor matchesReferenceImage() {
         this.validationType = ValidationEnums.ValidationType.POSITIVE;
         this.validationMethod = "elementMatches";
-        this.visualValidationEngine = ValidationEnums.VisualValidationEngine.EXACT_OPENCV;
-        reportMessageBuilder.append("matches the reference image \"").append(ValidationEnums.VisualValidationEngine.EXACT_OPENCV).append("\".");
+        this.visualValidationEngine = ValidationEnums.VisualValidationEngine.EXACT_SHUTTERBUG;
+        reportMessageBuilder.append("matches the reference image \"").append(ValidationEnums.VisualValidationEngine.EXACT_SHUTTERBUG).append("\".");
         return new ValidationsExecutor(this);
     }
 

@@ -5,6 +5,8 @@ import com.applitools.eyes.MatchLevel;
 import com.applitools.eyes.TestResults;
 import com.applitools.eyes.exceptions.DiffsFoundException;
 import com.applitools.eyes.images.Eyes;
+import com.assertthat.selenium_shutterbug.core.CaptureElement;
+import com.assertthat.selenium_shutterbug.core.Shutterbug;
 import com.microsoft.playwright.Page;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactoryHelper;
@@ -26,10 +28,7 @@ import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.FileSystems;
 import java.util.Arrays;
 import java.util.Collections;
@@ -365,10 +364,44 @@ public class ImageProcessingActions {
         }
     }
 
+    public static byte[] getShutterbugDifferencesImage(Object elementLocator) {
+        String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
+        String aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
+        String referenceImagePath = aiFolderPath + hashedLocatorName + "_shutterbug.png";
+        if (FileActions.getInstance().doesFileExist(referenceImagePath)) {
+            return FileActions.getInstance().readFromImageFile(referenceImagePath);
+        } else {
+            return new byte[0];
+        }
+    }
+
     public static synchronized Boolean compareAgainstBaseline(WebDriver driver, By elementLocator, byte[] elementScreenshot, VisualValidationEngine visualValidationEngine) {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
 
-        if (visualValidationEngine == VisualValidationEngine.EXACT_OPENCV) {
+        if (visualValidationEngine == VisualValidationEngine.EXACT_SHUTTERBUG) {
+            String aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
+            String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
+            String resultingImagePath = aiFolderPath + hashedLocatorName + "_shutterbug";
+
+            boolean doesReferenceFileExist = FileActions.getInstance().doesFileExist(referenceImagePath);
+
+            if (doesReferenceFileExist && (elementScreenshot!=null && elementScreenshot.length>0)) {
+                var snapshot = Shutterbug.shootElement(driver, elementLocator, CaptureElement.VIEWPORT, false);
+                boolean actualResult = false;
+                try {
+                    actualResult = snapshot.equalsWithDiff(referenceImagePath, resultingImagePath, 0.1);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                return actualResult;
+            }else{
+                    ReportManager.logDiscrete("Passing the test and saving a reference image");
+                    FileActions.getInstance().writeToFile(aiFolderPath, hashedLocatorName + ".png", elementScreenshot);
+                return true;
+            }
+        }
+
+        if (visualValidationEngine == VisualValidationEngine.EXACT_OPENCV || visualValidationEngine == VisualValidationEngine.EXACT_SHUTTERBUG) {
             String aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
             String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
 
@@ -650,6 +683,7 @@ public class ImageProcessingActions {
     }
 
     public enum VisualValidationEngine {
+        EXACT_SHUTTERBUG,
         EXACT_OPENCV,
         EXACT_EYES,
         STRICT_EYES,
