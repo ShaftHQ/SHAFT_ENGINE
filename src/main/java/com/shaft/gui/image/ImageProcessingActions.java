@@ -14,12 +14,14 @@ import com.shaft.gui.element.WebDriverElementActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.validation.Validations;
+
 import nu.pattern.OpenCV;
 import org.opencv.core.Point;
 import org.opencv.core.*;
 import org.opencv.highgui.HighGui;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
+
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.testng.Assert;
@@ -667,18 +669,15 @@ public class ImageProcessingActions {
     }
 
     public static void loadOpenCV() {
+        var libName = org.opencv.core.Core.NATIVE_LIBRARY_NAME;
         try {
-            OpenCV.loadShared();
-            ReportManager.logDiscrete("Loaded Shared OpenCV");
-        } catch (NoClassDefFoundError | RuntimeException | ExceptionInInitializerError e) {
-            try {
-                OpenCV.loadLocally();
-                ReportManager.logDiscrete("Loaded Local OpenCV");
-            } catch (Throwable throwable) {
-                ReportManagerHelper.log(throwable);
-                ReportManager.logDiscrete("Failed to load OpenCV, switching to JavaScript.");
-                System.setProperty("screenshotParams_highlightMethod", "JavaScript");
-            }
+            //https://github.com/openpnp/opencv#api
+            OpenCV.loadLocally();
+            ReportManager.logDiscrete("Loaded OpenCV \""+libName+"\".");
+        } catch (Throwable throwable) {
+            ReportManagerHelper.logDiscrete(throwable);
+            ReportManager.logDiscrete("Failed to load OpenCV \""+libName+"\". Try installing the binaries manually https://opencv.org/releases/, switching element highlighting to JavaScript...");
+            System.setProperty("screenshotParams_highlightMethod", "JavaScript");
         }
     }
 
