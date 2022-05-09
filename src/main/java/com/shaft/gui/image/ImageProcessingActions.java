@@ -14,14 +14,12 @@ import com.shaft.gui.element.WebDriverElementActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.validation.Validations;
-
 import nu.pattern.OpenCV;
 import org.opencv.core.Point;
 import org.opencv.core.*;
 import org.opencv.highgui.HighGui;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
-
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.testng.Assert;
@@ -30,7 +28,10 @@ import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
-import java.io.*;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.util.Arrays;
 import java.util.Collections;
@@ -402,7 +403,7 @@ public class ImageProcessingActions {
             }
         }
 
-        if (visualValidationEngine == VisualValidationEngine.EXACT_OPENCV || visualValidationEngine == VisualValidationEngine.EXACT_SHUTTERBUG) {
+        if (visualValidationEngine == VisualValidationEngine.EXACT_OPENCV) {
             String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
 
             boolean doesReferenceFileExist = FileActions.getInstance().doesFileExist(referenceImagePath);
