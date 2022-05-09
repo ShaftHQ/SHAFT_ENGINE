@@ -423,7 +423,8 @@ public class DriverFactoryHelper {
                 // https://developer.mozilla.org/en-US/docs/Web/WebDriver/Capabilities/firefoxOptions
                 ffOptions = new FirefoxOptions();
                 if (customDriverOptions != null) {
-                    ffOptions = (FirefoxOptions) customDriverOptions;
+//                    ffOptions = (FirefoxOptions) customDriverOptions;
+                    ffOptions.merge(customDriverOptions);
                 }
                 var ffProfile = new FirefoxProfile();
                 ffProfile.setPreference("browser.download.dir", downloadsFolderPath);
@@ -455,7 +456,8 @@ public class DriverFactoryHelper {
             case DESKTOP_INTERNET_EXPLORER -> {
                 ieOptions = new InternetExplorerOptions();
                 if (customDriverOptions != null) {
-                    ieOptions = (InternetExplorerOptions) customDriverOptions;
+//                    ieOptions = (InternetExplorerOptions) customDriverOptions;
+                    ieOptions.merge(customDriverOptions);
                 }
                 ieOptions.setCapability(CapabilityType.PLATFORM_NAME, getDesiredOperatingSystem());
                 if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("captureWebDriverLogs").trim()))) {
@@ -483,7 +485,11 @@ public class DriverFactoryHelper {
                     options = new ChromeOptions();
                 }
                 if (customDriverOptions != null) {
-                    options = (ChromiumOptions) customDriverOptions;
+//                        options = (ChromiumOptions) customDriverOptions;
+                    options.merge(customDriverOptions);
+//                    for (var capabilityName : customDriverOptions.getCapabilityNames()) {
+//                        options.setCapability(capabilityName, customDriverOptions.getCapability(capabilityName));
+//                    }
                 }
                 options.setCapability(CapabilityType.PLATFORM_NAME, getDesiredOperatingSystem());
                 options.setHeadless(HEADLESS_EXECUTION);
