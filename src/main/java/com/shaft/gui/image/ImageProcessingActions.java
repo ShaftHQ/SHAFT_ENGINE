@@ -48,6 +48,8 @@ public class ImageProcessingActions {
             CV_ADAPTIVE_THRESH_MEAN_C = 0,
             CV_THRESH_BINARY_INV = 1;
 
+    private static final String aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
+
     private ImageProcessingActions() {
         throw new IllegalStateException("Utility class");
     }
@@ -357,7 +359,6 @@ public class ImageProcessingActions {
 
     public static byte[] getReferenceImage(Object elementLocator) {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
-        String aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
         String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
         if (FileActions.getInstance().doesFileExist(referenceImagePath)) {
             return FileActions.getInstance().readFromImageFile(referenceImagePath);
@@ -368,7 +369,6 @@ public class ImageProcessingActions {
 
     public static byte[] getShutterbugDifferencesImage(Object elementLocator) {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
-        String aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
         String referenceImagePath = aiFolderPath + hashedLocatorName + "_shutterbug.png";
         if (FileActions.getInstance().doesFileExist(referenceImagePath)) {
             return FileActions.getInstance().readFromImageFile(referenceImagePath);
@@ -381,14 +381,13 @@ public class ImageProcessingActions {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
 
         if (visualValidationEngine == VisualValidationEngine.EXACT_SHUTTERBUG) {
-            String aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
             String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
             String resultingImagePath = aiFolderPath + hashedLocatorName + "_shutterbug";
 
             boolean doesReferenceFileExist = FileActions.getInstance().doesFileExist(referenceImagePath);
 
             if (doesReferenceFileExist && (elementScreenshot!=null && elementScreenshot.length>0)) {
-                var snapshot = Shutterbug.shootElement(driver, elementLocator, CaptureElement.VIEWPORT, false);
+                var snapshot = Shutterbug.shootElement(driver, elementLocator, CaptureElement.VIEWPORT, true);
                 boolean actualResult = false;
                 try {
                     actualResult = snapshot.equalsWithDiff(referenceImagePath, resultingImagePath, 0.1);
@@ -404,7 +403,6 @@ public class ImageProcessingActions {
         }
 
         if (visualValidationEngine == VisualValidationEngine.EXACT_OPENCV || visualValidationEngine == VisualValidationEngine.EXACT_SHUTTERBUG) {
-            String aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
             String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
 
             boolean doesReferenceFileExist = FileActions.getInstance().doesFileExist(referenceImagePath);
@@ -496,7 +494,7 @@ public class ImageProcessingActions {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
 
         if (visualValidationEngine == VisualValidationEngine.EXACT_OPENCV) {
-            String aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
+
             String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
 
             boolean doesReferenceFileExist = FileActions.getInstance().doesFileExist(referenceImagePath);
