@@ -54,7 +54,8 @@ public class ScreenshotManager {
     // TODO: parameterize the detailed gif value
     private static final Boolean DETAILED_GIF = true;
     private static final String DETAILED_GIF_REGEX = "(verify.*)|(assert.*)|(click.*)|(tap.*)|(key.*)|(navigate.*)";
-    private static final String AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH = System.getProperty("dynamicObjectRepositoryPath").trim();
+    private static final String AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH = System.getProperty("dynamicObjectRepositoryPath").trim()
+            +System.getProperty("targetBrowserName").trim()+"/";
     private static Boolean AI_SUPPORTED_ELEMENT_IDENTIFICATION = Boolean
             .valueOf(System.getProperty("aiPoweredSelfHealingElementIdentification").trim());
     private static String screenshotFileName = "Screenshot";

@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.tools.support.JavaActions;
@@ -164,8 +163,8 @@ public class RestActions {
      * @param jsonPath the JSONPath expression that will be evaluated in order to
      *                 extract the desired value [without the trailing $.], please
      *                 refer to these urls for examples:
-     *                 https://support.smartbear.com/alertsite/docs/monitors/api/endpoint/jsonpath.html
-     *                 http://jsonpath.com/
+     *                 <a href="https://support.smartbear.com/alertsite/docs/monitors/api/endpoint/jsonpath.html">https://support.smartbear.com/alertsite/docs/monitors/api/endpoint/jsonpath.html</a>
+     *                 <a href="http://jsonpath.com/">http://jsonpath.com/</a>
      * @return a string value that contains the extracted object
      */
     public static String getResponseJSONValue(Response response, String jsonPath) {
@@ -252,11 +251,11 @@ public class RestActions {
         List<Object> list = getResponseJSONValueAsList(response, jsonPathToList);
         String value = "";
         for (Object res : list) {
-            if (getResponseJSONValue(res, jsonPathToValueReference).equals(valueReference)) {
+            if (Objects.equals(getResponseJSONValue(res, jsonPathToValueReference), valueReference)) {
                 value = getResponseJSONValue(res, jsonPathToValueNeeded);
             }
         }
-        if (value.equals("")) {
+        if (Objects.equals(value, "")) {
             failAction("Can't find the reference value [" + valueReference + "] in the list with the [" + jsonPathToValueReference + "] JSON Path");
         } else {
             passAction(value);
@@ -652,6 +651,8 @@ public class RestActions {
             } else if (body.getClass().getName().toLowerCase().contains("jsonobject")) {
                 actualJsonObject = (org.json.simple.JSONObject) parser
                         .parse(body.toString().replace("\\n", "").replace("\\t", "").replace(" ", ""));
+            } else if (body instanceof Map<?, ?> bodyMap) {
+                return 1; //json sent as a hashmap
             } else {
                 actualJsonObject = (org.json.simple.JSONObject) parser.parse(body.toString());
             }
@@ -703,6 +704,8 @@ public class RestActions {
         } else if (body.getClass().getName().toLowerCase().contains("jsonobject")) {
             actualJsonObject = (org.json.simple.JSONObject) parser
                     .parse(body.toString().replace("\\n", "").replace("\\t", "").replace(" ", ""));
+        } else if (body instanceof Map<?, ?> bodyMap) {
+            actualJsonObject = new org.json.simple.JSONObject(bodyMap);
         } else {
             actualJsonObject = (org.json.simple.JSONObject) parser.parse(body.toString());
         }
@@ -830,7 +833,7 @@ public class RestActions {
      *
      * @param base_URI  The Base URI without "graphql". example:: "https://api.example.com/"
      * @param query     graphql query or mutation.
-     * @param variables graphql variables; dynamic values of the query. please refer to this url for examples:: https://graphql.org/learn/queries/#variables
+     * @param variables graphql variables; dynamic values of the query. please refer to this url for examples:: <a href="https://graphql.org/learn/queries/#variables">https://graphql.org/learn/queries/#variables</a>
      * @return Graphql Response
      */
     @SuppressWarnings("unchecked")
@@ -847,8 +850,8 @@ public class RestActions {
      *
      * @param base_URI  The Base URI without "graphql". example:: "https://api.example.com/"
      * @param query     graphql query or mutation.
-     * @param variables graphql variables; dynamic values of the query. please refer to this url for examples:: https://graphql.org/learn/queries/#variables
-     * @param fragment  graphql fragment; reusable units let you construct sets of fields, and then include them in queries where you need to. please refer to this url for examples:: https://graphql.org/learn/queries/#fragments
+     * @param variables graphql variables; dynamic values of the query. please refer to this url for examples:: <a href="https://graphql.org/learn/queries/#variables">https://graphql.org/learn/queries/#variables</a>
+     * @param fragment  graphql fragment; reusable units let you construct sets of fields, and then include them in queries where you need to. please refer to this url for examples:: <a href="https://graphql.org/learn/queries/#fragments">https://graphql.org/learn/queries/#fragments</a>
      * @return Graphql Response
      */
     @SuppressWarnings("unchecked")
@@ -898,7 +901,7 @@ public class RestActions {
      *
      * @param base_URI     The Base URI without "graphql". example:: "https://api.example.com/"
      * @param query        graphql query or mutation.
-     * @param variables    graphql variables; dynamic values of the query. please refer to this url for examples:: https://graphql.org/learn/queries/#variables
+     * @param variables    graphql variables; dynamic values of the query. please refer to this url for examples:: <a href="https://graphql.org/learn/queries/#variables">https://graphql.org/learn/queries/#variables</a>
      * @param header_key   the name of the header that you want to add. example:: "Authorization"
      * @param header_value the value that will be put inside the key. example:: "bearer ${token}"
      * @return Graphql Response
@@ -917,8 +920,8 @@ public class RestActions {
      *
      * @param base_URI     The Base URI without "graphql". example:: "https://api.example.com/"
      * @param query        graphql query or mutation.
-     * @param variables    graphql variables; dynamic values of the query. please refer to this url for examples:: https://graphql.org/learn/queries/#variables
-     * @param fragment     graphql fragment; reusable units let you construct sets of fields, and then include them in queries where you need to. please refer to this url for examples:: https://graphql.org/learn/queries/#fragments
+     * @param variables    graphql variables; dynamic values of the query. please refer to this url for examples:: <a href="https://graphql.org/learn/queries/#variables">https://graphql.org/learn/queries/#variables</a>
+     * @param fragment     graphql fragment; reusable units let you construct sets of fields, and then include them in queries where you need to. please refer to this url for examples:: <a href="https://graphql.org/learn/queries/#fragments">https://graphql.org/learn/queries/#fragments</a>
      * @param header_key   the name of the header that you want to add. example:: "Authorization"
      * @param header_value the value that will be put inside the key. example:: "bearer ${token}"
      * @return Graphql Response
@@ -1046,16 +1049,23 @@ public class RestActions {
     }
 
     private void prepareRequestBody(RequestSpecBuilder builder, Object body, String contentType) {
-        try {
-            switch (contentType) {
-                case "application/json", "application/javascript", "text/javascript", "text/json" -> builder.setBody(body, ObjectMapperType.GSON);
-                case "application/xml", "text/xml", "application/xhtml+xml" -> builder.setBody(body, ObjectMapperType.JAXB);
-                default -> builder.setBody(body);
+        if (body instanceof String bodystr && bodystr.contains("\n")) {
+            builder.setBody(bodystr);
+        } else if (body instanceof org.json.JSONObject || body instanceof org.json.JSONArray) {
+            builder.setBody(body.toString());
+        } else {
+            try {
+                switch (contentType) {
+                    case "application/json", "application/javascript", "text/javascript", "text/json" ->
+                            builder.setBody(body, ObjectMapperType.GSON);
+                    case "application/xml", "text/xml", "application/xhtml+xml" ->
+                            builder.setBody(body, ObjectMapperType.JAXB);
+                    default -> builder.setBody(body);
+                }
+            } catch (Exception rootCauseException) {
+                ReportManagerHelper.log(rootCauseException);
+                failAction("Issue with parsing body content", rootCauseException);
             }
-        } catch (Exception rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
-            failAction("Issue with parsing body content", rootCauseException);
-
         }
     }
 

@@ -48,9 +48,9 @@ public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, 
         //TODO: manage slf4j log patterns
         System.setProperty("disableLogging", "true");
         PropertyFileManager.readPropertyFiles();
-        ImageProcessingActions.loadOpenCV();
         System.setProperty("disableLogging", "false");
         ReportManagerHelper.logEngineVersion();
+        ImageProcessingActions.loadOpenCV();
 
         retryMaximumNumberOfAttempts = Integer.parseInt(System.getProperty("retryMaximumNumberOfAttempts"));
         setExecutionProperties(suites);

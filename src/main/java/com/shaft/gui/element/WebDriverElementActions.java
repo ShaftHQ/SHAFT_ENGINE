@@ -872,11 +872,14 @@ public class WebDriverElementActions {
             // Override current locator with the aiGeneratedElementLocator
             internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
 
+            List<Object> screenshot = takeScreenshot(driver, internalElementLocator, "keyPress", null, true);
+            // takes screenshot before moving the element out of view
+
             driver.findElement(internalElementLocator).sendKeys(key);
+            passAction(driver, internalElementLocator, key.name(), screenshot);
         } else {
             failAction(driver, key.name(), internalElementLocator);
         }
-        passAction(driver, internalElementLocator, key.name());
     }
 
     public static SikuliActions performSikuliAction() {

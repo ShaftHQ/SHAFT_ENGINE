@@ -597,7 +597,7 @@ public class TouchActions {
 
         // Prepare attachments for reporting
         List<List<Object>> attachments = new LinkedList<>();
-        if (WebDriverElementActions.identifyUniqueElement(driver, internalScrollableElementLocator)) {
+        if (internalScrollableElementLocator != null && WebDriverElementActions.identifyUniqueElement(driver, internalScrollableElementLocator)) {
             try {
                 if (driver instanceof AppiumDriver appiumDriver) {
                     // appium native application
@@ -661,7 +661,7 @@ public class TouchActions {
         By internalScrollableElementLocator = WebDriverElementActions.updateLocatorWithAIGeneratedOne(scrollableElementLocator);
         By internalTargetElementLocator = WebDriverElementActions.updateLocatorWithAIGeneratedOne(targetElementLocator);
 
-        if (WebDriverElementActions.identifyUniqueElement(driver, internalScrollableElementLocator)) {
+        if (internalScrollableElementLocator != null && WebDriverElementActions.identifyUniqueElement(driver, internalScrollableElementLocator)) {
             try {
                 if (driver instanceof AppiumDriver appiumDriver) {
                     // appium native application
