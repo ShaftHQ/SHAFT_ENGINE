@@ -23,10 +23,10 @@ public class Test_RelativeLocators {
                 .keyPress(searchbar, Keys.ENTER);
 
         //the below locator matches all 10 search results
-        By searchResults = By.xpath("//a[@class='result__a js-result-title-link']");
+        By searchResults = By.xpath("//a[@data-testid='result-title-a']");
 
         //the below traditional xpath matches the first search result by using index
-        By firstSearchResult = By.xpath("(//a[@class='result__a js-result-title-link'])[1]");
+        By firstSearchResult = By.xpath("(//a[@data-testid='result-title-a'])[1]");
 
         //to use the relative xpaths we need to identify a clear element first
         By searchBox = By.xpath("//input[@name='q']");

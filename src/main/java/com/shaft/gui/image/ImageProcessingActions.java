@@ -28,7 +28,10 @@ import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
-import java.io.*;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.util.Arrays;
 import java.util.Collections;
@@ -45,6 +48,8 @@ public class ImageProcessingActions {
             CV_ADAPTIVE_THRESH_GAUSSIAN_C = 1,
             CV_ADAPTIVE_THRESH_MEAN_C = 0,
             CV_THRESH_BINARY_INV = 1;
+
+    private static final String aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
 
     private ImageProcessingActions() {
         throw new IllegalStateException("Utility class");
@@ -355,7 +360,6 @@ public class ImageProcessingActions {
 
     public static byte[] getReferenceImage(Object elementLocator) {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
-        String aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
         String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
         if (FileActions.getInstance().doesFileExist(referenceImagePath)) {
             return FileActions.getInstance().readFromImageFile(referenceImagePath);
@@ -366,7 +370,6 @@ public class ImageProcessingActions {
 
     public static byte[] getShutterbugDifferencesImage(Object elementLocator) {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
-        String aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
         String referenceImagePath = aiFolderPath + hashedLocatorName + "_shutterbug.png";
         if (FileActions.getInstance().doesFileExist(referenceImagePath)) {
             return FileActions.getInstance().readFromImageFile(referenceImagePath);
@@ -379,14 +382,13 @@ public class ImageProcessingActions {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
 
         if (visualValidationEngine == VisualValidationEngine.EXACT_SHUTTERBUG) {
-            String aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
             String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
             String resultingImagePath = aiFolderPath + hashedLocatorName + "_shutterbug";
 
             boolean doesReferenceFileExist = FileActions.getInstance().doesFileExist(referenceImagePath);
 
             if (doesReferenceFileExist && (elementScreenshot!=null && elementScreenshot.length>0)) {
-                var snapshot = Shutterbug.shootElement(driver, elementLocator, CaptureElement.VIEWPORT, false);
+                var snapshot = Shutterbug.shootElement(driver, elementLocator, CaptureElement.VIEWPORT, true);
                 boolean actualResult = false;
                 try {
                     actualResult = snapshot.equalsWithDiff(referenceImagePath, resultingImagePath, 0.1);
@@ -401,8 +403,7 @@ public class ImageProcessingActions {
             }
         }
 
-        if (visualValidationEngine == VisualValidationEngine.EXACT_OPENCV || visualValidationEngine == VisualValidationEngine.EXACT_SHUTTERBUG) {
-            String aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
+        if (visualValidationEngine == VisualValidationEngine.EXACT_OPENCV) {
             String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
 
             boolean doesReferenceFileExist = FileActions.getInstance().doesFileExist(referenceImagePath);
@@ -494,7 +495,7 @@ public class ImageProcessingActions {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
 
         if (visualValidationEngine == VisualValidationEngine.EXACT_OPENCV) {
-            String aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
+
             String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
 
             boolean doesReferenceFileExist = FileActions.getInstance().doesFileExist(referenceImagePath);
@@ -667,18 +668,15 @@ public class ImageProcessingActions {
     }
 
     public static void loadOpenCV() {
+        var libName = org.opencv.core.Core.NATIVE_LIBRARY_NAME;
         try {
-            OpenCV.loadShared();
-            ReportManager.logDiscrete("Loaded Shared OpenCV");
-        } catch (NoClassDefFoundError | RuntimeException | ExceptionInInitializerError e) {
-            try {
-                OpenCV.loadLocally();
-                ReportManager.logDiscrete("Loaded Local OpenCV");
-            } catch (Throwable throwable) {
-                ReportManagerHelper.log(throwable);
-                ReportManager.logDiscrete("Failed to load OpenCV, switching to JavaScript.");
-                System.setProperty("screenshotParams_highlightMethod", "JavaScript");
-            }
+            //https://github.com/openpnp/opencv#api
+            OpenCV.loadLocally();
+            ReportManager.logDiscrete("Loaded OpenCV \""+libName+"\".");
+        } catch (Throwable throwable) {
+            ReportManagerHelper.logDiscrete(throwable);
+            ReportManager.logDiscrete("Failed to load OpenCV \""+libName+"\". Try installing the binaries manually https://opencv.org/releases/, switching element highlighting to JavaScript...");
+            System.setProperty("screenshotParams_highlightMethod", "JavaScript");
         }
     }
 

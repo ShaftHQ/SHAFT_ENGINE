@@ -469,6 +469,13 @@ public class ValidationsHelper {
 
     protected static void validateElementMatches(ValidationCategory validationCategory, WebDriver driver, By elementLocator, VisualValidationEngine visualValidationEngine, ValidationType validationType,
                                                  String... optionalCustomLogMessage) {
+
+        //TODO: remove this temporary fix when this bug is fixed with shutterbug
+        //https://github.com/assertthat/selenium-shutterbug/issues/105
+        if (System.getProperty("targetBrowserName").trim().equalsIgnoreCase("safari")){
+            visualValidationEngine = VisualValidationEngine.EXACT_OPENCV;
+        }
+
         processCustomLogMessage(optionalCustomLogMessage);
         StringBuilder reportedExpectedResult = new StringBuilder();
         reportedExpectedResult.append("Element should ");
@@ -501,9 +508,11 @@ public class ValidationsHelper {
             if (visualValidationEngine.equals(VisualValidationEngine.EXACT_SHUTTERBUG) && !actualResult){
                 //if shutterbug and failed, get differences screenshot
                 byte[] shutterbugDifferencesImage = ImageProcessingActions.getShutterbugDifferencesImage(elementLocator);
-                List<Object> differencesAttachment = Arrays.asList("Validation Test Data", "Differences",
-                        shutterbugDifferencesImage);
-                attachments.add(differencesAttachment);
+                if (!Arrays.equals(new byte[0], shutterbugDifferencesImage)) {
+                    List<Object> differencesAttachment = Arrays.asList("Validation Test Data", "Differences",
+                            shutterbugDifferencesImage);
+                    attachments.add(differencesAttachment);
+                }
             }
 
             if (expectedResult.equals(actualResult)) {

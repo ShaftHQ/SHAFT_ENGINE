@@ -75,9 +75,9 @@ public class CucumberTestRunnerListener implements ConcurrentEventListener {
             // running in native Cucumber mode
             System.setProperty("disableLogging", "true");
             PropertyFileManager.readPropertyFiles();
-            ImageProcessingActions.loadOpenCV();
             System.setProperty("disableLogging", "false");
             ReportManagerHelper.logEngineVersion();
+            ImageProcessingActions.loadOpenCV();
             ProjectStructureManager.initialize();
             ReportManagerHelper.initializeAllureReportingEnvironment();
             ReportManagerHelper.initializeExtentReportingEnvironment();
