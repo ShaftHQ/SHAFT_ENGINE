@@ -518,6 +518,22 @@
             </exclusions>
         </dependency>
 
+        <!-- https://github.com/google/tink/blob/master/docs/JAVA-HOWTO.md -->
+        <dependency>
+            <groupId>com.google.crypto.tink</groupId>
+            <artifactId>tink</artifactId>
+            <version>1.6.1</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.crypto.tink</groupId>
+            <artifactId>tink-awskms</artifactId>
+            <version>1.6.1</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.crypto.tink</groupId>
+            <artifactId>tink-gcpkms</artifactId>
+            <version>1.6.1</version>
+        </dependency>
     </dependencies>
 
     <build>
