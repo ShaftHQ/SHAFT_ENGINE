@@ -5,6 +5,7 @@ import com.shaft.tools.io.LogsHelper;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
+import com.shaft.tools.security.GoogleTink;
 import com.shaft.tools.tms.XrayIntegrationHelper;
 import io.qameta.allure.*;
 import org.testng.*;
@@ -48,6 +49,8 @@ public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, 
         //TODO: manage slf4j log patterns
         System.setProperty("disableLogging", "true");
         PropertyFileManager.readPropertyFiles();
+        GoogleTink.initialize();
+        GoogleTink.decrypt();
         System.setProperty("disableLogging", "false");
         ReportManagerHelper.logEngineVersion();
         ImageProcessingActions.loadOpenCV();

@@ -216,11 +216,15 @@ public class JavaActions {
             //file path is valid
             return relativePath;
         } else{
-            if (relativePath.startsWith("/")){
+            if (relativePath.startsWith("/")) {
                 //remove extra slash at the beginning if applicable
                 relativePath = relativePath.substring(1);
             }
-            return System.getProperty("testDataFolderPath")+relativePath;
+            var testDataFolderPath = System.getProperty("testDataFolderPath");
+            if (relativePath.contains(testDataFolderPath)) {
+                return relativePath;
+            }
+            return testDataFolderPath + relativePath;
         }
 
     }

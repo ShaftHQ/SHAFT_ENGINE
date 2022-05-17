@@ -7,6 +7,7 @@ import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.*;
+import com.shaft.tools.security.GoogleTink;
 import io.cucumber.core.feature.FeatureParser;
 import io.cucumber.core.gherkin.Feature;
 import io.cucumber.core.resource.Resource;
@@ -75,6 +76,8 @@ public class CucumberTestRunnerListener implements ConcurrentEventListener {
             // running in native Cucumber mode
             System.setProperty("disableLogging", "true");
             PropertyFileManager.readPropertyFiles();
+            GoogleTink.initialize();
+            GoogleTink.decrypt();
             System.setProperty("disableLogging", "false");
             ReportManagerHelper.logEngineVersion();
             ImageProcessingActions.loadOpenCV();
@@ -97,6 +100,7 @@ public class CucumberTestRunnerListener implements ConcurrentEventListener {
             LogsHelper.attachCucumberReport();
             LogsHelper.attachExtentReport();
             ReportManagerHelper.setDiscreteLogging(true);
+            GoogleTink.encrypt();
             ReportManagerHelper.generateAllureReportArchive();
             ReportManagerHelper.openAllureReportAfterExecution();
             AlterSuiteListener.reportExecutionStatusToJira();

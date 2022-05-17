@@ -2,7 +2,6 @@ package com.shaft.cli;
 
 import com.google.common.hash.Hashing;
 import com.shaft.tools.io.PdfFileManager;
-import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.tools.support.JavaActions;
@@ -49,8 +48,8 @@ public class FileActions {
 
     /**
      * Copies files from sourceDirectory to destinationDirectory using the provided
-     * terminalSession. References: https://www.computerhope.com/unix/ucp.htm
-     * https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/robocopy
+     * terminalSession. References: <a href="https://www.computerhope.com/unix/ucp.htm">computerhope</a>
+     * <a href="https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/robocopy">robocopy</a>
      *
      * @param terminalSession      an object that determines the type of
      *                             terminalSession which will be used to execute
@@ -94,6 +93,21 @@ public class FileActions {
 
         passAction("Target Directory: \"" + targetDirectory + "\"", files.toString().trim());
         return files.toString().trim();
+    }
+
+    public Collection<File> getFileList(String targetDirectory) {
+        StringBuilder files = new StringBuilder();
+        Collection<File> filesList = new ArrayList<>();
+        try {
+            filesList = FileUtils.listFiles(new File(targetDirectory), TrueFileFilter.TRUE,
+                    TrueFileFilter.TRUE);
+            filesList.forEach(file -> files.append(file.getAbsolutePath()).append(System.lineSeparator()));
+        } catch (IllegalArgumentException rootCauseException) {
+            ReportManagerHelper.log(rootCauseException);
+            failAction("Failed to list absolute file paths in this directory: \"" + targetDirectory + "\"", rootCauseException);
+        }
+        passAction("Target Directory: \"" + targetDirectory + "\"", files.toString().trim());
+        return filesList;
     }
 
     /**

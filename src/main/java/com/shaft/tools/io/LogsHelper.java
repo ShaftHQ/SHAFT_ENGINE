@@ -3,6 +3,7 @@ package com.shaft.tools.io;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactory;
 import com.shaft.driver.DriverFactoryHelper;
+import com.shaft.tools.security.GoogleTink;
 import org.testng.ITestContext;
 import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeSuite;
@@ -101,6 +102,7 @@ public class LogsHelper {
         attachCucumberReport();
         attachExtentReport();
         ReportManagerHelper.setDiscreteLogging(true);
+        GoogleTink.encrypt();
         ReportManagerHelper.generateAllureReportArchive();
         ReportManagerHelper.openAllureReportAfterExecution();
     }
