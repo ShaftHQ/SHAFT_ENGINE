@@ -17,7 +17,7 @@
 <a id="quick-start-guide"></a>
 ## Quick Start Guide 🏃
 - Create a new Java/Maven project using Eclipse, IntelliJ[^1] or your favourite IDE.
-- Copy the highlighted contents of this [pom.xml](https://github.com/MohabMohie/using_SHAFT_ENGINE/blob/7bfc918b00dfd2bd674c349a07bcec3fa98913a6/pom.xml#L12-L79) file into yours inside the ```<project>``` tag.
+- Copy the highlighted contents of this [pom.xml](https://github.com/MohabMohie/using_SHAFT_ENGINE/blob/master/pom.xml#L12-L79) file into yours inside the ```<project>``` tag.
 - Create the following file ```src/test/resources/testDataFiles/simpleJSON.json```.
 - Copy the below code snippet into your newly created json file.
 ```json
