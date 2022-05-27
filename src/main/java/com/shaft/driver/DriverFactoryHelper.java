@@ -56,8 +56,8 @@ import java.util.logging.Level;
 
 public class DriverFactoryHelper {
     // TODO: implement pass and fail actions to enable initial factory method screenshot and append it to animated GIF
-    private static final Map<String, Map<String, WebDriver>> drivers = new HashMap<>();
-    private static final ThreadLocal<SelfHealingDriver> selfHealingDriver = new ThreadLocal<>();
+    private static Map<String, Map<String, WebDriver>> drivers = new HashMap<>();
+    private static ThreadLocal<SelfHealingDriver> selfHealingDriver = new ThreadLocal<>();
     private static Boolean AUTO_MAXIMIZE;
     private static Boolean HEADLESS_EXECUTION;
     private static String EXECUTION_ADDRESS;
