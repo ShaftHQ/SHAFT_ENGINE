@@ -56,8 +56,8 @@ import java.util.logging.Level;
 
 public class DriverFactoryHelper {
     // TODO: implement pass and fail actions to enable initial factory method screenshot and append it to animated GIF
-    private static Map<String, Map<String, WebDriver>> drivers = new HashMap<>();
-    private static ThreadLocal<SelfHealingDriver> selfHealingDriver = new ThreadLocal<>();
+    private static final Map<String, Map<String, WebDriver>> drivers = new HashMap<>();
+    private static final ThreadLocal<SelfHealingDriver> selfHealingDriver = new ThreadLocal<>();
     private static Boolean AUTO_MAXIMIZE;
     private static Boolean HEADLESS_EXECUTION;
     private static String EXECUTION_ADDRESS;
@@ -421,10 +421,10 @@ public class DriverFactoryHelper {
         switch (driverType) {
             case DESKTOP_FIREFOX -> {
                 // https://developer.mozilla.org/en-US/docs/Web/WebDriver/Capabilities/firefoxOptions
-                ffOptions = new FirefoxOptions();
                 if (customDriverOptions != null) {
-//                    ffOptions = (FirefoxOptions) customDriverOptions;
-                    ffOptions.merge(customDriverOptions);
+                    ffOptions = (FirefoxOptions) customDriverOptions.merge(new FirefoxOptions());
+                } else {
+                    ffOptions = new FirefoxOptions();
                 }
                 var ffProfile = new FirefoxProfile();
                 ffProfile.setPreference("browser.download.dir", downloadsFolderPath);
@@ -454,10 +454,10 @@ public class DriverFactoryHelper {
                 }
             }
             case DESKTOP_INTERNET_EXPLORER -> {
-                ieOptions = new InternetExplorerOptions();
                 if (customDriverOptions != null) {
-//                    ieOptions = (InternetExplorerOptions) customDriverOptions;
-                    ieOptions.merge(customDriverOptions);
+                    ieOptions = (InternetExplorerOptions) customDriverOptions.merge(new InternetExplorerOptions());
+                } else {
+                    ieOptions = new InternetExplorerOptions();
                 }
                 ieOptions.setCapability(CapabilityType.PLATFORM_NAME, getDesiredOperatingSystem());
                 if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("captureWebDriverLogs").trim()))) {
@@ -480,16 +480,17 @@ public class DriverFactoryHelper {
             case APPIUM_CHROME, DESKTOP_CHROME, DESKTOP_EDGE -> {
                 ChromiumOptions options;
                 if (driverType.equals(DriverType.DESKTOP_EDGE)) {
-                    options = new EdgeOptions();
+                    if (customDriverOptions != null) {
+                        options = (ChromiumOptions) customDriverOptions.merge(new EdgeOptions());
+                    } else {
+                        options = new EdgeOptions();
+                    }
                 } else {
-                    options = new ChromeOptions();
-                }
-                if (customDriverOptions != null) {
-//                        options = (ChromiumOptions) customDriverOptions;
-                    options.merge(customDriverOptions);
-//                    for (var capabilityName : customDriverOptions.getCapabilityNames()) {
-//                        options.setCapability(capabilityName, customDriverOptions.getCapability(capabilityName));
-//                    }
+                    if (customDriverOptions != null) {
+                        options = (ChromiumOptions) customDriverOptions.merge(new ChromeOptions());
+                    } else {
+                        options = new ChromeOptions();
+                    }
                 }
                 options.setCapability(CapabilityType.PLATFORM_NAME, getDesiredOperatingSystem());
                 options.setHeadless(HEADLESS_EXECUTION);
@@ -535,9 +536,10 @@ public class DriverFactoryHelper {
                 }
             }
             case DESKTOP_SAFARI -> {
-                sfOptions = new SafariOptions();
                 if (customDriverOptions != null) {
-                    sfOptions = sfOptions.merge(customDriverOptions);
+                    sfOptions = (SafariOptions) customDriverOptions.merge(new SafariOptions());
+                } else {
+                    sfOptions = new SafariOptions();
                 }
                 sfOptions.setCapability(CapabilityType.PLATFORM_NAME, getDesiredOperatingSystem());
                 if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("captureWebDriverLogs").trim()))) {
