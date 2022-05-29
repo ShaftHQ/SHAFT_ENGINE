@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.mohabmohie</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>6.2.20220517</version> <!-- UPDATE internal.properties -->
+    <version>6.2.20220529</version> <!-- UPDATE internal.properties -->
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
     <url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
@@ -29,7 +29,7 @@
 
     <properties>
         <!-- Dependencies and Plug-ins Version Numbers Parameters -->
-        <selenium.version>4.1.4</selenium.version>
+        <selenium.version>4.2.0</selenium.version>
         <appium-java-client.version>8.0.0</appium-java-client.version>
         <playwright.version>1.22.0</playwright.version>
 
