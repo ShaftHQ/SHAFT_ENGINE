@@ -56,6 +56,17 @@ public class ElementActions {
     }
 
     /**
+     * If the element is outside the viewport, scrolls the bottom of the element to the bottom of the viewport.
+     *
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     */
+    public static void scrollToElement(WebDriver driver, By elementLocator) {
+        WebDriverElementActions.scrollToElement(driver, elementLocator);
+    }
+
+    /**
      * Waits for the element to be clickable, and then clicks and holds it.
      *
      * @param driver         the current instance of Selenium webdriver
@@ -647,6 +658,18 @@ public class ElementActions {
      */
     public ElementActions click(By elementLocator) {
         click(WebDriverElementActions.getLastUsedDriver(), elementLocator);
+        return this;
+    }
+
+    /**
+     * If the element is outside the viewport, scrolls the bottom of the element to the bottom of the viewport.
+     *
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @return a self-reference to be used to chain actions
+     */
+    public ElementActions scrollToElement(By elementLocator) {
+        scrollToElement(WebDriverElementActions.getLastUsedDriver(), elementLocator);
         return this;
     }
 

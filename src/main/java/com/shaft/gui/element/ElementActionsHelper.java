@@ -8,7 +8,7 @@ import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.tools.support.JavaScriptHelper;
 import io.appium.java_client.AppiumDriver;
 import org.openqa.selenium.*;
-import org.openqa.selenium.interactions.Locatable;
+import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.FluentWait;
 import org.openqa.selenium.support.ui.WebDriverWait;
@@ -90,7 +90,7 @@ class ElementActionsHelper {
                     .until(nestedDriver -> {
                         if (validToCheckForVisibility) {
                             if (!(driver instanceof AppiumDriver)) {
-                                ((Locatable) driver.findElement(elementLocator)).getCoordinates().inViewPort();
+                                new Actions(driver).scrollToElement(driver.findElement(elementLocator)).perform();
                             } else {
                                 nestedDriver.findElement(elementLocator).isDisplayed();
                             }
@@ -125,7 +125,7 @@ class ElementActionsHelper {
                         .pollingEvery(Duration.ofSeconds(ELEMENT_IDENTIFICATION_POLLING_DELAY))
                         .ignoreAll(expectedExceptions)
                         .until(nestedDriver -> {
-                            ((Locatable) driver.findElement(elementLocator)).getCoordinates().inViewPort();
+                            new Actions(driver).scrollToElement(driver.findElement(elementLocator)).perform();
                             return true;
                         });
             } catch (org.openqa.selenium.TimeoutException e) {
