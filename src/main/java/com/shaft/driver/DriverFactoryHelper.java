@@ -405,10 +405,9 @@ public class DriverFactoryHelper {
         switch (driverType) {
             case DESKTOP_FIREFOX -> {
                 // https://developer.mozilla.org/en-US/docs/Web/WebDriver/Capabilities/firefoxOptions
+                ffOptions = new FirefoxOptions();
                 if (customDriverOptions != null) {
-                    ffOptions = (FirefoxOptions) customDriverOptions.merge(new FirefoxOptions());
-                } else {
-                    ffOptions = new FirefoxOptions();
+                    ffOptions = ffOptions.merge(customDriverOptions);
                 }
                 var ffProfile = new FirefoxProfile();
                 ffProfile.setPreference("browser.download.dir", downloadsFolderPath);
@@ -434,10 +433,9 @@ public class DriverFactoryHelper {
                 }
             }
             case DESKTOP_INTERNET_EXPLORER -> {
+                ieOptions = new InternetExplorerOptions();
                 if (customDriverOptions != null) {
-                    ieOptions = (InternetExplorerOptions) customDriverOptions.merge(new InternetExplorerOptions());
-                } else {
-                    ieOptions = new InternetExplorerOptions();
+                    ieOptions = ieOptions.merge(customDriverOptions);
                 }
                 ieOptions.setCapability(CapabilityType.PLATFORM_NAME, getDesiredOperatingSystem());
                 ieOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL);
@@ -455,19 +453,14 @@ public class DriverFactoryHelper {
                 }
             }
             case APPIUM_CHROME, DESKTOP_CHROME, DESKTOP_EDGE -> {
-                ChromiumOptions<?> options;
+                ChromiumOptions options;
                 if (driverType.equals(DriverType.DESKTOP_EDGE)) {
-                    if (customDriverOptions != null) {
-                        options = (ChromiumOptions<?>) customDriverOptions.merge(new EdgeOptions());
-                    } else {
-                        options = new EdgeOptions();
-                    }
+                    options = new EdgeOptions();
                 } else {
-                    if (customDriverOptions != null) {
-                        options = (ChromiumOptions<?>) customDriverOptions.merge(new ChromeOptions());
-                    } else {
-                        options = new ChromeOptions();
-                    }
+                    options = new ChromeOptions();
+                }
+                if (customDriverOptions != null) {
+                    options = (ChromiumOptions) options.merge(customDriverOptions);
                 }
                 options.setCapability(CapabilityType.PLATFORM_NAME, getDesiredOperatingSystem());
                 options.setHeadless(HEADLESS_EXECUTION);
@@ -481,7 +474,6 @@ public class DriverFactoryHelper {
                 options.setExperimentalOption("prefs", chromePreferences);
                 options.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.ACCEPT_AND_NOTIFY);
                 options.setCapability(CapabilityType.ACCEPT_INSECURE_CERTS, true);
-//                options.setCapability(CapabilityType.ACCEPT_SSL_CERTS, true);
                 options.setPageLoadStrategy(PageLoadStrategy.NORMAL); // https://www.skptricks.com/2018/08/timed-out-receiving-message-from-renderer-selenium.html
                 options.setPageLoadTimeout(Duration.ofSeconds(PAGE_LOAD_TIMEOUT));
                 options.setScriptTimeout(Duration.ofSeconds(SCRIPT_TIMEOUT));
@@ -503,10 +495,9 @@ public class DriverFactoryHelper {
                 }
             }
             case DESKTOP_SAFARI -> {
+                sfOptions = new SafariOptions();
                 if (customDriverOptions != null) {
-                    sfOptions = (SafariOptions) customDriverOptions.merge(new SafariOptions());
-                } else {
-                    sfOptions = new SafariOptions();
+                    sfOptions = sfOptions.merge(customDriverOptions);
                 }
                 sfOptions.setCapability(CapabilityType.PLATFORM_NAME, getDesiredOperatingSystem());
                 sfOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL);
