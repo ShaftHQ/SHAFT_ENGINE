@@ -93,6 +93,26 @@ public class WebDriverElementActions {
     }
 
     /**
+     * If the element is outside the viewport, scrolls the bottom of the element to the bottom of the viewport.
+     *
+     * @param driver         the current instance of Selenium webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     */
+    public static void scrollToElement(WebDriver driver, By elementLocator) {
+        By internalElementLocator = elementLocator;
+        //identifyUniqueElement will internally scroll to find the target element so no extra action is needed
+        if (identifyUniqueElement(driver, internalElementLocator)) {
+            // Override current locator with the aiGeneratedElementLocator
+            internalElementLocator = updateLocatorWithAIGeneratedOne(internalElementLocator);
+
+            passAction(driver, internalElementLocator);
+        } else {
+            failAction(driver, internalElementLocator);
+        }
+    }
+
+    /**
      * Clicks on a certain element using Selenium WebDriver, or JavaScript
      *
      * @param driver         the current instance of Selenium webdriver
