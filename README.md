@@ -60,9 +60,9 @@ public class Test_Wizard_GUI {
 ```
 - Run it as a TestNG Test Class.
 - The execution report will open automatically in your default web browser after the test run is completed.
-- You can change the target browser, operating system, timeouts, and other configurations using the ⚙️ [Configuration Manager](https://mohabmohie.github.io/SHAFT_ENGINE/).
-- [Click Here](https://github.com/MohabMohie/SHAFT_ENGINE/tree/master/src/test/java/testPackage01/SHAFTWizard) for more GUI, API, DB, and CLI sample test classes.
-- And you can learn more from the 📚 [Javadocs](https://mohabmohie.github.io/SHAFT_ENGINE/apidocs/index.html) and 👤 [User Guide](https://mohabmohie.github.io/SHAFT_Engine_Docusaurus/) [^2].
+- You can change the target browser, operating system, timeouts, and other configurations using the ⚙️ [Configuration Manager](https://ShaftHQ.github.io/SHAFT_ENGINE/).
+- [Click Here](https://github.com/ShaftHQ/SHAFT_ENGINE/tree/master/src/test/java/testPackage01/SHAFTWizard) for more GUI, API, DB, and CLI sample test classes.
+- And you can learn more from the 📚 [Javadocs](https://ShaftHQ.github.io/SHAFT_ENGINE/apidocs/index.html) and 👤 [User Guide](https://ShaftHQ.github.io/SHAFT_Engine_Docusaurus/) [^2].
 - Here is also a complete tutorial showing everything from creating the project to running remote, unattended, parallelized, cross-platform tests ▶️ [Youtube: Test Automation Hero++](https://www.youtube.com/playlist?list=PLlnkmUosVw9g1IK6M4kZS8a-EsP4xb0Vf) [^3].
 - Lastly, feel free to [Join us via Slack & Facebook](#support-and-contributions) for support and contributions.
 [^1]: Due to a known issue with IntelliJ you need to edit your run configuration templates before running your tests by following these steps:
