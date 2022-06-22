@@ -661,7 +661,8 @@ public class TouchActions {
         By internalScrollableElementLocator = WebDriverElementActions.updateLocatorWithAIGeneratedOne(scrollableElementLocator);
         By internalTargetElementLocator = WebDriverElementActions.updateLocatorWithAIGeneratedOne(targetElementLocator);
 
-        if (internalScrollableElementLocator != null && WebDriverElementActions.identifyUniqueElement(driver, internalScrollableElementLocator)) {
+        // Fix issue #641 Element locator is NULL by make internalScrollableElementLocator can be null and the condtion become 'OR' not 'AND'
+        if (internalScrollableElementLocator == null || WebDriverElementActions.identifyUniqueElement(driver, internalScrollableElementLocator)) {
             try {
                 if (driver instanceof AppiumDriver appiumDriver) {
                     // appium native application
