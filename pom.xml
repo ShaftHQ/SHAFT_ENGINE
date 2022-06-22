@@ -65,7 +65,7 @@
 
         <jcraft-jsch.version>0.1.55</jcraft-jsch.version>
 
-        <cucumber.version>7.2.3</cucumber.version>
+        <cucumber.version>7.4.0</cucumber.version>
         <cverges-expect4j.version>1.9</cverges-expect4j.version>
 
         <applitools-eyes.version>4.14.0</applitools-eyes.version>
