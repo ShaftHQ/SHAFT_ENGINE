@@ -6,7 +6,7 @@ Feature: Basic SHAFT_Engine BDD POC
     When I Navigate to "https://www.google.com/ncr" and get redirected to "https://www.google.com/"
     And I Type "SHAFT_Engine" into the element found by "name": "q"
     And I Press the "Enter" key into the element found by "name": "q"
-    Then I Assert that the "href" attribute of the element found by "xpath": "(//h3[contains(@class,'LC20lb')])[1]/parent::a", equals "https://github.com/MohabMohie/SHAFT_ENGINE"
+    Then I Assert that the "href" attribute of the element found by "xpath": "(//h3[contains(@class,'LC20lb')])[1]/parent::a", equals "https://github.com/ShaftHQ/SHAFT_ENGINE"
     And I Close the current window
 
   @smoke

@@ -4,7 +4,7 @@ package selfRelease;
 public class BuildAndRelease {
     String releaseVersion = System.getProperty("project.version");
     String baseUri = "https://automatest.jfrog.io/artifactory/SHAFT_ENGINE/";
-    String deploymentPath = "io/github/mohabmohie/SHAFT_ENGINE/" + releaseVersion;
+    String deploymentPath = "io/github/shafthq/SHAFT_ENGINE/" + releaseVersion;
     String mavenPath;
 
 //	@Test
@@ -37,7 +37,7 @@ public class BuildAndRelease {
 //
 //		List<Object> jarFile = new ArrayList<>();
 //        jarFile.add(filePostfix.replace(".", "").replace("-", ""));
-//        String jarPath = System.getProperty("user.home") + "/.m2/repository/io/github/mohabmohie/SHAFT_ENGINE/"+releaseVersion+"/SHAFT_ENGINE-"+releaseVersion+filePostfix;
+//        String jarPath = System.getProperty("user.home") + "/.m2/repository/io/github/shafthq/SHAFT_ENGINE/"+releaseVersion+"/SHAFT_ENGINE-"+releaseVersion+filePostfix;
 //        jarFile.add(new File(jarPath));
 //
 //        List<List<Object>> parameters = new ArrayList<>();

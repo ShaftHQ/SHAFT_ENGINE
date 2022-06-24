@@ -155,7 +155,7 @@ public class TouchActions {
             // takes screenshot before clicking the element out of view
 
             try {
-//                fixing https://github.com/MohabMohie/SHAFT_ENGINE/issues/501
+//                fixing https://github.com/ShaftHQ/SHAFT_ENGINE/issues/501
                 driver.findElement(internalElementLocator).click();
             } catch (Exception e) {
                 WebDriverElementActions.failAction(driver, internalElementLocator, e);

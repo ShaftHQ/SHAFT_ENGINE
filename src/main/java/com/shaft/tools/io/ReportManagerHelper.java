@@ -301,7 +301,7 @@ public class ReportManagerHelper {
             createReportEntry(fullLogCreated, true);
             String copyrights = "This test run was powered by SHAFT Engine Version: \""
                     + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "\"" + System.lineSeparator()
-                    + "SHAFT Engine is licensed under the MIT License: [https://github.com/MohabMohie/SHAFT_ENGINE/blob/master/LICENSE].";
+                    + "SHAFT Engine is licensed under the MIT License: [https://github.com/ShaftHQ/SHAFT_ENGINE/blob/master/LICENSE].";
             createImportantReportEntry(copyrights, true);
             createAttachment(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE, "Execution log: " + executionEndTimestamp,
                     new ByteArrayInputStream(fullLog.trim().getBytes()));

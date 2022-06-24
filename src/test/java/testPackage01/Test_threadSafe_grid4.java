@@ -47,8 +47,8 @@ public class Test_threadSafe_grid4 {
         Validations.assertThat()
                 .element(driver.get(), secondSearchResult)
                 .text()
-                .contains("MohabMohie/SHAFT_ENGINE")
-                .withCustomReportMessage("Asserting that the second search result contains 'MohabMohie/SHAFT_ENGINE'")
+                .contains("ShaftHQ/SHAFT_ENGINE")
+                .withCustomReportMessage("Asserting that the second search result contains 'ShaftHQ/SHAFT_ENGINE'")
                 .perform();
         BrowserActions.closeCurrentWindow(driver.get());
     }
