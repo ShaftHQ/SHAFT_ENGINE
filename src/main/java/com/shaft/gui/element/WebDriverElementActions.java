@@ -1450,7 +1450,7 @@ public class WebDriverElementActions {
         }
         String text = driver.findElement(elementLocator).getText();
 
-        // fixing https://github.com/MohabMohie/SHAFT_ENGINE/issues/533
+        // fixing https://github.com/ShaftHQ/SHAFT_ENGINE/issues/533
         String content = "";
         try {
             content = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.CONTENT.getValue());

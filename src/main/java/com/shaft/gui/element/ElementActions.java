@@ -251,6 +251,18 @@ public class ElementActions {
     /**
      * Returns the number of elements that match a certain elementLocator
      *
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @return integer value that represents the number of elements that match the
+     * desired elementLocator
+     */
+    public int getElementsCount(By elementLocator) {
+        return WebDriverElementActions.getElementsCount(WebDriverElementActions.getLastUsedDriver(), elementLocator);
+    }
+
+    /**
+     * Returns the number of elements that match a certain elementLocator
+     *
      * @param driver           the current instance of Selenium webdriver
      * @param elementLocator   the locator of the webElement under test (By xpath,
      *                         id, selector, name ...etc)

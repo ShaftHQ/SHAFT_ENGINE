@@ -32,6 +32,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
+import org.skyscreamer.jsonassert.JSONAssert;
 import org.skyscreamer.jsonassert.JSONCompare;
 import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.testng.Assert;
@@ -419,6 +420,8 @@ public class RestActions {
                         actualJsonArray);
                 case CONTAINS -> compareJSONContains(response, expectedJsonObject, expectedJsonArray,
                         actualJsonObject, jsonPathToTargetArray);
+                case EQUALS_IGNORING_ORDER -> compareJSONEqualsIgnoringOrder(expectedJsonObject, expectedJsonArray, actualJsonObject,
+                        actualJsonArray);
             };
         } catch (IOException rootCauseException) {
             ReportManagerHelper.log(rootCauseException);
@@ -730,6 +733,28 @@ public class RestActions {
         } else {
             // if expected is an array and actual response is also an array
             return actualJsonArray.toString().equals(expectedJsonArray.toString());
+        }
+    }
+
+    private static boolean compareJSONEqualsIgnoringOrder(org.json.simple.JSONObject expectedJsonObject,
+                                             org.json.simple.JSONArray expectedJsonArray, org.json.simple.JSONObject actualJsonObject,
+                                             org.json.simple.JSONArray actualJsonArray) {
+        if (expectedJsonObject != null && actualJsonObject != null) {
+            // if expected is an object and actual is also an object
+            try {
+                JSONAssert.assertEquals(expectedJsonObject.toString(), actualJsonObject.toString(), JSONCompareMode.NON_EXTENSIBLE);
+                return true;
+            } catch (JSONException e) {
+                return false;
+            }
+        } else {
+            // if expected is an array and actual response is also an array
+            try {
+                JSONAssert.assertEquals(expectedJsonArray.toString(), actualJsonArray.toString(), JSONCompareMode.NON_EXTENSIBLE);
+                return true;
+            } catch (JSONException e) {
+                return false;
+            }
         }
     }
 
@@ -1191,7 +1216,7 @@ public class RestActions {
 
 
     public enum ComparisonType {
-        EQUALS, CONTAINS
+        EQUALS, CONTAINS, EQUALS_IGNORING_ORDER
     }
 
     public enum ParametersType {

@@ -1,12 +1,12 @@
 <project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>io.github.mohabmohie</groupId>
+    <groupId>io.github.shafthq</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>6.2.20220609</version> <!-- UPDATE internal.properties -->
+    <version>6.2.20220624</version> <!-- UPDATE internal.properties -->
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
-    <url>https://github.com/MohabMohie/SHAFT_ENGINE</url>
+    <url>https://github.com/ShaftHQ/SHAFT_ENGINE</url>
     <licenses>
         <license>
             <name>MIT License</name>
@@ -18,13 +18,13 @@
             <name>Mohab Mohie</name>
             <email>Mohab.MohieElDeen@outlook.com</email>
             <organization>GitHub</organization>
-            <organizationUrl>https://github.com/MohabMohie</organizationUrl>
+            <organizationUrl>https://github.com/ShaftHQ</organizationUrl>
         </developer>
     </developers>
     <scm>
-        <connection>scm:git:https://github.com/MohabMohie/SHAFT_ENGINE.git</connection>
-        <developerConnection>scm:git:ssh://github.com/MohabMohie/SHAFT_ENGINE.git</developerConnection>
-        <url>http://github.com/MohabMohie/SHAFT_ENGINE/tree/master</url>
+        <connection>scm:git:https://github.com/ShaftHQ/SHAFT_ENGINE.git</connection>
+        <developerConnection>scm:git:ssh://github.com/ShaftHQ/SHAFT_ENGINE.git</developerConnection>
+        <url>http://github.com/ShaftHQ/SHAFT_ENGINE/tree/master</url>
     </scm>
 
     <properties>
@@ -82,7 +82,7 @@
 
         <!-- Deploy Commands -->
         <deploymentHost>https://automatest.jfrog.io/</deploymentHost>
-        <deploymentPath>io/github/mohabmohie/SHAFT_ENGINE/${project.version}</deploymentPath>
+        <deploymentPath>io/github/shafthq/SHAFT_ENGINE/${project.version}</deploymentPath>
     </properties>
 
     <dependencies>

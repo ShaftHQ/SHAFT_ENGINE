@@ -35,19 +35,19 @@ public class LogsHelper {
                 System.lineSeparator() +
                 "#\uD83D\uDC68\u200D\uD83D\uDCBB️ GitHub - Home" +
                 System.lineSeparator() +
-                "https://github.com/MohabMohie/SHAFT_ENGINE" +
+                "https://github.com/ShaftHQ/SHAFT_ENGINE" +
                 System.lineSeparator() +
                 "#⚙️ Configuration Manager:" +
                 System.lineSeparator() +
-                "https://mohabmohie.github.io/SHAFT_ENGINE/" +
+                "https://shafthq.github.io/SHAFT_ENGINE/" +
                 System.lineSeparator() +
                 "#\uD83D\uDC64 User Guide:" +
                 System.lineSeparator() +
-                "https://mohabmohie.github.io/SHAFT_Engine_Docusaurus/" +
+                "https://shafthq.github.io/SHAFT_Engine_Docusaurus/" +
                 System.lineSeparator() +
                 "#\uD83D\uDCDA Javadocs" +
                 System.lineSeparator() +
-                "https://mohabmohie.github.io/SHAFT_ENGINE/apidocs/index.html";
+                "https://shafthq.github.io/SHAFT_ENGINE/apidocs/index.html";
 
         ReportManagerHelper.attach("SHAFT Links", "Important", importantLinks);
         System.setProperty("disableLogging", "false");
