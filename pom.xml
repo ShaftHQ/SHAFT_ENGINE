@@ -689,27 +689,27 @@
                     <outputDirectory>target/classes</outputDirectory>
                 </configuration>
             </plugin>
-            <plugin>
-                <groupId>com.epam.healenium</groupId>
-                <artifactId>hlm-report-mvn</artifactId>
-                <version>1.1</version>
-                <executions>
-                    <execution>
-                        <id>hlmReport</id>
-                        <phase>compile</phase>
-                        <goals>
-                            <goal>initReport</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>hlmReportB</id>
-                        <phase>test</phase>
-                        <goals>
-                            <goal>buildReport</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
+<!--            <plugin>-->
+<!--                <groupId>com.epam.healenium</groupId>-->
+<!--                <artifactId>hlm-report-mvn</artifactId>-->
+<!--                <version>1.1</version>-->
+<!--                <executions>-->
+<!--                    <execution>-->
+<!--                        <id>hlmReport</id>-->
+<!--                        <phase>compile</phase>-->
+<!--                        <goals>-->
+<!--                            <goal>initReport</goal>-->
+<!--                        </goals>-->
+<!--                    </execution>-->
+<!--                    <execution>-->
+<!--                        <id>hlmReportB</id>-->
+<!--                        <phase>test</phase>-->
+<!--                        <goals>-->
+<!--                            <goal>buildReport</goal>-->
+<!--                        </goals>-->
+<!--                    </execution>-->
+<!--                </executions>-->
+<!--            </plugin>-->
         </plugins>
     </build>
 
