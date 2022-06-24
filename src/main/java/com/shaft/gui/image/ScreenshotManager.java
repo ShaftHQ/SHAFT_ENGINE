@@ -401,6 +401,9 @@ public class ScreenshotManager {
                             ReportManagerHelper.logDiscrete(unsatisfiedLinkError);
                             ReportManager.logDiscrete("Caught an UnsatisfiedLinkError, switching element highlighting method to JavaScript instead of AI.");
                             SCREENSHOT_PARAMS_HIGHLIGHTMETHOD = "JavaScript";
+                        } catch (Throwable t){
+                            //do nothing in case of any other exception
+                            //expected to throw org.opencv.core.CvException if removed
                         }
 
                         if ("JavaScript".equals(SCREENSHOT_PARAMS_HIGHLIGHTMETHOD)) {
