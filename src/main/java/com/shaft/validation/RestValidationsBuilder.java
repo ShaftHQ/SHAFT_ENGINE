@@ -40,6 +40,22 @@ public class RestValidationsBuilder {
     }
 
     /**
+     * Use this to check if the content of the provided actual response object is equal to the expected file content (Ignoring Order)
+     *
+     * @param fileRelativePath relative path to the target expected response file
+     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     */
+    public ValidationsExecutor isEqualToFileContentIgnoringOrder(String fileRelativePath) {
+        fileRelativePath = JavaActions.appendTestDataToRelativePath(fileRelativePath);
+        this.validationMethod = "responseEqualsFileContent";
+        this.fileAbsolutePath = FileActions.getInstance().getAbsolutePath(fileRelativePath);
+        this.restComparisonType = RestActions.ComparisonType.EQUALS_IGNORING_ORDER;
+        this.validationType = ValidationEnums.ValidationType.POSITIVE;
+        reportMessageBuilder.append("is equal to the contents of this file \"").append(fileRelativePath).append("\" (Ignoring Ordering).");
+        return new ValidationsExecutor(this);
+    }
+
+    /**
      * Use this to check if the content of the provided actual response object is not equal to the expected file content
      *
      * @param fileRelativePath relative path to the target expected response file
@@ -52,6 +68,22 @@ public class RestValidationsBuilder {
         this.restComparisonType = RestActions.ComparisonType.EQUALS;
         this.validationType = ValidationEnums.ValidationType.NEGATIVE;
         reportMessageBuilder.append("is not equal to the contents of this file \"").append(fileRelativePath).append("\".");
+        return new ValidationsExecutor(this);
+    }
+
+    /**
+     * Use this to check if the content of the provided actual response object is not equal to the expected file content (Ignoring Order)
+     *
+     * @param fileRelativePath relative path to the target expected response file
+     * @return a ValidationsExecutor object to set your custom validation message (if needed) and then perform() your validation
+     */
+    public ValidationsExecutor doesNotEqualFileContentIgnoringOrder(String fileRelativePath) {
+        fileRelativePath = JavaActions.appendTestDataToRelativePath(fileRelativePath);
+        this.validationMethod = "responseEqualsFileContent";
+        this.fileAbsolutePath = FileActions.getInstance().getAbsolutePath(fileRelativePath);
+        this.restComparisonType = RestActions.ComparisonType.EQUALS_IGNORING_ORDER;
+        this.validationType = ValidationEnums.ValidationType.NEGATIVE;
+        reportMessageBuilder.append("is not equal to the contents of this file \"").append(fileRelativePath).append("\" (Ignoring Ordering).");
         return new ValidationsExecutor(this);
     }
 
