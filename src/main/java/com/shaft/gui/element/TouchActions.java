@@ -155,7 +155,7 @@ public class TouchActions {
             // takes screenshot before clicking the element out of view
 
             try {
-//                fixing https://github.com/MohabMohie/SHAFT_ENGINE/issues/501
+//                fixing https://github.com/ShaftHQ/SHAFT_ENGINE/issues/501
                 driver.findElement(internalElementLocator).click();
             } catch (Exception e) {
                 WebDriverElementActions.failAction(driver, internalElementLocator, e);
@@ -573,7 +573,7 @@ public class TouchActions {
         By internalScrollableElementLocator = WebDriverElementActions.updateLocatorWithAIGeneratedOne(scrollableElementLocator);
         By internalTargetElementLocator = WebDriverElementActions.updateLocatorWithAIGeneratedOne(targetElementLocator);
 
-        // Fix issue #641 Element locator is NULL by make internalScrollableElementLocator can be null and the condtion become 'OR' not 'AND'
+        // Fix issue #641 Element locator is NULL by make internalScrollableElementLocator can be null and the condition become 'OR' not 'AND'
         if (internalScrollableElementLocator == null || WebDriverElementActions.identifyUniqueElement(driver, internalScrollableElementLocator)) {
             try {
                 if (driver instanceof AppiumDriver appiumDriver) {
@@ -585,7 +585,11 @@ public class TouchActions {
                 } else {
                     // regular touch screen device
                     if (WebDriverElementActions.identifyUniqueElement(driver, internalTargetElementLocator)) {
-                        new Actions(driver).moveToElement(driver.findElement(internalScrollableElementLocator)).scrollToElement(driver.findElement(internalTargetElementLocator)).perform();
+                        if (internalScrollableElementLocator != null) {
+                            new Actions(driver).moveToElement(driver.findElement(internalScrollableElementLocator)).scrollToElement(driver.findElement(internalTargetElementLocator)).perform();
+                        }else{
+                            new Actions(driver).scrollToElement(driver.findElement(internalTargetElementLocator)).perform();
+                        }
                     } else {
                         WebDriverElementActions.failAction(driver, internalTargetElementLocator);
                     }

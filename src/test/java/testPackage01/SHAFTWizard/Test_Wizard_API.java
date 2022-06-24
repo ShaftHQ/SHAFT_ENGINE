@@ -59,4 +59,18 @@ public class Test_Wizard_API {
         driver.post("api/users").setRequestBody(bodyObj).setTargetStatusCode(201).setContentType(ContentType.JSON).perform();
         driver.assertThatResponse().extractedJsonValue("name").isEqualTo("morpheus").withCustomReportMessage("Check that Morpheus exists.").perform();
     }
+
+    @Test
+    public void test_assertResponseEqualsIgnoringOrder() {
+        driver = new SHAFT.API("http://api.zippopotam.us/");
+        driver.get("us/90210").perform();
+        driver.assertThatResponse().isEqualToFileContentIgnoringOrder("test_assertResponseEqualsIgnoringOrder.json").perform();
+    }
+
+    @Test
+    public void test_assertResponsedoesNotEqualFileContent() {
+        driver = new SHAFT.API("http://api.zippopotam.us/");
+        driver.get("us/90210").perform();
+        driver.assertThatResponse().doesNotEqualFileContent("test_assertResponseEqualsIgnoringOrder.json").perform();
+    }
 }

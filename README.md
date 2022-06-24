@@ -1,14 +1,14 @@
 <img src="src/main/resources/images/shaft.png" alt="SHAFT_ENGINE" style="display:block; margin-left:auto; margin-right:auto;"/>
 
 <!-- Badges provided by https://shields.io/ -->
-![License](https://img.shields.io/github/license/MohabMohie/SHAFT_Engine?color=blue&style=for-the-badge)
- [![JFrog release (latest by date including pre-releases)](https://img.shields.io/github/v/release/MohabMohie/shaft_engine?include_prereleases&label=Latest%20Release&style=for-the-badge)](https://automatest.jfrog.io/ui/native/SHAFT_ENGINE/io/github/mohabmohie/SHAFT_ENGINE/)
-  [![Maven Central](https://img.shields.io/maven-central/v/io.github.mohabmohie/SHAFT_ENGINE?style=for-the-badge)](https://search.maven.org/artifact/io.github.mohabmohie/SHAFT_ENGINE)
+![License](https://img.shields.io/github/license/ShaftHQ/SHAFT_Engine?color=blue&style=for-the-badge)
+ [![JFrog release (latest by date including pre-releases)](https://img.shields.io/github/v/release/ShaftHQ/shaft_engine?include_prereleases&label=Latest%20Release&style=for-the-badge)](https://automatest.jfrog.io/ui/native/SHAFT_ENGINE/io/github/ShaftHQ/SHAFT_ENGINE/)
+  [![Maven Central](https://img.shields.io/maven-central/v/io.github.shafthq/SHAFT_ENGINE?style=for-the-badge)](https://search.maven.org/artifact/io.github.shafthq/SHAFT_ENGINE)
 
-[![Contributors)](https://img.shields.io/github/contributors/MohabMohie/SHAFT_ENGINE?style=for-the-badge)](https://github.com/MohabMohie/SHAFT_ENGINE/graphs/contributors)
- [![Codacy grade](https://img.shields.io/codacy/grade/3579cfd02a2c4f67bd1dce5dad0b1562?style=for-the-badge)](https://app.codacy.com/gh/MohabMohie/SHAFT_ENGINE/dashboard)
-[![GitHub Workflow Status](https://img.shields.io/github/workflow/status/MohabMohie/SHAFT_Engine/CodeQL?label=CodeQL&style=for-the-badge)](https://github.com/MohabMohie/SHAFT_ENGINE/actions?query=workflow%3ACodeQL)
- [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/MohabMohie/SHAFT_ENGINE/Desktop%20Browsers%20Tests/master?label=Desktop%20Browsers%20Tests&style=for-the-badge)](https://github.com/MohabMohie/SHAFT_ENGINE/actions?query=workflow%3A%22Ubuntu+-+Test%22)
+[![Contributors)](https://img.shields.io/github/contributors/ShaftHQ/SHAFT_ENGINE?style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/graphs/contributors)
+ [![Codacy grade](https://img.shields.io/codacy/grade/3579cfd02a2c4f67bd1dce5dad0b1562?style=for-the-badge)](https://app.codacy.com/gh/ShaftHQ/SHAFT_ENGINE/dashboard)
+[![GitHub Workflow Status](https://img.shields.io/github/workflow/status/ShaftHQ/SHAFT_Engine/CodeQL?label=CodeQL&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions?query=workflow%3ACodeQL)
+ [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/ShaftHQ/SHAFT_ENGINE/Desktop%20Browsers%20Tests/master?label=Desktop%20Browsers%20Tests&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions?query=workflow%3A%22Ubuntu+-+Test%22)
 
 
 # SHAFT: Unified Test Automation Engine
@@ -72,7 +72,7 @@ public class Test_Wizard_GUI {
 <br/>- Select <b>Cucumber Java</b> > Program Arguments > and add this argument:
 <br/>`--plugin com.shaft.tools.listeners.CucumberFeatureListener`
 <br/>- After saving the changes, remember to delete any old test runs you may have triggered by mistake before adding the needed config.
-[^2]: The User Guide is still a work in progress. You can find a guide to contribute to it here [SHAFT_Engine_Docusaurus](https://github.com/MohabMohie/SHAFT_Engine_Docusaurus#readme), and feel free to [Join us via Slack & Facebook](#support-and-contributions) for support and contributions.
+[^2]: The User Guide is still a work in progress. You can find a guide to contribute to it here [SHAFT_Engine_Docusaurus](https://github.com/ShaftHQ/SHAFT_Engine_Docusaurus#readme), and feel free to [Join us via Slack & Facebook](#support-and-contributions) for support and contributions.
 [^3]: The Test Automation Hero++ Playlist is in Arabic. The working code itself is in English, and it's hosted here [using_SHAFT_Engine_2](https://github.com/MohabMohie/using_SHAFT_Engine_2). Feel free to [Join us via Slack & Facebook](#support-and-contributions) for support and contributions.
 
 
