@@ -11,10 +11,7 @@ import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import org.openqa.selenium.*;
-import org.openqa.selenium.interactions.Actions;
-import org.openqa.selenium.interactions.Pause;
-import org.openqa.selenium.interactions.PointerInput;
-import org.openqa.selenium.interactions.Sequence;
+import org.openqa.selenium.interactions.*;
 
 import java.time.Duration;
 import java.util.Collections;
@@ -108,7 +105,7 @@ public class TouchActions {
             WebDriverElementActions.failAction(driver, "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.", null, attachments);
         } else {
             // Perform tap action by coordinates
-            if (DriverFactoryHelper.isMobileNativeExecution()) {
+//            if (DriverFactoryHelper.isMobileNativeExecution()) {
                 PointerInput input = new PointerInput(PointerInput.Kind.TOUCH, "finger1");
                 Sequence tap = new Sequence(input, 0);
                 tap.addAction(input.createPointerMove(Duration.ZERO, PointerInput.Origin.viewport(), coordinates.get(0), coordinates.get(1)));
@@ -120,12 +117,12 @@ public class TouchActions {
                 } catch (UnsupportedCommandException exception) {
                     WebDriverElementActions.failAction(driver, null, exception);
                 }
-            } else {
-                (new org.openqa.selenium.interactions.touch.TouchActions(driver))
-                        .down(coordinates.get(0), coordinates.get(1))
-                        .up(coordinates.get(0), coordinates.get(1))
-                        .perform();
-            }
+//            } else {
+//                (new org.openqa.selenium.interactions.touch.TouchActions(driver))
+//                        .down(coordinates.get(0), coordinates.get(1))
+//                        .up(coordinates.get(0), coordinates.get(1))
+//                        .perform();
+//            }
             WebDriverElementActions.passAction(driver, null, attachments);
         }
         return this;
@@ -158,14 +155,8 @@ public class TouchActions {
             // takes screenshot before clicking the element out of view
 
             try {
-                if (driver instanceof AppiumDriver appiumDriver) {
-//                    fixing https://github.com/MohabMohie/SHAFT_ENGINE/issues/501
-//                    new Actions(appiumDriver).click(driver.findElement(internalElementLocator)).perform();
-                    driver.findElement(internalElementLocator).click();
-                } else {
-                    // regular touch screen device
-                    (new org.openqa.selenium.interactions.touch.TouchActions(driver)).singleTap(driver.findElement(internalElementLocator)).perform();
-                }
+//                fixing https://github.com/MohabMohie/SHAFT_ENGINE/issues/501
+                driver.findElement(internalElementLocator).click();
             } catch (Exception e) {
                 WebDriverElementActions.failAction(driver, internalElementLocator, e);
             }
@@ -205,16 +196,7 @@ public class TouchActions {
             attachments.add(screenshot);
 
             try {
-                if (driver instanceof AppiumDriver appiumDriver) {
-                    // appium native device
-                    (new Actions(driver)).doubleClick(driver.findElement(internalElementLocator)).perform();
-//                    (new TouchAction<>((appiumDriver))
-//                            .tap(ElementOption.element(driver.findElement(internalElementLocator)))
-//                            .tap(ElementOption.element(driver.findElement(internalElementLocator))).perform();
-                } else {
-                    // regular touch screen device
-                    (new org.openqa.selenium.interactions.touch.TouchActions(driver)).doubleTap(driver.findElement(internalElementLocator)).perform();
-                }
+                (new Actions(driver)).doubleClick(driver.findElement(internalElementLocator)).perform();
             } catch (Exception e) {
                 WebDriverElementActions.failAction(driver, internalElementLocator, e);
             }
@@ -255,13 +237,7 @@ public class TouchActions {
             attachments.add(screenshot);
 
             try {
-                if (driver instanceof AppiumDriver appiumDriver) {
-                    // appium native device
-                    new Actions(appiumDriver).clickAndHold(driver.findElement(internalElementLocator)).perform();
-                } else {
-                    // regular touch screen device
-                    (new org.openqa.selenium.interactions.touch.TouchActions(driver)).longPress(driver.findElement(internalElementLocator)).perform();
-                }
+                new Actions(driver).clickAndHold(driver.findElement(internalElementLocator)).perform();
             } catch (Exception e) {
                 WebDriverElementActions.failAction(driver, internalElementLocator, e);
             }
@@ -403,13 +379,7 @@ public class TouchActions {
             String startLocation = sourceElement.getLocation().toString();
 
             try {
-                if (driver instanceof AppiumDriver appiumDriver) {
-                    // appium native device
-                    new Actions(appiumDriver).dragAndDrop(sourceElement, destinationElement).perform();
-                } else {
-                    // regular touch screen device
-                    (new org.openqa.selenium.interactions.touch.TouchActions(driver)).clickAndHold(sourceElement).release(destinationElement).perform();
-                }
+                new Actions(driver).dragAndDrop(sourceElement, destinationElement).perform();
             } catch (Exception e) {
                 WebDriverElementActions.failAction(driver, internalSourceElementLocator, e);
             }
@@ -454,14 +424,7 @@ public class TouchActions {
             String startLocation = elementLocation.toString();
 
             try {
-                if (driver instanceof AppiumDriver appiumDriver) {
-                    // appium native device
-                    new Actions(appiumDriver).dragAndDropBy(sourceElement, xOffset, yOffset).perform();
-                } else {
-                    // regular touch screen device
-                    (new org.openqa.selenium.interactions.touch.TouchActions(driver)).clickAndHold(sourceElement).moveByOffset(xOffset, yOffset).release()
-                            .perform();
-                }
+                new Actions(driver).dragAndDropBy(sourceElement, xOffset, yOffset).perform();
             } catch (Exception e) {
                 WebDriverElementActions.failAction(driver, internalElementLocator, e);
             }
@@ -490,57 +453,6 @@ public class TouchActions {
      */
     public TouchActions swipeElementIntoView(By targetElementLocator, SwipeDirection swipeDirection) {
         return swipeElementIntoView(null, targetElementLocator, swipeDirection);
-    }
-
-    /**
-     * Attempts to scroll the element into view in case of native mobile elements.
-     *
-     * @param targetElementLocator the locator of the webElement under test (By xpath, id,
-     *                             selector, name ...etc)
-     * @param swipeDirection       SwipeDirection.DOWN, UP, RIGHT, or LEFT
-     * @param swipeTechnique       SwipeTechnique.TOUCH_ACTIONS, or UI_SELECTOR
-     * @return a self-reference to be used to chain actions
-     */
-    @Deprecated(forRemoval = true)
-    public TouchActions swipeElementIntoView(By targetElementLocator, SwipeDirection swipeDirection, SwipeTechnique swipeTechnique) {
-        return swipeElementIntoView(targetElementLocator, swipeDirection, swipeTechnique, 0);
-    }
-
-    /**
-     * Attempts to scroll the element into view in case of native mobile elements.
-     *
-     * @param targetElementLocator            the locator of the webElement under test (By xpath, id,
-     *                                        selector, name ...etc)
-     * @param swipeDirection                  SwipeDirection.DOWN, UP, RIGHT, or LEFT
-     * @param swipeTechnique                  SwipeTechnique.TOUCH_ACTIONS, or UI_SELECTOR
-     * @param scrollableElementInstanceNumber in case of multiple scrollable views, insert the instance number here (starts with 0)
-     * @return a self-reference to be used to chain actions
-     */
-    @Deprecated(forRemoval = true)
-    public TouchActions swipeElementIntoView(By targetElementLocator, SwipeDirection swipeDirection, SwipeTechnique swipeTechnique, int scrollableElementInstanceNumber) {
-        By internalElementLocator = targetElementLocator;
-        internalElementLocator = WebDriverElementActions.updateLocatorWithAIGeneratedOne(internalElementLocator);
-        try {
-            if (driver instanceof AppiumDriver appiumDriver) {
-                // appium native application
-                boolean isElementFound = attemptToSwipeElementIntoViewInNativeApp(internalElementLocator, swipeDirection, swipeTechnique, scrollableElementInstanceNumber);
-                if (Boolean.FALSE.equals(isElementFound)) {
-                    WebDriverElementActions.failAction(appiumDriver, internalElementLocator);
-                }
-            } else {
-                // regular touch screen device
-                if (WebDriverElementActions.identifyUniqueElement(driver, internalElementLocator)) {
-                    Point elementLocation = driver.findElement(internalElementLocator).getLocation();
-                    (new org.openqa.selenium.interactions.touch.TouchActions(driver)).scroll(elementLocation.getX(), elementLocation.getY()).perform();
-                } else {
-                    WebDriverElementActions.failAction(driver, internalElementLocator);
-                }
-            }
-            WebDriverElementActions.passAction(driver, internalElementLocator);
-        } catch (Exception e) {
-            WebDriverElementActions.failAction(driver, internalElementLocator, e);
-        }
-        return this;
     }
 
     //TODO: swipeToEndOfView(SwipeDirection swipeDirection)
@@ -635,7 +547,7 @@ public class TouchActions {
                     if (Collections.emptyList().equals(coordinates)) {
                         WebDriverElementActions.failAction(driver, "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.", null, attachments);
                     } else {
-                        (new org.openqa.selenium.interactions.touch.TouchActions(driver)).scroll(coordinates.get(0), coordinates.get(1)).perform();
+                        new Actions(driver).scrollFromOrigin(WheelInput.ScrollOrigin.fromViewport(), coordinates.get(0), coordinates.get(1)).perform();
                     }
                 }
                 WebDriverElementActions.passAction(driver, null, attachments);
@@ -673,8 +585,7 @@ public class TouchActions {
                 } else {
                     // regular touch screen device
                     if (WebDriverElementActions.identifyUniqueElement(driver, internalTargetElementLocator)) {
-                        Point elementLocation = driver.findElement(internalTargetElementLocator).getLocation();
-                        (new org.openqa.selenium.interactions.touch.TouchActions(driver)).scroll(elementLocation.getX(), elementLocation.getY()).perform();
+                        new Actions(driver).moveToElement(driver.findElement(internalScrollableElementLocator)).scrollToElement(driver.findElement(internalTargetElementLocator)).perform();
                     } else {
                         WebDriverElementActions.failAction(driver, internalTargetElementLocator);
                     }
