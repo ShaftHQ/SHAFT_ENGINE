@@ -12,6 +12,9 @@ import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import org.imgscalr.Scalr;
+import org.opencv.core.Mat;
+import org.opencv.core.MatOfByte;
+import org.opencv.imgcodecs.Imgcodecs;
 import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.*;
 import org.sikuli.script.App;
@@ -39,7 +42,7 @@ public class ScreenshotManager {
             .valueOf(System.getProperty("screenshotParams_highlightElements"));
     private static final String SCREENSHOT_PARAMS_SCREENSHOTTYPE = System
             .getProperty("screenshotParams_screenshotType");
-    private static final String SCREENSHOT_PARAMS_HIGHLIGHTMETHOD = System
+    private static String SCREENSHOT_PARAMS_HIGHLIGHTMETHOD = System
             .getProperty("screenshotParams_highlightMethod");
     private static final String SCREENSHOT_PARAMS_SKIPPEDELEMENTSFROMSCREENSHOT = System
             .getProperty("screenshotParams_skippedElementsFromScreenshot");
@@ -390,6 +393,15 @@ public class ScreenshotManager {
                     if (takeScreenshot && Boolean.TRUE.equals(SCREENSHOT_PARAMS_HIGHLIGHTELEMENTS) && internalElementLocator != null
                             && (ElementActions.getElementsCount(driver, internalElementLocator,
                             RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) >= 1)) {
+
+                        try{
+                            // catching https://github.com/ShaftHQ/SHAFT_ENGINE/issues/640
+                            Mat img = Imgcodecs.imdecode(new MatOfByte(), Imgcodecs.IMREAD_COLOR);
+                        } catch (java.lang.UnsatisfiedLinkError unsatisfiedLinkError){
+                            ReportManagerHelper.logDiscrete(unsatisfiedLinkError);
+                            ReportManager.logDiscrete("Caught an UnsatisfiedLinkError, switching element highlighting method to JavaScript instead of AI.");
+                            SCREENSHOT_PARAMS_HIGHLIGHTMETHOD = "JavaScript";
+                        }
 
                         if ("JavaScript".equals(SCREENSHOT_PARAMS_HIGHLIGHTMETHOD)) {
                             element = driver.findElement(internalElementLocator);
