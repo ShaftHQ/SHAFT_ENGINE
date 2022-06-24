@@ -372,9 +372,9 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
 
         final TableRow row = maybeRow.get();
 
-        return IntStream.range(0, examples.getTableHeader().getCells().size())
+        return IntStream.range(0, examples.getTableHeader().get().getCells().size())
                 .mapToObj(index -> {
-                    final String name = examples.getTableHeader().getCells().get(index).getValue();
+                    final String name = examples.getTableHeader().get().getCells().get(index).getValue();
                     final String value = row.getCells().get(index).getValue();
                     return createParameter(name, value);
                 })
