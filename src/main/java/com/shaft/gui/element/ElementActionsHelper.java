@@ -21,7 +21,7 @@ class ElementActionsHelper {
             .parseInt(System.getProperty("defaultElementIdentificationTimeout").trim());
     private static final int ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION = Integer
             .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
-    private static final int ELEMENT_IDENTIFICATION_POLLING_DELAY = 1; // seconds
+    private static final int ELEMENT_IDENTIFICATION_POLLING_DELAY = 200; // milliseconds
     private static final boolean FORCE_CHECK_FOR_ELEMENT_VISIBILITY = Boolean
             .parseBoolean(System.getProperty("forceCheckForElementVisibility").trim());
 
@@ -49,7 +49,7 @@ class ElementActionsHelper {
         byte[] currentScreenImage;
         do {
             try {
-                Thread.sleep(1000);
+                Thread.sleep(ELEMENT_IDENTIFICATION_POLLING_DELAY);
             } catch (InterruptedException e) {
                 ReportManagerHelper.log(e);
             }
@@ -79,13 +79,13 @@ class ElementActionsHelper {
 //            expectedExceptions.add(org.openqa.selenium.ElementNotVisibleException.class);
             expectedExceptions.add(org.openqa.selenium.InvalidElementStateException.class);
         }
-        expectedExceptions.add(org.openqa.selenium.WebDriverException.class);
+//        expectedExceptions.add(org.openqa.selenium.WebDriverException.class);
 
         try {
             return new FluentWait<>(driver)
                     .withTimeout(Duration.ofSeconds(
                             (long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER * numberOfAttempts))
-                    .pollingEvery(Duration.ofSeconds(ELEMENT_IDENTIFICATION_POLLING_DELAY))
+                    .pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY))
                     .ignoreAll(expectedExceptions)
                     .until(nestedDriver -> {
                         if (validToCheckForVisibility) {
