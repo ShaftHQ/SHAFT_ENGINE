@@ -5,6 +5,7 @@ import com.microsoft.playwright.ElementHandle;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Page.ScreenshotOptions;
 import com.shaft.cli.FileActions;
+import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.JavaScriptWaitManager;
 import com.shaft.gui.element.PlayWrightElementActions;
@@ -555,11 +556,18 @@ public class ScreenshotManager {
             driver = selfHealingDriver.getDelegate();
         }
 
-        return switch (SCREENSHOT_PARAMS_SCREENSHOTTYPE.toLowerCase().trim()) {
-            case "fullpage" -> takeFullPageScreenshot(driver);
-            case "element" -> takeElementScreenshot(driver, targetElementLocator, true);
-            default -> ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
-        };
+        if (DriverFactoryHelper.isWebExecution()) {
+            return switch (SCREENSHOT_PARAMS_SCREENSHOTTYPE.toLowerCase().trim()) {
+                case "fullpage" -> takeFullPageScreenshot(driver);
+                case "element" -> takeElementScreenshot(driver, targetElementLocator, true);
+                default -> ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+            };
+        }else{
+            return switch (SCREENSHOT_PARAMS_SCREENSHOTTYPE.toLowerCase().trim()) {
+                case "element" -> takeElementScreenshot(driver, targetElementLocator, true);
+                default -> ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+            };
+        }
     }
 
     private static byte[] takeScreenshot(Page page, String elementLocator) {
