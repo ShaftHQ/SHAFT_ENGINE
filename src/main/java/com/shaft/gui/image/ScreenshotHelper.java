@@ -1,8 +1,6 @@
 package com.shaft.gui.image;
 
 import com.google.common.collect.ImmutableMap;
-import com.microsoft.playwright.Page;
-import com.microsoft.playwright.Page.ScreenshotOptions;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chromium.ChromiumDriver;
@@ -22,10 +20,6 @@ public class ScreenshotHelper {
 
     private ScreenshotHelper() {
         throw new IllegalStateException("Utility class");
-    }
-
-    protected static byte[] makeFullScreenshot(Page page) {
-        return page.screenshot(new ScreenshotOptions().setFullPage(true));
     }
 
     protected static Object sendCommand(ChromiumDriver chromiumDriver, String cmd, Object params) {

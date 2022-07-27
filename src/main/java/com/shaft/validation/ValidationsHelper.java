@@ -1,6 +1,5 @@
 package com.shaft.validation;
 
-import com.microsoft.playwright.Page;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.gui.browser.BrowserActions;
@@ -31,8 +30,6 @@ public class ValidationsHelper {
     static ArrayList<String> optionalCustomLogMessage = new ArrayList<>();
     private static WebDriver lastUsedDriver = null;
     private static By lastUsedElementLocator = null;
-    private static Page lastUsedPage = null;
-    private static String lastUsedElementLocatorString = null;
     private static Boolean discreetLoggingState = Boolean.valueOf(System.getProperty("alwaysLogDiscreetly"));
     private static List<String> verificationFailuresList = new ArrayList<>();
     private static AssertionError verificationError = null;
@@ -90,44 +87,6 @@ public class ValidationsHelper {
         }
     }
 
-    protected static void validateElementExists(ValidationCategory validationCategory, Page page, String elementLocator, ValidationType validationType,
-                                                String... optionalCustomLogMessage) {
-
-        processCustomLogMessage(optionalCustomLogMessage);
-        String[] expectedElementStates = {"Element Should Exist", "Element Should not Exist"};
-        String[] actualElementStates = {"Element Exists", "Element Doesn't Exists",
-                "Element Exists but is not unique"};
-        String locatorSeparator = ", locator '";
-
-        lastUsedPage = page;
-        lastUsedElementLocatorString = elementLocator;
-        int elementsCount = ElementActions.performElementAction(page).getElementsCount(elementLocator);
-
-        if (validationType.getValue()) {
-            // expecting a unique element to be present
-            final String expectedValue = expectedElementStates[0] + locatorSeparator + elementLocator + "'";
-            switch (elementsCount) {
-                case 0 -> fail(validationCategory, expectedValue,
-                        actualElementStates[1], ValidationComparisonType.EQUALS, validationType, null);
-                case 1 -> pass(validationCategory, expectedValue,
-                        actualElementStates[0], ValidationComparisonType.EQUALS, validationType);
-                default -> fail(validationCategory, expectedValue,
-                        actualElementStates[2], ValidationComparisonType.EQUALS, validationType, null);
-            }
-        } else {
-            // not expecting the element to be present
-            final String expectedValue = expectedElementStates[1] + locatorSeparator + elementLocator + "'";
-            switch (elementsCount) {
-                case 0 -> pass(validationCategory, expectedValue,
-                        actualElementStates[1], ValidationComparisonType.EQUALS, validationType);
-                case 1 -> fail(validationCategory, expectedValue,
-                        actualElementStates[0], ValidationComparisonType.EQUALS, validationType, null);
-                default -> fail(validationCategory, expectedValue,
-                        actualElementStates[2], ValidationComparisonType.EQUALS, validationType, null);
-            }
-        }
-    }
-
     protected static void validateElementExists(ValidationCategory validationCategory, WebDriver driver, By elementLocator, ValidationType validationType,
                                                 String... optionalCustomLogMessage) {
 
@@ -169,53 +128,6 @@ public class ValidationsHelper {
                         actualElementStates[2], ValidationComparisonType.EQUALS, validationType, null);
             }
         }
-    }
-
-    protected static void validateElementAttribute(ValidationCategory validationCategory, Page page,
-                                                   String elementLocator, String elementAttribute, String expectedValue,
-                                                   ValidationComparisonType validationComparisonType, ValidationType validationType,
-                                                   String... optionalCustomLogMessage) {
-
-        processCustomLogMessage(optionalCustomLogMessage);
-        String[] expectedAttributeStates = {"Value Should be", "Value Should not be"};
-        String attributeSeparator = "' for the '";
-        String locatorSeparator = "' attribute, element locator '";
-
-        String actualValue;
-        try {
-            discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
-            ReportManagerHelper.setDiscreteLogging(true);
-            actualValue = switch (elementAttribute.toLowerCase()) {
-                case "text", "selectedtext" -> ElementActions.performElementAction(page).getText(elementLocator);
-                case "tagname" -> ElementActions.performElementAction(page).getAttribute(elementLocator, "tagName");
-                case "size" -> ElementActions.performElementAction(page).getSize(elementLocator);
-                default -> ElementActions.performElementAction(page).getAttribute(elementLocator, elementAttribute);
-            };
-            ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
-        } catch (AssertionError e) {
-            // force fail due to upstream failure
-            if (validationType.getValue()) {
-                fail(validationCategory,
-                        expectedAttributeStates[0] + " '" + expectedValue + attributeSeparator + elementAttribute
-                                + locatorSeparator + elementLocator + "'",
-                        "Failed to read the desired element attribute", validationComparisonType, validationType, e);
-            } else {
-                fail(validationCategory,
-                        expectedAttributeStates[1] + " '" + expectedValue + attributeSeparator + elementAttribute
-                                + locatorSeparator + elementLocator + "'",
-                        "Failed to read the desired element attribute", validationComparisonType, validationType, e);
-            }
-            return;
-        }
-
-        lastUsedPage = page;
-        lastUsedElementLocatorString = elementLocator;
-        int comparisonResult = JavaActions.compareTwoObjects(expectedValue, actualValue,
-                validationComparisonType.getValue(), validationType.getValue());
-
-        reportValidationResultOfElementAttribute(new Object[]{expectedAttributeStates, attributeSeparator,
-                locatorSeparator, comparisonResult, elementLocator, elementAttribute, expectedValue, actualValue,
-                validationComparisonType, validationType, validationCategory});
     }
 
     protected static void validateElementAttribute(ValidationCategory validationCategory, WebDriver driver, By elementLocator, String elementAttribute,
@@ -326,50 +238,6 @@ public class ValidationsHelper {
         }
 
         lastUsedDriver = driver;
-        int comparisonResult = JavaActions.compareTwoObjects(expectedValue, actualValue,
-                validationComparisonType.getValue(), validationType.getValue());
-
-        reportValidationResultOfBrowserAttribute(new Object[]{expectedAttributeStates, attributeSeparator,
-                attributeClosure, comparisonResult, null, browserAttribute, expectedValue, actualValue,
-                validationComparisonType, validationType, validationCategory});
-    }
-
-    protected static void validateBrowserAttribute(ValidationCategory validationCategory, Page page, String browserAttribute,
-                                                   String expectedValue, ValidationComparisonType validationComparisonType, ValidationType validationType,
-                                                   String... optionalCustomLogMessage) {
-
-        processCustomLogMessage(optionalCustomLogMessage);
-        String[] expectedAttributeStates = {"Value Should be", "Value Should not be"};
-        String attributeSeparator = "' for the '";
-        String attributeClosure = "' attribute";
-
-        String actualValue;
-        try {
-            discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
-            ReportManagerHelper.setDiscreteLogging(true);
-            actualValue = switch (browserAttribute.toLowerCase()) {
-                case "currenturl", "url" -> BrowserActions.performBrowserAction(page).getCurrentURL();
-                case "pagesource" -> BrowserActions.performBrowserAction(page).getPageSource();
-                case "title" -> BrowserActions.performBrowserAction(page).getCurrentWindowTitle();
-                case "windowsize" -> BrowserActions.performBrowserAction(page).getWindowSize();
-                default -> "";
-            };
-            ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
-        } catch (AssertionError e) {
-            // force fail due to upstream failure
-            if (validationType.getValue()) {
-                fail(validationCategory, expectedAttributeStates[0] + " '" + expectedValue + attributeSeparator + browserAttribute
-                                + attributeClosure,
-                        "Failed to read the desired browser attribute", validationComparisonType, validationType, e);
-            } else {
-                fail(validationCategory, expectedAttributeStates[1] + " '" + expectedValue + attributeSeparator + browserAttribute
-                                + attributeClosure,
-                        "Failed to read the desired browser attribute", validationComparisonType, validationType, e);
-            }
-            return;
-        }
-
-        lastUsedPage = page;
         int comparisonResult = JavaActions.compareTwoObjects(expectedValue, actualValue,
                 validationComparisonType.getValue(), validationType.getValue());
 
@@ -494,9 +362,9 @@ public class ValidationsHelper {
         }
 
         if (ElementActions.getElementsCount(driver, elementLocator) == 1) {
-            byte[] elementScreenshot = new byte[0];
+            byte[] elementScreenshot;
 
-            Boolean actualResult=false;
+            Boolean actualResult;
 
                 elementScreenshot = ScreenshotManager.takeElementScreenshot(driver, elementLocator);
                 actualResult = ImageProcessingActions.compareAgainstBaseline(driver, elementLocator, elementScreenshot, ImageProcessingActions.VisualValidationEngine.valueOf(visualValidationEngine.name()));
@@ -522,47 +390,6 @@ public class ValidationsHelper {
             }
         } else {
             byte[] pageScreenshot = ScreenshotManager.takeFullPageScreenshot(driver);
-            List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Screenshot",
-                    pageScreenshot);
-            attachments.add(actualValueAttachment);
-
-            fail(validationCategory, reportedExpectedResult.toString(), "Element not found".toUpperCase(), visualValidationEngine, validationType, null, attachments);
-        }
-    }
-
-    protected static void validateElementMatches(ValidationCategory validationCategory, Page page, String elementLocator, VisualValidationEngine visualValidationEngine, ValidationType validationType,
-                                                 String... optionalCustomLogMessage) {
-        processCustomLogMessage(optionalCustomLogMessage);
-        StringBuilder reportedExpectedResult = new StringBuilder();
-        reportedExpectedResult.append("Element should ");
-        Boolean expectedResult = validationType.getValue();
-        if (!expectedResult) {
-            reportedExpectedResult.append("not ");
-        }
-        reportedExpectedResult.append("match the reference screenshot");
-
-        List<List<Object>> attachments = new ArrayList<>();
-        byte[] referenceImage = ImageProcessingActions.getReferenceImage(elementLocator);
-        if (!Arrays.equals(new byte[0], referenceImage)) {
-            List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Reference Screenshot",
-                    referenceImage);
-            attachments.add(expectedValueAttachment);
-        }
-
-        if (ElementActions.performElementAction(page).getElementsCount(elementLocator) == 1) {
-            byte[] elementScreenshot = ScreenshotManager.takeElementScreenshot(page, elementLocator);
-            List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Screenshot",
-                    elementScreenshot);
-            attachments.add(actualValueAttachment);
-
-            Boolean actualResult = ImageProcessingActions.compareAgainstBaseline(page, elementLocator, elementScreenshot, ImageProcessingActions.VisualValidationEngine.valueOf(visualValidationEngine.name()));
-            if (expectedResult.equals(actualResult)) {
-                pass(validationCategory, reportedExpectedResult.toString(), String.valueOf(actualResult).toUpperCase(), visualValidationEngine, validationType, attachments);
-            } else {
-                fail(validationCategory, reportedExpectedResult.toString(), String.valueOf(actualResult).toUpperCase(), visualValidationEngine, validationType, null, attachments);
-            }
-        } else {
-            byte[] pageScreenshot = ScreenshotManager.takeFullPageScreenshot(page);
             List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Screenshot",
                     pageScreenshot);
             attachments.add(actualValueAttachment);
@@ -850,14 +677,6 @@ public class ValidationsHelper {
             lastUsedDriver = null;
             lastUsedElementLocator = null;
             //}
-        } else if (lastUsedPage != null) {
-            // create a screenshot attachment if needed for Playwright
-//        if (expectedValue != null && expectedValue.toLowerCase().contains("locator")) {
-            attachments.add(ScreenshotManager.captureScreenShot(lastUsedPage, Objects.requireNonNullElse(lastUsedElementLocatorString, ""), validationMethodName, validationState.getValue()));
-            // reset lastUsed variables
-            lastUsedPage = null;
-            lastUsedElementLocatorString = null;
-//        }
         }
 
         // handling changes as per validationCategory hard/soft

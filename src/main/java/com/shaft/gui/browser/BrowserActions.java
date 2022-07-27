@@ -1,6 +1,5 @@
 package com.shaft.gui.browser;
 
-import com.microsoft.playwright.Page;
 import org.openqa.selenium.WebDriver;
 
 public class BrowserActions {
@@ -11,10 +10,6 @@ public class BrowserActions {
 
     public static WebDriverBrowserActions performBrowserAction(WebDriver driver) {
         return new WebDriverBrowserActions(driver);
-    }
-
-    public static PlayWrightBrowserActions performBrowserAction(Page page) {
-        return new PlayWrightBrowserActions(page);
     }
 
     /**

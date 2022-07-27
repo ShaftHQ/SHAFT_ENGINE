@@ -1,7 +1,5 @@
 package com.shaft.driver;
 
-import com.microsoft.playwright.BrowserType.LaunchOptions;
-import com.microsoft.playwright.Page;
 import com.shaft.api.BrowserStack;
 import com.shaft.api.RestActions;
 import com.shaft.cli.TerminalActions;
@@ -89,43 +87,6 @@ public class DriverFactory {
             return DriverFactoryHelper.getDriver(DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
         }
 
-    }
-
-    /**
-     * Creates a new PlayWright page with the value from the execution.properties file
-     *
-     * @return a new PlayWright page instance
-     */
-    public static Page getPlaywrightDriver() {
-        return DriverFactoryHelper.getPlaywrightDriver();
-    }
-
-    /**
-     * Creates a new PlayWright page with custom driver type
-     *
-     * @param driverType one of the supported driver types
-     * @return a new PlayWright page instance
-     */
-    public static Page getPlaywrightDriver(DriverType driverType) {
-        return DriverFactoryHelper.getPlaywrightDriver(driverType);
-    }
-
-    /**
-     * Creates a new PlayWright page with custom driver type and launch options
-     *
-     * @param driverType    one of the supported driver types
-     * @param launchOptions custom launch options
-     * @return a new PlayWright page instance
-     */
-    public static Page getPlaywrightDriver(DriverType driverType, LaunchOptions launchOptions) {
-        return DriverFactoryHelper.getPlaywrightDriver(driverType, launchOptions);
-    }
-
-    /**
-     * Closes the current PlayWright instance terminating all open pages and browser contexts
-     */
-    public static void closePlayWrightDriver() {
-        DriverFactoryHelper.closePlayWrightDriver();
     }
 
     /**

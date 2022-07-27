@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.shafthq</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>6.2.20220624</version> <!-- UPDATE internal.properties -->
+    <version>6.3.20220727</version> <!-- UPDATE internal.properties -->
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
     <url>https://github.com/ShaftHQ/SHAFT_ENGINE</url>
@@ -31,7 +31,6 @@
         <!-- Dependencies and Plug-ins Version Numbers Parameters -->
         <selenium.version>4.3.0</selenium.version>
         <appium-java-client.version>8.1.1</appium-java-client.version>
-        <playwright.version>1.23.0</playwright.version>
 
         <webdrivermanager.version>5.2.1</webdrivermanager.version>
         <allure-testng.version>2.18.1</allure-testng.version> <!-- UPDATE internal.properties -->
@@ -183,14 +182,6 @@
                 </exclusion>
             </exclusions>
         </dependency>
-
-        <!-- PLAYWRIGHT -->
-        		<!-- https://mvnrepository.com/artifact/com.microsoft.playwright/playwright -->
-		<dependency>
-			<groupId>com.microsoft.playwright</groupId>
-			<artifactId>playwright</artifactId>
-			<version>${playwright.version}</version>
-		</dependency>
 
         <!-- APPIUM -->
         <dependency>
