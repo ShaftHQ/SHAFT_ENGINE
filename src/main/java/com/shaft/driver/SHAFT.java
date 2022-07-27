@@ -1,6 +1,5 @@
 package com.shaft.driver;
 
-import com.google.common.annotations.Beta;
 import com.shaft.api.RequestBuilder;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
@@ -9,6 +8,7 @@ import com.shaft.db.DatabaseActions;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.WebDriverBrowserActions;
 import com.shaft.gui.element.ElementActions;
+import com.shaft.gui.element.SikuliActions;
 import com.shaft.tools.io.ExcelFileManager;
 import com.shaft.tools.io.JSONFileManager;
 import com.shaft.tools.io.ReportManager;
@@ -17,15 +17,13 @@ import com.shaft.validation.RestValidationsBuilder;
 import io.restassured.config.RestAssuredConfig;
 import io.restassured.response.Response;
 import org.openqa.selenium.MutableCapabilities;
+import org.sikuli.script.App;
 
 import java.io.InputStream;
 
 @SuppressWarnings("unused")
-@Beta
 public class SHAFT {
-    @Beta
     public static class GUI {
-        @Beta
         public static class WebDriver {
             private ThreadLocal<org.openqa.selenium.WebDriver> driverThreadLocal = new ThreadLocal<>();
 
@@ -71,39 +69,27 @@ public class SHAFT {
             }
         }
 
-//        public static class Playwright {
-//            public static Page getDriver() {
-//                return DriverFactory.getPlaywrightDriver();
-//            }
-//
-//            public static Page getDriver(DriverType driverType) {
-//                return DriverFactory.getPlaywrightDriver(driverType);
-//            }
-//
-//            public static Page getDriver(DriverType driverType, BrowserType.LaunchOptions launchOptions) {
-//                return DriverFactory.getPlaywrightDriver(driverType, launchOptions);
-//            }
-//
-//            public static void closeDriver() {
-//                DriverFactory.closePlayWrightDriver();
-//            }
-//
-//            public static void closeDriver(Page page) {
-//                PlayWrightBrowserActions.closeCurrentWindow(page);
-//            }
-//        }
-//
-//        public static class Sikuli {
-//            public static App getDriver(String applicationName) {
-//                return DriverFactory.getSikuliApp(applicationName);
-//            }
-//
-//            public static void closeDriver(App application) {
-//                DriverFactory.closeSikuliApp(application);
-//            }
-//        }
+        public static class SikuliDriver {
+
+            private App sikuliApp;
+
+            public SikuliDriver(String applicationName) {
+                sikuliApp = DriverFactory.getSikuliApp(applicationName);
+            }
+
+            public void quit() {
+                DriverFactory.closeSikuliApp(sikuliApp);
+            }
+
+            public SikuliActions element() {
+                return new SikuliActions(sikuliApp);
+            }
+
+            public App getDriver(String applicationName) {
+                return sikuliApp;
+            }
+        }
     }
-    @Beta
     public static class API {
         private RestActions session;
         private String serviceURI;
@@ -153,7 +139,6 @@ public class SHAFT {
         }
     }
 
-    @Beta
     public static class CLI {
         public TerminalActions terminal() {
             return new TerminalActions();
@@ -164,7 +149,6 @@ public class SHAFT {
         }
     }
 
-    @Beta
     public static class DB {
         public DatabaseActions performDatabaseActions(DatabaseActions.DatabaseType databaseType, String ip, String port, String name, String username,
                                                       String password) {
@@ -176,7 +160,6 @@ public class SHAFT {
         }
     }
 
-    @Beta
     public static class Validations {
         public static WizardHelpers.StandaloneAssertions assertThat() {
             return new WizardHelpers.StandaloneAssertions();
@@ -187,9 +170,7 @@ public class SHAFT {
         }
     }
 
-    @Beta
     public static class TestData {
-        @Beta
         public static class JSON extends JSONFileManager {
             /**
              * Creates a new instance of the test data json reader using the target json
@@ -201,7 +182,6 @@ public class SHAFT {
                 super(jsonFilePath);
             }
         }
-        @Beta
         public static class EXCEL extends ExcelFileManager {
             /**
              * Creates a new instance of the test data Excel reader using the target Excel
@@ -214,7 +194,6 @@ public class SHAFT {
             }
         }
     }
-    @Beta
     public static class Report {
         public static void log(String message) {
             ReportManager.logDiscrete(message);
