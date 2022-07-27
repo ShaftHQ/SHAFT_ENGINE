@@ -2,7 +2,7 @@ package testPackage01;
 
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
-import com.shaft.validation.Assertions;
+import com.shaft.validation.Validations;
 import org.testng.annotations.Test;
 
 public class Test_checksum {
@@ -15,7 +15,7 @@ public class Test_checksum {
         TerminalActions terminalSession = new TerminalActions();
         String actualHash = FileActions.getInstance().getFileChecksum(terminalSession, targetFileFolderPath, targetFileName);
 
-        Assertions.assertEquals(expectedHash, actualHash);
+        Validations.assertThat().object(actualHash).equals(expectedHash);
     }
 
     @Test
@@ -34,7 +34,7 @@ public class Test_checksum {
                 sshKeyFileFolderName, sshKeyFileName);
         String actualHash = FileActions.getInstance().getFileChecksum(terminalSession, targetFileFolderPath, targetFileName);
 
-        Assertions.assertEquals(expectedHash, actualHash);
+        Validations.assertThat().object(actualHash).equals(expectedHash);
     }
 
     @Test
@@ -57,6 +57,6 @@ public class Test_checksum {
         String actualHash = FileActions.getInstance().getFileChecksum(terminalSession, targetFileFolderPath, targetFileName,
                 pathToTempDirectoryOnRemoteMachine);
 
-        Assertions.assertEquals(expectedHash, actualHash);
+        Validations.assertThat().object(actualHash).equals(expectedHash);
     }
 }

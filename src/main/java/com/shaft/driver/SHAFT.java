@@ -25,7 +25,7 @@ import java.io.InputStream;
 public class SHAFT {
     public static class GUI {
         public static class WebDriver {
-            private ThreadLocal<org.openqa.selenium.WebDriver> driverThreadLocal = new ThreadLocal<>();
+            private final ThreadLocal<org.openqa.selenium.WebDriver> driverThreadLocal = new ThreadLocal<>();
 
             public WebDriver() {
                 driverThreadLocal.set(DriverFactory.getDriver());
@@ -71,7 +71,7 @@ public class SHAFT {
 
         public static class SikuliDriver {
 
-            private App sikuliApp;
+            private final App sikuliApp;
 
             public SikuliDriver(String applicationName) {
                 sikuliApp = DriverFactory.getSikuliApp(applicationName);
@@ -91,7 +91,7 @@ public class SHAFT {
         }
     }
     public static class API {
-        private RestActions session;
+        private final RestActions session;
         private String serviceURI;
 
         public API(String serviceURI) {

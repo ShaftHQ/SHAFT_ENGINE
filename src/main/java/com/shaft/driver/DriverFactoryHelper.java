@@ -44,7 +44,7 @@ import java.util.Map.Entry;
 
 public class DriverFactoryHelper {
     // TODO: implement pass and fail actions to enable initial factory method screenshot and append it to animated GIF
-    private static Map<String, Map<String, WebDriver>> drivers = new HashMap<>();
+    private static final Map<String, Map<String, WebDriver>> drivers = new HashMap<>();
     private static Boolean AUTO_MAXIMIZE;
     private static Boolean HEADLESS_EXECUTION;
     private static String EXECUTION_ADDRESS;
