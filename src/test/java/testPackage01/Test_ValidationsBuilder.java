@@ -55,7 +55,7 @@ public class Test_ValidationsBuilder {
 
         Validations.verifyThat()
                 .element(driver, googleLogo)
-                .attribute(ValidationEnums.ElementAttribute.TEXT)
+                .text()
                 .doesNotEqual("dummy text")
                 .withCustomReportMessage("Checking to confirm that google logo text doesn't contain dummy text")
                 .perform();
@@ -82,7 +82,7 @@ public class Test_ValidationsBuilder {
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "https://www.google.com");
         Validations.assertThat()
                 .browser(driver)
-                .attribute(ValidationEnums.BrowserAttribute.CURRENT_URL)
+                .url()
                 .contains("google")
                 .perform();
 

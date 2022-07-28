@@ -5,7 +5,7 @@ import com.shaft.driver.DriverFactory.DriverType;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.validation.Assertions;
+import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.testng.annotations.Test;
@@ -19,7 +19,7 @@ public class Test_SelectedValue {
         By select = By.tagName("select");
         ElementActions.select(driver, select, "Third Value");
         ReportManager.log(ElementActions.getSelectedText(driver, select));
-        Assertions.assertElementAttribute(driver, select, "selectedText", "Third Value");
+        Validations.assertThat().element(driver, select).attribute("selectedText").equals("Third Value");
         BrowserActions.closeCurrentWindow(driver);
     }
 
@@ -31,7 +31,7 @@ public class Test_SelectedValue {
         ElementActions.select(driver, select, "Dog");
         ElementActions.select(driver, select, "Cat");
         ReportManager.log(ElementActions.getSelectedText(driver, select));
-        Assertions.assertElementAttribute(driver, select, "selectedText", "DogCat");
+        Validations.assertThat().element(driver, select).attribute("selectedText").equals("DogCat");
         BrowserActions.closeCurrentWindow(driver);
     }
 }

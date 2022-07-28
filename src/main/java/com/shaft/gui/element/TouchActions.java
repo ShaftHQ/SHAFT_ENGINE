@@ -86,6 +86,7 @@ public class TouchActions {
      * @param elementReferenceScreenshot relative path to the reference image from the local object repository
      * @return a self-reference to be used to chain actions
      */
+    @SuppressWarnings("unchecked")
     public TouchActions tap(String elementReferenceScreenshot) {
         // Wait for element presence and get the needed data
         var objects = ElementActionsHelper.waitForElementPresence(driver, elementReferenceScreenshot);
@@ -464,6 +465,7 @@ public class TouchActions {
      * @param elementReferenceScreenshot relative path to the reference image from the local object repository
      * @return a self-reference to be used to chain actions
      */
+    @SuppressWarnings("unchecked")
     public TouchActions waitUntilElementIsVisible(String elementReferenceScreenshot) {
         var visualIdentificationObjects = ElementActionsHelper.waitForElementPresence(driver, elementReferenceScreenshot);
         byte[] currentScreenImage = (byte[]) visualIdentificationObjects.get(0);
@@ -504,6 +506,7 @@ public class TouchActions {
      * @param swipeDirection             SwipeDirection.DOWN, UP, RIGHT, or LEFT
      * @return a self-reference to be used to chain actions
      */
+    @SuppressWarnings("unchecked")
     public TouchActions swipeElementIntoView(By scrollableElementLocator, String elementReferenceScreenshot, SwipeDirection swipeDirection) {
         By internalScrollableElementLocator = WebDriverElementActions.updateLocatorWithAIGeneratedOne(scrollableElementLocator);
 
@@ -639,6 +642,7 @@ public class TouchActions {
         return isElementFound;
     }
 
+    @SuppressWarnings("unchecked")
     private List<Object> attemptToSwipeElementIntoViewInNativeApp(By scrollableElementLocator, String targetElementImage, SwipeDirection swipeDirection) {
         boolean isElementFound = false;
         boolean canStillScroll = true;

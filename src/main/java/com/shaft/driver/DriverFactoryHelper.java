@@ -1,11 +1,6 @@
 package com.shaft.driver;
 
 import com.epam.healenium.SelfHealingDriver;
-import com.microsoft.playwright.Browser;
-import com.microsoft.playwright.BrowserContext;
-import com.microsoft.playwright.BrowserType.LaunchOptions;
-import com.microsoft.playwright.Page;
-import com.microsoft.playwright.Playwright;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
@@ -39,12 +34,8 @@ import org.openqa.selenium.safari.SafariOptions;
 import org.sikuli.script.App;
 import org.testng.Assert;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -53,7 +44,7 @@ import java.util.Map.Entry;
 
 public class DriverFactoryHelper {
     // TODO: implement pass and fail actions to enable initial factory method screenshot and append it to animated GIF
-    private static Map<String, Map<String, WebDriver>> drivers = new HashMap<>();
+    private static final Map<String, Map<String, WebDriver>> drivers = new HashMap<>();
     private static Boolean AUTO_MAXIMIZE;
     private static Boolean HEADLESS_EXECUTION;
     private static String EXECUTION_ADDRESS;
@@ -85,10 +76,6 @@ public class DriverFactoryHelper {
 
     // kill-switch
     private static boolean killSwitch = false;
-    private static Playwright playwright = null;
-    private static Browser browser;
-    private static BrowserContext context;
-    private static Page page;
 
     private DriverFactoryHelper() {
         throw new IllegalStateException("Utility class");
@@ -875,105 +862,6 @@ public class DriverFactoryHelper {
     private static void storeDriverInstance(String driverName) {
         drivers.put(driverName + "_" + driver.get().hashCode(), new HashMap<>());
         drivers.get(driverName + "_" + driver.get().hashCode()).put(targetOperatingSystem, driver.get());
-    }
-
-    protected static Page getPlaywrightDriver() {
-        initializeSystemProperties();
-        return getPlaywrightDriver(TARGET_DRIVER_NAME, null);
-    }
-
-    protected static Page getPlaywrightDriver(DriverFactory.DriverType driverType) {
-        initializeSystemProperties();
-        return getPlaywrightDriver(driverType.getValue(), null);
-    }
-
-    protected static Page getPlaywrightDriver(DriverFactory.DriverType driverType, LaunchOptions options) {
-        initializeSystemProperties();
-        return getPlaywrightDriver(driverType.getValue(), options);
-    }
-
-    public static Playwright getPlaywrightInstance() {
-        return playwright;
-    }
-
-    public static Browser getPlaywrightBrowser() {
-        return browser;
-    }
-
-    public static BrowserContext getPlaywrightBrowserContext() {
-        return context;
-    }
-
-    public static Page getPlaywrightPage() {
-        return page;
-    }
-
-    private static Page getPlaywrightDriver(String driverName, LaunchOptions options) {
-        //// Creating the basic drivers
-
-        // playwright handles the initial setup
-        playwright = Playwright.create();
-
-        String initialLog = "Attempting to run using Playwright locally on: \"" + targetOperatingSystem + " | " + driverName + "\"";
-        if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
-            initialLog = initialLog + ", Headless Execution";
-        }
-        ReportManager.log(initialLog + ".");
-        var driverType = getDriverTypeFromName(driverName);
-
-        // handling custom launch options
-        if (options == null) {
-            options = new LaunchOptions().setHeadless(HEADLESS_EXECUTION).setDownloadsPath(Path.of(FileActions.getInstance().getAbsolutePath(System.getProperty("downloadsFolderPath"))));
-        }
-
-        // browser opens the browser session
-        browser = null;
-        switch (driverType) {
-            case DESKTOP_FIREFOX -> browser = playwright.firefox().launch(options);
-            case DESKTOP_CHROMIUM, DESKTOP_CHROME, DESKTOP_EDGE -> browser = playwright.chromium().launch(options);
-            case DESKTOP_WEBKIT, DESKTOP_SAFARI -> browser = playwright.webkit().launch(options);
-            default -> failAction("Unsupported Driver Type \"" + driverName + "\".");
-        }
-
-        // handle video recording
-        var contextOptions = new Browser.NewContextOptions();
-        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("videoParams_recordVideo").trim()))) {
-            contextOptions.setRecordVideoDir(Paths.get(System.getProperty("video.folder")));
-        }
-
-        // sets the context, a sub-browser like an in-private browsing session
-        context = browser.newContext(contextOptions);
-        // the actual tab/page that will be used for browser actions
-        page = context.newPage();
-        BrowserActions.performBrowserAction(page).maximizeWindow();
-        return page;
-    }
-
-    public static void closePlayWrightDriver() {
-        if (playwright != null) {
-            //This is how you attach the video, and you have to close the context for the video to be prepared
-            //I recommend creating the playwright instance with the DriverManager init phase, and destroying it in the afterSuite listener.
-            //I recommend that close browser should close the context, while close all drivers should terminate the playwright instance.
-            var video = page.video();
-            var videoPath = "";
-            if (video != null) {
-                videoPath = video.path().toString();
-            } else {
-                ReportManager.logDiscrete("Failed to find video recording.");
-            }
-            context.close();
-            browser.close();
-            playwright.close();
-            ReportManager.log("Successfully Closed PlayWright Driver.");
-
-            if (!"".equals(videoPath)) {
-                try {
-                    ReportManagerHelper.attach("Video Recording", ReportManagerHelper.getTestMethodName(), new FileInputStream(videoPath));
-                } catch (FileNotFoundException e) {
-                    ReportManagerHelper.log(e);
-                }
-            }
-        }
     }
 
     /**

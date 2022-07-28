@@ -1,14 +1,10 @@
 package com.shaft.gui.image;
 
 import com.epam.healenium.SelfHealingDriver;
-import com.microsoft.playwright.ElementHandle;
-import com.microsoft.playwright.Page;
-import com.microsoft.playwright.Page.ScreenshotOptions;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.JavaScriptWaitManager;
-import com.shaft.gui.element.PlayWrightElementActions;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
@@ -148,20 +144,6 @@ public class ScreenshotManager {
                 takeScreenshot(actionName, passFailStatus));
     }
 
-
-    public static List<Object> captureScreenShot(Page page, String elementLocator, String actionName, boolean passFailStatus) {
-        globalPassFailStatus = passFailStatus;
-
-        if (passFailStatus) {
-            globalPassFailAppendedText = "passed";
-        } else {
-            globalPassFailAppendedText = "failed";
-        }
-
-        return internalCaptureScreenShot(page, elementLocator, actionName, globalPassFailAppendedText,
-                takeScreenshot(actionName, passFailStatus));
-    }
-
     private static boolean takeScreenshot(String actionName, boolean passFailStatus) {
         return (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always"))
                 || (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly")
@@ -268,21 +250,8 @@ public class ScreenshotManager {
         }
     }
 
-    public static byte[] takeFullPageScreenshot(Page page) {
-        try {
-            return ScreenshotHelper.makeFullScreenshot(page);
-        } catch (Exception e) {
-            ReportManagerHelper.log(e);
-            return page.screenshot();
-        }
-    }
-
     public static byte[] takeElementScreenshot(WebDriver driver, By targetElementLocator) {
         return takeElementScreenshot(driver, targetElementLocator, false);
-    }
-
-    public static byte[] takeElementScreenshot(Page page, String targetElementLocator) {
-        return takeElementScreenshot(page, targetElementLocator, false);
     }
 
     public static synchronized String attachAnimatedGif() {
@@ -478,79 +447,6 @@ public class ScreenshotManager {
         return new LinkedList<>();
     }
 
-
-    private static synchronized List<Object> internalCaptureScreenShot(Page page, String elementLocator, String actionName,
-                                                                       String appendedText, boolean takeScreenshot) {
-        // Suggested: add to animated gif only in case of click, navigation, or validation actions.
-        if (takeScreenshot || (CREATE_GIF && (DETAILED_GIF || actionName.matches(DETAILED_GIF_REGEX)))) {
-            /*
-             * Force screenshot link to be shown in the results as a link not text
-             */
-            System.setProperty("org.uncommons.reportng.escape-output", "false");
-
-            /*
-             * Prepare element style using javascript
-             */
-            ElementHandle elementHandle = null;
-            if (elementLocator != null && !"".equals(elementLocator) && PlayWrightElementActions.getElementsCount(page, elementLocator) > 0) {
-                elementHandle = page.querySelector(elementLocator).asElement();
-            }
-            String regularElementStyle = null;
-
-            if (elementHandle != null && SCREENSHOT_PARAMS_HIGHLIGHTMETHOD.equals("JavaScript")) {
-                regularElementStyle = elementHandle.getAttribute("style");
-
-                if (regularElementStyle != null && !regularElementStyle.equals("")) {
-                    page.evaluate("arguments[0].style.cssText = arguments[1];", Arrays.asList(elementHandle, regularElementStyle + setHighlightedElementStyle()));
-                } else {
-                    page.evaluate("arguments[0].setAttribute('style', arguments[1]);", Arrays.asList(elementHandle, setHighlightedElementStyle()));
-                }
-            }
-
-            /*
-             * Take the screenshot and store it as a file
-             */
-            byte[] src = takeScreenshot(page, elementLocator);
-
-            /*
-             * set screenshot name
-             */
-            testCaseName = ReportManagerHelper.getTestMethodName();
-            screenshotFileName = System.currentTimeMillis() + "_" + testCaseName + "_" + actionName;
-            if (!"".equals(appendedText)) {
-                screenshotFileName = screenshotFileName + "_" + appendedText;
-            }
-
-            /*
-             * If an elementLocator was passed, unhighlight that element after taking the
-             * screenshot
-             *
-             */
-            if (SCREENSHOT_PARAMS_HIGHLIGHTMETHOD.equals("JavaScript") && elementHandle != null) {
-                page.evaluate("arguments[0].setAttribute('style', arguments[1]);", Arrays.asList(elementHandle, regularElementStyle));
-            }
-
-            if (takeScreenshot && !SCREENSHOT_PARAMS_HIGHLIGHTMETHOD.equals("JavaScript") && elementHandle != null) {
-                var boundingBox = elementHandle.boundingBox();
-                var elementLocation = new Rectangle((int) boundingBox.x, (int) boundingBox.y, (int) boundingBox.height, (int) boundingBox.width);
-                Color color;
-                if (globalPassFailStatus) {
-                    color = new Color(165, 210, 165); // green
-                } else {
-                    color = new Color(255, 255, 153); // yellow
-                }
-                src = ImageProcessingActions.highlightElementInScreenshot(src, elementLocation, color);
-            }
-            startOrAppendToAnimatedGif(src);
-            if (takeScreenshot) {
-                return prepareImageforReport(src, actionName);
-            } else {
-                return null;
-            }
-        }
-        return null;
-    }
-
     private static byte[] takeScreenshot(WebDriver driver) {
         if (driver instanceof SelfHealingDriver selfHealingDriver) {
             driver = selfHealingDriver.getDelegate();
@@ -570,14 +466,6 @@ public class ScreenshotManager {
         }
     }
 
-    private static byte[] takeScreenshot(Page page, String elementLocator) {
-        return switch (SCREENSHOT_PARAMS_SCREENSHOTTYPE.toLowerCase().trim()) {
-            case "fullpage" -> page.screenshot(new ScreenshotOptions().setFullPage(true));
-            case "element" -> page.querySelector(elementLocator).screenshot(new ElementHandle.ScreenshotOptions());
-            default -> page.screenshot(new ScreenshotOptions());
-        };
-    }
-
     private static byte[] takeElementScreenshot(WebDriver driver, By targetElementLocator, Boolean
             returnRegularScreenshotInCaseOfFailure) {
         try {
@@ -595,28 +483,6 @@ public class ScreenshotManager {
             ReportManagerHelper.log(e);
             if (returnRegularScreenshotInCaseOfFailure) {
                 return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
-            } else {
-                return new byte[]{};
-            }
-        }
-    }
-
-    private static byte[] takeElementScreenshot(Page page, String targetElementLocator, Boolean
-            returnRegularScreenshotInCaseOfFailure) {
-        try {
-            if (targetElementLocator != null && ElementActions.performElementAction(page).getElementsCount(targetElementLocator) == 1) {
-                return page.querySelector(targetElementLocator).screenshot();
-            } else {
-                if (returnRegularScreenshotInCaseOfFailure) {
-                    return page.screenshot();
-                } else {
-                    return new byte[]{};
-                }
-            }
-        } catch (Exception e) {
-            ReportManagerHelper.log(e);
-            if (returnRegularScreenshotInCaseOfFailure) {
-                return page.screenshot();
             } else {
                 return new byte[]{};
             }

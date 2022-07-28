@@ -3,8 +3,7 @@ package testPackage01;
 import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
-import com.shaft.validation.Assertions;
-import com.shaft.validation.Assertions.AssertionType;
+import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.testng.annotations.AfterMethod;
@@ -18,8 +17,7 @@ public class Test_IsElementClickable {
     @Test
     public void testIsElementClickable() {
         BrowserActions.navigateToURL(driver, "https://the-internet.herokuapp.com/");
-        Assertions.assertTrue(ElementActions.isElementClickable(driver, By.linkText("File Upload")),
-                AssertionType.POSITIVE);
+        Validations.assertThat().object(ElementActions.isElementClickable(driver, By.linkText("File Upload"))).isTrue().perform();
     }
 
     @BeforeMethod

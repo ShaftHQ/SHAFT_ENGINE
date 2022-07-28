@@ -6,6 +6,7 @@ import org.testng.annotations.Test;
 
 import java.util.HashMap;
 
+@SuppressWarnings("unchecked")
 public class Test_Wizard_API {
     SHAFT.API driver;
 

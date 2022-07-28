@@ -187,15 +187,9 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
             ReportManagerHelper.extentReportsCreateTest(feature.getName(), feature.getDescription());
         }
         var testCase = event.getTestCase();
-//        var scenarioSteps = new StringBuilder();
         var cleanScenarioSteps = new StringBuilder();
         testCase.getTestSteps().forEach(testStep -> {
             if (testStep instanceof PickleStepTestStep pickleStepTestStep) {
-//                scenarioSteps.append("<b style=\"color:ForestGreen;\">")
-//                        .append(pickleStepTestStep.getStep().getKeyword())
-//                        .append("</b>")
-//                        .append(pickleStepTestStep.getStep().getText())
-//                        .append("<br/>");
                 cleanScenarioSteps.append(pickleStepTestStep.getStep().getKeyword())
                         .append(pickleStepTestStep.getStep().getText())
                         .append(System.lineSeparator());
