@@ -2,8 +2,7 @@ package testPackage01;
 
 import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
-import com.shaft.validation.Assertions;
-import com.shaft.validation.Assertions.AssertionType;
+import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.testng.annotations.AfterClass;
@@ -18,11 +17,10 @@ public class Test_fullPageScreenshotWithHeader {
         BrowserActions.navigateToURL(driver, "https://www.w3schools.com/howto/howto_js_sticky_header.asp");
 
         // element screenshot
-        Assertions.assertElementExists(driver, By.xpath("//div[@id='main']/h2"), AssertionType.POSITIVE);
+        Validations.assertThat().element(driver,By.xpath("//div[@id='main']/h2")).exists().perform();
 
         // element screenshot when element is larger than visible area
-        Assertions.assertElementExists(driver, By.xpath("//div[@id='main']"), AssertionType.POSITIVE);
-
+        Validations.assertThat().element(driver,By.xpath("//div[@id='main']")).exists().perform();
     }
 
     @BeforeClass // Set-up method, to be run once before the first test

@@ -4,9 +4,6 @@ import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.tools.io.ReportManagerHelper;
-import com.shaft.validation.Assertions;
-import com.shaft.validation.Assertions.AssertionComparisonType;
-import com.shaft.validation.Assertions.AssertionType;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -146,7 +143,7 @@ public class tests_validations_assertions {
     @Test(groups = {"WebBased"})
     public void assertElementExists_true_multipleElementsFound_expectedToFail() {
         try {
-            Assertions.assertElementExists(driver, By.xpath("//div"), AssertionType.POSITIVE);
+            Validations.assertThat().element(driver, By.xpath("//div")).exists().perform();
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -155,32 +152,23 @@ public class tests_validations_assertions {
     @Test(groups = {"WebBased"})
     public void assertElementExists_false_multipleElementsFound_expectedToFail() {
         try {
-            Assertions.assertElementExists(driver, By.xpath("//div"), AssertionType.NEGATIVE);
+            Validations.assertThat().element(driver, By.xpath("//div")).doesNotExist().perform();
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
     }
 
     @Test(groups = {"WebBased"})
-    public void assertElementAttribute_type_true_literalComparison_expectedToPass() {
-        ElementActions.type(driver, By.name("q"), "Automation!@#$%^&*()_+{}[]\\';/.,");
-        Assertions.assertElementAttribute(driver, By.name("q"), Assertions.ElementAttributeType.TEXT, "Automation!@#$%^&*()_+{}[]\\';/.,",
-                AssertionComparisonType.EQUALS, AssertionType.POSITIVE);
-    }
-
-    @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_literalComparison_expectedToPass() {
         ElementActions.type(driver, By.name("q"), "Automation!@#$%^&*()_+{}[]\\';/.,");
-        Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation!@#$%^&*()_+{}[]\\';/.,",
-                AssertionComparisonType.EQUALS, AssertionType.POSITIVE);
+        Validations.assertThat().element(driver, By.xpath("q")).text().equals("Automation!@#$%^&*()_+{}[]\\';/.,");
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_literalComparison_expectedToFail() {
         ElementActions.type(driver, By.name("q"), "Automation!@#$%^&*()_+{}[]\\';/.,");
         try {
-            Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation",
-                    AssertionComparisonType.EQUALS, AssertionType.POSITIVE);
+            Validations.assertThat().element(driver, By.name("q")).text().equals("Automation");
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -189,16 +177,14 @@ public class tests_validations_assertions {
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_regexComparison_expectedToPass() {
         ElementActions.type(driver, By.name("q"), "Automation123");
-        Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation.*", AssertionComparisonType.MATCHES,
-                AssertionType.POSITIVE);
+        Validations.assertThat().element(driver, By.name("q")).text().matchesRegex("Automation.*").perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_regexComparison_expectedToFail() {
         ElementActions.type(driver, By.name("q"), "Automation123");
         try {
-            Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation",
-                    AssertionComparisonType.MATCHES, AssertionType.POSITIVE);
+            Validations.assertThat().element(driver, By.name("q")).text().matchesRegex("Automation").perform();
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -207,16 +193,14 @@ public class tests_validations_assertions {
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_containsComparison_expectedToPass() {
         ElementActions.type(driver, By.name("q"), "Automation123");
-        Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation", AssertionComparisonType.CONTAINS,
-                AssertionType.POSITIVE);
+        Validations.assertThat().element(driver, By.name("q")).text().contains("Automation").perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_containsComparison_expectedToFail() {
         ElementActions.type(driver, By.name("q"), "Automation123");
         try {
-            Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation1234",
-                    AssertionComparisonType.CONTAINS, AssertionType.POSITIVE);
+            Validations.assertThat().element(driver, By.name("q")).text().contains("Automation1234").perform();
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -225,16 +209,14 @@ public class tests_validations_assertions {
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_caseInsensitiveComparison_expectedToPass() {
         ElementActions.type(driver, By.name("q"), "AUTOMATION");
-        Assertions.assertElementAttribute(driver, By.name("q"), "text", "AutomaTion",
-                AssertionComparisonType.CASE_INSENSITIVE, AssertionType.POSITIVE);
+        Validations.assertThat().element(driver, By.name("q")).text().equalsIgnoringCaseSensitivity("AutomaTion").perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_caseInsensitiveComparison_expectedToFail() {
         ElementActions.type(driver, By.name("q"), "AUTOMATION");
         try {
-            Assertions.assertElementAttribute(driver, By.name("q"), "text", "AutomaTion123",
-                    AssertionComparisonType.CASE_INSENSITIVE, AssertionType.POSITIVE);
+            Validations.assertThat().element(driver, By.name("q")).text().equalsIgnoringCaseSensitivity("AutomaTion123").perform();
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -243,16 +225,14 @@ public class tests_validations_assertions {
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_literalComparison_expectedToPass() {
         ElementActions.type(driver, By.name("q"), "Automation!@#$%^&*()_+{}[]\\';/.,");
-        Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation", AssertionComparisonType.EQUALS,
-                AssertionType.NEGATIVE);
+        Validations.assertThat().element(driver, By.name("q")).text().doesNotEqual("Automation").perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_literalComparison_expectedToFail() {
         ElementActions.type(driver, By.name("q"), "Automation!@#$%^&*()_+{}[]\\';/.,");
         try {
-            Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation!@#$%^&*()_+{}[]\\\\';/.,",
-                    AssertionComparisonType.EQUALS, AssertionType.NEGATIVE);
+            Validations.assertThat().element(driver, By.name("q")).text().doesNotEqual("\"Automation!@#$%^&*()_+{}[]\\\\\\\\';/.,\"").perform();
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -261,16 +241,14 @@ public class tests_validations_assertions {
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_regexComparison_expectedToPass() {
         ElementActions.type(driver, By.name("q"), "Automation123");
-        Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation", AssertionComparisonType.MATCHES,
-                AssertionType.NEGATIVE);
+        Validations.assertThat().element(driver, By.name("q")).text().doesNotMatchRegex("Automation").perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_regexComparison_expectedToFail() {
         ElementActions.type(driver, By.name("q"), "Automation123");
         try {
-            Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation.*",
-                    AssertionComparisonType.MATCHES, AssertionType.NEGATIVE);
+            Validations.assertThat().element(driver, By.name("q")).text().doesNotMatchRegex("Automation.*").perform();
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -279,16 +257,14 @@ public class tests_validations_assertions {
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_containsComparison_expectedToPass() {
         ElementActions.type(driver, By.name("q"), "Automation123");
-        Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation1234",
-                AssertionComparisonType.CONTAINS, AssertionType.NEGATIVE);
+        Validations.assertThat().element(driver, By.name("q")).text().doesNotContain("Automation1234").perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_containsComparison_expectedToFail() {
         ElementActions.type(driver, By.name("q"), "Automation123");
         try {
-            Assertions.assertElementAttribute(driver, By.name("q"), "text", "Automation",
-                    AssertionComparisonType.CONTAINS, AssertionType.NEGATIVE);
+            Validations.assertThat().element(driver, By.name("q")).text().doesNotContain("Automation").perform();
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -297,16 +273,14 @@ public class tests_validations_assertions {
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_caseInsensitiveComparison_expectedToPass() {
         ElementActions.type(driver, By.name("q"), "AUTOMATION");
-        Assertions.assertElementAttribute(driver, By.name("q"), "text", "AutomaTion123",
-                AssertionComparisonType.CASE_INSENSITIVE, AssertionType.NEGATIVE);
+        Validations.assertThat().element(driver, By.name("q")).text().doesNotEqualIgnoringCaseSensitivity("AutomaTion123").perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_caseInsensitiveComparison_expectedToFail() {
         ElementActions.type(driver, By.name("q"), "AUTOMATION");
         try {
-            Assertions.assertElementAttribute(driver, By.name("q"), "text", "AutomaTion",
-                    AssertionComparisonType.CASE_INSENSITIVE, AssertionType.NEGATIVE);
+            Validations.assertThat().element(driver, By.name("q")).text().doesNotEqualIgnoringCaseSensitivity("AutomaTion").perform();
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -314,15 +288,13 @@ public class tests_validations_assertions {
 
     @Test
     public void assertFileExists_true_expectedToPass() {
-        Assertions.assertFileExists("src/main/java/com/shaft/gui/element/", "ElementActions.java", 1,
-                AssertionType.POSITIVE);
+        Validations.assertThat().file("src/main/java/com/shaft/gui/element/", "ElementActions.java").exists().perform();
     }
 
     @Test
     public void assertFileExists_true_expectedToFail() {
         try {
-            Assertions.assertFileExists("src/main/java/com/shaft/gui/element/", "ElementActions.java_fail", 1,
-                    AssertionType.POSITIVE);
+            Validations.assertThat().file("src/main/java/com/shaft/gui/element/", "ElementActions.java_fail").exists().perform();
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -330,15 +302,13 @@ public class tests_validations_assertions {
 
     @Test
     public void assertFileExists_false_expectedToPass() {
-        Assertions.assertFileExists("src/main/java/com/shaft/gui/element/", "ElementActions.java_fail", 1,
-                AssertionType.NEGATIVE);
+        Validations.assertThat().file("src/main/java/com/shaft/gui/element/", "ElementActions.java_fail").doesNotExist().perform();
     }
 
     @Test
     public void assertFileExists_false_expectedToFail() {
         try {
-            Assertions.assertFileExists("src/main/java/com/shaft/gui/element/", "ElementActions.java", 1,
-                    AssertionType.NEGATIVE);
+            Validations.assertThat().file("src/main/java/com/shaft/gui/element/", "ElementActions.java").doesNotExist().perform();
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }

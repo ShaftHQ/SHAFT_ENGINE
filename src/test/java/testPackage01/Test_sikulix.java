@@ -1,15 +1,14 @@
 package testPackage01;
 
-import org.openqa.selenium.WebDriver;
-import org.sikuli.script.App;
-import org.sikuli.script.Key;
-import org.testng.annotations.Test;
-
 import com.shaft.cli.TerminalActions;
 import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
-import com.shaft.validation.Assertions;
+import com.shaft.validation.Validations;
+import org.openqa.selenium.WebDriver;
+import org.sikuli.script.App;
+import org.sikuli.script.Key;
+import org.testng.annotations.Test;
 
 public class Test_sikulix {
     App calculator;
@@ -32,7 +31,7 @@ public class Test_sikulix {
         BrowserActions.navigateToURL(driver, "https://www.youtube.com/watch?v=6FbpNgZ8fZ8&t=2s");
         String pathToTargetElementImage = System.getProperty("testDataFolderPath") + "sikulixElements/youtube.png";
         ElementActions.performSikuliAction().click(pathToTargetElementImage);
-        Assertions.assertBrowserAttribute(driver, "url", "https://www.youtube.com/");
+        Validations.assertThat().browser(driver).url().equals("https://www.youtube.com/");
     }
 
     @Test
@@ -42,7 +41,7 @@ public class Test_sikulix {
                 .click(pathToCalculatorElementsFolder + "3.png")
                 .click(pathToCalculatorElementsFolder + "=.png")
                 .getText(pathToCalculatorElementsFolder + "result.png");
-        Assertions.assertEquals("4", result);
+        Validations.assertThat().object(result).equals("4");
     }
 
     //@BeforeClass
