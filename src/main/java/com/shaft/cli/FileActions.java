@@ -652,9 +652,6 @@ public class FileActions {
     }
 
     private boolean isTargetOSUnixBased() {
-//        if (System.getProperty("executionAddress") == null) {
-//            PropertyFileManager.readPropertyFiles();
-//        }
         if (System.getProperty("executionAddress").trim().equals("local")) {
             // local execution
             if (SystemUtils.IS_OS_WINDOWS) {

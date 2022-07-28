@@ -1,5 +1,6 @@
 package testPackage01.tink;
 
+@SuppressWarnings("CommentedOutCode")
 public class demo {
 //    @Test
 //    public void test_encryptSingleFile(){

@@ -63,10 +63,8 @@ public class GoogleSearch {
     }
 
     public void verifyPageTitle(String expectedValue) {
-            Validations.verifyThat().browser(driver).attribute(ValidationEnums.BrowserAttribute.TITLE)
-                    .isEqualTo(expectedValue).perform();
-            Validations.verifyThat().browser(driver).attribute(ValidationEnums.BrowserAttribute.TITLE)
-                    .doesNotEqual("Not Google").perform();
+        Validations.verifyThat().browser(driver).title().isEqualTo(expectedValue).perform();
+        Validations.verifyThat().browser(driver).title().doesNotEqual("Not Google").perform();
     }
 
 }

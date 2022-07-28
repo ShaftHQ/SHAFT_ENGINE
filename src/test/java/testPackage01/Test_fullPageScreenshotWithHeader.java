@@ -12,7 +12,7 @@ import org.testng.annotations.Test;
 public class Test_fullPageScreenshotWithHeader {
     WebDriver driver;
 
-    @Test(priority = 0, description = "TC001 - Navigate to URL and Assert page title")
+    @Test(description = "TC001 - Navigate to URL and Assert page title")
     public void navigateToURLandAssertPageTitle() {
         BrowserActions.navigateToURL(driver, "https://www.w3schools.com/howto/howto_js_sticky_header.asp");
 
@@ -23,6 +23,7 @@ public class Test_fullPageScreenshotWithHeader {
         Validations.assertThat().element(driver,By.xpath("//div[@id='main']")).exists().perform();
     }
 
+    @SuppressWarnings("CommentedOutCode")
     @BeforeClass // Set-up method, to be run once before the first test
     public void beforeClass() {
 //	System.setProperty("screenshotParams_skippedElementsFromScreenshot",

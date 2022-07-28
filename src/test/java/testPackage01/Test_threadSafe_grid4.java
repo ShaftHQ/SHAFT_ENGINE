@@ -16,6 +16,7 @@ public class Test_threadSafe_grid4 {
     private final By secondSearchResult = By.xpath("(//a[contains(@class,'js-result-title-link')])[1]");
 
 //    @BeforeClass
+    @SuppressWarnings({"CommentedOutCode", "EmptyMethod"})
     public void setupRemoteParallelExecution(){
 //        System.setProperty("executionAddress","localhost:4444");
 //        System.setProperty("targetOperatingSystem","Linux-64");

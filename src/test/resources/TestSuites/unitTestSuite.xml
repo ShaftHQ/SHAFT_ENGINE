@@ -3,7 +3,7 @@
 <suite name="Unit Test Suite" verbose="10">
     <test name="Unit Test">
         <packages>
-            <package name="unitTests"></package>
+            <package name="unitTests"/>
         </packages>
     </test>
 </suite>

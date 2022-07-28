@@ -25,14 +25,6 @@ public class tests_restActions {
             }
         });
     }
-//
-//    @Test
-//    public void getAnimals() {
-//        RestActions api = new RestActions("https://cat-fact.herokuapp.com");
-//        Response response = api.performRequest(RequestType.GET, 200, "/facts/random?animal_type=cat&amount=1");
-//        String actualResponse = RestActions.getResponseJSONValue(response, "text");
-//        Assertions.assertEquals("", actualResponse, AssertionComparisonType.EQUALS, AssertionType.NEGATIVE);
-//    }
 
     @Test
     public void validateUserEmail() {

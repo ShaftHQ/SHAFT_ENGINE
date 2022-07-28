@@ -15,6 +15,7 @@ public class Test_sikulix {
     String pathToCalculatorElementsFolder = "src/test/resources/DynamicObjectRepository/calculator/";
 
     //@Test
+    @SuppressWarnings("CommentedOutCode")
     public void sampleWithSeleniumWebDriver() {
         WebDriver driver = DriverFactory.getDriver();
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "https://www.google.com");

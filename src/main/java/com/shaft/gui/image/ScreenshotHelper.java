@@ -26,12 +26,14 @@ public class ScreenshotHelper {
         return chromiumDriver.executeCdpCommand("sendCommand", ImmutableMap.of("cmd", cmd, "params", params)).values();
     }
 
+    @SuppressWarnings("unchecked")
     protected static Object sendEvaluate(ChromiumDriver chromiumDriver, String script) {
         Object response = sendCommand(chromiumDriver, "Runtime.evaluate", ImmutableMap.of("returnByValue", true, "expression", script));
         Object result = ((Map<String, ?>) response).get("result");
         return ((Map<String, ?>) result).get("value");
     }
 
+    @SuppressWarnings("unchecked")
     protected static byte[] makeFullScreenshot(WebDriver driver, WebElement... skipElements) throws IOException {
         if (driver instanceof FirefoxDriver firefoxDriver) {
             return firefoxDriver.getFullPageScreenshotAs(OutputType.BYTES);
