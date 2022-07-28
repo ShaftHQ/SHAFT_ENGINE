@@ -1,6 +1,5 @@
 package com.shaft.gui.element;
 
-import com.microsoft.playwright.Page;
 import com.shaft.cli.FileActions;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
@@ -16,16 +15,8 @@ public class ElementActions {
         WebDriverElementActions.setLastUsedDriver(driver);
     }
 
-    public ElementActions(Page page) {
-        PlayWrightElementActions.setLastUsedPage(page);
-    }
-
     public static WebDriverElementActions performElementAction(WebDriver driver) {
         return new WebDriverElementActions(driver);
-    }
-
-    public static PlayWrightElementActions performElementAction(Page page) {
-        return new PlayWrightElementActions(page);
     }
 
     public static SikuliActions performSikuliAction() {
@@ -137,7 +128,7 @@ public class ElementActions {
 
     /**
      * This is a generic method to enable the execution of the native mobile
-     * commands found herein: http://appium.io/docs/en/commands/mobile-command/
+     * commands found herein: <a href="http://appium.io/docs/en/commands/mobile-command/">appium.io</a>
      * <p>
      * Note: This method does no validation on the output of the executed JavaScript
      *
@@ -631,10 +622,6 @@ public class ElementActions {
         return new WebDriverElementActions(WebDriverElementActions.getLastUsedDriver());
     }
 
-    public PlayWrightElementActions performPlayWrightElementAction() {
-        return new PlayWrightElementActions(PlayWrightElementActions.getLastUsedPage());
-    }
-
     public TouchActions performTouchAction() {
         return new TouchActions(WebDriverElementActions.getLastUsedDriver());
     }
@@ -645,7 +632,7 @@ public class ElementActions {
 
     /**
      * This is a generic method to enable the execution of the native mobile
-     * commands found herein: http://appium.io/docs/en/commands/mobile-command/
+     * commands found herein: <a href="http://appium.io/docs/en/commands/mobile-command/">appium.io</a>
      * <p>
      * Note: This method does no validation on the output of the executed JavaScript
      *

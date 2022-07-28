@@ -15,8 +15,6 @@ import org.testng.annotations.Test;
 
 public class AndroidBasicInteractionsTest {
     private WebDriver driver;
-    private final String SEARCH_ACTIVITY = ".app.SearchInvoke";
-    private final String ALERT_DIALOG_ACTIVITY = ".app.AlertDialogSamples";
     private final String PACKAGE = "io.appium.android.apis";
 
     @Test
@@ -88,7 +86,8 @@ public class AndroidBasicInteractionsTest {
 
     @Test
     public void testSendKeys() {
-            ((AndroidDriver) driver).startActivity(new Activity(PACKAGE, SEARCH_ACTIVITY));
+        String SEARCH_ACTIVITY = ".app.SearchInvoke";
+        ((AndroidDriver) driver).startActivity(new Activity(PACKAGE, SEARCH_ACTIVITY));
             ElementActions.type(driver, By.id("txt_query_prefill"), "Hello world!");
             ElementActions.performTouchAction(driver).tap(By.id("btn_start_search"));
             Validations.assertThat()
@@ -101,6 +100,7 @@ public class AndroidBasicInteractionsTest {
     @Test
     public void testOpensAlert() {
         // Open the "Alert Dialog" activity of the android app
+        String ALERT_DIALOG_ACTIVITY = ".app.AlertDialogSamples";
         ((AndroidDriver) driver).startActivity(new Activity(PACKAGE, ALERT_DIALOG_ACTIVITY));
 
         // Click button that opens a dialog
@@ -117,6 +117,7 @@ public class AndroidBasicInteractionsTest {
         ElementActions.performTouchAction(driver).tap(By.id("android:id/button1"));
     }
 
+    @SuppressWarnings("CommentedOutCode")
     @BeforeMethod
     public void setup() {
         // common attributes

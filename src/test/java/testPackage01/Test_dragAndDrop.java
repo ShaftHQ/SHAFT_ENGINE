@@ -4,7 +4,7 @@ import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.validation.Assertions;
+import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.testng.annotations.AfterMethod;
@@ -50,7 +50,9 @@ public class Test_dragAndDrop {
         String initialDroppableText = actions.getText(By.id("droppable"));
         actions.dragAndDrop(By.id("draggable"), By.id("droppable"));
         String finalDroppableText = actions.getText(By.id("droppable"));
-        Assertions.assertEquals(initialDroppableText, finalDroppableText, Assertions.AssertionComparisonType.EQUALS, Assertions.AssertionType.NEGATIVE, "Checking to see if the text has changed after performing drag and drop");
+        Validations.assertThat().object(finalDroppableText).doesNotEqual(initialDroppableText)
+                .withCustomReportMessage("Checking to see if the text has changed after performing drag and drop")
+                .perform();
     }
 
     @BeforeMethod

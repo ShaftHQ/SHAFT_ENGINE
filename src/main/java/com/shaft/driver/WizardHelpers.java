@@ -6,7 +6,7 @@ import org.openqa.selenium.WebDriver;
 
 public class WizardHelpers {
     public static class WebDriverAssertions {
-        private ThreadLocal<org.openqa.selenium.WebDriver> driverThreadLocal;
+        private final ThreadLocal<org.openqa.selenium.WebDriver> driverThreadLocal;
 
         public WebDriverAssertions(ThreadLocal<WebDriver> driverThreadLocal) {
             this.driverThreadLocal = driverThreadLocal;
@@ -22,7 +22,7 @@ public class WizardHelpers {
     }
 
     public static class WebDriverVerifications {
-        private ThreadLocal<org.openqa.selenium.WebDriver> driverThreadLocal;
+        private final ThreadLocal<org.openqa.selenium.WebDriver> driverThreadLocal;
 
         public WebDriverVerifications(ThreadLocal<WebDriver> driverThreadLocal) {
             this.driverThreadLocal = driverThreadLocal;

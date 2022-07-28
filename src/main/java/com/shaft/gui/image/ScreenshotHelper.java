@@ -1,8 +1,6 @@
 package com.shaft.gui.image;
 
 import com.google.common.collect.ImmutableMap;
-import com.microsoft.playwright.Page;
-import com.microsoft.playwright.Page.ScreenshotOptions;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chromium.ChromiumDriver;
@@ -24,20 +22,18 @@ public class ScreenshotHelper {
         throw new IllegalStateException("Utility class");
     }
 
-    protected static byte[] makeFullScreenshot(Page page) {
-        return page.screenshot(new ScreenshotOptions().setFullPage(true));
-    }
-
     protected static Object sendCommand(ChromiumDriver chromiumDriver, String cmd, Object params) {
         return chromiumDriver.executeCdpCommand("sendCommand", ImmutableMap.of("cmd", cmd, "params", params)).values();
     }
 
+    @SuppressWarnings("unchecked")
     protected static Object sendEvaluate(ChromiumDriver chromiumDriver, String script) {
         Object response = sendCommand(chromiumDriver, "Runtime.evaluate", ImmutableMap.of("returnByValue", true, "expression", script));
         Object result = ((Map<String, ?>) response).get("result");
         return ((Map<String, ?>) result).get("value");
     }
 
+    @SuppressWarnings("unchecked")
     protected static byte[] makeFullScreenshot(WebDriver driver, WebElement... skipElements) throws IOException {
         if (driver instanceof FirefoxDriver firefoxDriver) {
             return firefoxDriver.getFullPageScreenshotAs(OutputType.BYTES);

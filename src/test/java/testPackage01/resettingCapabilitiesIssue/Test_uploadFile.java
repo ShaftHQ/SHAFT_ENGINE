@@ -32,6 +32,7 @@ public class Test_uploadFile {
     @BeforeMethod
     public void beforeMethod() {
         driver.set(DriverFactory.getDriver());
+        BrowserActions.setWindowSize(driver.get(), 1920, 1080);
     }
 
     @AfterMethod

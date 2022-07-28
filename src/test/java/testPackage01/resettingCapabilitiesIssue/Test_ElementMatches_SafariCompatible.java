@@ -16,6 +16,7 @@ public class Test_ElementMatches_SafariCompatible {
         driver.browser().navigateToURL(url);
         driver.assertThat().element(logo).matchesReferenceImage().perform();
     }
+    @SuppressWarnings("CommentedOutCode")
     @BeforeMethod
     public void beforeMethod(){
         // remote browserstack server

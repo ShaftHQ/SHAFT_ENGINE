@@ -1,58 +1,38 @@
 package poms;
 
-import com.microsoft.playwright.Page;
+import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
-import com.shaft.validation.Assertions;
-import com.shaft.validation.Assertions.AssertionType;
 import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
 public class GoogleSearch {
-    WebDriver driver = null;
-    Page page = null;
+    WebDriver driver;
 
      String url = "https://www.google.com/ncr";
      String urlAfterRedirection = "https://www.google.com";
      
     public static By googleLogo_image = By.xpath("//*[@id='hplogo' or @alt='Google']");
-    String googleLogo_image_stringLocator = "xpath=//*[@id='hplogo' or @alt='Google']";
-    
+
     By searchBox_textField = By.xpath("//input[@id='lst-ib' or @class='lst' or @name='q']");
-    String searchBox_textField_stringLocator = "xpath=//input[@id='lst-ib' or @class='lst' or @name='q']";
 
     public GoogleSearch(WebDriver driver) {
         this.driver = driver;
     }
-    public GoogleSearch(Page page) {
-        this.page = page;
-    }
 
     public void navigateToURL() {
-    	if(driver != null) {
         BrowserActions.navigateToURL(driver, url, urlAfterRedirection);
-    	}else {
-    		BrowserActions.performBrowserAction(page).navigateToURL(url, urlAfterRedirection);
-    	}
     }
 
     public void searchForQuery(String searchQuery) {
-    	if(driver != null) {
         ElementActions.type(driver, searchBox_textField, searchQuery);
         ElementActions.keyPress(driver, searchBox_textField, "Enter");
-    	}else {
-    		ElementActions.performElementAction(page)
-    		.type(searchBox_textField_stringLocator, searchQuery)
-    		.keyPress(searchBox_textField_stringLocator, "Enter");
-    	}
     }
 
     public void typeQuery(String searchQuery) {
-    	if(driver != null) {
         ElementActions.type(driver, searchBox_textField, searchQuery);
-    	}
     }
 
     public void copyQuery() {
@@ -76,26 +56,15 @@ public class GoogleSearch {
     }
 
     public void assertPageIsOpen() {
-    	if(driver != null) {
             Validations.assertThat()
                     .element(driver, googleLogo_image)
                     .exists()
                     .perform();
-    	}else {
-            Assertions.assertElementExists(page, googleLogo_image_stringLocator, AssertionType.POSITIVE);
-    	}
     }
 
     public void verifyPageTitle(String expectedValue) {
-        if (driver != null) {
-            Validations.verifyThat().browser(driver).attribute(ValidationEnums.BrowserAttribute.TITLE)
-                    .isEqualTo(expectedValue).perform();
-            Validations.verifyThat().browser(driver).attribute(ValidationEnums.BrowserAttribute.TITLE)
-                    .doesNotEqual("Not Google").perform();
-        } else {
-
-        }
-
+        Validations.verifyThat().browser(driver).title().isEqualTo(expectedValue).perform();
+        Validations.verifyThat().browser(driver).title().doesNotEqual("Not Google").perform();
     }
 
 }

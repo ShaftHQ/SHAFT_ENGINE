@@ -175,6 +175,7 @@ public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, 
         }
     }
 
+    @SuppressWarnings("unchecked")
     private boolean annotationPresent(IInvokedMethod method, Class clazz) {
         return method.getTestMethod().getConstructorOrMethod().getMethod().isAnnotationPresent(clazz);
     }

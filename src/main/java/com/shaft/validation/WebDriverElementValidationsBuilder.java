@@ -236,7 +236,7 @@ public class WebDriverElementValidationsBuilder {
      */
     public NativeValidationsBuilder text() {
         this.validationMethod = "elementAttributeEquals";
-        this.elementAttribute = ValidationEnums.ElementAttribute.TEXT.getValue();
+        this.elementAttribute = "text";
         reportMessageBuilder.append("text ");
         return new NativeValidationsBuilder(this);
     }

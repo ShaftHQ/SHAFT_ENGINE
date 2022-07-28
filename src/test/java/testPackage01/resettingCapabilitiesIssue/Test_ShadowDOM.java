@@ -3,7 +3,7 @@ package testPackage01.resettingCapabilitiesIssue;
 import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
-import com.shaft.validation.Assertions;
+import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.testng.annotations.AfterMethod;
@@ -18,7 +18,7 @@ public class Test_ShadowDOM {
         String targetText = "Typing into SHADOW DOM...";
         BrowserActions.navigateToURL(driver, "https://mdn.github.io/web-components-examples/popup-info-box-web-component/");
         ElementActions.type(driver, By.id("cvc"), targetText);
-        Assertions.assertElementAttribute(driver, By.id("cvc"), "Text", targetText);
+        Validations.assertThat().element(driver, By.id("cvc")).text().equals(targetText);
     }
 
     @BeforeMethod

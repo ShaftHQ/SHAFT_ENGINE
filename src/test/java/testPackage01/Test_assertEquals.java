@@ -3,9 +3,6 @@ package testPackage01;
 import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
-import com.shaft.validation.Assertions;
-import com.shaft.validation.Assertions.AssertionComparisonType;
-import com.shaft.validation.Assertions.AssertionType;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -22,9 +19,7 @@ public class Test_assertEquals {
         BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "https://www.google.com");
         ElementActions.type(driver, By.name("q"),
                 "INC_004010050:Another SCHEDULER with the same name [Duplicate Job Name] already exists.");
-        Assertions.assertElementAttribute(driver, By.name("q"), "text",
-                "INC_004010050:Another SCHEDULER with the same name \\[Duplicate Job Name\\] already exists.",
-                AssertionComparisonType.MATCHES, AssertionType.POSITIVE);
+        Validations.assertThat().element(driver, By.name("q")).text().matchesRegex("INC_004010050:Another SCHEDULER with the same name \\[Duplicate Job Name\\] already exists.").perform();
     }
 
     // @Test
@@ -33,10 +28,7 @@ public class Test_assertEquals {
         ElementActions.type(driver, By.name("q"),
                 "INC_004010050:Another SCHEDULER with the same name [Duplicate Job Name] already exists.");
         String actualValue = ElementActions.getText(driver, By.name("q"));
-        Assertions.assertEquals(
-                "INC_004010050:Another SCHEDULER with the same name \\[Duplicate Job Name\\] already exists.",
-                actualValue, AssertionComparisonType.MATCHES, AssertionType.POSITIVE);
-
+        Validations.assertThat().object(actualValue).matchesRegex("INC_004010050:Another SCHEDULER with the same name \\[Duplicate Job Name\\] already exists.").perform();
     }
 
     // @Test
