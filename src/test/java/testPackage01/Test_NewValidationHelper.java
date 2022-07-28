@@ -262,18 +262,18 @@ public class Test_NewValidationHelper {
 
     @Test
     public void f31() {
-        Validations.assertThat().object(true).isTrue();
+        Validations.assertThat().object(true).isTrue().perform();
     }
 
     @Test
     public void f32() {
-        Validations.assertThat().object(false).isFalse();
+        Validations.assertThat().object(false).isFalse().perform();
     }
 
     @Test
     public void f33() throws Exception {
         try {
-            Validations.assertThat().object(true).isFalse();
+            Validations.assertThat().object(true).isFalse().perform();
             throw new Exception("Expected to fail but passed.");
         } catch (AssertionError e) {
             // pass
@@ -283,7 +283,7 @@ public class Test_NewValidationHelper {
     @Test
     public void f34() throws Exception {
         try {
-            Validations.assertThat().object(false).isTrue();
+            Validations.assertThat().object(false).isTrue().perform();;
             throw new Exception("Expected to fail but passed.");
         } catch (AssertionError e) {
             // pass

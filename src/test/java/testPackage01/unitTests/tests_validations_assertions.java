@@ -161,7 +161,7 @@ public class tests_validations_assertions {
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_literalComparison_expectedToPass() {
         ElementActions.type(driver, By.name("q"), "Automation!@#$%^&*()_+{}[]\\';/.,");
-        Validations.assertThat().element(driver, By.xpath("q")).text().equals("Automation!@#$%^&*()_+{}[]\\';/.,");
+        Validations.assertThat().element(driver, By.name("q")).text().equals("Automation!@#$%^&*()_+{}[]\\';/.,");
     }
 
     @Test(groups = {"WebBased"})
