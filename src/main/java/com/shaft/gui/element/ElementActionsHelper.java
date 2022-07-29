@@ -19,9 +19,7 @@ import java.util.*;
 class ElementActionsHelper {
     private static final int DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER = Integer
             .parseInt(System.getProperty("defaultElementIdentificationTimeout").trim());
-    private static final int ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION = Integer
-            .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
-    private static final int ELEMENT_IDENTIFICATION_POLLING_DELAY = 200; // milliseconds
+    private static final int ELEMENT_IDENTIFICATION_POLLING_DELAY = 100; // milliseconds
     private static final boolean FORCE_CHECK_FOR_ELEMENT_VISIBILITY = Boolean
             .parseBoolean(System.getProperty("forceCheckForElementVisibility").trim());
 
@@ -30,7 +28,7 @@ class ElementActionsHelper {
     }
 
     protected static int waitForElementPresence(WebDriver driver, By elementLocator) {
-        return waitForElementPresence(driver, elementLocator, ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION, FORCE_CHECK_FOR_ELEMENT_VISIBILITY);
+        return waitForElementPresence(driver, elementLocator, 1, FORCE_CHECK_FOR_ELEMENT_VISIBILITY);
     }
 
     protected static int waitForElementPresence(WebDriver driver, By elementLocator, int numberOfAttempts) {
@@ -38,7 +36,7 @@ class ElementActionsHelper {
     }
 
     protected static int waitForElementPresence(WebDriver driver, By elementLocator, boolean checkForVisibility) {
-        return waitForElementPresence(driver, elementLocator, ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION, checkForVisibility);
+        return waitForElementPresence(driver, elementLocator, 1, checkForVisibility);
     }
 
     protected static List<Object> waitForElementPresence(WebDriver driver, String elementReferenceScreenshot) {
@@ -59,7 +57,7 @@ class ElementActionsHelper {
                 isFound = true;
             }
             elapsedTime = System.currentTimeMillis() - startTime;
-        } while (!isFound && elapsedTime < ((long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER * ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION * 1000));
+        } while (!isFound && elapsedTime < ((long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER * 1000));
         List<Object> returnedValue = new LinkedList<>();
         returnedValue.add(currentScreenImage);
         returnedValue.add(FileActions.getInstance().readFromImageFile(elementReferenceScreenshot));
@@ -121,7 +119,7 @@ class ElementActionsHelper {
             try {
                 new FluentWait<>(driver)
                         .withTimeout(Duration.ofSeconds(
-                                (long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER * ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION))
+                                DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER))
                         .pollingEvery(Duration.ofSeconds(ELEMENT_IDENTIFICATION_POLLING_DELAY))
                         .ignoreAll(expectedExceptions)
                         .until(nestedDriver -> {
@@ -134,7 +132,7 @@ class ElementActionsHelper {
             }
             if (Boolean.FALSE.equals(driver.findElement(elementLocator).isDisplayed())) {
                 try {
-                    new WebDriverWait(driver, Duration.ofSeconds((long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER * ATTEMPTS_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION)).until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
+                    new WebDriverWait(driver, Duration.ofSeconds(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER)).until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
                 } catch (org.openqa.selenium.TimeoutException e) {
                     ReportManagerHelper.logDiscrete(e);
                     return false;

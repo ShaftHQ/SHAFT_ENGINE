@@ -24,9 +24,6 @@ import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchema;
 
 public class ValidationsHelper {
     //TODO: implement element attribute and element exists validations for sikuli actions
-    private static final int ATTEMPTS_ELEMENTNOTFOUNDEXCEPTION = Integer
-            .parseInt(System.getProperty("attemptsBeforeThrowingElementNotFoundException").trim());
-    private static final int ATTEMPTS_ELEMENTNOTFOUNDEXCEPTION_ELEMENTSHOULDNOTEXIST = 1;
     static ArrayList<String> optionalCustomLogMessage = new ArrayList<>();
     private static WebDriver lastUsedDriver = null;
     private static By lastUsedElementLocator = null;
@@ -91,10 +88,6 @@ public class ValidationsHelper {
                                                 String... optionalCustomLogMessage) {
 
         processCustomLogMessage(optionalCustomLogMessage);
-        int customAttempts = ATTEMPTS_ELEMENTNOTFOUNDEXCEPTION;
-        if (!validationType.getValue()) {
-            customAttempts = ATTEMPTS_ELEMENTNOTFOUNDEXCEPTION_ELEMENTSHOULDNOTEXIST;
-        }
 
         String[] expectedElementStates = {"Element Should Exist", "Element Should not Exist"};
         String[] actualElementStates = {"Element Exists", "Element Doesn't Exists",
@@ -103,7 +96,7 @@ public class ValidationsHelper {
 
         lastUsedDriver = driver;
         lastUsedElementLocator = elementLocator;
-        int elementsCount = ElementActions.getElementsCount(driver, elementLocator, customAttempts);
+        int elementsCount = ElementActions.getElementsCount(driver, elementLocator);
 
         if (validationType.getValue()) {
             // expecting a unique element to be present
