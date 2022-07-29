@@ -1,13 +1,13 @@
 <img src="src/main/resources/images/shaft.png" alt="SHAFT_ENGINE" style="display:block; margin-left:auto; margin-right:auto;"/>
 
 <!-- Badges provided by https://shields.io/ -->
-![License](https://img.shields.io/github/license/ShaftHQ/SHAFT_Engine?color=blue&style=for-the-badge)
+[![Contributors)](https://img.shields.io/github/contributors/ShaftHQ/SHAFT_ENGINE?color=blue&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/graphs/contributors)
+ ![License](https://img.shields.io/github/license/ShaftHQ/SHAFT_Engine?color=blue&style=for-the-badge)
  [![JFrog release (latest by date including pre-releases)](https://img.shields.io/github/v/release/ShaftHQ/shaft_engine?include_prereleases&label=Latest%20Release&style=for-the-badge)](https://automatest.jfrog.io/ui/native/SHAFT_ENGINE/io/github/ShaftHQ/SHAFT_ENGINE/)
 
-[![Contributors)](https://img.shields.io/github/contributors/ShaftHQ/SHAFT_ENGINE?style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/graphs/contributors)
- [![Codacy grade](https://img.shields.io/codacy/grade/3579cfd02a2c4f67bd1dce5dad0b1562?style=for-the-badge)](https://app.codacy.com/gh/ShaftHQ/SHAFT_ENGINE/dashboard)
+[![Codacy grade](https://img.shields.io/codacy/grade/3579cfd02a2c4f67bd1dce5dad0b1562?style=for-the-badge)](https://app.codacy.com/gh/ShaftHQ/SHAFT_ENGINE/dashboard)
 [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/ShaftHQ/SHAFT_Engine/CodeQL?label=CodeQL&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions?query=workflow%3ACodeQL)
- [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/ShaftHQ/SHAFT_ENGINE/Desktop%20Browsers%20Tests/master?label=Desktop%20Browsers%20Tests&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions?query=workflow%3A%22Ubuntu+-+Test%22)
+ [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/ShaftHQ/SHAFT_ENGINE/Desktop%20Browsers%20Tests/master?label=Smoke%20Tests&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions?query=workflow%3A%22Ubuntu+-+Test%22)
 
 
 # SHAFT: Unified Test Automation Engine
