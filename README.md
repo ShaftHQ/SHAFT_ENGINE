@@ -3,7 +3,6 @@
 <!-- Badges provided by https://shields.io/ -->
 ![License](https://img.shields.io/github/license/ShaftHQ/SHAFT_Engine?color=blue&style=for-the-badge)
  [![JFrog release (latest by date including pre-releases)](https://img.shields.io/github/v/release/ShaftHQ/shaft_engine?include_prereleases&label=Latest%20Release&style=for-the-badge)](https://automatest.jfrog.io/ui/native/SHAFT_ENGINE/io/github/ShaftHQ/SHAFT_ENGINE/)
-  [![Maven Central](https://img.shields.io/maven-central/v/io.github.shafthq/SHAFT_ENGINE?style=for-the-badge)](https://search.maven.org/artifact/io.github.shafthq/SHAFT_ENGINE)
 
 [![Contributors)](https://img.shields.io/github/contributors/ShaftHQ/SHAFT_ENGINE?style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/graphs/contributors)
  [![Codacy grade](https://img.shields.io/codacy/grade/3579cfd02a2c4f67bd1dce5dad0b1562?style=for-the-badge)](https://app.codacy.com/gh/ShaftHQ/SHAFT_ENGINE/dashboard)
