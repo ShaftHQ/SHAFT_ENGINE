@@ -435,7 +435,7 @@ public class ScreenshotManager {
                     if (takeScreenshot) {
                         return prepareImageforReport(src, actionName);
                     } else {
-                        return new LinkedList<>();
+                        return new ArrayList<>();
                     }
                 } catch (WebDriverException e) {
                     // this happens when a browser session crashes mid-execution, or the docker is
@@ -444,7 +444,7 @@ public class ScreenshotManager {
                 }
             }
         }
-        return new LinkedList<>();
+        return new ArrayList<>();
     }
 
     private static byte[] takeScreenshot(WebDriver driver) {
