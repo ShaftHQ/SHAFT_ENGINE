@@ -472,7 +472,6 @@ public class WebDriverBrowserActions {
 
     private static String reportActionResult(WebDriver driver, String actionName, String testData,
                                              Boolean passFailStatus) {
-//        actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         actionName = JavaActions.convertToSentenceCase(actionName);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
@@ -491,7 +490,6 @@ public class WebDriverBrowserActions {
         }
         message = message + ".";
 
-//        ReportManager.logDiscrete(message);
         message = message.replace("Browser Action: ", "");
         if (driver != null) {
             attachments.add(ScreenshotManager.captureScreenShot(driver, actionName, true));

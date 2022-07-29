@@ -298,7 +298,7 @@ public class ReportManagerHelper {
         if (!fullLog.trim().equals("")) {
             String fullLogCreated = "Successfully created attachment \"" + SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE + " - "
                     + "Execution log" + "\"";
-            createReportEntry(fullLogCreated, true);
+            createLogEntry(fullLogCreated, true);
             String copyrights = "This test run was powered by SHAFT Engine Version: \""
                     + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "\"" + System.lineSeparator()
                     + "SHAFT Engine is licensed under the MIT License: [https://github.com/ShaftHQ/SHAFT_ENGINE/blob/master/LICENSE].";
@@ -525,7 +525,7 @@ public class ReportManagerHelper {
         fullLog += log;
     }
 
-    private static void createReportEntry(String logText, boolean addToFullLog) {
+    private static void createLogEntry(String logText, boolean addToFullLog) {
         if (!Boolean.parseBoolean(System.getProperty("disableLogging"))) {
             String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
             if (logText == null) {
@@ -568,13 +568,14 @@ public class ReportManagerHelper {
      */
     @Step("{logText}")
     static void writeStepToReport(String logText) {
-        createReportEntry(logText, false);
+        createLogEntry(logText, false);
     }
 
     @Step("{logText}")
     static void writeStepToReport(String logText, List<List<Object>> attachments) {
-        createReportEntry(logText, false);
-        if (attachments != null) {
+        createLogEntry(logText, false);
+
+        if (attachments != null && !attachments.isEmpty()) {
             attachments.forEach(attachment -> {
                 if (attachment != null && !attachment.isEmpty() && attachment.get(2).getClass().toString().toLowerCase().contains("string")
                         && !attachment.get(2).getClass().toString().contains("StringInputStream")) {
@@ -903,7 +904,7 @@ public class ReportManagerHelper {
     public static void log(String logText, List<List<Object>> attachments) {
         if (getDiscreteLogging() && !logText.toLowerCase().contains("failed") && isInternalStep()) {
             createLogEntry(logText);
-            if (attachments != null && attachments.size() > 0) {
+            if (attachments != null && !attachments.isEmpty()) {
                 attachments.forEach(attachment -> {
                     if (attachment != null && !attachment.isEmpty()) {
                         if (attachment.get(2) instanceof String) {
@@ -917,7 +918,11 @@ public class ReportManagerHelper {
                 });
             }
         } else {
-            writeStepToReport(logText, attachments);
+            if (attachments != null && !attachments.isEmpty() && !attachments.get(0).isEmpty()) {
+                writeStepToReport(logText, attachments);
+            }else {
+                writeStepToReport(logText);
+            }
         }
     }
 
@@ -939,14 +944,18 @@ public class ReportManagerHelper {
             }
             writeNestedStepsToReport(customLogText, logText, attachments);
         } else {
-            writeStepToReport(logText, attachments);
+            if (attachments != null && !attachments.isEmpty() && !attachments.get(0).isEmpty()) {
+                writeStepToReport(logText, attachments);
+            }else {
+                writeStepToReport(logText);
+            }
         }
     }
 
     @Step("{customLog}")
     private static void writeNestedStepsToReport(String customLog, String stepLog, List<List<Object>> attachments) {
-        createReportEntry(customLog, false);
-        if (attachments != null) {
+        createLogEntry(customLog, false);
+        if (attachments != null && !attachments.isEmpty()) {
             attachments.forEach(attachment -> {
                 if (attachment != null && attachment.get(2).getClass().toString().toLowerCase().contains("string")
                         && !attachment.get(2).getClass().toString().contains("StringInputStream")) {

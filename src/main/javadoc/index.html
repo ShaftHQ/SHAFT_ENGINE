@@ -937,14 +937,14 @@
                                         <div class="col-md-4" id="waitForLazyLoading">
                                             <div class="radio-inline">
                                                 <label for="waitForLazyLoading-0">
-                                                    <input checked="checked" id="waitForLazyLoading-0"
+                                                    <input id="waitForLazyLoading-0"
                                                            name="waitForLazyLoading" type="radio"
                                                            value="true"> Enabled
                                                 </label>
                                             </div>
                                             <div class="radio-inline">
                                                 <label for="waitForLazyLoading-1">
-                                                    <input id="waitForLazyLoading-1"
+                                                    <input checked="checked" id="waitForLazyLoading-1"
                                                            name="waitForLazyLoading"
                                                            type="radio" value="false"> Disabled
                                                 </label>
@@ -1025,30 +1025,11 @@
                                             <div class="input-group">
                                                 <input class="form-control input-md"
                                                        id="defaultElementIdentificationTimeout"
-                                                       min="0" name="defaultElementIdentificationTimeout" step="1"
+                                                       min="0" name="defaultElementIdentificationTimeout" step="30"
                                                        type="number"
-                                                       value="5">
+                                                       value="60">
                                             </div>
                                             <span class="help-block">• Accepts integer values that represent the default timeout for finding a webElement .</span>
-                                        </div>
-                                    </div>
-
-                                    <!-- Text input-->
-                                    <div class="form-group">
-                                        <label class="col-md-4 control-label"
-                                               for="attemptsBeforeThrowingElementNotFoundException">Element
-                                            Identification
-                                            Attempts
-                                        </label>
-                                        <div class="col-md-4">
-                                            <div class="input-group">
-                                                <input class="form-control input-md"
-                                                       id="attemptsBeforeThrowingElementNotFoundException" min="0"
-                                                       name="attemptsBeforeThrowingElementNotFoundException"
-                                                       step="1"
-                                                       type="number" value="5">
-                                            </div>
-                                            <span class="help-block">• Accepts integer values that represent the number of attempts before failing to find a webElement .</span>
                                         </div>
                                     </div>
 
@@ -1233,10 +1214,9 @@
                                         <div class="col-md-4">
                                             <select class="form-control" id="screenshotParams_whenToTakeAScreenshot"
                                                     name="screenshotParams_whenToTakeAScreenshot">
-                                                <option selected value="Always">Always</option>
+                                                <option value="Always">Always</option>
                                                 <option value="Never">Never</option>
-                                                <option value="ValidationPointsOnly">ValidationPointsOnly
-                                                </option>
+                                                <option selected value="ValidationPointsOnly">ValidationPointsOnly</option>
                                                 <option value="FailuresOnly">FailuresOnly</option>
                                             </select>
                                         </div>
@@ -1437,7 +1417,7 @@
                                         <div class="col-md-4" id="videoParams_recordVideo">
                                             <div class="radio-inline">
                                                 <label for="videoParams_recordVideo-0">
-                                                    <input checked="checked" id="videoParams_recordVideo-0"
+                                                    <input id="videoParams_recordVideo-0"
                                                            name="videoParams_recordVideo"
                                                            type="radio"
                                                            value="true">
@@ -1446,7 +1426,7 @@
                                             </div>
                                             <div class="radio-inline">
                                                 <label for="videoParams_recordVideo-1">
-                                                    <input id="videoParams_recordVideo-1" name="videoParams_recordVideo"
+                                                    <input checked="checked" id="videoParams_recordVideo-1" name="videoParams_recordVideo"
                                                            type="radio"
                                                            value="false"> Disabled
                                                 </label>
@@ -2449,7 +2429,6 @@
         const pageLoadTimeout = $("input[name=pageLoadTimeout]").val();
         const scriptExecutionTimeout = $("input[name=scriptExecutionTimeout]").val();
         const defaultElementIdentificationTimeout = $("input[name=defaultElementIdentificationTimeout]").val();
-        const attemptsBeforeThrowingElementNotFoundException = $("input[name=attemptsBeforeThrowingElementNotFoundException]").val();
         const apiSocketTimeout = $("input[name=apiSocketTimeout]").val();
         const apiConnectionTimeout = $("input[name=apiConnectionTimeout]").val();
         const apiConnectionManagerTimeout = $("input[name=apiConnectionManagerTimeout]").val();
@@ -2469,7 +2448,6 @@
             'pageLoadTimeout=' + pageLoadTimeout + '\r\n' +
             'scriptExecutionTimeout=' + scriptExecutionTimeout + '\r\n' +
             'defaultElementIdentificationTimeout=' + defaultElementIdentificationTimeout + '\r\n' +
-            'attemptsBeforeThrowingElementNotFoundException=' + attemptsBeforeThrowingElementNotFoundException + '\r\n' +
             'apiSocketTimeout=' + apiSocketTimeout + '\r\n' +
             'apiConnectionTimeout=' + apiConnectionTimeout + '\r\n' +
             'apiConnectionManagerTimeout=' + apiConnectionManagerTimeout + '\r\n' +
