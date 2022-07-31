@@ -28,10 +28,10 @@ class ElementActionsHelper {
     }
 
     protected static int waitForElementPresence_reducedTimeout(WebDriver driver, By elementLocator){
-        var defaultTimeout = DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT;
         DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT = 300; //this is used for faster mobile native scrolling. default for ios is 200 and for android is 250, this covers both
         var numberOfFoundElements = waitForElementPresence(driver, elementLocator);
-        DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT = defaultTimeout;
+        DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT = Integer
+                .parseInt(System.getProperty("defaultElementIdentificationTimeout").trim())*1000;
         return numberOfFoundElements;
     }
 
@@ -108,7 +108,7 @@ class ElementActionsHelper {
         } catch (org.openqa.selenium.TimeoutException e) {
             // In case the element was not found / not visible and the timeout expired
 //            ReportManagerHelper.logDiscrete(e);
-            ReportManager.logDiscrete(e.getMessage() + "||" +e.getCause().getMessage().substring(0,e.getCause().getMessage().indexOf("\n")));
+            ReportManager.logDiscrete(e.getMessage() + " || " +e.getCause().getMessage().substring(0,e.getCause().getMessage().indexOf("\n")));
             return 0;
         }
     }
