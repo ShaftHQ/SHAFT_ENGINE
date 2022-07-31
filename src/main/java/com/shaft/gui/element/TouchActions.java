@@ -694,6 +694,12 @@ public class TouchActions {
                 // for the animated GIF:
                 WebDriverElementActions.takeScreenshot(driver, null, "swipeElementIntoView", null, true);
                 canStillScroll = attemptW3cCompliantActionsScroll(swipeDirection, scrollableElementLocator, targetElementLocator);
+                if (!driver.findElements(targetElementLocator).isEmpty()
+                        && WebDriverElementActions.isElementDisplayed(driver, targetElementLocator)) {
+                    // element found after scrolling (at the end of the current page)
+                    isElementFound = true;
+                    ReportManager.logDiscrete("Element found on screen.");
+                }
             }
             blindScrollingAttempts++;
         } while (Boolean.FALSE.equals(isElementFound) && blindScrollingAttempts < DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT && Boolean.TRUE.equals(canStillScroll));
