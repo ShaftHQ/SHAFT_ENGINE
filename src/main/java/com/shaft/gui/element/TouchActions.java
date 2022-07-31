@@ -702,7 +702,7 @@ public class TouchActions {
                 }
             }
             blindScrollingAttempts++;
-        } while (Boolean.FALSE.equals(isElementFound) && blindScrollingAttempts < DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT && Boolean.TRUE.equals(canStillScroll));
+        } while (Boolean.FALSE.equals(isElementFound) && (blindScrollingAttempts < DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT || Boolean.TRUE.equals(canStillScroll)));
         ReportManagerHelper.setDiscreteLogging(isDiscrete);
         return isElementFound;
     }
