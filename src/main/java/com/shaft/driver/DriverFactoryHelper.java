@@ -17,6 +17,8 @@ import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import io.github.bonigarcia.wdm.WebDriverManager;
+import lombok.AccessLevel;
+import lombok.Getter;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
@@ -51,6 +53,7 @@ public class DriverFactoryHelper {
     // local OR hub ip:port
     private static String TARGET_HUB_URL;
     // Windows-64 | Linux-64 | Mac-64
+    @Getter(AccessLevel.PUBLIC)
     private static String TARGET_DRIVER_NAME;
     // Default | MozillaFirefox | MicrosoftInternetExplorer | GoogleChrome |
     // MicrosoftEdge | Safari
@@ -785,6 +788,8 @@ public class DriverFactoryHelper {
         String internalDriverName = driverName;
         if (internalDriverName == null) {
             internalDriverName = TARGET_DRIVER_NAME;
+        }else{
+            TARGET_DRIVER_NAME = driverName;
         }
 
         if (isMobileWebExecution()) {

@@ -1,5 +1,6 @@
 package com.shaft.gui.browser;
 
+import com.google.common.net.InternetDomainName;
 import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.gui.element.JavaScriptWaitManager;
 import com.shaft.gui.element.WebDriverElementActions;
@@ -8,18 +9,25 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.tools.support.JavaActions;
 import com.shaft.tools.support.JavaScriptHelper;
+import lombok.SneakyThrows;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.Point;
 import org.openqa.selenium.*;
+import org.openqa.selenium.devtools.DevTools;
+import org.openqa.selenium.devtools.HasDevTools;
+import org.openqa.selenium.remote.Augmenter;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.testng.Assert;
 
 import java.awt.*;
+import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Predicate;
 
 public class WebDriverBrowserActions {
     private static final Boolean HEADLESS_EXECUTION = Boolean.valueOf(System.getProperty("headlessExecution").trim());
@@ -154,6 +162,52 @@ public class WebDriverBrowserActions {
      */
     public static void navigateToURL(WebDriver driver, String targetUrl) {
         navigateToURL(driver, targetUrl, targetUrl);
+    }
+
+    @SneakyThrows
+    public static void navigateToURLWithBasicAuthentication(WebDriver driver, String targetUrl, String username, String password, String targetUrlAfterAuthentication) {
+        String domainName = getDomainNameFromURL(targetUrl);
+        String driverName = DriverFactoryHelper.getTARGET_DRIVER_NAME();
+        if (driverName.equals("GoogleChrome") || driverName.equals("MicrosoftEdge")){
+            if (System.getProperty("executionAddress").equals("local")) {
+                Predicate<URI> uriPredicate = uri -> uri.getHost().contains(domainName);
+                ((HasAuthentication) driver).register(uriPredicate, UsernameAndPassword.of(username, password));
+            } else {
+                AtomicReference<DevTools> devToolsAtomicReference = new AtomicReference<>();
+                driver = new Augmenter().addDriverAugmentation("chrome",
+                        HasAuthentication.class,
+                        (caps, exec) -> (whenThisMatches, useTheseCredentials) -> {
+                            devToolsAtomicReference.get()
+                                    .createSessionIfThereIsNotOne();
+                            devToolsAtomicReference.get().getDomains()
+                                    .network()
+                                    .addAuthHandler(whenThisMatches,
+                                            useTheseCredentials);
+                        }).augment(driver);
+
+                DevTools devTools = ((HasDevTools) driver).getDevTools();
+                devTools.createSession();
+                devToolsAtomicReference.set(devTools);
+                ((HasAuthentication) driver).register(UsernameAndPassword.of(username, password));
+            }
+        } else{
+            //in case of ie, firefox, safari, ...etc
+            if (targetUrl.startsWith("https://")){
+                targetUrl = new URI("https://" + username+":"+password+ "@"+ targetUrl.substring("https://".length())).toString();
+            }else{
+                targetUrl = new URI("http://" + username+":"+password+ "@"+ targetUrl.substring("http://".length())).toString();
+            }
+        }
+        navigateToURL(driver, targetUrl, targetUrlAfterAuthentication);
+    }
+
+    @SneakyThrows
+    private static String getDomainNameFromURL(String url) {
+        // https://www.baeldung.com/java-domain-name-from-url#using-the-internetdomainname-class-from-guava-library
+        URI uri = new URI(url);
+        String host = uri.getHost();
+        InternetDomainName internetDomainName = InternetDomainName.from(host).topPrivateDomain();
+        return internetDomainName.toString();
     }
 
     /**
@@ -683,6 +737,11 @@ public class WebDriverBrowserActions {
      */
     public WebDriverBrowserActions navigateToURL(String targetUrl, String targetUrlAfterRedirection) {
         navigateToURL(lastUsedDriver, targetUrl, targetUrlAfterRedirection);
+        return this;
+    }
+
+    public WebDriverBrowserActions navigateToURLWithBasicAuthentication(String targetUrl, String username, String password, String targetUrlAfterAuthentication) {
+        navigateToURLWithBasicAuthentication(lastUsedDriver, targetUrl, username, password, targetUrlAfterAuthentication);
         return this;
     }
 
