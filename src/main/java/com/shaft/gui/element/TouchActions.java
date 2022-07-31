@@ -606,41 +606,41 @@ public class TouchActions {
         }
         return this;
     }
-
-    private boolean attemptToSwipeElementIntoViewInNativeApp(By elementLocator, SwipeDirection swipeDirection, SwipeTechnique swipeTechnique, int scrollableElementInstanceNumber) {
-        boolean isElementFound = false;
-        int attemptsToFindElement = 0;
-        String lastPageSourceBeforeSwiping = "";
-
-        do {
-            // appium native device
-            if (!driver.findElements(elementLocator).isEmpty()
-                    && WebDriverElementActions.isElementDisplayed(driver, elementLocator)) {
-                // element is already on screen
-                isElementFound = true;
-                ReportManager.logDiscrete("Element found on screen.");
-            } else {
-                // for the animated GIF:
-                WebDriverElementActions.takeScreenshot(driver, elementLocator, "swipeElementIntoView", null, true);
-                lastPageSourceBeforeSwiping = driver.getPageSource();
-                switch (swipeTechnique) {
-                    case W3C_ACTIONS -> attemptW3cCompliantActionsScroll(swipeDirection, null, elementLocator);
-                    case UI_SELECTOR -> attemptUISelectorScroll(swipeDirection, scrollableElementInstanceNumber);
-                }
-                attemptsToFindElement++;
-            }
-
-            //attempting to change scrolling method if page source was not changed
-            if (lastPageSourceBeforeSwiping.equals(driver.getPageSource())) {
-                if (swipeTechnique.equals(SwipeTechnique.W3C_ACTIONS)) {
-                    swipeTechnique = SwipeTechnique.UI_SELECTOR;
-                } else {
-                    swipeTechnique = SwipeTechnique.W3C_ACTIONS;
-                }
-            }
-        } while (Boolean.FALSE.equals(isElementFound) && attemptsToFindElement < DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT);
-        return isElementFound;
-    }
+//
+//    private boolean attemptToSwipeElementIntoViewInNativeApp(By elementLocator, SwipeDirection swipeDirection, SwipeTechnique swipeTechnique, int scrollableElementInstanceNumber) {
+//        boolean isElementFound = false;
+//        int attemptsToFindElement = 0;
+//        String lastPageSourceBeforeSwiping = "";
+//
+//        do {
+//            // appium native device
+//            if (!driver.findElements(elementLocator).isEmpty()
+//                    && WebDriverElementActions.isElementDisplayed(driver, elementLocator)) {
+//                // element is already on screen
+//                isElementFound = true;
+//                ReportManager.logDiscrete("Element found on screen.");
+//            } else {
+//                // for the animated GIF:
+//                WebDriverElementActions.takeScreenshot(driver, elementLocator, "swipeElementIntoView", null, true);
+//                lastPageSourceBeforeSwiping = driver.getPageSource();
+//                switch (swipeTechnique) {
+//                    case W3C_ACTIONS -> attemptW3cCompliantActionsScroll(swipeDirection, null, elementLocator);
+//                    case UI_SELECTOR -> attemptUISelectorScroll(swipeDirection, scrollableElementInstanceNumber);
+//                }
+//                attemptsToFindElement++;
+//            }
+//
+//            //attempting to change scrolling method if page source was not changed
+//            if (lastPageSourceBeforeSwiping.equals(driver.getPageSource())) {
+//                if (swipeTechnique.equals(SwipeTechnique.W3C_ACTIONS)) {
+//                    swipeTechnique = SwipeTechnique.UI_SELECTOR;
+//                } else {
+//                    swipeTechnique = SwipeTechnique.W3C_ACTIONS;
+//                }
+//            }
+//        } while (Boolean.FALSE.equals(isElementFound) && attemptsToFindElement < DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT);
+//        return isElementFound;
+//    }
 
     @SuppressWarnings("unchecked")
     private List<Object> attemptToSwipeElementIntoViewInNativeApp(By scrollableElementLocator, String targetElementImage, SwipeDirection swipeDirection) {
@@ -667,9 +667,18 @@ public class TouchActions {
                 // for the animated GIF:
                 WebDriverElementActions.takeScreenshot(driver, null, "swipeElementIntoView", null, true);
                 canStillScroll = attemptW3cCompliantActionsScroll(swipeDirection, scrollableElementLocator, null);
-                blindScrollingAttempts++;
+                if (!canStillScroll){
+                    // check if element can be found after scrolling to the end of the page
+                    visualIdentificationObjects = ElementActionsHelper.waitForElementPresence(driver, targetElementImage);
+                    coordinates = (List<Integer>) visualIdentificationObjects.get(2);
+                  if(!Collections.emptyList().equals(coordinates)) {
+                      isElementFound = true;
+                      ReportManager.logDiscrete("Element found on screen.");
+                  }
+                }
             }
-        } while (Boolean.FALSE.equals(isElementFound) && blindScrollingAttempts < DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT && Boolean.TRUE.equals(canStillScroll));
+            blindScrollingAttempts++;
+        } while (Boolean.FALSE.equals(isElementFound) && (blindScrollingAttempts < DEFAULT_NUMBER_OF_ATTEMPTS_TO_SCROLL_TO_ELEMENT || Boolean.TRUE.equals(canStillScroll)));
         ReportManagerHelper.setDiscreteLogging(isDiscrete);
         return visualIdentificationObjects;
     }
@@ -685,8 +694,7 @@ public class TouchActions {
 
         do {
             // appium native device
-            if (!driver.findElements(targetElementLocator).isEmpty()
-                    && WebDriverElementActions.isElementDisplayed(driver, targetElementLocator)) {
+            if (ElementActionsHelper.waitForElementPresence_reducedTimeout(driver, targetElementLocator)>0) {
                 // element is already on screen
                 isElementFound = true;
                 ReportManager.logDiscrete("Element found on screen.");
@@ -694,9 +702,8 @@ public class TouchActions {
                 // for the animated GIF:
                 WebDriverElementActions.takeScreenshot(driver, null, "swipeElementIntoView", null, true);
                 canStillScroll = attemptW3cCompliantActionsScroll(swipeDirection, scrollableElementLocator, targetElementLocator);
-                if (!driver.findElements(targetElementLocator).isEmpty()
-                        && WebDriverElementActions.isElementDisplayed(driver, targetElementLocator)) {
-                    // element found after scrolling (at the end of the current page)
+                if (!canStillScroll && ElementActionsHelper.waitForElementPresence_reducedTimeout(driver, targetElementLocator)>0) {
+                    // element was found after scrolling to the end of the page
                     isElementFound = true;
                     ReportManager.logDiscrete("Element found on screen.");
                 }
@@ -778,12 +785,6 @@ public class TouchActions {
             logMessageAfter += ", there is still more room to keep scrolling.";
         } else {
             logMessageAfter += ", there is no more room to keep scrolling.";
-        }
-        try {
-            //insert delay for scrolling to finish
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
         }
         ReportManager.logDiscrete(logMessageAfter);
         return canScrollMore;

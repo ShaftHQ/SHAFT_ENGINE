@@ -17,14 +17,22 @@ import java.time.Duration;
 import java.util.*;
 
 class ElementActionsHelper {
-    private static final int DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER = Integer
-            .parseInt(System.getProperty("defaultElementIdentificationTimeout").trim());
+    private static long DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT = Integer
+            .parseInt(System.getProperty("defaultElementIdentificationTimeout").trim())*1000; //milliseconds
     private static final int ELEMENT_IDENTIFICATION_POLLING_DELAY = 100; // milliseconds
     private static final boolean FORCE_CHECK_FOR_ELEMENT_VISIBILITY = Boolean
             .parseBoolean(System.getProperty("forceCheckForElementVisibility").trim());
 
     private ElementActionsHelper() {
         throw new IllegalStateException("Utility class");
+    }
+
+    protected static int waitForElementPresence_reducedTimeout(WebDriver driver, By elementLocator){
+        var defaultTimeout = DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT;
+        DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT = 300; //this is used for faster mobile native scrolling. default for ios is 200 and for android is 250, this covers both
+        var numberOfFoundElements = waitForElementPresence(driver, elementLocator);
+        DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT = defaultTimeout;
+        return numberOfFoundElements;
     }
 
     protected static int waitForElementPresence(WebDriver driver, By elementLocator) {
@@ -57,7 +65,7 @@ class ElementActionsHelper {
                 isFound = true;
             }
             elapsedTime = System.currentTimeMillis() - startTime;
-        } while (!isFound && elapsedTime < ((long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER * 1000));
+        } while (!isFound && elapsedTime < DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT);
         List<Object> returnedValue = new LinkedList<>();
         returnedValue.add(currentScreenImage);
         returnedValue.add(FileActions.getInstance().readFromImageFile(elementReferenceScreenshot));
@@ -81,8 +89,8 @@ class ElementActionsHelper {
 
         try {
             return new FluentWait<>(driver)
-                    .withTimeout(Duration.ofSeconds(
-                            (long) DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER * numberOfAttempts))
+                    .withTimeout(Duration.ofMillis(
+                            DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT * numberOfAttempts))
                     .pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY))
                     .ignoreAll(expectedExceptions)
                     .until(nestedDriver -> {
@@ -99,53 +107,16 @@ class ElementActionsHelper {
                     });
         } catch (org.openqa.selenium.TimeoutException e) {
             // In case the element was not found / not visible and the timeout expired
-            ReportManagerHelper.logDiscrete(e);
+//            ReportManagerHelper.logDiscrete(e);
+            ReportManager.logDiscrete(e.getMessage() + "||" +e.getCause().getMessage().substring(0,e.getCause().getMessage().indexOf("\n")));
             return 0;
         }
-    }
-
-    @Deprecated(forRemoval = true)
-    protected static boolean waitForElementToBeVisible(WebDriver driver, By elementLocator) {
-        if (FORCE_CHECK_FOR_ELEMENT_VISIBILITY && !DriverFactoryHelper.isMobileNativeExecution()) {
-            ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
-            expectedExceptions.add(org.openqa.selenium.NoSuchElementException.class);
-            expectedExceptions.add(org.openqa.selenium.StaleElementReferenceException.class);
-//            expectedExceptions.add(org.openqa.selenium.ElementNotVisibleException.class);
-            expectedExceptions.add(org.openqa.selenium.InvalidElementStateException.class);
-            expectedExceptions.add(org.openqa.selenium.WebDriverException.class);
-            // UnsupportedCommandException getElementLocationOnceScrolledIntoView
-            // TODO: appium -> swipe element into view
-
-            try {
-                new FluentWait<>(driver)
-                        .withTimeout(Duration.ofSeconds(
-                                DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER))
-                        .pollingEvery(Duration.ofSeconds(ELEMENT_IDENTIFICATION_POLLING_DELAY))
-                        .ignoreAll(expectedExceptions)
-                        .until(nestedDriver -> {
-                            ((Locatable) driver.findElement(elementLocator)).getCoordinates().inViewPort();
-                            return true;
-                        });
-            } catch (org.openqa.selenium.TimeoutException e) {
-                // In case the element was not visible and the timeout expired
-                ReportManagerHelper.logDiscrete(e);
-            }
-            if (Boolean.FALSE.equals(driver.findElement(elementLocator).isDisplayed())) {
-                try {
-                    new WebDriverWait(driver, Duration.ofSeconds(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER)).until(ExpectedConditions.visibilityOfElementLocated(elementLocator));
-                } catch (org.openqa.selenium.TimeoutException e) {
-                    ReportManagerHelper.logDiscrete(e);
-                    return false;
-                }
-            }
-        }
-        return true;
     }
 
     protected static boolean waitForElementToBeClickable(WebDriver driver, By elementLocator) {
         if (!DriverFactoryHelper.isMobileNativeExecution()) {
             try {
-                (new WebDriverWait(driver, Duration.ofSeconds(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER)))
+                (new WebDriverWait(driver, Duration.ofMillis(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT)))
                         .until(ExpectedConditions.elementToBeClickable(elementLocator));
             } catch (org.openqa.selenium.TimeoutException e) {
                 ReportManagerHelper.logDiscrete(e);
@@ -157,7 +128,7 @@ class ElementActionsHelper {
 
     protected static boolean waitForElementTextToBeNot(WebDriver driver, By elementLocator, String textShouldNotBe) {
         try {
-            (new WebDriverWait(driver, Duration.ofSeconds(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT_INTEGER)))
+            (new WebDriverWait(driver, Duration.ofMillis(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT)))
                     .until(ExpectedConditions.not(ExpectedConditions.textToBe(elementLocator, textShouldNotBe)));
         } catch (org.openqa.selenium.TimeoutException e) {
             ReportManagerHelper.logDiscrete(e);
@@ -228,29 +199,6 @@ class ElementActionsHelper {
         } catch (Exception e) {
             ReportManagerHelper.log(e);
             return false;
-        }
-    }
-
-    @Deprecated(forRemoval = true)
-    protected static void performHoverUsingJavascript(WebDriver driver, By elementLocator) {
-        if (DriverFactoryHelper.isWebExecution()) {
-            var createMouseEvent = "var evObj = document.createEvent('MouseEvents');";
-            var dispatchMouseEvent = "arguments[arguments.length -1].dispatchEvent(evObj);";
-
-            var mouseEventFirstHalf = "evObj.initMouseEvent(\"";
-            var mouseEventSecondHalf = "\", true, false, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);";
-
-            String javaScript = createMouseEvent + mouseEventFirstHalf + "mousemove" + mouseEventSecondHalf
-                    + dispatchMouseEvent;
-            ((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
-
-            javaScript = createMouseEvent + mouseEventFirstHalf + "mouseenter" + mouseEventSecondHalf + dispatchMouseEvent;
-            ((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
-
-            javaScript = createMouseEvent + mouseEventFirstHalf + "mouseover" + mouseEventSecondHalf + dispatchMouseEvent;
-            ((JavascriptExecutor) driver).executeScript(javaScript, driver.findElement(elementLocator));
-
-//            (new Actions(driver)).moveToElement(driver.findElement(elementLocator)).perform();
         }
     }
 
