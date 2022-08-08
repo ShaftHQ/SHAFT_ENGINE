@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.jayway.jsonpath.JsonPath;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.tools.support.JavaActions;
@@ -19,7 +20,6 @@ import io.restassured.http.ContentType;
 import io.restassured.http.Cookie;
 import io.restassured.http.Header;
 import io.restassured.mapper.ObjectMapperType;
-import io.restassured.path.json.JsonPath;
 import io.restassured.path.json.exception.JsonPathException;
 import io.restassured.path.xml.element.Node;
 import io.restassured.path.xml.element.NodeChildren;
@@ -171,7 +171,12 @@ public class RestActions {
     public static String getResponseJSONValue(Response response, String jsonPath) {
         String searchPool = "";
         try {
-            searchPool = response.jsonPath().getString(jsonPath);
+            if (jsonPath.contains("?")) {
+                List<String> jsonValueAsList = JsonPath.read(response.asPrettyString(), jsonPath);
+                searchPool = String.valueOf(jsonValueAsList.get(0));
+            } else {
+                searchPool = JsonPath.read(response.asPrettyString(), jsonPath);
+            }
         } catch (ClassCastException rootCauseException) {
             ReportManager.log(ERROR_INCORRECT_JSONPATH + "\"" + jsonPath + "\"");
             failAction(jsonPath, rootCauseException);
@@ -194,9 +199,14 @@ public class RestActions {
         try {
             if (response instanceof HashMap hashMapResponse) {
                 JSONObject obj = new JSONObject(hashMapResponse);
-                searchPool = JsonPath.from(obj.toString()).getString(jsonPath);
+                searchPool = io.restassured.path.json.JsonPath.from(obj.toString()).getString(jsonPath);
             } else if (response instanceof Response responseObject) {
-                searchPool = responseObject.jsonPath().getString(jsonPath);
+                if (jsonPath.contains("?")) {
+                    List<String> jsonValueAsList = JsonPath.read(responseObject.asPrettyString(), jsonPath);
+                    searchPool = String.valueOf(jsonValueAsList.get(0));
+                } else {
+                    searchPool = JsonPath.read(responseObject.asPrettyString(), jsonPath);
+                }
             }
         } catch (ClassCastException rootCauseException) {
             ReportManager.log(ERROR_INCORRECT_JSONPATH + "\"" + jsonPath + "\"");
@@ -218,7 +228,7 @@ public class RestActions {
     public static List<Object> getResponseJSONValueAsList(Response response, String jsonPath) {
         List<Object> searchPool = null;
         try {
-            searchPool = response.jsonPath().getList(jsonPath);
+            searchPool = JsonPath.read(response.asPrettyString(), jsonPath);
         } catch (ClassCastException rootCauseException) {
             ReportManager.log(ERROR_INCORRECT_JSONPATH + "\"" + jsonPath + "\"");
             failAction(jsonPath, rootCauseException);

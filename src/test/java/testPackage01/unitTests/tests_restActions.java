@@ -18,7 +18,7 @@ public class tests_restActions {
 //        Response posts = (new RestActions(serviceURI)).performRequest(RequestType.GET, 200, "posts");
         Response posts = RestActions.buildNewRequest(serviceURI, "posts", RequestType.GET).performRequest();
 
-        List<Object> postsList = RestActions.getResponseJSONValueAsList(posts, "");
+        List<Object> postsList = RestActions.getResponseJSONValueAsList(posts, "$");
         Objects.requireNonNull(postsList).forEach(post -> {
             if (Objects.equals(RestActions.getResponseJSONValue(post, "title"), "qui est esse")) {
                 Validations.assertThat().response(post).extractedJsonValue("body").contains("qui neque nisi nulla").perform();

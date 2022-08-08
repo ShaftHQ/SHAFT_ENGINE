@@ -74,4 +74,19 @@ public class Test_Wizard_API {
         driver.get("us/90210").perform();
         driver.assertThatResponse().doesNotEqualFileContent("test_assertResponseEqualsIgnoringOrder.json").perform();
     }
+
+    @Test
+    public void test_jsonValueAdvancedEvaluation_filterExpression() {
+        driver = new SHAFT.API("https://jsonplaceholder.typicode.com");
+        driver.get("/users").perform();
+        driver.assertThatResponse().extractedJsonValue("$[?(@.name=='Chelsey Dietrich')].id").isEqualTo("5").perform();
+    }
+
+    @Test
+    public void test_jsonValueAdvancedEvaluation_arrayIndex() {
+        driver = new SHAFT.API("https://jsonplaceholder.typicode.com");
+        driver.get("/users").perform();
+        driver.assertThatResponse().extractedJsonValue("$[3].address.city").isEqualTo("South Elvis").perform();
+    }
+
 }
