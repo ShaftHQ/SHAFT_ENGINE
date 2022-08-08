@@ -89,4 +89,18 @@ public class Test_Wizard_API {
         driver.assertThatResponse().extractedJsonValue("$[3].address.city").isEqualTo("South Elvis").perform();
     }
 
+    @Test
+    public void test_jsonValueAdvancedEvaluation_numbers() {
+        driver = new SHAFT.API("https://jsonplaceholder.typicode.com");
+        driver.get("/users").perform();
+        driver.assertThatResponse().extractedJsonValue("$[3].id").isEqualTo("4").perform();
+    }
+
+    @Test
+    public void test_jsonValueAdvancedEvaluation_boolean() {
+        driver = new SHAFT.API("https://jsonplaceholder.typicode.com");
+        driver.get("/todos").perform();
+        driver.assertThatResponse().extractedJsonValue("$[1].completed").isEqualTo("false").perform();
+    }
+
 }
