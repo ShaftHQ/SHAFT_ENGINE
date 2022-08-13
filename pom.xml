@@ -29,7 +29,7 @@
 
     <properties>
         <!-- Dependencies and Plug-ins Version Numbers Parameters -->
-        <selenium.version>4.3.0</selenium.version>
+        <selenium.version>4.4.0</selenium.version>
         <appium-java-client.version>8.1.1</appium-java-client.version>
 
         <webdrivermanager.version>5.2.3</webdrivermanager.version>
@@ -559,17 +559,17 @@
         <dependency>
             <groupId>com.google.crypto.tink</groupId>
             <artifactId>tink</artifactId>
-            <version>1.6.1</version>
+            <version>1.7.0</version>
         </dependency>
         <dependency>
             <groupId>com.google.crypto.tink</groupId>
             <artifactId>tink-awskms</artifactId>
-            <version>1.6.1</version>
+            <version>1.7.0</version>
         </dependency>
         <dependency>
             <groupId>com.google.crypto.tink</groupId>
             <artifactId>tink-gcpkms</artifactId>
-            <version>1.6.1</version>
+            <version>1.7.0</version>
         </dependency>
     </dependencies>
 
