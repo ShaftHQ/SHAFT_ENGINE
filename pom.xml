@@ -33,7 +33,7 @@
         <appium-java-client.version>8.1.1</appium-java-client.version>
 
         <webdrivermanager.version>5.2.3</webdrivermanager.version>
-        <allure-testng.version>2.18.1</allure-testng.version> <!-- UPDATE internal.properties -->
+        <allure-testng.version>2.19.0</allure-testng.version> <!-- UPDATE internal.properties -->
         <extentreports.version>5.0.9</extentreports.version>
         <aspectj.version>1.9.9.1</aspectj.version> <!-- 1.9.7 DO NOT UPDATE -->
 
@@ -59,7 +59,7 @@
         <maven-surefire-plugin.version>3.0.0-M7</maven-surefire-plugin.version>
         <maven-shade-plugin.version>3.2.1</maven-shade-plugin.version>
         <maven-jar-plugin.version>3.2.2</maven-jar-plugin.version>
-        <maven-javadoc-plugin.version>3.4.0</maven-javadoc-plugin.version>
+        <maven-javadoc-plugin.version>3.4.1</maven-javadoc-plugin.version>
         <maven-scm-publish-plugin.version>3.1.0</maven-scm-publish-plugin.version>
         <maven-source-plugin.version>3.2.1</maven-source-plugin.version>
 
@@ -123,7 +123,7 @@
         <dependency>
             <groupId>com.epam.healenium</groupId>
             <artifactId>healenium-web</artifactId>
-            <version>3.2.5</version>
+            <version>3.3.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.seleniumhq.selenium</groupId>
@@ -336,7 +336,7 @@
         <dependency>
             <groupId>io.qameta.allure</groupId>
             <artifactId>allure-cucumber7-jvm</artifactId>
-            <version>2.18.1</version>
+            <version>2.19.0</version>
         </dependency>
         <dependency>
             <groupId>org.aspectj</groupId>
