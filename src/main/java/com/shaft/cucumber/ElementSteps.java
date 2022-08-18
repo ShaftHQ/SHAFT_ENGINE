@@ -266,15 +266,13 @@ public class ElementSteps {
      * multiplied by the default element identification timeout (in the POM.xml
      * file)
      *
-     * @param numberOfTries the number of times to try and wait for the element to achieve the desired stateOfPresence (default is 1)
      * @param locatorType   can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue  the value/expression of the desired element locator
      * @param initialValue  the initial text value of the target webElement
      */
-    @When("I Wait for {int} attempt(s) for the text inside the element found by {string}: {string} to change from the initial value {string}")
-    public void waitForTextToChange(int numberOfTries, String locatorType, String locatorValue, String initialValue) {
-        com.shaft.gui.element.ElementActions.waitForTextToChange(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue), initialValue,
-                numberOfTries);
+    @When("I Wait for the text inside the element found by {string}: {string} to change from the initial value {string}")
+    public void waitForTextToChange(String locatorType, String locatorValue, String initialValue) {
+        com.shaft.gui.element.ElementActions.waitForTextToChange(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue), initialValue);
     }
 
     protected enum LocatorType {

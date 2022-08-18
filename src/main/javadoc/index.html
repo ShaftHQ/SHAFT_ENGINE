@@ -840,33 +840,6 @@
                                         </div>
                                     </div>
 
-                                    <!-- Multiple Radios -->
-                                    <div class="form-group">
-                                        <label class="col-md-4 control-label"
-                                               for="aiPoweredSelfHealingElementIdentification">AI Powered Self Healing
-                                        </label>
-                                        <div class="col-md-4" id="aiPoweredSelfHealingElementIdentification">
-                                            <div class="radio-inline">
-                                                <label for="aiPoweredSelfHealingElementIdentification-0">
-                                                    <input id="aiPoweredSelfHealingElementIdentification-0"
-                                                           name="aiPoweredSelfHealingElementIdentification" type="radio"
-                                                           value="true">
-                                                    Enabled
-                                                </label>
-                                            </div>
-                                            <div class="radio-inline">
-                                                <label for="aiPoweredSelfHealingElementIdentification-1">
-                                                    <input checked="checked"
-                                                           id="aiPoweredSelfHealingElementIdentification-1"
-                                                           name="aiPoweredSelfHealingElementIdentification" type="radio"
-                                                           value="false">
-                                                    Disabled
-                                                </label>
-                                            </div>
-                                            <span class="help-block">• <b>ExperimentalFeature* </b>Enabling AI Powered Self Healing will have a minor impact on performance, but in return will be able to recover most tests in case of unplanned element locator changes.</span>
-                                        </div>
-                                    </div>
-
                                     <!-- Button -->
                                     <div class="form-group">
                                         <label class="col-md-4 control-label" for="generatePlatformFlags_button">Generate
@@ -2396,7 +2369,6 @@
         const automaticallyAssertResponseStatusCode = $("input[name=automaticallyAssertResponseStatusCode]:checked").val();
         const maximumPerformanceMode = $("input[name=maximumPerformanceMode]:checked").val();
         const skipTestsWithLinkedIssues = $("input[name=skipTestsWithLinkedIssues]:checked").val();
-        const aiPoweredSelfHealingElementIdentification = $("input[name=aiPoweredSelfHealingElementIdentification]:checked").val();
 
         // This variable stores all the data.
         let data =
@@ -2411,8 +2383,7 @@
             'clickUsingJavascriptWhenWebDriverClickFails=' + clickUsingJavascriptWhenWebDriverClickFails + '\r\n' +
             'automaticallyAssertResponseStatusCode=' + automaticallyAssertResponseStatusCode + '\r\n' +
             'maximumPerformanceMode=' + maximumPerformanceMode + '\r\n' +
-            'skipTestsWithLinkedIssues=' + skipTestsWithLinkedIssues + '\r\n' +
-            'aiPoweredSelfHealingElementIdentification=' + aiPoweredSelfHealingElementIdentification + '\r\n';
+            'skipTestsWithLinkedIssues=' + skipTestsWithLinkedIssues + '\r\n';
 
         downloadFile(data, 'PlatformFlags.properties');
     }
