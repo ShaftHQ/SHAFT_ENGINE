@@ -14,8 +14,8 @@ public class Label extends Element {
         return elementActions.getText(locator);
     }
 
-    public void waitForTextToChange(String initialValve, int numberOfRetries) {
-        elementActions.waitForTextToChange(locator, initialValve, numberOfRetries);
+    public void waitForTextToChange(String initialValve) {
+        elementActions.waitForTextToChange(locator, initialValve);
     }
 
     public void shouldHaveText(String expectedValue) {
