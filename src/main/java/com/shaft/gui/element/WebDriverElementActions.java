@@ -30,7 +30,6 @@ import java.util.List;
 import java.util.*;
 public class WebDriverElementActions {
     private static final String OBFUSCATED_STRING = "•";
-    private static final boolean CAPTURE_CLICKED_ELEMENT_TEXT = Boolean.parseBoolean(System.getProperty("captureClickedElementText"));
     private static final boolean CLICK_USING_JAVASCRIPT_WHEN_WEB_DRIVER_CLICK_FAILS = Boolean.parseBoolean(System.getProperty("clickUsingJavascriptWhenWebDriverClickFails"));
     private static final boolean ATTEMPT_CLEAR_BEFORE_TYPING_USING_BACKSPACE = Boolean.parseBoolean(System.getProperty("attemptClearBeforeTypingUsingBackspace"));
     private static WebDriver lastUsedDriver = null;
@@ -47,8 +46,7 @@ public class WebDriverElementActions {
     public static void scrollToElement(WebDriver driver, By elementLocator) {
         //identifyUniqueElement will internally scroll to find the target element so no extra action is needed
         if (identifyUniqueElement(driver, elementLocator)) {
-            
-            passAction(driver, elementLocator);
+            passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null,getElementName(driver,elementLocator));
         } else {
             failAction(driver, elementLocator);
         }
@@ -66,18 +64,13 @@ public class WebDriverElementActions {
         } else {
         // Waits for the element to be clickable, and then clicks it.
             if (identifyUniqueElement(driver, elementLocator)) {
-                String elementText = "";
+                var elementName = getElementName(driver, elementLocator);
                 try {
-                    if (CAPTURE_CLICKED_ELEMENT_TEXT) {
-                        // attempting to read element text
-                        elementText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator,
-                                determineSuccessfulTextLocationStrategy(driver, elementLocator));
-                    }
                     // adding hover before clicking an element to enable styles to show in the
                     // execution screenshots and to solve issues clicking on certain elements.
                     (new Actions(driver)).moveToElement(driver.findElement(elementLocator)).perform();
-                } catch (Exception e) {
-                    ReportManagerHelper.logDiscrete(e);
+                } catch (Throwable t) {
+//                    ReportManagerHelper.logDiscrete(t);
                 }
                 List<Object> screenshot = takeScreenshot(driver, elementLocator, "click", null, true);
                 // takes screenshot before clicking the element out of view
@@ -108,10 +101,7 @@ public class WebDriverElementActions {
                 // click action to conclude
                 // removed to enhance performance, and replaced with a process to assert after
                 // every navigation
-                if (elementText.equals("")) {
-                    elementText = elementLocator.toString();
-                }
-                passAction(driver, elementLocator, elementText.replaceAll("\n", " "), screenshot);
+                passAction(driver, elementLocator,"", screenshot, elementName);
             } else {
                 failAction(driver, elementLocator);
             }
@@ -125,13 +115,13 @@ public class WebDriverElementActions {
      *                       selector, name ...etc)
      */
     public static void clickAndHold(WebDriver driver, By elementLocator) {
-if (identifyUniqueElement(driver, elementLocator)) {
-            
+        if (identifyUniqueElement(driver, elementLocator)) {
+            var elementName = getElementName(driver, elementLocator);
             if (Boolean.FALSE.equals(ElementActionsHelper.waitForElementToBeClickable(driver, elementLocator))) {
                 failAction(driver, "element is not clickable", elementLocator);
             }
             // wait for element to be clickable
-            passAction(driver, elementLocator);
+            passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, elementName);
             (new Actions(driver)).clickAndHold(driver.findElement(elementLocator)).build().perform();
             // takes screenshot before holding the element
         } else {
@@ -150,8 +140,8 @@ if (identifyUniqueElement(driver, elementLocator)) {
      */
     public static void clipboardActions(WebDriver driver, By elementLocator, String action) {
         // TODO: implement enum for list of possible actions
-if (identifyUniqueElement(driver, elementLocator)) {
-            
+        if (identifyUniqueElement(driver, elementLocator)) {
+            var elementName = getElementName(driver, elementLocator);
             boolean wasActionPerformed;
             if (System.getProperty("targetOperatingSystem").equals("Mac-64")) {
                 wasActionPerformed = performClipboardActionsForMac(driver, action);
@@ -159,7 +149,7 @@ if (identifyUniqueElement(driver, elementLocator)) {
                 wasActionPerformed = performClipboardActions(driver, elementLocator, action);
             }
             if (Boolean.TRUE.equals(wasActionPerformed)) {
-                passAction(driver, elementLocator, action);
+                passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), action, null, elementName);
             } else {
                 failAction(driver, action, elementLocator);
             }
@@ -175,18 +165,8 @@ if (identifyUniqueElement(driver, elementLocator)) {
      *                       selector, name ...etc)
      */
     public static void doubleClick(WebDriver driver, By elementLocator) {
-if (WebDriverElementActions.identifyUniqueElement(driver, elementLocator)) {
-
-            
-            String elementText = "";
-            try {
-                // attempting to read element text
-                elementText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator,
-                        determineSuccessfulTextLocationStrategy(driver, elementLocator));
-            } catch (Exception e) {
-                // do nothing
-                ReportManagerHelper.logDiscrete(e);
-            }
+        if (WebDriverElementActions.identifyUniqueElement(driver, elementLocator)) {
+            var elementName = getElementName(driver, elementLocator);
             // takes screenshot before clicking the element out of view
             var screenshot = WebDriverElementActions.takeScreenshot(driver, elementLocator, "doubleClick", null, true);
             List<List<Object>> attachments = new LinkedList<>();
@@ -196,11 +176,7 @@ if (WebDriverElementActions.identifyUniqueElement(driver, elementLocator)) {
             } catch (Exception e) {
                 WebDriverElementActions.failAction(driver, elementLocator, e);
             }
-            if (!elementText.equals("")) {
-                WebDriverElementActions.passAction(driver, elementLocator, elementText.replaceAll("\n", " "), screenshot);
-            } else {
-                WebDriverElementActions.passAction(driver, elementLocator, attachments);
-            }
+            WebDriverElementActions.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, elementName);
         } else {
             WebDriverElementActions.failAction(driver, elementLocator);
         }
@@ -221,6 +197,7 @@ if (WebDriverElementActions.identifyUniqueElement(driver, elementLocator)) {
     public static void dragAndDrop(WebDriver driver, By sourceElementLocator, By destinationElementLocator) {
         if (identifyUniqueElement(driver, sourceElementLocator)
                 && identifyUniqueElement(driver, destinationElementLocator)) {
+            var elementName = getElementName(driver, sourceElementLocator);
             // replaced canFindUniqueElementForInternalUse, with countFoundElements for
             // destinationElement to bypass the check for element visibility
             // get source element start location
@@ -236,7 +213,7 @@ if (WebDriverElementActions.identifyUniqueElement(driver, elementLocator)) {
             String endLocation = driver.findElement(sourceElementLocator).getLocation().toString();
             String reportMessage = "Start point: " + startLocation + ", End point: " + endLocation;
             if (!endLocation.equals(startLocation)) {
-                passAction(driver, sourceElementLocator, reportMessage);
+                passAction(driver, sourceElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, elementName);
             } else {
                 try {
                     (new Actions(driver)).dragAndDrop(driver.findElement(sourceElementLocator),
@@ -248,7 +225,7 @@ if (WebDriverElementActions.identifyUniqueElement(driver, elementLocator)) {
                 // get source element end location
                 endLocation = driver.findElement(sourceElementLocator).getLocation().toString();
                 if (!endLocation.equals(startLocation)) {
-                    passAction(driver, sourceElementLocator, reportMessage);
+                    passAction(driver, sourceElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, elementName);
                 } else {
                     failAction(driver, reportMessage, sourceElementLocator);
                 }
@@ -271,6 +248,7 @@ if (WebDriverElementActions.identifyUniqueElement(driver, elementLocator)) {
      */
     public static void dragAndDropByOffset(WebDriver driver, By sourceElementLocator, int xOffset, int yOffset) {
         if (identifyUniqueElement(driver, sourceElementLocator)) {
+            var elementName = getElementName(driver, sourceElementLocator);
             WebElement sourceElement = driver.findElement(sourceElementLocator);
             String startLocation = sourceElement.getLocation().toString();
             // attempt to perform drag and drop
@@ -283,8 +261,7 @@ if (WebDriverElementActions.identifyUniqueElement(driver, elementLocator)) {
             }
             String endLocation = driver.findElement(sourceElementLocator).getLocation().toString();
             if (!endLocation.equals(startLocation)) {
-                passAction(driver, sourceElementLocator,
-                        "Start point: " + startLocation + ", End point: " + endLocation);
+                passAction(driver, sourceElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "Start point: " + startLocation + ", End point: " + endLocation, null, elementName);
             } else {
                 failAction(driver, "Start point = End point: " + endLocation, sourceElementLocator);
             }
@@ -308,7 +285,8 @@ if (WebDriverElementActions.identifyUniqueElement(driver, elementLocator)) {
     public static void executeNativeMobileCommand(WebDriver driver, String command, Map<String, String> parameters) {
         try {
             ElementActionsHelper.executeNativeMobileCommandUsingJavascript(driver, command, parameters);
-            passAction(driver, "Command: " + command + ", Parameters: " + parameters);
+            var testData = "Command: " + command + ", Parameters: " + parameters;
+            passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
         } catch (Exception rootCauseException) {
             failAction(driver, null, rootCauseException);
         }
@@ -351,12 +329,12 @@ if (WebDriverElementActions.identifyUniqueElement(driver, elementLocator)) {
      * @return the value of the target attribute of the webElement under test
      */
     public static String getAttribute(WebDriver driver, By elementLocator, String attributeName) {
-ReportManager.logDiscrete("Attempting to getAttribute \"" + attributeName + "\" from elementLocator \"" + elementLocator + "\".");
+        ReportManager.logDiscrete("Attempting to getAttribute \"" + attributeName + "\" from elementLocator \"" + elementLocator + "\".");
         if (identifyUniqueElement(driver, elementLocator)) {
-            
+            var elementName = getElementName(driver, elementLocator);
             try {
                 String elementAttribute = driver.findElement(elementLocator).getAttribute(attributeName);
-                passAction(driver, elementLocator, elementAttribute);
+                passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementAttribute, null, elementName);
                 return elementAttribute;
             } catch (UnsupportedCommandException rootCauseException) {
                 failAction(driver, elementLocator, rootCauseException);
@@ -384,10 +362,10 @@ ReportManager.logDiscrete("Attempting to getAttribute \"" + attributeName + "\" 
      * @return the value of the target CSS property of the webElement under test
      */
     public static String getCSSProperty(WebDriver driver, By elementLocator, String propertyName) {
-if (identifyUniqueElement(driver, elementLocator)) {
-            
+        if (identifyUniqueElement(driver, elementLocator)) {
+            var elementName = getElementName(driver, elementLocator);
             String elementCssProperty = driver.findElement(elementLocator).getCssValue(propertyName);
-            passAction(driver, elementLocator, elementCssProperty);
+            passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementCssProperty, null, elementName);
             return elementCssProperty;
         } else {
             failAction(driver, elementLocator);
@@ -410,7 +388,7 @@ if (identifyUniqueElement(driver, elementLocator)) {
         } else {
             WebDriverElementActions.failAction(driver, null);
         }
-        WebDriverElementActions.passAction(driver);
+        passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), context, null, null);
         return context;
     }
     /**
@@ -429,7 +407,7 @@ if (identifyUniqueElement(driver, elementLocator)) {
         } else {
             WebDriverElementActions.failAction(driver, null);
         }
-        WebDriverElementActions.passAction(driver);
+        passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(windowHandles), null, null);
         return windowHandles;
     }
     /**
@@ -468,12 +446,12 @@ if (identifyUniqueElement(driver, elementLocator)) {
      * @return the selected text of the target webElement
      */
     public static String getSelectedText(WebDriver driver, By elementLocator) {
-if (identifyUniqueElement(driver, elementLocator)) {
-            
+        if (identifyUniqueElement(driver, elementLocator)) {
+            var elementName = getElementName(driver, elementLocator);
             StringBuilder elementSelectedText = new StringBuilder();
             try {
                 new Select(driver.findElement(elementLocator)).getAllSelectedOptions().forEach(selectedOption -> elementSelectedText.append(selectedOption.getText()));
-                passAction(driver, elementLocator, elementSelectedText.toString().trim());
+                passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementSelectedText.toString().trim(), null, elementName);
                 return elementSelectedText.toString().trim();
             } catch (UnexpectedTagNameException rootCauseException) {
                 failAction(driver, elementLocator, rootCauseException);
@@ -504,10 +482,10 @@ if (identifyUniqueElement(driver, elementLocator)) {
      * @return the size of the webElement under test
      */
     public static String getSize(WebDriver driver, By elementLocator) {
-if (identifyUniqueElement(driver, elementLocator)) {
-            
+        if (identifyUniqueElement(driver, elementLocator)) {
+            var elementName = getElementName(driver, elementLocator);
             String elementSize = driver.findElement(elementLocator).getSize().toString();
-            passAction(driver, elementLocator, elementSize);
+            passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementSize, null, elementName);
             return elementSize;
         } else {
             failAction(driver, elementLocator);
@@ -523,10 +501,10 @@ if (identifyUniqueElement(driver, elementLocator)) {
      * @return the tag name of the webElement under test
      */
     public static String getTagName(WebDriver driver, By elementLocator) {
-if (identifyUniqueElement(driver, elementLocator)) {
-            
+        if (identifyUniqueElement(driver, elementLocator)) {
+            var elementName = getElementName(driver, elementLocator);
             String elementTagName = driver.findElement(elementLocator).getTagName();
-            passAction(driver, elementLocator, elementTagName);
+            passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementTagName, null, elementName);
             return elementTagName;
         } else {
             failAction(driver, elementLocator);
@@ -542,8 +520,8 @@ if (identifyUniqueElement(driver, elementLocator)) {
      * @return the text value of the target webElement
      */
     public static String getText(WebDriver driver, By elementLocator) {
-if (identifyUniqueElement(driver, elementLocator)) {
-            
+        if (identifyUniqueElement(driver, elementLocator)) {
+            var elementName = getElementName(driver, elementLocator);
             String elementText = driver.findElement(elementLocator).getText();
             if ((elementText == null || elementText.trim().equals("")) && !DriverFactoryHelper.isMobileNativeExecution()) {
                 elementText = driver.findElement(elementLocator).getAttribute(TextDetectionStrategy.CONTENT.getValue());
@@ -554,13 +532,21 @@ if (identifyUniqueElement(driver, elementLocator)) {
             if (elementText == null) {
                 elementText = "";
             }
-            passAction(driver, elementLocator, elementText);
+            passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementText, null, elementName);
             return elementText;
         } else {
             failAction(driver, elementLocator);
             return null;
         }
     }
+
+    private static String getElementName(WebDriver driver, By elementLocator) {
+        if (Boolean.TRUE.equals(Boolean.parseBoolean(System.getProperty("captureElementName"))) && identifyUniqueElement(driver, elementLocator)) {
+            return driver.findElement(elementLocator).getAccessibleName();
+        }
+        return null;
+    }
+
     /**
      * Returns the unique handle for currently active window. This can be used to
      * switch to this window at a later time.
@@ -570,7 +556,7 @@ if (identifyUniqueElement(driver, elementLocator)) {
      */
     public static String getWindowHandle(WebDriver driver) {
         String nameOrHandle = driver.getWindowHandle();
-        WebDriverElementActions.passAction(driver, nameOrHandle);
+        passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), nameOrHandle, null, null);
         return nameOrHandle;
     }
     /**
@@ -582,7 +568,7 @@ if (identifyUniqueElement(driver, elementLocator)) {
      */
     public static List<String> getWindowHandles(WebDriver driver) {
         List<String> windowHandles = new ArrayList<>(driver.getWindowHandles());
-        WebDriverElementActions.passAction(driver, String.valueOf(windowHandles));
+        passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(windowHandles), null, null);
         return windowHandles;
     }
     /**
@@ -595,15 +581,15 @@ if (identifyUniqueElement(driver, elementLocator)) {
      *                       selector, name ...etc)
      */
     public static void hover(WebDriver driver, By elementLocator) {
-if (identifyUniqueElement(driver, elementLocator)) {
-            
+        if (identifyUniqueElement(driver, elementLocator)) {
+            var elementName = getElementName(driver, elementLocator);
             try {
                 (new Actions(driver)).moveToElement(driver.findElement(elementLocator)).perform();
             } catch (Exception rootCauseException) {
                 ReportManagerHelper.log(rootCauseException);
                 failAction(driver, elementLocator, rootCauseException);
             }
-            passAction(driver, elementLocator);
+            passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, elementName);
         } else {
             failAction(driver, elementLocator);
         }
@@ -648,22 +634,19 @@ if (identifyUniqueElement(driver, elementLocator)) {
      * element is not clickable
      */
     public static boolean isElementClickable(WebDriver driver, By elementLocator) {
-if (identifyUniqueElement(driver, elementLocator)
-                && driver.findElement(elementLocator).isEnabled()) {
-            
-            if (Boolean.FALSE.equals(ElementActionsHelper.waitForElementToBeClickable(driver, elementLocator))) {
-                failAction(driver, "element is not clickable", elementLocator);
+        if (identifyUniqueElement(driver, elementLocator)){
+            var elementName = getElementName(driver, elementLocator);
+            if (ElementActionsHelper.waitForElementToBeClickable(driver, elementLocator)){
+                //element is clickable
+                passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "element is clickable", null, elementName);
+                return true;
+            }else{
+                //element is not clickable
+                passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "element is not clickable", null, elementName);
+                return false;
             }
-            // wait for element to be clickable
-            passAction(driver, elementLocator);
-            return true;
-        } else if (identifyUniqueElement(driver, elementLocator)
-                && !(driver.findElement(elementLocator).isEnabled())) {
-            
-            // wait for element to be clickable
-            passAction(driver, elementLocator);
-            return false;
-        } else {
+        }else{
+            //element is not unique
             failAction(driver, elementLocator);
             return false;
         }
@@ -678,10 +661,10 @@ if (identifyUniqueElement(driver, elementLocator)
      * element is not displayed
      */
     public static boolean isElementDisplayed(WebDriver driver, By elementLocator) {
-if (identifyUniqueElementIgnoringVisibility(driver, elementLocator)) {
-            
+        if (identifyUniqueElementIgnoringVisibility(driver, elementLocator)) {
+            var elementName = getElementName(driver, elementLocator);
             boolean isDisplayed = driver.findElement(elementLocator).isDisplayed();
-            passAction(driver, elementLocator);
+            passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, elementName);
             return isDisplayed;
         } else {
             failAction(driver, elementLocator);
@@ -698,8 +681,8 @@ if (identifyUniqueElementIgnoringVisibility(driver, elementLocator)) {
      * @param key            the key that should be pressed
      */
     public static void keyPress(WebDriver driver, By elementLocator, String key) {
-if (identifyUniqueElement(driver, elementLocator)) {
-            
+        if (identifyUniqueElement(driver, elementLocator)) {
+            var elementName = getElementName(driver, elementLocator);
             switch (key.toLowerCase().trim()) {
                 case "enter" -> driver.findElement(elementLocator).sendKeys(Keys.ENTER);
                 case "return" -> driver.findElement(elementLocator).sendKeys(Keys.RETURN);
@@ -709,10 +692,10 @@ if (identifyUniqueElement(driver, elementLocator)) {
                     failAction(driver, key, elementLocator);
                 }
             }
+            passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), key, null, elementName);
         } else {
             failAction(driver, key, elementLocator);
         }
-        passAction(driver, elementLocator, key);
     }
     /**
      * Sends a keypress to the target element.
@@ -723,12 +706,12 @@ if (identifyUniqueElement(driver, elementLocator)) {
      * @param key            the key that should be pressed
      */
     public static void keyPress(WebDriver driver, By elementLocator, Keys key) {
-if (identifyUniqueElement(driver, elementLocator)) {
-            
+        if (identifyUniqueElement(driver, elementLocator)) {
+            var elementName = getElementName(driver, elementLocator);
             List<Object> screenshot = takeScreenshot(driver, elementLocator, "keyPress", null, true);
             // takes screenshot before moving the element out of view
             driver.findElement(elementLocator).sendKeys(key);
-            passAction(driver, elementLocator, key.name(), screenshot);
+            passAction(driver, elementLocator, key.name(), screenshot, elementName);
         } else {
             failAction(driver, key.name(), elementLocator);
         }
@@ -763,16 +746,15 @@ if (identifyUniqueElement(driver, elementLocator)) {
      * @param initialValue   the initial text value of the target webElement
      */
     public static void waitForTextToChange(WebDriver driver, By elementLocator, String initialValue) {
-if (identifyUniqueElement(driver, elementLocator)) {
-            
+        if (identifyUniqueElement(driver, elementLocator)) {
+            var elementName = getElementName(driver, elementLocator);
             if (!Boolean.TRUE.equals(ElementActionsHelper.waitForElementTextToBeNot(driver, elementLocator, initialValue))) {
                 failAction(driver, initialValue, elementLocator);
             }
             try {
-                passAction(driver, elementLocator,
-                        "from: \"" + initialValue + "\", to: \"" + getText(driver, elementLocator) + "\"");
+                passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "from: \"" + initialValue + "\", to: \"" + getText(driver, elementLocator) + "\"", null, elementName);
             } catch (Exception e) {
-                passAction(driver, elementLocator, "from: \"" + initialValue + "\", to a new value.");
+                passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "from: \"" + initialValue + "\", to a new value.", null, elementName);
             }
         } else {
             if (elementLocator != null) {
@@ -795,8 +777,8 @@ if (identifyUniqueElement(driver, elementLocator)) {
      *                       target dropDown menu
      */
     public static void select(WebDriver driver, By elementLocator, String text) {
-if (identifyUniqueElement(driver, elementLocator)) {
-            
+        if (identifyUniqueElement(driver, elementLocator)) {
+            var elementName = getElementName(driver, elementLocator);
             //add forced check that the select element actually has options and is not empty
             if (!Boolean.TRUE.equals(ElementActionsHelper.waitForElementTextToBeNot(driver, elementLocator, ""))) {
                 failAction(driver, text, elementLocator);
@@ -808,7 +790,7 @@ if (identifyUniqueElement(driver, elementLocator)) {
                 String value = availableOptionsList.get(i).getAttribute("value");
                 if (visibleText.trim().equals(text) || value.trim().equals(text)) {
                     (new Select(driver.findElement(elementLocator))).selectByIndex(i);
-                    passAction(driver, elementLocator, text);
+                    passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), text, null, elementName);
                     isOptionFound = true;
                     break;
                 }
@@ -835,7 +817,7 @@ if (identifyUniqueElement(driver, elementLocator)) {
         } else {
             WebDriverElementActions.failAction(driver, context, null);
         }
-        WebDriverElementActions.passAction(driver, context);
+        passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), context, null, null);
     }
     protected static WebDriver getLastUsedDriver() {
         return lastUsedDriver;
@@ -853,11 +835,11 @@ if (identifyUniqueElement(driver, elementLocator)) {
      *                       element
      */
     public static void setValueUsingJavaScript(WebDriver driver, By elementLocator, String value) {
-if (identifyUniqueElementIgnoringVisibility(driver, elementLocator)) {
-            
+        if (identifyUniqueElementIgnoringVisibility(driver, elementLocator)) {
+            var elementName = getElementName(driver, elementLocator);
             Boolean valueSetSuccessfully = ElementActionsHelper.setValueUsingJavascript(driver, elementLocator, value);
             if (Boolean.TRUE.equals(valueSetSuccessfully)) {
-                passAction(driver, elementLocator, value);
+                passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), value, null, elementName);
             } else {
                 failAction(driver, elementLocator);
             }
@@ -873,11 +855,11 @@ if (identifyUniqueElementIgnoringVisibility(driver, elementLocator)) {
      *                       selector, name ...etc)
      */
     public static void submitFormUsingJavaScript(WebDriver driver, By elementLocator) {
-if (identifyUniqueElementIgnoringVisibility(driver, elementLocator)) {
-            
+        if (identifyUniqueElementIgnoringVisibility(driver, elementLocator)) {
+            var elementName = getElementName(driver, elementLocator);
             try {
                 ElementActionsHelper.submitFormUsingJavascript(driver, elementLocator);
-                passAction(driver, elementLocator);
+                passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, elementName);
             } catch (Exception rootCauseException) {
                 ReportManagerHelper.log(rootCauseException);
                 failAction(driver, elementLocator, rootCauseException);
@@ -898,7 +880,7 @@ if (identifyUniqueElementIgnoringVisibility(driver, elementLocator)) {
             driver.switchTo().defaultContent();
             boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
-            passAction(driver);
+            passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
             ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
         } catch (Exception rootCauseException) {
             failAction(driver, null, rootCauseException);
@@ -917,7 +899,7 @@ if (identifyUniqueElementIgnoringVisibility(driver, elementLocator)) {
                 lastUsedDriver.switchTo().defaultContent();
                 boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
                 ReportManagerHelper.setDiscreteLogging(true);
-                passAction(lastUsedDriver);
+                passAction(lastUsedDriver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
                 ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
             } catch (Exception e) {
                 ReportManagerHelper.log(e);
@@ -937,13 +919,12 @@ if (identifyUniqueElementIgnoringVisibility(driver, elementLocator)) {
      *                       xpath, id, selector, name ...etc)
      */
     public static void switchToIframe(WebDriver driver, By elementLocator) {
-if (identifyUniqueElement(driver, elementLocator)) {
-            
+        if (identifyUniqueElement(driver, elementLocator)) {
             driver.switchTo().frame(driver.findElement(elementLocator));
             // note to self: remove elementLocator in case of bug in screenshot manager
             boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
-            passAction(driver);
+            passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(elementLocator), null, null);
             ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
         } else {
             failAction(driver, elementLocator);
@@ -961,8 +942,9 @@ if (identifyUniqueElement(driver, elementLocator)) {
      */
     public static void type(WebDriver driver, By elementLocator, String text) {
         String actualResult = typeWrapper(driver, elementLocator, text);
+        var elementName = getElementName(driver, elementLocator);
         if (actualResult != null && actualResult.equals(text)) {
-            passAction(driver, elementLocator, text);
+            passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), text, null, elementName);
         } else if (actualResult == null) {
             failAction(driver, elementLocator);
         } else {
@@ -981,11 +963,11 @@ if (identifyUniqueElement(driver, elementLocator)) {
      *                       target webElement
      */
     public static void typeAppend(WebDriver driver, By elementLocator, String text) {
-if (identifyUniqueElement(driver, elementLocator)
+        if (identifyUniqueElement(driver, elementLocator)
                 && (text != null)) {
-            
+            var elementName = getElementName(driver, elementLocator);
             driver.findElement(elementLocator).sendKeys(text);
-            passAction(driver, elementLocator, text);
+            passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), text, null, elementName);
         } else {
             failAction(driver, text, elementLocator);
         }
@@ -1001,8 +983,8 @@ if (identifyUniqueElement(driver, elementLocator)
      */
     public static void typeFileLocationForUpload(WebDriver driver, By elementLocator, String absoluteFilePath) {
         String internalAbsoluteFilePath = absoluteFilePath.replace("/", FileSystems.getDefault().getSeparator());
-if (identifyUniqueElementIgnoringVisibility(driver, elementLocator)) {
-            
+        if (identifyUniqueElementIgnoringVisibility(driver, elementLocator)) {
+            var elementName = getElementName(driver, elementLocator);
             List<Object> screenshot = takeScreenshot(driver, elementLocator, "typeFileLocationForUpload", null, true);
             // takes screenshot before clicking the element out of view
             try {
@@ -1029,7 +1011,7 @@ if (identifyUniqueElementIgnoringVisibility(driver, elementLocator)) {
                     ReportManagerHelper.logDiscrete(e);
                 }
             }
-            passAction(driver, elementLocator, internalAbsoluteFilePath, screenshot);
+            passAction(driver, elementLocator, internalAbsoluteFilePath, screenshot, elementName);
         } else {
             failAction(driver, internalAbsoluteFilePath, elementLocator);
         }
@@ -1047,8 +1029,9 @@ if (identifyUniqueElementIgnoringVisibility(driver, elementLocator)) {
      */
     public static void typeSecure(WebDriver driver, By elementLocator, String text) {
         String actualResult = typeWrapper(driver, elementLocator, text);
+        var elementName = getElementName(driver, elementLocator);
         if (actualResult != null && actualResult.equals(text)) {
-            passAction(driver, elementLocator, OBFUSCATED_STRING.repeat(text.length()));
+            passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), OBFUSCATED_STRING.repeat(text.length()), null, elementName);
         } else if (actualResult == null) {
             failAction(driver, elementLocator);
         } else {
@@ -1072,11 +1055,17 @@ if (identifyUniqueElementIgnoringVisibility(driver, elementLocator)) {
      */
     public static void waitForElementToBePresent(WebDriver driver, By elementLocator, int numberOfTries,
                                                  boolean stateOfPresence) {
-ReportManager.logDiscrete("Waiting for element to be present; elementLocator \"" + elementLocator + "\", numberOfTries\"" + numberOfTries + "\", stateOfPresence\"" + stateOfPresence + "\"...");
+        ReportManager.logDiscrete("Waiting for element to be present; elementLocator \"" + elementLocator + "\", numberOfTries\"" + numberOfTries + "\", stateOfPresence\"" + stateOfPresence + "\"...");
         String reportMessage = "waited for the element's state of presence to be (" + stateOfPresence
                 + "). Element locator (" + elementLocator.toString() + ")";
         if (Boolean.compare(stateOfPresence, getMatchingElementsCount(driver, elementLocator, Optional.of(numberOfTries), Optional.empty()) >= 1) == 0) {
-            passAction(driver, elementLocator, reportMessage);
+            if (Boolean.TRUE.equals(stateOfPresence)){
+                //element is expected to be present
+                passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, getElementName(driver, elementLocator));
+            } else {
+                //element is expected to be not present
+                passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, null);
+            }
         } else {
             failAction(driver, reportMessage, elementLocator);
         }
@@ -1105,30 +1094,7 @@ ReportManager.logDiscrete("Waiting for element to be present; elementLocator \""
     protected static boolean identifyUniqueElementIgnoringVisibility(WebDriver driver, By elementLocator) {
         return identifyUniqueElement(driver, elementLocator, false);
     }
-    protected static void passAction(WebDriver driver, By elementLocator) {
-        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        passAction(driver, elementLocator, actionName, null, null);
-    }
-    protected static void passAction(WebDriver driver, By elementLocator, List<List<Object>> screenshots) {
-        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        passAction(driver, elementLocator, actionName, null, screenshots);
-    }
-    protected static void passAction(WebDriver driver, By elementLocator, String testData) {
-        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        passAction(driver, elementLocator, actionName, testData, null);
-    }
-    protected static void passAction(WebDriver driver, By elementLocator, String testData, List<Object> screenshot) {
-        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        List<List<Object>> attachments = new LinkedList<>();
-        attachments.add(screenshot);
-        passAction(driver, elementLocator, actionName, testData, attachments);
-    }
-    protected static void passAction(Screen screen, App applicationWindow, Pattern element, String testData) {
-        String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        List<List<Object>> attachments = new LinkedList<>();
-        attachments.add(SikuliActions.prepareElementScreenshotAttachment(screen, applicationWindow, element, actionName, true));
-        passAction(null, null, actionName, testData, attachments);
-    }
+
     protected static List<Object> takeScreenshot(WebDriver driver, By elementLocator, String actionName, String testData,
                                                  boolean passFailStatus) {
         if (passFailStatus) {
@@ -1227,7 +1193,8 @@ ReportManager.logDiscrete("Waiting for element to be present; elementLocator \""
     }
     private static void failAction(WebDriver driver, String actionName, String testData, By elementLocator, List<List<Object>> screenshots,
                                    Exception... rootCauseException) {
-        String message = reportActionResult(driver, actionName, testData, elementLocator, screenshots, false);
+        //TODO: merge all fail actions, make all methods call this one, get elementName where applicable instead of reporting null
+        String message = reportActionResult(driver, actionName, testData, elementLocator, screenshots, null, false);
         if (rootCauseException != null && rootCauseException.length >= 1) {
             Assert.fail(message, rootCauseException[0]);
         } else {
@@ -1281,17 +1248,22 @@ ReportManager.logDiscrete("Waiting for element to be present; elementLocator \""
             return false;
         }
     }
-    private static void passAction(WebDriver driver) {
+    protected static void passAction(WebDriver driver, By elementLocator, String testData, List<Object> screenshot, String elementName) {
+        //TODO: open calling methods, and test if Appium can also fetch the element name instead of passing null
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        passAction(driver, null, actionName, null, null);
+        List<List<Object>> attachments = new LinkedList<>();
+        attachments.add(screenshot);
+        passAction(driver, elementLocator, actionName, testData, attachments, elementName);
     }
-    private static void passAction(WebDriver driver, By elementLocator, String actionName, String testData,
-                                   List<List<Object>> screenshots) {
-        reportActionResult(driver, actionName, testData, elementLocator, screenshots, true);
-    }
-    private static void passAction(WebDriver driver, String testData) {
+    protected static void passAction(Screen screen, App applicationWindow, Pattern element, String testData) {
         String actionName = Thread.currentThread().getStackTrace()[2].getMethodName();
-        passAction(driver, null, actionName, testData, null);
+        List<List<Object>> attachments = new LinkedList<>();
+        attachments.add(SikuliActions.prepareElementScreenshotAttachment(screen, applicationWindow, element, actionName, true));
+        passAction(null, null, actionName, testData, attachments, null);
+    }
+    protected static void passAction(WebDriver driver, By elementLocator, String actionName, String testData,
+                                   List<List<Object>> screenshots, String elementName) {
+        reportActionResult(driver, actionName, testData, elementLocator, screenshots, elementName, true);
     }
     private static void pasteFromClipboard(WebDriver driver, By elementLocator) {
         try {
@@ -1397,8 +1369,7 @@ ReportManager.logDiscrete("Waiting for element to be present; elementLocator \""
         return "";
     }
     private static String reportActionResult(WebDriver driver, String actionName, String testData, By elementLocator,
-                                             List<List<Object>> screenshots, Boolean passFailStatus) {
-//        actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
+                                             List<List<Object>> screenshots, String elementName, Boolean passFailStatus) {
         actionName = JavaActions.convertToSentenceCase(actionName);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
@@ -1407,13 +1378,31 @@ ReportManager.logDiscrete("Waiting for element to be present; elementLocator \""
             message = "Element Action: " + actionName + " failed";
         }
         List<List<Object>> attachments = new ArrayList<>();
+
         if (testData != null && testData.length() >= 500) {
             List<Object> actualValueAttachment = Arrays.asList("Element Action Test Data - " + actionName,
                     "Actual Value", testData);
             attachments.add(actualValueAttachment);
-        } else if (testData != null && !testData.isEmpty()) {
+        } else if ((testData != null && !testData.isEmpty())) {
             message = message + " \"" + testData.trim() + "\"";
         }
+
+        if ((elementName != null && !elementName.isEmpty())) {
+            var preposition = " ";
+            if (actionName.toLowerCase().contains("type") || actionName.toLowerCase().contains("set value using javascript")){
+                preposition = " into ";
+            }else if (actionName.toLowerCase().contains("get") || actionName.toLowerCase().contains("select")){
+                preposition = " from ";
+            }else if (actionName.toLowerCase().contains("clipboard")){
+                preposition = " on ";
+            } else if (actionName.toLowerCase().contains("drag and drop") || actionName.toLowerCase().contains("key press") || actionName.toLowerCase().contains("wait") || actionName.toLowerCase().contains("submit")|| actionName.toLowerCase().contains("switch")){
+                preposition = " against ";
+            } else if (actionName.toLowerCase().contains("hover")){
+                preposition = " over ";
+            }
+            message = message + preposition + " \"" + elementName.trim() + "\"";
+        }
+
         message = message + ".";
         if (screenshots != null && !screenshots.equals(new ArrayList<>())) {
             // screenshot taken before action (in case of click)
@@ -1434,8 +1423,7 @@ ReportManager.logDiscrete("Waiting for element to be present; elementLocator \""
         return message;
     }
     private static String typeWrapper(WebDriver driver, By elementLocator, String targetText) {
-if (identifyUniqueElement(driver, elementLocator)) {
-            
+        if (identifyUniqueElement(driver, elementLocator)) {
             TextDetectionStrategy successfulTextLocationStrategy = TextDetectionStrategy.UNDEFINED;
             if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckTextWasTypedCorrectly")))) {
                 successfulTextLocationStrategy = determineSuccessfulTextLocationStrategy(driver,

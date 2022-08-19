@@ -313,8 +313,7 @@ public class DriverFactoryHelper {
     private static OperatingSystemType getOperatingSystemFromName(String operatingSystemName) {
         int values = OperatingSystemType.values().length;
         for (var i = 0; i < values; i++) {
-            if (Arrays.asList(OperatingSystemType.values()).get(i).getValue()
-                    .equalsIgnoreCase(operatingSystemName.trim())) {
+            if (Arrays.asList(OperatingSystemType.values()).get(i).getValue().toLowerCase().contains(operatingSystemName.trim().toLowerCase())) {
                 return Arrays.asList(OperatingSystemType.values()).get(i);
             }
         }
