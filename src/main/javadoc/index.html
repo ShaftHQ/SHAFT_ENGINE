@@ -109,6 +109,13 @@
                                                            type="radio" value="local"> Local Execution
                                                 </label>
                                             </div>
+                                            <div class="radio-inline">
+                                                <label for="executionAddress-3">
+                                                    <input id="executionAddress-3"
+                                                           name="executionAddress"
+                                                           type="radio" value="dockerized"> Dockerized Execution
+                                                </label>
+                                            </div>
                                             <br/>
                                             <div class="radio-inline">
                                                 <label for="executionAddress-1">
@@ -276,7 +283,7 @@
                                                            value="true"> Headless
                                                 </label>
                                             </div>
-                                            <span class="help-block">• This only works for Chrome, Firefox and Edge.</span>
+                                            <span class="help-block">• This works for Chrome, Firefox and Edge.</span>
                                         </div>
                                     </div>
 
@@ -2085,6 +2092,19 @@
             $("label[for=targetOperatingSystem-3]").attr("style", '');
             $("#targetOperatingSystem-4").attr("disabled", false);
             $("label[for=targetOperatingSystem-4]").attr("style", '');
+        } else if ($("input[name=executionAddress]:checked").val() == "dockerized"){
+            $("#executionAddress-remote").attr("disabled", true);
+            $("#executionAddress-remote").val("");
+            $("#targetOperatingSystem-0").attr("disabled", true);
+            $("label[for=targetOperatingSystem-0]").attr("style", "color:#A9A9A9");
+            $("#targetOperatingSystem-1").attr("disabled", false);
+            $("label[for=targetOperatingSystem-1]").attr("style", '');
+            $("#targetOperatingSystem-2").attr("disabled", true);
+            $("label[for=targetOperatingSystem-2]").attr("style", "color:#A9A9A9");
+            $("#targetOperatingSystem-3").attr("disabled", true);
+            $("label[for=targetOperatingSystem-3]").attr("style", "color:#A9A9A9");
+            $("#targetOperatingSystem-4").attr("disabled", true);
+            $("label[for=targetOperatingSystem-4]").attr("style", "color:#A9A9A9");
         } else {
             $("#executionAddress-remote").attr("disabled", true);
             $("#executionAddress-remote").val("");
