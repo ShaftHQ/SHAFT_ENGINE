@@ -665,9 +665,9 @@ public class FileActions {
         } else {
             // remote execution
             String targetOS = System.getProperty("targetOperatingSystem");
-            if ("Windows-64".equals(targetOS)) {
+            if ("Windows-64".equals(targetOS) || "Windows".equals(targetOS)) {
                 return false;
-            } else if ("Linux-64".equals(targetOS) || "Mac-64".equals(targetOS)) {
+            } else if ("Linux-64".equals(targetOS) || "Linux".equals(targetOS) || "Mac-64".equals(targetOS) || "Mac".equals(targetOS)) {
                 return true;
             } else {
                 ReportManager.logDiscrete("Unsupported OS type, will assume it's unix based.");
