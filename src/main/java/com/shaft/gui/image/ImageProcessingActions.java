@@ -149,8 +149,15 @@ public class ImageProcessingActions {
         // IOS Native | macOS Browser | Linux Browser scaled | -> Repositioning
         if (System.getProperty("targetOperatingSystem").equals("iOS")
                 || System.getProperty("targetOperatingSystem").equals("Mac-64")
+                || System.getProperty("targetOperatingSystem").equals("Mac")
                 || (
                 System.getProperty("targetOperatingSystem").equals("Linux-64")
+                        && System.getProperty("screenshotParams_scalingFactor") != null
+                        && !System.getProperty("screenshotParams_scalingFactor").isEmpty()
+                        && !System.getProperty("screenshotParams_scalingFactor").equals("1")
+        )
+                || (
+                System.getProperty("targetOperatingSystem").equals("Linux")
                         && System.getProperty("screenshotParams_scalingFactor") != null
                         && !System.getProperty("screenshotParams_scalingFactor").isEmpty()
                         && !System.getProperty("screenshotParams_scalingFactor").equals("1")
