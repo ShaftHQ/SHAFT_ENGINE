@@ -166,7 +166,6 @@ public class WebDriverBrowserActions {
         navigateToURL(driver, targetUrl, targetUrl);
     }
 
-    @SneakyThrows
     public static void navigateToURLWithBasicAuthentication(WebDriver driver, String targetUrl, String username, String password, String targetUrlAfterAuthentication) {
         String domainName = getDomainNameFromURL(targetUrl);
         String driverName = DriverFactoryHelper.getTARGET_DRIVER_NAME();
@@ -175,32 +174,41 @@ public class WebDriverBrowserActions {
                 Predicate<URI> uriPredicate = uri -> uri.getHost().contains(domainName);
                 ((HasAuthentication) driver).register(uriPredicate, UsernameAndPassword.of(username, password));
             } else {
-                AtomicReference<DevTools> devToolsAtomicReference = new AtomicReference<>();
-                driver = new Augmenter().addDriverAugmentation("chrome",
-                        HasAuthentication.class,
-                        (caps, exec) -> (whenThisMatches, useTheseCredentials) -> {
-                            devToolsAtomicReference.get()
-                                    .createSessionIfThereIsNotOne();
-                            devToolsAtomicReference.get().getDomains()
-                                    .network()
-                                    .addAuthHandler(whenThisMatches,
-                                            useTheseCredentials);
-                        }).augment(driver);
-
-                DevTools devTools = ((HasDevTools) driver).getDevTools();
-                devTools.createSession();
-                devToolsAtomicReference.set(devTools);
-                ((HasAuthentication) driver).register(UsernameAndPassword.of(username, password));
+                try {
+                    AtomicReference<DevTools> devToolsAtomicReference = new AtomicReference<>();
+                    driver = new Augmenter().addDriverAugmentation("chrome",
+                            HasAuthentication.class,
+                            (caps, exec) -> (whenThisMatches, useTheseCredentials) -> {
+                                devToolsAtomicReference.get()
+                                        .createSessionIfThereIsNotOne();
+                                devToolsAtomicReference.get().getDomains()
+                                        .network()
+                                        .addAuthHandler(whenThisMatches,
+                                                useTheseCredentials);
+                            }).augment(driver);
+                    DevTools devTools = ((HasDevTools) driver).getDevTools();
+                    devTools.createSession();
+                    devToolsAtomicReference.set(devTools);
+                    ((HasAuthentication) driver).register(UsernameAndPassword.of(username, password));
+                } catch (org.openqa.selenium.remote.http.ConnectionFailedException e){
+                    //in case of remote connection but Unable to establish websocket connection
+                    targetUrl = formatURL(username, password, targetUrl);
+                }
             }
         } else{
             //in case of ie, firefox, safari, ...etc
-            if (targetUrl.startsWith("https://")){
-                targetUrl = new URI("https://" + URLEncoder.encode(username, StandardCharsets.UTF_8)+":"+URLEncoder.encode(password, StandardCharsets.UTF_8)+ "@"+ targetUrl.substring("https://".length())).toString();
-            }else{
-                targetUrl = new URI("http://" + URLEncoder.encode(username, StandardCharsets.UTF_8)+":"+URLEncoder.encode(password, StandardCharsets.UTF_8)+ "@"+ targetUrl.substring("http://".length())).toString();
-            }
+            targetUrl = formatURL(username, password, targetUrl);
         }
         navigateToURL(driver, targetUrl, targetUrlAfterAuthentication);
+    }
+
+    @SneakyThrows
+    private static String formatURL(String username, String password, String targetUrl){
+        if (targetUrl.startsWith("https://")){
+            return new URI("https://" + URLEncoder.encode(username, StandardCharsets.UTF_8)+":"+URLEncoder.encode(password, StandardCharsets.UTF_8)+ "@"+ targetUrl.substring("https://".length())).toString();
+        }else{
+            return new URI("http://" + URLEncoder.encode(username, StandardCharsets.UTF_8)+":"+URLEncoder.encode(password, StandardCharsets.UTF_8)+ "@"+ targetUrl.substring("http://".length())).toString();
+        }
     }
 
     @SneakyThrows
