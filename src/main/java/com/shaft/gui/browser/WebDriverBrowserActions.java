@@ -22,6 +22,8 @@ import org.testng.Assert;
 
 import java.awt.*;
 import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -193,9 +195,9 @@ public class WebDriverBrowserActions {
         } else{
             //in case of ie, firefox, safari, ...etc
             if (targetUrl.startsWith("https://")){
-                targetUrl = new URI("https://" + username+":"+password+ "@"+ targetUrl.substring("https://".length())).toString();
+                targetUrl = new URI("https://" + URLEncoder.encode(username, StandardCharsets.UTF_8)+":"+URLEncoder.encode(password, StandardCharsets.UTF_8)+ "@"+ targetUrl.substring("https://".length())).toString();
             }else{
-                targetUrl = new URI("http://" + username+":"+password+ "@"+ targetUrl.substring("http://".length())).toString();
+                targetUrl = new URI("http://" + URLEncoder.encode(username, StandardCharsets.UTF_8)+":"+URLEncoder.encode(password, StandardCharsets.UTF_8)+ "@"+ targetUrl.substring("http://".length())).toString();
             }
         }
         navigateToURL(driver, targetUrl, targetUrlAfterAuthentication);
