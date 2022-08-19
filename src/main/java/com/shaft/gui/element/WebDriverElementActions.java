@@ -1059,7 +1059,13 @@ public class WebDriverElementActions {
         String reportMessage = "waited for the element's state of presence to be (" + stateOfPresence
                 + "). Element locator (" + elementLocator.toString() + ")";
         if (Boolean.compare(stateOfPresence, getMatchingElementsCount(driver, elementLocator, Optional.of(numberOfTries), Optional.empty()) >= 1) == 0) {
-            passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, getElementName(driver, elementLocator));
+            if (Boolean.TRUE.equals(stateOfPresence)){
+                //element is expected to be present
+                passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, getElementName(driver, elementLocator));
+            } else {
+                //element is expected to be not present
+                passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, null);
+            }
         } else {
             failAction(driver, reportMessage, elementLocator);
         }
