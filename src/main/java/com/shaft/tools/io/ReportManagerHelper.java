@@ -799,45 +799,6 @@ public class ReportManagerHelper {
         }
     }
 
-    public static void generateJDKShellFilesToProjectDirectory() {
-        ReportManager.logDiscrete("Configuring JDK...");
-        System.setProperty("disableLogging", "true");
-        try {
-            if (SystemUtils.IS_OS_WINDOWS) {
-                // create windows batch file
-                commandsToGenerateJDKBatFile = Arrays.asList("@echo off",
-                        "set JAVA_HOME=" + System.getProperty("java.home"), "set M2=%M2_HOME%\\bin",
-                        "set PATH=%JAVA_HOME%\\bin;%M2%;%PATH%", "echo %JAVA_HOME%", "echo %PATH%");
-                FileActions.getInstance().writeToFile("", "generateJdk.bat", commandsToGenerateJDKBatFile);
-
-                // create .sh file to run on git bash
-                String ConcatenatedJDKPath = "/" + System.getProperty("java.home");
-                String FinalJDKPath = ConcatenatedJDKPath.replace("\\", "/").replaceFirst(":", "");
-                commandsToGenerateJDKShellFile = Arrays.asList("#!/bin/bash", "export JAVA_HOME=" + FinalJDKPath,
-                        "export PATH=$JAVA_HOME/bin:$PATH", "echo $JAVA_HOME", "echo $PATH", "$SHELL");
-                FileActions.getInstance().writeToFile("", "generateJdk.sh", commandsToGenerateJDKShellFile);
-            } else {
-                // create commands of Unix-based shells
-                commandsToGenerateJDKShellFile = Arrays.asList("#!/bin/bash", "export JAVA_HOME=$(/usr/libexec/java_home)",
-                        "export PATH=$JAVA_HOME/bin:$PATH", "source ~/.zshenv", "echo $JAVA_HOME", "echo $PATH", "exec bash");
-                FileActions.getInstance().writeToFile("", "generateJdkMac.sh", commandsToGenerateJDKShellFile);
-                // make JDK executable on Unix-based shells
-                (new TerminalActions()).performTerminalCommand("chmod u+x generateJdk.sh");
-            }
-        } catch (Throwable t) {
-            // do nothing
-        }
-        System.setProperty("disableLogging", "false");
-    }
-
-    public static List<String> getCommandsToGenerateJDKBatFile() {
-        return commandsToGenerateJDKBatFile;
-    }
-
-    public static List<String> getCommandsToGenerateJDKShellFile() {
-        return commandsToGenerateJDKShellFile;
-    }
-
     static boolean isInternalStep() {
         var callingMethodName = (new Throwable()).getStackTrace()[2].toString();
         return callingMethodName.contains("com.shaft");
