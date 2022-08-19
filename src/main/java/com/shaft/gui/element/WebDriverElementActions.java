@@ -542,7 +542,11 @@ public class WebDriverElementActions {
 
     private static String getElementName(WebDriver driver, By elementLocator) {
         if (Boolean.TRUE.equals(Boolean.parseBoolean(System.getProperty("captureElementName"))) && identifyUniqueElement(driver, elementLocator)) {
-            return driver.findElement(elementLocator).getAccessibleName();
+            try {
+                return driver.findElement(elementLocator).getAccessibleName();
+            } catch (org.openqa.selenium.UnsupportedCommandException e){
+                //this exception is thrown on some older selenium grid instances, I saw it with firefox running over selenoid
+            }
         }
         return null;
     }
