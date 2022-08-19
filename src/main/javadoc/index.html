@@ -1468,23 +1468,23 @@
 
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
-                                        <label class="col-md-4 control-label" for="captureClickedElementText">Report Clicked Element Text</label>
-                                        <div class="col-md-4" id="captureClickedElementText">
+                                        <label class="col-md-4 control-label" for="captureElementName">Report Element Name</label>
+                                        <div class="col-md-4" id="captureElementName">
                                             <div class="radio-inline">
-                                                <label for="captureClickedElementText-0">
-                                                    <input checked="checked" id="captureClickedElementText-0" name="captureClickedElementText"
+                                                <label for="captureElementName-0">
+                                                    <input checked="checked" id="captureElementName-0" name="captureElementName"
                                                            type="radio"
                                                            value="true"> Enabled
                                                 </label>
                                             </div>
                                             <div class="radio-inline">
-                                                <label for="captureClickedElementText-1">
-                                                    <input id="captureClickedElementText-1"
-                                                           name="captureClickedElementText" type="radio" value="false">
+                                                <label for="captureElementName-1">
+                                                    <input id="captureElementName-1"
+                                                           name="captureElementName" type="radio" value="false">
                                                     Disabled
                                                 </label>
                                             </div>
-                                            <span class="help-block">• Automatically capture clicked element text and create a more descriptive report message.</span>
+                                            <span class="help-block">• Automatically capture element name and create a more descriptive report message.</span>
                                         </div>
                                     </div>
 
@@ -2475,7 +2475,7 @@
     function generateReporting() {
         // Get the data from each element on the form.
         const defaultLogLevel = $("select[name=defaultLogLevel]").val();
-        const captureClickedElementText = $("input[name=captureClickedElementText]:checked").val();
+        const captureElementName = $("input[name=captureElementName]:checked").val();
         const captureWebDriverLogs = $("input[name=captureWebDriverLogs]:checked").val();
         const alwaysLogDiscreetly = $("input[name=alwaysLogDiscreetly]:checked").val();
         const debugMode = $("input[name=debugMode]:checked").val();
@@ -2488,7 +2488,7 @@
         // This variable stores all the data.
         let data =
             'org.slf4j.simpleLogger.defaultLogLevel=' + defaultLogLevel + '\r\n' +
-            'captureClickedElementText=' + captureClickedElementText + '\r\n' +
+            'captureElementName=' + captureElementName + '\r\n' +
             'captureWebDriverLogs=' + captureWebDriverLogs + '\r\n' +
             'alwaysLogDiscreetly=' + alwaysLogDiscreetly + '\r\n' +
             'debugMode=' + debugMode + '\r\n' +

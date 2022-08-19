@@ -52,7 +52,7 @@ public class TouchActions {
     public TouchActions nativeKeyboardKeyPress(KeyboardKeys key) {
         try {
             ((AppiumDriver) driver).executeScript("mobile: performEditorAction", key.getValue());
-            WebDriverElementActions.passAction(driver, null, key.name());
+            WebDriverElementActions.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), key.name(), null,null);
         } catch (Exception rootCauseException) {
             WebDriverElementActions.failAction(driver, null, rootCauseException);
         }
@@ -76,7 +76,7 @@ public class TouchActions {
         } catch (Exception rootCauseException) {
             WebDriverElementActions.failAction(driver, null, rootCauseException);
         }
-        WebDriverElementActions.passAction(driver, null);
+        WebDriverElementActions.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null,null);
         return this;
     }
 
@@ -124,7 +124,7 @@ public class TouchActions {
 //                        .up(coordinates.get(0), coordinates.get(1))
 //                        .perform();
 //            }
-            WebDriverElementActions.passAction(driver, null, attachments);
+            WebDriverElementActions.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments,null);
         }
         return this;
     }
@@ -163,7 +163,7 @@ public class TouchActions {
             if (elementText == null || elementText.equals("")) {
                 elementText = elementLocator.toString();
             }
-            WebDriverElementActions.passAction(driver, elementLocator, elementText.replaceAll("\n", " "), screenshot);
+            WebDriverElementActions.passAction(driver, elementLocator, elementText.replaceAll("\n", " "), screenshot, null);
         } else {
             WebDriverElementActions.failAction(driver, elementLocator);
         }
@@ -198,9 +198,9 @@ public class TouchActions {
             }
 
             if (elementText != null && !elementText.equals("")) {
-                WebDriverElementActions.passAction(driver, elementLocator, elementText.replaceAll("\n", " "), screenshot);
+                WebDriverElementActions.passAction(driver, elementLocator, elementText.replaceAll("\n", " "), screenshot, null);
             } else {
-                WebDriverElementActions.passAction(driver, elementLocator, attachments);
+                WebDriverElementActions.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments,null);
             }
         } else {
             WebDriverElementActions.failAction(driver, elementLocator);
@@ -236,9 +236,9 @@ public class TouchActions {
             }
 
             if (elementText != null && !elementText.equals("")) {
-                WebDriverElementActions.passAction(driver, elementLocator, elementText.replaceAll("\n", " "), screenshot);
+                WebDriverElementActions.passAction(driver, elementLocator, elementText.replaceAll("\n", " "), screenshot, null);
             } else {
-                WebDriverElementActions.passAction(driver, elementLocator, attachments);
+                WebDriverElementActions.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments,null);
             }
         } else {
             WebDriverElementActions.failAction(driver, elementLocator);
@@ -261,7 +261,7 @@ public class TouchActions {
             } else {
                 WebDriverElementActions.failAction(driver, null);
             }
-            WebDriverElementActions.passAction(driver, null);
+            WebDriverElementActions.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null,null);
         } else {
             WebDriverElementActions.failAction(driver, null);
         }
@@ -292,7 +292,7 @@ public class TouchActions {
             } else {
                 WebDriverElementActions.failAction(driver, null);
             }
-            WebDriverElementActions.passAction(driver, null);
+            WebDriverElementActions.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null,null);
         } else {
             WebDriverElementActions.failAction(driver, null);
         }
@@ -316,7 +316,7 @@ public class TouchActions {
             } else {
                 WebDriverElementActions.failAction(driver, null);
             }
-            WebDriverElementActions.passAction(driver, null);
+            WebDriverElementActions.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null,null);
         } else {
             WebDriverElementActions.failAction(driver, null);
         }
@@ -338,7 +338,7 @@ public class TouchActions {
             } else {
                 WebDriverElementActions.failAction(driver, null);
             }
-            WebDriverElementActions.passAction(driver, null);
+            WebDriverElementActions.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null,null);
         } else {
             WebDriverElementActions.failAction(driver, null);
         }
@@ -376,7 +376,7 @@ public class TouchActions {
             String reportMessage = "Start point: " + startLocation + ", End point: " + endLocation;
 
             if (!endLocation.equals(startLocation)) {
-                WebDriverElementActions.passAction(driver, sourceElementLocator, reportMessage);
+                WebDriverElementActions.passAction(driver, sourceElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null,null);
             } else {
                 WebDriverElementActions.failAction(driver, reportMessage, sourceElementLocator);
             }
@@ -416,7 +416,7 @@ public class TouchActions {
             String reportMessage = "Start point: " + startLocation + ", End point: " + endLocation;
 
             if (!endLocation.equals(startLocation)) {
-                WebDriverElementActions.passAction(driver, elementLocator, reportMessage);
+                WebDriverElementActions.passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null,null);
             } else {
                 WebDriverElementActions.failAction(driver, reportMessage, elementLocator);
             }
@@ -462,7 +462,7 @@ public class TouchActions {
         attachments.add(screenshot);
 
         if (!Collections.emptyList().equals(coordinates)) {
-            WebDriverElementActions.passAction(driver, null, attachments);
+            WebDriverElementActions.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments,null);
         } else {
             WebDriverElementActions.failAction(driver, "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.", null, attachments);
         }
@@ -533,7 +533,7 @@ public class TouchActions {
                         new Actions(driver).scrollFromOrigin(WheelInput.ScrollOrigin.fromViewport(), coordinates.get(0), coordinates.get(1)).perform();
                     }
                 }
-                WebDriverElementActions.passAction(driver, null, attachments);
+                WebDriverElementActions.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments,null);
             } catch (Exception e) {
                 WebDriverElementActions.failAction(driver, "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.", null, attachments);
             }
@@ -574,7 +574,7 @@ public class TouchActions {
                         WebDriverElementActions.failAction(driver, targetElementLocator);
                     }
                 }
-                WebDriverElementActions.passAction(driver, targetElementLocator);
+                WebDriverElementActions.passAction(driver, targetElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null,null);
             } catch (Exception e) {
                 WebDriverElementActions.failAction(driver, targetElementLocator, e);
             }
@@ -809,7 +809,7 @@ public class TouchActions {
         } catch (Exception rootCauseException) {
             WebDriverElementActions.failAction(driver, null, rootCauseException);
         }
-        WebDriverElementActions.passAction(driver, null, zoomDirection.name());
+        WebDriverElementActions.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), zoomDirection.name(), null,null);
         return this;
     }
 
