@@ -86,7 +86,6 @@ public class CucumberTestRunnerListener implements ConcurrentEventListener {
             ReportManagerHelper.initializeExtentReportingEnvironment();
             LogsHelper.attachImportantLinks();
             LogsHelper.attachPropertyFiles();
-            ReportManagerHelper.generateJDKShellFilesToProjectDirectory();
             ReportManagerHelper.setDiscreteLogging(Boolean.parseBoolean(System.getProperty("alwaysLogDiscreetly")));
             ReportManagerHelper.setDebugMode(Boolean.valueOf(System.getProperty("debugMode")));
         }
