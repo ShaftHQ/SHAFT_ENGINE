@@ -48,7 +48,20 @@ jobs:
           force-avd-creation: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           channel: canary
-          script: mvn test -DexecutionAddress="localhost:4723" -DtargetOperatingSystem="Android" -Dmobile_automationName="UIAutomator2" -Dmobile_app="src/test/resources/TestDataFiles/apps/ApiDemos-debug.apk" -Dtest="%regex[.*Android.*]"
+          script: mvn test -DexecutionAddress="localhost:4723" -DtargetOperatingSystem="Android" -Dmobile_automationName="UIAutomator2" -Dmobile_app="src/test/resources/TestDataFiles/apps/ApiDemos-debug.apk" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Android.*]"
+
+      - name: Upload Allure Report as Pipeline Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: Mobile Native Tests Allure Report
+          path: "generatedReport_*.zip"
+
+      - name: Upload Extent Report as Pipeline Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: Mobile Native Tests Extent Report
+          path: "extent-reports/ExtentReports_*.html"
+
 #      - name: Get Allure history
 #        continue-on-error: true
 #        uses: actions/checkout@v3
