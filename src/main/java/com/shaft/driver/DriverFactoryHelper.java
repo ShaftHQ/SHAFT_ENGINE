@@ -313,65 +313,12 @@ public class DriverFactoryHelper {
     private static OperatingSystemType getOperatingSystemFromName(String operatingSystemName) {
         int values = OperatingSystemType.values().length;
         for (var i = 0; i < values; i++) {
-            if (Arrays.asList(OperatingSystemType.values()).get(i).getValue()
-                    .equalsIgnoreCase(operatingSystemName.trim())) {
+            if (Arrays.asList(OperatingSystemType.values()).get(i).getValue().toLowerCase().contains(operatingSystemName.trim().toLowerCase())) {
                 return Arrays.asList(OperatingSystemType.values()).get(i);
             }
         }
         failAction("Unsupported Operating System \"" + targetOperatingSystem + "\".");
         return OperatingSystemType.LINUX;
-    }
-
-    /**
-     * Check cross-compatibility between the selected operating system and driver
-     * and report in case they are not compatible
-     */
-    private static void checkDriverOSCrossCompatibility(String driverName) {
-        var isCompatibleDriver = false;
-        var driverType = getDriverTypeFromName(driverName);
-
-        OperatingSystemType operatingSystem = getOperatingSystemFromName(targetOperatingSystem);
-
-        switch (operatingSystem) {
-            case WINDOWS:
-                if (driverType.equals(DriverType.DESKTOP_FIREFOX) || driverType.equals(DriverType.DESKTOP_CHROME)
-                        || driverType.equals(DriverType.DESKTOP_INTERNET_EXPLORER) || driverType.equals(DriverType.DESKTOP_EDGE)) {
-                    isCompatibleDriver = true;
-                }
-                break;
-            case LINUX:
-                if (driverType.equals(DriverType.DESKTOP_FIREFOX) || driverType.equals(DriverType.DESKTOP_CHROME) || driverType.equals(DriverType.DESKTOP_EDGE)) {
-                    isCompatibleDriver = true;
-                }
-                break;
-            case MACOS:
-                if (driverType.equals(DriverType.DESKTOP_FIREFOX) || driverType.equals(DriverType.DESKTOP_CHROME)
-                        || driverType.equals(DriverType.DESKTOP_SAFARI)) {
-                    isCompatibleDriver = true;
-                }
-                break;
-            case ANDROID:
-                if (driverType.equals(DriverType.APPIUM_CHROME) || driverType.equals(DriverType.APPIUM_CHROMIUM)
-                        || driverType.equals(DriverType.APPIUM_BROWSER)) {
-                    isCompatibleDriver = true;
-                }
-                break;
-            case IOS:
-                if (driverType.equals(DriverType.DESKTOP_SAFARI)) {
-                    isCompatibleDriver = true;
-                }
-                break;
-
-            default:
-                failAction("Unsupported Operating System \"" + targetOperatingSystem + "\".");
-                break;
-        }
-
-        if (Boolean.FALSE.equals(isCompatibleDriver)) {
-            failAction("Unsupported Driver Type \"" + driverType + "\" for this Operating System \""
-                    + targetOperatingSystem + "\".");
-        }
-
     }
 
     private static String setDriversExtecutableFileExtension() {
@@ -442,7 +389,7 @@ public class DriverFactoryHelper {
                     ieOptions.setProxy(proxy);
                 }
             }
-            case APPIUM_CHROME, DESKTOP_CHROME, DESKTOP_EDGE -> {
+            case APPIUM_CHROME, DESKTOP_CHROME, DESKTOP_EDGE, DESKTOP_CHROMIUM -> {
                 ChromiumOptions options;
                 if (driverType.equals(DriverType.DESKTOP_EDGE)) {
                     options = new EdgeOptions();
@@ -484,7 +431,7 @@ public class DriverFactoryHelper {
                     chOptions = (ChromeOptions) options;
                 }
             }
-            case DESKTOP_SAFARI -> {
+            case DESKTOP_SAFARI, DESKTOP_WEBKIT -> {
                 sfOptions = new SafariOptions();
                 if (customDriverOptions != null) {
                     sfOptions = sfOptions.merge(customDriverOptions);
@@ -659,7 +606,7 @@ public class DriverFactoryHelper {
                 ReportManager.logDiscrete(ieOptions.toString());
                 driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), ieOptions));
                 break;
-            case DESKTOP_CHROME:
+            case DESKTOP_CHROME, DESKTOP_CHROMIUM:
                 ReportManager.logDiscrete(chOptions.toString());
                 driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), chOptions));
                 break;
@@ -667,7 +614,7 @@ public class DriverFactoryHelper {
                 ReportManager.logDiscrete(edOptions.toString());
                 driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), edOptions));
                 break;
-            case DESKTOP_SAFARI:
+            case DESKTOP_SAFARI, DESKTOP_WEBKIT:
                 if (!isMobileExecution()) {
                     ReportManager.logDiscrete(sfOptions.toString());
                     driver.set(new RemoteWebDriver(new URL(TARGET_HUB_URL), sfOptions));
@@ -796,11 +743,6 @@ public class DriverFactoryHelper {
             internalDriverName = System.getProperty("mobile_browserName");
         }
         try {
-            if (!isMobileNativeExecution()) {
-                checkDriverOSCrossCompatibility(internalDriverName);
-                // check cross-compatibility between the selected operating system and driver
-                // and report in case they are not compatible
-            }
             setDriverOptions(internalDriverName, customDriverOptions);
             // set driver options with respect to the target driver name
             if (Boolean.TRUE.equals(DRIVER_OBJECT_SINGLETON)) {

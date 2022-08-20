@@ -437,20 +437,15 @@ public class ElementActions {
 
     /**
      * Waits dynamically for a specific element's text to change from the initial
-     * value to a new unknown value. Waits for a specific number of retries
-     * multiplied by the default element identification timeout (in the POM.xml
-     * file)
+     * value to a new unknown value. Waits until the default element identification timeout
      *
      * @param driver         the current instance of Selenium webdriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      * @param initialValue   the initial text value of the target webElement
-     * @param numberOfTries  the number of times to try and wait for the element
-     *                       text to change (default is 1)
      */
-    public static void waitForTextToChange(WebDriver driver, By elementLocator, String initialValue,
-                                           int numberOfTries) {
-        WebDriverElementActions.waitForTextToChange(driver, elementLocator, initialValue, numberOfTries);
+    public static void waitForTextToChange(WebDriver driver, By elementLocator, String initialValue) {
+        WebDriverElementActions.waitForTextToChange(driver, elementLocator, initialValue);
     }
 
     /**
@@ -1048,20 +1043,16 @@ public class ElementActions {
 
     /**
      * Waits dynamically for a specific element's text to change from the initial
-     * value to a new unknown value. Waits for a specific number of retries
-     * multiplied by the default element identification timeout (in the POM.xml
-     * file)
+     * value to a new unknown value. Waits until the default element identification timeout
      *
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      * @param initialValue   the initial text value of the target webElement
-     * @param numberOfTries  the number of times to try and wait for the element
-     *                       text to change (default is 1)
      * @return a self-reference to be used to chain actions
      */
     @SuppressWarnings("UnusedReturnValue")
-    public ElementActions waitForTextToChange(By elementLocator, String initialValue, int numberOfTries) {
-        waitForTextToChange(WebDriverElementActions.getLastUsedDriver(), elementLocator, initialValue, numberOfTries);
+    public ElementActions waitForTextToChange(By elementLocator, String initialValue) {
+        waitForTextToChange(WebDriverElementActions.getLastUsedDriver(), elementLocator, initialValue);
         return this;
     }
 

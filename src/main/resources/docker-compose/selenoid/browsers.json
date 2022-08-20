@@ -1,0 +1,57 @@
+{
+  "MozillaFirefox": {
+    "default": "latest",
+    "versions": {
+      "latest": {
+        "image": "selenoid/firefox:latest",
+        "port": "4444",
+        "path": "/wd/hub"
+      }
+    }
+  },
+  "GoogleChrome": {
+    "default": "latest",
+    "versions": {
+      "latest": {
+        "image": "selenoid/chrome:latest",
+        "port": "4444",
+        "path": "/"
+      },
+      "86.0-mobile": {
+        "image": "selenoid/chrome-mobile:86.0",
+        "port": "4444",
+        "path": "/wd/hub"
+      }
+    }
+  },
+  "MicrosoftEdge": {
+    "default": "latest",
+    "versions": {
+      "latest": {
+        "image": "browsers/edge:latest",
+        "port": "4444",
+        "path": "/"
+      }
+    }
+  },
+  "Safari": {
+    "default": "15.0",
+    "versions": {
+      "15.0": {
+        "image": "browsers/safari:15.0",
+        "port": "4444",
+        "path": "/wd/hub"
+      }
+    }
+  },
+  "Android": {
+    "default": "latest",
+    "versions": {
+      "latest": {
+        "image": "browsers/android:latest",
+        "port": "4444",
+        "path": "/wd/hub"
+      }
+    }
+  }
+}

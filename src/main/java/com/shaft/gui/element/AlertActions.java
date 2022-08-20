@@ -33,7 +33,7 @@ public class AlertActions {
     public boolean isAlertPresent() {
         try {
             driver.switchTo().alert();
-            WebDriverElementActions.passAction(driver, null);
+            WebDriverElementActions.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null,null);
             ReportManager.logDiscrete("Alert is present");
             return true;
         } catch (NoAlertPresentException exception) {
@@ -50,7 +50,7 @@ public class AlertActions {
         try {
             waitForAlertToBePresent(driver);
             driver.switchTo().alert().accept();
-            WebDriverElementActions.passAction(driver, null);
+            WebDriverElementActions.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null,null);
         } catch (Exception rootCauseException) {
             WebDriverElementActions.failAction(driver, null, rootCauseException);
         }
@@ -61,7 +61,7 @@ public class AlertActions {
         try {
             waitForAlertToBePresent(driver);
             driver.switchTo().alert().dismiss();
-            WebDriverElementActions.passAction(driver, null);
+            WebDriverElementActions.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null,null);
         } catch (Exception rootCauseException) {
             WebDriverElementActions.failAction(driver, null, rootCauseException);
         }
@@ -73,7 +73,7 @@ public class AlertActions {
             waitForAlertToBePresent(driver);
             var alertText = driver.switchTo().alert().getText();
             ReportManager.logDiscrete("Alert Text is: [" + alertText + "]");
-            WebDriverElementActions.passAction(driver, null);
+            WebDriverElementActions.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null,null);
             return alertText;
         } catch (Exception rootCauseException) {
             WebDriverElementActions.failAction(driver, null, rootCauseException);
@@ -86,7 +86,7 @@ public class AlertActions {
             waitForAlertToBePresent(driver);
             driver.switchTo().alert().sendKeys(text);
             ReportManager.logDiscrete("Text typed into Alert is: [" + text + "]");
-            WebDriverElementActions.passAction(driver, null);
+            WebDriverElementActions.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null,null);
         } catch (Exception rootCauseException) {
             WebDriverElementActions.failAction(driver, null, rootCauseException);
         }

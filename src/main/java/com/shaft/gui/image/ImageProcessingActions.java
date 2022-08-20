@@ -149,8 +149,15 @@ public class ImageProcessingActions {
         // IOS Native | macOS Browser | Linux Browser scaled | -> Repositioning
         if (System.getProperty("targetOperatingSystem").equals("iOS")
                 || System.getProperty("targetOperatingSystem").equals("Mac-64")
+                || System.getProperty("targetOperatingSystem").equals("Mac")
                 || (
                 System.getProperty("targetOperatingSystem").equals("Linux-64")
+                        && System.getProperty("screenshotParams_scalingFactor") != null
+                        && !System.getProperty("screenshotParams_scalingFactor").isEmpty()
+                        && !System.getProperty("screenshotParams_scalingFactor").equals("1")
+        )
+                || (
+                System.getProperty("targetOperatingSystem").equals("Linux")
                         && System.getProperty("screenshotParams_scalingFactor") != null
                         && !System.getProperty("screenshotParams_scalingFactor").isEmpty()
                         && !System.getProperty("screenshotParams_scalingFactor").equals("1")
@@ -406,9 +413,7 @@ public class ImageProcessingActions {
             String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
 
             boolean doesReferenceFileExist = FileActions.getInstance().doesFileExist(referenceImagePath);
-
-            if (!Arrays.equals(elementScreenshot, new byte[]{})) {
-                if (!doesReferenceFileExist || !ImageProcessingActions.findImageWithinCurrentPage(referenceImagePath, elementScreenshot).equals(Collections.emptyList())) {
+             if (!doesReferenceFileExist || !ImageProcessingActions.findImageWithinCurrentPage(referenceImagePath, elementScreenshot).equals(Collections.emptyList())) {
                     //pass: element found and matched || first time element
                     if (!doesReferenceFileExist) {
                         ReportManager.logDiscrete("Passing the test and saving a reference image");
@@ -419,24 +424,6 @@ public class ImageProcessingActions {
                     //fail: element doesn't match
                     return false;
                 }
-            } else {
-                //TODO: if element locator was not found, attempt to use AI to find it
-                Boolean initialState = ScreenshotManager.getAiSupportedElementIdentification();
-                ScreenshotManager.setAiSupportedElementIdentification(true);
-                if (!doesReferenceFileExist || WebDriverElementActions.attemptToFindElementUsingAI(driver, elementLocator)) {
-                    //pass: element found using AI and new locator suggested || first time element
-                    if (!doesReferenceFileExist) {
-                        ReportManager.logDiscrete("Passing the test and saving a reference image");
-                        FileActions.getInstance().writeToFile(aiFolderPath, hashedLocatorName + ".png", elementScreenshot);
-                    }
-                    ScreenshotManager.setAiSupportedElementIdentification(initialState);
-                    return true;
-                } else {
-                    //fail: element not found using AI
-                    ScreenshotManager.setAiSupportedElementIdentification(initialState);
-                    return false;
-                }
-            }
         }//all the other cases of Eyes
         Eyes eyes = new Eyes();
         // Define global settings
