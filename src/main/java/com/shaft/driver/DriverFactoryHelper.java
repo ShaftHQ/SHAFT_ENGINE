@@ -13,6 +13,7 @@ import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
+import com.shaft.tools.support.JavaActions;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
@@ -59,6 +60,7 @@ public class DriverFactoryHelper {
     // MicrosoftEdge | Safari
     private static String TARGET_MOBILE_BROWSER_NAME;
     private static final String WEBDRIVERMANAGER_MESSAGE = "Identifying OS/Driver combination and selecting the correct driver version automatically. Please note that if a new driver executable will be downloaded it may take some time...";
+    private static final String WEBDRIVERMANAGER_DOCKERIZED_MESSAGE = "Identifying target OS/Browser and setting up the dockerized environment automatically. Please note that if a new docker container will be downloaded it may take some time...";
     private static int PAGE_LOAD_TIMEOUT;
     private static int SCRIPT_TIMEOUT;
     private static int IMPLICIT_WAIT_TIMEOUT;
@@ -68,6 +70,7 @@ public class DriverFactoryHelper {
     private static String customDriverName;
     private static String targetOperatingSystem;
     private static ThreadLocal<WebDriver> driver = new ThreadLocal<>();
+    private static ThreadLocal<WebDriverManager> webDriverManager = new ThreadLocal<>();
 
     // supported driver options
     private static ChromeOptions chOptions;
@@ -542,6 +545,43 @@ public class DriverFactoryHelper {
         return driver.get();
     }
 
+    private static WebDriver createNewDockerizedDriverInstance(String driverName) {
+        String initialLog = "Attempting to run dockerized on: \"" + targetOperatingSystem + " | " + driverName + "\"";
+        if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
+            initialLog = initialLog + ", Headless Execution";
+        }
+        ReportManager.log(initialLog + ".");
+        var driverType = getDriverTypeFromName(driverName);
+
+        try {
+            switch (driverType) {
+                case DESKTOP_FIREFOX -> {
+                    ReportManager.logDiscrete(WEBDRIVERMANAGER_DOCKERIZED_MESSAGE);
+                    webDriverManager.set(WebDriverManager.firefoxdriver().capabilities(ffOptions));
+                }
+                case DESKTOP_CHROME -> {
+                    ReportManager.logDiscrete(WEBDRIVERMANAGER_DOCKERIZED_MESSAGE);
+                    webDriverManager.set(WebDriverManager.chromedriver().capabilities(chOptions));
+                }
+                case DESKTOP_EDGE -> {
+                    ReportManager.logDiscrete(WEBDRIVERMANAGER_DOCKERIZED_MESSAGE);
+                    webDriverManager.set(WebDriverManager.edgedriver().capabilities(edOptions));
+                }
+                case DESKTOP_SAFARI -> {
+                    ReportManager.logDiscrete(WEBDRIVERMANAGER_DOCKERIZED_MESSAGE);
+                    webDriverManager.set(WebDriverManager.safaridriver().capabilities(sfOptions));
+                }
+                default -> failAction("Unsupported Driver Type \"" + driverName + "\". We only support Chrome, Edge, Firefox, and Safari in this dockerized mode.");
+            }
+            driver.set(webDriverManager.get().browserInDocker().enableVnc().enableRecording().dockerRecordingOutput(System.getProperty("video.folder")).create());
+            storeDriverInstance(driverType.getValue());
+            ReportManager.log("Successfully Opened "+ JavaActions.convertToSentenceCase(driverType.getValue()) +".");
+        } catch (io.github.bonigarcia.wdm.config.WebDriverManagerException exception) {
+            failAction("Failed to create new Dockerized Browser Session, are you sure Docker is available on your machine?", exception);
+        }
+        return driver.get();
+    }
+
     private static WebDriver createNewRemoteDriverInstance(String driverName) {
         DriverType driverType;
 
@@ -682,6 +722,13 @@ public class DriverFactoryHelper {
 
     private static void attemptToCloseOrQuitDriver(WebDriver driver, boolean quit) {
         try {
+            //if dockerized wdm.quit the relevant one
+            if ("dockerized".equals(System.getProperty("executionAddress"))){
+                var pathToRecording = webDriverManager.get().getDockerRecordingPath(driver);
+                webDriverManager.get().quit(driver);
+                RecordManager.attachVideoRecording(pathToRecording);
+            }
+            //in all regular cases
             if (quit || isMobileNativeExecution()) {
                 driver.quit();
             } else {
@@ -692,7 +739,6 @@ public class DriverFactoryHelper {
         } catch (Exception e) {
             ReportManagerHelper.log(e);
         }
-
     }
 
     private static void attachWebDriverLogs(WebDriver driver) {
@@ -752,7 +798,10 @@ public class DriverFactoryHelper {
             if ("local".equals(EXECUTION_ADDRESS) && !isMobileExecution()) {
                 // Manage local execution
                 driver.set(createNewLocalDriverInstance(internalDriverName));
-            } else {
+            } else if ("dockerized".equals(EXECUTION_ADDRESS)){
+                // Manage dockerized execution
+                driver.set(createNewDockerizedDriverInstance(internalDriverName));
+            }else {
                 // Manage remote execution | or appium execution
                 driver.set(createNewRemoteDriverInstance(internalDriverName));
             }
