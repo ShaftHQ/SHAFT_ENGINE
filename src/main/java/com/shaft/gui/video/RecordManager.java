@@ -23,6 +23,7 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Base64;
 
@@ -68,6 +69,18 @@ public class RecordManager {
                 && recorder.get() == null) {
             recorder.set(RecorderFactory.getRecorder(VideoRecorder.conf().recorderType()));
             recorder.get().start();
+        }
+    }
+
+    public static synchronized void attachVideoRecording(Path pathToRecording){
+        if (pathToRecording!=null) {
+            String testMethodName = ReportManagerHelper.getTestMethodName();
+            try {
+                ReportManagerHelper.attach("Video Recording", testMethodName,
+                        new FileInputStream(pathToRecording.toString()));
+            } catch (FileNotFoundException e) {
+                ReportManagerHelper.logDiscrete(e);
+            }
         }
     }
 
