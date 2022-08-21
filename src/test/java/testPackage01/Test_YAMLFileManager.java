@@ -59,6 +59,14 @@ public class Test_YAMLFileManager {
     }
 
     @Test
+    static void getIntegerAsString() {
+        assertThat()
+                .object(yaml.getTestData("integer"))
+                .isEqualTo("10")
+                .perform();
+    }
+
+    @Test
     static void getInteger() {
         assertThat()
                 .object(yaml.getInteger("integer"))
@@ -231,7 +239,7 @@ public class Test_YAMLFileManager {
     @Test
     static void getValueWithWrongType() {
         Assert.assertThrows(
-                RuntimeException.class,
+                AssertionError.class,
                 () -> yaml.getAs("integer", Boolean.class)
         );
     }
@@ -239,7 +247,7 @@ public class Test_YAMLFileManager {
     @Test
     static void getNotExistedKey() {
         Assert.assertThrows(
-                RuntimeException.class,
+                AssertionError.class,
                 () -> yaml.get("not-existed-key")
         );
     }
@@ -247,7 +255,7 @@ public class Test_YAMLFileManager {
     @Test()
     static void getInvalidLong() {
         Assert.assertThrows(
-                RuntimeException.class,
+                AssertionError.class,
                 () -> yaml.getLong("invalid-long")
         );
     }

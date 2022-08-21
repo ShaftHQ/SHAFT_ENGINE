@@ -1,6 +1,7 @@
 package com.shaft.tools.io;
 
 import com.shaft.tools.support.JavaActions;
+import org.testng.Assert;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.FileInputStream;
@@ -35,6 +36,22 @@ public class YAMLFileManager {
     public YAMLFileManager(String filePath) {
         this.filePath = JavaActions.appendTestDataToRelativePath(filePath);
         this.data = getData();
+
+        List<Object> testDataFileAttachment = new ArrayList<>();
+        try {
+            testDataFileAttachment = List.of(
+                    "Test Data",
+                    "YAML",
+                    new FileInputStream(filePath)
+            );
+        } catch (FileNotFoundException ignore) {
+            // unreachable code because if the file was not found then the get data method will fail while loading the file
+        }
+
+        ReportManagerHelper.log(
+                "Loaded Test Data: \"" + filePath + "\".",
+                List.of(testDataFileAttachment)
+                );
     }
 
     /**
@@ -57,9 +74,7 @@ public class YAMLFileManager {
      */
     public Object get(String key) {
         if (key == null || key.isEmpty()) {
-            var errorMsg = "Key can't be null or empty";
-            sendFailureCompo(errorMsg);
-            throw new RuntimeException(errorMsg);
+            sendFailureCompo("Key can't be null or empty");
         }
 
         Object value;
@@ -73,9 +88,9 @@ public class YAMLFileManager {
             if (data.containsKey(key))
                 value = data.get(key);
             else {
-                var errorMsg = "This key [" + key + "] is not exist";
-                sendFailureCompo(errorMsg);
-                throw new RuntimeException(errorMsg);
+                sendFailureCompo("This key [" + key + "] is not exist");
+                // unreachable because previous method throws AssertionError
+                throw new RuntimeException();
             }
         }
 
@@ -89,7 +104,22 @@ public class YAMLFileManager {
      * to support list in the key series "key[index]"
      *
      * @param key the path to the wanted data can be a single key or a series of keys
-     * @return the wanted value as {@link String}
+     * @return the wanted value as {@link String} even if it not a string it will parse it to be string
+     */
+    public String getTestData(String key) {
+        var obj = get(key);
+
+        return obj == null ? null : String.valueOf(obj);
+    }
+
+    /**
+     * Fetch a single piece of data from the YAML file using a single key or a series of keys
+     * <p>
+     * to support key series use a dot to separate keys "key1.key2"
+     * to support list in the key series "key[index]"
+     *
+     * @param key the path to the wanted data can be a single key or a series of keys
+     * @return the wanted value as {@link String} if the value is not a string it will throw an error
      */
     public String getString(String key) {
         return parseObjectTo(get(key), String.class);
@@ -137,9 +167,9 @@ public class YAMLFileManager {
         try {
             value = getString(key);
         } catch (ClassCastException ignore) {
-            var errorMsg = "To support Long values please add 'L' at the end of the number";
-            sendFailureCompo(errorMsg);
-            throw new RuntimeException(errorMsg);
+            sendFailureCompo("To support Long values please add 'L' at the end of the number");
+            // unreachable because previous method throws AssertionError
+            throw new RuntimeException();
         }
         if (value.endsWith("L"))
             try {
@@ -147,9 +177,9 @@ public class YAMLFileManager {
             } catch (NumberFormatException ignore) {
             }
 
-        var errorMsg = "Can't parse the value of the key [" + key + "] to be long";
-        sendFailureCompo(errorMsg);
-        throw new NumberFormatException(errorMsg);
+        sendFailureCompo("Can't parse the value of the key [" + key + "] to be long");
+        // unreachable because previous method throws AssertionError
+        throw new RuntimeException();
     }
 
     /**
@@ -294,9 +324,9 @@ public class YAMLFileManager {
         try {
             in = new FileInputStream(filePath);
         } catch (FileNotFoundException rootCauseException) {
-            var errorMsg = "Couldn't find the desired file. [" + filePath + "].";
-            sendFailureCompo(errorMsg, rootCauseException);
-            throw new RuntimeException(errorMsg);
+            sendFailureCompo("Couldn't find the desired file. [" + filePath + "].", rootCauseException);
+            // unreachable because previous method throws AssertionError
+            throw new RuntimeException();
         }
         return in;
     }
@@ -308,8 +338,9 @@ public class YAMLFileManager {
     private void closeFile(FileInputStream file) {
         try {
             file.close();
-        } catch (IOException e) {
-            throw new RuntimeException("Couldn't close the following file. [" + filePath + "] with exception:" + e);
+        } catch (IOException rootCauseException) {
+            sendFailureCompo("Couldn't close the following file. [" + filePath + "]",
+                    rootCauseException);
         }
     }
 
@@ -348,9 +379,10 @@ public class YAMLFileManager {
         try {
             v = clazz.cast(obj);
         } catch (ClassCastException rootCauseException) {
-            var errorMsg = "Can't parse the value of [" + obj + "] to be of type [" + clazz.getSimpleName() + "]";
-            sendFailureCompo(errorMsg, rootCauseException);
-            throw rootCauseException;
+            sendFailureCompo("Can't parse the value of [" + obj + "] to be of type [" + clazz.getSimpleName() + "]",
+                    rootCauseException);
+            // unreachable because previous method throws AssertionError
+            throw new RuntimeException();
         }
         return v;
     }
@@ -369,9 +401,9 @@ public class YAMLFileManager {
                     .map(item -> parseObjectTo(item, clazz)).toList();
         }
 
-        var errorMsg = "Can't parse the value of [" + obj + "] to be list";
-        sendFailureCompo(errorMsg);
-        throw new RuntimeException(errorMsg);
+        sendFailureCompo("Can't parse the value of [" + obj + "] to be list");
+        // unreachable because previous method throws AssertionError
+        throw new RuntimeException();
     }
 
     /**
@@ -390,9 +422,9 @@ public class YAMLFileManager {
             );
             return nMap;
         }
-        var errorMsg = "Can't parse the value of [" + obj + "] to be map";
-        sendFailureCompo(errorMsg);
-        throw new RuntimeException(errorMsg);
+        sendFailureCompo("Can't parse the value of [" + obj + "] to be map");
+        // unreachable because previous method throws AssertionError
+        throw new RuntimeException();
     }
 
     private void sendFailureCompo(String msg, Exception... rootCauseException) {
@@ -400,5 +432,6 @@ public class YAMLFileManager {
             ReportManagerHelper.log(rootCauseException[0]);
 
         ReportManager.log(msg);
+        Assert.fail(msg);
     }
 }
