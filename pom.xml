@@ -76,6 +76,8 @@
 
 		<pdfbox.version>2.0.26</pdfbox.version>
 
+        <org.yaml.version>1.30</org.yaml.version>
+
         <!-- Build Commands-->
         <installToLocalRepository>mvn clean install -DskipTests</installToLocalRepository>
         <publishJavaDocs>mvn resources:resources javadoc:javadoc scm-publish:publish-scm</publishJavaDocs>
@@ -577,6 +579,13 @@
             <groupId>com.google.crypto.tink</groupId>
             <artifactId>tink-gcpkms</artifactId>
             <version>1.7.0</version>
+        </dependency>
+
+        <!--YAML -->
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+            <version>${org.yaml.version}</version>
         </dependency>
     </dependencies>
 
