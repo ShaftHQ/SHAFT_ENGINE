@@ -512,6 +512,16 @@ public class FileActions {
     public boolean zipFiles(String srcFolder, String destZipFile) {
         boolean result = false;
         try {
+            if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("debugMode")))){
+                var log = new StringBuilder();
+                Files.walk(Paths.get(srcFolder))
+                        .filter(Files::isRegularFile)
+                        .forEach(filePath ->{
+                            log.append(filePath.toString());
+                            log.append("\n");
+                        });
+                ReportManager.log("Archiving the following files:\n"+log);
+            }
             zipFolder(srcFolder, destZipFile);
             result = true;
             passAction("Target Folder: \"" + srcFolder + "\" | Destination Archive: \"" + destZipFile + "\"");
