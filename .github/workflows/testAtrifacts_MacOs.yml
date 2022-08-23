@@ -39,7 +39,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: Desktop Browsers Tests Allure Report
-          path: "generatedReport_*.zip"
+          path: "generatedReport"
 
       - name: Upload Extent Report as Pipeline Artifact
         uses: actions/upload-artifact@v3
