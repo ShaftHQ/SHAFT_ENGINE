@@ -320,8 +320,7 @@ public class ReportManagerHelper {
 
     public static void openAllureReportAfterExecution() {
         String commandToOpenAllureReport;
-        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("openAllureReportAfterExecution").trim()))
-                && System.getProperty("executionAddress").trim().equals("local")) {
+        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("openAllureReportAfterExecution").trim()))) {
 
             if (SystemUtils.IS_OS_WINDOWS) {
                 commandToOpenAllureReport = ("generate_allure_report.bat");
@@ -333,8 +332,7 @@ public class ReportManagerHelper {
     }
 
     public static void generateAllureReportArchive() {
-        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateAllureReportArchive").trim()))
-                && System.getProperty("executionAddress").trim().equals("local")) {
+        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateAllureReportArchive").trim()))) {
             ReportManager.logDiscrete("Generating Allure Report Archive...");
             boolean discreteLoggingState = getDiscreteLogging();
             setDiscreteLogging(true);
