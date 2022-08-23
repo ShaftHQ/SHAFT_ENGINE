@@ -39,11 +39,11 @@ jobs:
       - name: Upload Allure Report as Pipeline Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: runner.os Desktop Browsers Tests Allure Report
+          name: {{$RUNNER_OS}} Desktop Browsers Tests Allure Report
           path: "generatedReport_*.zip"
 
       - name: Upload Extent Report as Pipeline Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: runner.os Desktop Browsers Tests Extent Report
+          name: {{$RUNNER_OS}} Desktop Browsers Tests Extent Report
           path: "extent-reports/ExtentReports_*.html"
