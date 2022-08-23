@@ -36,7 +36,7 @@ public class ReportManagerHelper {
     private static final String ALLURE_VERSION_PROPERTY_NAME = "allureVersion";
     private static final String REPORT_MANAGER_PREFIX = "[ReportManager] ";
     private static final String SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE = "SHAFT Engine Logs";
-    private static final String OS_WINDOWS = "Windows-64";
+//    private static final String OS_WINDOWS = "Windows-64";
     private static final String allureExtractionLocation = System.getProperty("user.home") + File.separator + ".m2"
             + File.separator + "repository" + File.separator + "allure" + File.separator;
     private static String fullLog = "";
@@ -335,7 +335,7 @@ public class ReportManagerHelper {
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateAllureReportArchive").trim()))) {
             ReportManager.logDiscrete("Generating Allure Report Archive...");
             boolean discreteLoggingState = getDiscreteLogging();
-            setDiscreteLogging(true);
+            setDiscreteLogging(false);
             writeOpenReportShellFilesToGeneratedDirectory();
             writeAllureReportToGeneratedDirectory();
             createAllureReportArchiveAndCleanGeneratedDirectory();
@@ -762,8 +762,7 @@ public class ReportManagerHelper {
             FileActions.getInstance().unpackArchive(allureSHAFTConfigArchive,
                     allureExtractionLocation + "allure-" + allureVersion + File.separator);
 
-            if (!System.getProperty(TARGET_OS_PROPERTY_NAME).equals(OS_WINDOWS)
-                    && (System.getProperty("mobile_platformName") == null || System.getProperty("mobile_platformName").trim().equals(""))) {
+            if (!(SystemUtils.IS_OS_WINDOWS) && (System.getProperty("mobile_platformName") == null || System.getProperty("mobile_platformName").trim().equals(""))) {
                 // make allure executable on Unix-based shells
                 (new TerminalActions()).performTerminalCommand("chmod u+x " + allureBinaryPath);
             }
@@ -832,15 +831,15 @@ public class ReportManagerHelper {
 
     }
 
-    private static void writeAllureReportToGeneratedDirectory() {
+    public static void writeAllureReportToGeneratedDirectory() {
         // add correct file extension based on target OS
-        String targetOperatingSystem = System.getProperty(TARGET_OS_PROPERTY_NAME);
+//        String targetOperatingSystem = System.getProperty(TARGET_OS_PROPERTY_NAME);
         String commandToCreateAllureReport;
 
         allureBinaryPath = allureExtractionLocation + "allure-" + System.getProperty(ALLURE_VERSION_PROPERTY_NAME)
                 + "/bin/allure";
 
-        if (targetOperatingSystem.equals(OS_WINDOWS)) {
+        if (SystemUtils.IS_OS_WINDOWS) {
             commandToCreateAllureReport = allureBinaryPath + ".bat" + " generate \""
                     + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
                     + "\" -o \"generatedReport/allure-report\"";
