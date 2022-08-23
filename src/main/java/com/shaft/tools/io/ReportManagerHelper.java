@@ -831,9 +831,9 @@ public class ReportManagerHelper {
                     + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
                     + "\" -o \"generatedReport/allure-report\"";
         } else {
-            commandToCreateAllureReport = allureBinaryPath + " generate '"
+            commandToCreateAllureReport = allureBinaryPath + " generate "
                     + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
-                    + "' -o 'generatedReport/allure-report'";
+                    + " -o generatedReport/allure-report";
         }
         (new TerminalActions(false)).performTerminalCommand(commandToCreateAllureReport);
     }
