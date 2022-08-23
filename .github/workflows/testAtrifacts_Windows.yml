@@ -33,7 +33,7 @@ jobs:
         run: mvn test -DexecutionAddress="local" -DtargetOperatingSystem="Windows-64" -DmaximumPerformanceMode="2" -DtargetBrowserName="MicrosoftEdge" -DgenerateAllureReportArchive="true" -Dtest="testPackage01.SHAFTWizard.Test_Wizard_GUI"
 
       - name: Check Directory Files
-        run: ls -l
+        run: dir
 
       - name: Upload Allure Report as Pipeline Artifact
         uses: actions/upload-artifact@v3
