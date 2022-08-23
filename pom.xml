@@ -32,7 +32,7 @@
         <selenium.version>4.4.0</selenium.version>
         <appium-java-client.version>8.1.1</appium-java-client.version>
 
-        <webdrivermanager.version>5.2.3</webdrivermanager.version>
+        <webdrivermanager.version>5.3.0</webdrivermanager.version>
         <allure-testng.version>2.19.0</allure-testng.version> <!-- UPDATE internal.properties -->
         <extentreports.version>5.0.9</extentreports.version>
         <aspectj.version>1.9.9.1</aspectj.version> <!-- 1.9.7 DO NOT UPDATE -->
@@ -52,7 +52,7 @@
         <!-- <ojdbc8.version>19.3.0.0</ojdbc8.version> -->
 
         <apachepoi.version>5.2.2</apachepoi.version>
-        <org.slf4j.version>1.7.36</org.slf4j.version>
+        <org.slf4j.version>2.0.0</org.slf4j.version>
 
         <maven-resources-plugin.version>3.3.0</maven-resources-plugin.version>
         <maven-compiler-plugin.version>3.10.1</maven-compiler-plugin.version>
@@ -75,6 +75,8 @@
         <video-recorder-testng.version>2.0</video-recorder-testng.version>
 
 		<pdfbox.version>2.0.26</pdfbox.version>
+
+        <org.yaml.version>1.30</org.yaml.version>
 
         <!-- Build Commands-->
         <installToLocalRepository>mvn clean install -DskipTests</installToLocalRepository>
@@ -577,6 +579,13 @@
             <groupId>com.google.crypto.tink</groupId>
             <artifactId>tink-gcpkms</artifactId>
             <version>1.7.0</version>
+        </dependency>
+
+        <!--YAML -->
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+            <version>${org.yaml.version}</version>
         </dependency>
     </dependencies>
 

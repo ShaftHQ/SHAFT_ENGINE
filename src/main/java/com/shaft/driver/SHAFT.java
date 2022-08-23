@@ -9,10 +9,7 @@ import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.browser.WebDriverBrowserActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.SikuliActions;
-import com.shaft.tools.io.ExcelFileManager;
-import com.shaft.tools.io.JSONFileManager;
-import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.ReportManagerHelper;
+import com.shaft.tools.io.*;
 import com.shaft.validation.RestValidationsBuilder;
 import io.restassured.config.RestAssuredConfig;
 import io.restassured.response.Response;
@@ -191,6 +188,17 @@ public class SHAFT {
              */
             public EXCEL(String excelFilePath) {
                 super(excelFilePath);
+            }
+        }
+
+        public static class YAML extends YAMLFileManager {
+            /**
+             * Creates a new instance of the test data Excel reader using the target Excel
+             *  file path
+             * @param yamlFilePath target test data yaml file path
+             */
+            public YAML(String yamlFilePath) {
+                super(yamlFilePath);
             }
         }
     }
