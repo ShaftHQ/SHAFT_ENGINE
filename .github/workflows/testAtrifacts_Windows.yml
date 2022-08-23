@@ -1,10 +1,6 @@
 name: Windows - Test Artifacts Desktop Browsers Tests
 
-on:
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+on: workflow_dispatch
 
 jobs:
   browser:
@@ -35,11 +31,11 @@ jobs:
       - name: Upload Allure Report as Pipeline Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ runner.os }} Desktop Browsers Tests Allure Report
+          name: ${{ runner.os }} - Desktop Browsers Tests Allure Report
           path: "generatedReport_*.zip"
 
       - name: Upload Extent Report as Pipeline Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ runner.os }} Desktop Browsers Tests Extent Report
+          name: ${{ runner.os }} - Desktop Browsers Tests Extent Report
           path: "extent-reports/ExtentReports_*.html"

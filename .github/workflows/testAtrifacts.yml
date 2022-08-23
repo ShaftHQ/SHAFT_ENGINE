@@ -1,13 +1,13 @@
 name: Test Artifacts Desktop Browsers Tests
 
-on: workflow_dispatch
-#  push:
-#    branches: [ master ]
-#  pull_request:
-#    # The branches below must be a subset of the branches above
-#    branches: [ master ]
-#  schedule:
-#    - cron: '00 1 * * *'
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: [ master ]
+  schedule:
+    - cron: '00 1 * * *'
 
 jobs:
   browser:
@@ -46,7 +46,6 @@ jobs:
                echo "$RUNNER_OS not supported"
                exit 1
           fi
-#               mvn test -DexecutionAddress="local" -DtargetOperatingSystem="Mac-64" -DmaximumPerformanceMode="1" -DtargetBrowserName="Safari" -Dtest="!%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*Android.*], !%regex[.*IOS.*], !%regex[.*Windows.*]"
       - name: Run tests on Windows
         if: runner.os == 'Windows'
         continue-on-error: true
@@ -55,93 +54,11 @@ jobs:
       - name: Upload Allure Report as Pipeline Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: runner.os Desktop Browsers Tests Allure Report
+          name: ${{ runner.os }} - Desktop Browsers Tests Allure Report
           path: "generatedReport_*.zip"
 
       - name: Upload Extent Report as Pipeline Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: runner.os Desktop Browsers Tests Extent Report
+          name: ${{ runner.os }} - Desktop Browsers Tests Extent Report
           path: "extent-reports/ExtentReports_*.html"
-
-#      - name: Get Allure history
-#        continue-on-error: true
-#        uses: actions/checkout@v3
-#        if: always()
-#        with:
-#          ref: gh-pages
-#          path: gh-pages
-#
-#      - name: Generate Allure Report on Linux
-#        uses: simple-elf/allure-report-action@master
-#        if: runner.os == 'Linux'
-#        id: allure-report
-#        with:
-#          gh_pages: gh-pages
-#          allure_results: allure-results
-#          allure_report: allure-report
-#          allure_history: allure-history
-#          subfolder: allure/${{ runner.os }}/Web
-#          keep_reports: 20
-#          github_repo: ${{ github.repository }}
-#          github_repo_owner: MohabMohie
-#          github_run_num: ${{ github.run_number }}
-#
-#      - name: Generate Allure Report on MacOS
-#        if: runner.os == 'macOS'
-#        continue-on-error: true
-#        env:
-#          INPUT_GH_PAGES: gh-pages
-#          INPUT_ALLURE_RESULTS: allure-results
-#          INPUT_ALLURE_REPORT: allure-report
-#          INPUT_ALLURE_HISTORY: allure-history
-#          INPUT_SUBFOLDER: allure/${{ runner.os }}/Web
-#          INPUT_KEEP_REPORTS: 20
-#          INPUT_GITHUB_REPO: ${{ github.repository }}
-#          INPUT_GITHUB_REPO_OWNER: MohabMohie
-#          GITHUB_WORKSPACE: ${{ github.workspace }}
-#          INPUT_GITHUB_RUN_NUM: ${{ github.run_number }}
-#        run: |
-#          npm install -g allure-commandline --save-dev
-#          chmod +x generate_allure_report_with_history.sh
-#          sh generate_allure_report_with_history.sh
-#
-#      - name: Generate Allure Report on Windows
-#        if: runner.os == 'Windows'
-#        continue-on-error: true
-#        env:
-#          INPUT_GH_PAGES: gh-pages
-#          INPUT_ALLURE_RESULTS: allure-results
-#          INPUT_ALLURE_REPORT: allure-report
-#          INPUT_ALLURE_HISTORY: allure-history
-#          INPUT_SUBFOLDER: allure/${{ runner.os }}/Web
-#          INPUT_KEEP_REPORTS: 20
-#          INPUT_GITHUB_REPO: ${{ github.repository }}
-#          INPUT_GITHUB_REPO_OWNER: MohabMohie
-#          GITHUB_WORKSPACE: ${{ github.workspace }}
-#          INPUT_GITHUB_RUN_NUM: ${{ github.run_number }}
-#        run: |
-#          iwr -useb get.scoop.sh | iex
-#          scoop install allure
-#          Bash generate_allure_report_with_history.sh
-#
-#      - name: Deploy Allure report to Github Pages
-#        if: always()
-#        continue-on-error: true
-#        uses: peaceiris/actions-gh-pages@v3.8.0
-#        with:
-#          personal_token: ${{ secrets.PERSONAL_TOKEN }}
-##          deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
-#          publish_dir: allure-history/allure
-#          destination_dir: allure
-#          publish_branch: gh-pages
-#      - name: Post the link to the Allure report
-#        continue-on-error: true
-#        if: always()
-#        uses: Sibz/github-status-action@v1.1.6
-#        with:
-#            authToken: ${{secrets.GITHUB_TOKEN}}
-#            context: 'Allure Test Execution Report'
-#            state: 'success'
-#            sha: ${{ github.event.pull_request.head.sha }}
-#            target_url: https://shafthq.github.io/SHAFT_ENGINE/allure/${{ runner.os }}/Web/${{ github.run_number }}
