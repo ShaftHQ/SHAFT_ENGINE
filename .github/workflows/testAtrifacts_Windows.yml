@@ -1,4 +1,4 @@
-name: Test Artifacts Desktop Browsers Tests
+name: Windows - Test Artifacts Desktop Browsers Tests
 
 on:
   push:

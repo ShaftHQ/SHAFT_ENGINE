@@ -1,4 +1,4 @@
-name: Test Artifacts Desktop Browsers Tests
+name: Linux - Test Artifacts Desktop Browsers Tests
 
 on:
   push:
