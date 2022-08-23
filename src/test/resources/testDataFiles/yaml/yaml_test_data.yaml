@@ -1,0 +1,66 @@
+object: object
+string: text
+long-text: >
+  this is not a normal string it
+  spans more than
+  one line
+  see?
+
+long-text2: |
+  this is not a normal string it
+  spans more than
+  one line
+  see?
+
+integer: 10
+hex-decimal: 0x12d4
+octal: 023332
+
+double: 5.3
+exponential: 12.3015e+05
+infinity: .inf
+negative-infinity: -.Inf
+not-a-number: .NAN
+
+long: 10L
+boolean: true
+boolean1: off
+
+date: 2010-02-11
+date-time: 2010-02-11 11:02:57
+
+null0: ~
+null1: null
+
+map:
+  m1: m1
+  m2: m2
+
+list:
+  - l1
+  - l2
+
+nested-list:
+  -
+    -
+      -
+        -
+          -
+            - You caught me
+
+nested-map:
+  a:
+    b:
+      c:
+        d: I covered by maps:D
+
+mix-map-list:
+  m1:
+    - l0: l0
+    - l1:
+        m2:
+          - l2
+          - l3: HOW DID YOU FIND ME!!!
+
+invalid-long: 10tL
+
