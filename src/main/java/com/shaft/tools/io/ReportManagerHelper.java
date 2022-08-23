@@ -32,7 +32,6 @@ public class ReportManagerHelper {
     private static final String TIMESTAMP_FORMAT = "dd-MM-yyyy HH:mm:ss.SSSS aaa";
     private static final Logger slf4jLogger = LoggerFactory.getLogger(ReportManagerHelper.class);
     private static final String SHAFT_ENGINE_VERSION_PROPERTY_NAME = "shaftEngineVersion";
-    private static final String TARGET_OS_PROPERTY_NAME = "targetOperatingSystem";
     private static final String ALLURE_VERSION_PROPERTY_NAME = "allureVersion";
     private static final String REPORT_MANAGER_PREFIX = "[ReportManager] ";
     private static final String SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE = "SHAFT Engine Logs";
@@ -61,8 +60,6 @@ public class ReportManagerHelper {
     private static ExtentTest extentTest;
     private static String extentReportFileName;
     private static String generateExtentReports;
-    private static List<String> commandsToGenerateJDKBatFile;
-    private static List<String> commandsToGenerateJDKShellFile;
 
 
     private ReportManagerHelper() {
@@ -182,15 +179,11 @@ public class ReportManagerHelper {
     public static void initializeAllureReportingEnvironment() {
         ReportManager.logDiscrete("Initializing Allure Reporting Environment...");
         System.setProperty("disableLogging", "true");
-//        boolean discreteLoggingState = isDiscreteLogging();
         allureResultsFolderPath = System.getProperty("allureResultsFolderPath").trim();
-//            setDiscreteLogging(true);
         cleanAllureResultsDirectory();
         downloadAndExtractAllureBinaries();
         writeGenerateReportShellFilesToProjectDirectory();
         writeEnvironmentVariablesToAllureResultsDirectory();
-
-//        setDiscreteLogging(discreteLoggingState);
         System.setProperty("disableLogging", "false");
     }
 
@@ -316,7 +309,6 @@ public class ReportManagerHelper {
     public static void openAllureReportAfterExecution() {
         String commandToOpenAllureReport;
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("openAllureReportAfterExecution").trim()))) {
-
             if (SystemUtils.IS_OS_WINDOWS) {
                 commandToOpenAllureReport = ("generate_allure_report.bat");
             } else {
@@ -329,12 +321,14 @@ public class ReportManagerHelper {
     public static void generateAllureReportArchive() {
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateAllureReportArchive").trim()))) {
             ReportManager.logDiscrete("Generating Allure Report Archive...");
-            boolean discreteLoggingState = getDiscreteLogging();
-            setDiscreteLogging(false);
+            //TODO: revert back to 'true' instead of 'false'
+            System.setProperty("disableLogging", "false");
+            System.setProperty("debugMode", "true");
             writeOpenReportShellFilesToGeneratedDirectory();
             writeAllureReportToGeneratedDirectory();
             createAllureReportArchiveAndCleanGeneratedDirectory();
-            setDiscreteLogging(discreteLoggingState);
+            System.setProperty("debugMode", "false");
+            System.setProperty("disableLogging", "false");
         }
     }
 
@@ -829,7 +823,6 @@ public class ReportManagerHelper {
     private static void writeAllureReportToGeneratedDirectory() {
         // add correct file extension based on target OS
         String commandToCreateAllureReport;
-
         allureBinaryPath = allureExtractionLocation + "allure-" + System.getProperty(ALLURE_VERSION_PROPERTY_NAME)
                 + "/bin/allure";
 
@@ -842,7 +835,7 @@ public class ReportManagerHelper {
                     + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
                     + "\" -o \"generatedReport/allure-report\"";
         }
-        (new TerminalActions()).performTerminalCommand(commandToCreateAllureReport);
+        (new TerminalActions(false)).performTerminalCommand(commandToCreateAllureReport);
     }
 
     private static void createAllureReportArchiveAndCleanGeneratedDirectory() {
