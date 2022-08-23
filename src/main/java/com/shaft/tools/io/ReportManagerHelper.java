@@ -762,7 +762,7 @@ public class ReportManagerHelper {
             FileActions.getInstance().unpackArchive(allureSHAFTConfigArchive,
                     allureExtractionLocation + "allure-" + allureVersion + File.separator);
 
-            if (!(SystemUtils.IS_OS_WINDOWS)) {
+            if (!SystemUtils.IS_OS_WINDOWS) {
                 // make allure executable on Unix-based shells
                 (new TerminalActions()).performTerminalCommand("chmod u+x " + allureBinaryPath);
             }
