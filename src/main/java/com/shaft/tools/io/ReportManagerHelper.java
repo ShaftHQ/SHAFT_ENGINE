@@ -36,7 +36,6 @@ public class ReportManagerHelper {
     private static final String ALLURE_VERSION_PROPERTY_NAME = "allureVersion";
     private static final String REPORT_MANAGER_PREFIX = "[ReportManager] ";
     private static final String SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE = "SHAFT Engine Logs";
-//    private static final String OS_WINDOWS = "Windows-64";
     private static final String allureExtractionLocation = System.getProperty("user.home") + File.separator + ".m2"
             + File.separator + "repository" + File.separator + "allure" + File.separator;
     private static String fullLog = "";
@@ -827,9 +826,8 @@ public class ReportManagerHelper {
 
     }
 
-    public static void writeAllureReportToGeneratedDirectory() {
+    private static void writeAllureReportToGeneratedDirectory() {
         // add correct file extension based on target OS
-//        String targetOperatingSystem = System.getProperty(TARGET_OS_PROPERTY_NAME);
         String commandToCreateAllureReport;
 
         allureBinaryPath = allureExtractionLocation + "allure-" + System.getProperty(ALLURE_VERSION_PROPERTY_NAME)
