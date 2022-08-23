@@ -34,7 +34,10 @@ jobs:
         run: mvn test -DexecutionAddress="localhost:4444" -DtargetOperatingSystem="Linux-64" -DmaximumPerformanceMode="2" -DtargetBrowserName="GoogleChrome" -DgenerateAllureReportArchive="true" -Dtest="testPackage01.SHAFTWizard.Test_Wizard_GUI"
 
       - name: Check Directory Files
-        run: ls -l
+        run:  |
+          ls -l
+          cd allure-results
+          ls -l
 
       - name: Upload Allure Report as Pipeline Artifact
         uses: actions/upload-artifact@v3
