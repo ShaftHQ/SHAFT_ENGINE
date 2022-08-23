@@ -321,13 +321,10 @@ public class ReportManagerHelper {
     public static void generateAllureReportArchive() {
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateAllureReportArchive").trim()))) {
             ReportManager.logDiscrete("Generating Allure Report Archive...");
-            //TODO: revert back to 'true' instead of 'false'
-            System.setProperty("disableLogging", "false");
-            System.setProperty("debugMode", "true");
+            System.setProperty("disableLogging", "true");
             writeOpenReportShellFilesToGeneratedDirectory();
             writeAllureReportToGeneratedDirectory();
             createAllureReportArchiveAndCleanGeneratedDirectory();
-            System.setProperty("debugMode", "false");
             System.setProperty("disableLogging", "false");
         }
     }
