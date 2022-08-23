@@ -297,10 +297,7 @@ public class ScreenshotManager {
                      * If an elementLocator was passed, store regularElementStyle and highlight that
                      * element before taking the screenshot
                      */
-                    if (takeScreenshot && Boolean.TRUE.equals(SCREENSHOT_PARAMS_HIGHLIGHTELEMENTS) && elementLocator != null
-                            && (ElementActions.getElementsCount(driver, elementLocator,
-                            RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) >= 1)) {
-
+                    if (takeScreenshot && Boolean.TRUE.equals(SCREENSHOT_PARAMS_HIGHLIGHTELEMENTS) && elementLocator != null){
                         try{
                             // catching https://github.com/ShaftHQ/SHAFT_ENGINE/issues/640
                             Mat img = Imgcodecs.imdecode(new MatOfByte(), Imgcodecs.IMREAD_COLOR);
@@ -313,17 +310,19 @@ public class ScreenshotManager {
                             //expected to throw org.opencv.core.CvException if removed
                         }
 
-                        if ("JavaScript".equals(SCREENSHOT_PARAMS_HIGHLIGHTMETHOD)) {
-                            element = driver.findElement(elementLocator);
-                            js = (JavascriptExecutor) driver;
-                            regularElementStyle = highlightElementAndReturnDefaultStyle(element, js,
-                                    setHighlightedElementStyle());
-                        } else {
-                            // default to using AI
-                            elementLocation = driver.findElement(elementLocator).getRect();
+                        if (ElementActions.getElementsCount(driver, elementLocator, RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1){
+                            if ("JavaScript".equals(SCREENSHOT_PARAMS_HIGHLIGHTMETHOD)) {
+                                element = driver.findElement(elementLocator);
+                                js = (JavascriptExecutor) driver;
+                                regularElementStyle = highlightElementAndReturnDefaultStyle(element, js,
+                                        setHighlightedElementStyle());
+                            } else {
+                                // default to using AI
+                                elementLocation = driver.findElement(elementLocator).getRect();
+                            }
                         }
                     }
-                } catch (StaleElementReferenceException e) {
+                } catch (StaleElementReferenceException | ElementNotInteractableException e) {
                     // this happens when WebDriver fails to capture the elements initial style or
                     // fails to highlight the element for some reason
                     ReportManagerHelper.log(e);
