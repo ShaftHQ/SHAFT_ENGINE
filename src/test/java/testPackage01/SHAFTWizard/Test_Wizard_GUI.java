@@ -25,13 +25,6 @@ public class Test_Wizard_GUI {
 
     @BeforeClass
     public void beforeClass() {
-        System.setProperty("targetOperatingSystem","Linux");
-        System.setProperty("executionAddress","dockerized");
-        System.setProperty("targetBrowserName","GoogleChrome");
-        //GoogleChrome
-        //MicrosoftEdge
-        //MozillaFirefox
-        //Safari
         driver = new SHAFT.GUI.WebDriver();
         testData = new SHAFT.TestData.JSON("simpleJSON.json");
     }
