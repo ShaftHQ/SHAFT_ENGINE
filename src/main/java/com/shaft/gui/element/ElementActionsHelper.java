@@ -82,10 +82,10 @@ class ElementActionsHelper {
         expectedExceptions.add(org.openqa.selenium.StaleElementReferenceException.class);
         expectedExceptions.add(org.openqa.selenium.ElementNotInteractableException.class);
         if (validToCheckForVisibility) {
-//            expectedExceptions.add(org.openqa.selenium.ElementNotVisibleException.class);
             expectedExceptions.add(org.openqa.selenium.InvalidElementStateException.class);
         }
-//        expectedExceptions.add(org.openqa.selenium.WebDriverException.class);
+        // the generic exception is added to handle a case with WebKit whereby the browser doesn't state the cause of the issue
+        expectedExceptions.add(org.openqa.selenium.WebDriverException.class);
 
         try {
             return new FluentWait<>(driver)

@@ -815,7 +815,7 @@ public class WebDriverBrowserActions {
     }
     
     /**
-     * Switches focus to another Tap
+     * Switches focus to another Tab
      *
      * @param driver       the current instance of Selenium webdriver
      * @param URL The name of the URL you want to navigate to
@@ -823,26 +823,19 @@ public class WebDriverBrowserActions {
      */
     public static void switchToNewTab(WebDriver driver, String URL) {
     	try {
-    		String HandleBeforeNavigation = getWindowHandle(driver);
-        	driver.switchTo().newWindow(WindowType.TAB);
-        	String HandleAfterNavigation = getWindowHandle(driver);
-        	BrowserActions.navigateToURL(driver, URL);	
-        	if (!HandleBeforeNavigation.equals(HandleAfterNavigation)) {
+    		var handleBeforeNavigation = driver.getWindowHandle();
+        	driver.switchTo().newWindow(WindowType.TAB).navigate().to(URL);
+        	var handleAfterNavigation = driver.getWindowHandle();
+        	if (!handleBeforeNavigation.equals(handleAfterNavigation)) {
+                ReportManager.logDiscrete("Old Tab Handle: \""+handleBeforeNavigation+"\", New Tab handle : \"" + handleAfterNavigation+"\"");
         		 passAction(driver, URL);
-        		 ReportManager.logDiscrete("The New Tab handle is " + HandleAfterNavigation);
         	}
         	else {
-        		ReportManager.logDiscrete("The New Tab handle isn't opened and the handle opened is " + HandleAfterNavigation);
-        		failAction(driver, URL, HandleAfterNavigation);	
-        	}
-        	if (driver.getCurrentUrl().contains(URL)) {
-            passAction(driver, URL);
-        	} else {
-        		 failAction(driver, URL);
+        		failAction(driver, URL);
         	}
         	}
         catch (Exception rootCauseException) {
-                failAction(driver, null, rootCauseException);  
+                failAction(driver, URL, rootCauseException);
             }
     }
     
