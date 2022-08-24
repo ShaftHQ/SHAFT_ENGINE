@@ -1,5 +1,6 @@
 package testPackage01;
 
+import com.shaft.driver.SHAFT;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
@@ -15,12 +16,11 @@ public class Test_SwitchToNewTab {
 	ThreadLocal<WebDriver> driver = new ThreadLocal<>();
 
 	@Test
-	public void SwitchToNewTapTest() {
+	public void SwitchToNewTabTest() {
 		BrowserActions.navigateToURL(driver.get(), "https://duckduckgo.com/");
-		By searchbar = By.id("search_form_input_homepage");
-		new ElementActions(driver.get()).type(searchbar, "SHAFT_Engine").keyPress(searchbar, Keys.ENTER);
 		BrowserActions.switchToNewTab(driver.get(), "https://www.google.com/");
-
+		By searchbar = By.cssSelector("input[name=q]");
+		new ElementActions(driver.get()).type(searchbar, "SHAFT_Engine").keyPress(searchbar, Keys.ENTER);
 	}
 
 	@BeforeMethod

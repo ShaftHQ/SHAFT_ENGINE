@@ -1,71 +1,64 @@
 package testPackage01.validationsWizard;
 
 import com.shaft.driver.DriverFactory;
-import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
+import org.testng.annotations.*;
 
 public class Test_ElementValidations {
-    private WebDriver driver;
-    private final By googleLogo = By.xpath("//img[@alt='Google']");
-    private final By searchBox = By.name("q");
+    private final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
+    private final By button = By.cssSelector("button");
 
     @Test
     public void exists() {
-        Validations.assertThat().element(driver, googleLogo).exists().perform();
+        Validations.assertThat().element(driver.get(), button).exists().perform();
     }
 
     @Test
     public void matchesReferenceImage() {
-        Validations.assertThat().element(driver, googleLogo).matchesReferenceImage().perform();
+        Validations.assertThat().element(driver.get(), button).matchesReferenceImage().perform();
     }
 
     @Test
     public void isVisible() {
-        Validations.assertThat().element(driver, googleLogo).isVisible().perform();
+        Validations.assertThat().element(driver.get(), button).isVisible().perform();
     }
 
     @Test
     public void isEnabled() {
-        Validations.assertThat().element(driver, googleLogo).isEnabled().perform();
+        Validations.assertThat().element(driver.get(), button).isEnabled().perform();
     }
 
     @Test
     public void isNotChecked() {
-        Validations.assertThat().element(driver, googleLogo).isNotChecked().perform();
+        Validations.assertThat().element(driver.get(), button).isNotChecked().perform();
     }
 
     @Test
     public void isNotSelected() {
-        Validations.assertThat().element(driver, googleLogo).isNotSelected().perform();
+        Validations.assertThat().element(driver.get(), button).isNotSelected().perform();
     }
 
     @Test
     public void attribute() {
-        Validations.assertThat().element(driver, googleLogo).attribute("alt").isEqualTo("Google").perform();
+        Validations.assertThat().element(driver.get(), button).attribute("alt").isEqualTo("Google").perform();
     }
 
     @Test
     public void text() {
-        ElementActions.type(driver, searchBox, "DriverFactory_Engine");
-        Validations.assertThat().element(driver, searchBox).text().isEqualTo("DriverFactory_Engine").perform();
+        Validations.assertThat().element(driver.get(), button).text().isEqualTo("Go").perform();
     }
 
     @Test
     public void cssProperty() {
-        Validations.assertThat().element(driver, googleLogo).cssProperty("max-width").isEqualTo("100%").perform();
+        Validations.assertThat().element(driver.get(), button).cssProperty("appearance").isEqualTo("auto").perform();
     }
 
     @BeforeClass
     public void beforeClass() {
-        driver = DriverFactory.getDriver();
-        String url = "https://www.google.com/";
-        BrowserActions.navigateToURL(driver, url);
+        driver.set(DriverFactory.getDriver());
+        driver.get().navigate().to("data:text/html,<script>var result;</script><button alt='Google' onclick='result=\"Clicked\"'>Go</button>");
     }
 
     @AfterClass

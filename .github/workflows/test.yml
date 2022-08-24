@@ -46,7 +46,6 @@ jobs:
                echo "$RUNNER_OS not supported"
                exit 1
           fi
-#               mvn test -DexecutionAddress="local" -DtargetOperatingSystem="Mac-64" -DmaximumPerformanceMode="1" -DtargetBrowserName="Safari" -Dtest="!%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*Android.*], !%regex[.*IOS.*], !%regex[.*Windows.*]"
       - name: Run tests on Windows
         if: runner.os == 'Windows'
         continue-on-error: true
@@ -63,7 +62,6 @@ jobs:
         with:
           name: ${{ runner.os }} - Desktop Browsers Tests Extent Report
           path: "extent-reports/ExtentReports_*.html"
-
 #      - name: Get Allure history
 #        continue-on-error: true
 #        uses: actions/checkout@v3

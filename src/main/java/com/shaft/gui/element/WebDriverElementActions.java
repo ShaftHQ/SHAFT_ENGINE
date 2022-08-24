@@ -142,11 +142,11 @@ public class WebDriverElementActions {
         // TODO: implement enum for list of possible actions
         if (identifyUniqueElement(driver, elementLocator)) {
             var elementName = getElementName(driver, elementLocator);
-            boolean wasActionPerformed;
-            if (System.getProperty("targetOperatingSystem").equals("Mac-64")) {
-                wasActionPerformed = performClipboardActionsForMac(driver, action);
-            } else {
-                wasActionPerformed = performClipboardActions(driver, elementLocator, action);
+            boolean wasActionPerformed = false;
+            if (System.getProperty("targetOperatingSystem").contains("Mac")) {
+                wasActionPerformed = performClipboardActions(driver, elementLocator, action, Keys.COMMAND);
+            }else{
+                wasActionPerformed = performClipboardActions(driver, elementLocator, action, Keys.CONTROL);
             }
             if (Boolean.TRUE.equals(wasActionPerformed)) {
                 passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), action, null, elementName);
@@ -1282,21 +1282,21 @@ public class WebDriverElementActions {
             ReportManager.log("IO Exception: " + e.getMessage());
         }
     }
-    private static boolean performClipboardActions(WebDriver driver, By elementLocator, String action) {
+    private static boolean performClipboardActions(WebDriver driver, By elementLocator, String action, Keys CommandOrControl) {
         try {
             switch (action.toLowerCase()) {
                 case "copy":
-                    (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "c")).perform();
+                    (new Actions(driver)).sendKeys(Keys.chord(CommandOrControl, "c")).perform();
                     break;
                 case "paste":
-                    (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "v")).perform();
+                    (new Actions(driver)).sendKeys(Keys.chord(CommandOrControl, "v")).perform();
                     break;
                 case "cut":
-                    (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "x")).perform();
-                    type(driver, elementLocator, "");
+                    (new Actions(driver)).sendKeys(Keys.chord(CommandOrControl, "x")).perform();
+//                    type(driver, elementLocator, "");
                     break;
                 case "select all":
-                    (new Actions(driver)).sendKeys(Keys.chord(Keys.CONTROL, "a")).perform();
+                    (new Actions(driver)).sendKeys(Keys.chord(CommandOrControl, "a")).perform();
                     break;
                 case "unselect":
                     (new Actions(driver)).sendKeys(Keys.ESCAPE).perform();
@@ -1309,28 +1309,6 @@ public class WebDriverElementActions {
             ReportManagerHelper.log(e);
             return false;
         }
-    }
-    private static Boolean performClipboardActionsForMac(WebDriver driver, String action) {
-        switch (action.toLowerCase()) {
-            case "copy":
-                (new Actions(driver)).sendKeys(Keys.chord(Keys.COMMAND, "c")).perform();
-                break;
-            case "paste":
-                (new Actions(driver)).sendKeys(Keys.chord(Keys.COMMAND, "v")).perform();
-                break;
-            case "cut":
-                (new Actions(driver)).sendKeys(Keys.chord(Keys.COMMAND, "x")).perform();
-                break;
-            case "select all":
-                (new Actions(driver)).sendKeys(Keys.chord(Keys.COMMAND, "a")).perform();
-                break;
-            case "unselect":
-                (new Actions(driver)).sendKeys(Keys.ESCAPE).perform();
-                break;
-            default:
-                return false;
-        }
-        return true;
     }
     private static void performType(WebDriver driver, By elementLocator, String text) {
         ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
