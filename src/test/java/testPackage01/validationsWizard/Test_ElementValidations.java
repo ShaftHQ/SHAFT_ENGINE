@@ -52,7 +52,12 @@ public class Test_ElementValidations {
 
     @Test
     public void cssProperty() {
-        Validations.assertThat().element(driver.get(), button).cssProperty("appearance").isEqualTo("auto").perform();
+        if (!System.getProperty("targetOperatingSystem").toLowerCase().contains("mac")) {
+            Validations.assertThat().element(driver.get(), button).cssProperty("appearance").isEqualTo("auto").perform();
+        } else{
+            // the property is parsed differently on mac
+            Validations.assertThat().element(driver.get(), button).cssProperty("appearance").isEqualTo("null").perform();
+        }
     }
 
     @BeforeClass
