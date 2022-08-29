@@ -76,7 +76,7 @@
 
 		<pdfbox.version>2.0.26</pdfbox.version>
 
-        <org.yaml.version>1.30</org.yaml.version>
+        <org.yaml.version>1.31</org.yaml.version>
 
         <!-- Build Commands-->
         <installToLocalRepository>mvn clean install -DskipTests</installToLocalRepository>
