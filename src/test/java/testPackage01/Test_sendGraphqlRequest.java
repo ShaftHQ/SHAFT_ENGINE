@@ -8,13 +8,13 @@ import org.testng.annotations.Test;
 public class Test_sendGraphqlRequest {
 
     String spacex_base_uri = "https://api.spacex.land/";
-    @Test
+//    @Test
     public void sendGraphqlRequestUsingQuery(){
         String query = "{company {ceo}}";
         Response response = RestActions.sendGraphQlRequest(spacex_base_uri,query);
         Validations.assertThat().response(response).extractedJsonValue("data.company.ceo").equals("Elon Musk");
     }
-    @Test
+//    @Test
     public void sendGraphqlRequestUsingMutationAndVariables(){
         String mutation = """
                 mutation ($name: String, $rocket: String) {

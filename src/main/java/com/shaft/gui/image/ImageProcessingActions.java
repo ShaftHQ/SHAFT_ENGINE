@@ -7,6 +7,7 @@ import com.applitools.eyes.exceptions.DiffsFoundException;
 import com.applitools.eyes.images.Eyes;
 import com.assertthat.selenium_shutterbug.core.CaptureElement;
 import com.assertthat.selenium_shutterbug.core.Shutterbug;
+import com.assertthat.selenium_shutterbug.utils.image.UnableToCompareImagesException;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.gui.element.WebDriverElementActions;
@@ -400,6 +401,9 @@ public class ImageProcessingActions {
                     actualResult = snapshot.equalsWithDiff(referenceImagePath, resultingImagePath, 0.1);
                 } catch (IOException e) {
                     e.printStackTrace();
+                } catch (UnableToCompareImagesException ex){
+                    // com.assertthat.selenium_shutterbug.utils.image.UnableToCompareImagesException: Images dimensions mismatch
+                    compareAgainstBaseline(driver, elementLocator,elementScreenshot, VisualValidationEngine.EXACT_OPENCV);
                 }
                 return actualResult;
             }else{

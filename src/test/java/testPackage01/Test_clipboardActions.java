@@ -2,6 +2,7 @@ package testPackage01;
 
 import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
+import com.shaft.tools.io.ReportManager;
 import org.openqa.selenium.WebDriver;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -15,21 +16,24 @@ public class Test_clipboardActions {
 
     @Test
     public void typeTextAndCopyPaste() {
-        searchObject = new GoogleSearch(driver); // initialize a new instance of the page
-        searchObject.navigateToURL(); // Navigate to Page URL
+        if (!System.getProperty("targetOperatingSystem").toLowerCase().contains("mac")) {
+            searchObject = new GoogleSearch(driver); // initialize a new instance of the page
+            searchObject.navigateToURL(); // Navigate to Page URL
 
-        searchObject.typeQuery("FIRST");
+            searchObject.typeQuery("FIRST");
 
-        searchObject.selectQuery();
-        searchObject.copyQuery();
-        searchObject.unSelectQuery();
-        searchObject.pasteQuery();
+            searchObject.selectQuery();
+            searchObject.copyQuery();
+            searchObject.unSelectQuery();
+            searchObject.pasteQuery();
 
-        searchObject.selectQuery();
-        searchObject.cutQuery();
-        searchObject.pasteQuery();
-        searchObject.pasteQuery();
-
+            searchObject.selectQuery();
+            searchObject.cutQuery();
+            searchObject.pasteQuery();
+            searchObject.pasteQuery();
+        }else{
+            ReportManager.log("Native actions don't work on MAC.");
+        }
     }
 
     @BeforeClass // Set-up method, to be run once before the first test

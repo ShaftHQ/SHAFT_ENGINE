@@ -18,7 +18,7 @@ public class Test_RelativeLocators {
     @Test
     public void relativeLocatorsTest1(){
         BrowserActions.navigateToURL(driver.get(), "https://duckduckgo.com/");
-        By searchbar = By.id("search_form_input_homepage");
+        By searchbar = By.xpath("//*[@id='search_form_input_homepage'] | //input[@name='q']");
         new ElementActions(driver.get()).type(searchbar,"SHAFT_Engine")
                 .keyPress(searchbar, Keys.ENTER);
 
