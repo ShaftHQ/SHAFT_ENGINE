@@ -133,7 +133,7 @@ public class InvokedMethodListener implements IInvokedMethodListener {
         }
 
         // resetting scope and config
-        if (!DriverFactoryHelper.isMobileNativeExecution()) {
+        if (!DriverFactoryHelper.isMobileNativeExecution() && DriverFactoryHelper.getDriver() !=null && DriverFactoryHelper.getDriver().get() !=null) {
             ElementActions.switchToDefaultContent();
         }
         ReportManagerHelper.setDiscreteLogging(Boolean.parseBoolean(System.getProperty("alwaysLogDiscreetly")));

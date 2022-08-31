@@ -75,7 +75,7 @@ public class AnimatedGifManager {
         gifWriter.get().endWriteSequence();
     }
 
-    private synchronized void initialize(ImageOutputStream outputStream, int imageType, int timeBetweenFramesMS) throws IOException {
+    private void initialize(ImageOutputStream outputStream, int imageType, int timeBetweenFramesMS) throws IOException {
         // my method to create a writer
         gifWriter.set(getWriter());
         imageWriteParam.set(gifWriter.get().getDefaultWriteParam());

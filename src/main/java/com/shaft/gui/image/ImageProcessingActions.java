@@ -10,7 +10,6 @@ import com.assertthat.selenium_shutterbug.core.Shutterbug;
 import com.assertthat.selenium_shutterbug.utils.image.UnableToCompareImagesException;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactoryHelper;
-import com.shaft.gui.element.WebDriverElementActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.validation.Validations;
@@ -385,7 +384,7 @@ public class ImageProcessingActions {
         }
     }
 
-    public static synchronized Boolean compareAgainstBaseline(WebDriver driver, By elementLocator, byte[] elementScreenshot, VisualValidationEngine visualValidationEngine) {
+    public static Boolean compareAgainstBaseline(WebDriver driver, By elementLocator, byte[] elementScreenshot, VisualValidationEngine visualValidationEngine) {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
 
         if (visualValidationEngine == VisualValidationEngine.EXACT_SHUTTERBUG) {

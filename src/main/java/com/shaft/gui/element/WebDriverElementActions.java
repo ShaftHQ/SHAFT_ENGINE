@@ -32,9 +32,10 @@ public class WebDriverElementActions {
     private static final String OBFUSCATED_STRING = "•";
     private static final boolean CLICK_USING_JAVASCRIPT_WHEN_WEB_DRIVER_CLICK_FAILS = Boolean.parseBoolean(System.getProperty("clickUsingJavascriptWhenWebDriverClickFails"));
     private static final boolean ATTEMPT_CLEAR_BEFORE_TYPING_USING_BACKSPACE = Boolean.parseBoolean(System.getProperty("attemptClearBeforeTypingUsingBackspace"));
-    private static WebDriver lastUsedDriver = null;
     public WebDriverElementActions(WebDriver driver) {
-        setLastUsedDriver(driver);
+        new WebDriverElementActions();
+    }
+    public WebDriverElementActions() {
     }
     /**
      * If the element is outside the viewport, scrolls the bottom of the element to the bottom of the viewport.
@@ -52,6 +53,7 @@ public class WebDriverElementActions {
         }
     }
     /**
+     * Clicks on a certain element using Selenium WebDriver, or JavaScript
      * Clicks on a certain element using Selenium WebDriver, or JavaScript
      *
      * @param driver         the current instance of Selenium webdriver
@@ -470,7 +472,7 @@ public class WebDriverElementActions {
      * @return the selected text of the target webElement
      */
     public static String getSelectedText(By elementLocator) {
-        return getSelectedText(lastUsedDriver, elementLocator);
+        return getSelectedText(DriverFactoryHelper.getDriver().get(), elementLocator);
     }
     /**
      * Retrieves element size from the target element and returns it as a string
@@ -823,12 +825,7 @@ public class WebDriverElementActions {
         }
         passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), context, null, null);
     }
-    protected static WebDriver getLastUsedDriver() {
-        return lastUsedDriver;
-    }
-    public static void setLastUsedDriver(WebDriver driver) {
-        lastUsedDriver = driver;
-    }
+
     /**
      * Used to set value for an element (hidden or visible) using javascript
      *
@@ -898,12 +895,12 @@ public class WebDriverElementActions {
      * @return a self-reference to be used to chain actions
      */
     public static WebDriverElementActions switchToDefaultContent() {
-        if (DriverFactoryHelper.getActiveDriverSessions() > 0 && (lastUsedDriver != null)) {
+        if (DriverFactoryHelper.getDriver() !=null && (DriverFactoryHelper.getDriver().get() != null)) {
             try {
-                lastUsedDriver.switchTo().defaultContent();
+                DriverFactoryHelper.getDriver().get().switchTo().defaultContent();
                 boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
                 ReportManagerHelper.setDiscreteLogging(true);
-                passAction(lastUsedDriver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
+                passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
                 ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
             } catch (Exception e) {
                 ReportManagerHelper.log(e);
@@ -911,7 +908,7 @@ public class WebDriverElementActions {
         }
         // if there is no last used driver or no drivers in the drivers list, do
         // nothing...
-        return new WebDriverElementActions(lastUsedDriver);
+        return new WebDriverElementActions(DriverFactoryHelper.getDriver().get());
     }
     /**
      * Switches focus to a certain iFrame, is mainly used in coordination with
@@ -1119,7 +1116,6 @@ public class WebDriverElementActions {
         } else {
             return ScreenshotManager.captureScreenShot(driver, actionName, false);
         }
-        setLastUsedDriver(driver);
         return new ArrayList<>();
     }
     private static void clearBeforeTyping(WebDriver driver, By elementLocator,

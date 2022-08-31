@@ -193,7 +193,7 @@ public class ReportManagerHelper {
         createImportantReportEntry(engineVersion, true);
     }
 
-    public static synchronized void logTestInformation(String className, String testMethodName,
+    public static void logTestInformation(String className, String testMethodName,
                                                        String testDescription) {
         testCasesCounter++;
         StringBuilder reportMessage = new StringBuilder();
@@ -218,7 +218,7 @@ public class ReportManagerHelper {
         createImportantReportEntry(reportMessage.toString(), false);
     }
 
-    public static synchronized void logScenarioInformation(String keyword, String name, String steps) {
+    public static void logScenarioInformation(String keyword, String name, String steps) {
         testCasesCounter++;
         createImportantReportEntry("Starting Execution:\t\"" + testCasesCounter + " out of " + totalNumberOfTests
                         + "\" scenarios in the \"" + featureName + "\" feature"
@@ -594,7 +594,7 @@ public class ReportManagerHelper {
         logAttachmentAction(attachmentType, attachmentName, baos);
     }
 
-    private static synchronized void attachBasedOnFileType(String attachmentType, String attachmentName,
+    private static void attachBasedOnFileType(String attachmentType, String attachmentName,
                                                            ByteArrayOutputStream attachmentContent, String attachmentDescription) {
         if (attachmentType.toLowerCase().contains("screenshot")) {
             Allure.addAttachment(attachmentDescription, "image/png", new ByteArrayInputStream(attachmentContent.toByteArray()), ".png");
@@ -626,7 +626,7 @@ public class ReportManagerHelper {
         }
     }
 
-    private static synchronized void logAttachmentAction(String attachmentType, String attachmentName, ByteArrayOutputStream attachmentContent) {
+    private static void logAttachmentAction(String attachmentType, String attachmentName, ByteArrayOutputStream attachmentContent) {
         createLogEntry("Successfully created attachment \"" + attachmentType + " - " + attachmentName + "\"");
         if (debugMode && !attachmentType.contains(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE)
                 && !attachmentType.equalsIgnoreCase("Selenium WebDriver Logs")
@@ -899,13 +899,13 @@ public class ReportManagerHelper {
         createLogEntry(customLog, false);
         if (attachments != null && !attachments.isEmpty()) {
             attachments.forEach(attachment -> {
-                if (attachment != null && attachment.get(2).getClass().toString().toLowerCase().contains("string")
+                if (attachment != null && !attachment.isEmpty() && attachment.get(2).getClass().toString().toLowerCase().contains("string")
                         && !attachment.get(2).getClass().toString().contains("StringInputStream")) {
                     if (!attachment.get(2).toString().isEmpty()) {
                         attach(attachment.get(0).toString(), attachment.get(1).toString(),
                                 attachment.get(2).toString());
                     }
-                } else if (attachment != null) {
+                } else if (attachment != null && !attachment.isEmpty()) {
                     if (attachment.get(2) instanceof byte[]) {
                         attach(attachment.get(0).toString(), attachment.get(1).toString(), new ByteArrayInputStream((byte[]) attachment.get(2)));
                     } else {

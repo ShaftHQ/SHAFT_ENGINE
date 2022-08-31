@@ -1,6 +1,7 @@
 package com.shaft.gui.browser;
 
 import com.google.common.net.InternetDomainName;
+import com.shaft.driver.DriverFactory;
 import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.gui.element.JavaScriptWaitManager;
 import com.shaft.gui.element.WebDriverElementActions;
@@ -168,7 +169,7 @@ public class WebDriverBrowserActions {
 
     public static void navigateToURLWithBasicAuthentication(WebDriver driver, String targetUrl, String username, String password, String targetUrlAfterAuthentication) {
         String domainName = getDomainNameFromURL(targetUrl);
-        String driverName = DriverFactoryHelper.getTARGET_DRIVER_NAME();
+        String driverName = System.getProperty("targetBrowserName");
         if (driverName.equals("GoogleChrome") || driverName.equals("MicrosoftEdge")){
             if (System.getProperty("executionAddress").equals("local")) {
                 Predicate<URI> uriPredicate = uri -> uri.getHost().contains(domainName);
@@ -242,22 +243,21 @@ public class WebDriverBrowserActions {
                     "Target URL: \"" + targetUrl + "\", and after redirection: \"" + targetUrlAfterRedirection + "\"");
         }
         // force stop any current navigation
-        try {
-            ((JavascriptExecutor) driver).executeScript("return window.stop;");
-        } catch (Exception rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
-            /*
-             * org.openqa.selenium.NoSuchSessionException: Session ID is null. Using
-             * WebDriver after calling quit()? Build info: version: '3.141.59', revision:
-             * 'e82be7d358', time: '2018-11-14T08:17:03' System info: host:
-             * 'gcp-test-automation-sys-187-jenkins-fullaccess', ip: '10.128.0.11', os.name:
-             * 'Linux', os.arch: 'amd64', os.version: '4.15.0-1027-gcp', java.version:
-             * '1.8.0_202' Driver info: driver.version: RemoteWebDriver
-             */
-        }
+//        try {
+//            ((JavascriptExecutor) driver).executeScript("return window.stop;");
+//        } catch (Exception rootCauseException) {
+//            ReportManagerHelper.log(rootCauseException);
+//            /*
+//             * org.openqa.selenium.NoSuchSessionException: Session ID is null. Using
+//             * WebDriver after calling quit()? Build info: version: '3.141.59', revision:
+//             * 'e82be7d358', time: '2018-11-14T08:17:03' System info: host:
+//             * 'gcp-test-automation-sys-187-jenkins-fullaccess', ip: '10.128.0.11', os.name:
+//             * 'Linux', os.arch: 'amd64', os.version: '4.15.0-1027-gcp', java.version:
+//             * '1.8.0_202' Driver info: driver.version: RemoteWebDriver
+//             */
+//        }
         try {
             JavaScriptWaitManager.waitForLazyLoading();
-
             String initialSource = driver.getPageSource();
             String initialURL = driver.getCurrentUrl();
             // remove trailing slash which may cause comparing the current and target urls
@@ -361,13 +361,13 @@ public class WebDriverBrowserActions {
      *
      * @param driver the current instance of Selenium webdriver
      */
-    public static synchronized void closeCurrentWindow(WebDriver driver) {
+    public static void closeCurrentWindow(WebDriver driver) {
         if (driver != null) {
             JavaScriptWaitManager.waitForLazyLoading();
             try {
                 // TODO: handle session timeout while attempting to close empty window
                 String lastPageSource = driver.getPageSource();
-                DriverFactoryHelper.closeDriver(driver.hashCode());
+                DriverFactory.closeAllDrivers();
                 passAction(lastPageSource);
             } catch (WebDriverException rootCauseException) {
                 if (rootCauseException.getMessage() != null
@@ -378,8 +378,6 @@ public class WebDriverBrowserActions {
                 }
             } catch (Exception rootCauseException) {
                 failAction(rootCauseException);
-            } finally {
-                WebDriverElementActions.setLastUsedDriver(null);
             }
         } else {
             ReportManager.logDiscrete("Window is already closed and driver object is null.");
@@ -782,7 +780,7 @@ public class WebDriverBrowserActions {
     /**
      * Closes the current browser window
      */
-    public synchronized WebDriverBrowserActions closeCurrentWindow() {
+    public WebDriverBrowserActions closeCurrentWindow() {
         closeCurrentWindow(lastUsedDriver);
         return this;
     }
