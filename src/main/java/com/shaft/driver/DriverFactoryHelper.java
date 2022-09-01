@@ -10,7 +10,6 @@ import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.tools.support.JavaActions;
-import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import io.github.bonigarcia.wdm.WebDriverManager;
@@ -328,24 +327,38 @@ public class DriverFactoryHelper {
         try {
             switch (driverType) {
                 case DESKTOP_FIREFOX -> {
+                    ReportManager.logDiscrete(ffOptions.toString());
                     ReportManager.logDiscrete(WEBDRIVERMANAGER_DOCKERIZED_MESSAGE);
                     webDriverManager.set(WebDriverManager.firefoxdriver().capabilities(ffOptions));
                 }
                 case DESKTOP_CHROME -> {
+                    ReportManager.logDiscrete(chOptions.toString());
                     ReportManager.logDiscrete(WEBDRIVERMANAGER_DOCKERIZED_MESSAGE);
                     webDriverManager.set(WebDriverManager.chromedriver().capabilities(chOptions));
                 }
                 case DESKTOP_EDGE -> {
+                    ReportManager.logDiscrete(edOptions.toString());
                     ReportManager.logDiscrete(WEBDRIVERMANAGER_DOCKERIZED_MESSAGE);
                     webDriverManager.set(WebDriverManager.edgedriver().capabilities(edOptions));
                 }
                 case DESKTOP_SAFARI -> {
+                    ReportManager.logDiscrete(sfOptions.toString());
                     ReportManager.logDiscrete(WEBDRIVERMANAGER_DOCKERIZED_MESSAGE);
                     webDriverManager.set(WebDriverManager.safaridriver().capabilities(sfOptions));
                 }
                 default -> failAction("Unsupported Driver Type \"" + JavaActions.convertToSentenceCase(driverType.getValue()) + "\". We only support Chrome, Edge, Firefox, and Safari in this dockerized mode.");
             }
-            driver.set(ThreadGuard.protect(webDriverManager.get().browserInDocker().enableVnc().enableRecording().dockerRecordingOutput(System.getProperty("video.folder")).create()));
+            RemoteWebDriver remoteWebDriver = (RemoteWebDriver) webDriverManager.get()
+                    .browserInDocker()
+                    .enableVnc()
+                    .viewOnly()
+//                    .dockerScreenResolution("1920x1080x24")
+//                    .dockerVolumes("\\local\\path:\\container\\path")
+                    .enableRecording()
+                    .dockerRecordingOutput(System.getProperty("video.folder"))
+                    .create();
+            remoteWebDriver.setFileDetector(new LocalFileDetector());
+            driver.set(ThreadGuard.protect(remoteWebDriver));
             ReportManager.log("Successfully Opened "+ JavaActions.convertToSentenceCase(driverType.getValue()) +".");
         } catch (io.github.bonigarcia.wdm.config.WebDriverManagerException exception) {
             failAction("Failed to create new Dockerized Browser Session, are you sure Docker is available on your machine?", exception);
