@@ -24,7 +24,7 @@ import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchema;
 
 public class ValidationsHelper {
     //TODO: implement element attribute and element exists validations for sikuli actions
-    static ArrayList<String> optionalCustomLogMessage = new ArrayList<>();
+    static ThreadLocal<ArrayList<String>> optionalCustomLogMessage = new ThreadLocal<>();
     private static By lastUsedElementLocator = null;
     private static Boolean discreetLoggingState = Boolean.valueOf(System.getProperty("alwaysLogDiscreetly"));
     private static List<String> verificationFailuresList = new ArrayList<>();
@@ -671,10 +671,10 @@ public class ValidationsHelper {
                 // create the log entry with or without attachments
                 if (!attachments.isEmpty()) {
                     //ReportManagerHelper.log(message.toString(), attachments);
-                    ReportManagerHelper.logNestedSteps(message.toString(), optionalCustomLogMessage, attachments);
+                    ReportManagerHelper.logNestedSteps(message.toString(), optionalCustomLogMessage.get(), attachments);
                 } else {
                     //ReportManager.log(message.toString());
-                    ReportManagerHelper.logNestedSteps(message.toString(), optionalCustomLogMessage, null);
+                    ReportManagerHelper.logNestedSteps(message.toString(), optionalCustomLogMessage.get(), null);
                 }
 
                 // set test state in case of failure
@@ -697,10 +697,10 @@ public class ValidationsHelper {
                 // create the log entry with or without attachments
                 if (!attachments.isEmpty()) {
 //                    ReportManagerHelper.log(message.toString(), attachments);
-                    ReportManagerHelper.logNestedSteps(message.toString(), optionalCustomLogMessage, attachments);
+                    ReportManagerHelper.logNestedSteps(message.toString(), optionalCustomLogMessage.get(), attachments);
                 } else {
 //                    ReportManager.log(message.toString());
-                    ReportManagerHelper.logNestedSteps(message.toString(), optionalCustomLogMessage, null);
+                    ReportManagerHelper.logNestedSteps(message.toString(), optionalCustomLogMessage.get(), null);
                 }
 
                 // set test state in case of failure
@@ -715,10 +715,10 @@ public class ValidationsHelper {
     }
 
     private static void processCustomLogMessage(String... optionalCustomLogMessage) {
-        ValidationsHelper.optionalCustomLogMessage = new ArrayList<>();
+        ValidationsHelper.optionalCustomLogMessage.set(new ArrayList<>());
         for (String customMessage : optionalCustomLogMessage) {
             if (customMessage != null && !"".equals(customMessage.trim())) {
-                ValidationsHelper.optionalCustomLogMessage.add(customMessage);
+                ValidationsHelper.optionalCustomLogMessage.get().add(customMessage);
                 //ReportManager.log(customMessage + "...");
             }
         }
