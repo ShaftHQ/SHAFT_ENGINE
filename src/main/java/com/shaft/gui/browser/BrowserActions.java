@@ -133,7 +133,7 @@ public class BrowserActions {
      *
      * @param driver the current instance of Selenium webdriver
      */
-    public static synchronized void closeCurrentWindow(WebDriver driver) {
+    public static void closeCurrentWindow(WebDriver driver) {
         WebDriverBrowserActions.closeCurrentWindow(driver);
     }
 

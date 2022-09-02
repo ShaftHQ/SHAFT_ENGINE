@@ -21,7 +21,8 @@ public class DriverFactory {
         if (System.getProperty("executionAddress").contains("browserstack")) {
             return getBrowserStackDriver(new MutableCapabilities());
         } else {
-            return DriverFactoryHelper.getDriver();
+            DriverFactoryHelper.initializeDriver();
+            return DriverFactoryHelper.getDriver().get();
         }
     }
 
@@ -35,7 +36,8 @@ public class DriverFactory {
         if (driverType.equals(DriverType.BROWSERSTACK)) {
             return getBrowserStackDriver(new MutableCapabilities());
         } else {
-            return DriverFactoryHelper.getDriver(driverType, null);
+            DriverFactoryHelper.initializeDriver(driverType);
+            return DriverFactoryHelper.getDriver().get();
         }
     }
 
@@ -50,7 +52,8 @@ public class DriverFactory {
         if (driverType.equals(DriverType.BROWSERSTACK)) {
             return getBrowserStackDriver(customDriverOptions);
         } else {
-            return DriverFactoryHelper.getDriver(driverType, customDriverOptions);
+            DriverFactoryHelper.initializeDriver(driverType, customDriverOptions);
+            return DriverFactoryHelper.getDriver().get();
         }
     }
 
@@ -68,19 +71,22 @@ public class DriverFactory {
                 // this means it's a web execution (desktop or mobile)
                 browserStackOptions = BrowserStack.setupDesktopWebExecution().merge(browserStackOptions);
                 // TODO: support web mobile execution
-                return DriverFactoryHelper.getDriver(DriverFactoryHelper.getDriverTypeFromName(System.getProperty("targetBrowserName")),browserStackOptions);
+                DriverFactoryHelper.initializeDriver(browserStackOptions);
+                return DriverFactoryHelper.getDriver().get();
             }else {
                 // this is the new native app scenario
                 //TODO: there is a bug in the merge method and it doesn't respect the capabilities at all
                 browserStackOptions = BrowserStack.setupNativeAppExecution(System.getProperty("browserStack.username"), System.getProperty("browserStack.accessKey"),
                         System.getProperty("browserStack.deviceName"), System.getProperty("browserStack.platformVersion"), System.getProperty("browserStack.appRelativeFilePath"), System.getProperty("browserStack.appName")).merge(browserStackOptions);
-                return DriverFactoryHelper.getDriver(DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
+                DriverFactoryHelper.initializeDriver(DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
+                return DriverFactoryHelper.getDriver().get();
             }
         } else {
             // this is the existing version from a native app scenario
             browserStackOptions = BrowserStack.setupNativeAppExecution(System.getProperty("browserStack.username"), System.getProperty("browserStack.accessKey"),
                     System.getProperty("browserStack.deviceName"), System.getProperty("browserStack.platformVersion"), appUrl).merge(browserStackOptions);
-            return DriverFactoryHelper.getDriver(DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
+            DriverFactoryHelper.initializeDriver(DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
+            return DriverFactoryHelper.getDriver().get();
         }
 
     }
@@ -150,8 +156,8 @@ public class DriverFactory {
     /**
      * Close all open driver instances.
      */
-    public static synchronized void closeAllDrivers() {
-        DriverFactoryHelper.closeAllDrivers();
+    public static void closeAllDrivers() {
+        DriverFactoryHelper.closeDriver();
     }
 
     /**

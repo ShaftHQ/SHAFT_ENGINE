@@ -32,7 +32,7 @@ public class PropertyFileManager {
      * Priorities follow this order: MVN system properties + pom.xml THEN Explicit
      * properties files THEN Base properties files (the lowest priority)
      */
-    public static synchronized void readPropertyFiles() {
+    public static void readPropertyFiles() {
         if (Boolean.TRUE.equals(readPropertyFiles)) {
             var isDiscrete = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
@@ -83,7 +83,7 @@ public class PropertyFileManager {
         }
     }
 
-    public static synchronized Map<String, String> getAppiumDesiredCapabilities() {
+    public static Map<String, String> getAppiumDesiredCapabilities() {
         Map<String, String> appiumDesiredCapabilities = new HashMap<>();
 
         Properties props = System.getProperties();
@@ -100,7 +100,7 @@ public class PropertyFileManager {
         return appiumDesiredCapabilities;
     }
 
-    private static synchronized void readPropertyFiles(String propertiesFolderPath) {
+    private static void readPropertyFiles(String propertiesFolderPath) {
         if (propertiesFolderPath != null) {
             ReportManager.logDiscrete("Reading properties directory: " + propertiesFolderPath);
             try {

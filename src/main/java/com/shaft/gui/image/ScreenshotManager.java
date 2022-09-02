@@ -135,7 +135,7 @@ public class ScreenshotManager {
         //OR if set to failures only and the test failed
     }
 
-    public static synchronized List<Object> captureScreenShotUsingSikuliX(Screen screen, App applicationWindow, Pattern element, String actionName,
+    public static List<Object> captureScreenShotUsingSikuliX(Screen screen, App applicationWindow, Pattern element, String actionName,
                                                                           boolean passFailStatus) {
 
         globalPassFailStatus = passFailStatus;
@@ -205,7 +205,10 @@ public class ScreenshotManager {
 
     public static byte[] takeFullPageScreenshot(WebDriver driver) {
         try {
-            if (SCREENSHOT_PARAMS_SKIPPEDELEMENTSFROMSCREENSHOT.length() > 0) {
+            if(!System.getProperty("setParallel").equals("NONE")){
+                //in case of parallel execution, force regular screenshots
+                return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+            }else if (SCREENSHOT_PARAMS_SKIPPEDELEMENTSFROMSCREENSHOT.length() > 0) {
                 List<WebElement> skippedElementsList = new ArrayList<>();
                 String[] skippedElementLocators = SCREENSHOT_PARAMS_SKIPPEDELEMENTSFROMSCREENSHOT.split(";");
                 for (String locator : skippedElementLocators) {
@@ -232,7 +235,7 @@ public class ScreenshotManager {
         return takeElementScreenshot(driver, targetElementLocator, false);
     }
 
-    public static synchronized String attachAnimatedGif() {
+    public static String attachAnimatedGif() {
         // stop and attach
         if (Boolean.TRUE.equals(CREATE_GIF) && !"".equals(gifRelativePathWithFileName)) {
             try {
@@ -273,7 +276,7 @@ public class ScreenshotManager {
      *                       from the pom.xml file
      * @return screenshot list object
      */
-    private static synchronized List<Object> internalCaptureScreenShot(WebDriver driver, By elementLocator,
+    private static List<Object> internalCaptureScreenShot(WebDriver driver, By elementLocator,
                                                                        String actionName, String appendedText, boolean takeScreenshot) {
         if (!actionName.toLowerCase().contains("get")) {
             // Suggested: add to animated gif only in case of click, navigation, or validation actions.
@@ -426,31 +429,36 @@ public class ScreenshotManager {
     }
 
     public static List<Object> prepareImageforReport(byte[] image, String actionName) {
-        /*
-         * Declare screenshot file name
-         */
-        testCaseName = ReportManagerHelper.getTestMethodName();
-        screenshotFileName = System.currentTimeMillis() + "_" + testCaseName + "_" + actionName;
-        if (!"".equals(globalPassFailAppendedText)) {
-            screenshotFileName = screenshotFileName + "_" + globalPassFailAppendedText;
-        }
+        if (image !=null && image.length>0) {
+            /*
+             * Declare screenshot file name
+             */
+            testCaseName = ReportManagerHelper.getTestMethodName();
+            screenshotFileName = System.currentTimeMillis() + "_" + testCaseName + "_" + actionName;
+            if (!"".equals(globalPassFailAppendedText)) {
+                screenshotFileName = screenshotFileName + "_" + globalPassFailAppendedText;
+            }
 
-        /*
-         * Adding Screenshot to the Report.
-         *
-         */
-        try {
-            // add SHAFT_Engine logo overlay
-            InputStream in = new ByteArrayInputStream(image);
-            BufferedImage screenshotImage = ImageIO.read(in);
-            overlayShaftEngineLogo(screenshotImage);
+            /*
+             * Adding Screenshot to the Report.
+             *
+             */
+            try {
+                // add SHAFT_Engine logo overlay
+                InputStream in = new ByteArrayInputStream(image);
+                BufferedImage screenshotImage = ImageIO.read(in);
+                overlayShaftEngineLogo(screenshotImage);
 
-            ByteArrayOutputStream screenshotOutputStream = new ByteArrayOutputStream();
-            ImageIO.write(screenshotImage, "png", screenshotOutputStream);
-            return Arrays.asList("Screenshot", screenshotFileName,
-                    new ByteArrayInputStream(screenshotOutputStream.toByteArray()));
-        } catch (IOException e) {
-            ReportManagerHelper.log(e);
+                ByteArrayOutputStream screenshotOutputStream = new ByteArrayOutputStream();
+                ImageIO.write(screenshotImage, "png", screenshotOutputStream);
+                return Arrays.asList("Screenshot", screenshotFileName,
+                        new ByteArrayInputStream(screenshotOutputStream.toByteArray()));
+            } catch (IOException e) {
+                ReportManagerHelper.log(e);
+                return null;
+            }
+        } else{
+            //empty image byte array
             return null;
         }
     }
@@ -490,7 +498,7 @@ public class ScreenshotManager {
 
     }
 
-    private static synchronized void startAnimatedGif(byte[] screenshot) {
+    private static void startAnimatedGif(byte[] screenshot) {
         // TODO: refactor performance to reduce severe drop when enabling this option
         if (Boolean.TRUE.equals(CREATE_GIF) && screenshot != null) {
             try {
@@ -580,7 +588,7 @@ public class ScreenshotManager {
         return bimage;
     }
 
-    private static synchronized void startOrAppendToAnimatedGif(byte[] screenshot) {
+    private static void startOrAppendToAnimatedGif(byte[] screenshot) {
         // ensure that animatedGif is started, else force start it
         if (Boolean.TRUE.equals(CREATE_GIF)) {
             if ("".equals(gifRelativePathWithFileName)) {
@@ -591,7 +599,7 @@ public class ScreenshotManager {
         }
     }
 
-    private static synchronized void appendToAnimatedGif(byte[] screenshot) {
+    private static void appendToAnimatedGif(byte[] screenshot) {
         try {
             BufferedImage image;
             if (screenshot != null) {

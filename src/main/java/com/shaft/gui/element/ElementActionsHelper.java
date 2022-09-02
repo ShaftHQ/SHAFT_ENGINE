@@ -53,23 +53,32 @@ class ElementActionsHelper {
         List<Integer> coordinates;
         boolean isFound = false;
         byte[] currentScreenImage;
-        do {
-            try {
-                Thread.sleep(ELEMENT_IDENTIFICATION_POLLING_DELAY);
-            } catch (InterruptedException e) {
-                ReportManagerHelper.log(e);
-            }
-            currentScreenImage = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
-            coordinates = ImageProcessingActions.findImageWithinCurrentPage(elementReferenceScreenshot, currentScreenImage);
-            if (!Collections.emptyList().equals(coordinates)) {
-                isFound = true;
-            }
-            elapsedTime = System.currentTimeMillis() - startTime;
-        } while (!isFound && elapsedTime < DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT);
+
         List<Object> returnedValue = new LinkedList<>();
-        returnedValue.add(currentScreenImage);
-        returnedValue.add(FileActions.getInstance().readFromImageFile(elementReferenceScreenshot));
-        returnedValue.add(coordinates);
+        if (FileActions.getInstance().doesFileExist(elementReferenceScreenshot)) {
+            do {
+                try {
+                    Thread.sleep(ELEMENT_IDENTIFICATION_POLLING_DELAY);
+                } catch (InterruptedException e) {
+                    ReportManagerHelper.log(e);
+                }
+                currentScreenImage = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+                coordinates = ImageProcessingActions.findImageWithinCurrentPage(elementReferenceScreenshot, currentScreenImage);
+                if (!Collections.emptyList().equals(coordinates)) {
+                    isFound = true;
+                }
+                elapsedTime = System.currentTimeMillis() - startTime;
+            } while (!isFound && elapsedTime < DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT);
+            returnedValue.add(currentScreenImage);
+            returnedValue.add(FileActions.getInstance().readFromImageFile(elementReferenceScreenshot));
+            returnedValue.add(coordinates);
+        }else{
+            // reference screenshot doesn't exist
+            currentScreenImage = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+            returnedValue.add(currentScreenImage);
+            returnedValue.add(new byte[0]);
+            returnedValue.add(Collections.emptyList());
+        }
         return returnedValue;
     }
 
