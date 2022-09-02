@@ -333,7 +333,7 @@
         <dependency>
             <groupId>org.openpnp</groupId>
             <artifactId>opencv</artifactId>
-            <version>4.5.5-0</version>
+            <version>4.5.5-1</version>
         </dependency>
 
         <dependency>
