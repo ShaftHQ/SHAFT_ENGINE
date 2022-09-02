@@ -9,12 +9,12 @@ import org.testng.annotations.Test;
 public class Test_ElementMatches_SafariCompatible {
     SHAFT.GUI.WebDriver driver;
     String url = "https://duckduckgo.com/";
-    By logo = By.id("logo_homepage_link");
+    By searchbar = By.xpath("//*[@id='search_form_input_homepage'] | //input[@name='q']");
 
     @Test
     public void test(){
         driver.browser().navigateToURL(url);
-        driver.assertThat().element(logo).matchesReferenceImage().perform();
+        driver.assertThat().element(searchbar).matchesReferenceImage().perform();
     }
     @SuppressWarnings("CommentedOutCode")
     @BeforeMethod

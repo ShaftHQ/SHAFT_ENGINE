@@ -2,6 +2,7 @@ package com.shaft.validation;
 
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
+import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.image.ImageProcessingActions;
@@ -18,14 +19,12 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 
 import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchema;
 
 public class ValidationsHelper {
     //TODO: implement element attribute and element exists validations for sikuli actions
-    static ArrayList<String> optionalCustomLogMessage = new ArrayList<>();
-    private static WebDriver lastUsedDriver = null;
+    static ThreadLocal<ArrayList<String>> optionalCustomLogMessage = new ThreadLocal<>();
     private static By lastUsedElementLocator = null;
     private static Boolean discreetLoggingState = Boolean.valueOf(System.getProperty("alwaysLogDiscreetly"));
     private static List<String> verificationFailuresList = new ArrayList<>();
@@ -94,7 +93,6 @@ public class ValidationsHelper {
                 "Element Exists but is not unique"};
         String locatorSeparator = ", locator '";
 
-        lastUsedDriver = driver;
         lastUsedElementLocator = elementLocator;
         int elementsCount = ElementActions.getElementsCount(driver, elementLocator);
 
@@ -158,7 +156,6 @@ public class ValidationsHelper {
             return;
         }
 
-        lastUsedDriver = driver;
         lastUsedElementLocator = elementLocator;
         int comparisonResult = JavaActions.compareTwoObjects(expectedValue, actualValue,
                 validationComparisonType.getValue(), validationType.getValue());
@@ -182,7 +179,6 @@ public class ValidationsHelper {
         String actualValue = ElementActions.getCSSProperty(driver, elementLocator, propertyName);
         ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
 
-        lastUsedDriver = driver;
         lastUsedElementLocator = elementLocator;
         int comparisonResult = JavaActions.compareTwoObjects(expectedValue, actualValue,
                 validationComparisonType.getValue(), validationType.getValue());
@@ -229,8 +225,6 @@ public class ValidationsHelper {
             }
             return;
         }
-
-        lastUsedDriver = driver;
         int comparisonResult = JavaActions.compareTwoObjects(expectedValue, actualValue,
                 validationComparisonType.getValue(), validationType.getValue());
 
@@ -657,17 +651,16 @@ public class ValidationsHelper {
             }
         }
 
-        if (lastUsedDriver != null) {
+        if (DriverFactoryHelper.getDriver() != null && DriverFactoryHelper.getDriver().get() != null) {
             // create a screenshot attachment if needed for webdriver
             if (lastUsedElementLocator != null) {
-                attachments.add(ScreenshotManager.captureScreenShot(lastUsedDriver, lastUsedElementLocator,
+                attachments.add(ScreenshotManager.captureScreenShot(DriverFactoryHelper.getDriver().get(), lastUsedElementLocator,
                         validationMethodName, validationState.getValue()));
             } else {
-                attachments.add(ScreenshotManager.captureScreenShot(lastUsedDriver, validationMethodName,
+                attachments.add(ScreenshotManager.captureScreenShot(DriverFactoryHelper.getDriver().get(), validationMethodName,
                         validationState.getValue()));
             }
             // reset lastUsed variables
-            lastUsedDriver = null;
             lastUsedElementLocator = null;
             //}
         }
@@ -678,10 +671,10 @@ public class ValidationsHelper {
                 // create the log entry with or without attachments
                 if (!attachments.isEmpty()) {
                     //ReportManagerHelper.log(message.toString(), attachments);
-                    ReportManagerHelper.logNestedSteps(message.toString(), optionalCustomLogMessage, attachments);
+                    ReportManagerHelper.logNestedSteps(message.toString(), optionalCustomLogMessage.get(), attachments);
                 } else {
                     //ReportManager.log(message.toString());
-                    ReportManagerHelper.logNestedSteps(message.toString(), optionalCustomLogMessage, null);
+                    ReportManagerHelper.logNestedSteps(message.toString(), optionalCustomLogMessage.get(), null);
                 }
 
                 // set test state in case of failure
@@ -704,10 +697,10 @@ public class ValidationsHelper {
                 // create the log entry with or without attachments
                 if (!attachments.isEmpty()) {
 //                    ReportManagerHelper.log(message.toString(), attachments);
-                    ReportManagerHelper.logNestedSteps(message.toString(), optionalCustomLogMessage, attachments);
+                    ReportManagerHelper.logNestedSteps(message.toString(), optionalCustomLogMessage.get(), attachments);
                 } else {
 //                    ReportManager.log(message.toString());
-                    ReportManagerHelper.logNestedSteps(message.toString(), optionalCustomLogMessage, null);
+                    ReportManagerHelper.logNestedSteps(message.toString(), optionalCustomLogMessage.get(), null);
                 }
 
                 // set test state in case of failure
@@ -722,10 +715,10 @@ public class ValidationsHelper {
     }
 
     private static void processCustomLogMessage(String... optionalCustomLogMessage) {
-        ValidationsHelper.optionalCustomLogMessage = new ArrayList<>();
+        ValidationsHelper.optionalCustomLogMessage.set(new ArrayList<>());
         for (String customMessage : optionalCustomLogMessage) {
             if (customMessage != null && !"".equals(customMessage.trim())) {
-                ValidationsHelper.optionalCustomLogMessage.add(customMessage);
+                ValidationsHelper.optionalCustomLogMessage.get().add(customMessage);
                 //ReportManager.log(customMessage + "...");
             }
         }

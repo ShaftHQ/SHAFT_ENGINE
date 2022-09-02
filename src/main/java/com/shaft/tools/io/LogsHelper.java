@@ -21,9 +21,9 @@ public class LogsHelper {
     }
 
     public static void closeAllDriversAndattachBrowserLogs() {
-        if (Boolean.FALSE.equals(DriverFactoryHelper.isDriversListEmpty())) {
+//        if (Boolean.FALSE.equals(DriverFactoryHelper.isDriversListEmpty())) {
             DriverFactory.closeAllDrivers();
-        }
+//        }
     }
 
     public static void attachImportantLinks() {

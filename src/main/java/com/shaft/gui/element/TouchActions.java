@@ -103,7 +103,7 @@ public class TouchActions {
 
         // If coordinates are empty then OpenCV couldn't find the element on screen
         if (Collections.emptyList().equals(coordinates)) {
-            WebDriverElementActions.failAction(driver, "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.", null, attachments);
+            WebDriverElementActions.failAction(driver, "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image under this path \""+elementReferenceScreenshot+"\".", null, attachments);
         } else {
             // Perform tap action by coordinates
 //            if (DriverFactoryHelper.isMobileNativeExecution()) {
@@ -464,7 +464,7 @@ public class TouchActions {
         if (!Collections.emptyList().equals(coordinates)) {
             WebDriverElementActions.passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments,null);
         } else {
-            WebDriverElementActions.failAction(driver, "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.", null, attachments);
+            WebDriverElementActions.failAction(driver, "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image under this path \""+elementReferenceScreenshot+"\".", null, attachments);
         }
         return this;
     }
