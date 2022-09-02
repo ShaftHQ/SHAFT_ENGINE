@@ -855,7 +855,7 @@ public class ReportManagerHelper {
                 });
             }
         } else {
-            if (attachments != null && !attachments.isEmpty() && !attachments.get(0).isEmpty()) {
+            if (attachments != null && !attachments.isEmpty() && (attachments.size()>1 || (attachments.get(0) !=null && !attachments.get(0).isEmpty()))) {
                 writeStepToReport(logText, attachments);
             }else {
                 writeStepToReport(logText);

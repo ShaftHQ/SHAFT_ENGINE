@@ -429,31 +429,36 @@ public class ScreenshotManager {
     }
 
     public static List<Object> prepareImageforReport(byte[] image, String actionName) {
-        /*
-         * Declare screenshot file name
-         */
-        testCaseName = ReportManagerHelper.getTestMethodName();
-        screenshotFileName = System.currentTimeMillis() + "_" + testCaseName + "_" + actionName;
-        if (!"".equals(globalPassFailAppendedText)) {
-            screenshotFileName = screenshotFileName + "_" + globalPassFailAppendedText;
-        }
+        if (image !=null && image.length>0) {
+            /*
+             * Declare screenshot file name
+             */
+            testCaseName = ReportManagerHelper.getTestMethodName();
+            screenshotFileName = System.currentTimeMillis() + "_" + testCaseName + "_" + actionName;
+            if (!"".equals(globalPassFailAppendedText)) {
+                screenshotFileName = screenshotFileName + "_" + globalPassFailAppendedText;
+            }
 
-        /*
-         * Adding Screenshot to the Report.
-         *
-         */
-        try {
-            // add SHAFT_Engine logo overlay
-            InputStream in = new ByteArrayInputStream(image);
-            BufferedImage screenshotImage = ImageIO.read(in);
-            overlayShaftEngineLogo(screenshotImage);
+            /*
+             * Adding Screenshot to the Report.
+             *
+             */
+            try {
+                // add SHAFT_Engine logo overlay
+                InputStream in = new ByteArrayInputStream(image);
+                BufferedImage screenshotImage = ImageIO.read(in);
+                overlayShaftEngineLogo(screenshotImage);
 
-            ByteArrayOutputStream screenshotOutputStream = new ByteArrayOutputStream();
-            ImageIO.write(screenshotImage, "png", screenshotOutputStream);
-            return Arrays.asList("Screenshot", screenshotFileName,
-                    new ByteArrayInputStream(screenshotOutputStream.toByteArray()));
-        } catch (IOException e) {
-            ReportManagerHelper.log(e);
+                ByteArrayOutputStream screenshotOutputStream = new ByteArrayOutputStream();
+                ImageIO.write(screenshotImage, "png", screenshotOutputStream);
+                return Arrays.asList("Screenshot", screenshotFileName,
+                        new ByteArrayInputStream(screenshotOutputStream.toByteArray()));
+            } catch (IOException e) {
+                ReportManagerHelper.log(e);
+                return null;
+            }
+        } else{
+            //empty image byte array
             return null;
         }
     }
