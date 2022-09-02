@@ -12,9 +12,8 @@
 //import org.testng.annotations.Test;
 //
 //public class Test_Wizard_GUI_Parallelization {
-////    SHAFT.GUI.WebDriver driver;
-//    ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
-//    SHAFT.TestData.JSON testData;
+//    private static ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
+//    private static SHAFT.TestData.JSON testData;
 //
 //    By searchBox = By.name("q");
 //    By resultStats = By.id("result-stats");
@@ -70,19 +69,12 @@
 //    }
 //
 //    private void commonSteps(int queryPostfix){
-//        //TODO: legacy syntax is working as expected with 100% passing rate, wizard syntax is still inconsistent
-//
-////        driver.get().browser().navigateToURL("https://www.google.com/");
-////        driver.get().verifyThat().browser().title().isEqualTo("Google").perform();
-////        driver.get().element().type(searchBox, testData.getTestData("searchQuery")+"_"+queryPostfix)
-////                .keyPress(searchBox, Keys.ENTER);
-////        driver.get().assertThat().element(resultStats).text().doesNotEqual("").withCustomReportMessage("Check that result stats is not empty").perform();
-//
-//        BrowserActions.navigateToURL(driver.get().getDriver(), "https://www.google.com/");
-//        Validations.verifyThat().browser(driver.get().getDriver()).title().isEqualTo("Google").perform();
-//        ElementActions.type(driver.get().getDriver(), searchBox, testData.getTestData("searchQuery")+"_"+queryPostfix);
-//        ElementActions.keyPress(driver.get().getDriver(), searchBox, Keys.ENTER);
-//        Validations.assertThat().element(driver.get().getDriver(), resultStats).text().doesNotEqual("").withCustomReportMessage("Check that result stats is not empty").perform();
+//        driver.get().browser().navigateToURL("https://www.google.com/");
+//        driver.get().verifyThat().browser().title().isEqualTo("Google").perform();
+//        driver.get().element().type(searchBox, testData.getTestData("searchQuery")+"_"+queryPostfix)
+//                .keyPress(searchBox, Keys.ENTER);
+//        driver.get().assertThat().element(resultStats).text().doesNotEqual("")
+//                .withCustomReportMessage("Check that result stats is not empty").perform();
 //    }
 //
 //    @BeforeClass
