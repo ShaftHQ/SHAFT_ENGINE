@@ -287,27 +287,29 @@ public class DriverFactoryHelper {
         }
         ReportManager.log(initialLog + ".");
 
+        var proxy = System.getProperty("com.SHAFT.proxySettings");
+
         try {
             switch (driverType) {
                 case DESKTOP_FIREFOX -> {
                     ReportManager.logDiscrete(WEBDRIVERMANAGER_MESSAGE);
-                    driver.set(ThreadGuard.protect(WebDriverManager.firefoxdriver().capabilities(ffOptions).create()));
+                    driver.set(ThreadGuard.protect(WebDriverManager.firefoxdriver().proxy(proxy).capabilities(ffOptions).create()));
                 }
                 case DESKTOP_INTERNET_EXPLORER -> {
                     ReportManager.logDiscrete(WEBDRIVERMANAGER_MESSAGE);
-                    driver.set(ThreadGuard.protect(WebDriverManager.iedriver().capabilities(ieOptions).create()));
+                    driver.set(ThreadGuard.protect(WebDriverManager.iedriver().proxy(proxy).capabilities(ieOptions).create()));
                 }
                 case DESKTOP_CHROME -> {
                     ReportManager.logDiscrete(WEBDRIVERMANAGER_MESSAGE);
-                    driver.set(ThreadGuard.protect(WebDriverManager.chromedriver().capabilities(chOptions).create()));
+                    driver.set(ThreadGuard.protect(WebDriverManager.chromedriver().proxy(proxy).capabilities(chOptions).create()));
                 }
                 case DESKTOP_EDGE -> {
                     ReportManager.logDiscrete(WEBDRIVERMANAGER_MESSAGE);
-                    driver.set(ThreadGuard.protect(WebDriverManager.edgedriver().capabilities(edOptions).create()));
+                    driver.set(ThreadGuard.protect(WebDriverManager.edgedriver().proxy(proxy).capabilities(edOptions).create()));
                 }
                 case DESKTOP_SAFARI -> {
                     ReportManager.logDiscrete(WEBDRIVERMANAGER_MESSAGE);
-                    driver.set(ThreadGuard.protect(WebDriverManager.safaridriver().capabilities(sfOptions).create()));
+                    driver.set(ThreadGuard.protect(WebDriverManager.safaridriver().proxy(proxy).capabilities(sfOptions).create()));
                 }
                 default -> failAction("Unsupported Driver Type \"" + JavaActions.convertToSentenceCase(driverType.getValue()) + "\".");
             }
@@ -349,10 +351,12 @@ public class DriverFactoryHelper {
                 default -> failAction("Unsupported Driver Type \"" + JavaActions.convertToSentenceCase(driverType.getValue()) + "\". We only support Chrome, Edge, Firefox, and Safari in this dockerized mode.");
             }
             RemoteWebDriver remoteWebDriver = (RemoteWebDriver) webDriverManager.get()
+                    .proxy(System.getProperty("com.SHAFT.proxySettings"))
                     .browserInDocker()
+                    .dockerShmSize("256m")
                     .enableVnc()
                     .viewOnly()
-//                    .dockerScreenResolution("1920x1080x24")
+                    .dockerScreenResolution("1920x1080x24")
 //                    .dockerVolumes("\\local\\path:\\container\\path")
                     .enableRecording()
                     .dockerRecordingOutput(System.getProperty("video.folder"))
@@ -421,13 +425,19 @@ public class DriverFactoryHelper {
     private static void setRemoteDriverInstance(Capabilities capabilities) throws MalformedURLException {
         ReportManager.logDiscrete(capabilities.toString());
         RemoteWebDriver remoteWebDriver;
-        switch (getOperatingSystemFromName(targetOperatingSystem)){
+        var os = getOperatingSystemFromName(targetOperatingSystem);
+        switch (os){
             case ANDROID -> remoteWebDriver = new AndroidDriver(new URL(TARGET_HUB_URL), capabilities);
             case IOS -> remoteWebDriver = new IOSDriver(new URL(TARGET_HUB_URL), capabilities);
             default -> remoteWebDriver = new RemoteWebDriver(new URL(TARGET_HUB_URL), capabilities);
         }
         remoteWebDriver.setFileDetector(new LocalFileDetector());
-        driver.set(ThreadGuard.protect(remoteWebDriver));
+        if (os.equals(OperatingSystemType.ANDROID)
+                || os.equals(OperatingSystemType.IOS)) {
+            driver.set(remoteWebDriver);
+        }else{
+            driver.set(ThreadGuard.protect(remoteWebDriver));
+        }
     }
 
     private static void configureRemoteDriverInstance(DriverType driverType, DesiredCapabilities mobileDesiredCapabilities) throws MalformedURLException {
