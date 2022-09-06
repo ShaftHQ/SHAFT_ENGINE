@@ -551,7 +551,7 @@ public class WebDriverElementActions {
     private static String getElementName(WebDriver driver, By elementLocator) {
         if (Boolean.TRUE.equals(Boolean.parseBoolean(System.getProperty("captureElementName")))) {
             try {
-                return ((WebElement) WebDriverElementActions.identifyUniqueElement(driver, elementLocator).get(1)).getAccessibleName();
+                return ((WebElement) WebDriverElementActions.identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1)).getAccessibleName();
             } catch (WebDriverException e){
                 //happens on some elements that show unhandled inspector error
                 //this exception is thrown on some older selenium grid instances, I saw it with firefox running over selenoid
@@ -991,7 +991,7 @@ public class WebDriverElementActions {
             List<Object> screenshot = takeScreenshot(driver, elementLocator, "typeFileLocationForUpload", null, true);
             // takes screenshot before clicking the element out of view
             try {
-                ((WebElement) WebDriverElementActions.identifyUniqueElement(driver, elementLocator).get(1)).sendKeys(internalAbsoluteFilePath);
+                ((WebElement) WebDriverElementActions.identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1)).sendKeys(internalAbsoluteFilePath);
             } catch (InvalidArgumentException e) {
                 //this happens when the file path doesn't exist
                 failAction(driver, internalAbsoluteFilePath, elementLocator, e);
@@ -1167,17 +1167,17 @@ public class WebDriverElementActions {
         if (DriverFactoryHelper.isMobileNativeExecution()) {
             return TextDetectionStrategy.TEXT;
         }
-        String text = ((WebElement) WebDriverElementActions.identifyUniqueElement(driver, elementLocator).get(1)).getText();
+        String text = ((WebElement) WebDriverElementActions.identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1)).getText();
         // fixing https://github.com/ShaftHQ/SHAFT_ENGINE/issues/533
         String content = "";
         try {
-            content = ((WebElement) WebDriverElementActions.identifyUniqueElement(driver, elementLocator).get(1)).getAttribute(TextDetectionStrategy.CONTENT.getValue());
+            content = ((WebElement) WebDriverElementActions.identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1)).getAttribute(TextDetectionStrategy.CONTENT.getValue());
         } catch (Exception exception) {
             // ignore exception
         }
         String value = "";
         try {
-            value = ((WebElement) WebDriverElementActions.identifyUniqueElement(driver, elementLocator).get(1)).getAttribute(TextDetectionStrategy.VALUE.getValue());
+            value = ((WebElement) WebDriverElementActions.identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1)).getAttribute(TextDetectionStrategy.VALUE.getValue());
         } catch (Exception exception) {
             // ignore exception
         }
@@ -1443,7 +1443,8 @@ public class WebDriverElementActions {
             }
         } catch (Throwable throwable) {
             ReportManager.log("Failed to identify Target element with locator \"" + elementLocator + "\".");
-            return null;
+            throw throwable;
+//            return null;
         }
     }
     public enum TextDetectionStrategy {

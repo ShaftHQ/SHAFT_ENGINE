@@ -103,15 +103,13 @@ class ElementActionsHelper {
                     .pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY))
                     .ignoreAll(expectedExceptions)
                     .until(nestedDriver -> {
-                        WebElement targetElement = null;
+                        WebElement targetElement = nestedDriver.findElement(elementLocator);
                         if (validToCheckForVisibility) {
                             if (!(driver instanceof AppiumDriver)) {
-                                ((Locatable) driver.findElement(elementLocator)).getCoordinates().inViewPort();
+                                ((Locatable) targetElement).getCoordinates().inViewPort();
                             } else {
-                                nestedDriver.findElement(elementLocator).isDisplayed();
+                                targetElement.isDisplayed();
                             }
-                        } else {
-                            targetElement = nestedDriver.findElement(elementLocator);
                         }
                         var elementInformation = new ArrayList<>();
                         elementInformation.add(nestedDriver.findElements(elementLocator).size());
