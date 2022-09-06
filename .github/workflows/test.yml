@@ -8,6 +8,7 @@ on:
     branches: [ master ]
   schedule:
     - cron: '00 1 * * *'
+  workflow_dispatch:
 
 jobs:
   browser:
@@ -23,6 +24,9 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '16'
+      - name: Set up Docker
+        if: runner.os == 'macOS'
+        run:
       - name: Set up Native Selenium Grid
         if: runner.os == 'Linux'
         run: docker-compose -f src/main/resources/docker-compose/selenium4.yml up --scale chrome=4 --scale edge=0 --scale firefox=0 -d
