@@ -8,6 +8,7 @@ on:
     branches: [ master ]
 #  schedule:
 #    - cron: '00 1 * * *'
+  workflow_dispatch:
 
 jobs:
   mobile:
