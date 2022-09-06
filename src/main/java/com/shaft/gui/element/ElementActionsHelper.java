@@ -18,7 +18,7 @@ import java.util.*;
 
 class ElementActionsHelper {
     private static long DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT = Integer
-            .parseInt(System.getProperty("defaultElementIdentificationTimeout").trim())*1000; //milliseconds
+            .parseInt(System.getProperty("defaultElementIdentificationTimeout").trim())* 1000L; //milliseconds
     private static final int ELEMENT_IDENTIFICATION_POLLING_DELAY = 100; // milliseconds
     private static final boolean FORCE_CHECK_FOR_ELEMENT_VISIBILITY = Boolean
             .parseBoolean(System.getProperty("forceCheckForElementVisibility").trim());
@@ -31,19 +31,19 @@ class ElementActionsHelper {
         DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT = 300; //this is used for faster mobile native scrolling. default for ios is 200 and for android is 250, this covers both
         var numberOfFoundElements = waitForElementPresence(driver, elementLocator);
         DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT = Integer
-                .parseInt(System.getProperty("defaultElementIdentificationTimeout").trim())*1000;
-        return numberOfFoundElements;
+                .parseInt(System.getProperty("defaultElementIdentificationTimeout").trim())* 1000L;
+        return Integer.parseInt(numberOfFoundElements.get(0).toString());
     }
 
-    protected static int waitForElementPresence(WebDriver driver, By elementLocator) {
+    protected static List<Object> waitForElementPresence(WebDriver driver, By elementLocator) {
         return waitForElementPresence(driver, elementLocator, 1, FORCE_CHECK_FOR_ELEMENT_VISIBILITY);
     }
 
-    protected static int waitForElementPresence(WebDriver driver, By elementLocator, int numberOfAttempts) {
+    protected static List<Object> waitForElementPresence(WebDriver driver, By elementLocator, int numberOfAttempts) {
         return waitForElementPresence(driver, elementLocator, numberOfAttempts, FORCE_CHECK_FOR_ELEMENT_VISIBILITY);
     }
 
-    protected static int waitForElementPresence(WebDriver driver, By elementLocator, boolean checkForVisibility) {
+    protected static List<Object> waitForElementPresence(WebDriver driver, By elementLocator, boolean checkForVisibility) {
         return waitForElementPresence(driver, elementLocator, 1, checkForVisibility);
     }
 
@@ -82,7 +82,7 @@ class ElementActionsHelper {
         return returnedValue;
     }
 
-    protected static int waitForElementPresence(WebDriver driver, By elementLocator, int numberOfAttempts, boolean checkForVisibility) {
+    protected static List<Object> waitForElementPresence(WebDriver driver, By elementLocator, int numberOfAttempts, boolean checkForVisibility) {
         boolean validToCheckForVisibility = checkForVisibility && !elementLocator.toString().contains("input[@type='file']")
                 && !elementLocator.equals(By.tagName("html"));
 
@@ -103,6 +103,7 @@ class ElementActionsHelper {
                     .pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY))
                     .ignoreAll(expectedExceptions)
                     .until(nestedDriver -> {
+                        WebElement targetElement = null;
                         if (validToCheckForVisibility) {
                             if (!(driver instanceof AppiumDriver)) {
                                 ((Locatable) driver.findElement(elementLocator)).getCoordinates().inViewPort();
@@ -110,15 +111,22 @@ class ElementActionsHelper {
                                 nestedDriver.findElement(elementLocator).isDisplayed();
                             }
                         } else {
-                            nestedDriver.findElement(elementLocator);
+                            targetElement = nestedDriver.findElement(elementLocator);
                         }
-                        return nestedDriver.findElements(elementLocator).size();
+                        var elementInformation = new ArrayList<>();
+                        elementInformation.add(nestedDriver.findElements(elementLocator).size());
+                        elementInformation.add(targetElement);
+                        return elementInformation;
+//                        return nestedDriver.findElements(elementLocator).size();
                     });
         } catch (org.openqa.selenium.TimeoutException e) {
             // In case the element was not found / not visible and the timeout expired
 //            ReportManagerHelper.logDiscrete(e);
             ReportManager.logDiscrete(e.getMessage() + " || " +e.getCause().getMessage().substring(0,e.getCause().getMessage().indexOf("\n")));
-            return 0;
+            var elementInformation = new ArrayList<>();
+            elementInformation.add(0);
+            elementInformation.add(null);
+            return elementInformation;
         }
     }
 

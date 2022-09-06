@@ -422,7 +422,7 @@ public class WebDriverElementActions {
      * desired elementLocator
      */
     public static int getElementsCount(WebDriver driver, By elementLocator) {
-        return getMatchingElementsCount(driver, elementLocator, Optional.empty(), Optional.empty());
+        return Integer.parseInt(getMatchingElementsInformation(driver, elementLocator, Optional.empty(), Optional.empty()).get(0).toString());
     }
     /**
      * Returns the number of elements that match a certain elementLocator
@@ -437,7 +437,7 @@ public class WebDriverElementActions {
      * desired elementLocator
      */
     public static int getElementsCount(WebDriver driver, By elementLocator, int numberOfAttempts) {
-        return getMatchingElementsCount(driver, elementLocator, Optional.of(numberOfAttempts), Optional.empty());
+        return Integer.parseInt(getMatchingElementsInformation(driver, elementLocator, Optional.of(numberOfAttempts), Optional.empty()).get(0).toString());
     }
     /**
      * Retrieves the selected text from the target drop-down list element and returns it as a string value.
@@ -1060,7 +1060,7 @@ public class WebDriverElementActions {
         ReportManager.logDiscrete("Waiting for element to be present; elementLocator \"" + elementLocator + "\", numberOfTries\"" + numberOfTries + "\", stateOfPresence\"" + stateOfPresence + "\"...");
         String reportMessage = "waited for the element's state of presence to be (" + stateOfPresence
                 + "). Element locator (" + elementLocator.toString() + ")";
-        if (Boolean.compare(stateOfPresence, getMatchingElementsCount(driver, elementLocator, Optional.of(numberOfTries), Optional.empty()) >= 1) == 0) {
+        if (Boolean.compare(stateOfPresence, Integer.parseInt(getMatchingElementsInformation(driver, elementLocator, Optional.of(numberOfTries), Optional.empty()).get(0).toString()) >= 1) == 0) {
             if (Boolean.TRUE.equals(stateOfPresence)){
                 //element is expected to be present
                 passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, getElementName(driver, elementLocator));
@@ -1090,10 +1090,10 @@ public class WebDriverElementActions {
         attachments.add(SikuliActions.prepareElementScreenshotAttachment(screen, applicationWindow, element, actionName, false));
         failAction(null, actionName, testData, null, attachments, rootCauseException);
     }
-    protected static boolean identifyUniqueElement(WebDriver driver, By elementLocator) {
+    protected static List<Object> identifyUniqueElement(WebDriver driver, By elementLocator) {
         return identifyUniqueElement(driver, elementLocator, true);
     }
-    protected static boolean identifyUniqueElementIgnoringVisibility(WebDriver driver, By elementLocator) {
+    protected static List<Object> identifyUniqueElementIgnoringVisibility(WebDriver driver, By elementLocator) {
         return identifyUniqueElement(driver, elementLocator, false);
     }
 
@@ -1202,9 +1202,12 @@ public class WebDriverElementActions {
             Assert.fail(message);
         }
     }
-    private static int getMatchingElementsCount(WebDriver driver, By elementLocator, Optional<Integer> numberOfAttempts, Optional<Boolean> checkForVisibility) {
+    private static List<Object> getMatchingElementsInformation(WebDriver driver, By elementLocator, Optional<Integer> numberOfAttempts, Optional<Boolean> checkForVisibility) {
         if (elementLocator == null) {
-            return 0;
+            var elementInformation = new ArrayList<>();
+            elementInformation.add(0);
+            elementInformation.add(null);
+            return elementInformation;
         }
         JavaScriptWaitManager.waitForLazyLoading();
         if (!elementLocator.equals(By.tagName("html"))) {
@@ -1219,35 +1222,41 @@ public class WebDriverElementActions {
             }
         }else{
             //if locator is just tagname html
-            return 1;
+            var elementInformation = new ArrayList<>();
+            elementInformation.add(1);
+            elementInformation.add(null);
+            return elementInformation;
         }
     }
-    private static boolean identifyUniqueElement(WebDriver driver, By elementLocator,
+    private static List<Object> identifyUniqueElement(WebDriver driver, By elementLocator,
                                                  boolean checkForVisibility) {
-        int matchingElementsCount = getMatchingElementsCount(driver, elementLocator, Optional.empty(), Optional.of(checkForVisibility));
-        if (elementLocator instanceof RelativeLocator.RelativeBy relativeLocator) {
-            return matchingElementsCount >= 1;
-        } else {
+        var matchingElementsInformation = getMatchingElementsInformation(driver, elementLocator, Optional.empty(), Optional.of(checkForVisibility));
+
             if (elementLocator != null) {
-                // unique element found
-                switch (matchingElementsCount) {
-                    case 0 -> failAction(driver, "zero elements found matching this locator \"" + elementLocator + "\".", elementLocator);
-                    case 1 -> {
-                        return true;
-                    }
-                    default -> {
-                        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckElementLocatorIsUnique")))) {
-                            failAction(driver, "multiple elements found matching this locator \"" + elementLocator + "\".",
-                                    elementLocator);
+                if (!(elementLocator instanceof RelativeLocator.RelativeBy)) {
+                    // in case of regular locator
+                    switch (Integer.parseInt(matchingElementsInformation.get(0).toString())) {
+                        case 0 -> failAction(driver, "zero elements found matching this locator \"" + elementLocator + "\".", elementLocator);
+                        case 1 -> {
+                            return matchingElementsInformation;
                         }
-                        return true;
+                        default -> {
+                            if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckElementLocatorIsUnique")))) {
+                                failAction(driver, "multiple elements found matching this locator \"" + elementLocator + "\".",
+                                        elementLocator);
+                            }
+                            return matchingElementsInformation;
+                        }
                     }
                 }
+                //in case of relativeLocator
+                return matchingElementsInformation;
             } else {
+                // in case locator is null
                 failAction(driver, "element locator is NULL.", null);
             }
-            return false;
-        }
+            //unreachable code
+        return matchingElementsInformation;
     }
     protected static void passAction(WebDriver driver, By elementLocator, String testData, List<Object> screenshot, String elementName) {
         //TODO: open calling methods, and test if Appium can also fetch the element name instead of passing null
