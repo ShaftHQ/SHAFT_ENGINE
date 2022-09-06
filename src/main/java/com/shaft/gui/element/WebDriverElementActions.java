@@ -546,7 +546,8 @@ public class WebDriverElementActions {
         if (Boolean.TRUE.equals(Boolean.parseBoolean(System.getProperty("captureElementName"))) && identifyUniqueElement(driver, elementLocator)) {
             try {
                 return driver.findElement(elementLocator).getAccessibleName();
-            } catch (org.openqa.selenium.UnsupportedCommandException e){
+            } catch (WebDriverException e){
+                //happens on some elements that show unhandled inspector error
                 //this exception is thrown on some older selenium grid instances, I saw it with firefox running over selenoid
             }
         }
