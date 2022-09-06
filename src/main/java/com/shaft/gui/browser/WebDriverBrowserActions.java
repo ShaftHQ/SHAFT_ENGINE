@@ -579,11 +579,11 @@ public class WebDriverBrowserActions {
         }
 
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckNavigationWasSuccessful")))) {
-            checkNavigationWasSuccesssful(driver, initialURL, targetUrl, targetUrlAfterRedirection);
+            checkNavigationWasSuccessful(driver, initialURL, targetUrl, targetUrlAfterRedirection);
         }
     }
 
-    private static void checkNavigationWasSuccesssful(WebDriver driver, String initialURL, String targetUrl, String targetUrlAfterRedirection) {
+    private static void checkNavigationWasSuccessful(WebDriver driver, String initialURL, String targetUrl, String targetUrlAfterRedirection) {
         if (!targetUrl.equals(targetUrlAfterRedirection)) {
             try {
                 (new WebDriverWait(driver, Duration.ofSeconds(NAVIGATION_TIMEOUT_INTEGER)))
