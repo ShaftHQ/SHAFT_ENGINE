@@ -1,6 +1,7 @@
 package com.shaft.gui.element;
 
 import com.shaft.cli.FileActions;
+import com.shaft.driver.DriverFactoryHelper;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
@@ -12,7 +13,9 @@ import java.util.Map;
 public class ElementActions {
 
     public ElementActions(WebDriver driver) {
-        WebDriverElementActions.setLastUsedDriver(driver);
+    }
+
+    public ElementActions(){
     }
 
     public static WebDriverElementActions performElementAction(WebDriver driver) {
@@ -248,7 +251,7 @@ public class ElementActions {
      * desired elementLocator
      */
     public int getElementsCount(By elementLocator) {
-        return WebDriverElementActions.getElementsCount(WebDriverElementActions.getLastUsedDriver(), elementLocator);
+        return WebDriverElementActions.getElementsCount(DriverFactoryHelper.getDriver().get(), elementLocator);
     }
 
     /**
@@ -614,15 +617,15 @@ public class ElementActions {
     }
 
     public WebDriverElementActions performWebDriverElementAction() {
-        return new WebDriverElementActions(WebDriverElementActions.getLastUsedDriver());
+        return new WebDriverElementActions(DriverFactoryHelper.getDriver().get());
     }
 
     public TouchActions performTouchAction() {
-        return new TouchActions(WebDriverElementActions.getLastUsedDriver());
+        return new TouchActions(DriverFactoryHelper.getDriver().get());
     }
 
     public AlertActions performAlertAction() {
-        return new AlertActions(WebDriverElementActions.getLastUsedDriver());
+        return new AlertActions(DriverFactoryHelper.getDriver().get());
     }
 
     /**
@@ -638,7 +641,7 @@ public class ElementActions {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions executeNativeMobileCommand(String command, Map<String, String> parameters) {
-        WebDriverElementActions.executeNativeMobileCommand(WebDriverElementActions.getLastUsedDriver(), command,
+        WebDriverElementActions.executeNativeMobileCommand(DriverFactoryHelper.getDriver().get(), command,
                 parameters);
         return this;
     }
@@ -651,7 +654,7 @@ public class ElementActions {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions click(By elementLocator) {
-        click(WebDriverElementActions.getLastUsedDriver(), elementLocator);
+        click(DriverFactoryHelper.getDriver().get(), elementLocator);
         return this;
     }
 
@@ -663,7 +666,7 @@ public class ElementActions {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions scrollToElement(By elementLocator) {
-        scrollToElement(WebDriverElementActions.getLastUsedDriver(), elementLocator);
+        scrollToElement(DriverFactoryHelper.getDriver().get(), elementLocator);
         return this;
     }
 
@@ -675,7 +678,7 @@ public class ElementActions {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions clickAndHold(By elementLocator) {
-        clickAndHold(WebDriverElementActions.getLastUsedDriver(), elementLocator);
+        clickAndHold(DriverFactoryHelper.getDriver().get(), elementLocator);
         return this;
     }
 
@@ -690,7 +693,7 @@ public class ElementActions {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions clipboardActions(By elementLocator, String action) {
-        clipboardActions(WebDriverElementActions.getLastUsedDriver(), elementLocator, action);
+        clipboardActions(DriverFactoryHelper.getDriver().get(), elementLocator, action);
         return this;
     }
 
@@ -702,7 +705,7 @@ public class ElementActions {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions doubleClick(By elementLocator) {
-        doubleClick(WebDriverElementActions.getLastUsedDriver(), elementLocator);
+        doubleClick(DriverFactoryHelper.getDriver().get(), elementLocator);
         return this;
     }
 
@@ -719,7 +722,7 @@ public class ElementActions {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions dragAndDrop(By sourceElementLocator, By destinationElementLocator) {
-        dragAndDrop(WebDriverElementActions.getLastUsedDriver(), sourceElementLocator, destinationElementLocator);
+        dragAndDrop(DriverFactoryHelper.getDriver().get(), sourceElementLocator, destinationElementLocator);
         return this;
     }
 
@@ -736,7 +739,7 @@ public class ElementActions {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions dragAndDropByOffset(By sourceElementLocator, int xOffset, int yOffset) {
-        dragAndDropByOffset(WebDriverElementActions.getLastUsedDriver(), sourceElementLocator, xOffset, yOffset);
+        dragAndDropByOffset(DriverFactoryHelper.getDriver().get(), sourceElementLocator, xOffset, yOffset);
         return this;
     }
 
@@ -777,7 +780,7 @@ public class ElementActions {
      * @return the value of the target attribute of the webElement under test
      */
     public String getAttribute(By elementLocator, String attributeName) {
-        return getAttribute(WebDriverElementActions.getLastUsedDriver(), elementLocator, attributeName);
+        return getAttribute(DriverFactoryHelper.getDriver().get(), elementLocator, attributeName);
     }
 
     /**
@@ -796,7 +799,7 @@ public class ElementActions {
      * @return the value of the target CSS property of the webElement under test
      */
     public String getCSSProperty(By elementLocator, String propertyName) {
-        return getCSSProperty(WebDriverElementActions.getLastUsedDriver(), elementLocator, propertyName);
+        return getCSSProperty(DriverFactoryHelper.getDriver().get(), elementLocator, propertyName);
 
     }
 
@@ -807,7 +810,7 @@ public class ElementActions {
      * @return The current context handle
      */
     public String getContext() {
-        return getContext(WebDriverElementActions.getLastUsedDriver());
+        return getContext(DriverFactoryHelper.getDriver().get());
     }
 
     /**
@@ -818,7 +821,7 @@ public class ElementActions {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions setContext(String context) {
-        setContext(WebDriverElementActions.getLastUsedDriver(), context);
+        setContext(DriverFactoryHelper.getDriver().get(), context);
         return this;
     }
 
@@ -829,7 +832,7 @@ public class ElementActions {
      * @return list of context handles
      */
     public List<String> getContextHandles() {
-        return getContextHandles(WebDriverElementActions.getLastUsedDriver());
+        return getContextHandles(DriverFactoryHelper.getDriver().get());
     }
 
     /**
@@ -840,7 +843,7 @@ public class ElementActions {
      * @return the text value of the target webElement
      */
     public String getText(By elementLocator) {
-        return getText(WebDriverElementActions.getLastUsedDriver(), elementLocator);
+        return getText(DriverFactoryHelper.getDriver().get(), elementLocator);
     }
 
     /**
@@ -850,7 +853,7 @@ public class ElementActions {
      * @return window handle
      */
     public String getWindowHandle() {
-        return getWindowHandle(WebDriverElementActions.getLastUsedDriver());
+        return getWindowHandle(DriverFactoryHelper.getDriver().get());
     }
 
     /**
@@ -860,7 +863,7 @@ public class ElementActions {
      * @return list of window handles
      */
     public List<String> getWindowHandles() {
-        return getWindowHandles(WebDriverElementActions.getLastUsedDriver());
+        return getWindowHandles(DriverFactoryHelper.getDriver().get());
     }
 
     /**
@@ -873,7 +876,7 @@ public class ElementActions {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions hover(By elementLocator) {
-        hover(WebDriverElementActions.getLastUsedDriver(), elementLocator);
+        hover(DriverFactoryHelper.getDriver().get(), elementLocator);
         return this;
     }
 
@@ -890,7 +893,7 @@ public class ElementActions {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions hoverAndClick(List<By> hoverElementLocators, By clickableElementLocator) {
-        hoverAndClick(WebDriverElementActions.getLastUsedDriver(), hoverElementLocators, clickableElementLocator);
+        hoverAndClick(DriverFactoryHelper.getDriver().get(), hoverElementLocators, clickableElementLocator);
         return this;
     }
 
@@ -903,7 +906,7 @@ public class ElementActions {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions keyPress(By elementLocator, Keys keys) {
-        keyPress(WebDriverElementActions.getLastUsedDriver(), elementLocator, keys);
+        keyPress(DriverFactoryHelper.getDriver().get(), elementLocator, keys);
         return this;
     }
 
@@ -917,7 +920,7 @@ public class ElementActions {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions select(By elementLocator, String text) {
-        select(WebDriverElementActions.getLastUsedDriver(), elementLocator, text);
+        select(DriverFactoryHelper.getDriver().get(), elementLocator, text);
         return this;
     }
 
@@ -931,7 +934,7 @@ public class ElementActions {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions setValueUsingJavaScript(By elementLocator, String value) {
-        setValueUsingJavaScript(WebDriverElementActions.getLastUsedDriver(), elementLocator, value);
+        setValueUsingJavaScript(DriverFactoryHelper.getDriver().get(), elementLocator, value);
         return this;
     }
 
@@ -943,7 +946,7 @@ public class ElementActions {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions submitFormUsingJavaScript(By elementLocator) {
-        submitFormUsingJavaScript(WebDriverElementActions.getLastUsedDriver(), elementLocator);
+        submitFormUsingJavaScript(DriverFactoryHelper.getDriver().get(), elementLocator);
         return this;
     }
 
@@ -957,7 +960,7 @@ public class ElementActions {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions switchToIframe(By elementLocator) {
-        switchToIframe(WebDriverElementActions.getLastUsedDriver(), elementLocator);
+        switchToIframe(DriverFactoryHelper.getDriver().get(), elementLocator);
         return this;
     }
 
@@ -972,7 +975,7 @@ public class ElementActions {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions type(By elementLocator, String text) {
-        type(WebDriverElementActions.getLastUsedDriver(), elementLocator, text);
+        type(DriverFactoryHelper.getDriver().get(), elementLocator, text);
         return this;
     }
 
@@ -987,7 +990,7 @@ public class ElementActions {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions typeAppend(By elementLocator, String text) {
-        typeAppend(WebDriverElementActions.getLastUsedDriver(), elementLocator, text);
+        typeAppend(DriverFactoryHelper.getDriver().get(), elementLocator, text);
         return this;
     }
 
@@ -1001,7 +1004,7 @@ public class ElementActions {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions typeFileLocationForUpload(By elementLocator, String absoluteFilePath) {
-        typeFileLocationForUpload(WebDriverElementActions.getLastUsedDriver(), elementLocator, absoluteFilePath);
+        typeFileLocationForUpload(DriverFactoryHelper.getDriver().get(), elementLocator, absoluteFilePath);
         return this;
     }
 
@@ -1017,7 +1020,7 @@ public class ElementActions {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions typeSecure(By elementLocator, String text) {
-        typeSecure(WebDriverElementActions.getLastUsedDriver(), elementLocator, text);
+        typeSecure(DriverFactoryHelper.getDriver().get(), elementLocator, text);
         return this;
     }
 
@@ -1036,7 +1039,7 @@ public class ElementActions {
      * @return a self-reference to be used to chain actions
      */
     public ElementActions waitForElementToBePresent(By elementLocator, int numberOfTries, boolean stateOfPresence) {
-        waitForElementToBePresent(WebDriverElementActions.getLastUsedDriver(), elementLocator, numberOfTries,
+        waitForElementToBePresent(DriverFactoryHelper.getDriver().get(), elementLocator, numberOfTries,
                 stateOfPresence);
         return this;
     }
@@ -1052,7 +1055,7 @@ public class ElementActions {
      */
     @SuppressWarnings("UnusedReturnValue")
     public ElementActions waitForTextToChange(By elementLocator, String initialValue) {
-        waitForTextToChange(WebDriverElementActions.getLastUsedDriver(), elementLocator, initialValue);
+        waitForTextToChange(DriverFactoryHelper.getDriver().get(), elementLocator, initialValue);
         return this;
     }
 

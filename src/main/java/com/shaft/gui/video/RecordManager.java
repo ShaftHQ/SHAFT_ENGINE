@@ -40,7 +40,7 @@ public class RecordManager {
     }
 
     //TODO: the animated GIF should follow the same path as the video
-    public static synchronized void startVideoRecording(WebDriver driver) {
+    public static void startVideoRecording(WebDriver driver) {
         if (Boolean.TRUE.equals(RECORD_VIDEO)
                 && !isRecordingStarted
                 && driver != null
@@ -62,7 +62,7 @@ public class RecordManager {
         }
     }
 
-    public static synchronized void startVideoRecording() {
+    public static void startVideoRecording() {
         if (Boolean.TRUE.equals(RECORD_VIDEO)
                 && System.getProperty("executionAddress").trim().equals("local")
                 && Boolean.FALSE.equals(Boolean.valueOf(System.getProperty("headlessExecution").trim()))
@@ -72,7 +72,7 @@ public class RecordManager {
         }
     }
 
-    public static synchronized void attachVideoRecording(Path pathToRecording){
+    public static void attachVideoRecording(Path pathToRecording){
         if (pathToRecording!=null) {
             String testMethodName = ReportManagerHelper.getTestMethodName();
             try {
@@ -84,7 +84,7 @@ public class RecordManager {
         }
     }
 
-    public static synchronized String attachVideoRecording() {
+    public static String attachVideoRecording() {
         String pathToRecording = "";
         String testMethodName = ReportManagerHelper.getTestMethodName();
 
@@ -115,7 +115,7 @@ public class RecordManager {
         return pathToRecording;
     }
 
-    private static synchronized File encodeRecording(String pathToRecording) {
+    private static File encodeRecording(String pathToRecording) {
         File source = new File(pathToRecording);
         File target = new File(pathToRecording.replace("avi", "mp4"));
         try {

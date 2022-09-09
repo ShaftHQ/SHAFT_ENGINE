@@ -1,7 +1,7 @@
 package com.shaft.gui.browser;
 
 import com.google.common.net.InternetDomainName;
-import com.shaft.driver.DriverFactoryHelper;
+import com.shaft.driver.DriverFactory;
 import com.shaft.gui.element.JavaScriptWaitManager;
 import com.shaft.gui.element.WebDriverElementActions;
 import com.shaft.gui.image.ScreenshotManager;
@@ -36,14 +36,10 @@ public class WebDriverBrowserActions {
     private static final int NAVIGATION_TIMEOUT_INTEGER = Integer
             .parseInt(System.getProperty("browserNavigationTimeout").trim());
 
-    private static WebDriver lastUsedDriver;
+    private static ThreadLocal<WebDriver> lastUsedDriver = new ThreadLocal<>();
 
     protected WebDriverBrowserActions(WebDriver driver) {
-        lastUsedDriver = driver;
-    }
-    
-    protected static WebDriver getLastUsedDriver() {
-        return lastUsedDriver;
+        lastUsedDriver.set(driver);
     }
 
     /**
@@ -168,7 +164,7 @@ public class WebDriverBrowserActions {
 
     public static void navigateToURLWithBasicAuthentication(WebDriver driver, String targetUrl, String username, String password, String targetUrlAfterAuthentication) {
         String domainName = getDomainNameFromURL(targetUrl);
-        String driverName = DriverFactoryHelper.getTARGET_DRIVER_NAME();
+        String driverName = System.getProperty("targetBrowserName");
         if (driverName.equals("GoogleChrome") || driverName.equals("MicrosoftEdge")){
             if (System.getProperty("executionAddress").equals("local")) {
                 Predicate<URI> uriPredicate = uri -> uri.getHost().contains(domainName);
@@ -190,7 +186,7 @@ public class WebDriverBrowserActions {
                     devTools.createSession();
                     devToolsAtomicReference.set(devTools);
                     ((HasAuthentication) driver).register(UsernameAndPassword.of(username, password));
-                } catch (org.openqa.selenium.remote.http.ConnectionFailedException e){
+                } catch (org.openqa.selenium.remote.http.ConnectionFailedException | java.lang.IllegalArgumentException e){
                     //in case of remote connection but Unable to establish websocket connection
                     targetUrl = formatURL(username, password, targetUrl);
                 }
@@ -241,7 +237,7 @@ public class WebDriverBrowserActions {
             ReportManager.logDiscrete(
                     "Target URL: \"" + targetUrl + "\", and after redirection: \"" + targetUrlAfterRedirection + "\"");
         }
-        // force stop any current navigation
+//         force stop any current navigation
         try {
             ((JavascriptExecutor) driver).executeScript("return window.stop;");
         } catch (Exception rootCauseException) {
@@ -257,7 +253,6 @@ public class WebDriverBrowserActions {
         }
         try {
             JavaScriptWaitManager.waitForLazyLoading();
-
             String initialSource = driver.getPageSource();
             String initialURL = driver.getCurrentUrl();
             // remove trailing slash which may cause comparing the current and target urls
@@ -361,13 +356,13 @@ public class WebDriverBrowserActions {
      *
      * @param driver the current instance of Selenium webdriver
      */
-    public static synchronized void closeCurrentWindow(WebDriver driver) {
+    public static void closeCurrentWindow(WebDriver driver) {
         if (driver != null) {
             JavaScriptWaitManager.waitForLazyLoading();
             try {
                 // TODO: handle session timeout while attempting to close empty window
                 String lastPageSource = driver.getPageSource();
-                DriverFactoryHelper.closeDriver(driver.hashCode());
+                DriverFactory.closeAllDrivers();
                 passAction(lastPageSource);
             } catch (WebDriverException rootCauseException) {
                 if (rootCauseException.getMessage() != null
@@ -378,8 +373,6 @@ public class WebDriverBrowserActions {
                 }
             } catch (Exception rootCauseException) {
                 failAction(rootCauseException);
-            } finally {
-                WebDriverElementActions.setLastUsedDriver(null);
             }
         } else {
             ReportManager.logDiscrete("Window is already closed and driver object is null.");
@@ -586,11 +579,11 @@ public class WebDriverBrowserActions {
         }
 
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckNavigationWasSuccessful")))) {
-            checkNavigationWasSuccesssful(driver, initialURL, targetUrl, targetUrlAfterRedirection);
+            checkNavigationWasSuccessful(driver, initialURL, targetUrl, targetUrlAfterRedirection);
         }
     }
 
-    private static void checkNavigationWasSuccesssful(WebDriver driver, String initialURL, String targetUrl, String targetUrlAfterRedirection) {
+    private static void checkNavigationWasSuccessful(WebDriver driver, String initialURL, String targetUrl, String targetUrlAfterRedirection) {
         if (!targetUrl.equals(targetUrlAfterRedirection)) {
             try {
                 (new WebDriverWait(driver, Duration.ofSeconds(NAVIGATION_TIMEOUT_INTEGER)))
@@ -673,7 +666,7 @@ public class WebDriverBrowserActions {
      * @return the URL that's currently open in the current page
      */
     public String getCurrentURL() {
-        return getCurrentURL(lastUsedDriver);
+        return getCurrentURL(lastUsedDriver.get());
     }
 
     /**
@@ -682,7 +675,7 @@ public class WebDriverBrowserActions {
      * @return the title of the current window
      */
     public String getCurrentWindowTitle() {
-        return getCurrentWindowTitle(lastUsedDriver);
+        return getCurrentWindowTitle(lastUsedDriver.get());
     }
 
     /**
@@ -691,7 +684,7 @@ public class WebDriverBrowserActions {
      * @return the source of the current page
      */
     public String getPageSource() {
-        return getPageSource(lastUsedDriver);
+        return getPageSource(lastUsedDriver.get());
     }
 
     /**
@@ -700,7 +693,7 @@ public class WebDriverBrowserActions {
      * @return the window handle for the current window
      */
     public String getWindowHandle() {
-        return getWindowHandle(lastUsedDriver);
+        return getWindowHandle(lastUsedDriver.get());
     }
 
     /**
@@ -709,7 +702,7 @@ public class WebDriverBrowserActions {
      * @return the position of the current window
      */
     public String getWindowPosition() {
-        return getWindowPosition(lastUsedDriver);
+        return getWindowPosition(lastUsedDriver.get());
     }
 
     /**
@@ -718,7 +711,7 @@ public class WebDriverBrowserActions {
      * @return the size of the current window
      */
     public String getWindowSize() {
-        return getWindowSize(lastUsedDriver);
+        return getWindowSize(lastUsedDriver.get());
     }
 
     /**
@@ -729,7 +722,7 @@ public class WebDriverBrowserActions {
      *                  to
      */
     public WebDriverBrowserActions navigateToURL(String targetUrl) {
-        navigateToURL(lastUsedDriver, targetUrl);
+        navigateToURL(lastUsedDriver.get(), targetUrl);
         return this;
     }
 
@@ -746,12 +739,12 @@ public class WebDriverBrowserActions {
      *                                  navigation
      */
     public WebDriverBrowserActions navigateToURL(String targetUrl, String targetUrlAfterRedirection) {
-        navigateToURL(lastUsedDriver, targetUrl, targetUrlAfterRedirection);
+        navigateToURL(lastUsedDriver.get(), targetUrl, targetUrlAfterRedirection);
         return this;
     }
 
     public WebDriverBrowserActions navigateToURLWithBasicAuthentication(String targetUrl, String username, String password, String targetUrlAfterAuthentication) {
-        navigateToURLWithBasicAuthentication(lastUsedDriver, targetUrl, username, password, targetUrlAfterAuthentication);
+        navigateToURLWithBasicAuthentication(lastUsedDriver.get(), targetUrl, username, password, targetUrlAfterAuthentication);
         return this;
     }
 
@@ -759,7 +752,7 @@ public class WebDriverBrowserActions {
      * Navigates one step back from the browsers history
      */
     public WebDriverBrowserActions navigateBack() {
-        navigateBack(lastUsedDriver);
+        navigateBack(lastUsedDriver.get());
         return this;
     }
 
@@ -767,7 +760,7 @@ public class WebDriverBrowserActions {
      * Navigates one step forward from the browsers history
      */
     public WebDriverBrowserActions navigateForward() {
-        navigateForward(lastUsedDriver);
+        navigateForward(lastUsedDriver.get());
         return this;
     }
 
@@ -775,15 +768,15 @@ public class WebDriverBrowserActions {
      * Attempts to refresh the current page
      */
     public WebDriverBrowserActions refreshCurrentPage() {
-        refreshCurrentPage(lastUsedDriver);
+        refreshCurrentPage(lastUsedDriver.get());
         return this;
     }
 
     /**
      * Closes the current browser window
      */
-    public synchronized WebDriverBrowserActions closeCurrentWindow() {
-        closeCurrentWindow(lastUsedDriver);
+    public WebDriverBrowserActions closeCurrentWindow() {
+        closeCurrentWindow(lastUsedDriver.get());
         return this;
     }
 
@@ -791,7 +784,7 @@ public class WebDriverBrowserActions {
      * Maximizes current window size based on screen size minus 5%
      */
     public WebDriverBrowserActions maximizeWindow() {
-        maximizeWindow(lastUsedDriver);
+        maximizeWindow(lastUsedDriver.get());
         return this;
     }
 
@@ -802,7 +795,7 @@ public class WebDriverBrowserActions {
      * @param height the desired new height of the target window
      */
     public WebDriverBrowserActions setWindowSize(int width, int height) {
-        setWindowSize(lastUsedDriver, width, height);
+        setWindowSize(lastUsedDriver.get(), width, height);
         return this;
     }
 
@@ -810,39 +803,31 @@ public class WebDriverBrowserActions {
      * Resize the window to fill the current screen
      */
     public WebDriverBrowserActions fullScreenWindow() {
-        fullScreenWindow(lastUsedDriver);
+        fullScreenWindow(lastUsedDriver.get());
         return this;
     }
     
     /**
-     * Switches focus to another Tap
+     * Switches focus to another Tab
      *
      * @param driver       the current instance of Selenium webdriver
      * @param URL The name of the URL you want to navigate to
-     * @return 
      */
     public static void switchToNewTab(WebDriver driver, String URL) {
     	try {
-    		String HandleBeforeNavigation = getWindowHandle(driver);
-        	driver.switchTo().newWindow(WindowType.TAB);
-        	String HandleAfterNavigation = getWindowHandle(driver);
-        	BrowserActions.navigateToURL(driver, URL);	
-        	if (!HandleBeforeNavigation.equals(HandleAfterNavigation)) {
+    		var handleBeforeNavigation = driver.getWindowHandle();
+        	driver.switchTo().newWindow(WindowType.TAB).navigate().to(URL);
+        	var handleAfterNavigation = driver.getWindowHandle();
+        	if (!handleBeforeNavigation.equals(handleAfterNavigation)) {
+                ReportManager.logDiscrete("Old Tab Handle: \""+handleBeforeNavigation+"\", New Tab handle : \"" + handleAfterNavigation+"\"");
         		 passAction(driver, URL);
-        		 ReportManager.logDiscrete("The New Tab handle is " + HandleAfterNavigation);
         	}
         	else {
-        		ReportManager.logDiscrete("The New Tab handle isn't opened and the handle opened is " + HandleAfterNavigation);
-        		failAction(driver, URL, HandleAfterNavigation);	
-        	}
-        	if (driver.getCurrentUrl().contains(URL)) {
-            passAction(driver, URL);
-        	} else {
-        		 failAction(driver, URL);
+        		failAction(driver, URL);
         	}
         	}
         catch (Exception rootCauseException) {
-                failAction(driver, null, rootCauseException);  
+                failAction(driver, URL, rootCauseException);
             }
     }
     
@@ -852,7 +837,7 @@ public class WebDriverBrowserActions {
      * @param URL The name of the URL you want to navigate to
      */
     public WebDriverBrowserActions switchToNewTab(String URL) {
-    	switchToNewTab(lastUsedDriver,URL);
+    	switchToNewTab(lastUsedDriver.get(),URL);
 		return this;
     }
     
@@ -880,7 +865,7 @@ public class WebDriverBrowserActions {
      * @return a self-reference to be used to chain actions
      */
     public WebDriverBrowserActions switchToWindow(String nameOrHandle) {
-        switchToWindow(getLastUsedDriver(), nameOrHandle);
+        switchToWindow(lastUsedDriver.get(), nameOrHandle);
         return this;
     }
 }

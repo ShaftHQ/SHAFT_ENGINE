@@ -16,7 +16,7 @@ import java.util.Map;
 
 public class JSONFileManager {
     private final String jsonFilePath;
-    private FileReader reader = null;
+    private static ThreadLocal<FileReader> reader = new ThreadLocal<>();
 
     /**
      * Creates a new instance of the test data json reader using the target json
@@ -112,9 +112,9 @@ public class JSONFileManager {
         initializeReader();
         try {
             switch (dataType) {
-                case STRING -> testData = JsonPath.from(this.reader).getString(jsonPath);
-                case LIST -> testData = JsonPath.from(this.reader).getList(jsonPath);
-                case MAP -> testData = JsonPath.from(this.reader).getMap(jsonPath);
+                case STRING -> testData = JsonPath.from(this.reader.get()).getString(jsonPath);
+                case LIST -> testData = JsonPath.from(this.reader.get()).getList(jsonPath);
+                case MAP -> testData = JsonPath.from(this.reader.get()).getMap(jsonPath);
             }
         } catch (ClassCastException rootCauseException) {
             ReportManagerHelper.log(rootCauseException);
@@ -132,9 +132,8 @@ public class JSONFileManager {
      * initializes the json reader using the target json file path
      */
     private void initializeReader() {
-        this.reader = null;
         try {
-            reader = new FileReader(FileActions.getInstance().getAbsolutePath(jsonFilePath));
+            reader.set(new FileReader(FileActions.getInstance().getAbsolutePath(jsonFilePath)));
         } catch (FileNotFoundException rootCauseException) {
             ReportManagerHelper.log(rootCauseException);
             ReportManager.log("Couldn't find the desired file. [" + jsonFilePath + "].");

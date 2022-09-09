@@ -15,6 +15,7 @@ import com.shaft.tools.listeners.CucumberFeatureListener;
 import com.shaft.tools.support.JavaActions;
 import io.qameta.allure.Allure;
 import io.qameta.allure.Step;
+import lombok.Getter;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
@@ -32,11 +33,9 @@ public class ReportManagerHelper {
     private static final String TIMESTAMP_FORMAT = "dd-MM-yyyy HH:mm:ss.SSSS aaa";
     private static final Logger slf4jLogger = LoggerFactory.getLogger(ReportManagerHelper.class);
     private static final String SHAFT_ENGINE_VERSION_PROPERTY_NAME = "shaftEngineVersion";
-    private static final String TARGET_OS_PROPERTY_NAME = "targetOperatingSystem";
     private static final String ALLURE_VERSION_PROPERTY_NAME = "allureVersion";
     private static final String REPORT_MANAGER_PREFIX = "[ReportManager] ";
     private static final String SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE = "SHAFT Engine Logs";
-    private static final String OS_WINDOWS = "Windows-64";
     private static final String allureExtractionLocation = System.getProperty("user.home") + File.separator + ".m2"
             + File.separator + "repository" + File.separator + "allure" + File.separator;
     private static String fullLog = "";
@@ -58,20 +57,16 @@ public class ReportManagerHelper {
     private static String featureName = "";
 
     private static String extentReportsFolderPath = "";
-    private static ExtentReports extentReport;
-    private static ExtentTest extentTest;
-    private static String extentReportFileName;
-    private static String generateExtentReports;
-    private static List<String> commandsToGenerateJDKBatFile;
-    private static List<String> commandsToGenerateJDKShellFile;
+    @Getter
+    private static ExtentReports extentReport = new ExtentReports();
+    private static ThreadLocal<ExtentTest> extentTest = new ThreadLocal<>();
+    @Getter
+    private static String extentReportFileName = "";
+    private static boolean generateExtentReports = true;
 
 
     private ReportManagerHelper() {
         throw new IllegalStateException("Utility class");
-    }
-
-    public static String getExtentReportFileName() {
-        return extentReportFileName;
     }
 
     public static void setOpenIssuesForFailedTestsCounter(int openIssuesForFailedTestsCounter) {
@@ -183,19 +178,11 @@ public class ReportManagerHelper {
     public static void initializeAllureReportingEnvironment() {
         ReportManager.logDiscrete("Initializing Allure Reporting Environment...");
         System.setProperty("disableLogging", "true");
-//        boolean discreteLoggingState = isDiscreteLogging();
         allureResultsFolderPath = System.getProperty("allureResultsFolderPath").trim();
-        if (System.getProperty("executionAddress").trim().equals("local")
-                || (System.getProperty("mobile_platformName") != null && !System.getProperty("mobile_platformName").trim().equals(""))) {
-//            setDiscreteLogging(true);
-            cleanAllureResultsDirectory();
-            downloadAndExtractAllureBinaries();
-            writeGenerateReportShellFilesToProjectDirectory();
-
-        }
+        cleanAllureResultsDirectory();
+        downloadAndExtractAllureBinaries();
+        writeGenerateReportShellFilesToProjectDirectory();
         writeEnvironmentVariablesToAllureResultsDirectory();
-
-//        setDiscreteLogging(discreteLoggingState);
         System.setProperty("disableLogging", "false");
     }
 
@@ -205,7 +192,7 @@ public class ReportManagerHelper {
         createImportantReportEntry(engineVersion, true);
     }
 
-    public static synchronized void logTestInformation(String className, String testMethodName,
+    public static void logTestInformation(String className, String testMethodName,
                                                        String testDescription) {
         testCasesCounter++;
         StringBuilder reportMessage = new StringBuilder();
@@ -230,7 +217,7 @@ public class ReportManagerHelper {
         createImportantReportEntry(reportMessage.toString(), false);
     }
 
-    public static synchronized void logScenarioInformation(String keyword, String name, String steps) {
+    public static void logScenarioInformation(String keyword, String name, String steps) {
         testCasesCounter++;
         createImportantReportEntry("Starting Execution:\t\"" + testCasesCounter + " out of " + totalNumberOfTests
                         + "\" scenarios in the \"" + featureName + "\" feature"
@@ -320,9 +307,7 @@ public class ReportManagerHelper {
 
     public static void openAllureReportAfterExecution() {
         String commandToOpenAllureReport;
-        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("openAllureReportAfterExecution").trim()))
-                && System.getProperty("executionAddress").trim().equals("local")) {
-
+        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("openAllureReportAfterExecution").trim()))) {
             if (SystemUtils.IS_OS_WINDOWS) {
                 commandToOpenAllureReport = ("generate_allure_report.bat");
             } else {
@@ -333,15 +318,13 @@ public class ReportManagerHelper {
     }
 
     public static void generateAllureReportArchive() {
-        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateAllureReportArchive").trim()))
-                && System.getProperty("executionAddress").trim().equals("local")) {
+        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("generateAllureReportArchive").trim()))) {
             ReportManager.logDiscrete("Generating Allure Report Archive...");
-            boolean discreteLoggingState = getDiscreteLogging();
-            setDiscreteLogging(true);
+            System.setProperty("disableLogging", "true");
             writeOpenReportShellFilesToGeneratedDirectory();
             writeAllureReportToGeneratedDirectory();
             createAllureReportArchiveAndCleanGeneratedDirectory();
-            setDiscreteLogging(discreteLoggingState);
+            System.setProperty("disableLogging", "false");
         }
     }
 
@@ -402,30 +385,26 @@ public class ReportManagerHelper {
         ReportManagerHelper.featureName = featureName;
     }
 
-    private static boolean generateExtentReports() {
-        if (generateExtentReports == null) {
-            generateExtentReports = System.getProperty("generateExtentReports").trim();
-        }
-        return Boolean.parseBoolean(generateExtentReports);
-    }
-
     public static void initializeExtentReportingEnvironment() {
-        if (Boolean.TRUE.equals(generateExtentReports())) {
+        generateExtentReports = Boolean.parseBoolean(System.getProperty("generateExtentReports").trim());
+        if (generateExtentReports) {
             ReportManager.logDiscrete("Initializing Extent Reporting Environment...");
             System.setProperty("disableLogging", "true");
             extentReportsFolderPath = System.getProperty("extentReportsFolderPath").trim();
             cleanExtentReportsDirectory();
             extentReportFileName = extentReportsFolderPath + "ExtentReports_" + (new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa")).format(System.currentTimeMillis()) + ".html";
-            extentReport = new ExtentReports();
-            ExtentSparkReporter spark = new ExtentSparkReporter(extentReportFileName)
+
+            var spark = new ExtentSparkReporter(extentReportFileName)
                     .viewConfigurer()
                     .viewOrder()
-                    .as(new ViewName[]{ViewName.DASHBOARD, ViewName.TEST, ViewName.EXCEPTION})
+                    .as(new ViewName[]{ViewName.DASHBOARD, ViewName.TEST, ViewName.EXCEPTION, ViewName.LOG})
                     .apply();
-            extentReport.attachReporter(spark);
+
             spark.config().setTheme(Theme.STANDARD);
             spark.config().setDocumentTitle("Extent Reports");
             spark.config().setReportName("Extent Reports - Powered by SHAFT_Engine");
+            extentReport.attachReporter(spark);
+
             System.setProperty("disableLogging", "false");
         }
     }
@@ -439,51 +418,51 @@ public class ReportManagerHelper {
     }
 
     public static void extentReportsReset() {
-        extentTest = null;
+        extentTest.remove();
     }
 
     public static void extentReportsCreateTest(String testName, String testDescription) {
-        if (Boolean.TRUE.equals(generateExtentReports())) {
+        if (!extentReport.equals(new ExtentReports()) && extentReport != null){
             if (testDescription.equals("")) {
-                extentTest = extentReport.createTest(testName);
+                extentTest.set(extentReport.createTest(testName));
             } else {
-                extentTest = extentReport.createTest(testDescription);
+                extentTest.set(extentReport.createTest(testDescription));
             }
         }
     }
 
     public static void extentReportsPass(String message) {
-        if (Boolean.TRUE.equals(generateExtentReports())) {
-            extentTest.pass(message);
+        if (generateExtentReports && extentTest.get()!=null) {
+            extentTest.get().pass(message);
         }
     }
 
     public static void extentReportsFail(String message) {
-        if (Boolean.TRUE.equals(generateExtentReports())) {
-            extentTest.fail(message);
+        if (generateExtentReports && extentTest.get()!=null) {
+            extentTest.get().fail(message);
         }
     }
 
     public static void extentReportsFail(Throwable t) {
-        if (Boolean.TRUE.equals(generateExtentReports())) {
-            extentTest.fail(t);
+        if (generateExtentReports && extentTest.get()!=null) {
+            extentTest.get().fail(t);
         }
     }
 
     public static void extentReportsSkip(String message) {
-        if (Boolean.TRUE.equals(generateExtentReports())) {
-            extentTest.skip(message);
+        if (generateExtentReports && extentTest.get()!=null) {
+            extentTest.get().skip(message);
         }
     }
 
     public static void extentReportsSkip(Throwable t) {
-        if (Boolean.TRUE.equals(generateExtentReports())) {
-            extentTest.skip(t);
+        if (generateExtentReports && extentTest.get()!=null) {
+            extentTest.get().skip(t);
         }
     }
 
     public static void extentReportsFlush() {
-        if (Boolean.TRUE.equals(generateExtentReports())) {
+        if (generateExtentReports && extentReport!=null) {
             extentReport.flush();
         }
     }
@@ -533,8 +512,8 @@ public class ReportManagerHelper {
             }
             String log = REPORT_MANAGER_PREFIX + logText.trim() + " @" + timestamp;
             Reporter.log(log, true);
-            if (extentTest != null && !logText.contains("created attachment") && !logText.contains("<html")) {
-                extentTest.info(logText);
+            if (extentTest.get() !=null && !logText.contains("created attachment") && !logText.contains("<html")) {
+                extentTest.get().info(logText);
             }
 
             if (addToFullLog) {
@@ -610,7 +589,7 @@ public class ReportManagerHelper {
         logAttachmentAction(attachmentType, attachmentName, baos);
     }
 
-    private static synchronized void attachBasedOnFileType(String attachmentType, String attachmentName,
+    private static void attachBasedOnFileType(String attachmentType, String attachmentName,
                                                            ByteArrayOutputStream attachmentContent, String attachmentDescription) {
         if (attachmentType.toLowerCase().contains("screenshot")) {
             Allure.addAttachment(attachmentDescription, "image/png", new ByteArrayInputStream(attachmentContent.toByteArray()), ".png");
@@ -642,7 +621,7 @@ public class ReportManagerHelper {
         }
     }
 
-    private static synchronized void logAttachmentAction(String attachmentType, String attachmentName, ByteArrayOutputStream attachmentContent) {
+    private static void logAttachmentAction(String attachmentType, String attachmentName, ByteArrayOutputStream attachmentContent) {
         createLogEntry("Successfully created attachment \"" + attachmentType + " - " + attachmentName + "\"");
         if (debugMode && !attachmentType.contains(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE)
                 && !attachmentType.equalsIgnoreCase("Selenium WebDriver Logs")
@@ -664,13 +643,13 @@ public class ReportManagerHelper {
     }
 
     private static void attachCodeBlockToExtentReport(String attachmentType, InputStream attachmentContent) {
-        if (extentTest != null) {
+        if (extentTest.get() !=null) {
             try {
-                var codeBlock = IOUtils.toString(attachmentContent, StandardCharsets.UTF_8.name());
+                var codeBlock = IOUtils.toString(attachmentContent, StandardCharsets.UTF_8);
                 switch (attachmentType) {
-                    case "text/json" -> extentTest.info(MarkupHelper.createCodeBlock(codeBlock, CodeLanguage.JSON));
-                    case "text/xml" -> extentTest.info(MarkupHelper.createCodeBlock(codeBlock, CodeLanguage.XML));
-                    default -> extentTest.info(MarkupHelper.createCodeBlock(codeBlock));
+                    case "text/json" -> extentTest.get().info(MarkupHelper.createCodeBlock(codeBlock, CodeLanguage.JSON));
+                    case "text/xml" -> extentTest.get().info(MarkupHelper.createCodeBlock(codeBlock, CodeLanguage.XML));
+                    default -> extentTest.get().info(MarkupHelper.createCodeBlock(codeBlock));
                 }
             } catch (IOException e) {
                 ReportManager.logDiscrete("Failed to attach code block to extentReport.");
@@ -679,13 +658,13 @@ public class ReportManagerHelper {
     }
 
     private static void attachImageToExtentReport(String attachmentType, InputStream attachmentContent) {
-        if (extentTest != null) {
+        if (extentTest.get() !=null) {
             try {
                 var image = Base64.getEncoder().encodeToString(IOUtils.toByteArray(attachmentContent));
                 if (attachmentType.toLowerCase().contains("gif")) {
-                    extentTest.addScreenCaptureFromBase64String(image);
+                    extentTest.get().addScreenCaptureFromBase64String(image);
                 } else {
-                    extentTest.info(MediaEntityBuilder.createScreenCaptureFromBase64String(image).build());
+                    extentTest.get().info(MediaEntityBuilder.createScreenCaptureFromBase64String(image).build());
                 }
             } catch (IOException e) {
                 ReportManager.logDiscrete("Failed to attach screenshot to extentReport.");
@@ -764,8 +743,7 @@ public class ReportManagerHelper {
             FileActions.getInstance().unpackArchive(allureSHAFTConfigArchive,
                     allureExtractionLocation + "allure-" + allureVersion + File.separator);
 
-            if (!System.getProperty(TARGET_OS_PROPERTY_NAME).equals(OS_WINDOWS)
-                    && (System.getProperty("mobile_platformName") == null || System.getProperty("mobile_platformName").trim().equals(""))) {
+            if (!SystemUtils.IS_OS_WINDOWS) {
                 // make allure executable on Unix-based shells
                 (new TerminalActions()).performTerminalCommand("chmod u+x " + allureBinaryPath);
             }
@@ -836,22 +814,20 @@ public class ReportManagerHelper {
 
     private static void writeAllureReportToGeneratedDirectory() {
         // add correct file extension based on target OS
-        String targetOperatingSystem = System.getProperty(TARGET_OS_PROPERTY_NAME);
         String commandToCreateAllureReport;
-
         allureBinaryPath = allureExtractionLocation + "allure-" + System.getProperty(ALLURE_VERSION_PROPERTY_NAME)
                 + "/bin/allure";
 
-        if (targetOperatingSystem.equals(OS_WINDOWS)) {
+        if (SystemUtils.IS_OS_WINDOWS) {
             commandToCreateAllureReport = allureBinaryPath + ".bat" + " generate \""
                     + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
                     + "\" -o \"generatedReport/allure-report\"";
         } else {
-            commandToCreateAllureReport = allureBinaryPath + " generate \""
+            commandToCreateAllureReport = allureBinaryPath + " generate "
                     + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
-                    + "\" -o \"generatedReport/allure-report\"";
+                    + " -o generatedReport/allure-report";
         }
-        (new TerminalActions()).performTerminalCommand(commandToCreateAllureReport);
+        (new TerminalActions(false)).performTerminalCommand(commandToCreateAllureReport);
     }
 
     private static void createAllureReportArchiveAndCleanGeneratedDirectory() {
@@ -879,7 +855,7 @@ public class ReportManagerHelper {
                 });
             }
         } else {
-            if (attachments != null && !attachments.isEmpty() && !attachments.get(0).isEmpty()) {
+            if (attachments != null && !attachments.isEmpty() && (attachments.size()>1 || (attachments.get(0) !=null && !attachments.get(0).isEmpty()))) {
                 writeStepToReport(logText, attachments);
             }else {
                 writeStepToReport(logText);
@@ -918,13 +894,13 @@ public class ReportManagerHelper {
         createLogEntry(customLog, false);
         if (attachments != null && !attachments.isEmpty()) {
             attachments.forEach(attachment -> {
-                if (attachment != null && attachment.get(2).getClass().toString().toLowerCase().contains("string")
+                if (attachment != null && !attachment.isEmpty() && attachment.get(2).getClass().toString().toLowerCase().contains("string")
                         && !attachment.get(2).getClass().toString().contains("StringInputStream")) {
                     if (!attachment.get(2).toString().isEmpty()) {
                         attach(attachment.get(0).toString(), attachment.get(1).toString(),
                                 attachment.get(2).toString());
                     }
-                } else if (attachment != null) {
+                } else if (attachment != null && !attachment.isEmpty()) {
                     if (attachment.get(2) instanceof byte[]) {
                         attach(attachment.get(0).toString(), attachment.get(1).toString(), new ByteArrayInputStream((byte[]) attachment.get(2)));
                     } else {

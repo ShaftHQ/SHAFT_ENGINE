@@ -1,5 +1,6 @@
 package com.shaft.tools.listeners;
 
+import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.tools.io.LogsHelper;
 import com.shaft.tools.io.PropertyFileManager;
@@ -49,6 +50,7 @@ public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, 
         //TODO: manage slf4j log patterns
         System.setProperty("disableLogging", "true");
         PropertyFileManager.readPropertyFiles();
+        DriverFactoryHelper.initializeSystemProperties();
         GoogleTink.initialize();
         GoogleTink.decrypt();
         System.setProperty("disableLogging", "false");
