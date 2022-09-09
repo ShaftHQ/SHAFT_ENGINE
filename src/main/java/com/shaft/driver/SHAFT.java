@@ -17,6 +17,7 @@ import org.openqa.selenium.MutableCapabilities;
 import org.sikuli.script.App;
 
 import java.io.InputStream;
+import java.util.List;
 
 @SuppressWarnings("unused")
 public class SHAFT {
@@ -133,6 +134,30 @@ public class SHAFT {
 
         public Response getResponse() {
             return RestActions.getLastResponse();
+        }
+
+        public String getResponseBody(){
+            return RestActions.getResponseBody(RestActions.getLastResponse());
+        }
+
+        public int getResponseStatusCode(){
+            return RestActions.getResponseStatusCode(RestActions.getLastResponse());
+        }
+
+        public String getResponseJSONValue(String jsonPath){
+            return RestActions.getResponseJSONValue(RestActions.getLastResponse(), jsonPath);
+        }
+
+        public List<Object> getResponseJSONValueAsList(String jsonPath){
+            return RestActions.getResponseJSONValueAsList(RestActions.getLastResponse(), jsonPath);
+        }
+
+        public String getResponseXMLValue(String xmlPath){
+            return RestActions.getResponseXMLValue(RestActions.getLastResponse(), xmlPath);
+        }
+
+        public List<Object> getResponseXMLValueAsList(String xmlPath){
+            return RestActions.getResponseXMLValueAsList(RestActions.getLastResponse(), xmlPath);
         }
     }
 
