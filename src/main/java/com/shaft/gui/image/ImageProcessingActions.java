@@ -7,9 +7,9 @@ import com.applitools.eyes.exceptions.DiffsFoundException;
 import com.applitools.eyes.images.Eyes;
 import com.assertthat.selenium_shutterbug.core.CaptureElement;
 import com.assertthat.selenium_shutterbug.core.Shutterbug;
+import com.assertthat.selenium_shutterbug.utils.image.UnableToCompareImagesException;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactoryHelper;
-import com.shaft.gui.element.WebDriverElementActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.validation.Validations;
@@ -32,10 +32,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.FileSystems;
-import java.util.Arrays;
-import java.util.Collections;
+import java.util.*;
 import java.util.List;
-import java.util.Objects;
 
 public class ImageProcessingActions {
     private static final String DIRECTORY_PROCESSING = "/processingDirectory/";
@@ -296,7 +294,9 @@ public class ImageProcessingActions {
                     minMaxVal = mmr.maxVal;
                     matchAccuracy = minMaxVal;
                 }
-                ReportManager.logDiscrete("Accuracy threshold is [" + threshold * 100 + "%] and the actual match accuracy is [" + matchAccuracy * 100 + "%].");
+
+                var accuracyMessage = "Match accuracy is " + (int) Math.round(matchAccuracy * 100) + "% and threshold is " + (int) Math.round(threshold * 100) + "%.";
+                ReportManager.logDiscrete(accuracyMessage);
 
                 if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("debugMode")))) {
                     // debugging
@@ -327,7 +327,20 @@ public class ImageProcessingActions {
                 // returning the top left corner point plus 1x and 1y
                 int x = Integer.parseInt(String.valueOf(matchLoc.x + 1).split("\\.")[0]);
                 int y = Integer.parseInt(String.valueOf(matchLoc.y + 1).split("\\.")[0]);
-                ReportManager.logDiscrete("Successfully identified the element using AI; OpenCV.");
+
+                // creating highlighted image to be attached to the report
+                try {
+                Imgproc.rectangle(img_original, matchLoc, new Point(matchLoc.x + templ.cols(), matchLoc.y + templ.rows()),
+                        new Scalar(0, 0, 0), 2, 8, 0);
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                ImageIO.write((BufferedImage) HighGui.toBufferedImage(img_original), "png", baos);
+                var screenshot = ScreenshotManager.prepareImageforReport(baos.toByteArray(), "AI identified element");
+                List<List<Object>> attachments = new LinkedList<>();
+                attachments.add(screenshot);
+                ReportManagerHelper.log("Successfully identified the element using AI; OpenCV. "+accuracyMessage, attachments);
+                } catch (IOException e) {
+                    ReportManager.log("Successfully identified the element using AI; OpenCV. "+accuracyMessage);
+                }
                 return Arrays.asList(x, y);
             } catch (org.opencv.core.CvException e) {
                 ReportManagerHelper.log(e);
@@ -338,7 +351,6 @@ public class ImageProcessingActions {
     }
 
     public static List<Integer> findImageWithinCurrentPage(String referenceImagePath, byte[] currentPageScreenshot) {
-        if (FileActions.getInstance().doesFileExist(referenceImagePath)) {
             int maxNumberOfAttempts = 3;
             int attempts = 0;
             List<Integer> foundLocation = Collections.emptyList();
@@ -351,11 +363,6 @@ public class ImageProcessingActions {
                 attempts++;
             } while (Collections.emptyList().equals(foundLocation) && attempts < maxNumberOfAttempts);
             return foundLocation;
-        } else {
-            // no reference screenshot exists
-            ReportManager.log("Failed to identify the element using AI; No reference element screenshot exists.");
-            return Collections.emptyList();
-        }
     }
 
     public static String formatElementLocatorToImagePath(Object elementLocator) {
@@ -384,7 +391,7 @@ public class ImageProcessingActions {
         }
     }
 
-    public static synchronized Boolean compareAgainstBaseline(WebDriver driver, By elementLocator, byte[] elementScreenshot, VisualValidationEngine visualValidationEngine) {
+    public static Boolean compareAgainstBaseline(WebDriver driver, By elementLocator, byte[] elementScreenshot, VisualValidationEngine visualValidationEngine) {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
 
         if (visualValidationEngine == VisualValidationEngine.EXACT_SHUTTERBUG) {
@@ -400,6 +407,9 @@ public class ImageProcessingActions {
                     actualResult = snapshot.equalsWithDiff(referenceImagePath, resultingImagePath, 0.1);
                 } catch (IOException e) {
                     e.printStackTrace();
+                } catch (UnableToCompareImagesException ex){
+                    // com.assertthat.selenium_shutterbug.utils.image.UnableToCompareImagesException: Images dimensions mismatch
+                    compareAgainstBaseline(driver, elementLocator,elementScreenshot, VisualValidationEngine.EXACT_OPENCV);
                 }
                 return actualResult;
             }else{

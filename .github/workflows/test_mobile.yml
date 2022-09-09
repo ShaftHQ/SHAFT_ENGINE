@@ -6,8 +6,9 @@ on:
   pull_request:
     # The branches below must be a subset of the branches above
     branches: [ master ]
-  schedule:
-    - cron: '00 1 * * *'
+#  schedule:
+#    - cron: '00 1 * * *'
+  workflow_dispatch:
 
 jobs:
   mobile:
@@ -48,49 +49,16 @@ jobs:
           force-avd-creation: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           channel: canary
-          script: mvn test -DexecutionAddress="localhost:4723" -DtargetOperatingSystem="Android" -Dmobile_automationName="UIAutomator2" -Dmobile_app="src/test/resources/TestDataFiles/apps/ApiDemos-debug.apk" -Dtest="%regex[.*Android.*]"
-#      - name: Get Allure history
-#        continue-on-error: true
-#        uses: actions/checkout@v3
-#        if: always()
-#        with:
-#          ref: gh-pages
-#          path: gh-pages
-#      - name: Generate Allure Report
-#        if: always()
-#        continue-on-error: true
-#        env:
-#          INPUT_GH_PAGES: gh-pages
-#          INPUT_ALLURE_RESULTS: allure-results
-#          INPUT_ALLURE_REPORT: allure-report
-#          INPUT_ALLURE_HISTORY: allure-history
-#          INPUT_SUBFOLDER: allure/MobileNative/Android
-#          INPUT_KEEP_REPORTS: 20
-#          INPUT_GITHUB_REPO: ${{ github.repository }}
-#          INPUT_GITHUB_REPO_OWNER: MohabMohie
-#          GITHUB_WORKSPACE: ${{ github.workspace }}
-#          INPUT_GITHUB_RUN_NUM: ${{ github.run_number }}
-#        run: |
-#          brew install allure
-#          sh generate_allure_report_with_history.sh
-#
-#      - name: Deploy Allure report to Github Pages
-#        continue-on-error: true
-#        if: always()
-#        uses: peaceiris/actions-gh-pages@v3.8.0
-#        with:
-#          personal_token: ${{ secrets.PERSONAL_TOKEN }}
-#          #          deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
-#          publish_dir: allure-history/allure
-#          destination_dir: allure
-#          publish_branch: gh-pages
-#      - name: Post the link to the Allure report
-#        continue-on-error: true
-#        if: always()
-#        uses: Sibz/github-status-action@v1.1.6
-#        with:
-#          authToken: ${{secrets.GITHUB_TOKEN}}
-#          context: 'Allure Test Execution Report'
-#          state: 'success'
-#          sha: ${{ github.event.pull_request.head.sha }}
-#          target_url: https://shafthq.github.io/SHAFT_ENGINE/allure/MobileNative/Android/${{ github.run_number }}
+          script: mvn test -DexecutionAddress="localhost:4723" -DtargetOperatingSystem="Android" -Dmobile_automationName="UIAutomator2" -Dmobile_app="src/test/resources/TestDataFiles/apps/ApiDemos-debug.apk" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Android.*]"
+
+      - name: Upload Allure Report as Pipeline Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: Mobile Native Tests Allure Report
+          path: "generatedReport_*.zip"
+
+      - name: Upload Extent Report as Pipeline Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: Mobile Native Tests Extent Report
+          path: "extent-reports/ExtentReports_*.html"

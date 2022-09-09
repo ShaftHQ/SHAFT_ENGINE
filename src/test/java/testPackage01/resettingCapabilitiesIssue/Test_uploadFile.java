@@ -14,7 +14,7 @@ import org.testng.annotations.Test;
 public class Test_uploadFile {
     ThreadLocal<WebDriver> driver = new ThreadLocal<>();
 
-    @Test
+//    @Test
     public void uploadFile_visibleUploadInput() {
         BrowserActions.navigateToURL(driver.get(), "https://demo.guru99.com/test/upload/");
         ElementActions.typeFileLocationForUpload(driver.get(), By.id("uploadfile_0"), "src/main/resources/images/shaft.png");

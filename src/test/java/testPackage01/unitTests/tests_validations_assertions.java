@@ -322,6 +322,6 @@ public class tests_validations_assertions {
     @BeforeMethod(onlyForGroups = {"WebBased"})
     public void beforeMethod() {
         driver = DriverFactory.getDriver();
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "www.google.com");
+        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "https://www.google.com/");
     }
 }
