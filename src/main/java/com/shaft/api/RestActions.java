@@ -347,6 +347,12 @@ public class RestActions {
         return statusCode;
     }
 
+    public static long getResponseTime(Response response) {
+        long time =  response.timeIn(TimeUnit.MILLISECONDS);
+        passAction(String.valueOf(time));
+        return time;
+    }
+
     /**
      * Compares the Response object against the content of the referenceJsonFilePath
      *

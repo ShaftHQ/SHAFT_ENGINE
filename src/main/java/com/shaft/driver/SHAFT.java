@@ -136,27 +136,31 @@ public class SHAFT {
             return RestActions.getLastResponse();
         }
 
-        public String getResponseBody(){
+        public String getResponseBody() {
             return RestActions.getResponseBody(RestActions.getLastResponse());
         }
 
-        public int getResponseStatusCode(){
+        public int getResponseStatusCode() {
             return RestActions.getResponseStatusCode(RestActions.getLastResponse());
         }
 
-        public String getResponseJSONValue(String jsonPath){
+        public long getResponseTime() {
+            return RestActions.getResponseTime(RestActions.getLastResponse());
+        }
+
+        public String getResponseJSONValue(String jsonPath) {
             return RestActions.getResponseJSONValue(RestActions.getLastResponse(), jsonPath);
         }
 
-        public List<Object> getResponseJSONValueAsList(String jsonPath){
+        public List<Object> getResponseJSONValueAsList(String jsonPath) {
             return RestActions.getResponseJSONValueAsList(RestActions.getLastResponse(), jsonPath);
         }
 
-        public String getResponseXMLValue(String xmlPath){
+        public String getResponseXMLValue(String xmlPath) {
             return RestActions.getResponseXMLValue(RestActions.getLastResponse(), xmlPath);
         }
 
-        public List<Object> getResponseXMLValueAsList(String xmlPath){
+        public List<Object> getResponseXMLValueAsList(String xmlPath) {
             return RestActions.getResponseXMLValueAsList(RestActions.getLastResponse(), xmlPath);
         }
     }
