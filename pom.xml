@@ -65,7 +65,7 @@
 
         <jcraft-jsch.version>0.1.55</jcraft-jsch.version>
 
-        <cucumber.version>7.5.0</cucumber.version>
+        <cucumber.version>7.8.0</cucumber.version>
         <cverges-expect4j.version>1.9</cverges-expect4j.version>
 
         <applitools-eyes.version>4.14.0</applitools-eyes.version>
@@ -174,21 +174,62 @@
             </exclusions>
         </dependency>
 
+        <!-- CUCUMBER -->
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-java</artifactId>
+            <version>${cucumber.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-testng</artifactId>
+            <version>${cucumber.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.testng</groupId>
+                    <artifactId>testng</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.cucumber</groupId>
+                    <artifactId>cucumber-core</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.cucumber</groupId>
+                    <artifactId>gherkin</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-picocontainer</artifactId>
+            <version>${cucumber.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.cucumber</groupId>
+                    <artifactId>cucumber-core</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.cucumber</groupId>
+                    <artifactId>gherkin</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
         <!-- EXCEL FILE MANIPULATION -->
         <dependency>
-                   <groupId>org.apache.poi</groupId>
-                   <artifactId>poi</artifactId>
-                   <version>${apachepoi.version}</version>
-                   <exclusions>
-                   	<exclusion>
-                   		<groupId>org.slf4j</groupId>
-                   		<artifactId>slf4j-api</artifactId>
-                   	</exclusion>
-                   	<exclusion>
-                   		<groupId>org.slf4j</groupId>
-                   		<artifactId>jcl-over-slf4j</artifactId>
-                   	</exclusion>
-                   </exclusions>
+           <groupId>org.apache.poi</groupId>
+               <artifactId>poi</artifactId>
+               <version>${apachepoi.version}</version>
+           <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>jcl-over-slf4j</artifactId>
+                </exclusion>
+           </exclusions>
         </dependency>
         <dependency>
             <groupId>org.apache.poi</groupId>
@@ -226,6 +267,16 @@
             <groupId>io.qameta.allure</groupId>
             <artifactId>allure-cucumber7-jvm</artifactId>
             <version>2.19.0</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.cucumber</groupId>
+                    <artifactId>gherkin</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.cucumber</groupId>
+                    <artifactId>messages</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.aspectj</groupId>
@@ -501,29 +552,6 @@
         <!-- <artifactId>ojdbc8</artifactId> -->
         <!-- <version>${ojdbc8.version}</version> -->
         <!-- </dependency> -->
-
-        <!-- CUCUMBER -->
-        <dependency>
-            <groupId>io.cucumber</groupId>
-            <artifactId>cucumber-java</artifactId>
-            <version>${cucumber.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.cucumber</groupId>
-            <artifactId>cucumber-testng</artifactId>
-            <version>${cucumber.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.testng</groupId>
-                    <artifactId>testng</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>io.cucumber</groupId>
-            <artifactId>cucumber-picocontainer</artifactId>
-            <version>${cucumber.version}</version>
-        </dependency>
 
         <!-- VIDEO RECORDING -->
         <!-- https://mvnrepository.com/artifact/ws.schild/jave-all-deps -->
