@@ -77,6 +77,7 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
     private final ThreadLocal<String> currentContainer = new InheritableThreadLocal<>();
     private final ThreadLocal<Boolean> forbidTestCaseStatusChange = new InheritableThreadLocal<>();
     private final EventHandler<TestSourceRead> featureStartedHandler = this::handleFeatureStartedHandler;
+    private final EventHandler<TestRunFinished> featureFinishedHandler = this::handleFeatureFinishedHandler;
     private final EventHandler<TestCaseStarted> caseStartedHandler = this::handleTestCaseStarted;
     private final EventHandler<TestCaseFinished> caseFinishedHandler = this::handleTestCaseFinished;
     private final EventHandler<TestStepStarted> stepStartedHandler = this::handleTestStepStarted;
@@ -91,6 +92,9 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
 
     public CucumberFeatureListener(final AllureLifecycle lifecycle) {
         this.lifecycle = lifecycle;
+        // custom code
+        shaftSetup();
+        // end of custom code
     }
 
     public static String getLastStartedScenarioName() {
@@ -107,6 +111,7 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
     @Override
     public void setEventPublisher(final EventPublisher publisher) {
         publisher.registerHandlerFor(TestSourceRead.class, featureStartedHandler);
+        publisher.registerHandlerFor(TestRunFinished.class, featureFinishedHandler);
 
         publisher.registerHandlerFor(TestCaseStarted.class, caseStartedHandler);
         publisher.registerHandlerFor(TestCaseFinished.class, caseFinishedHandler);
@@ -125,10 +130,13 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
         testSources.addTestSourceReadEvent(event.getUri(), event);
     }
 
-    private void handleTestCaseStarted(final TestCaseStarted event) {
+    private void handleFeatureFinishedHandler(final TestRunFinished event){
         // custom code
-        shaftSetup();
+        shaftTeardown();
         // end of custom code
+    }
+
+    private void handleTestCaseStarted(final TestCaseStarted event) {
         currentFeatureFile.set(event.getTestCase().getUri());
         currentFeature.set(testSources.getFeature(currentFeatureFile.get()));
         currentTestCase.set(event.getTestCase());
@@ -218,7 +226,6 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
         if (!DriverFactoryHelper.isMobileNativeExecution()) {
             ElementActions.switchToDefaultContent();
         }
-        shaftTeardown();
         // end of custom code
 
         final String uuid = getTestCaseUuid(event.getTestCase());
