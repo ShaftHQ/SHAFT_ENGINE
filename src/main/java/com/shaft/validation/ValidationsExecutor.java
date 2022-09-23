@@ -88,6 +88,9 @@ public class ValidationsExecutor {
 
         this.numbersComparativeRelation = numberValidationsBuilder.numbersComparativeRelation;
 
+        this.response = numberValidationsBuilder.response;
+        this.jsonPath = numberValidationsBuilder.jsonPath;
+
         this.reportMessageBuilder = numberValidationsBuilder.reportMessageBuilder;
     }
 
@@ -150,6 +153,11 @@ public class ValidationsExecutor {
             case "jsonPathValueEquals" -> ValidationsHelper.validateEquals(validationCategory, expectedValue,
                     RestActions.getResponseJSONValue(response, jsonPath), validationComparisonType,
                     validationType, customReportMessage);
+            case "responseBody" -> ValidationsHelper.validateEquals(validationCategory, expectedValue,
+                    RestActions.getResponseBody((Response) response), validationComparisonType,
+                    validationType, customReportMessage);
+            case "responseTime" -> ValidationsHelper.validateComparativeRelation(validationCategory, (Number) expectedValue,
+                    RestActions.getResponseTime((Response) response), numbersComparativeRelation, validationType, customReportMessage);
             case "checkResponseSchema" -> ValidationsHelper.validateResponseFileSchema(validationCategory, (Response) response, fileAbsolutePath, restComparisonType, "", validationType, customReportMessage);
             case "fileContent" -> {
                 String fileContent;

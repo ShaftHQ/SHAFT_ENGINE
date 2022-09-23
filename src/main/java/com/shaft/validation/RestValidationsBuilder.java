@@ -135,6 +135,18 @@ public class RestValidationsBuilder {
         return new NativeValidationsBuilder(this);
     }
 
+    public NativeValidationsBuilder body() {
+        this.validationMethod = "responseBody";
+        reportMessageBuilder.append("Body ");
+        return new NativeValidationsBuilder(this);
+    }
+
+    public NumberValidationsBuilder time() {
+        this.validationMethod = "responseTime";
+        reportMessageBuilder.append("Time ");
+        return new NumberValidationsBuilder(this);
+    }
+
     /**
      * Use this to check if the content of the provided actual response object matches the schema for the expected file content
      *

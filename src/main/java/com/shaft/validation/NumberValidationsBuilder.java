@@ -6,7 +6,11 @@ public class NumberValidationsBuilder {
     protected final String validationMethod;
 
     protected Number expectedValue;
-    protected final Object actualValue;
+    protected Object actualValue;
+
+    protected Object response;
+    protected String jsonPath;
+
     protected ValidationEnums.NumbersComparativeRelation numbersComparativeRelation;
 
     protected final StringBuilder reportMessageBuilder;
@@ -17,6 +21,15 @@ public class NumberValidationsBuilder {
         this.actualValue = validationsBuilder.actualValue;
 
         this.reportMessageBuilder = validationsBuilder.reportMessageBuilder;
+    }
+
+    public NumberValidationsBuilder(RestValidationsBuilder restValidationsBuilder) {
+        this.validationCategory = restValidationsBuilder.validationCategory;
+        this.validationMethod = restValidationsBuilder.validationMethod;
+        this.jsonPath = restValidationsBuilder.jsonPath;
+        this.response = restValidationsBuilder.response;
+
+        this.reportMessageBuilder = restValidationsBuilder.reportMessageBuilder;
     }
 
     /**
