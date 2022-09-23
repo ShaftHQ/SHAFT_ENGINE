@@ -11,14 +11,14 @@ public class Test_Wizard_API {
     SHAFT.API driver;
 
     @Test
-    public void test() {
+    public void test_get_matchesSchema() {
         driver = new SHAFT.API("http://api.zippopotam.us/");
         driver.get("us/90210").perform();
         driver.assertThatResponse().matchesSchema("schema.json").perform();
     }
 
     @Test
-    public void test_post_withbody_string() {
+    public void test_post_withBody_string() {
         driver = new SHAFT.API("https://reqres.in/");
         String body = """
                 {
@@ -30,7 +30,7 @@ public class Test_Wizard_API {
     }
 
     @Test
-    public void test_post_withbody_hashMap() {
+    public void test_post_withBody_hashMap() {
         driver = new SHAFT.API("https://reqres.in/");
         HashMap body = new HashMap<>();
         body.put("name", "morpheus");
@@ -40,7 +40,7 @@ public class Test_Wizard_API {
     }
 
     @Test
-    public void test_post_withbody_JSONObject() {
+    public void test_post_withBody_JSONObject() {
         driver = new SHAFT.API("https://reqres.in/");
         HashMap body = new HashMap<>();
         body.put("name", "morpheus");
@@ -51,7 +51,7 @@ public class Test_Wizard_API {
     }
 
     @Test
-    public void test_post_withbody_JSONObject_simple() {
+    public void test_post_withBody_JSONObject_simple() {
         driver = new SHAFT.API("https://reqres.in/");
         HashMap body = new HashMap<>();
         body.put("name", "morpheus");
@@ -69,38 +69,10 @@ public class Test_Wizard_API {
     }
 
     @Test
-    public void test_assertResponsedoesNotEqualFileContent() {
+    public void test_assertResponseDoesNotEqualFileContent() {
         driver = new SHAFT.API("http://api.zippopotam.us/");
         driver.get("us/90210").perform();
         driver.assertThatResponse().doesNotEqualFileContent("test_assertResponseEqualsIgnoringOrder.json").perform();
-    }
-
-    @Test
-    public void test_jsonValueAdvancedEvaluation_filterExpression() {
-        driver = new SHAFT.API("https://jsonplaceholder.typicode.com");
-        driver.get("/users").perform();
-        driver.assertThatResponse().extractedJsonValue("$[?(@.name=='Chelsey Dietrich')].id").isEqualTo("5").perform();
-    }
-
-    @Test
-    public void test_jsonValueAdvancedEvaluation_arrayIndex() {
-        driver = new SHAFT.API("https://jsonplaceholder.typicode.com");
-        driver.get("/users").perform();
-        driver.assertThatResponse().extractedJsonValue("$[3].address.city").isEqualTo("South Elvis").perform();
-    }
-
-    @Test
-    public void test_jsonValueAdvancedEvaluation_numbers() {
-        driver = new SHAFT.API("https://jsonplaceholder.typicode.com");
-        driver.get("/users").perform();
-        driver.assertThatResponse().extractedJsonValue("$[3].id").isEqualTo("4").perform();
-    }
-
-    @Test
-    public void test_jsonValueAdvancedEvaluation_boolean() {
-        driver = new SHAFT.API("https://jsonplaceholder.typicode.com");
-        driver.get("/todos").perform();
-        driver.assertThatResponse().extractedJsonValue("$[1].completed").isEqualTo("false").perform();
     }
 
 }
