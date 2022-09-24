@@ -874,44 +874,6 @@
 
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
-                                        <label class="col-md-4 control-label" for="waitImplicitly">Implicit
-                                            Wait</label>
-                                        <div class="col-md-4" id="waitImplicitly">
-                                            <div class="radio-inline">
-                                                <label for="waitImplicitly-0">
-                                                    <input id="waitImplicitly-0" name="waitImplicitly" type="radio"
-                                                           value="true"> Enabled
-                                                </label>
-                                            </div>
-                                            <div class="radio-inline">
-                                                <label for="waitImplicitly-1">
-                                                    <input checked="checked" id="waitImplicitly-1"
-                                                           name="waitImplicitly"
-                                                           type="radio" value="false"> Disabled
-                                                </label>
-                                            </div>
-                                            <span class="help-block">• Implicit waiting may increase execution time by 20% but it also increases test stability in flaky environments.</span>
-                                        </div>
-                                    </div>
-
-                                    <!-- Text input-->
-                                    <div class="form-group">
-                                        <label class="col-md-4 control-label" for="implicitWaitTimeout">Implicit
-                                            Wait Timeout
-                                        </label>
-                                        <div class="col-md-4">
-                                            <div class="input-group">
-                                                <input class="form-control input-md" disabled
-                                                       id="implicitWaitTimeout" min="0"
-                                                       name="implicitWaitTimeout" step="30" type="number"
-                                                       value="30">
-                                            </div>
-                                            <span class="help-block">• Maximum timeout in seconds to fail any action.</span>
-                                        </div>
-                                    </div>
-
-                                    <!-- Multiple Radios -->
-                                    <div class="form-group">
                                         <label class="col-md-4 control-label" for="waitForLazyLoading">Wait for Lazy
                                             Loading</label>
                                         <div class="col-md-4" id="waitForLazyLoading">
@@ -2142,17 +2104,6 @@
 </script>
 
 <script type="text/javascript">
-    // implicit wait configuration
-    $("input[name=waitImplicitly]").click(function () {
-        if ($("input[name=waitImplicitly]:checked").val() == "true") {
-            $("#implicitWaitTimeout").attr("disabled", false);
-        } else {
-            $("#implicitWaitTimeout").attr("disabled", true);
-        }
-    });
-</script>
-
-<script type="text/javascript">
     // wait for lazy loading configuration
     $("input[name=waitForLazyLoading]").click(function () {
         if ($("input[name=waitForLazyLoading]:checked").val() == "true") {
@@ -2412,8 +2363,6 @@
 <script>
     function generateTimeouts() {
         // Get the data from each element on the form.
-        const waitImplicitly = $("input[name=waitImplicitly]:checked").val();
-        const implicitWaitTimeout = $("input[name=implicitWaitTimeout]").val();
         const waitForLazyLoading = $("input[name=waitForLazyLoading]:checked").val();
         const lazyLoadingTimeout = $("input[name=lazyLoadingTimeout]").val();
         const browserNavigationTimeout = $("input[name=browserNavigationTimeout]").val();
@@ -2431,8 +2380,6 @@
 
         // This variable stores all the data.
         let data =
-            'waitImplicitly=' + waitImplicitly + '\r\n' +
-            'implicitWaitTimeout=' + implicitWaitTimeout + '\r\n' +
             'waitForLazyLoading=' + waitForLazyLoading + '\r\n' +
             'lazyLoadingTimeout=' + lazyLoadingTimeout + '\r\n' +
             'browserNavigationTimeout=' + browserNavigationTimeout + '\r\n' +
