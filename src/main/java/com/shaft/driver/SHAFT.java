@@ -124,6 +124,10 @@ public class SHAFT {
             session.addHeaderVariable(key, value);
         }
 
+        public void addCookie(String key, String value) {
+            session.addCookieVariable(key, value);
+        }
+
         public RestValidationsBuilder assertThatResponse() {
             return com.shaft.validation.Validations.assertThat().response(RestActions.getLastResponse());
         }

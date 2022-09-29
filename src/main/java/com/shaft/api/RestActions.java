@@ -1053,6 +1053,11 @@ public class RestActions {
         return this;
     }
 
+    public RestActions addCookieVariable(String key, String value) {
+        sessionCookies.put(key, value);
+        return this;
+    }
+
     /**
      * Append a config to the current session.
      *
