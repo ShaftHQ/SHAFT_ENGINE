@@ -1,7 +1,6 @@
 package com.shaft.tools.listeners;
 
 import com.shaft.driver.DriverFactoryHelper;
-import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.ReportManagerHelper;
@@ -133,9 +132,9 @@ public class InvokedMethodListener implements IInvokedMethodListener {
         }
 
         // resetting scope and config
-        if (!DriverFactoryHelper.isMobileNativeExecution() && DriverFactoryHelper.getDriver() !=null && DriverFactoryHelper.getDriver().get() !=null) {
-            ElementActions.switchToDefaultContent();
-        }
+//        if (!DriverFactoryHelper.isMobileNativeExecution() && DriverFactoryHelper.getDriver() !=null && DriverFactoryHelper.getDriver().get() !=null) {
+//            ElementActions.switchToDefaultContent();
+//        }
         ReportManagerHelper.setDiscreteLogging(Boolean.parseBoolean(System.getProperty("alwaysLogDiscreetly")));
         ITestNGMethod testMethod = method.getTestMethod();
         if (testMethod.isTest()) {
