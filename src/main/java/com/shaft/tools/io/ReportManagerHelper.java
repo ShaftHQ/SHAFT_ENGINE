@@ -18,8 +18,10 @@ import io.qameta.allure.Step;
 import lombok.Getter;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.SystemUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.config.Configurator;
 import org.testng.Reporter;
 
 import java.io.*;
@@ -31,14 +33,14 @@ import java.util.stream.Collectors;
 
 public class ReportManagerHelper {
     private static final String TIMESTAMP_FORMAT = "dd-MM-yyyy HH:mm:ss.SSSS aaa";
-    private static final Logger slf4jLogger = LoggerFactory.getLogger(ReportManagerHelper.class);
+    @Getter
+    private static final ExtentReports extentReport = new ExtentReports();
     private static final String SHAFT_ENGINE_VERSION_PROPERTY_NAME = "shaftEngineVersion";
     private static final String ALLURE_VERSION_PROPERTY_NAME = "allureVersion";
     private static final String REPORT_MANAGER_PREFIX = "[ReportManager] ";
     private static final String SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE = "SHAFT Engine Logs";
     private static final String allureExtractionLocation = System.getProperty("user.home") + File.separator + ".m2"
             + File.separator + "repository" + File.separator + "allure" + File.separator;
-    private static String fullLog = "";
     private static String issuesLog = "";
     private static int issueCounter = 1;
     private static boolean discreteLogging = false;
@@ -57,9 +59,8 @@ public class ReportManagerHelper {
     private static String featureName = "";
 
     private static String extentReportsFolderPath = "";
-    @Getter
-    private static ExtentReports extentReport = new ExtentReports();
-    private static ThreadLocal<ExtentTest> extentTest = new ThreadLocal<>();
+    private static final ThreadLocal<ExtentTest> extentTest = new ThreadLocal<>();
+    private static Logger logger;
     @Getter
     private static String extentReportFileName = "";
     private static boolean generateExtentReports = true;
@@ -187,6 +188,8 @@ public class ReportManagerHelper {
     }
 
     public static void logEngineVersion() {
+        Configurator.initialize(null, PropertyFileManager.getDefaultPropertiesFolderPath() + "/log4j2.properties");
+        logger = LogManager.getLogger(ReportManager.class.getName());
         String engineVersion = "Detected SHAFT Engine Version: \""
                 + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "\"";
         createImportantReportEntry(engineVersion, true);
@@ -273,8 +276,6 @@ public class ReportManagerHelper {
      * @param testLog           content of the text log to be used as the attachment value
      */
     public static void attachTestLog(String currentMethodName, String testLog) {
-        appendToFullLog(testLog);
-        appendToFullLog(System.lineSeparator());
         if (!testLog.isBlank()) {
             createAttachment(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE, "Current Method log: " + currentMethodName,
                     new ByteArrayInputStream(testLog.getBytes()));
@@ -282,17 +283,15 @@ public class ReportManagerHelper {
     }
 
     public static void attachFullLog(String executionEndTimestamp) {
-        if (!fullLog.trim().equals("")) {
             String fullLogCreated = "Successfully created attachment \"" + SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE + " - "
                     + "Execution log" + "\"";
             createLogEntry(fullLogCreated, true);
             String copyrights = "This test run was powered by SHAFT Engine Version: \""
                     + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "\"" + System.lineSeparator()
                     + "SHAFT Engine is licensed under the MIT License: [https://github.com/ShaftHQ/SHAFT_ENGINE/blob/master/LICENSE].";
-            createImportantReportEntry(copyrights, true);
-            createAttachment(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE, "Execution log: " + executionEndTimestamp,
-                    new ByteArrayInputStream(fullLog.trim().getBytes()));
-        }
+        createImportantReportEntry(copyrights, true);
+        createAttachment(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE, "Execution log: " + executionEndTimestamp,
+                new ByteArrayInputStream(FileActions.getInstance().readFromImageFile(System.getProperty("appender.file.fileName"))));
     }
 
     public static void attachIssuesLog(String executionEndTimestamp) {
@@ -483,25 +482,16 @@ public class ReportManagerHelper {
         return logBuilder.toString();
     }
 
-    static void createLogEntry(String logText) {
+    static void createLogEntry(String logText, Level loglevel) {
         if (!Boolean.parseBoolean(System.getProperty("disableLogging"))) {
             String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
             if (logText == null) {
                 logText = "null";
             }
             String log = REPORT_MANAGER_PREFIX + logText.trim() + " @" + timestamp;
-            slf4jLogger.info(log);
             Reporter.log(log, false);
+            logger.log(loglevel, logText.trim());
         }
-    }
-
-    /**
-     * Appends a log entry to the complete log of the current execution session.
-     *
-     * @param log the log entry that needs to be appended to the full log
-     */
-    private static void appendToFullLog(String log) {
-        fullLog += log;
     }
 
     private static void createLogEntry(String logText, boolean addToFullLog) {
@@ -511,14 +501,13 @@ public class ReportManagerHelper {
                 logText = "null";
             }
             String log = REPORT_MANAGER_PREFIX + logText.trim() + " @" + timestamp;
-            Reporter.log(log, true);
+            Reporter.log(log, false);
             if (extentTest.get() !=null && !logText.contains("created attachment") && !logText.contains("<html")) {
                 extentTest.get().info(logText);
             }
 
             if (addToFullLog) {
-                appendToFullLog(log);
-                appendToFullLog(System.lineSeparator());
+                logger.log(Level.INFO, logText.trim());
             }
         }
     }
@@ -531,11 +520,8 @@ public class ReportManagerHelper {
                 + System.lineSeparator() + logText.trim() + System.lineSeparator()
                 + "################################################################################################################################################";
 
-        Reporter.log(log, true);
-        if (Boolean.TRUE.equals(addToFullLog)) {
-            appendToFullLog(log);
-            appendToFullLog(System.lineSeparator());
-        }
+        Reporter.log(log, false);
+        logger.log(Level.INFO, log);
         setDiscreteLogging(initialLoggingStatus);
     }
 
@@ -579,12 +565,11 @@ public class ReportManagerHelper {
             attachmentContent.transferTo(baos);
         } catch (IOException e) {
             var error = "Error while creating Attachment";
-            slf4jLogger.info(error, e);
+            logger.info(error, e);
             Reporter.log(error, false);
         }
 
         String attachmentDescription = attachmentType + " - " + attachmentName;
-//        String attachmentDescription = "Attachment: " + attachmentType + " - " + attachmentName;
         attachBasedOnFileType(attachmentType, attachmentName, baos, attachmentDescription);
         logAttachmentAction(attachmentType, attachmentName, baos);
     }
@@ -622,7 +607,7 @@ public class ReportManagerHelper {
     }
 
     private static void logAttachmentAction(String attachmentType, String attachmentName, ByteArrayOutputStream attachmentContent) {
-        createLogEntry("Successfully created attachment \"" + attachmentType + " - " + attachmentName + "\"");
+        createLogEntry("Successfully created attachment \"" + attachmentType + " - " + attachmentName + "\"", Level.INFO);
         if (debugMode && !attachmentType.contains(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE)
                 && !attachmentType.equalsIgnoreCase("Selenium WebDriver Logs")
                 && !attachmentType.toLowerCase().contains("screenshot")
@@ -637,7 +622,7 @@ public class ReportManagerHelper {
             if (!theString.isEmpty()) {
                 String logEntry = REPORT_MANAGER_PREFIX + "Debugging Attachment Entry" + " @" + timestamp
                         + System.lineSeparator() + theString + System.lineSeparator();
-                slf4jLogger.info(logEntry);
+                logger.info(logEntry);
             }
         }
     }
@@ -840,7 +825,7 @@ public class ReportManagerHelper {
 
     public static void log(String logText, List<List<Object>> attachments) {
         if (getDiscreteLogging() && !logText.toLowerCase().contains("failed") && isInternalStep()) {
-            createLogEntry(logText);
+            createLogEntry(logText, Level.INFO);
             if (attachments != null && !attachments.isEmpty()) {
                 attachments.forEach(attachment -> {
                     if (attachment != null && !attachment.isEmpty()) {
@@ -909,7 +894,6 @@ public class ReportManagerHelper {
                 }
             });
         }
-//        createReportEntry(stepLog, false);
     }
 
     /**
@@ -932,6 +916,6 @@ public class ReportManagerHelper {
     }
 
     public static void logDiscrete(Throwable t) {
-        createLogEntry(formatStackTraceToLogEntry(t));
+        createLogEntry(formatStackTraceToLogEntry(t), Level.INFO);
     }
 }

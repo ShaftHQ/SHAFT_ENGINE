@@ -1,5 +1,7 @@
 package com.shaft.tools.io;
 
+import org.apache.logging.log4j.Level;
+
 import static com.shaft.tools.io.ReportManagerHelper.*;
 
 public class ReportManager {
@@ -15,7 +17,7 @@ public class ReportManager {
      */
     public static void log(String logText) {
         if (getDiscreteLogging() && !logText.toLowerCase().contains("failed") && isInternalStep()) {
-            createLogEntry(logText);
+            createLogEntry(logText, Level.INFO);
         } else {
             writeStepToReport(logText);
         }
@@ -27,7 +29,7 @@ public class ReportManager {
      * @param logText the text that will be logged by action
      */
     public static void logDiscrete(String logText) {
-        createLogEntry(logText);
+        createLogEntry(logText, Level.INFO);
     }
 
 }
