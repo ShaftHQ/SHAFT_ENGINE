@@ -1419,22 +1419,6 @@
                                     <!-- Form Name -->
                                     <!-- <legend>&nbsp;Reporting:</legend>-->
 
-                                    <!-- Select Basic -->
-                                    <div class="form-group">
-                                        <label class="col-md-4 control-label" for="defaultLogLevel">Default Log Level
-                                        </label>
-                                        <div class="col-md-4">
-                                            <select class="form-control" id="defaultLogLevel" name="defaultLogLevel">
-                                                <option value="off">Off</option>
-                                                <option value="trace">Trace</option>
-                                                <option value="debug">Debug</option>
-                                                <option selected value="info">Informational</option>
-                                                <option value="warn">Warnings Only</option>
-                                                <option value="error">Errors Only</option>
-                                            </select>
-                                        </div>
-                                    </div>
-
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
                                         <label class="col-md-4 control-label" for="captureElementName">Report Element Name</label>
@@ -2441,7 +2425,6 @@
 <script>
     function generateReporting() {
         // Get the data from each element on the form.
-        const defaultLogLevel = $("select[name=defaultLogLevel]").val();
         const captureElementName = $("input[name=captureElementName]:checked").val();
         const captureWebDriverLogs = $("input[name=captureWebDriverLogs]:checked").val();
         const alwaysLogDiscreetly = $("input[name=alwaysLogDiscreetly]:checked").val();
@@ -2454,7 +2437,6 @@
 
         // This variable stores all the data.
         let data =
-            'org.slf4j.simpleLogger.defaultLogLevel=' + defaultLogLevel + '\r\n' +
             'captureElementName=' + captureElementName + '\r\n' +
             'captureWebDriverLogs=' + captureWebDriverLogs + '\r\n' +
             'alwaysLogDiscreetly=' + alwaysLogDiscreetly + '\r\n' +
