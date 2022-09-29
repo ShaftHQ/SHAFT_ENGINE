@@ -16,8 +16,6 @@
 package com.shaft.tools.listeners;
 
 import com.shaft.cli.FileActions;
-import com.shaft.driver.DriverFactoryHelper;
-import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
@@ -223,9 +221,9 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
                     InvokedMethodListener.createTestLog(Reporter.getOutput()));
         }
         // resetting scope and config
-        if (!DriverFactoryHelper.isMobileNativeExecution()) {
-            ElementActions.switchToDefaultContent();
-        }
+//        if (!DriverFactoryHelper.isMobileNativeExecution()) {
+//            ElementActions.switchToDefaultContent();
+//        }
         // end of custom code
 
         final String uuid = getTestCaseUuid(event.getTestCase());
