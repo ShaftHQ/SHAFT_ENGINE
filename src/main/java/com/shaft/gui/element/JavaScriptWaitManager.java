@@ -14,8 +14,8 @@ import java.time.Duration;
 import java.util.Objects;
 
 public class JavaScriptWaitManager {
-    private static final boolean WAIT_FOR_LAZY_LOADING = Boolean.parseBoolean(System.getProperty("waitForLazyLoading"));
-    private static final int WAIT_DURATION_INTEGER = Integer.parseInt(System.getProperty("lazyLoadingTimeout"));
+    private static boolean WAIT_FOR_LAZY_LOADING;
+    private static int WAIT_DURATION_INTEGER;
     private static final String TARGET_DOCUMENT_READY_STATE = "complete";
     private static final ThreadLocal<WebDriver> jsWaitDriver = new ThreadLocal<>();
     private static final int delayBetweenPolls = 20; // milliseconds
@@ -28,13 +28,15 @@ public class JavaScriptWaitManager {
     public static void setDriver(WebDriver driver) {
         jsWaitDriver.set(driver);
         jsExec = (JavascriptExecutor) jsWaitDriver.get();
+        WAIT_FOR_LAZY_LOADING = Boolean.parseBoolean(System.getProperty("waitForLazyLoading"));
+        WAIT_DURATION_INTEGER = Integer.parseInt(System.getProperty("lazyLoadingTimeout"));
     }
 
     /**
      * Waits for jQuery, Angular, and/or Javascript if present on the current page.
      */
     public static void waitForLazyLoading() {
-        if (Boolean.TRUE.equals(WAIT_FOR_LAZY_LOADING)
+        if (Boolean.TRUE.equals(Boolean.parseBoolean(System.getProperty("waitForLazyLoading")))
                 && !DriverFactoryHelper.isMobileNativeExecution()) {
             try {
                 waitForJQueryLoadIfDefined();

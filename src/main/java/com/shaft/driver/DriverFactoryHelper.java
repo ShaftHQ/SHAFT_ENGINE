@@ -24,6 +24,8 @@ import org.openqa.selenium.edge.EdgeOptions;
 import org.openqa.selenium.firefox.FirefoxOptions;
 import org.openqa.selenium.firefox.FirefoxProfile;
 import org.openqa.selenium.ie.InternetExplorerOptions;
+import org.openqa.selenium.logging.LogType;
+import org.openqa.selenium.logging.LoggingPreferences;
 import org.openqa.selenium.remote.*;
 import org.openqa.selenium.safari.SafariOptions;
 import org.openqa.selenium.support.ThreadGuard;
@@ -35,6 +37,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Level;
 
 public class DriverFactoryHelper {
     // TODO: implement pass and fail actions to enable initial factory method screenshot and append it to animated GIF
@@ -252,6 +255,10 @@ public class DriverFactoryHelper {
                     proxy.setFtpProxy(PROXY_SERVER_SETTINGS);
                     options.setProxy(proxy);
                 }
+                //add logging preferences if enabled
+                if (Boolean.parseBoolean(System.getProperty("captureWebDriverLogs"))) {
+                    options.setCapability("goog:loggingPrefs", configureLoggingPreferences());
+                }
                 if (driverType.equals(DriverType.DESKTOP_EDGE)) {
                     edOptions = (EdgeOptions) options;
                 } else {
@@ -278,6 +285,19 @@ public class DriverFactoryHelper {
             case APPIUM_MOBILE_NATIVE -> appiumCapabilities = new DesiredCapabilities(customDriverOptions);
             default -> failAction("Unsupported Driver Type \"" + JavaActions.convertToSentenceCase(driverType.getValue()) + "\".");
         }
+    }
+
+    private static LoggingPreferences configureLoggingPreferences(){
+        //Add logging setting if enabled
+        LoggingPreferences logPrefs = new LoggingPreferences();
+        logPrefs.enable(LogType.PERFORMANCE, Level.ALL);
+        logPrefs.enable(LogType.DRIVER, Level.ALL);
+        logPrefs.enable(LogType.BROWSER, Level.ALL);
+        logPrefs.enable(LogType.CLIENT, Level.ALL);
+        logPrefs.enable(LogType.SERVER, Level.ALL);
+        logPrefs.enable(LogType.PROFILER, Level.ALL);
+        logPrefs.enable(LogType.DRIVER, Level.INFO);
+        return logPrefs;
     }
 
     private static void createNewLocalDriverInstance(DriverType driverType) {
@@ -490,16 +510,18 @@ public class DriverFactoryHelper {
     }
 
     private static void attachWebDriverLogs() {
-        try {
-            var driverLogs = driver.get().manage().logs();
-            driverLogs.getAvailableLogTypes().forEach(logType -> {
-                    var logBuilder = new StringBuilder();
-                    driverLogs.get(logType).getAll().forEach(logEntry -> logBuilder.append(logEntry.toString()).append(System.lineSeparator()));
-                    ReportManagerHelper.attach("Selenium WebDriver Logs", logType, logBuilder.toString());
-                }
-            );
-        } catch (WebDriverException e) {
-            // exception when the defined logging is not supported
+        if (Boolean.parseBoolean(System.getProperty("captureWebDriverLogs"))) {
+            try {
+                var driverLogs = driver.get().manage().logs();
+                driverLogs.getAvailableLogTypes().forEach(logType -> {
+                            var logBuilder = new StringBuilder();
+                            driverLogs.get(logType).getAll().forEach(logEntry -> logBuilder.append(logEntry.toString()).append(System.lineSeparator()));
+                            ReportManagerHelper.attach("Selenium WebDriver Logs", logType, logBuilder.toString());
+                        }
+                );
+            } catch (WebDriverException e) {
+                // exception when the defined logging is not supported
+            }
         }
     }
 
