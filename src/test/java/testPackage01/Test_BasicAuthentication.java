@@ -24,14 +24,18 @@ public class Test_BasicAuthentication {
 
     @Test
     public void basicAuthentication_traditional(){
-        driver.browser().navigateToURL("https://user:pass@authenticationtest.com/HTTPAuth/", "https://authenticationtest.com/loginSuccess/");
-        driver.assertThat().element(By.tagName("h1")).text().equals("Login Success");
+        if ("OS X".equals(System.getProperty("browserStack.os"))) {
+            driver.browser().navigateToURL("https://user:pass@authenticationtest.com/HTTPAuth/", "https://authenticationtest.com/loginSuccess/");
+            driver.assertThat().element(By.tagName("h1")).text().equals("Login Success");
+        }
     }
 
     @Test
-    public void basicAuthentication_webdriverBiDi(){
-        driver.browser().navigateToURLWithBasicAuthentication("https://authenticationtest.com/HTTPAuth/", "user", "pass", "https://authenticationtest.com/loginSuccess/");
-        driver.assertThat().element(By.tagName("h1")).text().equals("Login Success");
+    public void basicAuthentication_webdriverBiDi() {
+        if ("OS X".equals(System.getProperty("browserStack.os"))) {
+            driver.browser().navigateToURLWithBasicAuthentication("https://authenticationtest.com/HTTPAuth/", "user", "pass", "https://authenticationtest.com/loginSuccess/");
+            driver.assertThat().element(By.tagName("h1")).text().equals("Login Success");
+        }
     }
 
     //@Test
