@@ -74,7 +74,7 @@
         <jave-all-deps.version>3.3.1</jave-all-deps.version>
         <video-recorder-testng.version>2.0</video-recorder-testng.version>
 
-		<pdfbox.version>2.0.26</pdfbox.version>
+		<pdfbox.version>2.0.27</pdfbox.version>
 
         <org.yaml.version>1.33</org.yaml.version>
 
