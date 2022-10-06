@@ -3,9 +3,12 @@ package testPackage01.SHAFTWizard;
 import com.shaft.driver.SHAFT;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
+import org.openqa.selenium.WebDriver;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+import org.testng.asserts.SoftAssert;
 
 public class Test_Wizard_GUI {
     SHAFT.GUI.WebDriver driver;
@@ -21,6 +24,15 @@ public class Test_Wizard_GUI {
         driver.element().type(searchBox, testData.getTestData("searchQuery"))
                 .keyPress(searchBox, Keys.ENTER);
         driver.assertThat().element(resultStats).text().doesNotEqual("").withCustomReportMessage("Check that result stats is not empty").perform();
+    }
+
+    //@Test
+    public void test2() {
+        WebDriver nativeWebDriver = driver.getDriver();
+        nativeWebDriver.navigate().to("https://www.google.com/");
+        new SoftAssert().assertEquals(nativeWebDriver.getTitle(), "Google");
+        nativeWebDriver.findElement(searchBox).sendKeys(testData.getTestData("searchQuery") + Keys.ENTER);
+        Assert.assertNotEquals(nativeWebDriver.findElement(resultStats).getText(), "");
     }
 
     @BeforeClass

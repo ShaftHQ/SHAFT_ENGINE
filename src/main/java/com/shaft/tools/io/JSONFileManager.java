@@ -1,7 +1,7 @@
 package com.shaft.tools.io;
 
 import com.shaft.cli.FileActions;
-import com.shaft.tools.support.JavaActions;
+import com.shaft.tools.support.JavaHelper;
 import io.restassured.path.json.JsonPath;
 import io.restassured.path.json.exception.JsonPathException;
 import org.testng.Assert;
@@ -16,7 +16,7 @@ import java.util.Map;
 
 public class JSONFileManager {
     private final String jsonFilePath;
-    private static ThreadLocal<FileReader> reader = new ThreadLocal<>();
+    private static final ThreadLocal<FileReader> reader = new ThreadLocal<>();
 
     /**
      * Creates a new instance of the test data json reader using the target json
@@ -25,7 +25,7 @@ public class JSONFileManager {
      * @param jsonFilePath target test data json file path
      */
     public JSONFileManager(String jsonFilePath) {
-        jsonFilePath = JavaActions.appendTestDataToRelativePath(jsonFilePath);
+        jsonFilePath = JavaHelper.appendTestDataToRelativePath(jsonFilePath);
         this.jsonFilePath = jsonFilePath;
         initializeReader();
         List<List<Object>> attachments = new ArrayList<>();
@@ -112,9 +112,9 @@ public class JSONFileManager {
         initializeReader();
         try {
             switch (dataType) {
-                case STRING -> testData = JsonPath.from(this.reader.get()).getString(jsonPath);
-                case LIST -> testData = JsonPath.from(this.reader.get()).getList(jsonPath);
-                case MAP -> testData = JsonPath.from(this.reader.get()).getMap(jsonPath);
+                case STRING -> testData = JsonPath.from(reader.get()).getString(jsonPath);
+                case LIST -> testData = JsonPath.from(reader.get()).getList(jsonPath);
+                case MAP -> testData = JsonPath.from(reader.get()).getMap(jsonPath);
             }
         } catch (ClassCastException rootCauseException) {
             ReportManagerHelper.log(rootCauseException);
