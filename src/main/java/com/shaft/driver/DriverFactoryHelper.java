@@ -625,7 +625,7 @@ public class DriverFactoryHelper {
         PAGE_LOAD_TIMEOUT = Integer.parseInt(System.getProperty("pageLoadTimeout"));
         SCRIPT_TIMEOUT = Integer.parseInt(System.getProperty("scriptExecutionTimeout"));
         targetOperatingSystem = System.getProperty("targetOperatingSystem");
-        MOBILE_EMULATION = Boolean.valueOf(System.getProperty("mobileEmulator").trim());
+        MOBILE_EMULATION = Boolean.valueOf(System.getProperty("mobileEmulation").trim());
     }
 
     /**
