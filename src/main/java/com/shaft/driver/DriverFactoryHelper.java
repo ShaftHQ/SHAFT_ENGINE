@@ -45,6 +45,7 @@ public class DriverFactoryHelper {
     private static Boolean HEADLESS_EXECUTION;
     private static String EXECUTION_ADDRESS;
     private static String TARGET_HUB_URL;
+    private static Boolean MOBILE_EMULATION;
     private static final String WEBDRIVERMANAGER_MESSAGE = "Identifying OS/Driver combination and selecting the correct driver version automatically. Please note that if a new driver executable will be downloaded it may take some time...";
     private static final String WEBDRIVERMANAGER_DOCKERIZED_MESSAGE = "Identifying target OS/Browser and setting up the dockerized environment automatically. Please note that if a new docker container will be downloaded it may take some time...";
     private static int PAGE_LOAD_TIMEOUT;
@@ -258,6 +259,22 @@ public class DriverFactoryHelper {
                 //add logging preferences if enabled
                 if (Boolean.parseBoolean(System.getProperty("captureWebDriverLogs"))) {
                     options.setCapability("goog:loggingPrefs", configureLoggingPreferences());
+                }
+                // Mobile Emulation
+                if (Boolean.TRUE.equals(MOBILE_EMULATION) &&
+                        (driverType.equals(DriverType.DESKTOP_CHROME) || driverType.equals(DriverType.DESKTOP_EDGE))) {
+                    Map<String, Object> mobileEmulation = new HashMap<>();
+                    if (!System.getProperty("deviceName").equals("")) {
+                        mobileEmulation.put("deviceName", System.getProperty("deviceName"));
+                    } else {
+                        Map<String, Object> deviceMetrics = new HashMap<>();
+                        deviceMetrics.put("width", Integer.valueOf(System.getProperty("width")));
+                        deviceMetrics.put("height", Integer.valueOf(System.getProperty("height")));
+                        deviceMetrics.put("pixelRatio", Float.valueOf(System.getProperty("pixelRatio")));
+                        mobileEmulation.put("deviceMetrics", deviceMetrics);
+                        mobileEmulation.put("userAgent", System.getProperty("userAgent"));
+                    }
+                    options.setExperimentalOption("mobileEmulation", mobileEmulation);
                 }
                 if (driverType.equals(DriverType.DESKTOP_EDGE)) {
                     edOptions = (EdgeOptions) options;
@@ -608,6 +625,7 @@ public class DriverFactoryHelper {
         PAGE_LOAD_TIMEOUT = Integer.parseInt(System.getProperty("pageLoadTimeout"));
         SCRIPT_TIMEOUT = Integer.parseInt(System.getProperty("scriptExecutionTimeout"));
         targetOperatingSystem = System.getProperty("targetOperatingSystem");
+        MOBILE_EMULATION = Boolean.valueOf(System.getProperty("mobileEmulator").trim());
     }
 
     /**
