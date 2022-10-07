@@ -4,7 +4,7 @@ import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
-import com.shaft.tools.support.JavaActions;
+import com.shaft.tools.support.JavaHelper;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import org.openqa.selenium.NoSuchElementException;
@@ -1359,7 +1359,7 @@ public class WebDriverElementActions {
     }
     private static String reportActionResult(WebDriver driver, String actionName, String testData, By elementLocator,
                                              List<List<Object>> screenshots, String elementName, Boolean passFailStatus) {
-        actionName = JavaActions.convertToSentenceCase(actionName);
+        actionName = JavaHelper.convertToSentenceCase(actionName);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
             message = "Element Action: " + actionName;

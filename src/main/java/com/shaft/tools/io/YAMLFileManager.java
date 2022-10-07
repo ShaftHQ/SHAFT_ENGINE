@@ -1,6 +1,6 @@
 package com.shaft.tools.io;
 
-import com.shaft.tools.support.JavaActions;
+import com.shaft.tools.support.JavaHelper;
 import org.testng.Assert;
 import org.yaml.snakeyaml.Yaml;
 
@@ -34,7 +34,7 @@ public class YAMLFileManager {
      * @param filePath target test data yaml file path
      */
     public YAMLFileManager(String filePath) {
-        this.filePath = JavaActions.appendTestDataToRelativePath(filePath);
+        this.filePath = JavaHelper.appendTestDataToRelativePath(filePath);
         this.data = getData();
 
         List<Object> testDataFileAttachment = new ArrayList<>();

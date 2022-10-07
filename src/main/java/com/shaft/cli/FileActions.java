@@ -4,7 +4,7 @@ import com.google.common.hash.Hashing;
 import com.shaft.tools.io.PdfFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
-import com.shaft.tools.support.JavaActions;
+import com.shaft.tools.support.JavaHelper;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
@@ -402,7 +402,7 @@ public class FileActions {
      * @return a string value that represents the full/absolute file/folder path
      */
     public String getAbsolutePath(String relativePath) {
-        relativePath= JavaActions.appendTestDataToRelativePath(relativePath);
+        relativePath = JavaHelper.appendTestDataToRelativePath(relativePath);
 
         String filePath = "";
         try {

@@ -10,9 +10,9 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class JavaActions {
+public class JavaHelper {
 
-    private JavaActions() {
+    private JavaHelper() {
         throw new IllegalStateException("Utility class");
     }
 

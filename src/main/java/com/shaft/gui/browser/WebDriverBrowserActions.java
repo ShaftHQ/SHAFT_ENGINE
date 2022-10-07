@@ -7,7 +7,7 @@ import com.shaft.gui.element.WebDriverElementActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
-import com.shaft.tools.support.JavaActions;
+import com.shaft.tools.support.JavaHelper;
 import com.shaft.tools.support.JavaScriptHelper;
 import lombok.SneakyThrows;
 import org.openqa.selenium.Dimension;
@@ -36,7 +36,7 @@ public class WebDriverBrowserActions {
     private static final int NAVIGATION_TIMEOUT_INTEGER = Integer
             .parseInt(System.getProperty("browserNavigationTimeout").trim());
 
-    private static ThreadLocal<WebDriver> lastUsedDriver = new ThreadLocal<>();
+    private static final ThreadLocal<WebDriver> lastUsedDriver = new ThreadLocal<>();
 
     protected WebDriverBrowserActions(WebDriver driver) {
         lastUsedDriver.set(driver);
@@ -529,7 +529,7 @@ public class WebDriverBrowserActions {
 
     private static String reportActionResult(WebDriver driver, String actionName, String testData,
                                              Boolean passFailStatus) {
-        actionName = JavaActions.convertToSentenceCase(actionName);
+        actionName = JavaHelper.convertToSentenceCase(actionName);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
             message = "Browser Action: " + actionName;

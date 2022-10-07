@@ -10,10 +10,12 @@ import com.shaft.gui.browser.WebDriverBrowserActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.SikuliActions;
 import com.shaft.tools.io.*;
+import com.shaft.tools.listeners.WebDriverListener;
 import com.shaft.validation.RestValidationsBuilder;
 import io.restassured.config.RestAssuredConfig;
 import io.restassured.response.Response;
 import org.openqa.selenium.MutableCapabilities;
+import org.openqa.selenium.support.events.EventFiringDecorator;
 import org.sikuli.script.App;
 
 import java.io.InputStream;
@@ -63,7 +65,9 @@ public class SHAFT {
              * @return the current Selenium WebDriver instance for custom manipulation
              */
             public org.openqa.selenium.WebDriver getDriver() {
-                return driverThreadLocal.get();
+                WebDriverListener listener = new WebDriverListener();
+//                return driverThreadLocal.get();
+                return new EventFiringDecorator<>(listener).decorate(driverThreadLocal.get());
             }
         }
 

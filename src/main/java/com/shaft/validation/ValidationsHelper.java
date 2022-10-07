@@ -8,7 +8,7 @@ import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManagerHelper;
-import com.shaft.tools.support.JavaActions;
+import com.shaft.tools.support.JavaHelper;
 import com.shaft.validation.ValidationEnums.*;
 import io.restassured.response.Response;
 import org.openqa.selenium.By;
@@ -53,7 +53,7 @@ public class ValidationsHelper {
                                          String... optionalCustomLogMessage) {
 
         processCustomLogMessage(optionalCustomLogMessage);
-        if (JavaActions.compareTwoObjects(expectedValue, actualValue, validationComparisonType.getValue(),
+        if (JavaHelper.compareTwoObjects(expectedValue, actualValue, validationComparisonType.getValue(),
                 validationType.getValue()) == 1) {
             pass(validationCategory, String.valueOf(expectedValue), String.valueOf(actualValue), validationComparisonType, validationType);
         } else {
@@ -157,7 +157,7 @@ public class ValidationsHelper {
         }
 
         lastUsedElementLocator = elementLocator;
-        int comparisonResult = JavaActions.compareTwoObjects(expectedValue, actualValue,
+        int comparisonResult = JavaHelper.compareTwoObjects(expectedValue, actualValue,
                 validationComparisonType.getValue(), validationType.getValue());
 
         reportValidationResultOfElementAttribute(new Object[]{expectedAttributeStates, attributeSeparator,
@@ -180,7 +180,7 @@ public class ValidationsHelper {
         ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
 
         lastUsedElementLocator = elementLocator;
-        int comparisonResult = JavaActions.compareTwoObjects(expectedValue, actualValue,
+        int comparisonResult = JavaHelper.compareTwoObjects(expectedValue, actualValue,
                 validationComparisonType.getValue(), validationType.getValue());
 
         reportValidationResultOfElementAttribute(new Object[]{expectedAttributeStates, propertySeparator,
@@ -225,7 +225,7 @@ public class ValidationsHelper {
             }
             return;
         }
-        int comparisonResult = JavaActions.compareTwoObjects(expectedValue, actualValue,
+        int comparisonResult = JavaHelper.compareTwoObjects(expectedValue, actualValue,
                 validationComparisonType.getValue(), validationType.getValue());
 
         reportValidationResultOfBrowserAttribute(new Object[]{expectedAttributeStates, attributeSeparator,
