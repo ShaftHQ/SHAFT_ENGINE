@@ -9,7 +9,7 @@ import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
-import com.shaft.tools.support.JavaActions;
+import com.shaft.tools.support.JavaHelper;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import io.github.bonigarcia.wdm.WebDriverManager;
@@ -307,7 +307,8 @@ public class DriverFactoryHelper {
                 }
             }
             case APPIUM_MOBILE_NATIVE -> appiumCapabilities = new DesiredCapabilities(customDriverOptions);
-            default -> failAction("Unsupported Driver Type \"" + JavaActions.convertToSentenceCase(driverType.getValue()) + "\".");
+            default ->
+                    failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
         }
     }
 
@@ -325,7 +326,7 @@ public class DriverFactoryHelper {
     }
 
     private static void createNewLocalDriverInstance(DriverType driverType) {
-        String initialLog = "Attempting to run locally on: \"" + targetOperatingSystem + " | " + JavaActions.convertToSentenceCase(driverType.getValue()) + "\"";
+        String initialLog = "Attempting to run locally on: \"" + targetOperatingSystem + " | " + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\"";
         if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
             initialLog = initialLog + ", Headless Execution";
         }
@@ -355,16 +356,17 @@ public class DriverFactoryHelper {
                     ReportManager.logDiscrete(WEBDRIVERMANAGER_MESSAGE);
                     driver.set(ThreadGuard.protect(WebDriverManager.safaridriver().proxy(proxy).capabilities(sfOptions).create()));
                 }
-                default -> failAction("Unsupported Driver Type \"" + JavaActions.convertToSentenceCase(driverType.getValue()) + "\".");
+                default ->
+                        failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
             }
-            ReportManager.log("Successfully Opened "+ JavaActions.convertToSentenceCase(driverType.getValue()) +".");
+            ReportManager.log("Successfully Opened " + JavaHelper.convertToSentenceCase(driverType.getValue()) + ".");
         } catch (SessionNotCreatedException exception) {
             failAction("Failed to create new Browser Session", exception);
         }
     }
 
     private static void createNewDockerizedDriverInstance(DriverType driverType) {
-        String initialLog = "Attempting to run dockerized on: \"" + targetOperatingSystem + " | " + JavaActions.convertToSentenceCase(driverType.getValue()) + "\"";
+        String initialLog = "Attempting to run dockerized on: \"" + targetOperatingSystem + " | " + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\"";
         if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
             initialLog = initialLog + ", Headless Execution";
         }
@@ -392,7 +394,8 @@ public class DriverFactoryHelper {
                     ReportManager.logDiscrete(WEBDRIVERMANAGER_DOCKERIZED_MESSAGE);
                     webDriverManager.set(WebDriverManager.safaridriver().capabilities(sfOptions));
                 }
-                default -> failAction("Unsupported Driver Type \"" + JavaActions.convertToSentenceCase(driverType.getValue()) + "\". We only support Chrome, Edge, Firefox, and Safari in this dockerized mode.");
+                default ->
+                        failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\". We only support Chrome, Edge, Firefox, and Safari in this dockerized mode.");
             }
             RemoteWebDriver remoteWebDriver = (RemoteWebDriver) webDriverManager.get()
                     .proxy(System.getProperty("com.SHAFT.proxySettings"))
@@ -407,7 +410,7 @@ public class DriverFactoryHelper {
                     .create();
             remoteWebDriver.setFileDetector(new LocalFileDetector());
             driver.set(ThreadGuard.protect(remoteWebDriver));
-            ReportManager.log("Successfully Opened "+ JavaActions.convertToSentenceCase(driverType.getValue()) +".");
+            ReportManager.log("Successfully Opened " + JavaHelper.convertToSentenceCase(driverType.getValue()) + ".");
         } catch (io.github.bonigarcia.wdm.config.WebDriverManagerException exception) {
             failAction("Failed to create new Dockerized Browser Session, are you sure Docker is available on your machine?", exception);
         }
@@ -423,7 +426,7 @@ public class DriverFactoryHelper {
 
         if (!OperatingSystemType.ANDROID.equals(getOperatingSystemFromName(targetOperatingSystem))
                 && !OperatingSystemType.IOS.equals(getOperatingSystemFromName(targetOperatingSystem))) {
-            initialLog.append(" | ").append(JavaActions.convertToSentenceCase(driverType.getValue()));
+            initialLog.append(" | ").append(JavaHelper.convertToSentenceCase(driverType.getValue()));
         }
 
         initialLog.append(" | ").append(TARGET_HUB_URL).append("\"");
@@ -452,12 +455,12 @@ public class DriverFactoryHelper {
         } catch (WebDriverException e) {
             ReportManagerHelper.log(e);
             if (e.getMessage().contains("Error forwarding the new session cannot find")) {
-                ReportManager.log("Failed to run remotely on: \"" + targetOperatingSystem + "\", \"" + JavaActions.convertToSentenceCase(driverType.getValue()) + "\", \""
+                ReportManager.log("Failed to run remotely on: \"" + targetOperatingSystem + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \""
                         + TARGET_HUB_URL + "\".");
                 failAction(
                         "Error forwarding the new session: Couldn't find a node that matches the desired capabilities.", e);
             } else {
-                ReportManager.log("Failed to run remotely on: \"" + targetOperatingSystem + "\", \"" + JavaActions.convertToSentenceCase(driverType.getValue()) + "\", \""
+                ReportManager.log("Failed to run remotely on: \"" + targetOperatingSystem + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \""
                         + TARGET_HUB_URL + "\".");
                 failAction("Unhandled Error.", e);
             }
@@ -508,7 +511,8 @@ public class DriverFactoryHelper {
             case APPIUM_BROWSER, APPIUM_MOBILE_NATIVE -> {
                 setRemoteDriverInstance(mobileDesiredCapabilities);
             }
-            default -> failAction("Unsupported Driver Type \"" + JavaActions.convertToSentenceCase(driverType.getValue()) + "\".");
+            default ->
+                    failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
         }
         ReportManager.log("Successfully Opened \"" + driverType.getValue() + "\".");
     }
@@ -614,7 +618,7 @@ public class DriverFactoryHelper {
             RecordManager.startVideoRecording(driver.get());
         } catch (NullPointerException e) {
             ReportManagerHelper.log(e);
-            Assert.fail("Unhandled Exception with Driver Type \"" + JavaActions.convertToSentenceCase(driverType.getValue()) + "\".", e);
+            Assert.fail("Unhandled Exception with Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".", e);
         }
 
         if (Boolean.parseBoolean(System.getProperty("heal-enabled").trim())) {

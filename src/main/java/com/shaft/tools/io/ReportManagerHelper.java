@@ -12,7 +12,7 @@ import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.tools.listeners.CucumberFeatureListener;
-import com.shaft.tools.support.JavaActions;
+import com.shaft.tools.support.JavaHelper;
 import io.qameta.allure.Allure;
 import io.qameta.allure.Step;
 import lombok.Getter;
@@ -268,6 +268,10 @@ public class ReportManagerHelper {
         }
     }
 
+    public static void attach(List<Object> screenshot) {
+        attach((String) screenshot.get(0), (String) screenshot.get(1), (InputStream) screenshot.get(2));
+    }
+
     /**
      * Returns the log of the current test, and attaches it in the end of the test
      * execution report.
@@ -352,7 +356,7 @@ public class ReportManagerHelper {
             return Reporter.getCurrentTestResult().getMethod().getMethodName();
         } else {
             // this happens when running a cucumber feature file directly because there is no testNG Reporter instance
-            return JavaActions.removeSpecialCharacters(CucumberFeatureListener.getLastStartedScenarioName());
+            return JavaHelper.removeSpecialCharacters(CucumberFeatureListener.getLastStartedScenarioName());
         }
     }
 
@@ -494,7 +498,7 @@ public class ReportManagerHelper {
         }
     }
 
-    private static void createLogEntry(String logText, boolean addToFullLog) {
+    private static void createLogEntry(String logText, boolean addToConsoleLog) {
         if (!Boolean.parseBoolean(System.getProperty("disableLogging"))) {
             String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
             if (logText == null) {
@@ -502,11 +506,11 @@ public class ReportManagerHelper {
             }
             String log = REPORT_MANAGER_PREFIX + logText.trim() + " @" + timestamp;
             Reporter.log(log, false);
-            if (extentTest.get() !=null && !logText.contains("created attachment") && !logText.contains("<html")) {
+            if (extentTest.get() != null && !logText.contains("created attachment") && !logText.contains("<html")) {
                 extentTest.get().info(logText);
             }
 
-            if (addToFullLog) {
+            if (addToConsoleLog) {
                 logger.log(Level.INFO, logText.trim());
             }
         }
@@ -533,7 +537,7 @@ public class ReportManagerHelper {
      */
     @Step("{logText}")
     static void writeStepToReport(String logText) {
-        createLogEntry(logText, false);
+        createLogEntry(logText, true);
     }
 
     @Step("{logText}")

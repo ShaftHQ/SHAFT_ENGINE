@@ -7,7 +7,7 @@ import com.google.gson.JsonParser;
 import com.jayway.jsonpath.JsonPath;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
-import com.shaft.tools.support.JavaActions;
+import com.shaft.tools.support.JavaHelper;
 import com.shaft.validation.Validations;
 import eu.medsea.mimeutil.MimeUtil;
 import eu.medsea.mimeutil.MimeUtil2;
@@ -472,7 +472,7 @@ public class RestActions {
     private static String reportActionResult(String actionName, String testData, Object requestBody, RequestSpecification specs, Response response,
                                              Boolean isDiscrete, List<Object> expectedFileBodyAttachment, Boolean passFailStatus) {
 //        actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
-        actionName = JavaActions.convertToSentenceCase(actionName);
+        actionName = JavaHelper.convertToSentenceCase(actionName);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
             message = "API Action: " + actionName;
