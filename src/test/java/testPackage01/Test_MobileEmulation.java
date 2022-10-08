@@ -18,7 +18,7 @@ public class Test_MobileEmulation {
         driver.browser().navigateToURL("https://www.google.com/");
         driver.verifyThat().browser().title().isEqualTo("Google").perform();
         driver.element().type(searchBox, "SHAFT_Engine").keyPress(searchBox, Keys.ENTER);
-        driver.assertThat().element(resultStats).doesNotExist().withCustomReportMessage("Check that result stats is not empty").perform();
+        driver.assertThat().element(resultStats).doesNotExist().perform();
     }
 
     @Test
@@ -30,7 +30,7 @@ public class Test_MobileEmulation {
         System.setProperty("mobileEmulation.userAgent", "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:35.0) Gecko/20100101 Firefox/35.0");
         driver.browser().navigateToURL("https://www.google.com/");
         driver.element().type(searchBox, "SHAFT_Engine").keyPress(searchBox, Keys.ENTER);
-        driver.assertThat().element(resultStats).doesNotExist().withCustomReportMessage("Check that result stats is not empty").perform();
+        driver.assertThat().element(resultStats).doesNotExist().perform();
     }
 
     @BeforeMethod
