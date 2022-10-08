@@ -300,7 +300,7 @@
                                             </div>
                                             <div class="radio-inline">
                                                 <label for="mobileEmulation-1">
-                                                    <input id="mobileEmulation-1" name="mobileEmulation"
+                                                    <input checked="checked" id="mobileEmulation-1" name="mobileEmulation"
                                                            type="radio"
                                                            value="false"> Disabled
                                                 </label>
@@ -317,14 +317,14 @@
                                                 <label for="mobileEmulationCustomDevice-0">
                                                     <input id="mobileEmulationCustomDevice-0"
                                                            name="mobileEmulationCustomDevice"
-                                                           type="radio" value="true"> Enabled
+                                                           type="radio" value="true" disabled> Enabled
                                                 </label>
                                             </div>
                                             <div class="radio-inline">
                                                 <label for="mobileEmulationCustomDevice-1">
                                                     <input checked="checked" id="mobileEmulationCustomDevice-1" name="mobileEmulationCustomDevice"
                                                            type="radio"
-                                                           value="false"> Disabled
+                                                           value="false" disabled> Disabled
                                                 </label>
                                             </div>
                                             <span class="help-block">• Can choose this when the Mobile Emulation is Enabled.</span>
@@ -337,7 +337,7 @@
                                         <div class="col-md-4">
                                             <div>
                                                 <label for="mobileEmulationDevicesList">
-                                                    <select name="mobileEmulationDevicesList" id="mobileEmulationDevicesList">
+                                                    <select name="mobileEmulationDevicesList" id="mobileEmulationDevicesList" disabled>
                                                         <option value=""></option>
                                                         <option value="blackberryZ30">BlackBerry Z30</option>
                                                         <option value="BlackberryPlayBook">Blackberry PlayBook</option>
@@ -2261,10 +2261,12 @@
             $("#mobileEmulationCustomDevice-1").attr("disabled", false);
             $("#mobileEmulationCustomDevice-0").attr("disabled", false);
             $("#mobileEmulationDevicesList").attr("disabled", false);
-            $("#mobileEmulationDeviceWidth").attr("disabled", false);
-            $("#mobileEmulationDeviceHeight").attr("disabled", false);
-            $("#mobileEmulationDevicePixelRatio").attr("disabled", false);
-            $("#mobileEmulationDeviceUserAgent").attr("disabled", false);
+            if ($("input[name=mobileEmulationCustomDevice]:checked").val() == "false") {
+            $("#mobileEmulationDeviceWidth").attr("disabled", true);
+            $("#mobileEmulationDeviceHeight").attr("disabled", true);
+            $("#mobileEmulationDevicePixelRatio").attr("disabled", true);
+            $("#mobileEmulationDeviceUserAgent").attr("disabled", true);
+            }
         }
     });
 </script>
