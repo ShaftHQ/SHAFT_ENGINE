@@ -7,8 +7,6 @@
 
 [![Codacy grade](https://img.shields.io/codacy/grade/3579cfd02a2c4f67bd1dce5dad0b1562?style=for-the-badge)](https://app.codacy.com/gh/ShaftHQ/SHAFT_ENGINE/dashboard)
 [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/ShaftHQ/SHAFT_Engine/CodeQL?label=CodeQL&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions?query=workflow%3ACodeQL)
- [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/ShaftHQ/SHAFT_ENGINE/Desktop%20Browsers%20Tests/master?label=Smoke%20Tests&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions?query=workflow%3A%22Ubuntu+-+Test%22)
-
 
 # SHAFT: Unified Test Automation Engine
 
