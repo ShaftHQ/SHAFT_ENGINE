@@ -287,6 +287,165 @@
                                         </div>
                                     </div>
 
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="mobileEmulation">Mobile Emulation</label>
+                                        <div class="col-md-4" id="mobileEmulation">
+                                            <div class="radio-inline">
+                                                <label for="mobileEmulation-0">
+                                                    <input checked="checked" id="mobileEmulation-0"
+                                                           name="mobileEmulation"
+                                                           type="radio" value="true"> Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="mobileEmulation-1">
+                                                    <input checked="checked" id="mobileEmulation-1" name="mobileEmulation"
+                                                           type="radio"
+                                                           value="false"> Disabled
+                                                </label>
+                                            </div>
+                                            <span class="help-block">• This works for Chrome and Edge only.</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="mobileEmulationCustomDevice">Mobile Emulation Custom Device</label>
+                                        <div class="col-md-4" id="mobileEmulationCustomDevice">
+                                            <div class="radio-inline">
+                                                <label for="mobileEmulationCustomDevice-0">
+                                                    <input id="mobileEmulationCustomDevice-0"
+                                                           name="mobileEmulationCustomDevice"
+                                                           type="radio" value="true" disabled> Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="mobileEmulationCustomDevice-1">
+                                                    <input checked="checked" id="mobileEmulationCustomDevice-1" name="mobileEmulationCustomDevice"
+                                                           type="radio"
+                                                           value="false" disabled> Disabled
+                                                </label>
+                                            </div>
+                                            <span class="help-block">• Can choose this when the Mobile Emulation is Enabled.</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Dropdown List -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="mobileEmulationDevicesList">Mobile Emulation Device Name</label>
+                                        <div class="col-md-4">
+                                            <div>
+                                                <label for="mobileEmulationDevicesList">
+                                                    <select name="mobileEmulationDevicesList" id="mobileEmulationDevicesList" disabled>
+                                                        <option value=""></option>
+                                                        <option value="blackberryZ30">BlackBerry Z30</option>
+                                                        <option value="BlackberryPlayBook">Blackberry PlayBook</option>
+                                                        <option value="galaxyNote3">Galaxy Note 3</option>
+                                                        <option value="galaxyNoteII">Galaxy Note II</option>
+                                                        <option value="galaxySIII">Galaxy S III</option>
+                                                        <option value="galaxyS5">Galaxy S 5</option>
+                                                        <option value="galaxyS8">Galaxy S 8</option>
+                                                        <option value="samsungGalaxyS8+">Samsung Galaxy S 8+</option>
+                                                        <option value="galaxyS9+">Galaxy S 9+</option>
+                                                        <option value="galaxyTabS4">Galaxy Tab S4</option>
+                                                        <option value="galaxyFold">Galaxy Fold</option>
+                                                        <option value="samsungGalaxyS20Ultra">Samsung Galaxy S 20 Ultra</option>
+                                                        <option value="samsungGalaxyA51/71">Samsung Galaxy A51/71</option>
+                                                        <option value="kindleFireHDX">Kindle Fire HDX</option>
+                                                        <option value="lgOptimusL70">LG Optimus L70</option>
+                                                        <option value="microsoftLumia550">Microsoft Lumia 550</option>
+                                                        <option value="microsoftLumia950">Microsoft Lumia 950</option>
+                                                        <option value="motoG4">Moto G4</option>
+                                                        <option value="nexus10">Nexus 10</option>
+                                                        <option value="nexus4">Nexus 4</option>
+                                                        <option value="nexus5">Nexus 5</option>
+                                                        <option value="nexus5X">Nexus 5X</option>
+                                                        <option value="nexus6">Nexus 6</option>
+                                                        <option value="nexus6P">Nexus 6P</option>
+                                                        <option value="nexus7">Nexus 7</option>
+                                                        <option value="nokiaLumia520">Nokia Lumia 520</option>
+                                                        <option value="nokiaN9">Nokia N9</option>
+                                                        <option value="nestHub">Nest Hub</option>
+                                                        <option value="nestHubMax">Nest Hub Max</option>
+                                                        <option value="pixel2">Pixel 2</option>
+                                                        <option value="pixel2XL">Pixel 2 XL</option>
+                                                        <option value="pixel3">Pixel 3</option>
+                                                        <option value="pixel3XL">Pixel 3 XL</option>
+                                                        <option value="pixel4">Pixel 4</option>
+                                                        <option value="pixel5">Pixel 5</option>
+                                                        <option value="jioPhone2">JioPhone 2</option>
+                                                        <option value="iPhone4">iPhone 4</option>
+                                                        <option value="iPhone5/SE">iPhone 5/SE</option>
+                                                        <option value="iPhone6/7/8">iPhone 6/7/8</option>
+                                                        <option value="iPhone6/7/8Plus">iPhone 6/7/8 Plus</option>
+                                                        <option value="iPhoneSE">iPhone SE</option>
+                                                        <option value="iPhoneX">iPhone X</option>
+                                                        <option value="iPhoneXR">iPhone XR</option>
+                                                        <option value="iPhone12Pro">iPhone 12 Pro</option>
+                                                        <option value="iPad">iPad Pad</option>
+                                                        <option value="iPadPro">iPad Pad Pro</option>
+                                                        <option value="iPadAir">iPad Air</option>
+                                                        <option value="iPadMini">iPad Mini</option>
+                                                        <option value="surfacePro7">Surface Pro 7</option>
+                                                        <option value="surfaceDuo">Surface Duo</option>
+                                                    </select>
+                                                </label>
+                                            </div>
+                                            <span class="help-block">• Choose the mobile device to be emulated.</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Number input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="mobileEmulationDeviceWidth">Mobile Emulation Device Width</label>
+                                        <div class="col-md-4">
+                                            <div class="input-group">
+                                                <input class="form-control input-md" id="mobileEmulationDeviceWidth"
+                                                       name="mobileEmulationDeviceWidth" placeholder="360"
+                                                       required type="number" disabled>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Number input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="mobileEmulationDeviceHeight">Mobile Emulation Device Height</label>
+                                        <div class="col-md-4">
+                                            <div class="input-group">
+                                                <input class="form-control input-md" id="mobileEmulationDeviceHeight"
+                                                       name="mobileEmulationDeviceHeight" placeholder="660"
+                                                       required type="number" disabled>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Number input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="mobileEmulationDevicePixelRatio">Mobile Emulation Device Pixel Ratio</label>
+                                        <div class="col-md-4">
+                                            <div class="input-group">
+                                                <input class="form-control input-md" id="mobileEmulationDevicePixelRatio"
+                                                       name="mobileEmulationDevicePixelRatio" placeholder="2.0"
+                                                       required type="number" disabled>
+                                            </div>
+                                            <span class="help-block">• Pixel Ratio value is not mandatory.</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="mobileEmulationDeviceUserAgent">Mobile Emulation User Agent</label>
+                                        <div class="col-md-4">
+                                            <div>
+                                                <input class="form-control input-md" id="mobileEmulationDeviceUserAgent"
+                                                       name="mobileEmulationDeviceUserAgent" placeholder="Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:35.0) Gecko/20100101 Firefox/35.0"
+                                                       required type="text" disabled>
+                                            </div>
+                                            <span class="help-block">• User Agent is not mandatory.</span>
+                                        </div>
+                                    </div>
+
                                     <!-- Button -->
                                     <div class="form-group">
                                         <label class="col-md-4 control-label"
@@ -2088,6 +2247,50 @@
 </script>
 
 <script type="text/javascript">
+    // Mobile Emulation configurations
+    $("input[name=mobileEmulation]").click(function () {
+        if ($("input[name=mobileEmulation]:checked").val() == "false") {
+            $("#mobileEmulationCustomDevice-1").attr("disabled", true);
+            $("#mobileEmulationCustomDevice-0").attr("disabled", true);
+            $("#mobileEmulationDevicesList").attr("disabled", true);
+            $("#mobileEmulationDeviceWidth").attr("disabled", true);
+            $("#mobileEmulationDeviceHeight").attr("disabled", true);
+            $("#mobileEmulationDevicePixelRatio").attr("disabled", true);
+            $("#mobileEmulationDeviceUserAgent").attr("disabled", true);
+        } else {
+            $("#mobileEmulationCustomDevice-1").attr("disabled", false);
+            $("#mobileEmulationCustomDevice-0").attr("disabled", false);
+            $("#mobileEmulationDevicesList").attr("disabled", false);
+            if ($("input[name=mobileEmulationCustomDevice]:checked").val() == "false") {
+            $("#mobileEmulationDeviceWidth").attr("disabled", true);
+            $("#mobileEmulationDeviceHeight").attr("disabled", true);
+            $("#mobileEmulationDevicePixelRatio").attr("disabled", true);
+            $("#mobileEmulationDeviceUserAgent").attr("disabled", true);
+            }
+        }
+    });
+</script>
+
+<script type="text/javascript">
+    // Mobile Emulation Custom Device configurations
+    $("input[name=mobileEmulationCustomDevice]").click(function () {
+        if ($("input[name=mobileEmulationCustomDevice]:checked").val() == "false") {
+            $("#mobileEmulationDevicesList").attr("disabled", false);
+            $("#mobileEmulationDeviceWidth").attr("disabled", true);
+            $("#mobileEmulationDeviceHeight").attr("disabled", true);
+            $("#mobileEmulationDevicePixelRatio").attr("disabled", true);
+            $("#mobileEmulationDeviceUserAgent").attr("disabled", true);
+        } else {
+            $("#mobileEmulationDevicesList").attr("disabled", true);
+            $("#mobileEmulationDeviceWidth").attr("disabled", false);
+            $("#mobileEmulationDeviceHeight").attr("disabled", false);
+            $("#mobileEmulationDevicePixelRatio").attr("disabled", false);
+            $("#mobileEmulationDeviceUserAgent").attr("disabled", false);
+        }
+    });
+</script>
+
+<script type="text/javascript">
     // wait for lazy loading configuration
     $("input[name=waitForLazyLoading]").click(function () {
         if ($("input[name=waitForLazyLoading]:checked").val() == "true") {
@@ -2266,6 +2469,13 @@
         const targetBrowserName = $("input[name=targetBrowserName]:checked").val();
         const headlessExecution = $("input[name=headlessExecution]:checked").val();
         const proxySettings = $("input[name=platform_proxySettings]").val();
+        const isMobileEmulation = $("input[name=mobileEmulation]:checked").val();
+        const mobileEmulationCustomDevice = $("input[name=mobileEmulationCustomDevice]:checked").val();
+        const mobileEmulationDevicesList = $("#mobileEmulationDevicesList :selected").text();
+        const mobileEmulationDeviceWidth = $("input[name=mobileEmulationDeviceWidth]").val();
+        const mobileEmulationDeviceHeight = $("input[name=mobileEmulationDeviceHeight]").val();
+        const mobileEmulationDevicePixelRatio = $("input[name=mobileEmulationDevicePixelRatio]").val();
+        const mobileEmulationDeviceUserAgent = $("input[name=mobileEmulationDeviceUserAgent]").val();
 
         // This variable stores all the data.
         let data =
@@ -2273,8 +2483,14 @@
             'targetOperatingSystem=' + targetOperatingSystem + '\r\n' +
             'targetBrowserName=' + targetBrowserName + '\r\n' +
             'headlessExecution=' + headlessExecution + '\r\n'+
-            'com.SHAFT.proxySettings=' + proxySettings + '\r\n';
-
+            'com.SHAFT.proxySettings=' + proxySettings + '\r\n' +
+            'isMobileEmulation=' + isMobileEmulation + '\r\n' +
+            'mobileEmulation.isCustomDevice=' + mobileEmulationCustomDevice + '\r\n' +
+            'mobileEmulation.deviceName=' + mobileEmulationDevicesList + '\r\n' +
+            'mobileEmulation.width=' + mobileEmulationDeviceWidth + '\r\n' +
+            'mobileEmulation.height=' + mobileEmulationDeviceHeight + '\r\n' +
+            'mobileEmulation.pixelRatio=' + mobileEmulationDevicePixelRatio + '\r\n' +
+            'mobileEmulation.userAgent=' + mobileEmulationDeviceUserAgent + '\r\n';
         downloadFile(data, 'ExecutionPlatform.properties');
     }
 
