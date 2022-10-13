@@ -173,10 +173,6 @@ public class DriverFactoryHelper {
     private static void setDriverOptions(DriverType driverType, MutableCapabilities customDriverOptions) {
         String downloadsFolderPath = FileActions.getInstance().getAbsolutePath(System.getProperty("downloadsFolderPath"));
 
-        //get proxy server
-        // Proxy server settings | testing behind a proxy
-        String PROXY_SERVER_SETTINGS = System.getProperty("com.SHAFT.proxySettings");
-
         //https://github.com/GoogleChrome/chrome-launcher/blob/master/docs/chrome-flags-for-tools.md#--enable-automation
         switch (driverType) {
             case DESKTOP_FIREFOX -> {
@@ -198,12 +194,7 @@ public class DriverFactoryHelper {
                 ffOptions.setPageLoadTimeout(Duration.ofSeconds(PAGE_LOAD_TIMEOUT));
                 ffOptions.setScriptTimeout(Duration.ofSeconds(SCRIPT_TIMEOUT));
                 //Add Proxy Setting if found
-                if (!PROXY_SERVER_SETTINGS.equals("")) {
-                    Proxy proxy = new Proxy();
-                    proxy.setHttpProxy(PROXY_SERVER_SETTINGS);
-                    proxy.setFtpProxy(PROXY_SERVER_SETTINGS);
-                    ffOptions.setProxy(proxy);
-                }
+                addProxySettings(ffOptions);
             }
             case DESKTOP_INTERNET_EXPLORER -> {
                 ieOptions = new InternetExplorerOptions();
@@ -215,12 +206,7 @@ public class DriverFactoryHelper {
                 ieOptions.setPageLoadTimeout(Duration.ofSeconds(PAGE_LOAD_TIMEOUT));
                 ieOptions.setScriptTimeout(Duration.ofSeconds(SCRIPT_TIMEOUT));
                 //Add Proxy Setting if found
-                if (!PROXY_SERVER_SETTINGS.equals("")) {
-                    Proxy proxy = new Proxy();
-                    proxy.setHttpProxy(PROXY_SERVER_SETTINGS);
-                    proxy.setFtpProxy(PROXY_SERVER_SETTINGS);
-                    ieOptions.setProxy(proxy);
-                }
+                addProxySettings(ieOptions);
             }
             case APPIUM_CHROME, DESKTOP_CHROME, DESKTOP_EDGE, DESKTOP_CHROMIUM -> {
                 ChromiumOptions<?> options;
@@ -251,12 +237,7 @@ public class DriverFactoryHelper {
                 options.setPageLoadTimeout(Duration.ofSeconds(PAGE_LOAD_TIMEOUT));
                 options.setScriptTimeout(Duration.ofSeconds(SCRIPT_TIMEOUT));
                 //Add Proxy Setting if found
-                if (!PROXY_SERVER_SETTINGS.equals("")) {
-                    Proxy proxy = new Proxy();
-                    proxy.setHttpProxy(PROXY_SERVER_SETTINGS);
-                    proxy.setFtpProxy(PROXY_SERVER_SETTINGS);
-                    options.setProxy(proxy);
-                }
+                addProxySettings(options);
                 //add logging preferences if enabled
                 if (Boolean.parseBoolean(System.getProperty("captureWebDriverLogs"))) {
                     options.setCapability("goog:loggingPrefs", configureLoggingPreferences());
@@ -299,12 +280,7 @@ public class DriverFactoryHelper {
                 sfOptions.setPageLoadTimeout(Duration.ofSeconds(PAGE_LOAD_TIMEOUT));
                 sfOptions.setScriptTimeout(Duration.ofSeconds(SCRIPT_TIMEOUT));
                 //Add Proxy Setting if found
-                if (!PROXY_SERVER_SETTINGS.equals("")) {
-                    Proxy proxy = new Proxy();
-                    proxy.setHttpProxy(PROXY_SERVER_SETTINGS);
-                    proxy.setFtpProxy(PROXY_SERVER_SETTINGS);
-                    sfOptions.setProxy(proxy);
-                }
+                addProxySettings(sfOptions);
             }
             case APPIUM_MOBILE_NATIVE -> appiumCapabilities = new DesiredCapabilities(customDriverOptions);
             default ->
@@ -624,6 +600,17 @@ public class DriverFactoryHelper {
         if (Boolean.parseBoolean(System.getProperty("heal-enabled").trim())) {
             ReportManager.logDiscrete("Initializing Healenium's Self Healing Driver...");
             driver.set(ThreadGuard.protect(SelfHealingDriver.create(driver.get())));
+        }
+    }
+
+    private static void addProxySettings(AbstractDriverOptions driverOptions) {
+        String proxyServerSettings = System.getProperty("com.SHAFT.proxySettings");
+        if (!proxyServerSettings.equals("")) {
+            Proxy proxy = new Proxy();
+            proxy.setHttpProxy(proxyServerSettings);
+            proxy.setSslProxy(proxyServerSettings);
+            proxy.setFtpProxy(proxyServerSettings);
+            driverOptions.setProxy(proxy);
         }
     }
 
