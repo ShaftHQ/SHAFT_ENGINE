@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en-US">
-
 <head>
     <meta charset="UTF-8">
     <link href="bootstrap.min.css" rel="stylesheet">
@@ -8,13 +7,60 @@
     <script src="jquery-3.5.0.min.js"></script>
     <script src="require.js"></script>
     <script src="main-built.js"></script>
+    <script async defer src="https://buttons.github.io/buttons.js"></script>
     <link href="data:image/png;base64,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"
           rel="icon" type="image/x-icon">
     <title>SHAFT_Engine</title>
+    <style>
+        .note {
+          margin-bottom: 15px;
+          padding: 4px 12px;
+        }
+        .danger {
+          background-color: #ffdddd;
+          border-left: 6px solid #f44336;
+        }
+        .success {
+          background-color: #ddffdd;
+          border-left: 6px solid #04AA6D;
+        }
+        .info {
+          background-color: #e7f3fe;
+          border-left: 6px solid #2196F3;
+        }
+        .warning {
+          background-color: #ffffcc;
+          border-left: 6px solid #ffeb3b;
+        }
+        .alert {
+          padding: 20px;
+          background-color: #04AA6D; /* green */
+          color: white;
+          margin-bottom: 15px;
+          opacity: 0;
+          transition: opacity 0.6s; /* 600ms to fade out */
+        }
+        .closebtn {
+          margin-left: 15px;
+          color: white;
+          font-weight: bold;
+          float: right;
+          font-size: 22px;
+          line-height: 20px;
+          cursor: pointer;
+          transition: 0.3s;
+        }
+        .closebtn:hover {
+          color: black;
+        }
+        code {
+          color: black;
+          background-color: #f1f1f1;
+        }
+
+    </style>
 </head>
-
 <body>
-
 <!-- Navigation Bar -->
 <nav class="navbar navbar-fixed-top navbar-bootsnipp animate" role="navigation" style="z-index: 9999999;">
     <div class="container">
@@ -25,28 +71,26 @@
                         style="padding: 2px;"/></a>
             </div>
         </div>
-        <div class="collapse navbar-collapse">
+        <div class="collapse navbar-collapse" style="line-height: 8px;">
             <ul class="nav navbar-nav navbar-right" style="margin:auto;">
-                <li><a href="https://github.com/ShaftHQ/SHAFT_ENGINE" style="line-height: 50px;" target="_blank">Home/GitHub</a>
-                </li>
-                <li><a href="apidocs/index.html" style="line-height: 50px;" target="_blank">JavaDocs</a>
-                </li>
-                <li><a href="https://bintray.com/shafthq/SHAFT/SHAFT_Engine/_latestVersion"
-                       style="line-height: 50px;"
-                       target="_blank">BinTray</a></li>
-                <li>
-                    <a href="https://search.maven.org/search?q=g:%22io.github.shafthq%22%20AND%20a:%22SHAFT_ENGINE%22"
-                       style="line-height: 50px;"
-                       target="_blank">Maven Central</a></li>
-                <li><a href="https://github.com/MohabMohie/using_SHAFT_ENGINE" style="line-height: 50px;"
-                       target="_blank">Sample Project</a></li>
+                <li><a href="apidocs/index.html" style="line-height: 50px;"
+                       target="_blank"><strong>JavaDocs</strong></a></li>
+                <li><a href="https://shafthq.github.io/SHAFT_Engine_Docusaurus/" style="line-height: 50px;"
+                       target="_blank"><strong>User Guide</strong></a></li>
+                <li><a href="https://github.com/ShaftHQ/SHAFT_ENGINE" style="line-height: 50px;"
+                       target="_blank"><strong>ShaftHQ/SHAFT</strong></a></li>
+                <li><br/><br/><br/><a aria-label="Star ShaftHQ/SHAFT_ENGINE on GitHub" class="github-button"
+                                      data-color-scheme="no-preference: dark; light: light; dark: dark;"
+                                      data-icon="octicon-star" data-show-count="true" data-size="large"
+                                      href="https://github.com/ShaftHQ/SHAFT_ENGINE"
+                                      style="line-height: 50px margin-top: 15px" target="_blank">Stargazers</a></li>
+
             </ul>
         </div>
     </div>
 </nav>
-
 <!-- Logo -->
-<div class="container">
+<div class="container" style="background-color: #e9edf1;">
     <div class="row">
         <div class="col-md-12">
             <div class="text-center">
@@ -57,45 +101,33 @@
         </div>
     </div>
 </div>
-
-<div class="container">
+<div class="container" style="background-color: #e9edf1;">
     <div class="row">
         <div class="tabbable" style="overflow:hidden;padding-left: 20px;padding-right: 20px;">
             <!-- Navigation Bar -->
             <ul class="nav nav-tabs">
-                <li class="active"><a data-toggle="tab" href="#" tabName="Platform">Platform</a></li>
-                <li><a data-toggle="tab" href="#" tabName="Mobile">Mobile</a></li>
-                <li><a data-toggle="tab" href="#" tabName="Flags">Flags</a></li>
-                <li><a data-toggle="tab" href="#" tabName="Timeouts">Timeouts</a></li>
-                <li><a data-toggle="tab" href="#" tabName="Validations">Validations</a></li>
-                <li><a data-toggle="tab" href="#" tabName="Reporting">Reporting</a></li>
-                <li><a data-toggle="tab" href="#" tabName="XRay">XRay</a></li>
-                <li><a data-toggle="tab" href="#" tabName="All">Generate All</a></li>
+                <li class="active"><a href="#executionPlatformSettings">Platform</a></li>
+                <li><a href="#webCapabilities">Web</a></li>
+                <li><a href="#mobileCapabilities">Mobile</a></li>
+                <li><a href="#platformFlags">Flags</a></li>
+                <li><a href="#timeouts">Timeouts</a></li>
+                <li><a href="#visualValidations">Validations</a></li>
+                <li><a href="#reporting">Reporting</a></li>
+                <li><a href="#xray">XRay</a></li>
+                <li><a href="#allSettings">Generate All</a></li>
             </ul>
-
             <!-- Main Elements -->
             <form class="form-horizontal" id="components" role="form">
                 <fieldset>
                     <div class="tab-content" style="background-color:white;">
-                        <div class="tab-pane active" id="executionPlatformSettings">
+                        <div class="tab-pane fade in active" id="executionPlatformSettings">
                             <br/><br/>
                             <form class="form-horizontal">
                                 <fieldset>
                                     <!-- Form Name -->
                                     <!-- <legend>&nbsp;Platform:</legend>-->
-
-                                    <!-- Text input-->
-                                    <div class="form-group">
-                                        <label class="col-md-4 control-label" for="proxySettings-0">Proxy Server</label>
-                                        <div class="col-md-4">
-                                            <div class="input-group">
-                                                <input class="form-control input-md" id="proxySettings-0"
-                                                       name="platform_proxySettings" placeholder="localhost:8080"
-                                                       required type="text">
-                                            </div>
-                                            <span class="help-block">Used to configure testing behind a proxy.  e.g. corporate proxy</span>
-                                        </div>
-                                    </div>
+                                    <p style="text-align: center;"><b>—— Target Platform Information ——<br/><br/></b>
+                                    </p>
 
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
@@ -211,6 +243,58 @@
                                         </div>
                                     </div>
 
+                                    <p style="text-align: center;"><b>—— Client Information ——<br/><br/></b></p>
+
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="proxySettings-0">Proxy Server</label>
+                                        <div class="col-md-4">
+                                            <div class="input-group">
+                                                <input class="form-control input-md" id="proxySettings-0"
+                                                       name="platform_proxySettings" placeholder="localhost:8080"
+                                                       required type="text">
+                                            </div>
+                                            <span class="help-block">Used to configure testing behind a proxy.  e.g. corporate proxy</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Button -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label"
+                                               for="generateExecutionPlatform_button">Generate
+                                            Properties File
+                                        </label>
+                                        <div class="col-md-4">
+                                            <button class="btn btn-primary" id="generateExecutionPlatform_button"
+                                                    onclick="generateExecutionPlatform();return false;">
+                                                ExecutionPlatform.properties
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="alert" id="ExecutionPlatform.properties">
+                                        <span class="closebtn">&times;</span>
+                                        <p style="text-align: center;"><strong>Success!</strong> Don't forget to move
+                                            your new properties file under the
+                                            <code>src/main/resources/properties</code> directory and <u>overwrite</u>
+                                            the old one.</p>
+                                    </div>
+                                </fieldset>
+                            </form>
+                            <br/>
+                        </div>
+                        <div class="tab-pane fade" id="webCapabilities">
+                            <br/><br/>
+                            <form class="form-horizontal">
+                                <fieldset>
+                                    <!-- Form Name -->
+                                    <!-- <legend>&nbsp;Web:</legend>-->
+                                    <div class="note info">
+                                        <p><strong>Note:</strong> Remember to set the correct Target Operating System in
+                                            the <a href="#executionPlatformSettings"
+                                                   name="navigateToPlatformSettingsTab">Platform</a> tab.</p>
+                                    </div>
+                                    <p style="text-align: center;"><b>—— Desktop ——<br/><br/></b></p>
+
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
                                         <label class="col-md-4 control-label" for="targetBrowserName">Target
@@ -287,9 +371,12 @@
                                         </div>
                                     </div>
 
+                                    <p style="text-align: center;"><b>—— Emulation ——<br/><br/></b></p>
+
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
-                                        <label class="col-md-4 control-label" for="mobileEmulation">Mobile Emulation</label>
+                                        <label class="col-md-4 control-label" for="mobileEmulation">Mobile
+                                            Emulation</label>
                                         <div class="col-md-4" id="mobileEmulation">
                                             <div class="radio-inline">
                                                 <label for="mobileEmulation-0">
@@ -309,31 +396,10 @@
                                         </div>
                                     </div>
 
-                                    <!-- Multiple Radios -->
-                                    <div class="form-group">
-                                        <label class="col-md-4 control-label" for="mobileEmulationCustomDevice">Mobile Emulation Custom Device</label>
-                                        <div class="col-md-4" id="mobileEmulationCustomDevice">
-                                            <div class="radio-inline">
-                                                <label for="mobileEmulationCustomDevice-0">
-                                                    <input id="mobileEmulationCustomDevice-0"
-                                                           name="mobileEmulationCustomDevice"
-                                                           type="radio" value="true" disabled> Enabled
-                                                </label>
-                                            </div>
-                                            <div class="radio-inline">
-                                                <label for="mobileEmulationCustomDevice-1">
-                                                    <input checked="checked" id="mobileEmulationCustomDevice-1" name="mobileEmulationCustomDevice"
-                                                           type="radio"
-                                                           value="false" disabled> Disabled
-                                                </label>
-                                            </div>
-                                            <span class="help-block">• Can choose this when the Mobile Emulation is Enabled.</span>
-                                        </div>
-                                    </div>
-
                                     <!-- Dropdown List -->
                                     <div class="form-group">
-                                        <label class="col-md-4 control-label" for="mobileEmulationDevicesList">Mobile Emulation Device Name</label>
+                                        <label class="col-md-4 control-label" for="mobileEmulationDevicesList">Device
+                                            Name</label>
                                         <div class="col-md-4">
                                             <div>
                                                 <label for="mobileEmulationDevicesList">
@@ -396,9 +462,34 @@
                                         </div>
                                     </div>
 
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="mobileEmulationCustomDevice">Custom
+                                            Device</label>
+                                        <div class="col-md-4" id="mobileEmulationCustomDevice">
+                                            <div class="radio-inline">
+                                                <label for="mobileEmulationCustomDevice-0">
+                                                    <input disabled
+                                                           id="mobileEmulationCustomDevice-0"
+                                                           name="mobileEmulationCustomDevice" type="radio" value="true">
+                                                    Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="mobileEmulationCustomDevice-1">
+                                                    <input checked="checked" disabled id="mobileEmulationCustomDevice-1"
+                                                           name="mobileEmulationCustomDevice"
+                                                           type="radio" value="false"> Disabled
+                                                </label>
+                                            </div>
+                                            <span class="help-block">• Can choose this when the Mobile Emulation is Enabled.</span>
+                                        </div>
+                                    </div>
+
                                     <!-- Number input-->
                                     <div class="form-group">
-                                        <label class="col-md-4 control-label" for="mobileEmulationDeviceWidth">Mobile Emulation Device Width</label>
+                                        <label class="col-md-4 control-label" for="mobileEmulationDeviceWidth">Custom
+                                            Device Width</label>
                                         <div class="col-md-4">
                                             <div class="input-group">
                                                 <input class="form-control input-md" id="mobileEmulationDeviceWidth"
@@ -410,7 +501,8 @@
 
                                     <!-- Number input-->
                                     <div class="form-group">
-                                        <label class="col-md-4 control-label" for="mobileEmulationDeviceHeight">Mobile Emulation Device Height</label>
+                                        <label class="col-md-4 control-label" for="mobileEmulationDeviceHeight">Custom
+                                            Device Height</label>
                                         <div class="col-md-4">
                                             <div class="input-group">
                                                 <input class="form-control input-md" id="mobileEmulationDeviceHeight"
@@ -422,7 +514,8 @@
 
                                     <!-- Number input-->
                                     <div class="form-group">
-                                        <label class="col-md-4 control-label" for="mobileEmulationDevicePixelRatio">Mobile Emulation Device Pixel Ratio</label>
+                                        <label class="col-md-4 control-label" for="mobileEmulationDevicePixelRatio">Custom
+                                            Device Pixel Ratio</label>
                                         <div class="col-md-4">
                                             <div class="input-group">
                                                 <input class="form-control input-md" id="mobileEmulationDevicePixelRatio"
@@ -435,7 +528,8 @@
 
                                     <!-- Text input-->
                                     <div class="form-group">
-                                        <label class="col-md-4 control-label" for="mobileEmulationDeviceUserAgent">Mobile Emulation User Agent</label>
+                                        <label class="col-md-4 control-label" for="mobileEmulationDeviceUserAgent">Custom
+                                            Device User Agent</label>
                                         <div class="col-md-4">
                                             <div>
                                                 <input class="form-control input-md" id="mobileEmulationDeviceUserAgent"
@@ -453,31 +547,35 @@
                                             Properties File
                                         </label>
                                         <div class="col-md-4">
-                                            <button class="btn btn-primary" id="generateExecutionPlatform_button"
-                                                    onclick="generateExecutionPlatform();return false;">
-                                                ExecutionPlatform.properties
+                                            <button class="btn btn-primary" id="generateWebCapabilities_button"
+                                                    onclick="generateWebCapabilities();return false;">
+                                                WebCapabilities.properties
                                             </button>
                                         </div>
+                                    </div>
+                                    <div class="alert" id="WebCapabilities.properties">
+                                        <span class="closebtn">&times;</span>
+                                        <p style="text-align: center;"><strong>Success!</strong> Don't forget to move
+                                            your new properties file under the
+                                            <code>src/main/resources/properties</code> directory and <u>overwrite</u>
+                                            the old one.</p>
                                     </div>
                                 </fieldset>
                             </form>
                             <br/>
                         </div>
-                        <div class="tab-pane" id="mobileCapabilities">
+                        <div class="tab-pane fade" id="mobileCapabilities">
                             <br/><br/>
                             <form class="form-horizontal">
                                 <fieldset>
                                     <!-- Form Name -->
                                     <!--<legend>&nbsp;Mobile:</legend>-->
-
-                                    <div class="form-group">
-                                        <label class="col-md-4 control-label"></label>
-                                        <div class="col-md-4">
-                                            <div class="input-group">
-                                            </div>
-                                            <span class="help-block">* Remember to set the correct Target Operating System in the Platform tab.</span>
-                                        </div>
+                                    <div class="note info">
+                                        <p><strong>Note:</strong> Remember to set the correct Target Operating System in
+                                            the <a href="#executionPlatformSettings"
+                                                   name="navigateToPlatformSettingsTab">Platform</a> tab.</p>
                                     </div>
+                                    <p style="text-align: center;"><b>—— Global ——<br/><br/></b></p>
 
                                     <!-- Text input-->
                                     <div class="form-group">
@@ -559,38 +657,7 @@
                                         </div>
                                     </div>
 
-                                    <!-- Select Basic -->
-                                    <div class="form-group">
-                                        <label class="col-md-4 control-label" for="mobile_browserName">Target
-                                            Browser</label>
-                                        <div class="col-md-4">
-                                            <select class="form-control" id="mobile_browserName"
-                                                    name="mobile_browserName">
-                                                <option selected value="">Native App</option>
-                                                <option value="Chrome">Chrome</option>
-                                                <option value="Chromium">Chromium</option>
-                                                <option value="Browser">Browser</option>
-                                                <option value="Safari">Safari</option>
-                                            </select>
-                                            <span class="help-block">• Name of the target web browser to automate. Should be "Native App" if automating an app instead.</span>
-                                        </div>
-                                    </div>
-
-                                    <!-- Text input-->
-                                    <div class="form-group">
-                                        <label class="col-md-4 control-label" for="MobileBrowserVersion">Target Browser
-                                            Version</label>
-                                        <div class="col-md-4">
-                                            <div class="input-group">
-                                                <input class="form-control input-md" id="MobileBrowserVersion"
-                                                       name="MobileBrowserVersion" placeholder="83.0.4103.39"
-                                                       type="text">
-                                            </div>
-                                            <span class="help-block">• The latest version of the webdriver executable that is compatible with the target browser. You can get it from <a
-                                                    href="https://www.selenium.dev/documentation/en/webdriver/driver_requirements/#quick-reference">here</a>.
-                                            <br/>• Leave empty if automating an app instead.</span>
-                                        </div>
-                                    </div>
+                                    <p style="text-align: center;"><b>—— App ——<br/><br/></b></p>
 
                                     <!-- Text input-->
                                     <div class="form-group">
@@ -646,6 +713,41 @@
                                         </div>
                                     </div>
 
+                                    <p style="text-align: center;"><b>—— Web ——<br/><br/></b></p>
+
+                                    <!-- Select Basic -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="mobile_browserName">Target
+                                            Browser</label>
+                                        <div class="col-md-4">
+                                            <select class="form-control" id="mobile_browserName"
+                                                    name="mobile_browserName">
+                                                <option selected value="">Native App</option>
+                                                <option value="Chrome">Chrome</option>
+                                                <option value="Chromium">Chromium</option>
+                                                <option value="Browser">Browser</option>
+                                                <option value="Safari">Safari</option>
+                                            </select>
+                                            <span class="help-block">• Name of the target web browser to automate. Should be "Native App" if automating an app instead.</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="MobileBrowserVersion">Target Browser
+                                            Version</label>
+                                        <div class="col-md-4">
+                                            <div class="input-group">
+                                                <input class="form-control input-md" id="MobileBrowserVersion"
+                                                       name="MobileBrowserVersion" placeholder="83.0.4103.39"
+                                                       type="text">
+                                            </div>
+                                            <span class="help-block">• The latest version of the webdriver executable that is compatible with the target browser. You can get it from <a
+                                                    href="https://www.selenium.dev/documentation/en/webdriver/driver_requirements/#quick-reference">here</a>.
+                                            <br/>• Leave empty if automating an app instead.</span>
+                                        </div>
+                                    </div>
+
                                     <!-- Button -->
                                     <div class="form-group">
                                         <label class="col-md-4 control-label" for="generateMobileCapabilities_button">Generate
@@ -661,12 +763,18 @@
                                                         href="http://appium.io/docs/en/writing-running-appium/caps/">List of Appium Capabilities</a> directly to this file after it's generated, just make sure to add [mobile_] as a prefix.</span>
                                         </div>
                                     </div>
-
+                                    <div class="alert" id="MobileCapabilities.properties">
+                                        <span class="closebtn">&times;</span>
+                                        <p style="text-align: center;"><strong>Success!</strong> Don't forget to move
+                                            your new properties file under the
+                                            <code>src/main/resources/properties</code> directory and <u>overwrite</u>
+                                            the old one.</p>
+                                    </div>
                                 </fieldset>
                             </form>
                             <br/>
                         </div>
-                        <div class="tab-pane" id="platformFlags">
+                        <div class="tab-pane fade" id="platformFlags">
                             <br/><br/>
                             <form class="form-horizontal">
                                 <fieldset>
@@ -674,9 +782,12 @@
                                     <!-- Form Name -->
                                     <!--<legend>&nbsp;Flags:</legend>-->
 
+                                    <p style="text-align: center;"><b>—— Cool Features ——<br/><br/></b></p>
+
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
-                                        <label class="col-md-4 control-label" for="retryMaximumNumberOfAttempts">Automatically Retry Failed Tests
+                                        <label class="col-md-4 control-label" for="retryMaximumNumberOfAttempts">Automatically
+                                            Retry Failed Tests
                                         </label>
                                         <div class="col-md-4" id="retryMaximumNumberOfAttempts">
                                             <div class="radio-inline">
@@ -728,27 +839,61 @@
 
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
-                                        <label class="col-md-4 control-label" for="browserObjectSingleton">Singleton
-                                            Browser
+                                        <label class="col-md-4 control-label" for="maximumPerformanceMode">Maximum
+                                            Performance
+                                            Mode
                                         </label>
-                                        <div class="col-md-4" id="browserObjectSingleton">
+                                        <div class="col-md-4" id="maximumPerformanceMode">
                                             <div class="radio-inline">
-                                                <label for="browserObjectSingleton-0">
-                                                    <input id="browserObjectSingleton-0"
-                                                           name="browserObjectSingleton"
-                                                           type="radio" value="true"> Enabled
-                                                </label>
-                                            </div>
-                                            <div class="radio-inline">
-                                                <label for="browserObjectSingleton-1">
-                                                    <input checked="checked" id="browserObjectSingleton-1"
-                                                           name="browserObjectSingleton" type="radio" value="false">
+                                                <label for="maximumPerformanceMode-0">
+                                                    <input checked="checked" id="maximumPerformanceMode-0"
+                                                           name="maximumPerformanceMode" type="radio" value="0">
                                                     Disabled
                                                 </label>
                                             </div>
-                                            <span class="help-block">• This makes sure that every time you attempt to open a browser, all other instances will be closed.</span>
+                                            <div class="radio-inline">
+                                                <label for="maximumPerformanceMode-1">
+                                                    <input id="maximumPerformanceMode-1"
+                                                           name="maximumPerformanceMode"
+                                                           type="radio" value="1"> Without Headless Execution
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="maximumPerformanceMode-2">
+                                                    <input id="maximumPerformanceMode-2"
+                                                           name="maximumPerformanceMode"
+                                                           type="radio" value="2"> With Headless Execution
+                                                </label>
+                                            </div>
+                                            <span class="help-block">• Enabling maximumPerformanceMode will disable all complementary features to ensure the fastest execution possible with a 400% calculated performance boost.</span>
                                         </div>
                                     </div>
+
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="skipTestsWithLinkedIssues">Skip Tests
+                                            With Linked Issues
+                                        </label>
+                                        <div class="col-md-4" id="skipTestsWithLinkedIssues">
+                                            <div class="radio-inline">
+                                                <label for="skipTestsWithLinkedIssues-0">
+                                                    <input id="skipTestsWithLinkedIssues-0"
+                                                           name="skipTestsWithLinkedIssues" type="radio" value="true">
+                                                    Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="skipTestsWithLinkedIssues-1">
+                                                    <input checked="checked" id="skipTestsWithLinkedIssues-1"
+                                                           name="skipTestsWithLinkedIssues"
+                                                           type="radio" value="false"> Disabled
+                                                </label>
+                                            </div>
+                                            <span class="help-block">• It is recommended to leave this feature disabled unless you explicitly want to skip any tests that have the @Issue or @Issues annotation.</span>
+                                        </div>
+                                    </div>
+
+                                    <p style="text-align: center;"><b>—— Automatic Behaviors ——<br/><br/></b></p>
 
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
@@ -773,6 +918,64 @@
                                             </div>
                                         </div>
                                     </div>
+
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label"
+                                               for="attemptClearBeforeTypingUsingBackspace">Attempt clearing text before
+                                            typing using backspace
+                                        </label>
+                                        <div class="col-md-4" id="attemptClearBeforeTypingUsingBackspace">
+                                            <div class="radio-inline">
+                                                <label for="attemptClearBeforeTypingUsingBackspace-0">
+                                                    <input id="attemptClearBeforeTypingUsingBackspace-0"
+                                                           name="attemptClearBeforeTypingUsingBackspace" type="radio"
+                                                           value="true">
+                                                    Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="attemptClearBeforeTypingUsingBackspace-1">
+                                                    <input checked="checked"
+                                                           id="attemptClearBeforeTypingUsingBackspace-1"
+                                                           name="attemptClearBeforeTypingUsingBackspace" type="radio"
+                                                           value="false">
+                                                    Disabled
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label"
+                                               for="clickUsingJavascriptWhenWebDriverClickFails">Click using JavaScript
+                                            if WebDriver Click Fails
+                                        </label>
+                                        <div class="col-md-4" id="clickUsingJavascriptWhenWebDriverClickFails">
+                                            <div class="radio-inline">
+                                                <label for="clickUsingJavascriptWhenWebDriverClickFails-0">
+                                                    <input id="clickUsingJavascriptWhenWebDriverClickFails-0"
+                                                           name="clickUsingJavascriptWhenWebDriverClickFails"
+                                                           type="radio"
+                                                           value="true">
+                                                    Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="clickUsingJavascriptWhenWebDriverClickFails-1">
+                                                    <input checked="checked"
+                                                           id="clickUsingJavascriptWhenWebDriverClickFails-1"
+                                                           name="clickUsingJavascriptWhenWebDriverClickFails"
+                                                           type="radio"
+                                                           value="false">
+                                                    Disabled
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <p style="text-align: center;"><b>—— Built-in Validations ——<br/><br/></b></p>
 
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
@@ -854,30 +1057,6 @@
 
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
-                                        <label class="col-md-4 control-label" for="attemptClearBeforeTypingUsingBackspace">Attempt clearing text before typing using backspace
-                                        </label>
-                                        <div class="col-md-4" id="attemptClearBeforeTypingUsingBackspace">
-                                            <div class="radio-inline">
-                                                <label for="attemptClearBeforeTypingUsingBackspace-0">
-                                                    <input id="attemptClearBeforeTypingUsingBackspace-0"
-                                                           name="attemptClearBeforeTypingUsingBackspace" type="radio"
-                                                           value="true">
-                                                    Enabled
-                                                </label>
-                                            </div>
-                                            <div class="radio-inline">
-                                                <label for="attemptClearBeforeTypingUsingBackspace-1">
-                                                    <input checked="checked" id="attemptClearBeforeTypingUsingBackspace-1"
-                                                           name="attemptClearBeforeTypingUsingBackspace" type="radio"
-                                                           value="false">
-                                                    Disabled
-                                                </label>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Multiple Radios -->
-                                    <div class="form-group">
                                         <label class="col-md-4 control-label" for="forceCheckNavigationWasSuccessful">Force
                                             check
                                             navigation was successful
@@ -895,30 +1074,6 @@
                                                 <label for="forceCheckNavigationWasSuccessful-1">
                                                     <input id="forceCheckNavigationWasSuccessful-1"
                                                            name="forceCheckNavigationWasSuccessful" type="radio"
-                                                           value="false">
-                                                    Disabled
-                                                </label>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Multiple Radios -->
-                                    <div class="form-group">
-                                        <label class="col-md-4 control-label" for="clickUsingJavascriptWhenWebDriverClickFails">Click using JavaScript if WebDriver Click Fails
-                                        </label>
-                                        <div class="col-md-4" id="clickUsingJavascriptWhenWebDriverClickFails">
-                                            <div class="radio-inline">
-                                                <label for="clickUsingJavascriptWhenWebDriverClickFails-0">
-                                                    <input id="clickUsingJavascriptWhenWebDriverClickFails-0"
-                                                           name="clickUsingJavascriptWhenWebDriverClickFails" type="radio"
-                                                           value="true">
-                                                    Enabled
-                                                </label>
-                                            </div>
-                                            <div class="radio-inline">
-                                                <label for="clickUsingJavascriptWhenWebDriverClickFails-1">
-                                                    <input checked="checked" id="clickUsingJavascriptWhenWebDriverClickFails-1"
-                                                           name="clickUsingJavascriptWhenWebDriverClickFails" type="radio"
                                                            value="false">
                                                     Disabled
                                                 </label>
@@ -950,62 +1105,6 @@
                                         </div>
                                     </div>
 
-                                    <!-- Multiple Radios -->
-                                    <div class="form-group">
-                                        <label class="col-md-4 control-label" for="maximumPerformanceMode">Maximum
-                                            Performance
-                                            Mode
-                                        </label>
-                                        <div class="col-md-4" id="maximumPerformanceMode">
-                                            <div class="radio-inline">
-                                                <label for="maximumPerformanceMode-0">
-                                                    <input checked="checked" id="maximumPerformanceMode-0"
-                                                           name="maximumPerformanceMode" type="radio" value="0">
-                                                    Disabled
-                                                </label>
-                                            </div>
-                                            <div class="radio-inline">
-                                                <label for="maximumPerformanceMode-1">
-                                                    <input id="maximumPerformanceMode-1"
-                                                           name="maximumPerformanceMode"
-                                                           type="radio" value="1"> Without Headless Execution
-                                                </label>
-                                            </div>
-                                            <div class="radio-inline">
-                                                <label for="maximumPerformanceMode-2">
-                                                    <input id="maximumPerformanceMode-2"
-                                                           name="maximumPerformanceMode"
-                                                           type="radio" value="2"> With Headless Execution
-                                                </label>
-                                            </div>
-                                            <span class="help-block">• Enabling maximumPerformanceMode will disable all complementary features to ensure the fastest execution possible with a 400% calculated performance boost.</span>
-                                        </div>
-                                    </div>
-
-                                    <!-- Multiple Radios -->
-                                    <div class="form-group">
-                                        <label class="col-md-4 control-label" for="skipTestsWithLinkedIssues">Skip Tests
-                                            With Linked Issues
-                                        </label>
-                                        <div class="col-md-4" id="skipTestsWithLinkedIssues">
-                                            <div class="radio-inline">
-                                                <label for="skipTestsWithLinkedIssues-0">
-                                                    <input id="skipTestsWithLinkedIssues-0"
-                                                           name="skipTestsWithLinkedIssues" type="radio" value="true">
-                                                    Enabled
-                                                </label>
-                                            </div>
-                                            <div class="radio-inline">
-                                                <label for="skipTestsWithLinkedIssues-1">
-                                                    <input checked="checked" id="skipTestsWithLinkedIssues-1"
-                                                           name="skipTestsWithLinkedIssues"
-                                                           type="radio" value="false"> Disabled
-                                                </label>
-                                            </div>
-                                            <span class="help-block">• It is recommended to leave this feature disabled unless you explicitly want to skip any tests that have the @Issue or @Issues annotation.</span>
-                                        </div>
-                                    </div>
-
                                     <!-- Button -->
                                     <div class="form-group">
                                         <label class="col-md-4 control-label" for="generatePlatformFlags_button">Generate
@@ -1018,55 +1117,41 @@
                                             </button>
                                         </div>
                                     </div>
-
+                                    <div class="alert" id="PlatformFlags.properties">
+                                        <span class="closebtn">&times;</span>
+                                        <p style="text-align: center;"><strong>Success!</strong> Don't forget to move
+                                            your new properties file under the
+                                            <code>src/main/resources/properties</code> directory and <u>overwrite</u>
+                                            the old one.</p>
+                                    </div>
                                 </fieldset>
                             </form>
                             <br/>
                         </div>
-                        <div class="tab-pane" id="timeouts">
+                        <div class="tab-pane fade" id="timeouts">
                             <br/><br/>
                             <form class="form-horizontal">
                                 <fieldset>
 
                                     <!-- Form Name -->
                                     <!-- <legend>&nbsp;Timeouts:</legend>-->
-
-                                    <!-- Multiple Radios -->
-                                    <div class="form-group">
-                                        <label class="col-md-4 control-label" for="waitForLazyLoading">Wait for Lazy
-                                            Loading</label>
-                                        <div class="col-md-4" id="waitForLazyLoading">
-                                            <div class="radio-inline">
-                                                <label for="waitForLazyLoading-0">
-                                                    <input id="waitForLazyLoading-0"
-                                                           name="waitForLazyLoading" type="radio"
-                                                           value="true"> Enabled
-                                                </label>
-                                            </div>
-                                            <div class="radio-inline">
-                                                <label for="waitForLazyLoading-1">
-                                                    <input checked="checked" id="waitForLazyLoading-1"
-                                                           name="waitForLazyLoading"
-                                                           type="radio" value="false"> Disabled
-                                                </label>
-                                            </div>
-                                            <span class="help-block">• Uses SHAFT's built-in waiting mechanism to dynamically wait for any javascript, jquery, or angular lazy loading before any element action is performed to ensure more stable tests.</span>
-                                        </div>
-                                    </div>
+                                    <p style="text-align: center;"><b>—— GUI ——<br/><br/></b></p>
 
                                     <!-- Text input-->
                                     <div class="form-group">
-                                        <label class="col-md-4 control-label" for="lazyLoadingTimeout">Lazy
-                                            Loading Timeout
+                                        <label class="col-md-4 control-label"
+                                               for="defaultElementIdentificationTimeout">Element
+                                            Identification Timeout
                                         </label>
                                         <div class="col-md-4">
                                             <div class="input-group">
                                                 <input class="form-control input-md"
-                                                       id="lazyLoadingTimeout" min="0"
-                                                       name="lazyLoadingTimeout" step="30" type="number"
-                                                       value="30">
+                                                       id="defaultElementIdentificationTimeout"
+                                                       min="0" name="defaultElementIdentificationTimeout" step="30"
+                                                       type="number"
+                                                       value="60">
                                             </div>
-                                            <span class="help-block">• Timeout in seconds to wait for any javascript jquery or other asynchronous requests to finish.</span>
+                                            <span class="help-block">• Accepts integer values that represent the default timeout for finding a webElement .</span>
                                         </div>
                                     </div>
 
@@ -1116,23 +1201,46 @@
                                         </div>
                                     </div>
 
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="waitForLazyLoading">Wait for Lazy
+                                            Loading</label>
+                                        <div class="col-md-4" id="waitForLazyLoading">
+                                            <div class="radio-inline">
+                                                <label for="waitForLazyLoading-0">
+                                                    <input id="waitForLazyLoading-0"
+                                                           name="waitForLazyLoading" type="radio"
+                                                           value="true"> Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="waitForLazyLoading-1">
+                                                    <input checked="checked" id="waitForLazyLoading-1"
+                                                           name="waitForLazyLoading"
+                                                           type="radio" value="false"> Disabled
+                                                </label>
+                                            </div>
+                                            <span class="help-block">• Uses SHAFT's built-in custom waiting mechanism to dynamically wait for any javascript, jquery, or angular lazy loading before any element action is performed to ensure more stable tests, but has a strong impact on performance.</span>
+                                        </div>
+                                    </div>
+
                                     <!-- Text input-->
                                     <div class="form-group">
-                                        <label class="col-md-4 control-label"
-                                               for="defaultElementIdentificationTimeout">Element
-                                            Identification Timeout
+                                        <label class="col-md-4 control-label" for="lazyLoadingTimeout">Lazy
+                                            Loading Timeout
                                         </label>
                                         <div class="col-md-4">
                                             <div class="input-group">
                                                 <input class="form-control input-md"
-                                                       id="defaultElementIdentificationTimeout"
-                                                       min="0" name="defaultElementIdentificationTimeout" step="30"
-                                                       type="number"
-                                                       value="60">
+                                                       id="lazyLoadingTimeout" min="0"
+                                                       name="lazyLoadingTimeout" step="30" type="number"
+                                                       disabled value="30">
                                             </div>
-                                            <span class="help-block">• Accepts integer values that represent the default timeout for finding a webElement .</span>
+                                            <span class="help-block">• Timeout in seconds to wait for any javascript jquery or other asynchronous requests to finish.</span>
                                         </div>
                                     </div>
+
+                                    <p style="text-align: center;"><b>—— API ——<br/><br/></b></p>
 
                                     <!-- Text input-->
                                     <div class="form-group">
@@ -1180,6 +1288,8 @@
                                         </div>
                                     </div>
 
+                                    <p style="text-align: center;"><b>—— CLI ——<br/><br/></b></p>
+
                                     <!-- Text input-->
                                     <div class="form-group">
                                         <label class="col-md-4 control-label" for="shellSessionTimeout">Shell
@@ -1211,6 +1321,8 @@
                                             <span class="help-block">• Timeout in seconds to be used if executing a command inside a docker (1 minute = 60 seconds) .</span>
                                         </div>
                                     </div>
+
+                                    <p style="text-align: center;"><b>—— DB ——<br/><br/></b></p>
 
                                     <!-- Text input-->
                                     <div class="form-group">
@@ -1274,38 +1386,26 @@
                                             </button>
                                         </div>
                                     </div>
-
+                                    <div class="alert" id="Timeouts.properties">
+                                        <span class="closebtn">&times;</span>
+                                        <p style="text-align: center;"><strong>Success!</strong> Don't forget to move
+                                            your new properties file under the
+                                            <code>src/main/resources/properties</code> directory and <u>overwrite</u>
+                                            the old one.</p>
+                                    </div>
                                 </fieldset>
                             </form>
                             <br/>
                         </div>
-                        <div class="tab-pane" id="visualValidations">
+                        <div class="tab-pane fade" id="visualValidations">
                             <br/><br/>
                             <form class="form-horizontal">
                                 <fieldset>
 
                                     <!-- Form Name -->
                                     <!-- <legend>&nbsp;Visual Validations:</legend>-->
+                                    <p style="text-align: center;"><b>—— Screenshots ——<br/><br/></b></p>
 
-                                    <!-- Text input-->
-                                    <div class="form-group">
-                                        <label class="col-md-4 control-label"
-                                               for="screenshotParams_scalingFactor">Scaling
-                                            Factor
-                                        </label>
-                                        <div class="col-md-4">
-                                            <div class="input-group">
-                                                <input class="form-control input-md"
-                                                       id="screenshotParams_scalingFactor"
-                                                       max="5" min="1" name="screenshotParams_scalingFactor"
-                                                       step="0.05"
-                                                       type="number" value="1">
-                                            </div>
-                                            <span class="help-block">• A number between 1 and 5.00 where 1 means unscaled and 5.00 means 500% scaled.
-                                                                <br/>• If Linux is scaled you can provide a random value between [1.05, 5.00].
-                                                                <br/>• Windows and Linux browsers only.</span>
-                                        </div>
-                                    </div>
                                     <!-- Select Basic -->
                                     <div class="form-group">
                                         <label class="col-md-4 control-label"
@@ -1427,6 +1527,26 @@
                                         </div>
                                     </div>
 
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label"
+                                               for="screenshotParams_scalingFactor">Scaling
+                                            Factor
+                                        </label>
+                                        <div class="col-md-4">
+                                            <div class="input-group">
+                                                <input class="form-control input-md"
+                                                       id="screenshotParams_scalingFactor"
+                                                       max="5" min="1" name="screenshotParams_scalingFactor"
+                                                       step="0.05"
+                                                       type="number" value="1">
+                                            </div>
+                                            <span class="help-block">• A number between 1 and 5.00 where 1 means unscaled and 5.00 means 500% scaled.
+                                                                <br/>• If Linux is scaled you can provide a random value between [1.05, 5.00].
+                                                                <br/>• Windows and Linux browsers only.</span>
+                                        </div>
+                                    </div>
+
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
                                         <label class="col-md-4 control-label"
@@ -1466,6 +1586,8 @@
                                             <span class="help-block">• A number between 0 and 1.0 where 0 means invisible and 1.0 means 100% visible.</span>
                                         </div>
                                     </div>
+
+                                    <p style="text-align: center;"><b>—— Animated GIFs ——<br/><br/></b></p>
 
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
@@ -1510,6 +1632,8 @@
                                             <span class="help-block">• Time in milliseconds to delay the frames of the animated GIF, default is 500 milliseconds.</span>
                                         </div>
                                     </div>
+
+                                    <p style="text-align: center;"><b>—— Videos ——<br/><br/></b></p>
 
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
@@ -1565,26 +1689,87 @@
                                             </button>
                                         </div>
                                     </div>
-
+                                    <div class="alert" id="VisualValidations.properties">
+                                        <span class="closebtn">&times;</span>
+                                        <p style="text-align: center;"><strong>Success!</strong> Don't forget to move
+                                            your new properties file under the
+                                            <code>src/main/resources/properties</code> directory and <u>overwrite</u>
+                                            the old one.</p>
+                                    </div>
                                 </fieldset>
                             </form>
                             <br/>
                         </div>
-                        <div class="tab-pane" id="reporting">
+                        <div class="tab-pane fade" id="reporting">
                             <br/><br/>
                             <form class="form-horizontal">
                                 <fieldset>
-
                                     <!-- Form Name -->
                                     <!-- <legend>&nbsp;Reporting:</legend>-->
+                                    <p style="text-align: center;"><b>—— Enhanced Functionality ——<br/><br/></b></p>
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="generateExtentReports">Generate
+                                            Emailable Report
+                                        </label>
+                                        <div class="col-md-4" id="generateExtentReports">
+                                            <div class="radio-inline">
+                                                <label for="generateExtentReports-0">
+                                                    <input checked="checked" id="generateExtentReports-0"
+                                                           name="generateExtentReports" type="radio"
+                                                           value="true">
+                                                    Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="generateExtentReports-1">
+                                                    <input id="generateExtentReports-1"
+                                                           name="generateExtentReports" type="radio"
+                                                           value="false">
+                                                    Disabled
+                                                </label>
+                                            </div>
+                                            <span class="help-block">• Enabling this setting will create an emailable extent report html file after every test execution.</span>
+                                        </div>
+                                    </div>
 
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
-                                        <label class="col-md-4 control-label" for="captureElementName">Report Element Name</label>
+                                        <label class="col-md-4 control-label" for="openAllureReportAfterExecution">Automatically
+                                            Open Allure Report
+                                        </label>
+                                        <div class="col-md-4" id="openAllureReportAfterExecution">
+                                            <div class="radio-inline">
+                                                <label for="openAllureReportAfterExecution-0">
+                                                    <input checked="checked" id="openAllureReportAfterExecution-0"
+                                                           name="openAllureReportAfterExecution" type="radio"
+                                                           value="true">
+                                                    Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="openAllureReportAfterExecution-1">
+                                                    <input id="openAllureReportAfterExecution-1"
+                                                           name="openAllureReportAfterExecution" type="radio"
+                                                           value="false">
+                                                    Disabled
+                                                </label>
+                                            </div>
+                                            <span class="help-block">• Enabling this setting will serve and open the allure report automatically after every test run.
+                                            <br/>• There is a known issue whereby if you enable this setting the execution hangs after opening the report and you need to terminate it manually from your IDE.</span>
+                                        </div>
+                                    </div>
+
+                                    <p style="text-align: center;"><b>—— More Information ——<br/><br/></b></p>
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="captureElementName">Report Element
+                                            Name</label>
                                         <div class="col-md-4" id="captureElementName">
                                             <div class="radio-inline">
                                                 <label for="captureElementName-0">
-                                                    <input checked="checked" id="captureElementName-0" name="captureElementName"
+                                                    <input checked="checked" id="captureElementName-0"
+                                                           name="captureElementName"
                                                            type="radio"
                                                            value="true"> Enabled
                                                 </label>
@@ -1625,6 +1810,28 @@
 
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
+                                        <label class="col-md-4 control-label" for="debugMode">Debug Mode</label>
+                                        <div class="col-md-4" id="debugMode">
+                                            <div class="radio-inline">
+                                                <label for="debugMode-0">
+                                                    <input id="debugMode-0" name="debugMode" type="radio"
+                                                           value="true"> Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="debugMode-1">
+                                                    <input checked="checked" id="debugMode-1" name="debugMode"
+                                                           type="radio"
+                                                           value="false"> Disabled
+                                                </label>
+                                            </div>
+                                            <span class="help-block">• All attachment contents are logged to standard out for debugging API/CLI/DB actions.</span>
+                                        </div>
+                                    </div>
+
+                                    <p style="text-align: center;"><b>—— Less Information ——<br/><br/></b></p>
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
                                         <label class="col-md-4 control-label" for="alwaysLogDiscreetly">Discrete
                                             Logging</label>
                                         <div class="col-md-4" id="alwaysLogDiscreetly">
@@ -1646,55 +1853,7 @@
                                         </div>
                                     </div>
 
-                                    <!-- Multiple Radios -->
-                                    <div class="form-group">
-                                        <label class="col-md-4 control-label" for="debugMode">Debug Mode</label>
-                                        <div class="col-md-4" id="debugMode">
-                                            <div class="radio-inline">
-                                                <label for="debugMode-0">
-                                                    <input id="debugMode-0" name="debugMode" type="radio"
-                                                           value="true"> Enabled
-                                                </label>
-                                            </div>
-                                            <div class="radio-inline">
-                                                <label for="debugMode-1">
-                                                    <input checked="checked" id="debugMode-1" name="debugMode"
-                                                           type="radio"
-                                                           value="false"> Disabled
-                                                </label>
-                                            </div>
-                                            <span class="help-block">• All attachment contents are logged to standard out for debugging API/CLI/DB actions.</span>
-                                        </div>
-                                    </div>
-
-                                    <!-- Multiple Radios -->
-                                    <div class="form-group">
-                                        <label class="col-md-4 control-label"
-                                               for="cleanAllureResultsDirectoryBeforeExecution">Reset
-                                            Allure Results
-                                        </label>
-                                        <div class="col-md-4" id="cleanAllureResultsDirectoryBeforeExecution">
-                                            <div class="radio-inline">
-                                                <label for="cleanAllureResultsDirectoryBeforeExecution-0">
-                                                    <input checked="checked"
-                                                           id="cleanAllureResultsDirectoryBeforeExecution-0"
-                                                           name="cleanAllureResultsDirectoryBeforeExecution"
-                                                           type="radio"
-                                                           value="true"> Enabled
-                                                </label>
-                                            </div>
-                                            <div class="radio-inline">
-                                                <label for="cleanAllureResultsDirectoryBeforeExecution-1">
-                                                    <input id="cleanAllureResultsDirectoryBeforeExecution-1"
-                                                           name="cleanAllureResultsDirectoryBeforeExecution"
-                                                           type="radio"
-                                                           value="false"> Disabled
-                                                </label>
-                                            </div>
-                                            <span class="help-block">• Enabling this setting will reset the allure report before every test run, while disabling it will allow execution data to accumulate.</span>
-                                        </div>
-                                    </div>
-
+                                    <p style="text-align: center;"><b>—— Archive Generation ——<br/><br/></b></p>
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
                                         <label class="col-md-4 control-label" for="generateAllureReportArchive">Generate
@@ -1721,56 +1880,32 @@
                                         </div>
                                     </div>
 
+                                    <p style="text-align: center;"><b>—— Report Cleansing ——<br/><br/></b></p>
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
-                                        <label class="col-md-4 control-label" for="openAllureReportAfterExecution">Automatically
-                                            Open Allure Report
+                                        <label class="col-md-4 control-label"
+                                               for="cleanAllureResultsDirectoryBeforeExecution">Reset
+                                            Allure Results
                                         </label>
-                                        <div class="col-md-4" id="openAllureReportAfterExecution">
+                                        <div class="col-md-4" id="cleanAllureResultsDirectoryBeforeExecution">
                                             <div class="radio-inline">
-                                                <label for="openAllureReportAfterExecution-0">
-                                                    <input checked="checked" id="openAllureReportAfterExecution-0"
-                                                           name="openAllureReportAfterExecution" type="radio"
-                                                           value="true">
-                                                    Enabled
+                                                <label for="cleanAllureResultsDirectoryBeforeExecution-0">
+                                                    <input checked="checked"
+                                                           id="cleanAllureResultsDirectoryBeforeExecution-0"
+                                                           name="cleanAllureResultsDirectoryBeforeExecution"
+                                                           type="radio"
+                                                           value="true"> Enabled
                                                 </label>
                                             </div>
                                             <div class="radio-inline">
-                                                <label for="openAllureReportAfterExecution-1">
-                                                    <input id="openAllureReportAfterExecution-1"
-                                                           name="openAllureReportAfterExecution" type="radio"
-                                                           value="false">
-                                                    Disabled
+                                                <label for="cleanAllureResultsDirectoryBeforeExecution-1">
+                                                    <input id="cleanAllureResultsDirectoryBeforeExecution-1"
+                                                           name="cleanAllureResultsDirectoryBeforeExecution"
+                                                           type="radio"
+                                                           value="false"> Disabled
                                                 </label>
                                             </div>
-                                            <span class="help-block">• Enabling this setting will serve and open the allure report automatically after every test run.
-                                            <br/>• There is a known issue whereby if you enable this setting the execution hangs after opening the report and you need to terminate it manually from your IDE.</span>
-                                        </div>
-                                    </div>
-
-                                    <!-- Multiple Radios -->
-                                    <div class="form-group">
-                                        <label class="col-md-4 control-label" for="generateExtentReports">Generate
-                                            Emailable Report
-                                        </label>
-                                        <div class="col-md-4" id="generateExtentReports">
-                                            <div class="radio-inline">
-                                                <label for="generateExtentReports-0">
-                                                    <input checked="checked" id="generateExtentReports-0"
-                                                           name="generateExtentReports" type="radio"
-                                                           value="true">
-                                                    Enabled
-                                                </label>
-                                            </div>
-                                            <div class="radio-inline">
-                                                <label for="generateExtentReports-1">
-                                                    <input id="generateExtentReports-1"
-                                                           name="generateExtentReports" type="radio"
-                                                           value="false">
-                                                    Disabled
-                                                </label>
-                                            </div>
-                                            <span class="help-block">• Enabling this setting will create an emailable extent report html file after every test execution.</span>
+                                            <span class="help-block">• Enabling this setting will reset the allure report before every test run, while disabling it will allow execution data to accumulate.</span>
                                         </div>
                                     </div>
 
@@ -1815,22 +1950,29 @@
                                             </button>
                                         </div>
                                     </div>
-
+                                    <div class="alert" id="Reporting.properties">
+                                        <span class="closebtn">&times;</span>
+                                        <p style="text-align: center;"><strong>Success!</strong> Don't forget to move
+                                            your new properties file under the
+                                            <code>src/main/resources/properties</code> directory and <u>overwrite</u>
+                                            the old one.</p>
+                                    </div>
                                 </fieldset>
                             </form>
                             <br/>
                         </div>
-                        <div class="tab-pane" id="xray">
+                        <div class="tab-pane fade" id="xray">
                             <br/><br/>
                             <form class="form-horizontal">
                                 <fieldset>
-
                                     <!-- Form Name -->
                                     <!-- <legend>&nbsp;Reporting:</legend>-->
+                                    <p style="text-align: center;"><b>—— Core Functionality ——<br/><br/></b></p>
 
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
-                                        <label class="col-md-4 control-label" for="jiraInteraction">Integration:*</label>
+                                        <label class="col-md-4 control-label"
+                                               for="jiraInteraction">Integration:*</label>
                                         <div class="col-md-4" id="jiraInteraction">
                                             <div class="radio-inline">
                                                 <label for="jiraInteraction-0">
@@ -1902,9 +2044,12 @@
                                         </div>
                                     </div>
 
+                                    <p style="text-align: center;"><b>—— Test Case Reporting ——<br/><br/></b></p>
+
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
-                                        <label class="col-md-4 control-label" for="reportTestCasesExecution">Report the testcases execution results:*</label>
+                                        <label class="col-md-4 control-label" for="reportTestCasesExecution">Report the
+                                            testcases execution results:*</label>
                                         <div class="col-md-4" id="reportTestCasesExecution">
                                             <div class="radio-inline">
                                                 <label for="reportTestCasesExecution-0">
@@ -1952,7 +2097,8 @@
 
                                     <!-- Text input-->
                                     <div class="form-group">
-                                        <label class="col-md-4 control-label" for="ExecutionDescription">Execution description:
+                                        <label class="col-md-4 control-label" for="ExecutionDescription">Execution
+                                            description:
                                         </label>
                                         <div class="col-md-4">
                                             <input class="form-control input-md"
@@ -1961,6 +2107,8 @@
                                                    type="text">
                                         </div>
                                     </div>
+
+                                    <p style="text-align: center;"><b>—— Bug Reporting ——<br/><br/></b></p>
 
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
@@ -2028,13 +2176,18 @@
                                             </button>
                                         </div>
                                     </div>
-
+                                    <div class="alert" id="JiraXRay.properties">
+                                        <span class="closebtn">&times;</span>
+                                        <p style="text-align: center;"><strong>Success!</strong> Don't forget to move
+                                            your new properties file under the
+                                            <code>src/main/resources/properties</code> directory and <u>overwrite</u>
+                                            the old one.</p>
+                                    </div>
                                 </fieldset>
                             </form>
                             <br/>
                         </div>
-
-                        <div class="tab-pane" id="allSettings">
+                        <div class="tab-pane fade" id="allSettings">
                             <br/><br/>
                             <form class="form-horizontal">
                                 <fieldset>
@@ -2055,6 +2208,13 @@
                                             </button>
                                         </div>
                                     </div>
+                                    <div class="alert" id="generateAllFiles_alert">
+                                        <span class="closebtn">&times;</span>
+                                        <p style="text-align: center;"><strong>Success!</strong> Don't forget to move
+                                            your new properties files under the
+                                            <code>src/main/resources/properties</code> directory and <u>overwrite</u>
+                                            the old ones.</p>
+                                    </div>
                                 </fieldset>
                             </form>
                             <br/>
@@ -2066,108 +2226,33 @@
     </div>
 </div>
 </body>
-
+<!--tab panes script 2.0-->
 <script type="text/javascript">
-    // tab panes scripts
+$(document).ready(function(){
+  $(".nav-tabs a").click(function(){
+    $(this).tab('show');
+  });
+});
 
-    //Platform
-    $("a[tabName='Platform']").click(function () {
-        $("div[id=executionPlatformSettings]").attr("class", "tab-pane active");
-        $("div[id=mobileCapabilities]").attr("class", "tab-pane");
-        $("div[id=platformFlags]").attr("class", "tab-pane");
-        $("div[id=timeouts]").attr("class", "tab-pane");
-        $("div[id=visualValidations]").attr("class", "tab-pane");
-        $("div[id=reporting]").attr("class", "tab-pane");
-        $("div[id=xray]").attr("class", "tab-pane");
-        $("div[id=allSettings]").attr("class", "tab-pane");
-
-    });
-
-    //Mobile
-    $("a[tabName='Mobile']").click(function () {
-        $("div[id=executionPlatformSettings]").attr("class", "tab-pane");
-        $("div[id=mobileCapabilities]").attr("class", "tab-pane active");
-        $("div[id=platformFlags]").attr("class", "tab-pane");
-        $("div[id=timeouts]").attr("class", "tab-pane");
-        $("div[id=visualValidations]").attr("class", "tab-pane");
-        $("div[id=reporting]").attr("class", "tab-pane");
-        $("div[id=xray]").attr("class", "tab-pane");
-        $("div[id=allSettings]").attr("class", "tab-pane");
-    });
-
-    //Flags
-    $("a[tabName='Flags']").click(function () {
-        $("div[id=executionPlatformSettings]").attr("class", "tab-pane");
-        $("div[id=mobileCapabilities]").attr("class", "tab-pane");
-        $("div[id=platformFlags]").attr("class", "tab-pane active");
-        $("div[id=timeouts]").attr("class", "tab-pane");
-        $("div[id=visualValidations]").attr("class", "tab-pane");
-        $("div[id=reporting]").attr("class", "tab-pane");
-        $("div[id=xray]").attr("class", "tab-pane");
-        $("div[id=allSettings]").attr("class", "tab-pane");
-    });
-
-    //Timeouts
-    $("a[tabName='Timeouts']").click(function () {
-        $("div[id=executionPlatformSettings]").attr("class", "tab-pane");
-        $("div[id=mobileCapabilities]").attr("class", "tab-pane");
-        $("div[id=platformFlags]").attr("class", "tab-pane");
-        $("div[id=timeouts]").attr("class", "tab-pane active");
-        $("div[id=visualValidations]").attr("class", "tab-pane");
-        $("div[id=reporting]").attr("class", "tab-pane");
-        $("div[id=xray]").attr("class", "tab-pane");
-        $("div[id=allSettings]").attr("class", "tab-pane");
-    });
-
-    //Validations
-    $("a[tabName='Validations']").click(function () {
-        $("div[id=executionPlatformSettings]").attr("class", "tab-pane");
-        $("div[id=mobileCapabilities]").attr("class", "tab-pane");
-        $("div[id=platformFlags]").attr("class", "tab-pane");
-        $("div[id=timeouts]").attr("class", "tab-pane");
-        $("div[id=visualValidations]").attr("class", "tab-pane active");
-        $("div[id=reporting]").attr("class", "tab-pane");
-        $("div[id=xray]").attr("class", "tab-pane");
-        $("div[id=allSettings]").attr("class", "tab-pane");
-    });
-
-    //Reporting
-    $("a[tabName='Reporting']").click(function () {
-        $("div[id=executionPlatformSettings]").attr("class", "tab-pane");
-        $("div[id=mobileCapabilities]").attr("class", "tab-pane");
-        $("div[id=platformFlags]").attr("class", "tab-pane");
-        $("div[id=timeouts]").attr("class", "tab-pane");
-        $("div[id=visualValidations]").attr("class", "tab-pane");
-        $("div[id=reporting]").attr("class", "tab-pane active");
-        $("div[id=xray]").attr("class", "tab-pane");
-        $("div[id=allSettings]").attr("class", "tab-pane");
-    });
-
-    //XRay
-    $("a[tabName='XRay']").click(function () {
-        $("div[id=executionPlatformSettings]").attr("class", "tab-pane");
-        $("div[id=mobileCapabilities]").attr("class", "tab-pane");
-        $("div[id=platformFlags]").attr("class", "tab-pane");
-        $("div[id=timeouts]").attr("class", "tab-pane");
-        $("div[id=visualValidations]").attr("class", "tab-pane");
-        $("div[id=reporting]").attr("class", "tab-pane");
-        $("div[id=xray]").attr("class", "tab-pane active");
-        $("div[id=allSettings]").attr("class", "tab-pane");
-    });
-
-    //All
-    $("a[tabName='All']").click(function () {
-        $("div[id=executionPlatformSettings]").attr("class", "tab-pane");
-        $("div[id=mobileCapabilities]").attr("class", "tab-pane");
-        $("div[id=platformFlags]").attr("class", "tab-pane");
-        $("div[id=timeouts]").attr("class", "tab-pane");
-        $("div[id=visualValidations]").attr("class", "tab-pane");
-        $("div[id=reporting]").attr("class", "tab-pane");
-        $("div[id=xray]").attr("class", "tab-pane");
-        $("div[id=allSettings]").attr("class", "tab-pane active");
-    });
 </script>
+<!--Navigate to Platform Tab-->
+<script type="text/javascript">
+$("a[name=navigateToPlatformSettingsTab]").click(function () {
+  $('.nav-tabs a[href="#executionPlatformSettings"]').tab('show');
+});
 
+</script>
+<!--Close Alert-->
+<script>
+var close = document.getElementsByClassName("closebtn");
+var i;
+for (i = 0; i < close.length; i++) {
+  close[i].onclick = function(){
+    this.parentElement.style.opacity = "0";
+  }
+}
+
+</script>
 <script type="text/javascript">
     // remote server configuration
     $("input[name=executionAddress]").click(function () {
@@ -2226,7 +2311,6 @@
         }
     });
 </script>
-
 <script type="text/javascript">
     // headless execution configuration
     $("input[name=targetBrowserName]").click(function () {
@@ -2245,7 +2329,6 @@
         }
     });
 </script>
-
 <script type="text/javascript">
     // Mobile Emulation configurations
     $("input[name=mobileEmulation]").click(function () {
@@ -2270,7 +2353,6 @@
         }
     });
 </script>
-
 <script type="text/javascript">
     // Mobile Emulation Custom Device configurations
     $("input[name=mobileEmulationCustomDevice]").click(function () {
@@ -2289,7 +2371,6 @@
         }
     });
 </script>
-
 <script type="text/javascript">
     // wait for lazy loading configuration
     $("input[name=waitForLazyLoading]").click(function () {
@@ -2300,7 +2381,6 @@
         }
     });
 </script>
-
 <script type="text/javascript">
     // element screenshot configuration
     $("select[name=screenshotParams_whenToTakeAScreenshot]").change(function () {
@@ -2365,7 +2445,6 @@
         }
     });
 </script>
-
 <script type="text/javascript">
     // screenshotParams_screenshotType element only + highlighting configuration
     $("input[name=screenshotParams_screenshotType]").click(function () {
@@ -2390,7 +2469,6 @@
         }
     });
 </script>
-
 <script type="text/javascript">
     // element highlighting configuration
     $("input[name=screenshotParams_highlightElements]").click(function () {
@@ -2407,7 +2485,6 @@
         }
     });
 </script>
-
 <script type="text/javascript">
     // screenshot watermark configuration
     $("input[name=screenshotParams_watermark]").click(function () {
@@ -2418,7 +2495,6 @@
         }
     });
 </script>
-
 <script type="text/javascript">
     // animated gif configuration
     $("input[name=createAnimatedGif]").click(function () {
@@ -2429,7 +2505,6 @@
         }
     });
 </script>
-
 <script>
     function downloadFile(data, fileName) {
         data =
@@ -2455,7 +2530,6 @@
         newLink.click();
     }
 </script>
-
 <script>
     function generateExecutionPlatform() {
         var executionAddress;
@@ -2466,9 +2540,22 @@
             executionAddress = $("input[name=executionAddress]:checked").val();
         }
         const targetOperatingSystem = $("input[name=targetOperatingSystem]:checked").val();
+        const proxySettings = $("input[name=platform_proxySettings]").val();
+
+        // This variable stores all the data.
+        let data =
+            'executionAddress=' + executionAddress + '\r\n' +
+            'targetOperatingSystem=' + targetOperatingSystem + '\r\n' +
+            'com.SHAFT.proxySettings=' + proxySettings + '\r\n';
+        downloadFile(data, 'ExecutionPlatform.properties');
+        setTimeout(function(){ document.getElementById("ExecutionPlatform.properties").style.opacity = "1"; }, 400);
+    }
+
+</script>
+<script>
+    function generateWebCapabilities() {
         const targetBrowserName = $("input[name=targetBrowserName]:checked").val();
         const headlessExecution = $("input[name=headlessExecution]:checked").val();
-        const proxySettings = $("input[name=platform_proxySettings]").val();
         const isMobileEmulation = $("input[name=mobileEmulation]:checked").val();
         const mobileEmulationCustomDevice = $("input[name=mobileEmulationCustomDevice]:checked").val();
         const mobileEmulationDevicesList = $("#mobileEmulationDevicesList :selected").text();
@@ -2479,11 +2566,8 @@
 
         // This variable stores all the data.
         let data =
-            'executionAddress=' + executionAddress + '\r\n' +
-            'targetOperatingSystem=' + targetOperatingSystem + '\r\n' +
             'targetBrowserName=' + targetBrowserName + '\r\n' +
             'headlessExecution=' + headlessExecution + '\r\n'+
-            'com.SHAFT.proxySettings=' + proxySettings + '\r\n' +
             'isMobileEmulation=' + isMobileEmulation + '\r\n' +
             'mobileEmulation.isCustomDevice=' + mobileEmulationCustomDevice + '\r\n' +
             'mobileEmulation.deviceName=' + mobileEmulationDevicesList + '\r\n' +
@@ -2491,11 +2575,10 @@
             'mobileEmulation.height=' + mobileEmulationDeviceHeight + '\r\n' +
             'mobileEmulation.pixelRatio=' + mobileEmulationDevicePixelRatio + '\r\n' +
             'mobileEmulation.userAgent=' + mobileEmulationDeviceUserAgent + '\r\n';
-        downloadFile(data, 'ExecutionPlatform.properties');
+        downloadFile(data, 'WebCapabilities.properties');
+        setTimeout(function(){ document.getElementById("WebCapabilities.properties").style.opacity = "1"; }, 400);
     }
-
 </script>
-
 <script>
     function generateMobileCapabilities() {
         // Get the data from each element on the form.
@@ -2522,14 +2605,13 @@
             'mobile_appActivity=' + mobile_appActivity + '\r\n';
 
         downloadFile(data, 'MobileCapabilities.properties');
+        setTimeout(function(){ document.getElementById("MobileCapabilities.properties").style.opacity = "1"; }, 400);
     }
 
 </script>
-
 <script>
     function generatePlatformFlags() {
         const retryMaximumNumberOfAttempts = $("input[name=retryMaximumNumberOfAttempts]:checked").val();
-        const browserObjectSingleton = $("input[name=browserObjectSingleton]:checked").val();
         const autoMaximizeBrowserWindow = $("input[name=autoMaximizeBrowserWindow]:checked").val();
         const forceCheckForElementVisibility = $("input[name=forceCheckForElementVisibility]:checked").val();
         const forceCheckElementLocatorIsUnique = $("input[name=forceCheckElementLocatorIsUnique]:checked").val();
@@ -2544,7 +2626,6 @@
         // This variable stores all the data.
         let data =
             'retryMaximumNumberOfAttempts=' + retryMaximumNumberOfAttempts + '\r\n' +
-            'browserObjectSingleton=' + browserObjectSingleton + '\r\n' +
             'autoMaximizeBrowserWindow=' + autoMaximizeBrowserWindow + '\r\n' +
             'forceCheckForElementVisibility=' + forceCheckForElementVisibility + '\r\n' +
             'forceCheckElementLocatorIsUnique=' + forceCheckElementLocatorIsUnique + '\r\n' +
@@ -2557,9 +2638,9 @@
             'skipTestsWithLinkedIssues=' + skipTestsWithLinkedIssues + '\r\n';
 
         downloadFile(data, 'PlatformFlags.properties');
+        setTimeout(function(){ document.getElementById("PlatformFlags.properties").style.opacity = "1"; }, 400);
     }
 </script>
-
 <script>
     function generateTimeouts() {
         // Get the data from each element on the form.
@@ -2596,11 +2677,11 @@
             'databaseQueryTimeout=' + databaseQueryTimeout + '\r\n';
 
         downloadFile(data, 'Timeouts.properties');
+        setTimeout(function(){ document.getElementById("Timeouts.properties").style.opacity = "1"; }, 400);
     }
 
 
 </script>
-
 <script>
     function generateVisualValidations() {
         // Get the data from each element on the form.
@@ -2633,11 +2714,11 @@
             'videoParams_scope=' + videoParams_scope + '\r\n';
 
         downloadFile(data, 'VisualValidations.properties');
+        setTimeout(function(){ document.getElementById("VisualValidations.properties").style.opacity = "1"; }, 400);
     }
 
 
 </script>
-
 <script>
     function generateReporting() {
         // Get the data from each element on the form.
@@ -2664,10 +2745,10 @@
             'cleanExtentReportsDirectoryBeforeExecution=' + cleanExtentReportsDirectoryBeforeExecution + '\r\n';
 
         downloadFile(data, 'Reporting.properties');
+        setTimeout(function(){ document.getElementById("Reporting.properties").style.opacity = "1"; }, 400);
     }
 
 </script>
-
 <script>
     function generateXRay() {
         // Get the data from each element on the form.
@@ -2699,22 +2780,23 @@
             'allure.link.custom.pattern={}\r\n';
 
         downloadFile(data, 'JiraXRay.properties');
+        setTimeout(function(){ document.getElementById("JiraXRay.properties").style.opacity = "1"; }, 400);
     }
 
 </script>
-
 <script>
     function generateAllFiles() {
         generateExecutionPlatform();
+        generateWebCapabilities();
         generateMobileCapabilities();
         generatePlatformFlags();
         generateTimeouts();
         generateVisualValidations();
         generateReporting();
         generateXRay();
+        setTimeout(function(){ document.getElementById("generateAllFiles_alert").style.opacity = "1"; }, 400);
     }
 
 
 </script>
-
 </html>
