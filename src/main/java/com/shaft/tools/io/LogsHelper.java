@@ -2,7 +2,6 @@ package com.shaft.tools.io;
 
 import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactory;
-import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.tools.security.GoogleTink;
 import org.testng.ITestContext;
 import org.testng.annotations.AfterSuite;
@@ -79,7 +78,6 @@ public class LogsHelper {
     //TODO: migrate invokedMethodListener, SuiteListener to annotations here?
     @BeforeSuite
     public void setupActivities(ITestContext testContext) {
-        ProjectStructureManager.initialize();
         ReportManagerHelper.initializeAllureReportingEnvironment();
         ReportManagerHelper.initializeExtentReportingEnvironment();
         attachImportantLinks();

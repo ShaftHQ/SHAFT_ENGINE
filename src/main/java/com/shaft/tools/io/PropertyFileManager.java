@@ -2,6 +2,7 @@ package com.shaft.tools.io;
 
 import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactory;
+import lombok.Getter;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
 
@@ -16,6 +17,7 @@ public class PropertyFileManager {
     private static final String OS_LINUX = "Linux-64";
     private static final String OS_MAC = "Mac-64";
     private static final String DEFAULT_PROPERTIES_FOLDER_PATH = "src/main/resources/defaultProperties";
+    @Getter
     private static final String CUSTOM_PROPERTIES_FOLDER_PATH = "src/main/resources/properties";
     private static final String CUSTOM_PROPERTIES_FOLDER_PROPERTY_NAME = "propertiesFolderPath";
     private static Boolean readPropertyFiles = true;

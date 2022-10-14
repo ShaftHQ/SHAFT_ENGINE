@@ -503,12 +503,12 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
             // running in native Cucumber mode
             System.setProperty("disableLogging", "true");
             PropertyFileManager.readPropertyFiles();
+            ProjectStructureManager.initialize();
             GoogleTink.initialize();
             GoogleTink.decrypt();
             System.setProperty("disableLogging", "false");
             ReportManagerHelper.logEngineVersion();
             ImageProcessingActions.loadOpenCV();
-            ProjectStructureManager.initialize();
             ReportManagerHelper.initializeAllureReportingEnvironment();
             ReportManagerHelper.initializeExtentReportingEnvironment();
             LogsHelper.attachImportantLinks();
