@@ -188,7 +188,7 @@ public class ReportManagerHelper {
     }
 
     public static void logEngineVersion() {
-        Configurator.initialize(null, PropertyFileManager.getDefaultPropertiesFolderPath() + "/log4j2.properties");
+        Configurator.initialize(null, PropertyFileManager.getCUSTOM_PROPERTIES_FOLDER_PATH() + "/log4j2.properties");
         logger = LogManager.getLogger(ReportManager.class.getName());
         String engineVersion = "Detected SHAFT Engine Version: \""
                 + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "\"";

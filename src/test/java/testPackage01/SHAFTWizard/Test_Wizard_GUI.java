@@ -27,7 +27,7 @@ public class Test_Wizard_GUI {
     }
 
     //@Test
-    public void test2() {
+    public void test_nativeDriver() {
         WebDriver nativeWebDriver = driver.getDriver();
         nativeWebDriver.navigate().to("https://www.google.com/");
         new SoftAssert().assertEquals(nativeWebDriver.getTitle(), "Google");
