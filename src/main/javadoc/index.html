@@ -108,13 +108,14 @@
             <li class="active"><a href="#executionPlatformSettings">Platform</a></li>
             <li><a href="#webCapabilities">Web</a></li>
             <li><a href="#mobileCapabilities">Mobile</a></li>
+            <li><a href="#visualValidations">Validations</a></li>
+            <li><a href="#testNG">Parallelization</a></li>
             <li><a href="#platformFlags">Flags</a></li>
             <li><a href="#timeouts">Timeouts</a></li>
-            <li><a href="#visualValidations">Validations</a></li>
             <li><a href="#reporting">Reporting</a></li>
             <li><a href="#xray">XRay</a></li>
-                <li><a href="#allSettings">Generate All</a></li>
-            </ul>
+            <li><a href="#allSettings">Generate All</a></li>
+        </ul>
             <!-- Main Elements -->
             <form class="form-horizontal" id="components" role="form">
                 <fieldset>
@@ -773,6 +774,398 @@
                             </form>
                             <br/>
                         </div>
+                        <div class="tab-pane fade" id="visualValidations">
+                            <br/><br/>
+                            <form class="form-horizontal">
+                                <fieldset>
+
+                                    <!-- Form Name -->
+                                    <!-- <legend>&nbsp;Visual Validations:</legend>-->
+                                    <p style="text-align: center;"><b>—— Screenshots ——<br/><br/></b></p>
+
+                                    <!-- Select Basic -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label"
+                                               for="screenshotParams_whenToTakeAScreenshot">When
+                                            to take a Screenshot
+                                        </label>
+                                        <div class="col-md-4">
+                                            <select class="form-control" id="screenshotParams_whenToTakeAScreenshot"
+                                                    name="screenshotParams_whenToTakeAScreenshot">
+                                                <option value="Always">Always</option>
+                                                <option value="Never">Never</option>
+                                                <option selected value="ValidationPointsOnly">ValidationPointsOnly
+                                                </option>
+                                                <option value="FailuresOnly">FailuresOnly</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="screenshotParams_screenshotType">Screenshot
+                                            Technique
+                                        </label>
+                                        <div class="col-md-4" id="screenshotParams_screenshotType">
+                                            <div class="radio">
+                                                <label for="screenshotParams_screenshotType-2">
+                                                    <input id="screenshotParams_screenshotType-2"
+                                                           name="screenshotParams_screenshotType" type="radio"
+                                                           value="Element">
+                                                    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAHCAYAAAAIy204AAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAAEnQAABJ0Ad5mH3gAAAF3SURBVChTjZE9iBNBFMd/s2sucSFerkgwCIqNHBaBE/FALeQKtdAmjaCNXC9YXnPV2VodHJyCIIegiR6HeCnT+IGCSJoIiYoW8cAiqFmyX9ndubfrCnbmB8PMf96bN2/mr7QQxtD5FhHJfOq4Sc5kKn44Q8oH5zCUke2AEYSwtu3xy9G4gebD1ygL/Z8HH5/hRX6m/qBe9UL9c6y5snCAlz2pLtRmbczGfdAa68Yy2PfA30NV6rwdXuDdl1Auh7j6kFuls6jdF5iVw1jXb2IUCzC05a1CIadodyO+P31OfukShat13Md3IHIw5teJBxu0OhNuX86n+Qlu8xGGZUlOiJ4EGLWjJkm5uy2f1/2Qaklx4uIZ3J0GzpMtZs5fQ7ufiT+toA6d5ljZYLMd0B1EKDk3s3iO2B4Rj36jTPn8xJSEINTam2RCiINAhv9XiXN2upIO9Zt+qFebbqoTYs+TuBQQUpfT3qdk7Gvei3Enj5iUi0mP/wL7aILNNMzNYNkAAAAASUVORK5CYII="/>
+                                                    Element Only
+                                                </label>
+                                            </div>
+                                            <div class="radio">
+                                                <label for="screenshotParams_screenshotType-0">
+                                                    <input id="screenshotParams_screenshotType-0"
+                                                           name="screenshotParams_screenshotType" type="radio"
+                                                           value="Regular">
+                                                    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAJCAYAAAAywQxIAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAAEnQAABJ0Ad5mH3gAAAF0SURBVChThZLLTsMwEEWv46QteVSirdol6g7x6XTBms9gw4YFO1CRUpK2cp62mZlCqECIUSzH4+vj67FVbSrvVYAgAMIwhFIKP8N7j94Co4hEf4S1Fru8hCKx58TBdAh8S0CGK2itqQ+k7/te/rn9FwMwz/cE80jTC3Di3CdDuXFs37aw2mKezcW5MUc4Z7GYr2R+ABrTkBMroFOGggaj0Ygauz1tsdnc4nIxQ7a6RtM1uLmaYRqnpIlk/gxoUNU11Skil+mvWrKMnZTFHkma4LVooEnz8vyI5XKJ9XotugFYE6yqKklyJklijMdjGXM45wTatC0015I3pDFvzKf4igHIhe+6TpJcryj6FtFKuUWW7nYlHT8kSADFZfAa02n8qTsDHvYVPQ1HZSMRfaGmJyQLgDiJxBBvWBQlsiyjFVxXdt5jMpkwQmJ4B4H2tLYlGLvsYF1NTh3CyBGoFXf8bCyB7h7u0VRHNHTDT+8euelPEAAfS/S8O0Rr4o4AAAAASUVORK5CYII="/>
+                                                    Visible Part Of the Page
+                                                </label>
+                                            </div>
+                                            <div class="radio">
+                                                <label for="screenshotParams_screenshotType-1">
+                                                    <input checked="checked" id="screenshotParams_screenshotType-1"
+                                                           name="screenshotParams_screenshotType" type="radio"
+                                                           value="FullPage">
+                                                    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAbCAYAAAB836/YAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAMiSURBVEhLlVXbcpswED2AAGNjN0kn7SR9aCe/0L/u9FP63pdMXzrTppkQ2xhzFdCzAiv32DkeDVharXbPWS1Omed977hwHMD3fT758gh930O3QOC748xTtG2L5GYFh8a9TGzymn8auHTouC6U5/Hdhac8aK3hck7GPliHaVpwAxDHkVl4Cev1Gq3TYjaJJXTkRcZHh5PjU7NuHS6XGzSNROKg63qTuiQfhAGiKCAdSszw7fs3vHu/wPmXr6ibEp8/xHQeIZpMzLp1WJYl6ro2PE7GxccQ0yRJeECEX1eZOXR9dYnzszNcXFwYG+uwqiqOUrIwTj1yGASBMRKImYwsyzCbzaDUELGg6zrL74MI8zxnmo4RYrFYGIMdZJOMFTnsDSWc404HCqenR6PVPYeSrrzuyuZ+Ccm8OBO1//65xtHxCaP3WQkuneoHFFmHq+WWUVZmUo4XYUJukhjieWAcdFRzk+W4zZf4dPwRYRgiLRqErM+QWQlsYSlOKOXTaAKfz3g2xXQamU0hlTbR9nKQix+/fyLflEiuE1wmGutqyERgIxT+pGy6rjWbZSimrTxlSkkoeIy6bhnE4OyJKMvbDCWV7to7HueLiUl151Dz/q1WQ7nM5zOuDWneh3WYZQVPlKvHa+dL+opqUhxuUmo4Xe7rZrMxZfNcxALrMF1naKmk/B1mMNaiMvxKpIfAiiJ8FFSsqjRT8jgU+XQYFQ/g71DYCLfb3KRkJklhHMeGq7fCOkySlFFKdMJVz9obrp9wKY7De9fwNViHG7avpmmNopweSJdXrrqew4Zwd3dfg+VQtxX31vB83pCJKN0xOo6A/0NrthfW0nN5GxBC1w50w6Fdqu2hbQ7r1DvcWbILOy4bBCo0ekseSYEu2XlaUtGMRvthHZaFZsn0bBDDKIqOcx22WUPnrPADYUUpisK0J1FU1JUmIYq/tXRshPmWSq8phopwc63x76oYV94GG6HclKbuELA8GnaeaOqBjZ2CPP+tfgkOO7FxuEPT9HB1wtZHeXTAEprb5nAInDRNxwhr810ZPj7shWMHluikbITX/QD+A3oFtINGzi74AAAAAElFTkSuQmCC"/>
+                                                    Entire Page
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!--Multiple Radios-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label"
+                                               for="screenshotParams_highlightElements">Screenshot
+                                            Element Highlighting
+                                        </label>
+                                        <div class="col-md-4" id="screenshotParams_highlightElements">
+                                            <div class="radio-inline">
+                                                <label for="screenshotParams_highlightElements-0">
+                                                    <input checked="checked"
+                                                           id="screenshotParams_highlightElements-0"
+                                                           name="screenshotParams_highlightElements" type="radio"
+                                                           value="true">
+                                                    Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="screenshotParams_highlightElements-1">
+                                                    <input id="screenshotParams_highlightElements-1"
+                                                           name="screenshotParams_highlightElements" type="radio"
+                                                           value="false">
+                                                    Disabled
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!--Multiple Radios-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label"
+                                               for="screenshotParams_highlightMethod">Element
+                                            Highlighting Technique
+                                        </label>
+                                        <div class="col-md-4" id="screenshotParams_highlightMethod">
+                                            <div class="radio-inline">
+                                                <label for="screenshotParams_highlightMethod-0">
+                                                    <input checked="checked" id="screenshotParams_highlightMethod-0"
+                                                           name="screenshotParams_highlightMethod" type="radio"
+                                                           value="AI">
+                                                    Artificial Intelligence (Cross-Platform)
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="screenshotParams_highlightMethod-1">
+                                                    <input id="screenshotParams_highlightMethod-1"
+                                                           name="screenshotParams_highlightMethod" type="radio"
+                                                           value="JavaScript"> JavaScript (Browser-based)
+                                                </label>
+                                            </div>
+                                            <span class="help-block">• Using AI will result in a significant increase in performance, while using JavaScript will show you the highlights on-screen during test execution.</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label"
+                                               for="screenshotParams_skippedElementsFromScreenshot">Skipped
+                                            Element(s)
+                                        </label>
+                                        <div class="col-md-4">
+                                            <input class="form-control input-md"
+                                                   id="screenshotParams_skippedElementsFromScreenshot"
+                                                   name="screenshotParams_skippedElementsFromScreenshot"
+                                                   placeholder="//stickyMenuXpath" type="text">
+                                            <span class="help-block">• The above semi-colon ";" separated list of element xpaths will be skipped in case of persistent elements/menus that show up multiple times in the full page screenshots.</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label"
+                                               for="screenshotParams_scalingFactor">Scaling
+                                            Factor
+                                        </label>
+                                        <div class="col-md-4">
+                                            <div class="input-group">
+                                                <input class="form-control input-md"
+                                                       id="screenshotParams_scalingFactor"
+                                                       max="5" min="1" name="screenshotParams_scalingFactor"
+                                                       step="0.05"
+                                                       type="number" value="1">
+                                            </div>
+                                            <span class="help-block">• A number between 1 and 5.00 where 1 means unscaled and 5.00 means 500% scaled.
+                                                                <br/>• If Linux is scaled you can provide a random value between [1.05, 5.00].
+                                                                <br/>• Windows and Linux browsers only.</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label"
+                                               for="screenshotParams_watermark">Watermark</label>
+                                        <div class="col-md-4" id="screenshotParams_watermark">
+                                            <div class="radio-inline">
+                                                <label for="screenshotParams_watermark-0">
+                                                    <input checked="checked" id="screenshotParams_watermark-0"
+                                                           name="screenshotParams_watermark" type="radio"
+                                                           value="true"> Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="screenshotParams_watermark-1">
+                                                    <input id="screenshotParams_watermark-1"
+                                                           name="screenshotParams_watermark"
+                                                           type="radio" value="false"> Disabled
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label"
+                                               for="screenshotParams_watermarkOpacity">Watermark
+                                            Opacity
+                                        </label>
+                                        <div class="col-md-4">
+                                            <div class="input-group">
+                                                <input class="form-control input-md"
+                                                       id="screenshotParams_watermarkOpacity"
+                                                       max="1" min="0" name="screenshotParams_watermarkOpacity"
+                                                       step="0.1"
+                                                       type="number" value="0.2">
+                                            </div>
+                                            <span class="help-block">• A number between 0 and 1.0 where 0 means invisible and 1.0 means 100% visible.</span>
+                                        </div>
+                                    </div>
+
+                                    <p style="text-align: center;"><b>—— Animated GIFs ——<br/><br/></b></p>
+
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="createAnimatedGif">Create
+                                            Animated GIF
+                                        </label>
+                                        <div class="col-md-4" id="createAnimatedGif">
+                                            <div class="radio-inline">
+                                                <label for="createAnimatedGif-0">
+                                                    <input id="createAnimatedGif-0"
+                                                           name="createAnimatedGif"
+                                                           type="radio" value="true"> Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="createAnimatedGif-1">
+                                                    <input checked="checked" id="createAnimatedGif-1"
+                                                           name="createAnimatedGif"
+                                                           type="radio"
+                                                           value="false"> Disabled
+                                                </label>
+                                            </div>
+                                            <span class="help-block">• Enabling Animated Gif will result in a significant decrease in performance, but it will also capture all the events that happen on-screen for later debugging.
+                                            <br/>• There is a reporting bug whereby if you enable the animated GIF and run in parallel threads, the wrong file can be attached to the test case.</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="animatedGif_frameDelay">Animated
+                                            GIF: Frame
+                                            Delay
+                                        </label>
+                                        <div class="col-md-4">
+                                            <div class="input-group">
+                                                <input class="form-control input-md" id="animatedGif_frameDelay"
+                                                       max="1000"
+                                                       min="100" name="animatedGif_frameDelay" step="100"
+                                                       type="number"
+                                                       value="500">
+                                            </div>
+                                            <span class="help-block">• Time in milliseconds to delay the frames of the animated GIF, default is 500 milliseconds.</span>
+                                        </div>
+                                    </div>
+
+                                    <p style="text-align: center;"><b>—— Videos ——<br/><br/></b></p>
+
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="videoParams_recordVideo">Record
+                                            Video</label>
+                                        <div class="col-md-4" id="videoParams_recordVideo">
+                                            <div class="radio-inline">
+                                                <label for="videoParams_recordVideo-0">
+                                                    <input id="videoParams_recordVideo-0"
+                                                           name="videoParams_recordVideo"
+                                                           type="radio"
+                                                           value="true">
+                                                    Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="videoParams_recordVideo-1">
+                                                    <input checked="checked" id="videoParams_recordVideo-1"
+                                                           name="videoParams_recordVideo"
+                                                           type="radio"
+                                                           value="false"> Disabled
+                                                </label>
+                                            </div>
+                                            <span class="help-block">• This feature does not work for remote web browser execution, or headless execution.</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Select Basic -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label"
+                                               for="videoParams_scope">Recorded Video Scope
+                                        </label>
+                                        <div class="col-md-4">
+                                            <select class="form-control" id="videoParams_scope"
+                                                    name="videoParams_scope">
+                                                <option selected value="DriverSession">Driver Session</option>
+                                                <option value="TestMethod">Test Method</option>
+                                            </select>
+                                            <span class="help-block">• Driver Session will attach one video whenever you end the driver session in the after method or after class.
+                                            <br/>• Test Method will attach one video for every test method.</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Button -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label"
+                                               for="generateVisualValidations_button">Generate
+                                            Properties File
+                                        </label>
+                                        <div class="col-md-4">
+                                            <button class="btn btn-primary" id="generateVisualValidations_button"
+                                                    onclick="generateVisualValidations();return false;">
+                                                VisualValidations.properties
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="alert" id="VisualValidations.properties">
+                                        <span class="closebtn">&times;</span>
+                                        <p style="text-align: center;"><strong>Success!</strong> Don't forget to move
+                                            your new properties file under the
+                                            <code>src/main/resources/properties</code> directory and <u>overwrite</u>
+                                            the old one.</p>
+                                    </div>
+                                </fieldset>
+                            </form>
+                            <br/>
+                        </div>
+                        <div class="tab-pane fade" id="testNG">
+                            <br/><br/>
+                            <form class="form-horizontal">
+                                <fieldset>
+                                    <!-- Form Name -->
+                                    <!-- <legend>&nbsp;TestNG:</legend>-->
+                                    <div class="note info">
+                                        <p><strong>Note:</strong> Remember to use
+                                            <code>private static ThreadLocal&#60;SHAFT.GUI.WebDriver&#62; driver = new
+                                                ThreadLocal<>();</code>
+                                            to properly manage your driver in your test classes.</p>
+                                    </div>
+                                    <p style="text-align: center;"><b>—— Threading ——<br/><br/></b></p>
+
+                                    <!-- Select Basic -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label"
+                                               for="setParallel">Parallel Execution Mode
+                                        </label>
+                                        <div class="col-md-4">
+                                            <select class="form-control" id="setParallel"
+                                                    name="setParallel">
+                                                <option selected value="NONE">OFF</option>
+                                                <option value="CLASSES">CLASSES</option>
+                                                <option value="METHODS">METHODS</option>
+                                            </select>
+                                            <span class="help-block">&nbsp;• OFF → Tests classes and Test Methods will run in sequence.
+                                            <br/>&nbsp;• CLASSES → Test classes will run in parallel, and inside each class the methods will run in sequence.
+                                            <br/>&nbsp;• METHODS → Test methods will run in parallel, and your classes will run in sequence.</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="setThreadCount">Number of Parallel
+                                            Threads</label>
+                                        <div class="col-md-4">
+                                            <div class="input-group">
+                                                <input class="form-control input-md" disabled id="setThreadCount"
+                                                       min="2"
+                                                       name="setThreadCount" step="2" type="number" value="2">
+                                            </div>
+                                            <span class="help-block">• The number of threads controls how many items can run in parallel.
+                                                                <br/>• A rule of thumb is that you can create 2 threads for every CPU core. But you can keep testing different numbers until you are satisfied with the performance.
+                                                                <br/>• Exercise caution as high numbers <b>can</b> cause your CPU to hang.</span>
+                                        </div>
+                                    </div>
+
+                                    <p style="text-align: center;"><b>—— Logging ——<br/><br/></b></p>
+
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="setVerbose">Logging Verbosity
+                                            Level</label>
+                                        <div class="col-md-4">
+                                            <div class="input-group">
+                                                <input class="form-control input-md" id="setVerbose" max="10"
+                                                       min="1" name="setVerbose" step="1" type="number" value="1">
+                                            </div>
+                                            <span class="help-block">• Choose a number between 1 and 10, nothing that 1 provides the most high-level, and 10 provides the most detailed log messages.</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Button -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label"
+                                               for="generateTestNG_button">Generate
+                                            Properties File
+                                        </label>
+                                        <div class="col-md-4">
+                                            <button class="btn btn-primary" id="generateTestNG_button"
+                                                    onclick="generateTestNG();return false;">
+                                                TestNG.properties
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="alert" id="TestNG.properties">
+                                        <span class="closebtn">&times;</span>
+                                        <p style="text-align: center;"><strong>Success!</strong> Don't forget to move
+                                            your new properties file under the
+                                            <code>src/main/resources/properties</code> directory and <u>overwrite</u>
+                                            the old one.</p>
+                                    </div>
+                                </fieldset>
+                            </form>
+                            <br/>
+                        </div>
                         <div class="tab-pane fade" id="platformFlags">
                             <br/><br/>
                             <form class="form-horizontal">
@@ -1386,309 +1779,6 @@
                                         </div>
                                     </div>
                                     <div class="alert" id="Timeouts.properties">
-                                        <span class="closebtn">&times;</span>
-                                        <p style="text-align: center;"><strong>Success!</strong> Don't forget to move
-                                            your new properties file under the
-                                            <code>src/main/resources/properties</code> directory and <u>overwrite</u>
-                                            the old one.</p>
-                                    </div>
-                                </fieldset>
-                            </form>
-                            <br/>
-                        </div>
-                        <div class="tab-pane fade" id="visualValidations">
-                            <br/><br/>
-                            <form class="form-horizontal">
-                                <fieldset>
-
-                                    <!-- Form Name -->
-                                    <!-- <legend>&nbsp;Visual Validations:</legend>-->
-                                    <p style="text-align: center;"><b>—— Screenshots ——<br/><br/></b></p>
-
-                                    <!-- Select Basic -->
-                                    <div class="form-group">
-                                        <label class="col-md-4 control-label"
-                                               for="screenshotParams_whenToTakeAScreenshot">When
-                                            to take a Screenshot
-                                        </label>
-                                        <div class="col-md-4">
-                                            <select class="form-control" id="screenshotParams_whenToTakeAScreenshot"
-                                                    name="screenshotParams_whenToTakeAScreenshot">
-                                                <option value="Always">Always</option>
-                                                <option value="Never">Never</option>
-                                                <option selected value="ValidationPointsOnly">ValidationPointsOnly</option>
-                                                <option value="FailuresOnly">FailuresOnly</option>
-                                            </select>
-                                        </div>
-                                    </div>
-
-                                    <!-- Multiple Radios -->
-                                    <div class="form-group">
-                                        <label class="col-md-4 control-label" for="screenshotParams_screenshotType">Screenshot
-                                            Technique
-                                        </label>
-                                        <div class="col-md-4" id="screenshotParams_screenshotType">
-                                            <div class="radio">
-                                                <label for="screenshotParams_screenshotType-2">
-                                                    <input id="screenshotParams_screenshotType-2"
-                                                           name="screenshotParams_screenshotType" type="radio"
-                                                           value="Element">
-                                                    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAHCAYAAAAIy204AAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAAEnQAABJ0Ad5mH3gAAAF3SURBVChTjZE9iBNBFMd/s2sucSFerkgwCIqNHBaBE/FALeQKtdAmjaCNXC9YXnPV2VodHJyCIIegiR6HeCnT+IGCSJoIiYoW8cAiqFmyX9ndubfrCnbmB8PMf96bN2/mr7QQxtD5FhHJfOq4Sc5kKn44Q8oH5zCUke2AEYSwtu3xy9G4gebD1ygL/Z8HH5/hRX6m/qBe9UL9c6y5snCAlz2pLtRmbczGfdAa68Yy2PfA30NV6rwdXuDdl1Auh7j6kFuls6jdF5iVw1jXb2IUCzC05a1CIadodyO+P31OfukShat13Md3IHIw5teJBxu0OhNuX86n+Qlu8xGGZUlOiJ4EGLWjJkm5uy2f1/2Qaklx4uIZ3J0GzpMtZs5fQ7ufiT+toA6d5ljZYLMd0B1EKDk3s3iO2B4Rj36jTPn8xJSEINTam2RCiINAhv9XiXN2upIO9Zt+qFebbqoTYs+TuBQQUpfT3qdk7Gvei3Enj5iUi0mP/wL7aILNNMzNYNkAAAAASUVORK5CYII="/>
-                                                    Element Only
-                                                </label>
-                                            </div>
-                                            <div class="radio">
-                                                <label for="screenshotParams_screenshotType-0">
-                                                    <input id="screenshotParams_screenshotType-0"
-                                                           name="screenshotParams_screenshotType" type="radio"
-                                                           value="Regular">
-                                                    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAJCAYAAAAywQxIAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAAEnQAABJ0Ad5mH3gAAAF0SURBVChThZLLTsMwEEWv46QteVSirdol6g7x6XTBms9gw4YFO1CRUpK2cp62mZlCqECIUSzH4+vj67FVbSrvVYAgAMIwhFIKP8N7j94Co4hEf4S1Fru8hCKx58TBdAh8S0CGK2itqQ+k7/te/rn9FwMwz/cE80jTC3Di3CdDuXFs37aw2mKezcW5MUc4Z7GYr2R+ABrTkBMroFOGggaj0Ygauz1tsdnc4nIxQ7a6RtM1uLmaYRqnpIlk/gxoUNU11Skil+mvWrKMnZTFHkma4LVooEnz8vyI5XKJ9XotugFYE6yqKklyJklijMdjGXM45wTatC0015I3pDFvzKf4igHIhe+6TpJcryj6FtFKuUWW7nYlHT8kSADFZfAa02n8qTsDHvYVPQ1HZSMRfaGmJyQLgDiJxBBvWBQlsiyjFVxXdt5jMpkwQmJ4B4H2tLYlGLvsYF1NTh3CyBGoFXf8bCyB7h7u0VRHNHTDT+8euelPEAAfS/S8O0Rr4o4AAAAASUVORK5CYII="/>
-                                                    Visible Part Of the Page
-                                                </label>
-                                            </div>
-                                            <div class="radio">
-                                                <label for="screenshotParams_screenshotType-1">
-                                                    <input checked="checked" id="screenshotParams_screenshotType-1"
-                                                           name="screenshotParams_screenshotType" type="radio"
-                                                           value="FullPage">
-                                                    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAbCAYAAAB836/YAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAMiSURBVEhLlVXbcpswED2AAGNjN0kn7SR9aCe/0L/u9FP63pdMXzrTppkQ2xhzFdCzAiv32DkeDVharXbPWS1Omed977hwHMD3fT758gh930O3QOC748xTtG2L5GYFh8a9TGzymn8auHTouC6U5/Hdhac8aK3hck7GPliHaVpwAxDHkVl4Cev1Gq3TYjaJJXTkRcZHh5PjU7NuHS6XGzSNROKg63qTuiQfhAGiKCAdSszw7fs3vHu/wPmXr6ibEp8/xHQeIZpMzLp1WJYl6ro2PE7GxccQ0yRJeECEX1eZOXR9dYnzszNcXFwYG+uwqiqOUrIwTj1yGASBMRKImYwsyzCbzaDUELGg6zrL74MI8zxnmo4RYrFYGIMdZJOMFTnsDSWc404HCqenR6PVPYeSrrzuyuZ+Ccm8OBO1//65xtHxCaP3WQkuneoHFFmHq+WWUVZmUo4XYUJukhjieWAcdFRzk+W4zZf4dPwRYRgiLRqErM+QWQlsYSlOKOXTaAKfz3g2xXQamU0hlTbR9nKQix+/fyLflEiuE1wmGutqyERgIxT+pGy6rjWbZSimrTxlSkkoeIy6bhnE4OyJKMvbDCWV7to7HueLiUl151Dz/q1WQ7nM5zOuDWneh3WYZQVPlKvHa+dL+opqUhxuUmo4Xe7rZrMxZfNcxALrMF1naKmk/B1mMNaiMvxKpIfAiiJ8FFSsqjRT8jgU+XQYFQ/g71DYCLfb3KRkJklhHMeGq7fCOkySlFFKdMJVz9obrp9wKY7De9fwNViHG7avpmmNopweSJdXrrqew4Zwd3dfg+VQtxX31vB83pCJKN0xOo6A/0NrthfW0nN5GxBC1w50w6Fdqu2hbQ7r1DvcWbILOy4bBCo0ekseSYEu2XlaUtGMRvthHZaFZsn0bBDDKIqOcx22WUPnrPADYUUpisK0J1FU1JUmIYq/tXRshPmWSq8phopwc63x76oYV94GG6HclKbuELA8GnaeaOqBjZ2CPP+tfgkOO7FxuEPT9HB1wtZHeXTAEprb5nAInDRNxwhr810ZPj7shWMHluikbITX/QD+A3oFtINGzi74AAAAAElFTkSuQmCC"/>
-                                                    Entire Page
-                                                </label>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!--Multiple Radios-->
-                                    <div class="form-group">
-                                        <label class="col-md-4 control-label"
-                                               for="screenshotParams_highlightElements">Screenshot
-                                            Element Highlighting
-                                        </label>
-                                        <div class="col-md-4" id="screenshotParams_highlightElements">
-                                            <div class="radio-inline">
-                                                <label for="screenshotParams_highlightElements-0">
-                                                    <input checked="checked"
-                                                           id="screenshotParams_highlightElements-0"
-                                                           name="screenshotParams_highlightElements" type="radio"
-                                                           value="true">
-                                                    Enabled
-                                                </label>
-                                            </div>
-                                            <div class="radio-inline">
-                                                <label for="screenshotParams_highlightElements-1">
-                                                    <input id="screenshotParams_highlightElements-1"
-                                                           name="screenshotParams_highlightElements" type="radio"
-                                                           value="false">
-                                                    Disabled
-                                                </label>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!--Multiple Radios-->
-                                    <div class="form-group">
-                                        <label class="col-md-4 control-label"
-                                               for="screenshotParams_highlightMethod">Element
-                                            Highlighting Technique
-                                        </label>
-                                        <div class="col-md-4" id="screenshotParams_highlightMethod">
-                                            <div class="radio-inline">
-                                                <label for="screenshotParams_highlightMethod-0">
-                                                    <input checked="checked" id="screenshotParams_highlightMethod-0"
-                                                           name="screenshotParams_highlightMethod" type="radio"
-                                                           value="AI">
-                                                    Artificial Intelligence (Cross-Platform)
-                                                </label>
-                                            </div>
-                                            <div class="radio-inline">
-                                                <label for="screenshotParams_highlightMethod-1">
-                                                    <input id="screenshotParams_highlightMethod-1"
-                                                           name="screenshotParams_highlightMethod" type="radio"
-                                                           value="JavaScript"> JavaScript (Browser-based)
-                                                </label>
-                                            </div>
-                                            <span class="help-block">• Using AI will result in a significant increase in performance, while using JavaScript will show you the highlights on-screen during test execution.</span>
-                                        </div>
-                                    </div>
-
-                                    <!-- Text input-->
-                                    <div class="form-group">
-                                        <label class="col-md-4 control-label"
-                                               for="screenshotParams_skippedElementsFromScreenshot">Skipped
-                                            Element(s)
-                                        </label>
-                                        <div class="col-md-4">
-                                            <input class="form-control input-md"
-                                                   id="screenshotParams_skippedElementsFromScreenshot"
-                                                   name="screenshotParams_skippedElementsFromScreenshot"
-                                                   placeholder="//stickyMenuXpath" type="text">
-                                            <span class="help-block">• The above semi-colon ";" separated list of element xpaths will be skipped in case of persistent elements/menus that show up multiple times in the full page screenshots.</span>
-                                        </div>
-                                    </div>
-
-                                    <!-- Text input-->
-                                    <div class="form-group">
-                                        <label class="col-md-4 control-label"
-                                               for="screenshotParams_scalingFactor">Scaling
-                                            Factor
-                                        </label>
-                                        <div class="col-md-4">
-                                            <div class="input-group">
-                                                <input class="form-control input-md"
-                                                       id="screenshotParams_scalingFactor"
-                                                       max="5" min="1" name="screenshotParams_scalingFactor"
-                                                       step="0.05"
-                                                       type="number" value="1">
-                                            </div>
-                                            <span class="help-block">• A number between 1 and 5.00 where 1 means unscaled and 5.00 means 500% scaled.
-                                                                <br/>• If Linux is scaled you can provide a random value between [1.05, 5.00].
-                                                                <br/>• Windows and Linux browsers only.</span>
-                                        </div>
-                                    </div>
-
-                                    <!-- Multiple Radios -->
-                                    <div class="form-group">
-                                        <label class="col-md-4 control-label"
-                                               for="screenshotParams_watermark">Watermark</label>
-                                        <div class="col-md-4" id="screenshotParams_watermark">
-                                            <div class="radio-inline">
-                                                <label for="screenshotParams_watermark-0">
-                                                    <input checked="checked" id="screenshotParams_watermark-0"
-                                                           name="screenshotParams_watermark" type="radio"
-                                                           value="true"> Enabled
-                                                </label>
-                                            </div>
-                                            <div class="radio-inline">
-                                                <label for="screenshotParams_watermark-1">
-                                                    <input id="screenshotParams_watermark-1"
-                                                           name="screenshotParams_watermark"
-                                                           type="radio" value="false"> Disabled
-                                                </label>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Text input-->
-                                    <div class="form-group">
-                                        <label class="col-md-4 control-label"
-                                               for="screenshotParams_watermarkOpacity">Watermark
-                                            Opacity
-                                        </label>
-                                        <div class="col-md-4">
-                                            <div class="input-group">
-                                                <input class="form-control input-md"
-                                                       id="screenshotParams_watermarkOpacity"
-                                                       max="1" min="0" name="screenshotParams_watermarkOpacity"
-                                                       step="0.1"
-                                                       type="number" value="0.2">
-                                            </div>
-                                            <span class="help-block">• A number between 0 and 1.0 where 0 means invisible and 1.0 means 100% visible.</span>
-                                        </div>
-                                    </div>
-
-                                    <p style="text-align: center;"><b>—— Animated GIFs ——<br/><br/></b></p>
-
-                                    <!-- Multiple Radios -->
-                                    <div class="form-group">
-                                        <label class="col-md-4 control-label" for="createAnimatedGif">Create
-                                            Animated GIF
-                                        </label>
-                                        <div class="col-md-4" id="createAnimatedGif">
-                                            <div class="radio-inline">
-                                                <label for="createAnimatedGif-0">
-                                                    <input id="createAnimatedGif-0"
-                                                           name="createAnimatedGif"
-                                                           type="radio" value="true"> Enabled
-                                                </label>
-                                            </div>
-                                            <div class="radio-inline">
-                                                <label for="createAnimatedGif-1">
-                                                    <input checked="checked" id="createAnimatedGif-1"
-                                                           name="createAnimatedGif"
-                                                           type="radio"
-                                                           value="false"> Disabled
-                                                </label>
-                                            </div>
-                                            <span class="help-block">• Enabling Animated Gif will result in a significant decrease in performance, but it will also capture all the events that happen on-screen for later debugging.
-                                            <br/>• There is a reporting bug whereby if you enable the animated GIF and run in parallel threads, the wrong file can be attached to the test case.</span>
-                                        </div>
-                                    </div>
-
-                                    <!-- Text input-->
-                                    <div class="form-group">
-                                        <label class="col-md-4 control-label" for="animatedGif_frameDelay">Animated
-                                            GIF: Frame
-                                            Delay
-                                        </label>
-                                        <div class="col-md-4">
-                                            <div class="input-group">
-                                                <input class="form-control input-md" id="animatedGif_frameDelay"
-                                                       max="1000"
-                                                       min="100" name="animatedGif_frameDelay" step="100"
-                                                       type="number"
-                                                       value="500">
-                                            </div>
-                                            <span class="help-block">• Time in milliseconds to delay the frames of the animated GIF, default is 500 milliseconds.</span>
-                                        </div>
-                                    </div>
-
-                                    <p style="text-align: center;"><b>—— Videos ——<br/><br/></b></p>
-
-                                    <!-- Multiple Radios -->
-                                    <div class="form-group">
-                                        <label class="col-md-4 control-label" for="videoParams_recordVideo">Record
-                                            Video</label>
-                                        <div class="col-md-4" id="videoParams_recordVideo">
-                                            <div class="radio-inline">
-                                                <label for="videoParams_recordVideo-0">
-                                                    <input id="videoParams_recordVideo-0"
-                                                           name="videoParams_recordVideo"
-                                                           type="radio"
-                                                           value="true">
-                                                    Enabled
-                                                </label>
-                                            </div>
-                                            <div class="radio-inline">
-                                                <label for="videoParams_recordVideo-1">
-                                                    <input checked="checked" id="videoParams_recordVideo-1" name="videoParams_recordVideo"
-                                                           type="radio"
-                                                           value="false"> Disabled
-                                                </label>
-                                            </div>
-                                            <span class="help-block">• This feature does not work for remote web browser execution, or headless execution.</span>
-                                        </div>
-                                    </div>
-
-                                    <!-- Select Basic -->
-                                    <div class="form-group">
-                                        <label class="col-md-4 control-label"
-                                               for="videoParams_scope">Recorded Video Scope
-                                        </label>
-                                        <div class="col-md-4">
-                                            <select class="form-control" id="videoParams_scope"
-                                                    name="videoParams_scope">
-                                                <option selected value="DriverSession">Driver Session</option>
-                                                <option value="TestMethod">Test Method</option>
-                                            </select>
-                                            <span class="help-block">• Driver Session will attach one video whenever you end the driver session in the after method or after class.
-                                            <br/>• Test Method will attach one video for every test method.</span>
-                                        </div>
-                                    </div>
-
-                                    <!-- Button -->
-                                    <div class="form-group">
-                                        <label class="col-md-4 control-label"
-                                               for="generateVisualValidations_button">Generate
-                                            Properties File
-                                        </label>
-                                        <div class="col-md-4">
-                                            <button class="btn btn-primary" id="generateVisualValidations_button"
-                                                    onclick="generateVisualValidations();return false;">
-                                                VisualValidations.properties
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div class="alert" id="VisualValidations.properties">
                                         <span class="closebtn">&times;</span>
                                         <p style="text-align: center;"><strong>Success!</strong> Don't forget to move
                                             your new properties file under the
@@ -2503,6 +2593,17 @@ for (i = 0; i < close.length; i++) {
         }
     });
 </script>
+<script type="text/javascript">
+    // parallelization number of threads configuration
+    $("select[name=setParallel]").change(function () {
+        if ($("#setParallel :selected").text() == "OFF") {
+            $("#setThreadCount").attr("disabled", true);
+        } else {
+            $("#setThreadCount").attr("disabled", false);
+        }
+    });
+
+</script>
 <script>
     function downloadFile(data, fileName) {
         data =
@@ -2638,6 +2739,26 @@ for (i = 0; i < close.length; i++) {
         downloadFile(data, 'PlatformFlags.properties');
         setTimeout(function(){ document.getElementById("PlatformFlags.properties").style.opacity = "1"; }, 400);
     }
+</script>
+<script>
+    function generateTestNG() {
+        const setParallel = $("#setParallel :selected").val();
+        const setThreadCount = $("input[name=setThreadCount]").val();
+        const setVerbose = $("input[name=setVerbose]").val();
+
+        // This variable stores all the data.
+        let data =
+            'setParallel=' + setParallel + '\r\n' +
+            'setThreadCount=' + setThreadCount + '\r\n' +
+            'setVerbose=' + setVerbose + '\r\n' +
+            'setPreserveOrder=true' + '\r\n' +
+            'setGroupByInstances=true' + '\r\n' +
+            'setDataProviderThreadCount=1' + '\r\n';
+
+        downloadFile(data, 'TestNG.properties');
+        setTimeout(function(){ document.getElementById("TestNG.properties").style.opacity = "1"; }, 400);
+    }
+
 </script>
 <script>
     function generateTimeouts() {
@@ -2790,11 +2911,10 @@ for (i = 0; i < close.length; i++) {
         generatePlatformFlags();
         generateTimeouts();
         generateVisualValidations();
+        generateTestNG();
         generateReporting();
         generateXRay();
         setTimeout(function(){ document.getElementById("generateAllFiles_alert").style.opacity = "1"; }, 400);
     }
-
-
 </script>
 </html>
