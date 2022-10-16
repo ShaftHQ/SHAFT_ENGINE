@@ -61,7 +61,7 @@ public class Test_Wizard_GUI {
 - [Click Here](https://github.com/ShaftHQ/SHAFT_ENGINE/tree/master/src/test/java/testPackage01/SHAFTWizard) for more GUI, API, DB, and CLI sample test classes.
 - And you can learn more from the 📚 [Javadocs](https://ShaftHQ.github.io/SHAFT_ENGINE/apidocs/index.html) and 👤 [User Guide](https://ShaftHQ.github.io/SHAFT_Engine_Docusaurus/) [^2].
 - Here is also a complete tutorial showing everything from creating the project to running remote, unattended, parallelized, cross-platform tests ▶️ [Youtube: Test Automation Hero++](https://www.youtube.com/playlist?list=PLlnkmUosVw9g1IK6M4kZS8a-EsP4xb0Vf) [^3].
-- For current SHAFT users after each release it's highly recommended to delete properties files which you will find them in this directory ==>(project name\src\main\resources\properties) and it will be regenerated again when you run any test . 
+- For current SHAFT users, after each release, it's highly recommended to delete the properties folder, which you can find in this directory (*project path*\src\main\resources\properties); And let SHAFT regenerate the default properties again once triggering any test case execution.
 - Lastly, feel free to [Join us via Slack & Facebook](#support-and-contributions) for support and contributions.
 [^1]: Due to a known issue with IntelliJ you need to edit your run configuration templates before running your tests by following these steps:
 <br/>- Open 'Edit Run/Debug Configurations' dialog > Edit Configurations... > Edit configuration templates...
