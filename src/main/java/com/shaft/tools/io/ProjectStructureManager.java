@@ -22,6 +22,7 @@ public class ProjectStructureManager {
                 FileActions.getInstance().copyFolder(propertiesFolderPath, System.getProperty("propertiesFolderPath"));
             }
         }
+        FileActions.getInstance().deleteFile(System.getProperty("appender.file.fileName"));
         System.setProperty("disableLogging", "false");
     }
 
