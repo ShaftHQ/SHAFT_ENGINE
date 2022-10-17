@@ -609,7 +609,6 @@ public class DriverFactoryHelper {
             Proxy proxy = new Proxy();
             proxy.setHttpProxy(proxyServerSettings);
             proxy.setSslProxy(proxyServerSettings);
-            proxy.setFtpProxy(proxyServerSettings);
             driverOptions.setProxy(proxy);
         }
     }
