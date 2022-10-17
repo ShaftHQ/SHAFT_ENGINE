@@ -451,7 +451,7 @@ public class ValidationsHelper {
 
         // prepare attachments
         List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected JSON Value",
-                RestActions.parseBodyToJson(FileActions.getInstance().readFromFile(referenceJsonFilePath)));
+                RestActions.parseBodyToJson(FileActions.getInstance().readFile(referenceJsonFilePath)));
         List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual JSON Value",
                 RestActions.parseBodyToJson(response));
 
@@ -488,7 +488,7 @@ public class ValidationsHelper {
 
         // prepare attachments
         List<Object> expectedValueAttachment = Arrays.asList("Validation Test Data", "Expected JSON Value",
-                RestActions.parseBodyToJson(FileActions.getInstance().readFromFile(referenceJsonFilePath)));
+                RestActions.parseBodyToJson(FileActions.getInstance().readFile(referenceJsonFilePath)));
         List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual JSON Value",
                 RestActions.parseBodyToJson(response));
 

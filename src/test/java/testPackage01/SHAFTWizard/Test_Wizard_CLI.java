@@ -9,7 +9,7 @@ public class Test_Wizard_CLI {
     @Test
     public void test() {
         driver = new SHAFT.CLI();
-        var str = driver.file().readFromPdfFile("sample.pdf");
+        var str = driver.file().readPDF("sample.pdf");
         SHAFT.Report.attach("Custom", "PDF", str);
     }
 }

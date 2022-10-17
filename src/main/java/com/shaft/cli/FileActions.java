@@ -291,18 +291,19 @@ public class FileActions {
         writeToFile(fileFolderName, fileName, textToBytes);
     }
 
-    public String readFromPdfFile(String fileFolderName, String fileName) {
+    public String readPDF(String fileFolderName, String fileName) {
         return new PdfFileManager(fileFolderName + fileName).readFileContent();
     }
-    public String readFromPdfFile(String relativeFilePath) {
+
+    public String readPDF(String relativeFilePath) {
         return new PdfFileManager(relativeFilePath).readFileContent();
     }
 
-    public String readFromFile(String fileFolderName, String fileName) {
-        return readFromFile(fileFolderName + fileName);
+    public String readFile(String fileFolderName, String fileName) {
+        return readFile(fileFolderName + fileName);
     }
 
-    public byte[] readFromImageFile(String pathToTargetImage) {
+    public byte[] readFileAsByteArray(String pathToTargetImage) {
         byte[] data = new byte[0];
         String absoluteFilePath = getAbsolutePath(pathToTargetImage);
         Path filePath = Paths.get(absoluteFilePath);
@@ -317,7 +318,7 @@ public class FileActions {
         return data;
     }
 
-    public String readFromFile(String pathToTargetFile) {
+    public String readFile(String pathToTargetFile) {
         String absoluteFilePath = getAbsolutePath(pathToTargetFile);
         String text = FileManager.readFileToString(new File(absoluteFilePath));
         passAction("File Path: \"" + absoluteFilePath + "\"", text);

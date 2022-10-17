@@ -287,15 +287,21 @@ public class ReportManagerHelper {
     }
 
     public static void attachFullLog(String executionEndTimestamp) {
-            String fullLogCreated = "Successfully created attachment \"" + SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE + " - "
-                    + "Execution log" + "\"";
-            createLogEntry(fullLogCreated, true);
-            String copyrights = "This test run was powered by SHAFT Engine Version: \""
-                    + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "\"" + System.lineSeparator()
-                    + "SHAFT Engine is licensed under the MIT License: [https://github.com/ShaftHQ/SHAFT_ENGINE/blob/master/LICENSE].";
+        String fullLogCreated = "Successfully created attachment \"" + SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE + " - "
+                + "Execution log" + "\"";
+        createLogEntry(fullLogCreated, true);
+        String copyrights = "This test run was powered by SHAFT Engine Version: \""
+                + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "\"" + System.lineSeparator()
+                + "SHAFT Engine is licensed under the MIT License: [https://github.com/ShaftHQ/SHAFT_ENGINE/blob/master/LICENSE].";
         createImportantReportEntry(copyrights, true);
+        byte[] fullLog = new byte[0];
+        try {
+            fullLog = FileActions.getInstance().readFileAsByteArray(System.getProperty("appender.file.fileName"));
+        } catch (Throwable throwable) {
+            logDiscrete(throwable);
+        }
         createAttachment(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE, "Execution log: " + executionEndTimestamp,
-                new ByteArrayInputStream(FileActions.getInstance().readFromImageFile(System.getProperty("appender.file.fileName"))));
+                new ByteArrayInputStream(fullLog));
     }
 
     public static void attachIssuesLog(String executionEndTimestamp) {
