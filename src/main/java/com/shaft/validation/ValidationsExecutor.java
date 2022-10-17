@@ -164,7 +164,7 @@ public class ValidationsExecutor {
                 if (fileName.contains(".pdf")) {
                     fileContent = PdfFileManager.readFileContent(folderRelativePath + fileName);
                 } else {
-                    fileContent = FileActions.getInstance().readFromFile(folderRelativePath, fileName);
+                    fileContent = FileActions.getInstance().readFile(folderRelativePath, fileName);
                 }
                 ValidationsHelper.validateEquals(validationCategory, expectedValue, fileContent, validationComparisonType, validationType, customReportMessage);
             }

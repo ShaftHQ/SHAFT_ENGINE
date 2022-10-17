@@ -161,7 +161,7 @@ public class CucumberTestRunnerListener implements ConcurrentEventListener {
 
             @Override
             public InputStream getInputStream() {
-                return new ByteArrayInputStream(FileActions.getInstance().readFromFile(uri.getPath()).getBytes());
+                return new ByteArrayInputStream(FileActions.getInstance().readFile(uri.getPath()).getBytes());
             }
         });
     }

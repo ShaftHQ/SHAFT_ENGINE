@@ -70,7 +70,7 @@ class ElementActionsHelper {
                 elapsedTime = System.currentTimeMillis() - startTime;
             } while (!isFound && elapsedTime < DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT);
             returnedValue.add(currentScreenImage);
-            returnedValue.add(FileActions.getInstance().readFromImageFile(elementReferenceScreenshot));
+            returnedValue.add(FileActions.getInstance().readFileAsByteArray(elementReferenceScreenshot));
             returnedValue.add(coordinates);
         }else{
             // reference screenshot doesn't exist

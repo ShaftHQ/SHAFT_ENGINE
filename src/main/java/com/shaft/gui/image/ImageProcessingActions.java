@@ -32,8 +32,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.FileSystems;
-import java.util.*;
 import java.util.List;
+import java.util.*;
 
 public class ImageProcessingActions {
     private static final String DIRECTORY_PROCESSING = "/processingDirectory/";
@@ -249,7 +249,7 @@ public class ImageProcessingActions {
             Mat templ_original = Imgcodecs.imread(referenceImagePath, Imgcodecs.IMREAD_COLOR);
 
             Mat img = preprocess(currentPageScreenshot);
-            Mat templ = preprocess(FileActions.getInstance().readFromImageFile(referenceImagePath));
+            Mat templ = preprocess(FileActions.getInstance().readFileAsByteArray(referenceImagePath));
 
             // / Create the result matrix
             int resultCols = img.cols() - templ.cols() + 1;
@@ -375,7 +375,7 @@ public class ImageProcessingActions {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
         String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
         if (FileActions.getInstance().doesFileExist(referenceImagePath)) {
-            return FileActions.getInstance().readFromImageFile(referenceImagePath);
+            return FileActions.getInstance().readFileAsByteArray(referenceImagePath);
         } else {
             return new byte[0];
         }
@@ -385,7 +385,7 @@ public class ImageProcessingActions {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
         String referenceImagePath = aiFolderPath + hashedLocatorName + "_shutterbug.png";
         if (FileActions.getInstance().doesFileExist(referenceImagePath)) {
-            return FileActions.getInstance().readFromImageFile(referenceImagePath);
+            return FileActions.getInstance().readFileAsByteArray(referenceImagePath);
         } else {
             return new byte[0];
         }
