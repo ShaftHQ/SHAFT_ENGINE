@@ -84,7 +84,7 @@ public class GoogleTink {
     public static void encrypt(String relativeFolderPath, String targetFileName) {
         byte[] ciphertext;
         try {
-            ciphertext = internal_encrypt(FileActions.getInstance().readFromImageFile(relativeFolderPath + targetFileName));
+            ciphertext = internal_encrypt(FileActions.getInstance().readFileAsByteArray(relativeFolderPath + targetFileName));
             FileActions.getInstance().writeToFile(relativeFolderPath, targetFileName, ciphertext);
             ReportManager.log("Successfully Encrypted \"" + targetFileName + "\".");
         } catch (GeneralSecurityException | IOException e) {
@@ -96,7 +96,7 @@ public class GoogleTink {
     public static void decrypt(String relativeFolderPath, String targetFileName) {
         byte[] decryptedtext;
         try {
-            decryptedtext = internal_decrypt(FileActions.getInstance().readFromImageFile(relativeFolderPath + targetFileName));
+            decryptedtext = internal_decrypt(FileActions.getInstance().readFileAsByteArray(relativeFolderPath + targetFileName));
             FileActions.getInstance().writeToFile(relativeFolderPath, targetFileName, decryptedtext);
             ReportManager.log("Successfully Decrypted \"" + targetFileName + "\".");
         } catch (GeneralSecurityException | IOException e) {

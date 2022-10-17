@@ -170,7 +170,7 @@ public class Test_ValidationsBuilder {
     //@Test
     public void restValidations() {
         String referenceJsonFilePath = System.getProperty("jsonFolderPath") + "specialCharacters.json";
-        Response response = (new ResponseBuilder()).setBody(FileActions.getInstance().readFromFile(referenceJsonFilePath))
+        Response response = (new ResponseBuilder()).setBody(FileActions.getInstance().readFile(referenceJsonFilePath))
                 .setStatusCode(200).build();
 
         Validations.verifyThat()
