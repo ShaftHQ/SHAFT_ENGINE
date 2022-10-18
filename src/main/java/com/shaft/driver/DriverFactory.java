@@ -6,6 +6,7 @@ import com.shaft.cli.TerminalActions;
 import com.shaft.db.DatabaseActions;
 import com.shaft.db.DatabaseActions.DatabaseType;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.listeners.InvokedMethodListener;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.WebDriver;
 import org.sikuli.script.App;
@@ -18,6 +19,9 @@ public class DriverFactory {
      * @return a new Selenium WebDriver instance
      */
     public static WebDriver getDriver() {
+        // override properties with test suite properties
+        // read testng properties (enables modifying the test execution properties programatically)
+        System.getProperties().putAll(InvokedMethodListener.getXmlTest().getAllParameters());
         if (System.getProperty("executionAddress").contains("browserstack")) {
             return getBrowserStackDriver(new MutableCapabilities());
         } else {
@@ -33,6 +37,9 @@ public class DriverFactory {
      * @return a new Selenium WebDriver instance
      */
     public static WebDriver getDriver(DriverType driverType) {
+        // override properties with test suite properties
+        // read testng properties (enables modifying the test execution properties programatically)
+        System.getProperties().putAll(InvokedMethodListener.getXmlTest().getAllParameters());
         if (driverType.equals(DriverType.BROWSERSTACK)) {
             return getBrowserStackDriver(new MutableCapabilities());
         } else {
@@ -49,6 +56,9 @@ public class DriverFactory {
      * @return a new Selenium WebDriver instance
      */
     public static WebDriver getDriver(DriverType driverType, MutableCapabilities customDriverOptions) {
+        // override properties with test suite properties
+        // read testng properties (enables modifying the test execution properties programatically)
+        System.getProperties().putAll(InvokedMethodListener.getXmlTest().getAllParameters());
         if (driverType.equals(DriverType.BROWSERSTACK)) {
             return getBrowserStackDriver(customDriverOptions);
         } else {

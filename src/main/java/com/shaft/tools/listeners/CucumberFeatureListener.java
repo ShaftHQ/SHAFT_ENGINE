@@ -19,7 +19,6 @@ import com.shaft.cli.FileActions;
 import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
-import com.shaft.tools.io.LogsHelper;
 import com.shaft.tools.io.ProjectStructureManager;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManagerHelper;
