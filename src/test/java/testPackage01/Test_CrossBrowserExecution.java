@@ -5,14 +5,13 @@ import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 public class Test_CrossBrowserExecution {
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     private static final By serchbox_input = By.cssSelector("input[name='q']");
     private static final By resultstats_label = By.cssSelector("div#result-stats");
 
-    @Test(description = "When I navigate to Google Home, and I search for 'SHAFT_Engine', then the result stats should not be empty.")
+    //@Test(description = "When I navigate to Google Home, and I search for 'SHAFT_Engine', then the result stats should not be empty.")
     public void test() {
         //navigate to google
         driver.get().browser().navigateToURL("https://www.google.com/");
