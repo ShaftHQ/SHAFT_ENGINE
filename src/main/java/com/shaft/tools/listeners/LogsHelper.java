@@ -1,7 +1,9 @@
-package com.shaft.tools.io;
+package com.shaft.tools.listeners;
 
 import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactory;
+import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.tools.security.GoogleTink;
 import org.testng.ITestContext;
 import org.testng.annotations.AfterSuite;
@@ -76,7 +78,7 @@ public class LogsHelper {
     }
 
     //TODO: migrate invokedMethodListener, SuiteListener to annotations here?
-    @BeforeSuite
+    @BeforeSuite(description = "Initializing Engine")
     public void setupActivities(ITestContext testContext) {
         ReportManagerHelper.initializeAllureReportingEnvironment();
         ReportManagerHelper.initializeExtentReportingEnvironment();
@@ -93,7 +95,7 @@ public class LogsHelper {
 
     }
 
-    @AfterSuite
+    @AfterSuite(description = "Cleaning up")
     public void teardownActivities() {
         closeAllDriversAndattachBrowserLogs();
         attachFullLogs();
