@@ -10,9 +10,11 @@ import io.qameta.allure.Issues;
 import io.qameta.allure.TmsLink;
 import io.qameta.allure.model.Link;
 import io.qameta.allure.util.AnnotationUtils;
+import lombok.Getter;
 import org.testng.*;
 import org.testng.internal.ConfigurationMethod;
 import org.testng.internal.ConstructorOrMethod;
+import org.testng.xml.XmlTest;
 
 import java.lang.reflect.Method;
 import java.util.*;
@@ -31,6 +33,9 @@ public class InvokedMethodListener implements IInvokedMethodListener {
     private int openIssuesForPassedTestsCounter = 0;
     private int newIssuesForFailedTestsCounter = 0;
 
+    @Getter
+    private static XmlTest xmlTest;
+
     public static String createTestLog(List<String> output) {
         StringBuilder builder = new StringBuilder();
         for (String each : output) {
@@ -48,6 +53,7 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 
     @Override
     public void beforeInvocation(IInvokedMethod method, ITestResult testResult) {
+        xmlTest = method.getTestMethod().getXmlTest();
         try {
             // testSize where the structure is testSuite > test > testClasses > testMethods
             testSize = testResult.getTestContext().getAllTestMethods().length;
@@ -110,7 +116,6 @@ public class InvokedMethodListener implements IInvokedMethodListener {
 
     @Override
     public void afterInvocation(IInvokedMethod method, ITestResult testResult) {
-
         if (!method.getTestMethod().getQualifiedName().contains("setupActivities")
                 && !method.getTestMethod().getQualifiedName().contains("teardownActivities")) {
             List<String> attachments = new ArrayList<>();

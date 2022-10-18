@@ -2,7 +2,10 @@ package com.shaft.tools.listeners;
 
 import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.gui.image.ImageProcessingActions;
-import com.shaft.tools.io.*;
+import com.shaft.tools.io.ProjectStructureManager;
+import com.shaft.tools.io.PropertyFileManager;
+import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.tools.security.GoogleTink;
 import com.shaft.tools.tms.XrayIntegrationHelper;
 import io.qameta.allure.*;
@@ -11,10 +14,12 @@ import org.testng.annotations.ITestAnnotation;
 import org.testng.xml.XmlClass;
 import org.testng.xml.XmlSuite;
 import org.testng.xml.XmlSuite.ParallelMode;
+import org.testng.xml.XmlTest;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Map;
 
 public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, IAnnotationTransformer,
         IInvokedMethodListener, IExecutionListener {
@@ -59,8 +64,46 @@ public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, 
         setExecutionProperties(suites);
         renameDefaultSuiteAndTest(suites);
         addLogsReporterToFirstTest(suites);
+        handleCrossBrowserExecution(suites);
         //Configure Proxy
         addProxy();
+    }
+
+    private void handleCrossBrowserExecution(List<XmlSuite> suites) {
+        if (System.getProperty("SHAFT.CrossBrowserMode") != null
+                && !"off".equals(System.getProperty("SHAFT.CrossBrowserMode"))) {
+            suites.forEach(suite -> {
+                var firefox_test = (XmlTest) suite.getTests().get(0).clone();
+                firefox_test.setParameters(Map.of(
+                        "executionAddress", "dockerized",
+                        "targetOperatingSystem", "Linux",
+                        "targetBrowserName", "MozillaFirefox"
+                ));
+                firefox_test.setName(firefox_test.getName() + " - FireFox");
+
+                var safari_test = (XmlTest) suite.getTests().get(0).clone();
+                safari_test.setParameters(Map.of(
+                        "executionAddress", "dockerized",
+                        "targetOperatingSystem", "Linux",
+                        "targetBrowserName", "Safari"
+                ));
+                safari_test.setName(safari_test.getName() + " - Safari");
+
+                var chrome_test = (XmlTest) suite.getTests().get(0);
+                chrome_test.setParameters(Map.of(
+                        "executionAddress", "dockerized",
+                        "targetOperatingSystem", "Linux",
+                        "targetBrowserName", "GoogleChrome"
+                ));
+                chrome_test.setName(chrome_test.getName() + " - Chrome");
+
+                if ("parallelized".equals(System.getProperty("SHAFT.CrossBrowserMode"))) {
+                    suite.setParallel(ParallelMode.TESTS);
+                    suite.setThreadCount(3);
+                    System.setProperty("screenshotParams_screenshotType", "Regular");
+                }
+            });
+        }
     }
 
     private void setExecutionProperties(List<XmlSuite> suites) {
