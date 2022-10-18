@@ -604,12 +604,11 @@ public class DriverFactoryHelper {
     }
 
     private static void addProxySettings(AbstractDriverOptions driverOptions) {
-        String proxyServerSettings = System.getProperty("com.SHAFT.proxySettings");
-        if (!proxyServerSettings.equals("")) {
+        String proxySettings = System.getProperty("com.SHAFT.proxySettings");
+        if (!proxySettings.equals("")) {
             Proxy proxy = new Proxy();
-            proxy.setHttpProxy(proxyServerSettings);
-            proxy.setSslProxy(proxyServerSettings);
-            proxy.setFtpProxy(proxyServerSettings);
+            proxy.setHttpProxy(proxySettings);
+            proxy.setSslProxy(proxySettings);
             driverOptions.setProxy(proxy);
         }
     }
