@@ -13,20 +13,23 @@
  
 <a id="quick-start-guide"></a>
 ## Quick Start Guide 🏃
+### Step 1: Initial Setup
 - Create a new Java/Maven project using Eclipse, IntelliJ or your favourite IDE.
 - Copy the highlighted contents of this [pom.xml](https://github.com/MohabMohie/using_SHAFT_ENGINE/blob/master/pom.xml#L12-L79) file into yours inside the ```<project>``` tag.
 - Follow the steps in this footnote in case you are using IntelliJ[^1].
-- Create the following file ```src/test/resources/testDataFiles/simpleJSON.json```.
-- Copy the below code snippet into your newly created json file.
-```json
-{
-  "searchQuery": "SHAFT_Engine"
-}
+### Step 2: Creating Tests
+- Create a new Package ```TestPackage``` under ```src/test/java``` and create a new Java Class ```TestClass``` under that package.
+- Copy the below imports into your newly created java class.
+```java
+import com.shaft.driver.SHAFT;
+import org.openqa.selenium.By;
+import org.openqa.selenium.Keys;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 ```
-- Create a new Package under ```src/test/java``` and create a new Java Class under that package.
 - Copy the below code snippet into your newly created java class.
 ```java
-public class Test_Wizard_GUI {
     SHAFT.GUI.WebDriver driver;
     SHAFT.TestData.JSON testData;
 
@@ -53,15 +56,25 @@ public class Test_Wizard_GUI {
     public void afterClass() {
         driver.quit();
     }
+```
+### Step 3: Managing Test Data
+- Create the following file ```src/test/resources/testDataFiles/simpleJSON.json```.
+- Copy the below code snippet into your newly created json file.
+```json
+{
+  "searchQuery": "SHAFT_Engine"
 }
 ```
-- Run it as a TestNG Test Class.
+### Step 4: Running Tests
+- Run your ```TestClass.java``` as a TestNG Test Class.
 - The execution report will open automatically in your default web browser after the test run is completed.
+### Step 5: More Information
 - You can change the target browser, operating system, timeouts, and other configurations using the ⚙️ [Configuration Manager](https://ShaftHQ.github.io/SHAFT_ENGINE/).
 - [Click Here](https://github.com/ShaftHQ/SHAFT_ENGINE/tree/master/src/test/java/testPackage01/SHAFTWizard) for more GUI, API, DB, and CLI sample test classes.
-- And you can learn more from the 📚 [Javadocs](https://ShaftHQ.github.io/SHAFT_ENGINE/apidocs/index.html) and 👤 [User Guide](https://ShaftHQ.github.io/SHAFT_Engine_Docusaurus/) [^2].
+- And you can learn more from the 👤 [User Guide](https://ShaftHQ.github.io/SHAFT_Engine_Docusaurus/) and 📚 [Javadocs](https://ShaftHQ.github.io/SHAFT_ENGINE/apidocs/index.html) [^2].
 - Here is also a complete tutorial showing everything from creating the project to running remote, unattended, parallelized, cross-platform tests ▶️ [Youtube: Test Automation Hero++](https://www.youtube.com/playlist?list=PLlnkmUosVw9g1IK6M4kZS8a-EsP4xb0Vf) [^3].
-- For current SHAFT users, after each release, it's highly recommended to delete the properties folder, which you can find in this directory (*project path*\src\main\resources\properties); And let SHAFT regenerate the default properties again once triggering any test case execution.
+- Make sure to <b>Star</b> ⭐ the project to get notified when a new release is pushed out.
+- After upgrading your Engine it is sometimes recommended to delete the properties folder ```src\main\resources\properties``` and allow SHAFT to regenerate the defaults by running any test method.
 - Lastly, feel free to [Join us via Slack & Facebook](#support-and-contributions) for support and contributions.
 [^1]: Due to a known issue with IntelliJ you need to edit your run configuration templates before running your tests by following these steps:
 <br/>- Open 'Edit Run/Debug Configurations' dialog > Edit Configurations... > Edit configuration templates...
