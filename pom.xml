@@ -29,7 +29,7 @@
 
     <properties>
         <!-- Dependencies and Plug-ins Version Numbers Parameters -->
-        <selenium.version>4.5.0</selenium.version>
+        <selenium.version>4.5.1</selenium.version>
         <appium-java-client.version>8.2.0</appium-java-client.version>
 
         <webdrivermanager.version>5.3.0</webdrivermanager.version>
