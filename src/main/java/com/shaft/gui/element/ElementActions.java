@@ -616,6 +616,28 @@ public class ElementActions {
         WebDriverElementActions.waitForElementToBePresent(driver, elementLocator, numberOfTries, stateOfPresence);
     }
 
+    /**
+     * Waits dynamically for a specific element to be present on the current page.
+     *
+     * @param driver          the current instance of Selenium webdriver
+     * @param elementLocator  the locator of the webElement under test (By xpath,
+     *                        id, selector, name ...etc)
+     */
+    public static void waitForElementToBePresent(WebDriver driver, By elementLocator) {
+        waitForElementToBePresent(driver, elementLocator, 1, true);
+    }
+
+    /**
+     * Waits dynamically for a specific element to be absent on the current page.
+     *
+     * @param driver          the current instance of Selenium webdriver
+     * @param elementLocator  the locator of the webElement under test (By xpath,
+     *                        id, selector, name ...etc)
+     */
+    public static void waitForElementToBeAbsent(WebDriver driver, By elementLocator) {
+        waitForElementToBePresent(driver, elementLocator, 1, false);
+    }
+
     public WebDriverElementActions performWebDriverElementAction() {
         return new WebDriverElementActions(DriverFactoryHelper.getDriver().get());
     }
@@ -1041,6 +1063,30 @@ public class ElementActions {
     public ElementActions waitForElementToBePresent(By elementLocator, int numberOfTries, boolean stateOfPresence) {
         waitForElementToBePresent(DriverFactoryHelper.getDriver().get(), elementLocator, numberOfTries,
                 stateOfPresence);
+        return this;
+    }
+
+    /**
+     * Waits dynamically for a specific element to be present on the current page.
+     *
+     * @param elementLocator  the locator of the webElement under test (By xpath,
+     *                        id, selector, name ...etc)
+     * @return a self-reference to be used to chain actions
+     */
+    public ElementActions waitForElementToBePresent(By elementLocator) {
+        waitForElementToBePresent(DriverFactoryHelper.getDriver().get(), elementLocator, 1, true);
+        return this;
+    }
+
+    /**
+     * Waits dynamically for a specific element to be absent on the current page.
+     *
+     * @param elementLocator  the locator of the webElement under test (By xpath,
+     *                        id, selector, name ...etc)
+     * @return a self-reference to be used to chain actions
+     */
+    public ElementActions waitForElementToBeAbsent(By elementLocator) {
+        waitForElementToBePresent(DriverFactoryHelper.getDriver().get(), elementLocator, 1, false);
         return this;
     }
 
