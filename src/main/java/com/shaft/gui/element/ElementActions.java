@@ -598,6 +598,8 @@ public class ElementActions {
     }
 
     /**
+     * @deprecated use {@link #waitForElementToBeReady(WebDriver, By)} or {@link #waitForElementToBeInvisible(WebDriver, By)} instead.
+     *
      * Waits dynamically for a specific element to achieve the desired
      * stateOfPresence on the current page. Waits for a specific number of retries
      * multiplied by the default element identification timeout (in the POM.xml
@@ -614,6 +616,28 @@ public class ElementActions {
     public static void waitForElementToBePresent(WebDriver driver, By elementLocator, int numberOfTries,
                                                  boolean stateOfPresence) {
         WebDriverElementActions.waitForElementToBePresent(driver, elementLocator, numberOfTries, stateOfPresence);
+    }
+
+    /**
+     * Waits dynamically for a specific element to be present in DOM, and ready to interact with, on the current page.
+     *
+     * @param driver          the current instance of Selenium webdriver
+     * @param elementLocator  the locator of the webElement under test (By xpath,
+     *                        id, selector, name ...etc)
+     */
+    public static void waitForElementToBeReady(WebDriver driver, By elementLocator) {
+        WebDriverElementActions.waitForElementToBePresent(driver, elementLocator, 1, true);
+    }
+
+    /**
+     * Waits dynamically for a specific element to be detached from DOM, or hidden, on the current page.
+     *
+     * @param driver          the current instance of Selenium webdriver
+     * @param elementLocator  the locator of the webElement under test (By xpath,
+     *                        id, selector, name ...etc)
+     */
+    public static void waitForElementToBeInvisible(WebDriver driver, By elementLocator) {
+        WebDriverElementActions.waitForElementToBePresent(driver, elementLocator, 1, false);
     }
 
     public WebDriverElementActions performWebDriverElementAction() {
@@ -1025,6 +1049,8 @@ public class ElementActions {
     }
 
     /**
+     * @deprecated use {@link #waitToBeReady(By)} or {@link #waitToBeInvisible(By)} instead.
+     *
      * Waits dynamically for a specific element to achieve the desired
      * stateOfPresence on the current page. Waits for a specific number of retries
      * multiplied by the default element identification timeout (in the POM.xml
@@ -1038,9 +1064,34 @@ public class ElementActions {
      *                        is not present, and true is present
      * @return a self-reference to be used to chain actions
      */
+    @Deprecated
     public ElementActions waitForElementToBePresent(By elementLocator, int numberOfTries, boolean stateOfPresence) {
         waitForElementToBePresent(DriverFactoryHelper.getDriver().get(), elementLocator, numberOfTries,
                 stateOfPresence);
+        return this;
+    }
+
+    /**
+     * Waits dynamically for a specific element to be present in DOM, and ready to interact with, on the current page.
+     *
+     * @param elementLocator  the locator of the webElement under test (By xpath,
+     *                        id, selector, name ...etc)
+     * @return a self-reference to be used to chain actions
+     */
+    public ElementActions waitToBeReady(By elementLocator) {
+        WebDriverElementActions.waitForElementToBePresent(DriverFactoryHelper.getDriver().get(), elementLocator, 1, true);
+        return this;
+    }
+
+    /**
+     * Waits dynamically for a specific element to be detached from DOM, or hidden, on the current page.
+     *
+     * @param elementLocator  the locator of the webElement under test (By xpath,
+     *                        id, selector, name ...etc)
+     * @return a self-reference to be used to chain actions
+     */
+    public ElementActions waitToBeInvisible(By elementLocator) {
+        WebDriverElementActions.waitForElementToBePresent(DriverFactoryHelper.getDriver().get(), elementLocator, 1, false);
         return this;
     }
 
