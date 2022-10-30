@@ -552,8 +552,11 @@ public class WebDriverElementActions {
     private static String getElementName(WebDriver driver, By elementLocator) {
         if (Boolean.TRUE.equals(Boolean.parseBoolean(System.getProperty("captureElementName")))) {
             try {
-                return ((WebElement) WebDriverElementActions.identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1)).getAccessibleName();
-            } catch (WebDriverException e){
+                var accessibleName = ((WebElement) WebDriverElementActions.identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1)).getAccessibleName();
+                if (accessibleName != null && !accessibleName.isBlank()) {
+                    return accessibleName;
+                }
+            } catch (WebDriverException e) {
                 //happens on some elements that show unhandled inspector error
                 //this exception is thrown on some older selenium grid instances, I saw it with firefox running over selenoid
             }
@@ -1221,7 +1224,10 @@ public class WebDriverElementActions {
         String elementName = elementLocator.toString();
         if (elementLocator != null) {
             try {
-                elementName = driver.findElement(elementLocator).getAccessibleName();
+                var accessibleName = driver.findElement(elementLocator).getAccessibleName();
+                if (accessibleName != null && !accessibleName.isBlank()) {
+                    elementName = accessibleName;
+                }
             } catch (Throwable throwable) {
                 //do nothing
             }
@@ -1404,8 +1410,9 @@ public class WebDriverElementActions {
         if (Boolean.FALSE.equals(passFailStatus)) {
             message = message + "Failed to ";
         }
+        actionName = JavaHelper.convertToSentenceCase(actionName);
 
-        message = message + JavaHelper.convertToSentenceCase(actionName);
+        message = message + actionName;
 
         if (testData != null && !testData.isEmpty() && testData.length() < 500) {
             message = message + " \"" + testData.trim() + "\"";
