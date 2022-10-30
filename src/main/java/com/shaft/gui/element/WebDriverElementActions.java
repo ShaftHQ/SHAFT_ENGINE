@@ -558,7 +558,7 @@ public class WebDriverElementActions {
                 //this exception is thrown on some older selenium grid instances, I saw it with firefox running over selenoid
             }
         }
-        return null;
+        return elementLocator.toString();
     }
 
     /**
@@ -1213,18 +1213,27 @@ public class WebDriverElementActions {
         boolean skipPageScreenshot = rootCauseException.length >= 1 && (
                 TimeoutException.class.getName().equals(rootCauseException[0].getClass().getName()) //works to capture fluent wait failure
                         || (
-                        rootCauseException[0].getMessage().contains("Identify unique element failed")
+                        rootCauseException[0].getMessage().contains("Identify unique element")
                                 && isFoundInStacktrace(ValidationsHelper.class, rootCauseException[0])
                 )//works to capture calling elementAction failure in case this is an assertion
         );
 
+        String elementName = elementLocator.toString();
+        if (elementLocator != null) {
+            try {
+                elementName = driver.findElement(elementLocator).getAccessibleName();
+            } catch (Throwable throwable) {
+                //do nothing
+            }
+        }
+
         String message = "";
         if (skipPageScreenshot) {
             //don't try to take a screenshot again and set element locator to null in case element was not found by timeout or by nested element actions call
-            message = createReportMessage(actionName, testData, null, false);
+            message = createReportMessage(actionName, testData, elementName, false);
             ReportManager.logDiscrete(message);
         } else {
-            message = reportActionResult(driver, actionName, testData, elementLocator, screenshots, null, false);
+            message = reportActionResult(driver, actionName, testData, elementLocator, screenshots, elementName, false);
         }
 
         if (rootCauseException != null && rootCauseException.length >= 1) {
@@ -1390,33 +1399,35 @@ public class WebDriverElementActions {
     }
 
     private static String createReportMessage(String actionName, String testData, String elementName, Boolean passFailStatus) {
-        actionName = JavaHelper.convertToSentenceCase(actionName);
-        String message;
-        if (Boolean.TRUE.equals(passFailStatus)) {
-            message = "Element Action: " + actionName;
-        } else {
-            message = "Element Action: " + actionName + " failed";
+        String message = "";
+
+        if (Boolean.FALSE.equals(passFailStatus)) {
+            message = message + "Failed to ";
         }
+
+        message = message + JavaHelper.convertToSentenceCase(actionName);
+
         if (testData != null && !testData.isEmpty() && testData.length() < 500) {
             message = message + " \"" + testData.trim() + "\"";
         }
+
         if ((elementName != null && !elementName.isEmpty())) {
             var preposition = " ";
             if (actionName.toLowerCase().contains("type") || actionName.toLowerCase().contains("set value using javascript")) {
-                preposition = " into ";
+                preposition = "into";
             } else if (actionName.toLowerCase().contains("get") || actionName.toLowerCase().contains("select")) {
-                preposition = " from ";
+                preposition = "from";
             } else if (actionName.toLowerCase().contains("clipboard")) {
-                preposition = " on ";
+                preposition = "on";
             } else if (actionName.toLowerCase().contains("drag and drop") || actionName.toLowerCase().contains("key press") || actionName.toLowerCase().contains("wait") || actionName.toLowerCase().contains("submit") || actionName.toLowerCase().contains("switch")) {
-                preposition = " against ";
+                preposition = "against";
             } else if (actionName.toLowerCase().contains("hover")) {
-                preposition = " over ";
+                preposition = "over";
             }
-            message = message + preposition + " \"" + elementName.trim() + "\"";
+            message = message + " " + preposition + " \"" + elementName.trim() + "\"";
         }
+
         message = message + ".";
-        message = message.replace("Element Action: ", "");
         return message;
     }
 
