@@ -28,7 +28,6 @@ import org.openqa.selenium.logging.LogType;
 import org.openqa.selenium.logging.LoggingPreferences;
 import org.openqa.selenium.remote.*;
 import org.openqa.selenium.safari.SafariOptions;
-import org.openqa.selenium.support.ThreadGuard;
 import org.testng.Assert;
 
 import java.net.MalformedURLException;
@@ -112,7 +111,7 @@ public class DriverFactoryHelper {
         try {
             attachWebDriverLogs();
             //if dockerized wdm.quit the relevant one
-            if ("dockerized".equals(System.getProperty("executionAddress"))){
+            if (System.getProperty("executionAddress").contains("dockerized")) {
                 var pathToRecording = webDriverManager.get().getDockerRecordingPath(driver.get());
                 webDriverManager.get().quit(driver.get());
                 RecordManager.attachVideoRecording(pathToRecording);
@@ -314,23 +313,28 @@ public class DriverFactoryHelper {
             switch (driverType) {
                 case DESKTOP_FIREFOX -> {
                     ReportManager.logDiscrete(WEBDRIVERMANAGER_MESSAGE);
-                    driver.set(ThreadGuard.protect(WebDriverManager.firefoxdriver().proxy(proxy).capabilities(ffOptions).create()));
+//                    driver.set(ThreadGuard.protect(WebDriverManager.firefoxdriver().proxy(proxy).capabilities(ffOptions).create()));
+                    driver.set(WebDriverManager.firefoxdriver().proxy(proxy).capabilities(ffOptions).create());
                 }
                 case DESKTOP_INTERNET_EXPLORER -> {
                     ReportManager.logDiscrete(WEBDRIVERMANAGER_MESSAGE);
-                    driver.set(ThreadGuard.protect(WebDriverManager.iedriver().proxy(proxy).capabilities(ieOptions).create()));
+//                    driver.set(ThreadGuard.protect(WebDriverManager.iedriver().proxy(proxy).capabilities(ieOptions).create()));
+                    driver.set(WebDriverManager.iedriver().proxy(proxy).capabilities(ieOptions).create());
                 }
                 case DESKTOP_CHROME -> {
                     ReportManager.logDiscrete(WEBDRIVERMANAGER_MESSAGE);
-                    driver.set(ThreadGuard.protect(WebDriverManager.chromedriver().proxy(proxy).capabilities(chOptions).create()));
+//                    driver.set(ThreadGuard.protect(WebDriverManager.chromedriver().proxy(proxy).capabilities(chOptions).create()));
+                    driver.set(WebDriverManager.chromedriver().proxy(proxy).capabilities(chOptions).create());
                 }
                 case DESKTOP_EDGE -> {
                     ReportManager.logDiscrete(WEBDRIVERMANAGER_MESSAGE);
-                    driver.set(ThreadGuard.protect(WebDriverManager.edgedriver().proxy(proxy).capabilities(edOptions).create()));
+//                    driver.set(ThreadGuard.protect(WebDriverManager.edgedriver().proxy(proxy).capabilities(edOptions).create()));
+                    driver.set(WebDriverManager.edgedriver().proxy(proxy).capabilities(edOptions).create());
                 }
                 case DESKTOP_SAFARI -> {
                     ReportManager.logDiscrete(WEBDRIVERMANAGER_MESSAGE);
-                    driver.set(ThreadGuard.protect(WebDriverManager.safaridriver().proxy(proxy).capabilities(sfOptions).create()));
+//                    driver.set(ThreadGuard.protect(WebDriverManager.safaridriver().proxy(proxy).capabilities(sfOptions).create()));
+                    driver.set(WebDriverManager.safaridriver().proxy(proxy).capabilities(sfOptions).create());
                 }
                 default ->
                         failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
@@ -385,7 +389,8 @@ public class DriverFactoryHelper {
                     .dockerRecordingOutput(System.getProperty("video.folder"))
                     .create();
             remoteWebDriver.setFileDetector(new LocalFileDetector());
-            driver.set(ThreadGuard.protect(remoteWebDriver));
+//            driver.set(ThreadGuard.protect(remoteWebDriver));
+            driver.set(remoteWebDriver);
             ReportManager.log("Successfully Opened " + JavaHelper.convertToSentenceCase(driverType.getValue()) + ".");
         } catch (io.github.bonigarcia.wdm.config.WebDriverManagerException exception) {
             failAction("Failed to create new Dockerized Browser Session, are you sure Docker is available on your machine?", exception);
@@ -458,8 +463,9 @@ public class DriverFactoryHelper {
         if (os.equals(OperatingSystemType.ANDROID)
                 || os.equals(OperatingSystemType.IOS)) {
             driver.set(remoteWebDriver);
-        }else{
-            driver.set(ThreadGuard.protect(remoteWebDriver));
+        }else {
+//            driver.set(ThreadGuard.protect(remoteWebDriver));
+            driver.set(remoteWebDriver);
         }
     }
 
@@ -599,7 +605,8 @@ public class DriverFactoryHelper {
 
         if (Boolean.parseBoolean(System.getProperty("heal-enabled").trim())) {
             ReportManager.logDiscrete("Initializing Healenium's Self Healing Driver...");
-            driver.set(ThreadGuard.protect(SelfHealingDriver.create(driver.get())));
+//            driver.set(ThreadGuard.protect(SelfHealingDriver.create(driver.get())));
+            driver.set(SelfHealingDriver.create(driver.get()));
         }
     }
 
@@ -608,7 +615,8 @@ public class DriverFactoryHelper {
         if (!proxySettings.equals("")) {
             Proxy proxy = new Proxy();
             proxy.setHttpProxy(proxySettings);
-            proxy.setSslProxy(proxySettings);
+            proxy.setFtpProxy(proxySettings);
+//            proxy.setSslProxy(proxySettings);
             driverOptions.setProxy(proxy);
         }
     }

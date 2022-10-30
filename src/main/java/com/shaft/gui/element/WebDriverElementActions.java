@@ -46,10 +46,9 @@ public class WebDriverElementActions {
      *                       selector, name ...etc)
      */
     public static void scrollToElement(WebDriver driver, By elementLocator) {
-        //identifyUniqueElement will internally scroll to find the target element so no extra action is needed
         try {
-            WebDriverElementActions.identifyUniqueElement(driver, elementLocator);
-            passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null,getElementName(driver,elementLocator));
+            ElementActionsHelper.scrollToFindElement(driver, elementLocator);
+            passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, getElementName(driver, elementLocator));
         } catch (Throwable throwable) {
             WebDriverElementActions.failAction(driver, elementLocator, throwable);
         }
@@ -1221,8 +1220,9 @@ public class WebDriverElementActions {
                 )//works to capture calling elementAction failure in case this is an assertion
         );
 
-        String elementName = elementLocator.toString();
+        String elementName = "";
         if (elementLocator != null) {
+            elementName = elementLocator.toString();
             try {
                 var accessibleName = driver.findElement(elementLocator).getAccessibleName();
                 if (accessibleName != null && !accessibleName.isBlank()) {
@@ -1283,13 +1283,13 @@ public class WebDriverElementActions {
                     // in case of regular locator
                     switch (Integer.parseInt(matchingElementsInformation.get(0).toString())) {
                         case 0 ->
-                                failAction(driver, "zero elements found matching this locator \"" + elementLocator + "\".", elementLocator, (Throwable) matchingElementsInformation.get(2));
+                                failAction(driver, "zero elements found matching this locator", elementLocator, (Throwable) matchingElementsInformation.get(2));
                         case 1 -> {
                             return matchingElementsInformation;
                         }
                         default -> {
                             if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckElementLocatorIsUnique")))) {
-                                failAction(driver, "multiple elements found matching this locator \"" + elementLocator + "\".",
+                                failAction(driver, "multiple elements found matching this locator",
                                         elementLocator);
                             }
                             return matchingElementsInformation;
@@ -1410,6 +1410,7 @@ public class WebDriverElementActions {
         if (Boolean.FALSE.equals(passFailStatus)) {
             message = message + "Failed to ";
         }
+
         actionName = JavaHelper.convertToSentenceCase(actionName);
 
         message = message + actionName;
@@ -1421,17 +1422,17 @@ public class WebDriverElementActions {
         if ((elementName != null && !elementName.isEmpty())) {
             var preposition = " ";
             if (actionName.toLowerCase().contains("type") || actionName.toLowerCase().contains("set value using javascript")) {
-                preposition = "into";
+                preposition = " into ";
             } else if (actionName.toLowerCase().contains("get") || actionName.toLowerCase().contains("select")) {
-                preposition = "from";
+                preposition = " from ";
             } else if (actionName.toLowerCase().contains("clipboard")) {
-                preposition = "on";
+                preposition = " on ";
             } else if (actionName.toLowerCase().contains("drag and drop") || actionName.toLowerCase().contains("key press") || actionName.toLowerCase().contains("wait") || actionName.toLowerCase().contains("submit") || actionName.toLowerCase().contains("switch")) {
-                preposition = "against";
+                preposition = " against ";
             } else if (actionName.toLowerCase().contains("hover")) {
-                preposition = "over";
+                preposition = " over ";
             }
-            message = message + " " + preposition + " \"" + elementName.trim() + "\"";
+            message = message + preposition + "\"" + elementName.trim() + "\"";
         }
 
         message = message + ".";

@@ -611,6 +611,10 @@ public class ReportManagerHelper {
             Allure.addAttachment(attachmentDescription, "text/uri-list", new ByteArrayInputStream(attachmentContent.toByteArray()), ".uri");
         } else if (attachmentType.toLowerCase().contains("engine logs")) {
             Allure.addAttachment(attachmentDescription, "text/plain", new ByteArrayInputStream(attachmentContent.toByteArray()), ".txt");
+        } else if (attachmentType.toLowerCase().contains("page snapshot")) {
+            Allure.addAttachment(attachmentDescription, "multipart/related application/x-mimearchive", new ByteArrayInputStream(attachmentContent.toByteArray()), ".mhtml");
+        } else if (attachmentType.toLowerCase().contains("html")) {
+            Allure.addAttachment(attachmentDescription, "text/html", new ByteArrayInputStream(attachmentContent.toByteArray()), ".html");
         } else {
             Allure.addAttachment(attachmentDescription, new ByteArrayInputStream(attachmentContent.toByteArray()));
         }

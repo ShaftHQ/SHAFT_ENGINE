@@ -42,6 +42,10 @@ public class BrowserActions {
         return WebDriverBrowserActions.getPageSource(driver);
     }
 
+    public static void capturePageSnapshot(WebDriver driver) {
+        WebDriverBrowserActions.capturePageSnapshot(driver);
+    }
+
     /**
      * Gets the current window handle and returns it as a string
      *

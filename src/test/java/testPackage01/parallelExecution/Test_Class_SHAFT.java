@@ -1,16 +1,15 @@
 //package testPackage01.parallelExecution;
 //
 //import com.shaft.driver.SHAFT;
-//import com.shaft.gui.browser.BrowserActions;
-//import com.shaft.gui.element.ElementActions;
-//import com.shaft.validation.Validations;
 //import org.openqa.selenium.By;
-//import org.testng.annotations.*;
+//import org.testng.annotations.AfterMethod;
+//import org.testng.annotations.BeforeMethod;
+//import org.testng.annotations.Test;
 //
 //import java.nio.file.Paths;
 //
 //public class Test_Class_SHAFT {
-//    private static final String html = Paths.get(System.getProperty("testDataFolderPath")).toUri().toString();
+//    private static final String html = Paths.get(System.getProperty("testDataFolderPath")+"/test.html").toUri().toString();
 //    private static ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
 //
 //    private static final By firstName_input = By.id("fname");
@@ -61,17 +60,17 @@
 //
 //    private void commonSteps(String firstName, String lastName){
 //
-//        BrowserActions.navigateToURL(driver.get().getDriver(), html);
-//        ElementActions.type(driver.get().getDriver(), firstName_input, firstName);
-//        ElementActions.type(driver.get().getDriver(), lastName_input, lastName);
-//        ElementActions.click(driver.get().getDriver(), submit_button);
-//        Validations.assertThat().element(driver.get().getDriver(), output_label).text().contains("fname="+firstName+"&lname="+lastName).perform();
+////        BrowserActions.navigateToURL(driver.get().getDriver(), html);
+////        ElementActions.type(driver.get().getDriver(), firstName_input, firstName);
+////        ElementActions.type(driver.get().getDriver(), lastName_input, lastName);
+////        ElementActions.click(driver.get().getDriver(), submit_button);
+////        Validations.assertThat().element(driver.get().getDriver(), output_label).text().contains("fname="+firstName+"&lname="+lastName).perform();
 //
-////        driver.get().browser().navigateToURL(html);
-////        driver.get().element().type(firstName_input, firstName)
-////                .type(lastName_input, lastName)
-////                .click(submit_button);
-////        driver.get().assertThat().element(output_label).text().contains("fname="+firstName+"&lname="+lastName).perform();
+//        driver.get().browser().navigateToURL(html);
+//        driver.get().element().type(firstName_input, firstName)
+//                .type(lastName_input, lastName)
+//                .click(submit_button);
+//        driver.get().assertThat().element(output_label).text().contains("fname="+firstName+"&lname="+lastName).perform();
 //    }
 //
 //    @BeforeMethod
