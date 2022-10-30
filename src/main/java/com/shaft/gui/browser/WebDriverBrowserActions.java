@@ -13,6 +13,7 @@ import lombok.SneakyThrows;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.Point;
 import org.openqa.selenium.*;
+import org.openqa.selenium.chromium.ChromiumDriver;
 import org.openqa.selenium.devtools.DevTools;
 import org.openqa.selenium.devtools.HasDevTools;
 import org.openqa.selenium.remote.Augmenter;
@@ -25,9 +26,8 @@ import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
@@ -658,6 +658,30 @@ public class WebDriverBrowserActions {
         ReportManager.logDiscrete(
                 "Window size after WebDriver.Manage.Window: " + driver.manage().window().getSize().toString());
         return driver.manage().window().getSize();
+    }
+
+    public static void capturePageSnapshot(WebDriver driver) {
+        JavaScriptWaitManager.waitForLazyLoading();
+        var serializedPageData = "";
+        try {
+            if (driver instanceof ChromiumDriver chromiumDriver) {
+                // capture snapshot
+                var result = chromiumDriver.executeCdpCommand("Page.captureSnapshot", new HashMap<>());
+                serializedPageData = (String) ((Map<String, ?>) result).get("data");
+            } else {
+                // get page source
+                serializedPageData = driver.getPageSource();
+            }
+            passAction(driver, serializedPageData);
+        } catch (Exception rootCauseException) {
+            failAction(driver, serializedPageData, rootCauseException);
+        }
+//        return serializedPageData;
+    }
+
+    public WebDriverBrowserActions capturePageSnapshot() {
+        capturePageSnapshot(lastUsedDriver.get());
+        return this;
     }
 
     /**

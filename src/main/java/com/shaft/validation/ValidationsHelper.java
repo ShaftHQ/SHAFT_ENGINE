@@ -100,8 +100,11 @@ public class ValidationsHelper {
             // expecting a unique element to be present
             final String expectedValue = expectedElementStates[0] + locatorSeparator + elementLocator.toString() + "'";
             switch (elementsCount) {
-                case 0 -> fail(validationCategory, expectedValue,
-                        actualElementStates[1], ValidationComparisonType.EQUALS, validationType, null);
+                case 0 -> {
+                    lastUsedElementLocator = null; //reset lastUsedElementLocator to avoid attempting to find the element again
+                    fail(validationCategory, expectedValue,
+                            actualElementStates[1], ValidationComparisonType.EQUALS, validationType, null);
+                }
                 case 1 -> pass(validationCategory, expectedValue,
                         actualElementStates[0], ValidationComparisonType.EQUALS, validationType);
                 default -> fail(validationCategory, expectedValue,
@@ -111,8 +114,11 @@ public class ValidationsHelper {
             // not expecting the element to be present
             final String expectedValue = expectedElementStates[1] + locatorSeparator + elementLocator.toString() + "'";
             switch (elementsCount) {
-                case 0 -> pass(validationCategory, expectedValue,
-                        actualElementStates[1], ValidationComparisonType.EQUALS, validationType);
+                case 0 -> {
+                    lastUsedElementLocator = null; //reset lastUsedElementLocator to avoid attempting to find the element again
+                    pass(validationCategory, expectedValue,
+                            actualElementStates[1], ValidationComparisonType.EQUALS, validationType);
+                }
                 case 1 -> fail(validationCategory, expectedValue,
                         actualElementStates[0], ValidationComparisonType.EQUALS, validationType, null);
                 default -> fail(validationCategory, expectedValue,
