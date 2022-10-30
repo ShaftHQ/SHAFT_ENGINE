@@ -28,8 +28,8 @@ import org.openqa.selenium.logging.LogType;
 import org.openqa.selenium.logging.LoggingPreferences;
 import org.openqa.selenium.remote.*;
 import org.openqa.selenium.safari.SafariOptions;
-import org.openqa.selenium.support.ThreadGuard;
 import org.testng.Assert;
+import org.testng.Reporter;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -52,6 +52,7 @@ public class DriverFactoryHelper {
     private static int PAGE_LOAD_TIMEOUT;
     private static int SCRIPT_TIMEOUT;
     private static String targetOperatingSystem;
+    private static String targetBrowserName;
     @Getter(AccessLevel.PUBLIC)
     @Setter(AccessLevel.PUBLIC)
     private static final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
@@ -112,7 +113,7 @@ public class DriverFactoryHelper {
         try {
             attachWebDriverLogs();
             //if dockerized wdm.quit the relevant one
-            if ("dockerized".equals(System.getProperty("executionAddress"))){
+            if (System.getProperty("executionAddress").contains("dockerized")) {
                 var pathToRecording = webDriverManager.get().getDockerRecordingPath(driver.get());
                 webDriverManager.get().quit(driver.get());
                 RecordManager.attachVideoRecording(pathToRecording);
@@ -173,6 +174,10 @@ public class DriverFactoryHelper {
     private static void setDriverOptions(DriverType driverType, MutableCapabilities customDriverOptions) {
         String downloadsFolderPath = FileActions.getInstance().getAbsolutePath(System.getProperty("downloadsFolderPath"));
 
+        //get proxy server
+        // Proxy server settings | testing behind a proxy
+        String PROXY_SERVER_SETTINGS = System.getProperty("com.SHAFT.proxySettings");
+
         //https://github.com/GoogleChrome/chrome-launcher/blob/master/docs/chrome-flags-for-tools.md#--enable-automation
         switch (driverType) {
             case DESKTOP_FIREFOX -> {
@@ -194,7 +199,12 @@ public class DriverFactoryHelper {
                 ffOptions.setPageLoadTimeout(Duration.ofSeconds(PAGE_LOAD_TIMEOUT));
                 ffOptions.setScriptTimeout(Duration.ofSeconds(SCRIPT_TIMEOUT));
                 //Add Proxy Setting if found
-                addProxySettings(ffOptions);
+                if (!PROXY_SERVER_SETTINGS.equals("")) {
+                    Proxy proxy = new Proxy();
+                    proxy.setHttpProxy(PROXY_SERVER_SETTINGS);
+                    proxy.setFtpProxy(PROXY_SERVER_SETTINGS);
+                    ffOptions.setProxy(proxy);
+                }
             }
             case DESKTOP_INTERNET_EXPLORER -> {
                 ieOptions = new InternetExplorerOptions();
@@ -206,7 +216,12 @@ public class DriverFactoryHelper {
                 ieOptions.setPageLoadTimeout(Duration.ofSeconds(PAGE_LOAD_TIMEOUT));
                 ieOptions.setScriptTimeout(Duration.ofSeconds(SCRIPT_TIMEOUT));
                 //Add Proxy Setting if found
-                addProxySettings(ieOptions);
+                if (!PROXY_SERVER_SETTINGS.equals("")) {
+                    Proxy proxy = new Proxy();
+                    proxy.setHttpProxy(PROXY_SERVER_SETTINGS);
+                    proxy.setFtpProxy(PROXY_SERVER_SETTINGS);
+                    ieOptions.setProxy(proxy);
+                }
             }
             case APPIUM_CHROME, DESKTOP_CHROME, DESKTOP_EDGE, DESKTOP_CHROMIUM -> {
                 ChromiumOptions<?> options;
@@ -237,7 +252,12 @@ public class DriverFactoryHelper {
                 options.setPageLoadTimeout(Duration.ofSeconds(PAGE_LOAD_TIMEOUT));
                 options.setScriptTimeout(Duration.ofSeconds(SCRIPT_TIMEOUT));
                 //Add Proxy Setting if found
-                addProxySettings(options);
+                if (!PROXY_SERVER_SETTINGS.equals("")) {
+                    Proxy proxy = new Proxy();
+                    proxy.setHttpProxy(PROXY_SERVER_SETTINGS);
+                    proxy.setFtpProxy(PROXY_SERVER_SETTINGS);
+                    options.setProxy(proxy);
+                }
                 //add logging preferences if enabled
                 if (Boolean.parseBoolean(System.getProperty("captureWebDriverLogs"))) {
                     options.setCapability("goog:loggingPrefs", configureLoggingPreferences());
@@ -280,7 +300,12 @@ public class DriverFactoryHelper {
                 sfOptions.setPageLoadTimeout(Duration.ofSeconds(PAGE_LOAD_TIMEOUT));
                 sfOptions.setScriptTimeout(Duration.ofSeconds(SCRIPT_TIMEOUT));
                 //Add Proxy Setting if found
-                addProxySettings(sfOptions);
+                if (!PROXY_SERVER_SETTINGS.equals("")) {
+                    Proxy proxy = new Proxy();
+                    proxy.setHttpProxy(PROXY_SERVER_SETTINGS);
+                    proxy.setFtpProxy(PROXY_SERVER_SETTINGS);
+                    sfOptions.setProxy(proxy);
+                }
             }
             case APPIUM_MOBILE_NATIVE -> appiumCapabilities = new DesiredCapabilities(customDriverOptions);
             default ->
@@ -314,23 +339,28 @@ public class DriverFactoryHelper {
             switch (driverType) {
                 case DESKTOP_FIREFOX -> {
                     ReportManager.logDiscrete(WEBDRIVERMANAGER_MESSAGE);
-                    driver.set(ThreadGuard.protect(WebDriverManager.firefoxdriver().proxy(proxy).capabilities(ffOptions).create()));
+//                    driver.set(ThreadGuard.protect(WebDriverManager.firefoxdriver().proxy(proxy).capabilities(ffOptions).create()));
+                    driver.set(WebDriverManager.firefoxdriver().proxy(proxy).capabilities(ffOptions).create());
                 }
                 case DESKTOP_INTERNET_EXPLORER -> {
                     ReportManager.logDiscrete(WEBDRIVERMANAGER_MESSAGE);
-                    driver.set(ThreadGuard.protect(WebDriverManager.iedriver().proxy(proxy).capabilities(ieOptions).create()));
+//                    driver.set(ThreadGuard.protect(WebDriverManager.iedriver().proxy(proxy).capabilities(ieOptions).create()));
+                    driver.set(WebDriverManager.iedriver().proxy(proxy).capabilities(ieOptions).create());
                 }
                 case DESKTOP_CHROME -> {
                     ReportManager.logDiscrete(WEBDRIVERMANAGER_MESSAGE);
-                    driver.set(ThreadGuard.protect(WebDriverManager.chromedriver().proxy(proxy).capabilities(chOptions).create()));
+//                    driver.set(ThreadGuard.protect(WebDriverManager.chromedriver().proxy(proxy).capabilities(chOptions).create()));
+                    driver.set(WebDriverManager.chromedriver().proxy(proxy).capabilities(chOptions).create());
                 }
                 case DESKTOP_EDGE -> {
                     ReportManager.logDiscrete(WEBDRIVERMANAGER_MESSAGE);
-                    driver.set(ThreadGuard.protect(WebDriverManager.edgedriver().proxy(proxy).capabilities(edOptions).create()));
+//                    driver.set(ThreadGuard.protect(WebDriverManager.edgedriver().proxy(proxy).capabilities(edOptions).create()));
+                    driver.set(WebDriverManager.edgedriver().proxy(proxy).capabilities(edOptions).create());
                 }
                 case DESKTOP_SAFARI -> {
                     ReportManager.logDiscrete(WEBDRIVERMANAGER_MESSAGE);
-                    driver.set(ThreadGuard.protect(WebDriverManager.safaridriver().proxy(proxy).capabilities(sfOptions).create()));
+//                    driver.set(ThreadGuard.protect(WebDriverManager.safaridriver().proxy(proxy).capabilities(sfOptions).create()));
+                    driver.set(WebDriverManager.safaridriver().proxy(proxy).capabilities(sfOptions).create());
                 }
                 default ->
                         failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
@@ -385,7 +415,8 @@ public class DriverFactoryHelper {
                     .dockerRecordingOutput(System.getProperty("video.folder"))
                     .create();
             remoteWebDriver.setFileDetector(new LocalFileDetector());
-            driver.set(ThreadGuard.protect(remoteWebDriver));
+//            driver.set(ThreadGuard.protect(remoteWebDriver));
+            driver.set(remoteWebDriver);
             ReportManager.log("Successfully Opened " + JavaHelper.convertToSentenceCase(driverType.getValue()) + ".");
         } catch (io.github.bonigarcia.wdm.config.WebDriverManagerException exception) {
             failAction("Failed to create new Dockerized Browser Session, are you sure Docker is available on your machine?", exception);
@@ -458,8 +489,9 @@ public class DriverFactoryHelper {
         if (os.equals(OperatingSystemType.ANDROID)
                 || os.equals(OperatingSystemType.IOS)) {
             driver.set(remoteWebDriver);
-        }else{
-            driver.set(ThreadGuard.protect(remoteWebDriver));
+        }else {
+//            driver.set(ThreadGuard.protect(remoteWebDriver));
+            driver.set(remoteWebDriver);
         }
     }
 
@@ -543,8 +575,15 @@ public class DriverFactoryHelper {
 
     protected static void initializeDriver() {
         var mobile_browserName = System.getProperty("mobile_browserName");
-        var targetBrowserName = System.getProperty("targetBrowserName");
+        String targetBrowserName;
 
+        var overridingBrowserName = Reporter.getCurrentTestResult().getTestContext().getCurrentXmlTest().getParameter("targetBrowserName");
+        if (overridingBrowserName != null && !overridingBrowserName.isBlank()) {
+            targetBrowserName = overridingBrowserName;
+        } else {
+            targetBrowserName = System.getProperty("targetBrowserName");
+        }
+        DriverFactoryHelper.targetBrowserName = targetBrowserName;
         initializeDriver(getDriverTypeFromName((mobile_browserName.isBlank()) ? targetBrowserName : mobile_browserName), null);
     }
 
@@ -554,8 +593,15 @@ public class DriverFactoryHelper {
 
     protected static void initializeDriver(MutableCapabilities customDriverOptions) {
         var mobile_browserName = System.getProperty("mobile_browserName");
-        var targetBrowserName = System.getProperty("targetBrowserName");
+        String targetBrowserName;
 
+        var overridingBrowserName = Reporter.getCurrentTestResult().getTestContext().getCurrentXmlTest().getParameter("targetBrowserName");
+        if (overridingBrowserName != null && !overridingBrowserName.isBlank()) {
+            targetBrowserName = overridingBrowserName;
+        } else {
+            targetBrowserName = System.getProperty("targetBrowserName");
+        }
+        DriverFactoryHelper.targetBrowserName = targetBrowserName;
         initializeDriver(getDriverTypeFromName((mobile_browserName.isBlank()) ? targetBrowserName : mobile_browserName), customDriverOptions);
     }
 
@@ -586,7 +632,10 @@ public class DriverFactoryHelper {
             if (!isMobileExecution) {
                 JavaScriptWaitManager.setDriver(driver.get());
                 if (Boolean.TRUE.equals(AUTO_MAXIMIZE)
-                        && OperatingSystemType.MACOS.equals(getOperatingSystemFromName(targetOperatingSystem))) {
+                        && (
+//                                OperatingSystemType.MACOS.equals(getOperatingSystemFromName(targetOperatingSystem))
+                        "Safari".equals(targetBrowserName) || "MozillaFirefox".equals(targetBrowserName)
+                )) {
                     BrowserActions.maximizeWindow(driver.get());
                 }
             }
@@ -599,17 +648,8 @@ public class DriverFactoryHelper {
 
         if (Boolean.parseBoolean(System.getProperty("heal-enabled").trim())) {
             ReportManager.logDiscrete("Initializing Healenium's Self Healing Driver...");
-            driver.set(ThreadGuard.protect(SelfHealingDriver.create(driver.get())));
-        }
-    }
-
-    private static void addProxySettings(AbstractDriverOptions driverOptions) {
-        String proxySettings = System.getProperty("com.SHAFT.proxySettings");
-        if (!proxySettings.equals("")) {
-            Proxy proxy = new Proxy();
-            proxy.setHttpProxy(proxySettings);
-            proxy.setSslProxy(proxySettings);
-            driverOptions.setProxy(proxy);
+//            driver.set(ThreadGuard.protect(SelfHealingDriver.create(driver.get())));
+            driver.set(SelfHealingDriver.create(driver.get()));
         }
     }
 

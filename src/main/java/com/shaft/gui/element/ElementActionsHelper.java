@@ -7,7 +7,9 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.tools.support.JavaScriptHelper;
 import io.appium.java_client.AppiumDriver;
+import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.*;
+import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.interactions.Locatable;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.FluentWait;
@@ -117,16 +119,57 @@ class ElementActionsHelper {
                         return elementInformation;
 //                        return nestedDriver.findElements(elementLocator).size();
                     });
-        } catch (org.openqa.selenium.TimeoutException e) {
+        } catch (org.openqa.selenium.TimeoutException timeoutException) {
             // In case the element was not found / not visible and the timeout expired
 //            ReportManagerHelper.logDiscrete(e);
-            ReportManager.logDiscrete(e.getMessage() + " || " +e.getCause().getMessage().substring(0,e.getCause().getMessage().indexOf("\n")));
+            ReportManager.logDiscrete(timeoutException.getMessage() + " || " + timeoutException.getCause().getMessage().substring(0, timeoutException.getCause().getMessage().indexOf("\n")));
             var elementInformation = new ArrayList<>();
             elementInformation.add(0);
             elementInformation.add(null);
+            elementInformation.add(timeoutException);
             return elementInformation;
         }
     }
+
+    protected static List<Object> scrollToFindElement(WebDriver driver, By elementLocator) {
+        ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
+        expectedExceptions.add(org.openqa.selenium.NoSuchElementException.class);
+        expectedExceptions.add(org.openqa.selenium.StaleElementReferenceException.class);
+        expectedExceptions.add(org.openqa.selenium.ElementNotInteractableException.class);
+        // the generic exception is added to handle a case with WebKit whereby the browser doesn't state the cause of the issue
+        expectedExceptions.add(org.openqa.selenium.WebDriverException.class);
+
+        try {
+            return new FluentWait<>(driver)
+                    .withTimeout(Duration.ofMillis(
+                            DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT))
+                    .pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY))
+                    .ignoreAll(expectedExceptions)
+                    .until(nestedDriver -> {
+                        WebElement targetElement;
+                        try {
+                            targetElement = nestedDriver.findElement(elementLocator);
+                        } catch (NoSuchElementException noSuchElementException) {
+                            new Actions(nestedDriver).scrollByAmount(0, nestedDriver.manage().window().getSize().getHeight()).perform();
+                            targetElement = nestedDriver.findElement(elementLocator);
+                        }
+                        var elementInformation = new ArrayList<>();
+                        elementInformation.add(nestedDriver.findElements(elementLocator).size());
+                        elementInformation.add(targetElement);
+                        return elementInformation;
+                    });
+        } catch (org.openqa.selenium.TimeoutException timeoutException) {
+            // In case the element was not found / not visible and the timeout expired
+//            ReportManagerHelper.logDiscrete(e);
+            ReportManager.logDiscrete(timeoutException.getMessage() + " || " + timeoutException.getCause().getMessage().substring(0, timeoutException.getCause().getMessage().indexOf("\n")));
+            var elementInformation = new ArrayList<>();
+            elementInformation.add(0);
+            elementInformation.add(null);
+            elementInformation.add(timeoutException);
+            return elementInformation;
+        }
+    }
+
 
     protected static boolean waitForElementToBeClickable(WebDriver driver, By elementLocator) {
         if (!DriverFactoryHelper.isMobileNativeExecution()) {

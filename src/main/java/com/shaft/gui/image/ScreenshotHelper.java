@@ -49,6 +49,7 @@ public class ScreenshotHelper {
             clip.put("y", 0);
             clip.put("scale", 1);
             Map<String, Object> screenshot_config = new HashMap<>();
+            screenshot_config.put("optimizeForSpeed", true);
             screenshot_config.put("captureBeyondViewport", true);
             screenshot_config.put("fromSurface", true);
             screenshot_config.put("clip", clip);
