@@ -29,6 +29,7 @@ import org.openqa.selenium.logging.LoggingPreferences;
 import org.openqa.selenium.remote.*;
 import org.openqa.selenium.safari.SafariOptions;
 import org.testng.Assert;
+import org.testng.Reporter;
 
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -51,6 +52,7 @@ public class DriverFactoryHelper {
     private static int PAGE_LOAD_TIMEOUT;
     private static int SCRIPT_TIMEOUT;
     private static String targetOperatingSystem;
+    private static String targetBrowserName;
     @Getter(AccessLevel.PUBLIC)
     @Setter(AccessLevel.PUBLIC)
     private static final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
@@ -573,8 +575,15 @@ public class DriverFactoryHelper {
 
     protected static void initializeDriver() {
         var mobile_browserName = System.getProperty("mobile_browserName");
-        var targetBrowserName = System.getProperty("targetBrowserName");
+        String targetBrowserName;
 
+        var overridingBrowserName = Reporter.getCurrentTestResult().getTestContext().getCurrentXmlTest().getParameter("targetBrowserName");
+        if (overridingBrowserName != null && !overridingBrowserName.isBlank()) {
+            targetBrowserName = overridingBrowserName;
+        } else {
+            targetBrowserName = System.getProperty("targetBrowserName");
+        }
+        DriverFactoryHelper.targetBrowserName = targetBrowserName;
         initializeDriver(getDriverTypeFromName((mobile_browserName.isBlank()) ? targetBrowserName : mobile_browserName), null);
     }
 
@@ -584,8 +593,15 @@ public class DriverFactoryHelper {
 
     protected static void initializeDriver(MutableCapabilities customDriverOptions) {
         var mobile_browserName = System.getProperty("mobile_browserName");
-        var targetBrowserName = System.getProperty("targetBrowserName");
+        String targetBrowserName;
 
+        var overridingBrowserName = Reporter.getCurrentTestResult().getTestContext().getCurrentXmlTest().getParameter("targetBrowserName");
+        if (overridingBrowserName != null && !overridingBrowserName.isBlank()) {
+            targetBrowserName = overridingBrowserName;
+        } else {
+            targetBrowserName = System.getProperty("targetBrowserName");
+        }
+        DriverFactoryHelper.targetBrowserName = targetBrowserName;
         initializeDriver(getDriverTypeFromName((mobile_browserName.isBlank()) ? targetBrowserName : mobile_browserName), customDriverOptions);
     }
 
@@ -616,7 +632,10 @@ public class DriverFactoryHelper {
             if (!isMobileExecution) {
                 JavaScriptWaitManager.setDriver(driver.get());
                 if (Boolean.TRUE.equals(AUTO_MAXIMIZE)
-                        && OperatingSystemType.MACOS.equals(getOperatingSystemFromName(targetOperatingSystem))) {
+                        && (
+//                                OperatingSystemType.MACOS.equals(getOperatingSystemFromName(targetOperatingSystem))
+                        "Safari".equals(targetBrowserName) || "MozillaFirefox".equals(targetBrowserName)
+                )) {
                     BrowserActions.maximizeWindow(driver.get());
                 }
             }

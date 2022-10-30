@@ -79,6 +79,8 @@ public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, 
                         "targetOperatingSystem", "Linux",
                         "targetBrowserName", "MozillaFirefox"
                 ));
+                firefox_test.setThreadCount(1);
+                firefox_test.setParallel(ParallelMode.NONE);
                 firefox_test.setName(firefox_test.getName() + " - FireFox");
 
                 var safari_test = (XmlTest) suite.getTests().get(0).clone();
@@ -87,6 +89,8 @@ public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, 
                         "targetOperatingSystem", "Linux",
                         "targetBrowserName", "Safari"
                 ));
+                safari_test.setThreadCount(1);
+                safari_test.setParallel(ParallelMode.NONE);
                 safari_test.setName(safari_test.getName() + " - Safari");
 
                 var chrome_test = (XmlTest) suite.getTests().get(0);
@@ -95,6 +99,8 @@ public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, 
                         "targetOperatingSystem", "Linux",
                         "targetBrowserName", "GoogleChrome"
                 ));
+                chrome_test.setThreadCount(1);
+                chrome_test.setParallel(ParallelMode.NONE);
                 chrome_test.setName(chrome_test.getName() + " - Chrome");
 
                 if ("parallelized".equals(System.getProperty("SHAFT.CrossBrowserMode"))) {
