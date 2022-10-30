@@ -5,6 +5,7 @@ import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.tools.support.JavaHelper;
+import com.shaft.validation.ValidationsHelper;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import org.openqa.selenium.NoSuchElementException;
@@ -1193,10 +1194,39 @@ public class WebDriverElementActions {
         }
         return successfulTextLocationStrategy;
     }
+
+    private static boolean isFoundInStacktrace(Class<?> classObject, Throwable throwable) {
+        var targetClassName = classObject.getName();
+        for (StackTraceElement element : throwable.getStackTrace()) {
+            if (element.getClassName().equals(targetClassName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static void failAction(WebDriver driver, String actionName, String testData, By elementLocator, List<List<Object>> screenshots,
                                    Throwable... rootCauseException) {
         //TODO: merge all fail actions, make all methods call this one, get elementName where applicable instead of reporting null
-        String message = reportActionResult(driver, actionName, testData, elementLocator, screenshots, null, false);
+        //this condition works if this is the first level of failure, but the first level is usually caught by the calling method
+
+        boolean skipPageScreenshot = rootCauseException.length >= 1 && (
+                TimeoutException.class.getName().equals(rootCauseException[0].getClass().getName()) //works to capture fluent wait failure
+                        || (
+                        rootCauseException[0].getMessage().contains("Identify unique element failed")
+                                && isFoundInStacktrace(ValidationsHelper.class, rootCauseException[0])
+                )//works to capture calling elementAction failure in case this is an assertion
+        );
+
+        String message = "";
+        if (skipPageScreenshot) {
+            //don't try to take a screenshot again and set element locator to null in case element was not found by timeout or by nested element actions call
+            message = createReportMessage(actionName, testData, null, false);
+            ReportManager.logDiscrete(message);
+        } else {
+            message = reportActionResult(driver, actionName, testData, elementLocator, screenshots, null, false);
+        }
+
         if (rootCauseException != null && rootCauseException.length >= 1) {
             Assert.fail(message, rootCauseException[0]);
         } else {
@@ -1237,7 +1267,8 @@ public class WebDriverElementActions {
                 if (!(elementLocator instanceof RelativeLocator.RelativeBy)) {
                     // in case of regular locator
                     switch (Integer.parseInt(matchingElementsInformation.get(0).toString())) {
-                        case 0 -> failAction(driver, "zero elements found matching this locator \"" + elementLocator + "\".", elementLocator);
+                        case 0 ->
+                                failAction(driver, "zero elements found matching this locator \"" + elementLocator + "\".", elementLocator, (Throwable) matchingElementsInformation.get(2));
                         case 1 -> {
                             return matchingElementsInformation;
                         }
@@ -1357,8 +1388,8 @@ public class WebDriverElementActions {
         }
         return "";
     }
-    private static String reportActionResult(WebDriver driver, String actionName, String testData, By elementLocator,
-                                             List<List<Object>> screenshots, String elementName, Boolean passFailStatus) {
+
+    private static String createReportMessage(String actionName, String testData, String elementName, Boolean passFailStatus) {
         actionName = JavaHelper.convertToSentenceCase(actionName);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
@@ -1366,33 +1397,38 @@ public class WebDriverElementActions {
         } else {
             message = "Element Action: " + actionName + " failed";
         }
-        List<List<Object>> attachments = new ArrayList<>();
-
-        if (testData != null && testData.length() >= 500) {
-            List<Object> actualValueAttachment = Arrays.asList("Element Action Test Data - " + actionName,
-                    "Actual Value", testData);
-            attachments.add(actualValueAttachment);
-        } else if ((testData != null && !testData.isEmpty())) {
+        if (testData != null && !testData.isEmpty() && testData.length() < 500) {
             message = message + " \"" + testData.trim() + "\"";
         }
-
         if ((elementName != null && !elementName.isEmpty())) {
             var preposition = " ";
-            if (actionName.toLowerCase().contains("type") || actionName.toLowerCase().contains("set value using javascript")){
+            if (actionName.toLowerCase().contains("type") || actionName.toLowerCase().contains("set value using javascript")) {
                 preposition = " into ";
-            }else if (actionName.toLowerCase().contains("get") || actionName.toLowerCase().contains("select")){
+            } else if (actionName.toLowerCase().contains("get") || actionName.toLowerCase().contains("select")) {
                 preposition = " from ";
-            }else if (actionName.toLowerCase().contains("clipboard")){
+            } else if (actionName.toLowerCase().contains("clipboard")) {
                 preposition = " on ";
-            } else if (actionName.toLowerCase().contains("drag and drop") || actionName.toLowerCase().contains("key press") || actionName.toLowerCase().contains("wait") || actionName.toLowerCase().contains("submit")|| actionName.toLowerCase().contains("switch")){
+            } else if (actionName.toLowerCase().contains("drag and drop") || actionName.toLowerCase().contains("key press") || actionName.toLowerCase().contains("wait") || actionName.toLowerCase().contains("submit") || actionName.toLowerCase().contains("switch")) {
                 preposition = " against ";
-            } else if (actionName.toLowerCase().contains("hover")){
+            } else if (actionName.toLowerCase().contains("hover")) {
                 preposition = " over ";
             }
             message = message + preposition + " \"" + elementName.trim() + "\"";
         }
-
         message = message + ".";
+        message = message.replace("Element Action: ", "");
+        return message;
+    }
+
+    private static List<List<Object>> createReportAttachments(WebDriver driver, String actionName, String testData, By elementLocator,
+                                                              List<List<Object>> screenshots, Boolean passFailStatus) {
+        actionName = JavaHelper.convertToSentenceCase(actionName);
+        List<List<Object>> attachments = new ArrayList<>();
+        if (testData != null && testData.length() >= 500) {
+            List<Object> actualValueAttachment = Arrays.asList("Element Action Test Data - " + actionName,
+                    "Actual Value", testData);
+            attachments.add(actualValueAttachment);
+        }
         if (screenshots != null && !screenshots.equals(new ArrayList<>())) {
             // screenshot taken before action (in case of click)
             attachments.addAll(screenshots);
@@ -1402,8 +1438,14 @@ public class WebDriverElementActions {
                 attachments.add(newScreenshot);
             }
         }
-//        ReportManager.logDiscrete(message);
-        message = message.replace("Element Action: ", "");
+        return attachments;
+    }
+
+    private static String reportActionResult(WebDriver driver, String actionName, String testData, By elementLocator,
+                                             List<List<Object>> screenshots, String elementName, Boolean passFailStatus) {
+        String message = createReportMessage(actionName, testData, elementName, passFailStatus);
+        List<List<Object>> attachments = createReportAttachments(driver, actionName, testData, elementLocator, screenshots, passFailStatus);
+
         if (!attachments.equals(new ArrayList<>())) {
             ReportManagerHelper.log(message, attachments);
         } else {

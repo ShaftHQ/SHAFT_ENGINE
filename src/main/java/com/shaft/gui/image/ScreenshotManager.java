@@ -26,8 +26,10 @@ import java.awt.image.BufferedImage;
 import java.io.*;
 import java.nio.file.FileSystems;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
-import java.util.*;
 
 public class ScreenshotManager {
     private static final String SCREENSHOT_FOLDERPATH = System.getProperty("allureResultsFolderPath").trim()
@@ -278,8 +280,8 @@ public class ScreenshotManager {
      */
     private static List<Object> internalCaptureScreenShot(WebDriver driver, By elementLocator,
                                                                        String actionName, String appendedText, boolean takeScreenshot) {
-        if (!actionName.toLowerCase().contains("get")) {
-            // Suggested: add to animated gif only in case of click, navigation, or validation actions.
+//        if (!actionName.toLowerCase().contains("get")) {
+        // Suggested: add to animated gif only in case of click, navigation, or validation actions.
             if (takeScreenshot || (CREATE_GIF && (DETAILED_GIF || actionName.matches(DETAILED_GIF_REGEX)))) {
                 /*
                  * Force screenshot link to be shown in the results as a link not text
@@ -382,7 +384,7 @@ public class ScreenshotManager {
                     ReportManagerHelper.log(e);
                 }
             }
-        }
+//        }
         return new ArrayList<>();
     }
 

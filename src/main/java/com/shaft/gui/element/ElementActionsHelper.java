@@ -117,13 +117,14 @@ class ElementActionsHelper {
                         return elementInformation;
 //                        return nestedDriver.findElements(elementLocator).size();
                     });
-        } catch (org.openqa.selenium.TimeoutException e) {
+        } catch (org.openqa.selenium.TimeoutException timeoutException) {
             // In case the element was not found / not visible and the timeout expired
 //            ReportManagerHelper.logDiscrete(e);
-            ReportManager.logDiscrete(e.getMessage() + " || " +e.getCause().getMessage().substring(0,e.getCause().getMessage().indexOf("\n")));
+            ReportManager.logDiscrete(timeoutException.getMessage() + " || " + timeoutException.getCause().getMessage().substring(0, timeoutException.getCause().getMessage().indexOf("\n")));
             var elementInformation = new ArrayList<>();
             elementInformation.add(0);
             elementInformation.add(null);
+            elementInformation.add(timeoutException);
             return elementInformation;
         }
     }
