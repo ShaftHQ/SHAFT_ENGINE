@@ -1,15 +1,16 @@
 version: 2
 updates:
-- package-ecosystem: maven
+- package-ecosystem: "maven"
   directory: "/"
   schedule:
-    interval: daily
+    interval: "daily"
   open-pull-requests-limit: 10
   target-branch: master
-
-- package-ecosystem: github-actions
+  allow:
+     - dependency-type: "all"
+- package-ecosystem: "github-actions"
   directory: "/"
   schedule:
-    interval: daily
+    interval: "daily"
   open-pull-requests-limit: 10
   target-branch: master
