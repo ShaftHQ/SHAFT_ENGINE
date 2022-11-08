@@ -27,7 +27,7 @@ jobs:
       - name: Verifying Artifactory is Accessible
         run: jf rt ping
       - name: Uploading Files
-        run: jf rt u ".m2\repository\io\github\shafthq\SHAFT_ENGINE\${{ env.RELEASE_VERSION }}\" io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/
+        run: jf rt u /home/runner/.m2/repository/io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/ io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/
       #      - name: Publish build info
       #        run: |
       #          # Collect environment variables for the build
