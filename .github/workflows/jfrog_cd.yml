@@ -1,0 +1,53 @@
+name: jFrog Continuous Delivery
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+      - name: Install SHAFT
+        continue-on-error: true
+        run: |
+          echo mvn clean install -DskipTests
+      - name: Set Release version env variable
+        run: |
+          echo "RELEASE_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
+      - name: Setup JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v2
+        env:
+          JF_ENV_1: ${{ secrets.JF_SECRET_ENV_1 }}
+      - name: Verifying Artifactory is Accessible
+        run: |
+          # Collect environment variables for the build
+          jf rt ping
+      - name: Uploading Files
+        run: |
+          jf rt u ".m2\repository\io\github\shafthq\SHAFT_ENGINE\${{ env.RELEASE_VERSION }}\" io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/
+      #      - name: Publish build info
+      #        run: |
+      #          # Collect environment variables for the build
+      #          jf rt bce
+      #          # Collect VCS details from git and add them to the build
+      #          jf rt bag
+      #          # Publish build info
+      #          jf rt bp
+      - name: Create GitHub Release
+        id: create_release
+        uses: ncipollo/release-action@v1.11.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          allowUpdates: true
+          generateReleaseNotes: true
+          prerelease: true
+          name: ${{ env.RELEASE_VERSION }}
+          tag: ${{ env.RELEASE_VERSION }}
