@@ -16,8 +16,7 @@ jobs:
           distribution: 'zulu'
       - name: Install SHAFT
         continue-on-error: true
-        run: |
-          echo mvn clean install -DskipTests
+        run: mvn clean install -DskipTests
       - name: Set Release version env variable
         run: |
           echo "RELEASE_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
@@ -26,12 +25,9 @@ jobs:
         env:
           JF_ENV_1: ${{ secrets.JF_SECRET_ENV_1 }}
       - name: Verifying Artifactory is Accessible
-        run: |
-          # Collect environment variables for the build
-          jf rt ping
+        run: jf rt ping
       - name: Uploading Files
-        run: |
-          jf rt u ".m2\repository\io\github\shafthq\SHAFT_ENGINE\${{ env.RELEASE_VERSION }}\" io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/
+        run: jf rt u ".m2\repository\io\github\shafthq\SHAFT_ENGINE\${{ env.RELEASE_VERSION }}\" io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/
       #      - name: Publish build info
       #        run: |
       #          # Collect environment variables for the build
