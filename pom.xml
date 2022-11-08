@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.shafthq</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>6.4.20221018</version> <!-- UPDATE internal.properties -->
+    <version>6.4.20221108</version> <!-- UPDATE internal.properties -->
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
     <url>https://github.com/ShaftHQ/SHAFT_ENGINE</url>
