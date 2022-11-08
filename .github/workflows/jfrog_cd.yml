@@ -20,14 +20,15 @@ jobs:
       - name: Set Release version env variable
         run: |
           echo "RELEASE_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
-      #      - name: Setup JFrog CLI
-      #        uses: jfrog/setup-jfrog-cli@v2
-      #        env:
-      #          JF_ENV_1: ${{ secrets.JF_SECRET_ENV_1 }}
-      #      - name: Verifying Artifactory is Accessible
-      #        run: jf rt ping
-      - name: Uploading Files
+      - name: Setup JFrog CLI
         uses: jfrog/setup-jfrog-cli@v2
+        env:
+          JF_ENV_1: ${{ secrets.JF_SECRET_ENV_1 }}
+      - name: Verifying Artifactory is Accessible
+        env:
+          JF_ENV_1: ${{ secrets.JF_SECRET_ENV_1 }}
+        run: jf rt ping
+      - name: Uploading Files
         env:
           JF_ENV_1: ${{ secrets.JF_SECRET_ENV_1 }}
         run: |
