@@ -84,7 +84,8 @@
 
         <!-- Deploy Commands -->
         <deploymentHost>https://automatest.jfrog.io/</deploymentHost>
-        <deploymentPath>io/github/shafthq/SHAFT_ENGINE/${project.version}</deploymentPath>
+        <deploymentPath>io/github/shafthq/SHAFT_ENGINE/${project.version}/SHAFT_Engine-${project.version}.pom
+        </deploymentPath>
     </properties>
 
     <dependencies>
