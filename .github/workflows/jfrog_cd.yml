@@ -1,4 +1,6 @@
 name: jFrog Continuous Delivery
+# Run This file manually if you want to create a new SHAFT_Engine release
+# This pipeline will create the release, upload the artifacts, and deploy the configuration manager/javadocs site
 
 on:
   workflow_dispatch:
@@ -17,6 +19,10 @@ jobs:
       - name: Install SHAFT
         continue-on-error: true
         run: mvn clean install -DskipTests
+      - name: Update Configuration Manager
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: mvn resources:resources javadoc:javadoc scm-publish:publish-scm
       - name: Set Release version env variable
         run: |
           echo "RELEASE_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
@@ -31,22 +37,13 @@ jobs:
         run: |
           jf rt u "/home/runner/.m2/repository/io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/*.jar" "SHAFT_ENGINE/io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/" --flat=true --detailed-summary=true
           jf rt u "/home/runner/.m2/repository/io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/*.pom" "SHAFT_ENGINE/io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/" --flat=true --detailed-summary=true
-      #      - name: Publish build info
-      #        run: |
-      #          # Collect environment variables for the build
-      #          jf rt bce
-      #          # Collect VCS details from git and add them to the build
-      #          jf rt bag
-      #          # Publish build info
-      #          jf rt bp
       - name: Create GitHub Release
         id: create_release
         uses: ncipollo/release-action@v1.11.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          allowUpdates: true
+          allowUpdates: false
           generateReleaseNotes: true
-          prerelease: true
           name: ${{ env.RELEASE_VERSION }}
           tag: ${{ env.RELEASE_VERSION }}
