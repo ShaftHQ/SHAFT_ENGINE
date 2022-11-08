@@ -22,7 +22,10 @@ jobs:
       - name: Update Configuration Manager
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mvn resources:resources javadoc:javadoc scm-publish:publish-scm
+        run: |
+          git config --global user.email "mohab.mohieeldeen@outlook.com"
+          git config --global user.name "Mohab Mohie"
+          mvn resources:resources javadoc:javadoc scm-publish:publish-scm
       - name: Set Release version env variable
         run: |
           echo "RELEASE_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
