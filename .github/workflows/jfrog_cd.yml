@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  build_release_and_deliver:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -27,7 +27,7 @@ jobs:
       - name: Verifying Artifactory is Accessible
         run: jf rt ping
       - name: Uploading Files
-        run: jf rt u /home/runner/.m2/repository/io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/ io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/
+        run: jf rt u /home/runner/.m2/repository/io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/ io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/ --flat true --detailed-summary true
       #      - name: Publish build info
       #        run: |
       #          # Collect environment variables for the build
