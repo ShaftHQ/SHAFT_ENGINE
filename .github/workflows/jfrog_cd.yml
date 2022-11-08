@@ -1,6 +1,6 @@
 name: jFrog Continuous Delivery
 # Run This file manually if you want to create a new SHAFT_Engine release
-# This pipeline will create the release, upload the artifacts, and deploy the configuration manager/javadocs site
+# This pipeline will build from master, upload the artifacts, and create the GitHub release
 
 on:
   workflow_dispatch:
@@ -19,13 +19,6 @@ jobs:
       - name: Install SHAFT
         continue-on-error: true
         run: mvn clean install -DskipTests
-      - name: Update Configuration Manager
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git config --global user.email "mohab.mohieeldeen@outlook.com"
-          git config --global user.name "Mohab Mohie"
-          mvn resources:resources javadoc:javadoc scm-publish:publish-scm
       - name: Set Release version env variable
         run: |
           echo "RELEASE_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
