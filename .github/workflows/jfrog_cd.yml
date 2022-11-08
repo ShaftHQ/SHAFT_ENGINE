@@ -20,14 +20,19 @@ jobs:
       - name: Set Release version env variable
         run: |
           echo "RELEASE_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
-      - name: Setup JFrog CLI
+      #      - name: Setup JFrog CLI
+      #        uses: jfrog/setup-jfrog-cli@v2
+      #        env:
+      #          JF_ENV_1: ${{ secrets.JF_SECRET_ENV_1 }}
+      #      - name: Verifying Artifactory is Accessible
+      #        run: jf rt ping
+      - name: Uploading Files
         uses: jfrog/setup-jfrog-cli@v2
         env:
           JF_ENV_1: ${{ secrets.JF_SECRET_ENV_1 }}
-      - name: Verifying Artifactory is Accessible
-        run: jf rt ping
-      - name: Uploading Files
-        run: jf rt u /home/runner/.m2/repository/io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/ io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/ --flat=true --detailed-summary=true
+        run: |
+          jf rt u "/home/runner/.m2/repository/io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/*.jar" io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/ --flat=true --detailed-summary=true
+          jf rt u "/home/runner/.m2/repository/io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/*.pom" io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/ --flat=true --detailed-summary=true
       #      - name: Publish build info
       #        run: |
       #          # Collect environment variables for the build
