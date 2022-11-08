@@ -4,7 +4,9 @@ import com.shaft.driver.DriverFactory;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
-import org.testng.annotations.*;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 public class Test_ElementValidations {
     private final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
@@ -56,7 +58,7 @@ public class Test_ElementValidations {
             Validations.assertThat().element(driver.get(), button).cssProperty("appearance").isEqualTo("auto").perform();
         } else{
             // the property is parsed differently on mac
-            Validations.assertThat().element(driver.get(), button).cssProperty("appearance").isEqualTo("null").perform();
+            Validations.assertThat().element(driver.get(), button).cssProperty("appearance").isEqualTo("button").perform();
         }
     }
 
