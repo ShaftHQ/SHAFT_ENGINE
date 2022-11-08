@@ -21,17 +21,13 @@ jobs:
         run: |
           echo "RELEASE_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
       - name: Setup JFrog CLI
-        uses: jfrog/setup-jfrog-cli@v2
+        uses: jfrog/setup-jfrog-cli@v3
         env:
-          JF_ACCESS_TOKEN: ${{ secrets.JF_SECRET_ENV_1 }}
+          JF_ENV_1: ${{ secrets.JF_SECRET_ENV_1 }}
       - name: Verifying Artifactory is Accessible
-        env:
-          JF_ACCESS_TOKEN: ${{ secrets.JF_SECRET_ENV_1 }}
         run: |
           jf rt ping
       - name: Uploading Files
-        env:
-          JF_ACCESS_TOKEN: ${{ secrets.JF_SECRET_ENV_1 }}
         run: |
           jf rt u "/home/runner/.m2/repository/io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/*.jar" io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/ --flat=true --detailed-summary=true
           jf rt u "/home/runner/.m2/repository/io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/*.pom" io/github/shafthq/SHAFT_ENGINE/${{ env.RELEASE_VERSION }}/ --flat=true --detailed-summary=true
