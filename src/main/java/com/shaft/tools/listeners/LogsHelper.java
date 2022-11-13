@@ -78,7 +78,7 @@ public class LogsHelper {
     }
 
     //TODO: migrate invokedMethodListener, SuiteListener to annotations here?
-    @BeforeSuite(description = "Initializing Engine")
+    @BeforeSuite(description = "Initializing Engine", alwaysRun = true)
     public void setupActivities(ITestContext testContext) {
         ReportManagerHelper.initializeAllureReportingEnvironment();
         ReportManagerHelper.initializeExtentReportingEnvironment();
@@ -95,7 +95,7 @@ public class LogsHelper {
 
     }
 
-    @AfterSuite(description = "Cleaning up")
+    @AfterSuite(description = "Cleaning up", alwaysRun = true)
     public void teardownActivities() {
         closeAllDriversAndattachBrowserLogs();
         attachFullLogs();

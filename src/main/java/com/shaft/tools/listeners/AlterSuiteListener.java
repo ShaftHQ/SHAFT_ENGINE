@@ -164,7 +164,6 @@ public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, 
         suites.forEach(suite -> {
             suite.addListener("com.shaft.tools.listeners.InvokedMethodListener");
             suite.addListener("com.shaft.tools.listeners.WebDriverListener");
-//            suite.addListener("com.shaft.tools.listeners.CucumberFeatureListener");
         });
 
     }
