@@ -575,13 +575,14 @@ public class DriverFactoryHelper {
 
     protected static void initializeDriver() {
         var mobile_browserName = System.getProperty("mobile_browserName");
-        String targetBrowserName;
+        String targetBrowserName = System.getProperty("targetBrowserName");
 
-        var overridingBrowserName = Reporter.getCurrentTestResult().getTestContext().getCurrentXmlTest().getParameter("targetBrowserName");
-        if (overridingBrowserName != null && !overridingBrowserName.isBlank()) {
-            targetBrowserName = overridingBrowserName;
-        } else {
-            targetBrowserName = System.getProperty("targetBrowserName");
+        // it's null in case of native cucumber execution
+        if (Reporter.getCurrentTestResult() != null) {
+            var overridingBrowserName = Reporter.getCurrentTestResult().getTestContext().getCurrentXmlTest().getParameter("targetBrowserName");
+            if (overridingBrowserName != null && !overridingBrowserName.isBlank()) {
+                targetBrowserName = overridingBrowserName;
+            }
         }
         DriverFactoryHelper.targetBrowserName = targetBrowserName;
         initializeDriver(getDriverTypeFromName((mobile_browserName.isBlank()) ? targetBrowserName : mobile_browserName), null);

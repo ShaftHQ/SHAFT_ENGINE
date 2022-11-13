@@ -74,7 +74,6 @@ public class InvokedMethodListener implements IInvokedMethodListener {
                 if (testMethod.getDescription() != null) {
                     methodDescription = testMethod.getDescription();
                 }
-
                 ReportManagerHelper.logTestInformation(className, methodName, methodDescription);
                 ReportManagerHelper.extentReportsCreateTest(className + "." + methodName, methodDescription);
             } else if (testMethod instanceof ConfigurationMethod) {

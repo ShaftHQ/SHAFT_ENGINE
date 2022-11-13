@@ -19,9 +19,7 @@ public class DriverFactory {
      * @return a new Selenium WebDriver instance
      */
     public static WebDriver getDriver() {
-        // override properties with test suite properties
-        // read testng properties (enables modifying the test execution properties programatically)
-        System.getProperties().putAll(InvokedMethodListener.getXmlTest().getAllParameters());
+        readCustomTestSuiteParameters();
         if (System.getProperty("executionAddress").contains("browserstack")) {
             return getBrowserStackDriver(new MutableCapabilities());
         } else {
@@ -37,9 +35,7 @@ public class DriverFactory {
      * @return a new Selenium WebDriver instance
      */
     public static WebDriver getDriver(DriverType driverType) {
-        // override properties with test suite properties
-        // read testng properties (enables modifying the test execution properties programatically)
-        System.getProperties().putAll(InvokedMethodListener.getXmlTest().getAllParameters());
+        readCustomTestSuiteParameters();
         if (driverType.equals(DriverType.BROWSERSTACK)) {
             return getBrowserStackDriver(new MutableCapabilities());
         } else {
@@ -56,14 +52,24 @@ public class DriverFactory {
      * @return a new Selenium WebDriver instance
      */
     public static WebDriver getDriver(DriverType driverType, MutableCapabilities customDriverOptions) {
-        // override properties with test suite properties
-        // read testng properties (enables modifying the test execution properties programatically)
-        System.getProperties().putAll(InvokedMethodListener.getXmlTest().getAllParameters());
+        readCustomTestSuiteParameters();
         if (driverType.equals(DriverType.BROWSERSTACK)) {
             return getBrowserStackDriver(customDriverOptions);
         } else {
             DriverFactoryHelper.initializeDriver(driverType, customDriverOptions);
             return DriverFactoryHelper.getDriver().get();
+        }
+    }
+
+    /**
+     * override properties with test suite properties
+     * read testng properties (enables modifying the test execution properties programatically)
+     * used to duplicate the tests for each browser in case of cross-browser Execution
+     */
+    private static void readCustomTestSuiteParameters() {
+        // it's null in case of Cucumber native feature file execution
+        if (InvokedMethodListener.getXmlTest() != null) {
+            System.getProperties().putAll(InvokedMethodListener.getXmlTest().getAllParameters());
         }
     }
 
