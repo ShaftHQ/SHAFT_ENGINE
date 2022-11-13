@@ -724,7 +724,9 @@
                         </property>
                         <property>
                             <name>listener</name>
-                            <value>com.shaft.tools.listeners.AlterSuiteListener,com.shaft.tools.listeners.SuiteListener,com.shaft.tools.listeners.InvokedMethodListener,com.shaft.tools.listeners.CucumberFeatureListener</value>
+                            <value>
+                                com.shaft.tools.listeners.AlterSuiteListener,com.shaft.tools.listeners.SuiteListener,com.shaft.tools.listeners.InvokedMethodListener
+                            </value>
                         </property>
                         <property>
                             <name>reporter</name>

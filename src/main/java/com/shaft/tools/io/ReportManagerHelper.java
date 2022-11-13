@@ -208,8 +208,8 @@ public class ReportManagerHelper {
             reportMessage.append(totalNumberOfTests);
             reportMessage.append("\" test cases in the current suite");
         } else {
-            //it's only zero in case of CucumberTestRunner
-            reportMessage.append("Starting Dynamic Cucumber Feature Execution:\t");
+            //it should never be ZERO
+            reportMessage.append("Starting Dynamic Test Suite Execution:\t");
         }
         reportMessage.append("\nTest Method:\t\t\"").append(className).append(".").append(testMethodName).append("\"");
 
