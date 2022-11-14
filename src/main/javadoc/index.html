@@ -2349,6 +2349,27 @@
                                         </div>
                                     </div>
 
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label"
+                                               for="authType">Authorization Type:*</label>
+                                        <div class="col-md-4" id="authType">
+                                            <div class="radio-inline">
+                                                <label for="authType-0">
+                                                    <input id="authType-0"
+                                                           name="authType" type="radio"
+                                                           value="Basic"> Username and Password
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="authType-1">
+                                                    <input  id="authType-1"
+                                                           name="authType"
+                                                           type="radio" value="Bearer"> Token
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     <!-- Text input-->
                                     <div class="form-group">
                                         <label class="col-md-4 control-label" for="username">Authorized username:*
@@ -2363,13 +2384,25 @@
 
                                     <!-- Text input-->
                                     <div class="form-group">
-                                        <label class="col-md-4 control-label" for="password">Password/APIToken:*
+                                        <label class="col-md-4 control-label" for="password">Password:*
                                         </label>
                                         <div class="col-md-4">
                                             <input class="form-control input-md"
                                                    id="password"
                                                    name="password"
                                                    type="password">
+                                        </div>
+                                    </div>
+
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="token">JIRA Token:*
+                                        </label>
+                                        <div class="col-md-4">
+                                            <input class="form-control input-md"
+                                                   id="token"
+                                                   name="token"
+                                                   type="token">
                                         </div>
                                     </div>
 
@@ -2866,6 +2899,20 @@ for (i = 0; i < close.length; i++) {
     });
 
 </script>
+<script type="text/javascript">
+    // XRay authorization setup
+    $("input[name=authType]").click(function () {
+        if ($("input[name=authType]:checked").val() == "Basic") {
+            $("#token").attr("disabled", true).val("");
+            $("#username").attr("disabled", false);
+            $("#password").attr("disabled", false);
+        } else {
+            $("#token").attr("disabled", false);
+            $("#username").attr("disabled", true).val("");
+            $("#password").attr("disabled", true).val("");
+        }
+    });
+</script>
 <script>
     function downloadFile(data, fileName) {
         data =
@@ -3139,7 +3186,7 @@ for (i = 0; i < close.length; i++) {
         const reportBugs = $("input[name=ReportBugs]:checked").val();
         const jiraUrl = 'https://'+$("input[name=jiraUrl]").val();
         const projectKey = $("input[name=projectKey]").val();
-        const authorization = $("input[name=username]").val()+':'+$("input[name=password]").val();
+        const authType = $("input[name=authType]:checked").val();
         const reportTestCasesExecution = $("input[name=reportTestCasesExecution]:checked").val();
         const reportPath = $("select[name=reportPath]").val();
         const ExecutionName = $("input[name=ExecutionName]").val();
@@ -3147,11 +3194,20 @@ for (i = 0; i < close.length; i++) {
         const ExecutionDescription = $("input[name=ExecutionDescription]").val();
         const allureLinkTmsPattern='https://'+ $("input[name=allureLinkTmsPattern]").val();
 
+
+        var authorization;
+        if ($("input[name=authType]:checked").val() == "Basic") {
+            authorization = $("input[name=username]").val()+':'+$("input[name=password]").val();
+        } else {
+            authorization = $("input[name=token]").val();
+        }
+
         // This variable stores all the data.
         let data =
             'jiraInteraction=' + jiraInteraction + '\r\n' +
             'jiraUrl=' + jiraUrl + '\r\n' +
             'projectKey=' + projectKey + '\r\n' +
+            'authType=' + authType + '\r\n' +
             'authorization=' + authorization + '\r\n' +
             'reportTestCasesExecution=' + reportTestCasesExecution + '\r\n' +
             'reportPath=' + reportPath + '\r\n' +

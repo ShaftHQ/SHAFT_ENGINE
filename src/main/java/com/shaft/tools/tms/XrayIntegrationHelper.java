@@ -27,13 +27,15 @@ import static io.restassured.config.EncoderConfig.encoderConfig;
 
 public class XrayIntegrationHelper {
 
-    private static final String _JiraAuthorization =
-            Base64.getEncoder().encodeToString(System.getProperty("authorization").trim().getBytes());
+    private static String _JiraAuthorization =System.getProperty("authorization").trim();
+    private static final String authType= System.getProperty("authType").trim()+" ";
     private static final String _ProjectKey = System.getProperty("projectKey").trim();
     private static String _TestExecutionID = null;
 
     private static void setup() {
         baseURI = System.getProperty("jiraUrl");
+        if(authType.equals("Basic "))
+            _JiraAuthorization=Base64.getEncoder().encodeToString(_JiraAuthorization.getBytes());
         given()
                 .config(RestAssuredConfig.config().sslConfig(SSLConfig.sslConfig().allowAllHostnames()))
                 .relaxedHTTPSValidation();
@@ -58,7 +60,7 @@ public class XrayIntegrationHelper {
         try {
             Response response = given()
                     .contentType("application/json")
-                    .header("Authorization", "Basic " + _JiraAuthorization)
+                    .header("Authorization", authType + _JiraAuthorization)
                     .body(prettyJsonString)
                     .expect().statusCode(200)
                     .when()
@@ -91,7 +93,7 @@ public class XrayIntegrationHelper {
         try {
             given()
                     .contentType("application/json")
-                    .header("Authorization", "Basic " + _JiraAuthorization)
+                    .header("Authorization", authType + _JiraAuthorization)
                     .body(body)
                     .expect().statusCode(204)
                     .when()
@@ -116,7 +118,7 @@ public class XrayIntegrationHelper {
             Response response = given()
                     .config(config().encoderConfig(encoderConfig().encodeContentTypeAs("multipart/form-data", ContentType.TEXT)))
                     .relaxedHTTPSValidation().contentType("multipart/form-data")
-                    .header("Authorization", "Basic " + _JiraAuthorization)
+                    .header("Authorization", authType + _JiraAuthorization)
                     .multiPart(new File(reportPath))
                     .when()
                     .post("/rest/raven/1.0/import/execution/testng?projectKey=" + _ProjectKey)
@@ -144,7 +146,7 @@ public class XrayIntegrationHelper {
             Response response = given()
                     .config(config().encoderConfig(encoderConfig().encodeContentTypeAs("application/json", ContentType.JSON)))
                     .relaxedHTTPSValidation().contentType("application/json")
-                    .header("Authorization", "Basic " + _JiraAuthorization)
+                    .header("Authorization", authType + _JiraAuthorization)
                     .when()
                     .body(getCreateIssueRequestBody()
                             .replace("${PROJECT_KEY}", _ProjectKey)
@@ -181,7 +183,7 @@ public class XrayIntegrationHelper {
         try {
             RequestSpecification req = given()
                     .relaxedHTTPSValidation().contentType(ContentType.MULTIPART)
-                    .header("Authorization", "Basic " + _JiraAuthorization)
+                    .header("Authorization", authType + _JiraAuthorization)
                     .header("X-Atlassian-Token", "nocheck");
             for (String file : files)
                 req.multiPart("file", new File(file));
@@ -207,7 +209,7 @@ public class XrayIntegrationHelper {
             given()
                     .config(config().encoderConfig(encoderConfig().encodeContentTypeAs("application/json", ContentType.JSON)))
                     .relaxedHTTPSValidation().contentType("application/json")
-                    .header("Authorization", "Basic " + _JiraAuthorization)
+                    .header("Authorization", authType + _JiraAuthorization)
                     .when()
                     .body(getLinkJIRATicketRequestBody()
                             .replace("${TICKET_ID}", linkedToID)
