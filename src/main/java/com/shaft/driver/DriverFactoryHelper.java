@@ -202,7 +202,7 @@ public class DriverFactoryHelper {
                 if (!PROXY_SERVER_SETTINGS.equals("")) {
                     Proxy proxy = new Proxy();
                     proxy.setHttpProxy(PROXY_SERVER_SETTINGS);
-                    proxy.setFtpProxy(PROXY_SERVER_SETTINGS);
+                    proxy.setSslProxy(PROXY_SERVER_SETTINGS);
                     ffOptions.setProxy(proxy);
                 }
             }
@@ -219,7 +219,7 @@ public class DriverFactoryHelper {
                 if (!PROXY_SERVER_SETTINGS.equals("")) {
                     Proxy proxy = new Proxy();
                     proxy.setHttpProxy(PROXY_SERVER_SETTINGS);
-                    proxy.setFtpProxy(PROXY_SERVER_SETTINGS);
+                    proxy.setSslProxy(PROXY_SERVER_SETTINGS);
                     ieOptions.setProxy(proxy);
                 }
             }
@@ -255,7 +255,7 @@ public class DriverFactoryHelper {
                 if (!PROXY_SERVER_SETTINGS.equals("")) {
                     Proxy proxy = new Proxy();
                     proxy.setHttpProxy(PROXY_SERVER_SETTINGS);
-                    proxy.setFtpProxy(PROXY_SERVER_SETTINGS);
+                    proxy.setSslProxy(PROXY_SERVER_SETTINGS);
                     options.setProxy(proxy);
                 }
                 //add logging preferences if enabled
@@ -303,7 +303,7 @@ public class DriverFactoryHelper {
                 if (!PROXY_SERVER_SETTINGS.equals("")) {
                     Proxy proxy = new Proxy();
                     proxy.setHttpProxy(PROXY_SERVER_SETTINGS);
-                    proxy.setFtpProxy(PROXY_SERVER_SETTINGS);
+                    proxy.setSslProxy(PROXY_SERVER_SETTINGS);
                     sfOptions.setProxy(proxy);
                 }
             }
