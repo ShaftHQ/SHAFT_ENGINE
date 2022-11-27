@@ -4,13 +4,11 @@ updates:
   directory: "/"
   schedule:
     interval: "daily"
-  open-pull-requests-limit: 10
-  target-branch: master
-  allow:
-     - dependency-type: "all"
+    time: "01:00"
+    timezone: "Africa/Cairo"
 - package-ecosystem: "github-actions"
   directory: "/"
   schedule:
     interval: "daily"
-  open-pull-requests-limit: 10
-  target-branch: master
+    time: "01:00"
+    timezone: "Africa/Cairo"
