@@ -756,7 +756,8 @@ public class ReportManagerHelper {
         if (SystemUtils.IS_OS_WINDOWS) {
             // create windows batch file
             commandsToServeAllureReport = Arrays.asList("@echo off",
-                    "set path=" + allureExtractionLocation + "allure-" + allureVersion + "\\bin;" + System.getProperty("java.home") + "\\bin;%path%",
+                    "set JAVA_HOME=" + System.getProperty("java.home"),
+                    "set path=" + allureExtractionLocation + "allure-" + allureVersion + "\\bin;%JAVA_HOME%\\bin;%path%",
                     "allure serve " + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1),
                     "pause", "exit");
             FileActions.getInstance().writeToFile("", "generate_allure_report.bat", commandsToServeAllureReport);
@@ -805,10 +806,10 @@ public class ReportManagerHelper {
 
         // create windows batch file
         commandsToOpenAllureReport = Arrays.asList("@echo off",
-                "set path=allure\\allure-" + System.getProperty(ALLURE_VERSION_PROPERTY_NAME) + "\\bin;" + System.getProperty("java.home") + ";%path%",
+                "set JAVA_HOME=" + System.getProperty("java.home"),
+                "set path=allure\\allure-" + System.getProperty(ALLURE_VERSION_PROPERTY_NAME) + "\\bin;%JAVA_HOME%\\bin;%path%",
                 "allure open allure-report", "pause", "exit");
         FileActions.getInstance().writeToFile("generatedReport/", "open_allure_report.bat", commandsToOpenAllureReport);
-
     }
 
     private static void writeAllureReportToGeneratedDirectory() {
