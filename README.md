@@ -5,7 +5,7 @@
  ![License](https://img.shields.io/github/license/ShaftHQ/SHAFT_Engine?color=blue&style=for-the-badge)
  [![JFrog release (latest by date including pre-releases)](https://img.shields.io/github/v/release/ShaftHQ/shaft_engine?include_prereleases&label=Latest%20Release&style=for-the-badge)](https://automatest.jfrog.io/ui/native/SHAFT_ENGINE/io/github/ShaftHQ/SHAFT_ENGINE/)
 
-[![Codacy grade](https://img.shields.io/codacy/grade/3579cfd02a2c4f67bd1dce5dad0b1562?style=for-the-badge)](https://app.codacy.com/gh/ShaftHQ/SHAFT_ENGINE/dashboard)
+[![Codacy grade](https://img.shields.io/codacy/grade/de526d8e36ad4021a2f8f5ed553e4976?style=for-the-badge)](https://app.codacy.com/gh/ShaftHQ/SHAFT_ENGINE/dashboard)
 [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/ShaftHQ/SHAFT_Engine/CodeQL?label=CodeQL&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions?query=workflow%3ACodeQL)
 
 # SHAFT: Unified Test Automation Engine
