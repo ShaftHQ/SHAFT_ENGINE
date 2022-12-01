@@ -1,14 +1,15 @@
 version: 2
 updates:
-- package-ecosystem: "maven"
+- package-ecosystem: maven
   directory: "/"
   schedule:
-    interval: "daily"
-    time: "01:00"
-    timezone: "Africa/Cairo"
-- package-ecosystem: "github-actions"
+    interval: daily
+  open-pull-requests-limit: 1000
+  target-branch: master
+
+- package-ecosystem: github-actions
   directory: "/"
   schedule:
-    interval: "daily"
-    time: "01:00"
-    timezone: "Africa/Cairo"
+    interval: daily
+  open-pull-requests-limit: 1000
+  target-branch: master
