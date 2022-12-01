@@ -2,9 +2,6 @@ name: 'Dependency Review'
 on:
   pull_request:
     branches: [ master ]
-  schedule:
-    - cron: '00 1 * * *'
-  workflow_dispatch:
 
 permissions:
   contents: read
