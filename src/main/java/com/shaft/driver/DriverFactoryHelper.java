@@ -478,18 +478,30 @@ public class DriverFactoryHelper {
 
     private static void setRemoteDriverInstance(Capabilities capabilities) throws MalformedURLException {
         ReportManager.logDiscrete(capabilities.toString());
-        RemoteWebDriver remoteWebDriver;
+        RemoteWebDriver remoteWebDriver = null;
         var os = getOperatingSystemFromName(targetOperatingSystem);
-        switch (os){
-            case ANDROID -> remoteWebDriver = new AndroidDriver(new URL(TARGET_HUB_URL), capabilities);
-            case IOS -> remoteWebDriver = new IOSDriver(new URL(TARGET_HUB_URL), capabilities);
-            default -> remoteWebDriver = new RemoteWebDriver(new URL(TARGET_HUB_URL), capabilities);
+        try {
+            switch (os) {
+                case ANDROID -> remoteWebDriver = new AndroidDriver(new URL(TARGET_HUB_URL), capabilities);
+                case IOS -> remoteWebDriver = new IOSDriver(new URL(TARGET_HUB_URL), capabilities);
+                default -> remoteWebDriver = new RemoteWebDriver(new URL(TARGET_HUB_URL), capabilities);
+            }
+        } catch (org.openqa.selenium.SessionNotCreatedException sessionNotCreatedException) {
+            if (sessionNotCreatedException.getMessage().contains("Response code 404. Message: The requested resource could not be found")) {
+                // this exception is thrown when using an old appium 1.x server, appending old path to connect to the server
+                switch (os) {
+                    case ANDROID ->
+                            remoteWebDriver = new AndroidDriver(new URL(TARGET_HUB_URL + "wd/hub"), capabilities);
+                    case IOS -> remoteWebDriver = new IOSDriver(new URL(TARGET_HUB_URL + "wd/hub"), capabilities);
+                    default -> remoteWebDriver = new RemoteWebDriver(new URL(TARGET_HUB_URL + "wd/hub"), capabilities);
+                }
+            }
         }
         remoteWebDriver.setFileDetector(new LocalFileDetector());
         if (os.equals(OperatingSystemType.ANDROID)
                 || os.equals(OperatingSystemType.IOS)) {
             driver.set(remoteWebDriver);
-        }else {
+        } else {
 //            driver.set(ThreadGuard.protect(remoteWebDriver));
             driver.set(remoteWebDriver);
         }
@@ -659,7 +671,7 @@ public class DriverFactoryHelper {
                 .valueOf(System.getProperty("autoMaximizeBrowserWindow").trim());
         HEADLESS_EXECUTION = Boolean.valueOf(System.getProperty("headlessExecution").trim());
         EXECUTION_ADDRESS = System.getProperty("executionAddress").trim();
-        TARGET_HUB_URL = "http://" + EXECUTION_ADDRESS + "/wd/hub";
+        TARGET_HUB_URL = "http://" + EXECUTION_ADDRESS + "/";
         PAGE_LOAD_TIMEOUT = Integer.parseInt(System.getProperty("pageLoadTimeout"));
         SCRIPT_TIMEOUT = Integer.parseInt(System.getProperty("scriptExecutionTimeout"));
         targetOperatingSystem = System.getProperty("targetOperatingSystem");
