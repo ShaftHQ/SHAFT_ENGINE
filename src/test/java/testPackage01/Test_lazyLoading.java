@@ -1,5 +1,6 @@
 package testPackage01;
 
+import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.driver.SHAFT;
 import org.openqa.selenium.By;
 import org.testng.annotations.AfterMethod;
@@ -13,9 +14,11 @@ public class Test_lazyLoading {
     @Test
     public void test() {
         driver.get().browser().navigateToURL(url);
-        By needsScrolling = By.cssSelector("h2 [title='The Rollercoaster Life']");
-        driver.get().element().scrollToElement(needsScrolling);
-        driver.get().assertThat().element(needsScrolling).text().doesNotEqual("").withCustomReportMessage("find element which requires scrolling to exist on the page DOM").perform();
+        if (!DriverFactoryHelper.getTargetBrowserName().toLowerCase().contains("safari")) {
+            By needsScrolling = By.cssSelector("h2 [title='The Rollercoaster Life']");
+            driver.get().element().scrollToElement(needsScrolling);
+            driver.get().assertThat().element(needsScrolling).text().doesNotEqual("").withCustomReportMessage("find element which requires scrolling to exist on the page DOM").perform();
+        }
         driver.get().browser().capturePageSnapshot();
     }
 

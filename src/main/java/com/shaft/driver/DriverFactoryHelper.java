@@ -51,7 +51,9 @@ public class DriverFactoryHelper {
     private static final String WEBDRIVERMANAGER_DOCKERIZED_MESSAGE = "Identifying target OS/Browser and setting up the dockerized environment automatically. Please note that if a new docker container will be downloaded it may take some time...";
     private static int PAGE_LOAD_TIMEOUT;
     private static int SCRIPT_TIMEOUT;
+    @Getter(AccessLevel.PUBLIC)
     private static String targetOperatingSystem;
+    @Getter(AccessLevel.PUBLIC)
     private static String targetBrowserName;
     @Getter(AccessLevel.PUBLIC)
     @Setter(AccessLevel.PUBLIC)
@@ -487,7 +489,7 @@ public class DriverFactoryHelper {
                 default -> remoteWebDriver = new RemoteWebDriver(new URL(TARGET_HUB_URL), capabilities);
             }
         } catch (org.openqa.selenium.SessionNotCreatedException sessionNotCreatedException) {
-            if (sessionNotCreatedException.getMessage().contains("Response code 404. Message: The requested resource could not be found")) {
+            if (sessionNotCreatedException.getMessage().contains("Response code 404.")) {
                 // this exception is thrown when using an old appium 1.x server, appending old path to connect to the server
                 switch (os) {
                     case ANDROID ->
@@ -495,6 +497,8 @@ public class DriverFactoryHelper {
                     case IOS -> remoteWebDriver = new IOSDriver(new URL(TARGET_HUB_URL + "wd/hub"), capabilities);
                     default -> remoteWebDriver = new RemoteWebDriver(new URL(TARGET_HUB_URL + "wd/hub"), capabilities);
                 }
+            } else {
+                throw sessionNotCreatedException;
             }
         }
         remoteWebDriver.setFileDetector(new LocalFileDetector());
