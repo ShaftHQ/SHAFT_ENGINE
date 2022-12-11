@@ -1,5 +1,6 @@
 package com.shaft.api;
 
+import com.shaft.cli.FileActions;
 import com.shaft.tools.io.ReportManagerHelper;
 import io.restassured.config.RestAssuredConfig;
 import io.restassured.config.SSLConfig;
@@ -133,7 +134,6 @@ public class RequestBuilder {
         return this;
     }
 
-
     /**
      * Sets the body (if any) for the API request that you're currently building. A request usually has only one of the following: urlArguments, parameters+type, or body
      *
@@ -142,6 +142,17 @@ public class RequestBuilder {
      */
     public RequestBuilder setRequestBody(Object requestBody) {
         this.requestBody = requestBody;
+        return this;
+    }
+
+    /**
+     * Sets the body (if any) for the API request that you're currently building. A request usually has only one of the following: urlArguments, parameters+type, or body
+     *
+     * @param relativeFilePath Specify the path to a file that will be used as an Object request content that will automatically be serialized to JSON or XML and sent with the request. If the object is a primitive or Number the object will be converted to a String and put in the request body. This works for the POST, PUT and PATCH methods only. Trying to do this for the other http methods will cause an exception to be thrown.
+     * @return a self-reference to be used to continue building your API request
+     */
+    public RequestBuilder setRequestBodyFromFile(String relativeFilePath) {
+        this.requestBody = new FileActions().readFile(relativeFilePath);
         return this;
     }
 

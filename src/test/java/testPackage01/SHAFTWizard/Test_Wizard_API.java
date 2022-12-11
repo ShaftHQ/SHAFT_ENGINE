@@ -30,6 +30,13 @@ public class Test_Wizard_API {
     }
 
     @Test
+    public void test_post_withBody_fromFile() {
+        driver = new SHAFT.API("https://reqres.in/");
+        driver.post("api/users").setRequestBodyFromFile("test_post_withBody_fromFile.json").setTargetStatusCode(201).setContentType(ContentType.JSON).perform();
+        driver.assertThatResponse().extractedJsonValue("name").isEqualTo("morpheus").withCustomReportMessage("Check that Morpheus exists.").perform();
+    }
+
+    @Test
     public void test_post_withBody_hashMap() {
         driver = new SHAFT.API("https://reqres.in/");
         HashMap body = new HashMap<>();
