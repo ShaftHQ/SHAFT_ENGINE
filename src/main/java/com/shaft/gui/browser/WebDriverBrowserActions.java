@@ -230,6 +230,11 @@ public class WebDriverBrowserActions {
      *                                  navigation
      */
     public static void navigateToURL(WebDriver driver, String targetUrl, String targetUrlAfterRedirection) {
+        // check if the user sends the URL with the abbreviation of "./"
+        if (targetUrl.startsWith(".")){
+            targetUrl= targetUrl.replaceFirst(".",System.getProperty("BaseURL"));
+        }
+
         if (targetUrl.equals(targetUrlAfterRedirection)) {
             ReportManager.logDiscrete(
                     "Target URL: \"" + targetUrl + "\"");
