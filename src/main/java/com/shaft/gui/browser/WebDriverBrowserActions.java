@@ -230,6 +230,21 @@ public class WebDriverBrowserActions {
      *                                  navigation
      */
     public static void navigateToURL(WebDriver driver, String targetUrl, String targetUrlAfterRedirection) {
+    	// check if the user wrote the URL ended with "/"
+        String modifiedUrl = null;
+        if (System.getProperty("baseURL").endsWith("/")) {
+            modifiedUrl = System.getProperty("baseURL").substring(0, System.getProperty("baseURL").length() - 1);
+        }else{
+            modifiedUrl=System.getProperty("baseURL");
+        }
+        // check if the user sends the URL with the abbreviation of "./"
+        if (targetUrl.startsWith(".")) {
+            targetUrl = targetUrl.replaceFirst(".", modifiedUrl);
+        }
+        if(!targetUrl.startsWith("http")){
+            ReportManager.logDiscrete("Your Base Url property is empty");
+            failAction(driver,targetUrl);
+        }
         if (targetUrl.equals(targetUrlAfterRedirection)) {
             ReportManager.logDiscrete(
                     "Target URL: \"" + targetUrl + "\"");
