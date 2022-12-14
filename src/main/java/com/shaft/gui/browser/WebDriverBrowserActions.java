@@ -165,7 +165,7 @@ public class WebDriverBrowserActions {
     public static void navigateToURLWithBasicAuthentication(WebDriver driver, String targetUrl, String username, String password, String targetUrlAfterAuthentication) {
         String domainName = getDomainNameFromURL(targetUrl);
         String driverName = System.getProperty("targetBrowserName");
-        if (driverName.equals("GoogleChrome") || driverName.equals("MicrosoftEdge")) {
+        if (driverName.equals("GoogleChrome") || driverName.equals("MicrosoftEdge")){
             if (System.getProperty("executionAddress").equals("local")) {
                 Predicate<URI> uriPredicate = uri -> uri.getHost().contains(domainName);
                 ((HasAuthentication) driver).register(uriPredicate, UsernameAndPassword.of(username, password));
@@ -186,13 +186,12 @@ public class WebDriverBrowserActions {
                     devTools.createSession();
                     devToolsAtomicReference.set(devTools);
                     ((HasAuthentication) driver).register(UsernameAndPassword.of(username, password));
-                } catch (org.openqa.selenium.remote.http.ConnectionFailedException |
-                         java.lang.IllegalArgumentException e) {
+                } catch (org.openqa.selenium.remote.http.ConnectionFailedException | java.lang.IllegalArgumentException e){
                     //in case of remote connection but Unable to establish websocket connection
                     targetUrl = formatURL(username, password, targetUrl);
                 }
             }
-        } else {
+        } else{
             //in case of ie, firefox, safari, ...etc
             targetUrl = formatURL(username, password, targetUrl);
         }
@@ -200,11 +199,11 @@ public class WebDriverBrowserActions {
     }
 
     @SneakyThrows
-    private static String formatURL(String username, String password, String targetUrl) {
-        if (targetUrl.startsWith("https://")) {
-            return new URI("https://" + URLEncoder.encode(username, StandardCharsets.UTF_8) + ":" + URLEncoder.encode(password, StandardCharsets.UTF_8) + "@" + targetUrl.substring("https://".length())).toString();
-        } else {
-            return new URI("http://" + URLEncoder.encode(username, StandardCharsets.UTF_8) + ":" + URLEncoder.encode(password, StandardCharsets.UTF_8) + "@" + targetUrl.substring("http://".length())).toString();
+    private static String formatURL(String username, String password, String targetUrl){
+        if (targetUrl.startsWith("https://")){
+            return new URI("https://" + URLEncoder.encode(username, StandardCharsets.UTF_8)+":"+URLEncoder.encode(password, StandardCharsets.UTF_8)+ "@"+ targetUrl.substring("https://".length())).toString();
+        }else{
+            return new URI("http://" + URLEncoder.encode(username, StandardCharsets.UTF_8)+":"+URLEncoder.encode(password, StandardCharsets.UTF_8)+ "@"+ targetUrl.substring("http://".length())).toString();
         }
     }
 
@@ -240,7 +239,6 @@ public class WebDriverBrowserActions {
         if (targetUrl.startsWith(".")) {
             targetUrl = targetUrl.replaceFirst(".", finalUrl);
         }
-
         if (targetUrl.equals(targetUrlAfterRedirection)) {
             ReportManager.logDiscrete(
                     "Target URL: \"" + targetUrl + "\"");
@@ -845,8 +843,8 @@ public class WebDriverBrowserActions {
     /**
      * Switches focus to another Tab
      *
-     * @param driver the current instance of Selenium webdriver
-     * @param URL    The name of the URL you want to navigate to
+     * @param driver       the current instance of Selenium webdriver
+     * @param URL The name of the URL you want to navigate to
      */
     public static void switchToNewTab(WebDriver driver, String URL) {
         try {
@@ -854,12 +852,14 @@ public class WebDriverBrowserActions {
             driver.switchTo().newWindow(WindowType.TAB).navigate().to(URL);
             var handleAfterNavigation = driver.getWindowHandle();
             if (!handleBeforeNavigation.equals(handleAfterNavigation)) {
-                ReportManager.logDiscrete("Old Tab Handle: \"" + handleBeforeNavigation + "\", New Tab handle : \"" + handleAfterNavigation + "\"");
+                ReportManager.logDiscrete("Old Tab Handle: \""+handleBeforeNavigation+"\", New Tab handle : \"" + handleAfterNavigation+"\"");
                 passAction(driver, URL);
-            } else {
+            }
+            else {
                 failAction(driver, URL);
             }
-        } catch (Exception rootCauseException) {
+        }
+        catch (Exception rootCauseException) {
             failAction(driver, URL, rootCauseException);
         }
     }
@@ -870,7 +870,7 @@ public class WebDriverBrowserActions {
      * @param URL The name of the URL you want to navigate to
      */
     public WebDriverBrowserActions switchToNewTab(String URL) {
-        switchToNewTab(lastUsedDriver.get(), URL);
+        switchToNewTab(lastUsedDriver.get(),URL);
         return this;
     }
 
