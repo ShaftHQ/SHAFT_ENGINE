@@ -15,14 +15,14 @@ public class Test_URLNavigation {
     public void testURLPathWithTheAbbreviation() {
         String URL = "./elements";
         BrowserActions.navigateToURL(driver, URL);
-        Validations.assertThat().object(driver.getCurrentUrl()).equalsIgnoringCaseSensitivity("https://demoqa.com/elements");
+        Validations.assertThat().object(driver.getCurrentUrl()).equalsIgnoringCaseSensitivity("https://demoqa.com/elements").perform();
     }
 
     @Test
     public void testURLPathWithoutTheAbbreviation() {
         String URL = "https://demoqa.com/elements";
         BrowserActions.navigateToURL(driver, URL);
-        Validations.assertThat().object(driver.getCurrentUrl()).equalsIgnoringCaseSensitivity("https://demoqa.com/elements");
+        Validations.assertThat().object(driver.getCurrentUrl()).equalsIgnoringCaseSensitivity("https://demoqa.com/elements").perform();
     }
 
     @BeforeClass
