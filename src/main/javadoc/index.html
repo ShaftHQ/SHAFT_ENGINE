@@ -361,7 +361,17 @@
                                                    name="navigateToPlatformSettingsTab">Platform</a> tab.</p>
                                             </span>
                                     </div>
-
+                                    <!-- Text input-->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="mobileEmulationDeviceUserAgent">Base URL</label>
+                                        <div class="col-md-4">
+                                            <div>
+                                                <input class="form-control input-md" id="baseURL"
+                                                       name="baseURL" placeholder="e.g: https://github.com/ShaftHQ/SHAFT_ENGINE"
+                                                       required type="text" >
+                                            </div>
+                                        </div>
+                                    </div>
                                     <hr/>
                                     <h4 style="text-align: center;"><b> Desktop <br/><br/></b>
                                         <hr/>
@@ -2964,6 +2974,7 @@ for (i = 0; i < close.length; i++) {
 </script>
 <script>
     function generateWebCapabilities() {
+        const baseURL = $("input[name=baseURL]").val();
         const targetBrowserName = $("input[name=targetBrowserName]:checked").val();
         const headlessExecution = $("input[name=headlessExecution]:checked").val();
         const isMobileEmulation = $("input[name=mobileEmulation]:checked").val();
@@ -2976,6 +2987,7 @@ for (i = 0; i < close.length; i++) {
 
         // This variable stores all the data.
         let data =
+            'baseURL=' + baseURL + '\r\n' +
             'targetBrowserName=' + targetBrowserName + '\r\n' +
             'headlessExecution=' + headlessExecution + '\r\n'+
             'isMobileEmulation=' + isMobileEmulation + '\r\n' +
