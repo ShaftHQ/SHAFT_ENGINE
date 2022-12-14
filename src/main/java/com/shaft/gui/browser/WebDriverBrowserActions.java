@@ -230,7 +230,7 @@ public class WebDriverBrowserActions {
      *                                  navigation
      */
     public static void navigateToURL(WebDriver driver, String targetUrl, String targetUrlAfterRedirection) {
-        // check if the user wrote the URL ended with "/"
+    	// check if the user wrote the URL ended with "/"
         String modifiedUrl = null;
         if (System.getProperty("baseURL").endsWith("/")) {
             modifiedUrl = System.getProperty("baseURL").substring(0, System.getProperty("baseURL").length() - 1);
@@ -845,7 +845,7 @@ public class WebDriverBrowserActions {
         fullScreenWindow(lastUsedDriver.get());
         return this;
     }
-
+    
     /**
      * Switches focus to another Tab
      *
@@ -853,33 +853,33 @@ public class WebDriverBrowserActions {
      * @param URL The name of the URL you want to navigate to
      */
     public static void switchToNewTab(WebDriver driver, String URL) {
-        try {
-            var handleBeforeNavigation = driver.getWindowHandle();
-            driver.switchTo().newWindow(WindowType.TAB).navigate().to(URL);
-            var handleAfterNavigation = driver.getWindowHandle();
-            if (!handleBeforeNavigation.equals(handleAfterNavigation)) {
+    	try {
+    		var handleBeforeNavigation = driver.getWindowHandle();
+        	driver.switchTo().newWindow(WindowType.TAB).navigate().to(URL);
+        	var handleAfterNavigation = driver.getWindowHandle();
+        	if (!handleBeforeNavigation.equals(handleAfterNavigation)) {
                 ReportManager.logDiscrete("Old Tab Handle: \""+handleBeforeNavigation+"\", New Tab handle : \"" + handleAfterNavigation+"\"");
-                passAction(driver, URL);
-            }
-            else {
-                failAction(driver, URL);
-            }
-        }
+        		 passAction(driver, URL);
+        	}
+        	else {
+        		failAction(driver, URL);
+        	}
+        	}
         catch (Exception rootCauseException) {
-            failAction(driver, URL, rootCauseException);
-        }
+                failAction(driver, URL, rootCauseException);
+            }
     }
-
+    
     /**
      * Switches focus to another Tap
      *
      * @param URL The name of the URL you want to navigate to
      */
     public WebDriverBrowserActions switchToNewTab(String URL) {
-        switchToNewTab(lastUsedDriver.get(),URL);
-        return this;
+    	switchToNewTab(lastUsedDriver.get(),URL);
+		return this;
     }
-
+    
     /**
      * Switches focus to another window
      *
@@ -895,7 +895,7 @@ public class WebDriverBrowserActions {
             failAction(driver, nameOrHandle);
         }
     }
-
+    
     /**
      * Switches focus to another window
      *
