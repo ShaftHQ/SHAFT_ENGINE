@@ -230,27 +230,20 @@ public class WebDriverBrowserActions {
      *                                  navigation
      */
     public static void navigateToURL(WebDriver driver, String targetUrl, String targetUrlAfterRedirection) {
-    	// check if the user wrote the URL ended with "/"
-        String modifiedUrl = null;
-        if (System.getProperty("baseURL").endsWith("/")) {
-            modifiedUrl = System.getProperty("baseURL").substring(0, System.getProperty("baseURL").length() - 1);
-        }else{
-            modifiedUrl=System.getProperty("baseURL");
+        String modifiedTargetUrl = targetUrl;
+        var baseUrl = System.getProperty("baseURL").trim();
+
+        if (!baseUrl.isBlank() && targetUrl.startsWith("./")) {
+            // valid use case for baseURL property ==> property is not blank && the target url starts with ./
+            modifiedTargetUrl = (baseUrl.endsWith("/")) ? baseUrl + targetUrl.replace("./", "") : baseUrl + targetUrl.replace("./", "/");
         }
-        // check if the user sends the URL with the abbreviation of "./"
-        if (targetUrl.startsWith(".")) {
-            targetUrl = targetUrl.replaceFirst(".", modifiedUrl);
-        }
-        if(!targetUrl.startsWith("http")){
-            ReportManager.logDiscrete("Your Base Url property is empty");
-            failAction(driver,targetUrl);
-        }
+
         if (targetUrl.equals(targetUrlAfterRedirection)) {
             ReportManager.logDiscrete(
-                    "Target URL: \"" + targetUrl + "\"");
+                    "Target URL: \"" + modifiedTargetUrl + "\"");
         } else {
             ReportManager.logDiscrete(
-                    "Target URL: \"" + targetUrl + "\", and after redirection: \"" + targetUrlAfterRedirection + "\"");
+                    "Target URL: \"" + modifiedTargetUrl + "\", and after redirection: \"" + targetUrlAfterRedirection + "\"");
         }
 //         force stop any current navigation
         try {
@@ -276,28 +269,28 @@ public class WebDriverBrowserActions {
                 initialURL = initialURL.substring(0, initialURL.length() - 1);
             }
             ReportManager.logDiscrete("Initial URL: \"" + initialURL + "\"");
-            if (!initialURL.equals(targetUrl)) {
+            if (!initialURL.equals(modifiedTargetUrl)) {
                 // navigate to new url
-                navigateToNewURL(driver, initialURL, targetUrl, targetUrlAfterRedirection);
+                navigateToNewURL(driver, initialURL, modifiedTargetUrl, targetUrlAfterRedirection);
                 JavaScriptWaitManager.waitForLazyLoading();
                 if ((WebDriverElementActions.getElementsCount(driver, By.tagName("html")) == 1)
                         && (!driver.getPageSource().equalsIgnoreCase(initialSource))) {
-                    confirmThatWebsiteIsNotDown(driver, targetUrl);
-                    passAction(driver, targetUrl);
+                    confirmThatWebsiteIsNotDown(driver, modifiedTargetUrl);
+                    passAction(driver, modifiedTargetUrl);
                 } else {
-                    failAction(driver, targetUrl);
+                    failAction(driver, modifiedTargetUrl);
                 }
             } else {
                 // already on the same page
                 driver.navigate().refresh();
                 JavaScriptWaitManager.waitForLazyLoading();
                 if (WebDriverElementActions.getElementsCount(driver, By.tagName("html")) == 1) {
-                    confirmThatWebsiteIsNotDown(driver, targetUrl);
-                    passAction(driver, targetUrl);
+                    confirmThatWebsiteIsNotDown(driver, modifiedTargetUrl);
+                    passAction(driver, modifiedTargetUrl);
                 }
             }
         } catch (Exception rootCauseException) {
-            failAction(driver, targetUrl, rootCauseException);
+            failAction(driver, modifiedTargetUrl, rootCauseException);
         }
     }
 
