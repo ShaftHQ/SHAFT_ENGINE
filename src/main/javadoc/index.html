@@ -221,6 +221,14 @@
                                                            value="browserstack"> Remote Execution (BrowserStack)
                                                 </label>
                                             </div>
+                                            <br/>
+                                            <div class="radio-inline">
+                                                <label for="executionAddress-4">
+                                                    <input id="executionAddress-4" name="executionAddress"
+                                                           type="radio"
+                                                           value="custom"> Custom
+                                                </label>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -232,12 +240,14 @@
                                         </label>
                                         <div class="col-md-4">
                                             <div class="input-group">
-                                                <span class="input-group-addon">http://</span>
+                                                <span class="input-group-addon"
+                                                      id="executionAddress-remote-prefix"></span>
                                                 <input class="form-control input-md" disabled
                                                        id="executionAddress-remote"
-                                                       name="executionAddress-remote" placeholder="localhost:4444"
+                                                       name="executionAddress-remote" placeholder="local"
                                                        type="text">
-                                                <span class="input-group-addon">/wd/hub</span>
+                                                <span class="input-group-addon"
+                                                      id="executionAddress-remote-postfix"></span>
                                             </div>
                                         </div>
                                     </div>
@@ -2649,9 +2659,28 @@ for (i = 0; i < close.length; i++) {
 <script type="text/javascript">
     // remote server configuration
     $("input[name=executionAddress]").click(function () {
-        if ($("input[name=executionAddress]:checked").val() == "remote") {
+        if ($("input[name=executionAddress]:checked").val() == "custom") {
             $("#executionAddress-remote").attr("disabled", false);
+            $("#executionAddress-remote").attr("placeholder", "https://private.cloud.com/wd/hub");
             $("#executionAddress-remote").val("");
+            document.getElementById("executionAddress-remote-prefix").innerHTML = "";
+            document.getElementById("executionAddress-remote-postfix").innerHTML = "";
+            $("#targetOperatingSystem-0").attr("disabled", false);
+            $("label[for=targetOperatingSystem-0]").attr("style", '');
+            $("#targetOperatingSystem-1").attr("disabled", false);
+            $("label[for=targetOperatingSystem-1]").attr("style", '');
+            $("#targetOperatingSystem-2").attr("disabled", false);
+            $("label[for=targetOperatingSystem-2]").attr("style", '');
+            $("#targetOperatingSystem-3").attr("disabled", false);
+            $("label[for=targetOperatingSystem-3]").attr("style", '');
+            $("#targetOperatingSystem-4").attr("disabled", false);
+            $("label[for=targetOperatingSystem-4]").attr("style", '');
+        } else if ($("input[name=executionAddress]:checked").val() == "remote") {
+            $("#executionAddress-remote").attr("disabled", false);
+            $("#executionAddress-remote").attr("placeholder", "localhost:4444");
+            $("#executionAddress-remote").val("");
+            document.getElementById("executionAddress-remote-prefix").innerHTML = "http://";
+            document.getElementById("executionAddress-remote-postfix").innerHTML = "/wd/hub";
             $("#targetOperatingSystem-0").attr("disabled", false);
             $("label[for=targetOperatingSystem-0]").attr("style", '');
             $("#targetOperatingSystem-1").attr("disabled", false);
@@ -2664,7 +2693,9 @@ for (i = 0; i < close.length; i++) {
             $("label[for=targetOperatingSystem-4]").attr("style", '');
         } else if ($("input[name=executionAddress]:checked").val() == "browserstack"){
             $("#executionAddress-remote").attr("disabled", true);
-            $("#executionAddress-remote").val("username:accessKey@hub-cloud.browserstack.com");
+            $("#executionAddress-remote").val("user:key@hub-cloud.browserstack.com");
+            document.getElementById("executionAddress-remote-prefix").innerHTML = "http://";
+            document.getElementById("executionAddress-remote-postfix").innerHTML = "/wd/hub";
             $("#targetOperatingSystem-0").attr("disabled", false);
             $("label[for=targetOperatingSystem-0]").attr("style", '');
             $("#targetOperatingSystem-1").attr("disabled", false);
@@ -2677,7 +2708,10 @@ for (i = 0; i < close.length; i++) {
             $("label[for=targetOperatingSystem-4]").attr("style", '');
         } else if ($("input[name=executionAddress]:checked").val() == "dockerized"){
             $("#executionAddress-remote").attr("disabled", true);
+            $("#executionAddress-remote").attr("placeholder", "dockerized");
             $("#executionAddress-remote").val("");
+            document.getElementById("executionAddress-remote-prefix").innerHTML = "";
+            document.getElementById("executionAddress-remote-postfix").innerHTML = "";
             $("#targetOperatingSystem-0").attr("disabled", true);
             $("label[for=targetOperatingSystem-0]").attr("style", "color:#A9A9A9");
             $("#targetOperatingSystem-1").attr("disabled", false);
@@ -2690,7 +2724,10 @@ for (i = 0; i < close.length; i++) {
             $("label[for=targetOperatingSystem-4]").attr("style", "color:#A9A9A9");
         } else {
             $("#executionAddress-remote").attr("disabled", true);
+            $("#executionAddress-remote").attr("placeholder", "local");
             $("#executionAddress-remote").val("");
+            document.getElementById("executionAddress-remote-prefix").innerHTML = "";
+            document.getElementById("executionAddress-remote-postfix").innerHTML = "";
             $("#targetOperatingSystem-0").attr("disabled", true);
             $("label[for=targetOperatingSystem-0]").attr("style", "color:#A9A9A9");
             $("#targetOperatingSystem-1").attr("disabled", true);

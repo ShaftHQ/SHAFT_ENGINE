@@ -946,15 +946,19 @@ public class WebDriverElementActions {
      *                       webElement
      */
     public static void type(WebDriver driver, By elementLocator, String text) {
-        String actualResult = typeWrapper(driver, elementLocator, text);
-        var elementName = getElementName(driver, elementLocator);
-        if (actualResult != null && actualResult.equals(text)) {
-            passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), text, null, elementName);
-        } else if (actualResult == null) {
-            failAction(driver, elementLocator);
-        } else {
-            failAction(driver, "Expected to type: \"" + text + "\", but ended up with: \"" + actualResult + "\"",
-                    elementLocator);
+        try {
+            String actualResult = typeWrapper(driver, elementLocator, text);
+            var elementName = getElementName(driver, elementLocator);
+            if (actualResult != null && actualResult.equals(text)) {
+                passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), text, null, elementName);
+            } else if (actualResult == null) {
+                failAction(driver, elementLocator);
+            } else {
+                failAction(driver, "Expected to type: \"" + text + "\", but ended up with: \"" + actualResult + "\"",
+                        elementLocator);
+            }
+        } catch (Throwable throwable) {
+            WebDriverElementActions.failAction(driver, elementLocator, throwable);
         }
     }
     /**

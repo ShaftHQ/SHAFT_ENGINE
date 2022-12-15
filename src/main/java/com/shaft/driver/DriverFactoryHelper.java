@@ -51,7 +51,9 @@ public class DriverFactoryHelper {
     private static final String WEBDRIVERMANAGER_DOCKERIZED_MESSAGE = "Identifying target OS/Browser and setting up the dockerized environment automatically. Please note that if a new docker container will be downloaded it may take some time...";
     private static int PAGE_LOAD_TIMEOUT;
     private static int SCRIPT_TIMEOUT;
+    @Getter(AccessLevel.PUBLIC)
     private static String targetOperatingSystem;
+    @Getter(AccessLevel.PUBLIC)
     private static String targetBrowserName;
     @Getter(AccessLevel.PUBLIC)
     @Setter(AccessLevel.PUBLIC)
@@ -183,9 +185,6 @@ public class DriverFactoryHelper {
             case DESKTOP_FIREFOX -> {
                 // https://developer.mozilla.org/en-US/docs/Web/WebDriver/Capabilities/firefoxOptions
                 ffOptions = new FirefoxOptions();
-                if (customDriverOptions != null) {
-                    ffOptions = ffOptions.merge(customDriverOptions);
-                }
                 var ffProfile = new FirefoxProfile();
                 ffProfile.setPreference("browser.download.dir", downloadsFolderPath);
                 ffProfile.setPreference("browser.download.folderList", 2);
@@ -205,12 +204,15 @@ public class DriverFactoryHelper {
                     proxy.setSslProxy(PROXY_SERVER_SETTINGS);
                     ffOptions.setProxy(proxy);
                 }
+                //merge customWebdriverCapabilities.properties
+                ffOptions = ffOptions.merge(PropertyFileManager.getCustomWebdriverDesiredCapabilities());
+                //merge hardcoded custom options
+                if (customDriverOptions != null) {
+                    ffOptions = ffOptions.merge(customDriverOptions);
+                }
             }
             case DESKTOP_INTERNET_EXPLORER -> {
                 ieOptions = new InternetExplorerOptions();
-                if (customDriverOptions != null) {
-                    ieOptions = ieOptions.merge(customDriverOptions);
-                }
                 ieOptions.setCapability(CapabilityType.PLATFORM_NAME, getDesiredOperatingSystem());
                 ieOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL);
                 ieOptions.setPageLoadTimeout(Duration.ofSeconds(PAGE_LOAD_TIMEOUT));
@@ -222,6 +224,12 @@ public class DriverFactoryHelper {
                     proxy.setSslProxy(PROXY_SERVER_SETTINGS);
                     ieOptions.setProxy(proxy);
                 }
+                //merge customWebdriverCapabilities.properties
+                ieOptions = ieOptions.merge(PropertyFileManager.getCustomWebdriverDesiredCapabilities());
+                //merge hardcoded custom options
+                if (customDriverOptions != null) {
+                    ieOptions = ieOptions.merge(customDriverOptions);
+                }
             }
             case APPIUM_CHROME, DESKTOP_CHROME, DESKTOP_EDGE, DESKTOP_CHROMIUM -> {
                 ChromiumOptions<?> options;
@@ -229,9 +237,6 @@ public class DriverFactoryHelper {
                     options = new EdgeOptions();
                 } else {
                     options = new ChromeOptions();
-                }
-                if (customDriverOptions != null) {
-                    options = (ChromiumOptions<?>) options.merge(customDriverOptions);
                 }
                 options.setCapability(CapabilityType.PLATFORM_NAME, getDesiredOperatingSystem());
                 options.setHeadless(HEADLESS_EXECUTION);
@@ -284,6 +289,13 @@ public class DriverFactoryHelper {
                     }
                     options.setExperimentalOption("mobileEmulation", mobileEmulation);
                 }
+                //merge customWebdriverCapabilities.properties
+                options = (ChromiumOptions<?>) options.merge(PropertyFileManager.getCustomWebdriverDesiredCapabilities());
+                //merge hardcoded custom options
+                if (customDriverOptions != null) {
+                    options = (ChromiumOptions<?>) options.merge(customDriverOptions);
+                }
+                //explicit type casting
                 if (driverType.equals(DriverType.DESKTOP_EDGE)) {
                     edOptions = (EdgeOptions) options;
                 } else {
@@ -292,9 +304,6 @@ public class DriverFactoryHelper {
             }
             case DESKTOP_SAFARI, DESKTOP_WEBKIT -> {
                 sfOptions = new SafariOptions();
-                if (customDriverOptions != null) {
-                    sfOptions = sfOptions.merge(customDriverOptions);
-                }
                 sfOptions.setCapability(CapabilityType.PLATFORM_NAME, getDesiredOperatingSystem());
                 sfOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL);
                 sfOptions.setPageLoadTimeout(Duration.ofSeconds(PAGE_LOAD_TIMEOUT));
@@ -306,8 +315,15 @@ public class DriverFactoryHelper {
                     proxy.setSslProxy(PROXY_SERVER_SETTINGS);
                     sfOptions.setProxy(proxy);
                 }
+                //merge customWebdriverCapabilities.properties
+                sfOptions = sfOptions.merge(PropertyFileManager.getCustomWebdriverDesiredCapabilities());
+                //merge hardcoded custom options
+                if (customDriverOptions != null) {
+                    sfOptions = sfOptions.merge(customDriverOptions);
+                }
             }
-            case APPIUM_MOBILE_NATIVE -> appiumCapabilities = new DesiredCapabilities(customDriverOptions);
+            case APPIUM_MOBILE_NATIVE ->
+                    appiumCapabilities = new DesiredCapabilities(PropertyFileManager.getCustomWebdriverDesiredCapabilities().merge(customDriverOptions));
             default ->
                     failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
         }
@@ -424,10 +440,6 @@ public class DriverFactoryHelper {
     }
 
     private static void createNewRemoteDriverInstance(DriverType driverType) {
-        if (OperatingSystemType.ANDROID.equals(getOperatingSystemFromName(targetOperatingSystem))
-                || OperatingSystemType.IOS.equals(getOperatingSystemFromName(targetOperatingSystem))) {
-            driverType = DriverType.APPIUM_MOBILE_NATIVE;
-        }
         var initialLog = new StringBuilder();
         initialLog.append("Attempting to run remotely on: \"").append(targetOperatingSystem);
 
@@ -487,7 +499,7 @@ public class DriverFactoryHelper {
                 default -> remoteWebDriver = new RemoteWebDriver(new URL(TARGET_HUB_URL), capabilities);
             }
         } catch (org.openqa.selenium.SessionNotCreatedException sessionNotCreatedException) {
-            if (sessionNotCreatedException.getMessage().contains("Response code 404. Message: The requested resource could not be found")) {
+            if (sessionNotCreatedException.getMessage().contains("Could not start a new session.") || sessionNotCreatedException.getMessage().contains("Response code 404.")) {
                 // this exception is thrown when using an old appium 1.x server, appending old path to connect to the server
                 switch (os) {
                     case ANDROID ->
@@ -495,6 +507,8 @@ public class DriverFactoryHelper {
                     case IOS -> remoteWebDriver = new IOSDriver(new URL(TARGET_HUB_URL + "wd/hub"), capabilities);
                     default -> remoteWebDriver = new RemoteWebDriver(new URL(TARGET_HUB_URL + "wd/hub"), capabilities);
                 }
+            } else {
+                throw sessionNotCreatedException;
             }
         }
         remoteWebDriver.setFileDetector(new LocalFileDetector());
@@ -507,7 +521,7 @@ public class DriverFactoryHelper {
         }
     }
 
-    private static void configureRemoteDriverInstance(DriverType driverType, DesiredCapabilities mobileDesiredCapabilities) throws MalformedURLException {
+    private static void configureRemoteDriverInstance(DriverType driverType, DesiredCapabilities appiumDesiredCapabilities) throws MalformedURLException {
         switch (driverType) {
             case DESKTOP_FIREFOX -> setRemoteDriverInstance(ffOptions);
             case DESKTOP_INTERNET_EXPLORER -> setRemoteDriverInstance(ieOptions);
@@ -518,18 +532,18 @@ public class DriverFactoryHelper {
                         && !OperatingSystemType.IOS.equals(getOperatingSystemFromName(targetOperatingSystem))) {
                     setRemoteDriverInstance(sfOptions);
                 } else {
-                    setRemoteDriverInstance(mobileDesiredCapabilities);
+                    setRemoteDriverInstance(appiumDesiredCapabilities);
                 }
             }
             case APPIUM_CHROME, APPIUM_CHROMIUM -> {
                 ReportManager.logDiscrete(WEBDRIVERMANAGER_MESSAGE);
                 WebDriverManager.chromedriver().browserVersion(System.getProperty("MobileBrowserVersion")).setup();
-                mobileDesiredCapabilities.setCapability("chromedriverExecutable",
+                appiumDesiredCapabilities.setCapability("chromedriverExecutable",
                         WebDriverManager.chromedriver().getDownloadedDriverPath());
-                setRemoteDriverInstance(mobileDesiredCapabilities);
+                setRemoteDriverInstance(appiumDesiredCapabilities);
             }
             case APPIUM_BROWSER, APPIUM_MOBILE_NATIVE -> {
-                setRemoteDriverInstance(mobileDesiredCapabilities);
+                setRemoteDriverInstance(appiumDesiredCapabilities);
             }
             default ->
                     failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
@@ -621,16 +635,17 @@ public class DriverFactoryHelper {
     protected static void initializeDriver(@NonNull DriverType driverType, MutableCapabilities customDriverOptions) {
         initializeSystemProperties();
         try {
-            setDriverOptions(driverType, customDriverOptions);
-
             var isMobileExecution = OperatingSystemType.ANDROID.equals(getOperatingSystemFromName(targetOperatingSystem))
                     || OperatingSystemType.IOS.equals(getOperatingSystemFromName(targetOperatingSystem));
 
             if (isMobileExecution) {
                 //mobile execution
+                driverType = DriverType.APPIUM_MOBILE_NATIVE;
+                setDriverOptions(driverType, customDriverOptions);
                 createNewRemoteDriverInstance(driverType);
             }else{
                 //desktop execution
+                setDriverOptions(driverType, customDriverOptions);
                 switch (EXECUTION_ADDRESS) {
                     case "local" -> createNewLocalDriverInstance(driverType);
                     case "dockerized" -> createNewDockerizedDriverInstance(driverType);
@@ -671,7 +686,7 @@ public class DriverFactoryHelper {
                 .valueOf(System.getProperty("autoMaximizeBrowserWindow").trim());
         HEADLESS_EXECUTION = Boolean.valueOf(System.getProperty("headlessExecution").trim());
         EXECUTION_ADDRESS = System.getProperty("executionAddress").trim();
-        TARGET_HUB_URL = "http://" + EXECUTION_ADDRESS + "/";
+        TARGET_HUB_URL = (EXECUTION_ADDRESS.trim().toLowerCase().startsWith("http")) ? EXECUTION_ADDRESS : "http://" + EXECUTION_ADDRESS + "/";
         PAGE_LOAD_TIMEOUT = Integer.parseInt(System.getProperty("pageLoadTimeout"));
         SCRIPT_TIMEOUT = Integer.parseInt(System.getProperty("scriptExecutionTimeout"));
         targetOperatingSystem = System.getProperty("targetOperatingSystem");

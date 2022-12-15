@@ -8,7 +8,7 @@ import org.testng.annotations.Test;
 
 public class Test_ElementMatches_SafariCompatible {
     SHAFT.GUI.WebDriver driver;
-    String url = "https://duckduckgo.com/";
+    String url = "https://duckduckgo.com/?";
     By searchbar = By.xpath("//*[@id='search_form_input_homepage'] | //input[@name='q']");
 
     @Test

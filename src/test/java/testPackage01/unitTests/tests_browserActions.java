@@ -13,7 +13,7 @@ public class tests_browserActions {
 
     @Test
     public void navigateToURL() {
-        BrowserActions.navigateToURL(driver.get(), "https://duckduckgo.com");
+        BrowserActions.navigateToURL(driver.get(), "https://duckduckgo.com/?");
     }
 
     @Test
@@ -88,12 +88,12 @@ public class tests_browserActions {
     @BeforeMethod
     public void beforeMethod() {
         driver.set(DriverFactory.getDriver());
-        BrowserActions.navigateToURL(driver.get(), "https://duckduckgo.com");
+        BrowserActions.navigateToURL(driver.get(), "https://duckduckgo.com/?");
     }
 
     @AfterMethod
     public void afterMethod() {
-        BrowserActions.navigateToURL(driver.get(), "https://duckduckgo.com");
+        BrowserActions.navigateToURL(driver.get(), "https://duckduckgo.com/?");
         BrowserActions.closeCurrentWindow(driver.get());
     }
 }

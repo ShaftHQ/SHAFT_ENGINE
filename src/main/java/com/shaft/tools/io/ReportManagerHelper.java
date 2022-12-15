@@ -756,8 +756,10 @@ public class ReportManagerHelper {
         if (SystemUtils.IS_OS_WINDOWS) {
             // create windows batch file
             commandsToServeAllureReport = Arrays.asList("@echo off",
+                    ":: If you already have a valid JAVA_HOME environment variable set, feel free to comment the below two lines",
                     "set JAVA_HOME=" + System.getProperty("java.home"),
-                    "set path=" + allureExtractionLocation + "allure-" + allureVersion + "\\bin;%JAVA_HOME%\\bin;%path%",
+                    "set path=%JAVA_HOME%\\bin;%path%",
+                    "set path=" + allureExtractionLocation + "allure-" + allureVersion + "\\bin;%path%",
                     "allure serve " + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1),
                     "pause", "exit");
             FileActions.getInstance().writeToFile("", "generate_allure_report.bat", commandsToServeAllureReport);
@@ -806,8 +808,10 @@ public class ReportManagerHelper {
 
         // create windows batch file
         commandsToOpenAllureReport = Arrays.asList("@echo off",
-                "set JAVA_HOME=" + System.getProperty("java.home"),
-                "set path=allure\\allure-" + System.getProperty(ALLURE_VERSION_PROPERTY_NAME) + "\\bin;%JAVA_HOME%\\bin;%path%",
+                ":: If you're using a portable Java version, uncomment the below two lines and update them to use the correct path",
+                ":: set JAVA_HOME=" + System.getProperty("java.home"),
+                ":: set path=%JAVA_HOME%\\bin;%path%",
+                "set path=allure\\allure-" + System.getProperty(ALLURE_VERSION_PROPERTY_NAME) + "\\bin;%path%",
                 "allure open allure-report", "pause", "exit");
         FileActions.getInstance().writeToFile("generatedReport/", "open_allure_report.bat", commandsToOpenAllureReport);
     }
