@@ -138,7 +138,7 @@ public class RestValidationsBuilder {
     public NativeValidationsBuilder body() {
         this.validationMethod = "responseBody";
         reportMessageBuilder.append("Body ");
-        return new NativeValidationsBuilder(this);
+        return new JSONValidationsBuilder(this);
     }
 
     public NumberValidationsBuilder time() {

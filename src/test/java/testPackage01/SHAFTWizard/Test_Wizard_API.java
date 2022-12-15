@@ -81,5 +81,4 @@ public class Test_Wizard_API {
         driver.get("us/90210").perform();
         driver.assertThatResponse().doesNotEqualFileContent("test_assertResponseEqualsIgnoringOrder.json").perform();
     }
-
 }

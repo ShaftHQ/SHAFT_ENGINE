@@ -5,6 +5,7 @@ import com.shaft.driver.DriverFactory;
 import lombok.Getter;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
+import org.openqa.selenium.MutableCapabilities;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -100,6 +101,17 @@ public class PropertyFileManager {
             appiumDesiredCapabilities.put("mobile_app", FileActions.getInstance().getAbsolutePath(app));
         }
         return appiumDesiredCapabilities;
+    }
+
+    public static MutableCapabilities getCustomWebdriverDesiredCapabilities() {
+        MutableCapabilities customDriverOptions = new MutableCapabilities();
+        Properties props = System.getProperties();
+        props.forEach((key, value) -> {
+            if (String.valueOf(key).toLowerCase().startsWith("capabilities.") && !String.valueOf(value).isBlank()) {
+                customDriverOptions.setCapability(String.valueOf(key).split("capabilities.")[1], String.valueOf(value));
+            }
+        });
+        return customDriverOptions;
     }
 
     private static void readPropertyFiles(String propertiesFolderPath) {
