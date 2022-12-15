@@ -265,7 +265,7 @@ public class WebDriverBrowserActions {
             String initialURL = driver.getCurrentUrl();
             // remove trailing slash which may cause comparing the current and target urls
             // to fail
-            if (initialURL.startsWith("/", initialURL.length() - 1)) {
+            if (initialURL.endsWith("/")) {
                 initialURL = initialURL.substring(0, initialURL.length() - 1);
             }
             ReportManager.logDiscrete("Initial URL: \"" + initialURL + "\"");
@@ -603,9 +603,9 @@ public class WebDriverBrowserActions {
             try {
                 (new WebDriverWait(driver, Duration.ofSeconds(NAVIGATION_TIMEOUT_INTEGER)))
                         .until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
+                var modifiedTargetUrlAfterRedirection = (targetUrlAfterRedirection.startsWith("./")) ? targetUrl : targetUrlAfterRedirection;
                 (new WebDriverWait(driver, Duration.ofSeconds(NAVIGATION_TIMEOUT_INTEGER)))
-                        .until(ExpectedConditions.urlContains(targetUrlAfterRedirection));
-
+                        .until(ExpectedConditions.urlContains(modifiedTargetUrlAfterRedirection));
             } catch (TimeoutException rootCauseException) {
                 failAction(driver, "Waited for " + NAVIGATION_TIMEOUT_INTEGER + " seconds to navigate to \"" + targetUrlAfterRedirection + "\" but ended up with \"" + driver.getCurrentUrl() + "\".", rootCauseException);
             }

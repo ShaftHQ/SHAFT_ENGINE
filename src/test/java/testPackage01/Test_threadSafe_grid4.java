@@ -7,8 +7,6 @@ import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
 
 public class Test_threadSafe_grid4 {
     private final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
@@ -42,7 +40,7 @@ public class Test_threadSafe_grid4 {
     }
 
     private void runTestSteps(){
-        BrowserActions.navigateToURL(driver.get(), "https://duckduckgo.com/");
+        BrowserActions.navigateToURL(driver.get(), "https://duckduckgo.com/?");
         new ElementActions(driver.get()).type(searchBar, "SHAFT_Engine")
                 .keyPress(searchBar, Keys.ENTER);
         Validations.assertThat()
