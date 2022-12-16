@@ -10,7 +10,6 @@ import io.appium.java_client.AppiumDriver;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Actions;
-import org.openqa.selenium.interactions.Locatable;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.FluentWait;
 import org.openqa.selenium.support.ui.WebDriverWait;
@@ -108,7 +107,8 @@ class ElementActionsHelper {
                         WebElement targetElement = nestedDriver.findElement(elementLocator);
                         if (validToCheckForVisibility) {
                             if (!(driver instanceof AppiumDriver)) {
-                                ((Locatable) targetElement).getCoordinates().inViewPort();
+//                                ((Locatable) targetElement).getCoordinates().inViewPort();
+                                new Actions(driver).scrollToElement(targetElement).perform();
                             } else {
                                 targetElement.isDisplayed();
                             }
