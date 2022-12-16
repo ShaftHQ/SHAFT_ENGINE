@@ -1,8 +1,6 @@
 package testPackage01;
 
 import com.shaft.driver.DriverFactory;
-import com.shaft.driver.SHAFT;
-import com.shaft.gui.browser.BrowserActions;
 import com.shaft.tools.io.ExcelFileManager;
 import org.openqa.selenium.WebDriver;
 import org.testng.annotations.AfterClass;
@@ -40,11 +38,13 @@ public class Test_google {
 
      @Test(dependsOnMethods = {"searchForQueryandAssertResultsNumDisplayed"}, description = "TC003 - Clicks the next button to make sure that the framework can scroll element into view before clicking it")
     public void clickNextThrice() {
-        resultsObject = new GoogleSearchResults(driver); // initialize a new instance of the page
-        resultsObject.clickNext(); // Clicks the next button to make sure that the framework can scroll element
-        // into
-        // view before clicking it
-    }
+         resultsObject = new GoogleSearchResults(driver); // initialize a new instance of the page
+         resultsObject.clickNext(); // Clicks the next button to make sure that the framework can scroll element
+         resultsObject.clickNext(); // Clicks the next button to make sure that the framework can scroll element
+         resultsObject.clickNext(); // Clicks the next button to make sure that the framework can scroll element
+         // into
+         // view before clicking it
+     }
 
     @BeforeClass // Set-up method, to be run once before the first test
     public void beforeClass() {

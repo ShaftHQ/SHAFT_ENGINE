@@ -6,7 +6,6 @@ import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.tools.support.JavaScriptHelper;
-import io.appium.java_client.AppiumDriver;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Actions;
@@ -98,6 +97,9 @@ class ElementActionsHelper {
         // the generic exception is added to handle a case with WebKit whereby the browser doesn't state the cause of the issue
         expectedExceptions.add(org.openqa.selenium.WebDriverException.class);
 
+        var isMobileExecution = DriverFactoryHelper.isMobileNativeExecution() || DriverFactoryHelper.isMobileWebExecution();
+        var isSafariBowser = DriverFactoryHelper.getTargetBrowserName().toLowerCase().contains("safari");
+
         try {
             return new FluentWait<>(driver)
                     .withTimeout(Duration.ofMillis(
@@ -107,8 +109,12 @@ class ElementActionsHelper {
                     .until(nestedDriver -> {
                         WebElement targetElement = nestedDriver.findElement(elementLocator);
                         if (validToCheckForVisibility) {
-                            if (!(driver instanceof AppiumDriver)) {
-                                ((Locatable) targetElement).getCoordinates().inViewPort();
+                            if (!isMobileExecution) {
+                                if (isSafariBowser) {
+                                    ((Locatable) targetElement).getCoordinates().inViewPort();
+                                } else {
+                                    new Actions(driver).scrollToElement(targetElement).perform();
+                                }
                             } else {
                                 targetElement.isDisplayed();
                             }
