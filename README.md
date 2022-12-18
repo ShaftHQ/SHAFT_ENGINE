@@ -15,7 +15,7 @@
 ## Quick Start Guide 🏃
 ### Step 1: Initial Setup
 - Create a new Java/Maven project using Eclipse, IntelliJ or your favourite IDE.
-- Copy the highlighted contents of this [pom.xml](https://github.com/MohabMohie/using_SHAFT_ENGINE/blob/master/pom.xml#L12-L79) file into yours inside the ```<project>``` tag.
+- Copy the highlighted contents of this [pom.xml](https://github.com/MohabMohie/using_SHAFT_Engine/blob/main/GUI_Web/pom.xml#L11-L80) file into yours inside the ```<project>``` tag.
 - Follow the steps in this footnote in case you are using IntelliJ[^1].
 ### Step 2: Creating Tests
 - Create a new Package ```TestPackage``` under ```src/test/java``` and create a new Java Class ```TestClass``` under that package.
