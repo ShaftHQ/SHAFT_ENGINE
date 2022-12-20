@@ -85,12 +85,14 @@ jobs:
           script: mvn test -DexecutionAddress="localhost:4723" -DtargetOperatingSystem="Android" -Dmobile_automationName="UIAutomator2" -Dmobile_app="src/test/resources/TestDataFiles/apps/ApiDemos-debug.apk" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Android.*]"
 
       - name: Upload Allure Report as Pipeline Artifact
+        if: always()
         uses: actions/upload-artifact@v3
         with:
           name: Mobile Native Tests Allure Report
           path: "generatedReport_*.zip"
 
       - name: Upload Extent Report as Pipeline Artifact
+        if: always()
         uses: actions/upload-artifact@v3
         with:
           name: Mobile Native Tests Extent Report
