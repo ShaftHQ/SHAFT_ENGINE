@@ -68,7 +68,7 @@ jobs:
         
       - name: Poll for Appium Server to Start
         run: |
-          until $(curl --output /dev/null --silent --head --fail http://localhost:4723/wd/hub/sessions); do
+          until $(curl --output /dev/null --silent --head --fail http://localhost:4723/sessions); do
             sleep 5
           done
           
