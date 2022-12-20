@@ -122,4 +122,7 @@ import org.testng.annotations.Test;
 <br/><a href="https://join.slack.com/t/automatest-workspace/shared_invite/zt-oii5i2gg-0ZGnih_Y34NjK7QqDn01Dw" target="_blank"><img src="https://a.slack-edge.com/80588/marketing/img/icons/icon_slack_hash_colored.png" alt="automatest-workspace" width="50" height="50"/></a>  <a href="https://www.facebook.com/groups/Automatest" target="_blank"><img src="https://facebookbrand.com/wp-content/uploads/2019/04/f_logo_RGB-Hex-Blue_512.png" alt="Automatest" width="50" height="50"/></a>
 - And feel free to create PRs directly. [This lovely tutorial](https://dev.to/genicsblog/how-to-create-a-pull-request-in-github-correctly-20np) will help.
 
+## Big thanks to the following organizations for their support to the project with their open source licenses:
+<a href="https://www.browserstack.com" rel="nofollow"><img src="https://camo.githubusercontent.com/881484a291da777d1e832c6534b7ff8a0c0f79832d558e083f41b79067f0c7cf/68747470733a2f2f6d616464796e6573732d756b2e747769632e706963732f323032312f30362f53637265656e73686f742d323032312d30362d32312d61742d32302e31342e34362e706e673f747769633d76312f726573697a653d363330" alt="ATD" width="45%" align="top" data-canonical-src="https://maddyness-uk.twic.pics/2021/06/Screenshot-2021-06-21-at-20.14.46.png?twic=v1/resize=630" style="max-width: 100%;"></a>
+
 #### Stop Reinventing the wheel! Start using SHAFT!
