@@ -74,6 +74,7 @@ jobs:
           
       - name: run tests
         uses: reactivecircus/android-emulator-runner@v2
+        continue-on-error: true
         with:
           api-level: 31
           target: default
