@@ -43,8 +43,7 @@ jobs:
           disable-animations: false
           force-avd-creation: false
           ram-size: 4096M
-          #          emulator-options: -no-window -gpu swiftshader_indirect -no-audio -no-boot-anim -camera-back none -camera-front none -accel auto -engine auto -screen touch
-          emulator-options: -gpu swiftshader_indirect -no-audio -no-boot-anim -camera-back none -camera-front none -accel auto -engine auto -screen touch
+          emulator-options: -no-window -gpu swiftshader_indirect -no-audio -no-boot-anim -camera-back none -camera-front none -accel auto -engine auto -screen touch
           script: echo "Generated AVD snapshot for caching."
         
       - name: Set up JDK 17
@@ -83,8 +82,7 @@ jobs:
           disable-animations: false
           force-avd-creation: false
           ram-size: 4096M
-          #          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -no-audio -no-boot-anim -camera-back none -camera-front none -accel auto -engine auto -screen touch
-          emulator-options: -no-snapshot-save -gpu swiftshader_indirect -no-audio -no-boot-anim -camera-back none -camera-front none -accel auto -engine auto -screen touch
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -no-audio -no-boot-anim -camera-back none -camera-front none -accel auto -engine auto -screen touch
           script: mvn test -DexecutionAddress="localhost:4723" -DtargetOperatingSystem="Android" -Dmobile_automationName="UIAutomator2" -Dmobile_app="src/test/resources/TestDataFiles/apps/ApiDemos-debug.apk" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Android.*]"
 
       - name: Upload Allure Report as Pipeline Artifact
