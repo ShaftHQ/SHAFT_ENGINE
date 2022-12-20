@@ -34,9 +34,9 @@ jobs:
         if: steps.avd-cache.outputs.cache-hit != 'true'
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 29
+          api-level: 31
           target: default
-          arch: x86
+          arch: x86_64
           force-avd-creation: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: false
@@ -54,7 +54,10 @@ jobs:
           node-version: '18'
           
       - name: Set up Appium
-        run: npm install --global appium@next --drivers=xcuitest,uiautomator2
+        run: |
+          npm install --global appium@next
+          appium driver install uiautomator2
+          appium driver install xcuitest
 
       - name: Run Appium Server
         run: ./node_modules/.bin/appium --log-timestamp &
@@ -68,9 +71,9 @@ jobs:
       - name: run tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 29
+          api-level: 31
           target: default
-          arch: x86
+          arch: x86_64
           force-avd-creation: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
