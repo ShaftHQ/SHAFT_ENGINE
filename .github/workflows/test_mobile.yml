@@ -33,18 +33,17 @@ jobs:
             emulator
             patcher;v4
             platform-tools
-            build-tools;30.0.0
-            platforms;android-30
+            build-tools;31.0.0
+            platforms;android-31
             skiaparser;3
-            sources;android-30
-            add-ons;addon-google_apis-google-24
-            system-images;android-30;google_apis;arm64-v8a
+            sources;android-31
+            system-images;android-31;default;arm64-v8a
           cache: true
 
       - name: Create Android emulator
         run: |
-               echo "$ANDROID_HOME/tools/bin/avdmanager create avd -n Pixel_API_30_GAPPS -d pixel --package 'system-images;android-30;google_apis;arm64-v8a'"
-               $ANDROID_HOME/tools/bin/avdmanager create avd -n Pixel_API_30_GAPPS -d pixel --package 'system-images;android-30;google_apis;arm64-v8a'
+               echo "$ANDROID_HOME/tools/bin/avdmanager create avd -n Pixel_API_31_AOSP -d pixel --package 'system-images;android-31;default;arm64-v8a'"
+               $ANDROID_HOME/tools/bin/avdmanager create avd -n Pixel_API_31_AOSP -d pixel --package 'system-images;android-31;default;arm64-v8a'
                
                echo "$ANDROID_HOME/emulator/emulator -list-avds"
                $ANDROID_HOME/emulator/emulator -list-avds
@@ -52,8 +51,8 @@ jobs:
                echo "$ANDROID_HOME/emulator/emulator -accel-check"
                $ANDROID_HOME/emulator/emulator -accel-check
                
-               echo "emulator_config=~/.android/avd/Pixel_API_30_GAPPS.avd/config.ini"
-               emulator_config=~/.android/avd/Pixel_API_30_GAPPS.avd/config.ini
+               echo "emulator_config=~/.android/avd/Pixel_API_31_AOSP.avd/config.ini"
+               emulator_config=~/.android/avd/Pixel_API_31_AOSP.avd/config.ini
                
                echo "Emulator settings ($emulator_config)"
                cat "$emulator_config"
@@ -115,7 +114,7 @@ jobs:
         run: |
           echo "Starting emulator and waiting for boot to complete...."
           ls -la $ANDROID_HOME/emulator
-          $ANDROID_HOME/tools/emulator -avd Pixel_API_30_GAPPS -engine auto -memory 4096 -gpu auto -no-audio -no-boot-anim -camera-back none -camera-front none -no-snapshot -qemu -m 2048 2>&1 &
+          $ANDROID_HOME/tools/emulator -avd Pixel_API_31_AOSP -engine auto -memory 4096 -gpu auto -no-boot-anim -camera-back none -camera-front none -no-cache -no-snapshot -qemu -m 2048 2>&1 &
           $ANDROID_HOME/platform-tools/adb wait-for-device
           echo "Emulator has finished booting"
           $ANDROID_HOME/platform-tools/adb devices
@@ -127,7 +126,7 @@ jobs:
       #- name: Install recorder and record session
         #run: |
           #brew install ffmpeg
-          #$ANDROID_HOME/tools/emulator -port 18725 -verbose -no-window -no-audio -gpu swiftshader_indirect @Pixel_API_30_GAPPS &
+          #$ANDROID_HOME/tools/emulator -port 18725 -verbose -no-window -no-audio -gpu swiftshader_indirect @Pixel_API_31_AOSP &
           #ffmpeg -f avfoundation -i 0 -t 120 out.mov
         #env:
           #HOMEBREW_NO_INSTALL_CLEANUP: 1
