@@ -21,6 +21,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
         
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+          gradle-version: 7.6
+      
       - name: Upgrade Gradle Wrapper
         run: |
           ./gradlew wrapper --gradle-version 7.6
