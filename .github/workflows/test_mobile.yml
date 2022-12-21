@@ -53,7 +53,19 @@ jobs:
           cat "$emulator_config"
           fi
 
-      - name: install recorder and record session
+      - name: Start Android emulator
+        run: |
+          echo "Starting emulator and waiting for boot to complete...."
+          ls -la $ANDROID_HOME/emulator
+          $ANDROID_HOME/tools/emulator -avd Pixel_API_29_AOSP -no-accel -engine auto -memory 768 -gpu swiftshader_indirect -no-audio -no-boot-anim -camera-back none -camera-front none -qemu -m 2048 2>&1 &
+          $ANDROID_HOME/platform-tools/adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed | tr -d '\r') ]]; do echo "wait..."; sleep 1; done; input keyevent 82'
+          echo "Emulator has finished booting"
+          $ANDROID_HOME/platform-tools/adb devices
+          sleep 30
+          screencapture screenshot.jpg
+          $ANDROID_HOME/platform-tools/adb exec-out screencap -p > emulator.png
+
+      - name: Install recorder and record session
         run: |
           brew install ffmpeg
           $ANDROID_HOME/tools/emulator -port 18725 -verbose -no-window -no-audio -gpu swiftshader_indirect @Pixel_API_29_AOSP &
@@ -65,7 +77,8 @@ jobs:
         uses: actions/setup-java@v3
         with:
           java-version: '17'
-          distribution: 'zulu'
+          cache: 'maven'
+          check-latest: true
 
       - name: Setup Node.js environment
         uses: actions/setup-node@v3
@@ -87,33 +100,26 @@ jobs:
             sleep 5
           done
 
-      - name: Start Android emulator
-        run: |
-          echo "Starting emulator and waiting for boot to complete...."
-          ls -la $ANDROID_HOME/emulator
-          $ANDROID_HOME/tools/emulator -avd Pixel_API_29_AOSP -no-accel -engine auto -memory 768 -gpu swiftshader_indirect -no-audio -no-boot-anim -camera-back none -camera-front none -qemu -m 2048 2>&1 &
-          $ANDROID_HOME/platform-tools/adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed | tr -d '\r') ]]; do echo "wait..."; sleep 1; done; input keyevent 82'
-          echo "Emulator has finished booting"
-          $ANDROID_HOME/platform-tools/adb devices
-          sleep 30
-          screencapture screenshot.jpg
-          $ANDROID_HOME/platform-tools/adb exec-out screencap -p > emulator.png
-          echo "Running Tests..."
-          mvn test -DexecutionAddress="localhost:4723" -DtargetOperatingSystem="Android" -Dmobile_automationName="UIAutomator2" -Dmobile_app="src/test/resources/TestDataFiles/apps/ApiDemos-debug.apk" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Android.*]"
+      - name: Run Android Tests
+        continue-on-error: true
+        run: mvn test -DexecutionAddress="localhost:4723" -DtargetOperatingSystem="Android" -Dmobile_automationName="UIAutomator2" -Dmobile_app="src/test/resources/TestDataFiles/apps/ApiDemos-debug.apk" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Android.*]"
 
       - name: Upload Video
+        if: always()
         uses: actions/upload-artifact@master
         with:
           name: out
           path: out.mov
 
       - name: Upload Initial Device screenshot
+        if: always()
         uses: actions/upload-artifact@v3
         with:
           name: screenshot.jpg
           path: screenshot.jpg
 
       - name: Upload Initial Emulator screenshot
+        if: always()
         uses: actions/upload-artifact@v3
         with:
           name: emulator.png

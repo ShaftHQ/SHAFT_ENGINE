@@ -30,7 +30,8 @@ jobs:
       uses: actions/setup-java@v3
       with:
         java-version: '17'
-        distribution: 'zulu'
+        cache: 'maven'
+        check-latest: true
       
     - name: Build SHAFT_Engine
       run: mvn clean install -DskipTests

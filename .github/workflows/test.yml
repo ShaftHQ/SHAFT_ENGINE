@@ -29,7 +29,8 @@ jobs:
         uses: actions/setup-java@v3
         with:
           java-version: '17'
-          distribution: 'zulu'
+          cache: 'maven'
+          check-latest: true
       - name: Check running containers
         if: runner.os == 'Linux'
         run: docker ps
