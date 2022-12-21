@@ -52,18 +52,16 @@ jobs:
                sed -i .bak 's/hw.lcd.density=.*/hw.lcd.density=420/' "$emulator_config"
                sed -i .bak 's/hw.lcd.height=.*/hw.lcd.height=1920/' "$emulator_config"
                sed -i .bak 's/hw.lcd.width=.*/hw.lcd.width=1080/' "$emulator_config"
-          #          echo "Or, add new config"
-          #
-          #          if ! grep -q "hw.lcd.density" "$emulator_config"; then
-          #            echo "hw.lcd.density=420" >> "$emulator_config"
-          #          fi
-          #          if ! grep -q "hw.lcd.height" "$emulator_config"; then
-          #            echo "hw.lcd.height=1920" >> "$emulator_config"
-          #          fi
-          #          if ! grep -q "hw.lcd.width" "$emulator_config"; then
-          #            echo "hw.lcd.width=1080" >> "$emulator_config"
-          #          fi
-               
+                #echo "Or, add new config"
+                #if ! grep -q "hw.lcd.density" "$emulator_config"; then
+                #echo "hw.lcd.density=420" >> "$emulator_config"
+                #fi
+                #if ! grep -q "hw.lcd.height" "$emulator_config"; then
+                #echo "hw.lcd.height=1920" >> "$emulator_config"
+                #fi
+                #if ! grep -q "hw.lcd.width" "$emulator_config"; then
+                #echo "hw.lcd.width=1080" >> "$emulator_config"
+                #fi
                echo "Emulator settings ($emulator_config)"
                cat "$emulator_config"
           #$ANDROID_HOME/platform-tools/adb shell 'su;setprop debug.hwui.renderer skiagl;stop;start'
