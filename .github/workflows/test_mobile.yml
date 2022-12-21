@@ -116,8 +116,8 @@ jobs:
       - name: Start Android emulator
         run: |
           echo "Starting emulator and waiting for boot to complete...."
-          ls -la $ANDROID_HOME/emulator
-          $ANDROID_HOME/tools/emulator -avd Pixel_API_30_AOSP -accel auto -engine auto -memory 768 -gpu swiftshader_indirect -no-audio -no-snapshot -no-boot-anim -camera-back none -camera-front none -wipe-data -qemu -m 2048 2>&1 &
+          ls -la $ANDROID_HOME/emulator/emulator
+          $ANDROID_HOME/emulator/emulator -avd Pixel_API_30_AOSP -accel auto -engine auto -memory 768 -gpu swiftshader_indirect -no-audio -no-snapshot -no-boot-anim -camera-back none -camera-front none -wipe-data -qemu -m 2048 2>&1 &
           $ANDROID_HOME/platform-tools/adb wait-for-device
           echo "Emulator has finished booting"
           $ANDROID_HOME/platform-tools/adb devices
@@ -129,7 +129,7 @@ jobs:
       #- name: Install recorder and record session
         #run: |
           #brew install ffmpeg
-          #$ANDROID_HOME/tools/emulator -port 18725 -verbose -no-window -no-audio -gpu swiftshader_indirect @Pixel_API_29_AOSP &
+          #$ANDROID_HOME/emulator/emulator -port 18725 -verbose -no-window -no-audio -gpu swiftshader_indirect @Pixel_API_30_AOSP &
           #ffmpeg -f avfoundation -i 0 -t 120 out.mov
         #env:
           #HOMEBREW_NO_INSTALL_CLEANUP: 1
