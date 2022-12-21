@@ -114,7 +114,7 @@ jobs:
         run: |
           echo "Starting emulator and waiting for boot to complete...."
           ls -la $ANDROID_HOME/emulator
-          $ANDROID_HOME/tools/emulator -avd Pixel_API_31_AOSP -engine auto -memory 4096 -gpu auto -no-boot-anim -camera-back none -camera-front none -no-cache -no-snapshot -qemu -m 2048 2>&1 &
+          $ANDROID_HOME/tools/emulator -avd Pixel_API_31_AOSP -engine auto -memory 4096 -gpu auto -accel auto -no-audio -no-snapshot -no-boot-anim -camera-back none -camera-front none -wipe-data -qemu -m 2048 2>&1 &
           $ANDROID_HOME/platform-tools/adb wait-for-device
           echo "Emulator has finished booting"
           $ANDROID_HOME/platform-tools/adb devices
