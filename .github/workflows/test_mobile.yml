@@ -69,28 +69,8 @@ jobs:
       - name: Update Android emulator
         run: |
           $ANDROID_HOME/tools/bin/sdkmanager --update
-          $ANDROID_HOME/tools/bin/sdkmanager --list
-
-      - name: Start Android emulator
-        run: |
-          echo "Starting emulator and waiting for boot to complete...."
-          ls -la $ANDROID_HOME/emulator
-          $ANDROID_HOME/tools/emulator -avd Pixel_API_31_AOSP -no-accel -engine auto -memory 768 -gpu swiftshader_indirect -no-audio -no-boot-anim -camera-back none -camera-front none -no-snapshot -qemu -m 2048 2>&1 &
-          $ANDROID_HOME/platform-tools/adb wait-for-device
-          echo "Emulator has finished booting"
-          $ANDROID_HOME/platform-tools/adb devices
-          sleep 30
-          screencapture screenshot.jpg
-          $ANDROID_HOME/platform-tools/adb exec-out screencap -p > emulator.png
-
-      - name: Install recorder and record session
-        run: |
-          brew install ffmpeg
-          $ANDROID_HOME/tools/emulator -port 18725 -verbose -no-window -no-audio -gpu swiftshader_indirect @Pixel_API_31_AOSP &
-          ffmpeg -f avfoundation -i 0 -t 120 out.mov
-        env:
-          HOMEBREW_NO_INSTALL_CLEANUP: 1
-
+          #$ANDROID_HOME/tools/bin/sdkmanager --list
+          
       - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
@@ -111,13 +91,33 @@ jobs:
           appium driver install xcuitest
 
       - name: Run Appium Server
-        run: appium --log-timestamp &
+        run: appium --log-timestamp --log appiumServer.log &
 
       - name: Poll for Appium Server to Start
         run: |
           until $(curl --output /dev/null --silent --head --fail http://localhost:4723/sessions); do
             sleep 5
           done
+
+      - name: Start Android emulator
+        run: |
+          echo "Starting emulator and waiting for boot to complete...."
+          ls -la $ANDROID_HOME/emulator
+          $ANDROID_HOME/tools/emulator -avd Pixel_API_31_AOSP -engine auto -memory 4096 -gpu auto -no-audio -no-boot-anim -camera-back none -camera-front none -no-snapshot -qemu -m 2048 2>&1 &
+          $ANDROID_HOME/platform-tools/adb wait-for-device
+          echo "Emulator has finished booting"
+          $ANDROID_HOME/platform-tools/adb devices
+          sleep 30
+          screencapture screenshot.jpg
+          $ANDROID_HOME/platform-tools/adb exec-out screencap -p > emulator.png
+
+      - name: Install recorder and record session
+        run: |
+          brew install ffmpeg
+          #$ANDROID_HOME/tools/emulator -port 18725 -verbose -no-window -no-audio -gpu swiftshader_indirect @Pixel_API_31_AOSP &
+          ffmpeg -f avfoundation -i 0 -t 120 out.mov
+        env:
+          HOMEBREW_NO_INSTALL_CLEANUP: 1
 
       - name: Run Android Tests
         continue-on-error: true
@@ -143,6 +143,13 @@ jobs:
         with:
           name: emulator.png
           path: emulator.png
+          
+      - name: Upload Appium Server Logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: appiumServer.log
+          path: appiumServer.log
 
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
