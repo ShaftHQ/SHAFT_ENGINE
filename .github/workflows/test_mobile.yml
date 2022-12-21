@@ -47,8 +47,8 @@ jobs:
                echo "$ANDROID_HOME/emulator/emulator -accel-check"
                $ANDROID_HOME/emulator/emulator -accel-check
                
-               echo "emulator_config=~/.android/avd/Pixel_API_31_AOSP.avd/config.ini"
-               emulator_config=~/.android/avd/Pixel_API_31_AOSP.avd/config.ini
+               echo "emulator_config=~/.android/avd/Pixel_API_33_GAPPS.avd/config.ini"
+               emulator_config=~/.android/avd/Pixel_API_33_GAPPS.avd/config.ini
                
                echo "Emulator settings ($emulator_config)"
                cat "$emulator_config"
