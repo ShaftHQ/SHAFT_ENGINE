@@ -48,10 +48,10 @@ jobs:
                echo "Emulator settings ($emulator_config)"
                cat "$emulator_config"
                
-               echo "Replace existing config (NOTE we're on MacOS so sed works differently!)"
-               sed -i .bak 's/hw.lcd.density=.*/hw.lcd.density=420/' "$emulator_config"
-               sed -i .bak 's/hw.lcd.height=.*/hw.lcd.height=1920/' "$emulator_config"
-               sed -i .bak 's/hw.lcd.width=.*/hw.lcd.width=1080/' "$emulator_config"
+                #echo "Replace existing config (NOTE we're on MacOS so sed works differently!)"
+                #sed -i .bak 's/hw.lcd.density=.*/hw.lcd.density=420/' "$emulator_config"
+                #sed -i .bak 's/hw.lcd.height=.*/hw.lcd.height=1920/' "$emulator_config"
+                #sed -i .bak 's/hw.lcd.width=.*/hw.lcd.width=1080/' "$emulator_config"
                 #echo "Or, add new config"
                 #if ! grep -q "hw.lcd.density" "$emulator_config"; then
                 #echo "hw.lcd.density=420" >> "$emulator_config"
@@ -69,7 +69,7 @@ jobs:
       - name: Update Android emulator
         run: |
           $ANDROID_HOME/tools/bin/sdkmanager --update
-          $ANDROID_HOME/tools/bin/sdkmanager --list --all
+          $ANDROID_HOME/tools/bin/sdkmanager --list
 
       - name: Start Android emulator
         run: |
