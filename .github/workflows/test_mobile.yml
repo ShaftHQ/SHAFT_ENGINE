@@ -21,6 +21,70 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
+      - name: Gradle cache
+        uses: gradle/gradle-build-action@v2
+
+      - name: AVD cache
+        uses: actions/cache@v3
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-31
+
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v3
+        with:
+          java-version: 1.8
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v2
+
+      - name: Create Android emulator
+        run: |
+        #brew install intel-haxm -m 2048
+        # Install AVD files
+               echo "y" | $ANDROID_HOME/tools/bin/sdkmanager --install 'system-images;android-31;default;x86_64'
+               echo "y" | $ANDROID_HOME/tools/bin/sdkmanager --licenses
+          
+        # Create emulator
+               $ANDROID_HOME/tools/bin/avdmanager create avd -n Pixel_API_29_AOSP -d pixel --package 'system-images;android-31;default;x86_64'
+               $ANDROID_HOME/emulator/emulator -list-avds
+               $ANDROID_HOME/emulator/emulator -accel-check
+               if false; then
+               emulator_config=~/.android/avd/Pixel_API_29_AOSP.avd/config.ini
+        # The following madness is to support empty OR populated config.ini files,
+        # the state of which is dependant on the version of the emulator used (which we don't control),
+        # so let's be defensive to be safe.
+        # Replace existing config (NOTE we're on MacOS so sed works differently!)
+               sed -i .bak 's/hw.lcd.density=.*/hw.lcd.density=420/' "$emulator_config"
+               sed -i .bak 's/hw.lcd.height=.*/hw.lcd.height=1920/' "$emulator_config"
+               sed -i .bak 's/hw.lcd.width=.*/hw.lcd.width=1080/' "$emulator_config"
+        # Or, add new config
+               if ! grep -q "hw.lcd.density" "$emulator_config"; then
+               echo "hw.lcd.density=420" >> "$emulator_config"
+               fi
+               if ! grep -q "hw.lcd.height" "$emulator_config"; then
+               echo "hw.lcd.height=1920" >> "$emulator_config"
+               fi
+          if ! grep -q "hw.lcd.width" "$emulator_config"; then
+          echo "hw.lcd.width=1080" >> "$emulator_config"
+          fi
+          echo "Emulator settings ($emulator_config)"
+          cat "$emulator_config"
+          fi
+        #$ANDROID_HOME/platform-tools/adb shell 'su;setprop debug.hwui.renderer skiagl;stop;start'
+
+      - name: install recorder and record session
+        run: |
+          brew install ffmpeg
+          $ANDROID_HOME/tools/emulator -port 18725 -verbose -no-window -no-audio -gpu swiftshader_indirect @Pixel_API_29_AOSP &
+          ffmpeg -f avfoundation -i 0 -t 120 out.mov
+        # node -e "const exec = require('child_process'); exec.exec('ffmpeg -f avfoundation -i 0 -t 120 out.mov'); exec.exec('$ANDROID_HOME/tools/emulator -port 18725 -verbose -no-window -no-audio -gpu swiftshader_indirect @Pixel_API_29_AOSP &');"
+        env:
+          HOMEBREW_NO_INSTALL_CLEANUP: 1
+
       - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
@@ -38,52 +102,14 @@ jobs:
           appium driver install uiautomator2
           appium driver install xcuitest
 
-      - name: Gradle cache
-        uses: gradle/gradle-build-action@v2
+      - name: Run Appium Server
+        run: appium --log-timestamp &
 
-      - name: AVD cache
-        uses: actions/cache@v3
-        id: avd-cache
-        with:
-          path: |
-            ~/.android/avd/*
-            ~/.android/adb*
-          key: avd-31
-
-      - name: Create Android emulator
+      - name: Poll for Appium Server to Start
         run: |
-          #brew install intel-haxm -m 2048
-          # Install AVD files
-               echo "y" | $ANDROID_HOME/tools/bin/sdkmanager --install 'system-images;android-31;default;x86_64'
-               echo "y" | $ANDROID_HOME/tools/bin/sdkmanager --licenses
-          
-          # Create emulator
-               $ANDROID_HOME/tools/bin/avdmanager create avd -n Pixel_API_29_AOSP -d pixel --package 'system-images;android-31;default;x86_64'
-               $ANDROID_HOME/emulator/emulator -list-avds
-               $ANDROID_HOME/emulator/emulator -accel-check
-               if false; then
-               emulator_config=~/.android/avd/Pixel_API_29_AOSP.avd/config.ini
-          # The following madness is to support empty OR populated config.ini files,
-          # the state of which is dependant on the version of the emulator used (which we don't control),
-          # so let's be defensive to be safe.
-          # Replace existing config (NOTE we're on MacOS so sed works differently!)
-               sed -i .bak 's/hw.lcd.density=.*/hw.lcd.density=420/' "$emulator_config"
-               sed -i .bak 's/hw.lcd.height=.*/hw.lcd.height=1920/' "$emulator_config"
-               sed -i .bak 's/hw.lcd.width=.*/hw.lcd.width=1080/' "$emulator_config"
-          # Or, add new config
-               if ! grep -q "hw.lcd.density" "$emulator_config"; then
-               echo "hw.lcd.density=420" >> "$emulator_config"
-               fi
-               if ! grep -q "hw.lcd.height" "$emulator_config"; then
-               echo "hw.lcd.height=1920" >> "$emulator_config"
-               fi
-          if ! grep -q "hw.lcd.width" "$emulator_config"; then
-          echo "hw.lcd.width=1080" >> "$emulator_config"
-          fi
-          echo "Emulator settings ($emulator_config)"
-          cat "$emulator_config"
-          fi
-        #$ANDROID_HOME/platform-tools/adb shell 'su;setprop debug.hwui.renderer skiagl;stop;start'
+          until $(curl --output /dev/null --silent --head --fail http://localhost:4723/sessions); do
+            sleep 5
+          done
 
       - name: Start Android emulator
         run: |
@@ -96,37 +122,8 @@ jobs:
           sleep 30
           screencapture screenshot.jpg
           $ANDROID_HOME/platform-tools/adb exec-out screencap -p > emulator.png
-
-      - name: install recorder and record session
-        run: |
-          brew install ffmpeg
-          $ANDROID_HOME/tools/emulator -port 18725 -verbose -no-window -no-audio -gpu swiftshader_indirect @Pixel_API_29_AOSP &
-          ffmpeg -f avfoundation -i 0 -t 120 out.mov
-        # node -e "const exec = require('child_process'); exec.exec('ffmpeg -f avfoundation -i 0 -t 120 out.mov'); exec.exec('$ANDROID_HOME/tools/emulator -port 18725 -verbose -no-window -no-audio -gpu swiftshader_indirect @Pixel_API_29_AOSP &');"
-        env:
-          HOMEBREW_NO_INSTALL_CLEANUP: 1
-
-      - name: Run Appium Server
-        run: appium --log-timestamp &
-
-      - name: Poll for Appium Server to Start
-        run: |
-          until $(curl --output /dev/null --silent --head --fail http://localhost:4723/sessions); do
-            sleep 5
-          done
-
-      - name: run tests
-        uses: reactivecircus/android-emulator-runner@v2
-        continue-on-error: true
-        with:
-          api-level: 31
-          target: default
-          arch: x86_64
-          disable-animations: false
-          force-avd-creation: false
-          ram-size: 4096M
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: mvn test -DexecutionAddress="localhost:4723" -DtargetOperatingSystem="Android" -Dmobile_automationName="UIAutomator2" -Dmobile_app="src/test/resources/TestDataFiles/apps/ApiDemos-debug.apk" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Android.*]"
+          echo "Running Tests..."
+          mvn test -DexecutionAddress="localhost:4723" -DtargetOperatingSystem="Android" -Dmobile_automationName="UIAutomator2" -Dmobile_app="src/test/resources/TestDataFiles/apps/ApiDemos-debug.apk" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Android.*]"
 
       - name: Upload Video
         uses: actions/upload-artifact@master
