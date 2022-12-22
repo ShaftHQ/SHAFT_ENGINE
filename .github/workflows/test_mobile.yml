@@ -83,6 +83,16 @@ jobs:
           
       - name: Update Android emulator
         run: |
+          echo "$PATH"
+          echo $PATH
+          nano ~/.zsh_profile
+          export PATH=$PATH:$ANDROID_HOME/platform-tools
+          export PATH=$PATH:$ANDROID_HOME/tools
+          export PATH=$PATH:$ANDROID_HOME/tools/bin
+          export PATH=$PATH:$ANDROID_HOME/emulator/emulator
+          source ~/.zsh_profile
+          echo "$PATH"
+          echo $PATH
           $ANDROID_HOME/tools/bin/sdkmanager --update
           
       - name: Set up JDK 17
@@ -117,7 +127,8 @@ jobs:
         run: |
           echo "Starting emulator and waiting for boot to complete...."
           ls -la $ANDROID_HOME/emulator/emulator
-          $ANDROID_HOME/emulator/emulator -avd Pixel_API_30_AOSP -accel auto -engine auto -memory 768 -gpu swiftshader_indirect -no-audio -no-snapshot -no-boot-anim -camera-back none -camera-front none -wipe-data -qemu -m 2048 2>&1 &
+          #$ANDROID_HOME/emulator/emulator -avd Pixel_API_30_AOSP -accel auto -engine qemu2 -memory 768 -gpu swiftshader_indirect -no-audio -no-snapshot -no-boot-anim -camera-back none -camera-front none -wipe-data -qemu -m 2048 2>&1 &
+          $ANDROID_HOME/emulator/emulator -avd Pixel_API_30_AOSP
           $ANDROID_HOME/platform-tools/adb wait-for-device
           echo "Emulator has finished booting"
           $ANDROID_HOME/platform-tools/adb devices
