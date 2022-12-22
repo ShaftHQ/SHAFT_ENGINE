@@ -50,7 +50,7 @@ jobs:
 
               # Create emulator
               $ANDROID_HOME/tools/bin/avdmanager create avd -n Pixel_API_27_DEFAULT_x86_64 -d pixel --package 'system-images;android-27;default;x86_64'
-              $ANDROID_HOME/emulator/emulator -list-avds
+              $ANDROID_HOME/emulator -list-avds
               if false; then
               emulator_config=~/.android/avd/Pixel_API_27_DEFAULT_x86_64.avd/config.ini
               # The following madness is to support empty OR populated config.ini files,
@@ -83,7 +83,7 @@ jobs:
           echo "$PATH"
           echo $PATH
           export PATH=$PATH:$ANDROID_HOME/tools/bin
-          export PATH=$PATH:$ANDROID_HOME/emulator/emulator
+          export PATH=$PATH:$ANDROID_HOME/emulator
           echo "$PATH"
           echo $PATH
           $ANDROID_HOME/tools/bin/sdkmanager --update
@@ -119,8 +119,8 @@ jobs:
       - name: Start Android emulator
         run: |
           echo "Starting emulator and waiting for boot to complete...."
-          ls -la $ANDROID_HOME/emulator/emulator
-          nohup $ANDROID_HOME/tools/emulator/emulator -avd Pixel_API_27_DEFAULT_x86_64 -gpu host -no-audio -no-boot-anim -camera-back none -camera-front none -qemu -m 2048 2>&1 &
+          ls -la $ANDROID_HOME/emulator
+          nohup $ANDROID_HOME/tools/emulator -avd Pixel_API_27_DEFAULT_x86_64 -gpu host -no-audio -no-boot-anim -camera-back none -camera-front none -qemu -m 2048 2>&1 &
           #$ANDROID_HOME/platform-tools/adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed | tr -d '\r') ]]; do echo "wait..."; sleep 1; done; input keyevent 82'
           $ANDROID_HOME/platform-tools/adb wait-for-device
           echo "Emulator has finished booting"
@@ -133,7 +133,7 @@ jobs:
       - name: install recorder and record session
         run: |
           brew install ffmpeg
-          $ANDROID_HOME/tools/emulator/emulator -port 18725 -verbose -no-window -no-audio -gpu swiftshader_indirect @Pixel_API_27_DEFAULT_x86_64 &
+          $ANDROID_HOME/tools/emulator -port 18725 -verbose -no-window -no-audio -gpu swiftshader_indirect @Pixel_API_27_DEFAULT_x86_64 &
           ffmpeg -f avfoundation -i 0 -t 120 out.mov
       # node -e "const exec = require('child_process'); exec.exec('ffmpeg -f avfoundation -i 0 -t 120 out.mov'); exec.exec('$ANDROID_HOME/tools/emulator -port 18725 -verbose -no-window -no-audio -gpu swiftshader_indirect @Pixel_5_API_31 &');"
         env:
