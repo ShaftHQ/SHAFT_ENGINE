@@ -20,8 +20,11 @@ public class AndroidBasicInteractionsTest {
     @Test
     public void scrollInExpandableLists_verticalScrolling_insideScreen(){
         ElementActions.performTouchAction(driver)
+                .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
                 .tap(AppiumBy.accessibilityId("Views"))
+                .swipeElementIntoView(AppiumBy.accessibilityId("Expandable Lists"), TouchActions.SwipeDirection.DOWN)
                 .tap(AppiumBy.accessibilityId("Expandable Lists"))
+                .swipeElementIntoView(AppiumBy.accessibilityId("3. Simple Adapter"), TouchActions.SwipeDirection.DOWN)
                 .tap(AppiumBy.accessibilityId("3. Simple Adapter"))
                 .swipeElementIntoView(By.xpath("//android.widget.TextView[@text='Group 18']"), TouchActions.SwipeDirection.DOWN)
                 .tap(By.xpath("//android.widget.TextView[@text='Group 18']"))
@@ -32,6 +35,7 @@ public class AndroidBasicInteractionsTest {
     @Test
     public void scrollInExpandableLists_verticalScrolling_insideElement(){
         ElementActions.performTouchAction(driver)
+                .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
                 .tap(AppiumBy.accessibilityId("Views"))
                 .swipeElementIntoView(AppiumBy.accessibilityId("Splitting Touches across Views"), TouchActions.SwipeDirection.DOWN)
                 .tap(AppiumBy.accessibilityId("Splitting Touches across Views"))
@@ -44,6 +48,7 @@ public class AndroidBasicInteractionsTest {
     @Test
     public void scrollInExpandableLists_verticalScrolling_insideElement2(){
         ElementActions.performTouchAction(driver)
+                .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
                 .tap(AppiumBy.accessibilityId("Views"))
                 .swipeElementIntoView(AppiumBy.accessibilityId("Splitting Touches across Views"), TouchActions.SwipeDirection.DOWN)
                 .tap(AppiumBy.accessibilityId("Splitting Touches across Views"))
@@ -56,9 +61,11 @@ public class AndroidBasicInteractionsTest {
     @Test
     public void scrollInExpandableLists_horizontalScrolling_insideElement(){
         ElementActions.performTouchAction(driver)
+                .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
                 .tap(AppiumBy.accessibilityId("Views"))
                 .swipeElementIntoView(AppiumBy.accessibilityId("Tabs"), TouchActions.SwipeDirection.DOWN)
                 .tap(AppiumBy.accessibilityId("Tabs"))
+                .swipeElementIntoView(AppiumBy.accessibilityId("5. Scrollable"), TouchActions.SwipeDirection.DOWN)
                 .tap(AppiumBy.accessibilityId("5. Scrollable"))
                 .swipeElementIntoView(By.xpath("//android.widget.HorizontalScrollView"), By.xpath("//android.widget.HorizontalScrollView//android.widget.TextView[@text='TAB 12']"), TouchActions.SwipeDirection.RIGHT)
                 .tap(By.xpath("//android.widget.HorizontalScrollView//android.widget.TextView[@text='TAB 12']"))
@@ -68,16 +75,20 @@ public class AndroidBasicInteractionsTest {
 
     @Test
     public void visualElementIdentification_samedpi() {
-        ElementActions.performTouchAction(driver).tap("src/main/resources/dynamicObjectRepository/content.png");
+        ElementActions.performTouchAction(driver)
+                .swipeElementIntoView("src/main/resources/dynamicObjectRepository/content.png", TouchActions.SwipeDirection.DOWN)
+                .tap("src/main/resources/dynamicObjectRepository/content.png");
         Validations.assertThat()
                 .element(driver, AppiumBy.accessibilityId("Assets"))
                 .exists()
                 .perform();
     }
 
-    //@Test
+    //    @Test
     public void visualElementIdentification_requiresProcessing() {
-        ElementActions.performTouchAction(driver).tap("src/main/resources/dynamicObjectRepository/content2.png");
+        ElementActions.performTouchAction(driver)
+                .swipeElementIntoView("src/main/resources/dynamicObjectRepository/content2.png", TouchActions.SwipeDirection.DOWN)
+                .tap("src/main/resources/dynamicObjectRepository/content2.png");
         Validations.assertThat()
                 .element(driver, AppiumBy.accessibilityId("Assets"))
                 .exists()
@@ -121,14 +132,14 @@ public class AndroidBasicInteractionsTest {
     @BeforeMethod
     public void setup() {
         // common attributes
-        System.setProperty("targetOperatingSystem", "Android");
-        System.setProperty("mobile_automationName", "UIAutomator2");
-        System.setProperty("mobile_appWaitActivity","*");
-        System.setProperty("mobile_disableWindowAnimation","true");
+//        System.setProperty("targetOperatingSystem", "Android");
+//        System.setProperty("mobile_automationName", "UIAutomator2");
+//        System.setProperty("mobile_appWaitActivity","*");
+//        System.setProperty("mobile_disableWindowAnimation","true");
 
         // local appium server (for local and github actions execution)
-        System.setProperty("executionAddress", "0.0.0.0:4723");
-        System.setProperty("mobile_app", System.getProperty("testDataFolderPath")+"apps/ApiDemos-debug.apk");
+//        System.setProperty("executionAddress", "0.0.0.0:4723");
+//        System.setProperty("mobile_app", System.getProperty("testDataFolderPath")+"apps/ApiDemos-debug.apk");
         driver = DriverFactory.getDriver();
 
         // remote browserstack server (new app version)
