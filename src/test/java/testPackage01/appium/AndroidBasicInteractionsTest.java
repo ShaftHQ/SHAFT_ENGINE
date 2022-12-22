@@ -39,12 +39,12 @@ public class AndroidBasicInteractionsTest {
 
     @BeforeMethod(onlyForGroups = {"Wizard"})
     public void beforeMethod_wizard() {
-        System.setProperty("targetOperatingSystem", "Android");
-        System.setProperty("mobile_automationName", "UIAutomator2");
-        System.setProperty("mobile_appWaitActivity", "*");
-        System.setProperty("mobile_disableWindowAnimation", "true");
-        System.setProperty("executionAddress", "0.0.0.0:4723");
-        System.setProperty("mobile_app", System.getProperty("testDataFolderPath") + "apps/ApiDemos-debug.apk");
+//        System.setProperty("targetOperatingSystem", "Android");
+//        System.setProperty("mobile_automationName", "UIAutomator2");
+//        System.setProperty("mobile_appWaitActivity", "*");
+//        System.setProperty("mobile_disableWindowAnimation", "true");
+//        System.setProperty("executionAddress", "0.0.0.0:4723");
+//        System.setProperty("mobile_app", System.getProperty("testDataFolderPath") + "apps/ApiDemos-debug.apk");
 
         shaftDriver = new SHAFT.GUI.WebDriver();
     }
@@ -54,7 +54,7 @@ public class AndroidBasicInteractionsTest {
         shaftDriver.quit();
     }
 
-    @Test
+    @Test(groups = {"Legacy"})
     public void scrollInExpandableLists_verticalScrolling_insideScreen() {
         ElementActions.performTouchAction(driver)
                 .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
@@ -69,7 +69,7 @@ public class AndroidBasicInteractionsTest {
                 .swipeElementIntoView(By.xpath("//android.widget.TextView[@text='Group 1']"), TouchActions.SwipeDirection.UP);
     }
 
-    @Test
+    @Test(groups = {"Legacy"})
     public void scrollInExpandableLists_verticalScrolling_insideElement(){
         ElementActions.performTouchAction(driver)
                 .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
@@ -82,7 +82,7 @@ public class AndroidBasicInteractionsTest {
                 .tap(By.xpath("//android.widget.ListView[2]/android.widget.TextView[@text='Abbaye de Belloc']"));
     }
 
-    @Test
+    @Test(groups = {"Legacy"})
     public void scrollInExpandableLists_verticalScrolling_insideElement2(){
         ElementActions.performTouchAction(driver)
                 .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
@@ -95,7 +95,7 @@ public class AndroidBasicInteractionsTest {
                 .tap(By.xpath("//android.widget.ListView[1]/android.widget.TextView[@text='Abbaye de Belloc']"));
     }
 
-    @Test
+    @Test(groups = {"Legacy"})
     public void scrollInExpandableLists_horizontalScrolling_insideElement(){
         ElementActions.performTouchAction(driver)
                 .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
@@ -110,7 +110,7 @@ public class AndroidBasicInteractionsTest {
                 .tap(By.xpath("//android.widget.HorizontalScrollView//android.widget.TextView[@text='TAB 1']"));
     }
 
-    @Test
+    @Test(groups = {"Legacy"})
     public void visualElementIdentification_samedpi() {
         ElementActions.performTouchAction(driver)
                 .swipeElementIntoView("src/main/resources/dynamicObjectRepository/content.png", TouchActions.SwipeDirection.DOWN)
@@ -121,7 +121,7 @@ public class AndroidBasicInteractionsTest {
                 .perform();
     }
 
-    //    @Test
+    //@Test(groups = {"Legacy"})
     public void visualElementIdentification_requiresProcessing() {
         ElementActions.performTouchAction(driver)
                 .swipeElementIntoView("src/main/resources/dynamicObjectRepository/content2.png", TouchActions.SwipeDirection.DOWN)
@@ -132,7 +132,7 @@ public class AndroidBasicInteractionsTest {
                 .perform();
     }
 
-    @Test
+    @Test(groups = {"Legacy"})
     public void testSendKeys() {
         String SEARCH_ACTIVITY = ".app.SearchInvoke";
         ((AndroidDriver) driver).startActivity(new Activity(PACKAGE, SEARCH_ACTIVITY));
@@ -145,7 +145,7 @@ public class AndroidBasicInteractionsTest {
                     .perform();
     }
 
-    @Test
+    @Test(groups = {"Legacy"})
     public void testOpensAlert() {
         // Open the "Alert Dialog" activity of the android app
         String ALERT_DIALOG_ACTIVITY = ".app.AlertDialogSamples";
@@ -166,9 +166,9 @@ public class AndroidBasicInteractionsTest {
     }
 
     @SuppressWarnings("CommentedOutCode")
-    @BeforeMethod(onlyForGroups = {""})
+    @BeforeMethod(onlyForGroups = {"Legacy"})
     public void setup() {
-        // common attributes
+//        // common attributes
 //        System.setProperty("targetOperatingSystem", "Android");
 //        System.setProperty("mobile_automationName", "UIAutomator2");
 //        System.setProperty("mobile_appWaitActivity","*");
@@ -197,7 +197,7 @@ public class AndroidBasicInteractionsTest {
 //        driver = DriverFactory.getDriver();
     }
 
-    @AfterMethod(onlyForGroups = {""})
+    @AfterMethod(onlyForGroups = {"Legacy"})
     public void teardown() {
         DriverFactory.closeAllDrivers();
     }
