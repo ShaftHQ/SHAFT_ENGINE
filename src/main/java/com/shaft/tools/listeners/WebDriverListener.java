@@ -19,7 +19,7 @@ import java.net.URL;
 import java.time.Duration;
 import java.util.*;
 
-public class WebDriverListener implements org.openqa.selenium.support.events.WebDriverListener {
+public class WebDriverListener implements org.openqa.selenium.support.events.WebDriverListener, io.appium.java_client.proxy.MethodCallListener {
     private static final long DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT = Integer.parseInt(System.getProperty("defaultElementIdentificationTimeout").trim()) * 1000L;
     private static final int ELEMENT_IDENTIFICATION_POLLING_DELAY = 100; // milliseconds
 

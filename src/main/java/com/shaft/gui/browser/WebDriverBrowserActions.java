@@ -557,7 +557,7 @@ public class WebDriverBrowserActions {
 
         message = message.replace("Browser Action: ", "");
         if (driver != null) {
-            attachments.add(ScreenshotManager.captureScreenShot(driver, actionName, true));
+            attachments.add(ScreenshotManager.captureScreenShot(driver, actionName, passFailStatus));
             ReportManagerHelper.log(message, attachments);
         } else if (!attachments.equals(new ArrayList<>())) {
             ReportManagerHelper.log(message, attachments);
