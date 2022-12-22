@@ -85,12 +85,8 @@ jobs:
         run: |
           echo "$PATH"
           echo $PATH
-          nano ~/.zsh_profile
-          export PATH=$PATH:$ANDROID_HOME/platform-tools
-          export PATH=$PATH:$ANDROID_HOME/tools
           export PATH=$PATH:$ANDROID_HOME/tools/bin
           export PATH=$PATH:$ANDROID_HOME/emulator/emulator
-          source ~/.zsh_profile
           echo "$PATH"
           echo $PATH
           $ANDROID_HOME/tools/bin/sdkmanager --update
