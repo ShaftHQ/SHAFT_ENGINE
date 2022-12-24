@@ -1,6 +1,7 @@
 package testPackage01.appium;
 
 import com.shaft.driver.DriverFactory;
+import com.shaft.driver.SHAFT;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.TouchActions;
 import com.shaft.validation.Validations;
@@ -13,12 +14,48 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.time.Duration;
+
 public class AndroidBasicInteractionsTest {
     private WebDriver driver;
+    private SHAFT.GUI.WebDriver shaftDriver;
     private final String PACKAGE = "io.appium.android.apis";
 
-    @Test
-    public void scrollInExpandableLists_verticalScrolling_insideScreen(){
+    @Test(groups = {"Wizard"})
+    public void wizard_scrollInExpandableLists_verticalScrolling_insideScreen() {
+        ((AndroidDriver) shaftDriver.getDriver()).runAppInBackground(Duration.ofSeconds(5));
+        shaftDriver.element().performTouchAction()
+                .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
+                .tap(AppiumBy.accessibilityId("Views"))
+                .swipeElementIntoView(AppiumBy.accessibilityId("Expandable Lists"), TouchActions.SwipeDirection.DOWN)
+                .tap(AppiumBy.accessibilityId("Expandable Lists"))
+                .swipeElementIntoView(AppiumBy.accessibilityId("3. Simple Adapter"), TouchActions.SwipeDirection.DOWN)
+                .tap(AppiumBy.accessibilityId("3. Simple Adapter"))
+                .swipeElementIntoView(By.xpath("//android.widget.TextView[@text='Group 18']"), TouchActions.SwipeDirection.DOWN)
+                .tap(By.xpath("//android.widget.TextView[@text='Group 18']"))
+                .swipeElementIntoView(By.xpath("//android.widget.TextView[@text='Child 13']"), TouchActions.SwipeDirection.DOWN)
+                .swipeElementIntoView(By.xpath("//android.widget.TextView[@text='Group 1']"), TouchActions.SwipeDirection.UP);
+    }
+
+    @BeforeMethod(onlyForGroups = {"Wizard"})
+    public void beforeMethod_wizard() {
+//        System.setProperty("targetOperatingSystem", "Android");
+//        System.setProperty("mobile_automationName", "UIAutomator2");
+//        System.setProperty("mobile_appWaitActivity", "*");
+//        System.setProperty("mobile_disableWindowAnimation", "true");
+//        System.setProperty("executionAddress", "0.0.0.0:4723");
+//        System.setProperty("mobile_app", System.getProperty("testDataFolderPath") + "apps/ApiDemos-debug.apk");
+
+        shaftDriver = new SHAFT.GUI.WebDriver();
+    }
+
+    @AfterMethod(onlyForGroups = {"Wizard"})
+    public void afterMethod_wizard() {
+        shaftDriver.quit();
+    }
+
+    @Test(groups = {"Legacy"})
+    public void scrollInExpandableLists_verticalScrolling_insideScreen() {
         ElementActions.performTouchAction(driver)
                 .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
                 .tap(AppiumBy.accessibilityId("Views"))
@@ -32,7 +69,7 @@ public class AndroidBasicInteractionsTest {
                 .swipeElementIntoView(By.xpath("//android.widget.TextView[@text='Group 1']"), TouchActions.SwipeDirection.UP);
     }
 
-    @Test
+    @Test(groups = {"Legacy"})
     public void scrollInExpandableLists_verticalScrolling_insideElement(){
         ElementActions.performTouchAction(driver)
                 .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
@@ -45,7 +82,7 @@ public class AndroidBasicInteractionsTest {
                 .tap(By.xpath("//android.widget.ListView[2]/android.widget.TextView[@text='Abbaye de Belloc']"));
     }
 
-    @Test
+    @Test(groups = {"Legacy"})
     public void scrollInExpandableLists_verticalScrolling_insideElement2(){
         ElementActions.performTouchAction(driver)
                 .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
@@ -58,7 +95,7 @@ public class AndroidBasicInteractionsTest {
                 .tap(By.xpath("//android.widget.ListView[1]/android.widget.TextView[@text='Abbaye de Belloc']"));
     }
 
-    @Test
+    @Test(groups = {"Legacy"})
     public void scrollInExpandableLists_horizontalScrolling_insideElement(){
         ElementActions.performTouchAction(driver)
                 .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
@@ -73,7 +110,7 @@ public class AndroidBasicInteractionsTest {
                 .tap(By.xpath("//android.widget.HorizontalScrollView//android.widget.TextView[@text='TAB 1']"));
     }
 
-    @Test
+    @Test(groups = {"Legacy"})
     public void visualElementIdentification_samedpi() {
         ElementActions.performTouchAction(driver)
                 .swipeElementIntoView("src/main/resources/dynamicObjectRepository/content.png", TouchActions.SwipeDirection.DOWN)
@@ -84,7 +121,7 @@ public class AndroidBasicInteractionsTest {
                 .perform();
     }
 
-    //    @Test
+    //@Test(groups = {"Legacy"})
     public void visualElementIdentification_requiresProcessing() {
         ElementActions.performTouchAction(driver)
                 .swipeElementIntoView("src/main/resources/dynamicObjectRepository/content2.png", TouchActions.SwipeDirection.DOWN)
@@ -95,7 +132,7 @@ public class AndroidBasicInteractionsTest {
                 .perform();
     }
 
-    @Test
+    @Test(groups = {"Legacy"})
     public void testSendKeys() {
         String SEARCH_ACTIVITY = ".app.SearchInvoke";
         ((AndroidDriver) driver).startActivity(new Activity(PACKAGE, SEARCH_ACTIVITY));
@@ -108,7 +145,7 @@ public class AndroidBasicInteractionsTest {
                     .perform();
     }
 
-    @Test
+    @Test(groups = {"Legacy"})
     public void testOpensAlert() {
         // Open the "Alert Dialog" activity of the android app
         String ALERT_DIALOG_ACTIVITY = ".app.AlertDialogSamples";
@@ -129,15 +166,15 @@ public class AndroidBasicInteractionsTest {
     }
 
     @SuppressWarnings("CommentedOutCode")
-    @BeforeMethod
+    @BeforeMethod(onlyForGroups = {"Legacy"})
     public void setup() {
-        // common attributes
+//        // common attributes
 //        System.setProperty("targetOperatingSystem", "Android");
 //        System.setProperty("mobile_automationName", "UIAutomator2");
 //        System.setProperty("mobile_appWaitActivity","*");
 //        System.setProperty("mobile_disableWindowAnimation","true");
-
-        // local appium server (for local and github actions execution)
+//
+//        // local appium server (for local and github actions execution)
 //        System.setProperty("executionAddress", "0.0.0.0:4723");
 //        System.setProperty("mobile_app", System.getProperty("testDataFolderPath")+"apps/ApiDemos-debug.apk");
         driver = DriverFactory.getDriver();
@@ -160,7 +197,7 @@ public class AndroidBasicInteractionsTest {
 //        driver = DriverFactory.getDriver();
     }
 
-    @AfterMethod
+    @AfterMethod(onlyForGroups = {"Legacy"})
     public void teardown() {
         DriverFactory.closeAllDrivers();
     }

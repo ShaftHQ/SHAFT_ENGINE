@@ -36,7 +36,7 @@ public class Test_google {
         // (expected to pass)
     }
 
-     @Test(dependsOnMethods = {"searchForQueryandAssertResultsNumDisplayed"}, description = "TC003 - Clicks the next button to make sure that the framework can scroll element into view before clicking it")
+     //@Test(dependsOnMethods = {"searchForQueryandAssertResultsNumDisplayed"}, description = "TC003 - Clicks the next button to make sure that the framework can scroll element into view before clicking it")
     public void clickNextThrice() {
          resultsObject = new GoogleSearchResults(driver); // initialize a new instance of the page
          resultsObject.clickNext(); // Clicks the next button to make sure that the framework can scroll element

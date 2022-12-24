@@ -30,7 +30,7 @@ public class GoogleSearchResults {
     }
 
     public void clickNext() {
-        ElementActions.click(driver, next_button);
+        new ElementActions(driver).scrollToElement(next_button).click(next_button);
     }
 
     public void assert10ResultsPerPage() {
