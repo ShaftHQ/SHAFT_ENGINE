@@ -21,10 +21,10 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
                   
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
-        with:
-           gradle-version: 7.6
+      #- name: Setup Gradle
+        #uses: gradle/gradle-build-action@v2
+        #with:
+           #gradle-version: 7.6
 
       - uses: maxim-lobanov/setup-android-tools@v1
         with:
@@ -127,35 +127,35 @@ jobs:
           $ANDROID_HOME/platform-tools/adb devices
           sleep 30
           screencapture screenshot.jpg
-          $ANDROID_HOME/platform-tools/adb exec-out screencap -p > emulator.png
+          #$ANDROID_HOME/platform-tools/adb exec-out screencap -p > emulator.png
           #osascript click.as
 
-      - name: install recorder and record session
-        run: |
-          brew install ffmpeg
-          $ANDROID_HOME/tools/emulator -port 18725 -verbose -no-window -no-audio -gpu swiftshader_indirect @Pixel_API_27_DEFAULT_x86_64 &
-          ffmpeg -f avfoundation -i 0 -t 120 out.mov
+      #- name: install recorder and record session
+        #run: |
+          #brew install ffmpeg
+          #$ANDROID_HOME/tools/emulator -port 18725 -verbose -no-window -no-audio -gpu swiftshader_indirect @Pixel_API_27_DEFAULT_x86_64 &
+          #ffmpeg -f avfoundation -i 0 -t 120 out.mov
       # node -e "const exec = require('child_process'); exec.exec('ffmpeg -f avfoundation -i 0 -t 120 out.mov'); exec.exec('$ANDROID_HOME/tools/emulator -port 18725 -verbose -no-window -no-audio -gpu swiftshader_indirect @Pixel_5_API_31 &');"
-        env:
-          HOMEBREW_NO_INSTALL_CLEANUP: 1
+        #env:
+          #HOMEBREW_NO_INSTALL_CLEANUP: 1
 
       - name: Run Android Tests
         continue-on-error: true
         run: mvn test -DexecutionAddress="localhost:4723" -DtargetOperatingSystem="Android" -Dmobile_automationName="UIAutomator2" -Dmobile_app="src/test/resources/TestDataFiles/apps/ApiDemos-debug.apk" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Android.*]"
 
-      - name: Upload Video
-        if: always()
-        uses: actions/upload-artifact@master
-        with:
-          name: out
-          path: out.mov
+      #- name: Upload Video
+        #if: always()
+        #uses: actions/upload-artifact@master
+        #with:
+          #name: out
+          #path: out.mov
 
-      - name: Upload Initial Device screenshot
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: screenshot.jpg
-          path: screenshot.jpg
+      #- name: Upload Initial Device screenshot
+        #if: always()
+        #uses: actions/upload-artifact@v3
+        #with:
+          #name: screenshot.jpg
+          #path: screenshot.jpg
 
       - name: Upload Initial Emulator screenshot
         if: always()
