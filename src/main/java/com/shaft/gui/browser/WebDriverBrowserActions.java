@@ -6,7 +6,7 @@ import com.shaft.gui.element.JavaScriptWaitManager;
 import com.shaft.gui.element.WebDriverElementActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.ReportManagerHelper;
+import com.shaft.tools.io.reporting.ReportManagerHelper;
 import com.shaft.tools.support.JavaHelper;
 import com.shaft.tools.support.JavaScriptHelper;
 import lombok.SneakyThrows;

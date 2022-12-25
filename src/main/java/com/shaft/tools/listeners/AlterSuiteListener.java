@@ -5,7 +5,8 @@ import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.tools.io.ProjectStructureManager;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.ReportManagerHelper;
+import com.shaft.tools.io.reporting.ReportHelper;
+import com.shaft.tools.io.reporting.ReportManagerHelper;
 import com.shaft.tools.security.GoogleTink;
 import com.shaft.tools.tms.XrayIntegrationHelper;
 import io.qameta.allure.*;
@@ -156,7 +157,7 @@ public class AlterSuiteListener implements IAlterSuiteListener, IRetryAnalyzer, 
 
     private void addLogsReporterToFirstTest(List<XmlSuite> suites) {
         // alter first test and add the afterSuiteMethod
-        var logsReporter = new XmlClass(LogsHelper.class.getName());
+        var logsReporter = new XmlClass(ReportHelper.class.getName());
         suites.get(0).getTests().get(0).getClasses().add(logsReporter);
     }
 

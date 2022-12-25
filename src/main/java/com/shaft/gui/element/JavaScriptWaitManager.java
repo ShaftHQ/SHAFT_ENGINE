@@ -1,7 +1,7 @@
 package com.shaft.gui.element;
 
 import com.shaft.driver.DriverFactoryHelper;
-import com.shaft.tools.io.ReportManagerHelper;
+import com.shaft.tools.io.reporting.ReportManagerHelper;
 import com.shaft.tools.support.JavaScriptHelper;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.NoSuchSessionException;

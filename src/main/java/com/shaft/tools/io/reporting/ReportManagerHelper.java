@@ -1,4 +1,4 @@
-package com.shaft.tools.io;
+package com.shaft.tools.io.reporting;
 
 import com.aventstack.extentreports.ExtentReports;
 import com.aventstack.extentreports.ExtentTest;
@@ -11,6 +11,8 @@ import com.aventstack.extentreports.reporter.configuration.ViewName;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
+import com.shaft.tools.io.PropertyFileManager;
+import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.listeners.CucumberFeatureListener;
 import com.shaft.tools.support.JavaHelper;
 import io.qameta.allure.Allure;
@@ -492,7 +494,7 @@ public class ReportManagerHelper {
         return logBuilder.toString();
     }
 
-    static void createLogEntry(String logText, Level loglevel) {
+    public static void createLogEntry(String logText, Level loglevel) {
         if (!Boolean.parseBoolean(System.getProperty("disableLogging"))) {
             String timestamp = (new SimpleDateFormat(TIMESTAMP_FORMAT)).format(new Date(System.currentTimeMillis()));
             if (logText == null) {
@@ -542,7 +544,7 @@ public class ReportManagerHelper {
      * @param logText the text that needs to be logged in this action
      */
     @Step("{logText}")
-    static void writeStepToReport(String logText) {
+    public static void writeStepToReport(String logText) {
         createLogEntry(logText, true);
     }
 
@@ -779,7 +781,7 @@ public class ReportManagerHelper {
         }
     }
 
-    static boolean isInternalStep() {
+    public static boolean isInternalStep() {
         var callingMethodName = (new Throwable()).getStackTrace()[2].toString();
         return callingMethodName.contains("com.shaft");
     }
@@ -868,29 +870,27 @@ public class ReportManagerHelper {
     }
 
     public static void logNestedSteps(String logText, List<String> customLogMessages, List<List<Object>> attachments) {
+        CheckpointStatus status = (logText.toLowerCase().contains("passed")) ? CheckpointStatus.PASS : CheckpointStatus.FAIL;
+        CheckpointType type = (logText.toLowerCase().contains("verification")) ? CheckpointType.VERIFICATION : CheckpointType.ASSERTION;
+
         if (customLogMessages != null && customLogMessages.size() > 0 && !"".equals(customLogMessages.get(0).trim())) {
             String customLogText = customLogMessages.get(0);
-            if (logText.toLowerCase().contains("passed")) {
-                if (logText.toLowerCase().contains("verification")) {
-                    customLogText = "Verification Passed: " + customLogText;
-                } else {
-                    customLogText = "Assertion Passed: " + customLogText;
-                }
+            if (status == CheckpointStatus.PASS) {
+                customLogText = (type == CheckpointType.VERIFICATION) ? "Verification Passed: " + customLogText : "Assertion Passed: " + customLogText;
             } else {
-                if (logText.toLowerCase().contains("verification")) {
-                    customLogText = "Verification Failed: " + customLogText;
-                } else {
-                    customLogText = "Assertion Failed: " + customLogText;
-                }
+                customLogText = (type == CheckpointType.VERIFICATION) ? "Verification Failed: " + customLogText : "Assertion Failed: " + customLogText;
             }
             writeNestedStepsToReport(customLogText, logText, attachments);
+            CheckpointCounter.increment(type, customLogMessages.get(0), status);
         } else {
             if (attachments != null && !attachments.isEmpty() && !attachments.get(0).isEmpty()) {
                 writeStepToReport(logText, attachments);
             }else {
                 writeStepToReport(logText);
             }
+            CheckpointCounter.increment(type, logText, status);
         }
+
     }
 
     @Step("{customLog}")

@@ -4,7 +4,7 @@ import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.ReportManagerHelper;
+import com.shaft.tools.io.reporting.ReportManagerHelper;
 import com.shaft.tools.support.JavaScriptHelper;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.*;
