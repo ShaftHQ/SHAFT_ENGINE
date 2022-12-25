@@ -1,9 +1,8 @@
-package com.shaft.tools.listeners;
+package com.shaft.tools.io.reporting;
 
 import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactory;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.ReportManagerHelper;
 import com.shaft.tools.security.GoogleTink;
 import org.testng.ITestContext;
 import org.testng.annotations.AfterSuite;
@@ -14,7 +13,7 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 
-public class LogsHelper {
+public class ReportHelper {
     public static void attachFullLogs() {
         String executionEndTimestamp = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
         ReportManagerHelper.attachIssuesLog(executionEndTimestamp);
@@ -23,7 +22,7 @@ public class LogsHelper {
 
     public static void closeAllDriversAndattachBrowserLogs() {
 //        if (Boolean.FALSE.equals(DriverFactoryHelper.isDriversListEmpty())) {
-            DriverFactory.closeAllDrivers();
+        DriverFactory.closeAllDrivers();
 //        }
     }
 
@@ -101,6 +100,7 @@ public class LogsHelper {
         attachFullLogs();
         attachCucumberReport();
         attachExtentReport();
+        CheckpointCounter.attach();
         ReportManagerHelper.setDiscreteLogging(true);
         GoogleTink.encrypt();
         ReportManagerHelper.generateAllureReportArchive();
