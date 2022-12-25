@@ -4,9 +4,8 @@ import com.jcraft.jsch.ChannelExec;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
-import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.ReportManagerHelper;
+import com.shaft.tools.io.reporting.ReportManagerHelper;
 import org.testng.Assert;
 
 import java.io.BufferedReader;

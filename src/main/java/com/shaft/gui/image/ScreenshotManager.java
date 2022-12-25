@@ -7,7 +7,7 @@ import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.JavaScriptWaitManager;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.ReportManagerHelper;
+import com.shaft.tools.io.reporting.ReportManagerHelper;
 import org.imgscalr.Scalr;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfByte;

@@ -4,7 +4,11 @@ import com.shaft.cli.FileActions;
 import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
-import com.shaft.tools.io.*;
+import com.shaft.tools.io.ProjectStructureManager;
+import com.shaft.tools.io.PropertyFileManager;
+import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.reporting.ReportHelper;
+import com.shaft.tools.io.reporting.ReportManagerHelper;
 import com.shaft.tools.security.GoogleTink;
 import io.cucumber.core.feature.FeatureParser;
 import io.cucumber.core.gherkin.Feature;
@@ -82,8 +86,8 @@ public class CucumberTestRunnerListener implements ConcurrentEventListener {
             ImageProcessingActions.loadOpenCV();
             ReportManagerHelper.initializeAllureReportingEnvironment();
             ReportManagerHelper.initializeExtentReportingEnvironment();
-            LogsHelper.attachImportantLinks();
-            LogsHelper.attachPropertyFiles();
+            ReportHelper.attachImportantLinks();
+            ReportHelper.attachPropertyFiles();
             ReportManagerHelper.setDiscreteLogging(Boolean.parseBoolean(System.getProperty("alwaysLogDiscreetly")));
             ReportManagerHelper.setDebugMode(Boolean.valueOf(System.getProperty("debugMode")));
         }
@@ -92,10 +96,10 @@ public class CucumberTestRunnerListener implements ConcurrentEventListener {
     private void shaftTeardown() {
         if (Reporter.getCurrentTestResult() == null) {
             // running in native Cucumber mode
-            LogsHelper.closeAllDriversAndattachBrowserLogs();
-            LogsHelper.attachFullLogs();
-            LogsHelper.attachCucumberReport();
-            LogsHelper.attachExtentReport();
+            ReportHelper.closeAllDriversAndattachBrowserLogs();
+            ReportHelper.attachFullLogs();
+            ReportHelper.attachCucumberReport();
+            ReportHelper.attachExtentReport();
             ReportManagerHelper.setDiscreteLogging(true);
             GoogleTink.encrypt();
             ReportManagerHelper.generateAllureReportArchive();

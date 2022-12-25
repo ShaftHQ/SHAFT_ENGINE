@@ -6,7 +6,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.jayway.jsonpath.JsonPath;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.ReportManagerHelper;
+import com.shaft.tools.io.reporting.ReportManagerHelper;
 import com.shaft.tools.support.JavaHelper;
 import com.shaft.validation.Validations;
 import eu.medsea.mimeutil.MimeUtil;

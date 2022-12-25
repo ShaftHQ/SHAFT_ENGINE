@@ -6,7 +6,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.shaft.cli.FileActions;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.ReportManagerHelper;
+import com.shaft.tools.io.reporting.ReportManagerHelper;
 import io.restassured.config.RestAssuredConfig;
 import io.restassured.config.SSLConfig;
 import io.restassured.http.ContentType;
@@ -152,7 +152,7 @@ public class XrayIntegrationHelper {
                             .replace("${PROJECT_KEY}", _ProjectKey)
                             .replace("${BUG_SUMMERY}", "Execution Bug: " + testCaseName)
                             .replace("${BUG_DESCRIPTION}", description
-                                    .replaceAll("[^a-zA-Z0-9.?=*$%@#&!<>|\\{\\}\\[\\]\"'\s/]", "")
+                                    .replaceAll("[^a-zA-Z0-9.?=*$%@#&!<>|\\{\\}\\[\\]\"' /]", "")
                                     .replaceAll("\"", "'")
                             )
                             .replace("${ASSIGNEE_NAME}", System.getProperty("assignee"))
