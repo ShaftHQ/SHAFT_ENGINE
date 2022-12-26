@@ -303,6 +303,6 @@ public class CheckpointCounter {
                 </html>""");
 
         String html = htmlBuilder.toString();
-        ReportManagerHelper.attach("HTML", "Validations Counter Report", html);
+        ReportManagerHelper.attach("HTML", "Checkpoints Report", html);
     }
 }
