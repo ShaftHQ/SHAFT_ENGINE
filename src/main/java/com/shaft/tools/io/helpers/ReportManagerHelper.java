@@ -1,4 +1,4 @@
-package com.shaft.tools.io.reporting;
+package com.shaft.tools.io.helpers;
 
 import com.aventstack.extentreports.ExtentReports;
 import com.aventstack.extentreports.ExtentTest;
@@ -11,9 +11,9 @@ import com.aventstack.extentreports.reporter.configuration.ViewName;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
+import com.shaft.listeners.CucumberFeatureListener;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.listeners.CucumberFeatureListener;
 import com.shaft.tools.support.JavaHelper;
 import io.qameta.allure.Allure;
 import io.qameta.allure.Step;
@@ -162,10 +162,6 @@ public class ReportManagerHelper {
         ReportManagerHelper.discreteLogging = discreteLogging;
     }
 
-    public static int getTestCasesCounter() {
-        return testCasesCounter;
-    }
-
     public static int getTotalNumberOfTests() {
         return totalNumberOfTests;
     }
@@ -197,8 +193,15 @@ public class ReportManagerHelper {
         createImportantReportEntry(engineVersion, true);
     }
 
+    public static void logEngineClosure() {
+        String copyrights = "This test run was powered by SHAFT Engine Version: \""
+                + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "\"" + System.lineSeparator()
+                + "SHAFT Engine is licensed under the MIT License: [https://github.com/ShaftHQ/SHAFT_ENGINE/blob/master/LICENSE].";
+        createImportantReportEntry(copyrights, true);
+    }
+
     public static void logTestInformation(String className, String testMethodName,
-                                                       String testDescription) {
+                                          String testDescription) {
         testCasesCounter++;
         StringBuilder reportMessage = new StringBuilder();
 
@@ -288,22 +291,22 @@ public class ReportManagerHelper {
         }
     }
 
-    public static void attachFullLog(String executionEndTimestamp) {
-        String fullLogCreated = "Successfully created attachment \"" + SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE + " - "
+    public static void attachEngineLog(String executionEndTimestamp) {
+        String engineLogCreated = "Successfully created attachment \"" + SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE + " - "
                 + "Execution log" + "\"";
-        createLogEntry(fullLogCreated, true);
-        String copyrights = "This test run was powered by SHAFT Engine Version: \""
-                + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "\"" + System.lineSeparator()
-                + "SHAFT Engine is licensed under the MIT License: [https://github.com/ShaftHQ/SHAFT_ENGINE/blob/master/LICENSE].";
-        createImportantReportEntry(copyrights, true);
-        byte[] fullLog = new byte[0];
+        var initialLoggingState = ReportManagerHelper.getDiscreteLogging();
+        ReportManagerHelper.setDiscreteLogging(true);
+        createLogEntry(engineLogCreated, true);
+        byte[] engineLog = new byte[0];
         try {
-            fullLog = FileActions.getInstance().readFileAsByteArray(System.getProperty("appender.file.fileName"));
+            engineLog = FileActions.getInstance().readFileAsByteArray(System.getProperty("appender.file.fileName"));
+            FileActions.getInstance().deleteFile(System.getProperty("appender.file.fileName"));
         } catch (Throwable throwable) {
             logDiscrete(throwable);
         }
+        ReportManagerHelper.setDiscreteLogging(initialLoggingState);
         createAttachment(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE, "Execution log: " + executionEndTimestamp,
-                new ByteArrayInputStream(fullLog));
+                new ByteArrayInputStream(engineLog));
     }
 
     public static void attachIssuesLog(String executionEndTimestamp) {
@@ -572,51 +575,54 @@ public class ReportManagerHelper {
     }
 
     private static void createAttachment(String attachmentType, String attachmentName, InputStream attachmentContent) {
-        var baos = new ByteArrayOutputStream();
-        try {
-            attachmentContent.transferTo(baos);
-        } catch (IOException e) {
-            var error = "Error while creating Attachment";
-            logger.info(error, e);
-            Reporter.log(error, false);
+        if (attachmentContent != null) {
+            var baos = new ByteArrayOutputStream();
+            try {
+                attachmentContent.transferTo(baos);
+            } catch (IOException e) {
+                var error = "Error while creating Attachment";
+                logger.info(error, e);
+                Reporter.log(error, false);
+            }
+            String attachmentDescription = attachmentType + " - " + attachmentName;
+            attachBasedOnFileType(attachmentType, attachmentName, baos, attachmentDescription);
+            logAttachmentAction(attachmentType, attachmentName, baos);
         }
-
-        String attachmentDescription = attachmentType + " - " + attachmentName;
-        attachBasedOnFileType(attachmentType, attachmentName, baos, attachmentDescription);
-        logAttachmentAction(attachmentType, attachmentName, baos);
     }
 
     private static void attachBasedOnFileType(String attachmentType, String attachmentName,
                                                            ByteArrayOutputStream attachmentContent, String attachmentDescription) {
+        var content = new ByteArrayInputStream(attachmentContent.toByteArray());
+
         if (attachmentType.toLowerCase().contains("screenshot")) {
-            Allure.addAttachment(attachmentDescription, "image/png", new ByteArrayInputStream(attachmentContent.toByteArray()), ".png");
+            Allure.addAttachment(attachmentDescription, "image/png", content, ".png");
             attachImageToExtentReport("image/png", new ByteArrayInputStream(attachmentContent.toByteArray()));
         } else if (attachmentType.toLowerCase().contains("recording")) {
-            Allure.addAttachment(attachmentDescription, "video/mp4", new ByteArrayInputStream(attachmentContent.toByteArray()), ".mp4");
+            Allure.addAttachment(attachmentDescription, "video/mp4", content, ".mp4");
         } else if (attachmentType.toLowerCase().contains("gif")) {
-            Allure.addAttachment(attachmentDescription, "image/gif", new ByteArrayInputStream(attachmentContent.toByteArray()), ".gif");
+            Allure.addAttachment(attachmentDescription, "image/gif", content, ".gif");
             attachImageToExtentReport("image/gif", new ByteArrayInputStream(attachmentContent.toByteArray()));
         } else if (attachmentType.toLowerCase().contains("csv") || attachmentName.toLowerCase().contains("csv")) {
-            Allure.addAttachment(attachmentDescription, "text/csv", new ByteArrayInputStream(attachmentContent.toByteArray()), ".csv");
+            Allure.addAttachment(attachmentDescription, "text/csv", content, ".csv");
             attachCodeBlockToExtentReport("text/csv", new ByteArrayInputStream(attachmentContent.toByteArray()));
         } else if (attachmentType.toLowerCase().contains("xml") || attachmentName.toLowerCase().contains("xml")) {
-            Allure.addAttachment(attachmentDescription, "text/xml", new ByteArrayInputStream(attachmentContent.toByteArray()), ".xml");
+            Allure.addAttachment(attachmentDescription, "text/xml", content, ".xml");
             attachCodeBlockToExtentReport("text/xml", new ByteArrayInputStream(attachmentContent.toByteArray()));
         } else if (attachmentType.toLowerCase().contains("excel") || attachmentName.toLowerCase().contains("excel")) {
-            Allure.addAttachment(attachmentDescription, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", new ByteArrayInputStream(attachmentContent.toByteArray()), ".xlsx");
+            Allure.addAttachment(attachmentDescription, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", content, ".xlsx");
         } else if (attachmentType.toLowerCase().contains("json") || attachmentName.toLowerCase().contains("json")) {
-            Allure.addAttachment(attachmentDescription, "text/json", new ByteArrayInputStream(attachmentContent.toByteArray()), ".json");
+            Allure.addAttachment(attachmentDescription, "text/json", content, ".json");
             attachCodeBlockToExtentReport("text/json", new ByteArrayInputStream(attachmentContent.toByteArray()));
         } else if (attachmentType.toLowerCase().contains("properties")) {
-            Allure.addAttachment(attachmentDescription, "text/plain", new ByteArrayInputStream(attachmentContent.toByteArray()), ".properties");
+            Allure.addAttachment(attachmentDescription, "text/plain", content, ".properties");
         } else if (attachmentType.toLowerCase().contains("link")) {
-            Allure.addAttachment(attachmentDescription, "text/uri-list", new ByteArrayInputStream(attachmentContent.toByteArray()), ".uri");
+            Allure.addAttachment(attachmentDescription, "text/uri-list", content, ".uri");
         } else if (attachmentType.toLowerCase().contains("engine logs")) {
-            Allure.addAttachment(attachmentDescription, "text/plain", new ByteArrayInputStream(attachmentContent.toByteArray()), ".txt");
+            Allure.addAttachment(attachmentDescription, "text/plain", content, ".txt");
         } else if (attachmentType.toLowerCase().contains("page snapshot")) {
-            Allure.addAttachment(attachmentDescription, "multipart/related application/x-mimearchive", new ByteArrayInputStream(attachmentContent.toByteArray()), ".mhtml");
+            Allure.addAttachment(attachmentDescription, "multipart/related", content, ".mhtml");
         } else if (attachmentType.toLowerCase().contains("html")) {
-            Allure.addAttachment(attachmentDescription, "text/html", new ByteArrayInputStream(attachmentContent.toByteArray()), ".html");
+            Allure.addAttachment(attachmentDescription, "text/html", content, ".html");
         } else {
             Allure.addAttachment(attachmentDescription, new ByteArrayInputStream(attachmentContent.toByteArray()));
         }

@@ -8,7 +8,7 @@ import com.shaft.gui.element.JavaScriptWaitManager;
 import com.shaft.gui.video.RecordManager;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.reporting.ReportManagerHelper;
+import com.shaft.tools.io.helpers.ReportManagerHelper;
 import com.shaft.tools.support.JavaHelper;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;

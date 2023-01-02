@@ -5,8 +5,8 @@ import com.shaft.api.RestActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.db.DatabaseActions;
 import com.shaft.db.DatabaseActions.DatabaseType;
+import com.shaft.listeners.TestNGListener;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.listeners.InvokedMethodListener;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.WebDriver;
 import org.sikuli.script.App;
@@ -68,8 +68,8 @@ public class DriverFactory {
      */
     private static void readCustomTestSuiteParameters() {
         // it's null in case of Cucumber native feature file execution
-        if (InvokedMethodListener.getXmlTest() != null) {
-            System.getProperties().putAll(InvokedMethodListener.getXmlTest().getAllParameters());
+        if (TestNGListener.getXmlTest() != null) {
+            System.getProperties().putAll(TestNGListener.getXmlTest().getAllParameters());
         }
     }
 

@@ -3,7 +3,7 @@ package com.shaft.gui.element;
 import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.reporting.ReportManagerHelper;
+import com.shaft.tools.io.helpers.ReportManagerHelper;
 import com.shaft.tools.support.JavaHelper;
 import com.shaft.validation.ValidationsHelper;
 import io.appium.java_client.android.AndroidDriver;
@@ -46,6 +46,7 @@ public class WebDriverElementActions {
      *                       selector, name ...etc)
      */
     public static void scrollToElement(WebDriver driver, By elementLocator) {
+        //TODO: if mobile, call swipeElementIntoView(null, targetElementLocator, swipeDirection);
         try {
             ElementActionsHelper.scrollToFindElement(driver, elementLocator);
             passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, getElementName(driver, elementLocator));

@@ -6,7 +6,7 @@ import com.shaft.gui.element.JavaScriptWaitManager;
 import com.shaft.gui.element.WebDriverElementActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.reporting.ReportManagerHelper;
+import com.shaft.tools.io.helpers.ReportManagerHelper;
 import com.shaft.tools.support.JavaHelper;
 import com.shaft.tools.support.JavaScriptHelper;
 import lombok.SneakyThrows;
@@ -45,7 +45,7 @@ public class WebDriverBrowserActions {
     /**
      * Gets the current page URL and returns it as a string
      *
-     * @param driver the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium WebDriver
      * @return the URL that's currently open in the current page
      */
     public static String getCurrentURL(WebDriver driver) {
@@ -63,7 +63,7 @@ public class WebDriverBrowserActions {
     /**
      * Gets the current window title and returns it as a string
      *
-     * @param driver the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium WebDriver
      * @return the title of the current window
      */
     public static String getCurrentWindowTitle(WebDriver driver) {
@@ -81,7 +81,7 @@ public class WebDriverBrowserActions {
     /**
      * Gets the current page source and returns it as a string
      *
-     * @param driver the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium WebDriver
      * @return the source of the current page
      */
     public static String getPageSource(WebDriver driver) {
@@ -99,7 +99,7 @@ public class WebDriverBrowserActions {
     /**
      * Gets the current window handle and returns it as a string
      *
-     * @param driver the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium WebDriver
      * @return the window handle for the current window
      */
     public static String getWindowHandle(WebDriver driver) {
@@ -117,7 +117,7 @@ public class WebDriverBrowserActions {
     /**
      * Gets the current window position and returns it as a string
      *
-     * @param driver the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium WebDriver
      * @return the position of the current window
      */
     public static String getWindowPosition(WebDriver driver) {
@@ -135,7 +135,7 @@ public class WebDriverBrowserActions {
     /**
      * Gets the current window size and returns it as a string
      *
-     * @param driver the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium WebDriver
      * @return the size of the current window
      */
     public static String getWindowSize(WebDriver driver) {
@@ -154,7 +154,7 @@ public class WebDriverBrowserActions {
      * Navigates to targetUrl in case the current URL is different, else refreshes
      * the current page
      *
-     * @param driver    the current instance of Selenium webdriver
+     * @param driver    the current instance of Selenium WebDriver
      * @param targetUrl a string that represents the URL that you wish to navigate
      *                  to
      */
@@ -221,7 +221,7 @@ public class WebDriverBrowserActions {
      * the current page. Waits for successfully navigating to the final url after
      * redirection.
      *
-     * @param driver                    the current instance of Selenium webdriver
+     * @param driver                    the current instance of Selenium WebDriver
      * @param targetUrl                 a string that represents the URL that you
      *                                  wish to navigate to
      * @param targetUrlAfterRedirection a string that represents a part of the url
@@ -297,7 +297,7 @@ public class WebDriverBrowserActions {
     /**
      * Navigates one step back from the browsers history
      *
-     * @param driver the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium WebDriver
      */
     public static void navigateBack(WebDriver driver) {
         JavaScriptWaitManager.waitForLazyLoading();
@@ -323,7 +323,7 @@ public class WebDriverBrowserActions {
     /**
      * Navigates one step forward from the browsers history
      *
-     * @param driver the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium WebDriver
      */
     public static void navigateForward(WebDriver driver) {
         JavaScriptWaitManager.waitForLazyLoading();
@@ -349,7 +349,7 @@ public class WebDriverBrowserActions {
     /**
      * Attempts to refresh the current page
      *
-     * @param driver the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium WebDriver
      */
     public static void refreshCurrentPage(WebDriver driver) {
         JavaScriptWaitManager.waitForLazyLoading();
@@ -362,7 +362,7 @@ public class WebDriverBrowserActions {
     /**
      * Closes the current browser window
      *
-     * @param driver the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium WebDriver
      */
     public static void closeCurrentWindow(WebDriver driver) {
         if (driver != null) {
@@ -391,7 +391,7 @@ public class WebDriverBrowserActions {
     /**
      * Maximizes current window size based on screen size minus 5%
      *
-     * @param driver the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium WebDriver
      */
     public static void maximizeWindow(WebDriver driver) {
         Dimension initialWindowSize;
@@ -406,7 +406,7 @@ public class WebDriverBrowserActions {
         String targetOperatingSystem = System.getProperty("targetOperatingSystem").trim();
         String executionAddress = System.getProperty("executionAddress").trim();
 
-        // try selenium webdriver maximize
+        // try selenium WebDriver maximize
         currentWindowSize = attemptMaximizeUsingSeleniumWebDriver(driver, executionAddress, targetBrowserName,
                 targetOperatingSystem);
         if ((initialWindowSize.height == currentWindowSize.height)
@@ -443,7 +443,7 @@ public class WebDriverBrowserActions {
     /**
      * Resizes the current window size based on the provided width and height
      *
-     * @param driver the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium WebDriver
      * @param width  the desired new width of the target window
      * @param height the desired new height of the target window
      */
@@ -484,7 +484,7 @@ public class WebDriverBrowserActions {
     /**
      * Resize the window to fill the current screen
      *
-     * @param driver the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium WebDriver
      */
     public static void fullScreenWindow(WebDriver driver) {
         Dimension initialWindowSize = driver.manage().window().getSize();
@@ -546,12 +546,14 @@ public class WebDriverBrowserActions {
         }
 
         List<List<Object>> attachments = new ArrayList<>();
-        if (testData != null && testData.length() >= 500) {
-            List<Object> actualValueAttachment = Arrays.asList("Browser Action Test Data - " + actionName,
-                    "Actual Value", testData);
-            attachments.add(actualValueAttachment);
-        } else if (testData != null && !testData.isEmpty()) {
-            message = message + " \"" + testData.trim() + "\"";
+        if (testData != null && !testData.isEmpty()) {
+            if (testData.length() >= 500 || testData.contains("</iframe>") || testData.contains("</html>")) {
+                List<Object> actualValueAttachment = Arrays.asList("Browser Action Test Data - " + actionName,
+                        "Actual Value", testData);
+                attachments.add(actualValueAttachment);
+            } else {
+                message = message + " \"" + testData.trim() + "\"";
+            }
         }
         message = message + ".";
 
@@ -684,7 +686,6 @@ public class WebDriverBrowserActions {
         } catch (Exception rootCauseException) {
             failAction(driver, serializedPageData, rootCauseException);
         }
-//        return serializedPageData;
     }
 
     public WebDriverBrowserActions capturePageSnapshot() {
@@ -838,12 +839,12 @@ public class WebDriverBrowserActions {
         fullScreenWindow(lastUsedDriver.get());
         return this;
     }
-    
+
     /**
      * Switches focus to another Tab
      *
-     * @param driver       the current instance of Selenium webdriver
-     * @param URL The name of the URL you want to navigate to
+     * @param driver the current instance of Selenium WebDriver
+     * @param URL    The name of the URL you want to navigate to
      */
     public static void switchToNewTab(WebDriver driver, String URL) {
     	try {
@@ -876,7 +877,7 @@ public class WebDriverBrowserActions {
     /**
      * Switches focus to another window
      *
-     * @param driver       the current instance of Selenium webdriver
+     * @param driver       the current instance of Selenium WebDriver
      * @param nameOrHandle The name of the window or the handle as returned by
      *                     ElementActions.getWindowHandle(WebDriver driver)
      */

@@ -1,4 +1,4 @@
-package com.shaft.tools.io.reporting;
+package com.shaft.tools.io.helpers;
 
 public enum CheckpointType {
     ASSERTION,

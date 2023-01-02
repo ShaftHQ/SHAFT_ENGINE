@@ -1,14 +1,17 @@
-package com.shaft.tools.listeners;
+package com.shaft.listeners;
 
 import com.shaft.cli.FileActions;
+import com.shaft.driver.DriverFactory;
 import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
+import com.shaft.listeners.helpers.JiraHelper;
+import com.shaft.listeners.helpers.TestNGListenerHelper;
 import com.shaft.tools.io.ProjectStructureManager;
 import com.shaft.tools.io.PropertyFileManager;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.reporting.ReportHelper;
-import com.shaft.tools.io.reporting.ReportManagerHelper;
+import com.shaft.tools.io.helpers.ReportHelper;
+import com.shaft.tools.io.helpers.ReportManagerHelper;
 import com.shaft.tools.security.GoogleTink;
 import io.cucumber.core.feature.FeatureParser;
 import io.cucumber.core.gherkin.Feature;
@@ -24,19 +27,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 public class CucumberTestRunnerListener implements ConcurrentEventListener {
-
     private static String lastStartedScenarioName;
-
-    private static String lastStartedStepName;
-    private static Boolean isLastFinishedStepOK;
-
-    public static String getLastStartedStepName() {
-        return lastStartedStepName;
-    }
-
-    public static Boolean getIsLastFinishedStepOK() {
-        return isLastFinishedStepOK;
-    }
 
     @Override
     public void setEventPublisher(EventPublisher publisher) {
@@ -47,7 +38,6 @@ public class CucumberTestRunnerListener implements ConcurrentEventListener {
         publisher.registerHandlerFor(TestCaseStarted.class, this::caseStartedHandler);
         publisher.registerHandlerFor(TestCaseFinished.class, this::caseFinishedHandler);
         publisher.registerHandlerFor(TestStepStarted.class, this::stepStartedHandler);
-        publisher.registerHandlerFor(TestStepFinished.class, this::stepFinishedHandler);
         publisher.registerHandlerFor(TestSourceParsed.class, this::handleTestSourceParsed);
     }
 
@@ -96,15 +86,17 @@ public class CucumberTestRunnerListener implements ConcurrentEventListener {
     private void shaftTeardown() {
         if (Reporter.getCurrentTestResult() == null) {
             // running in native Cucumber mode
-            ReportHelper.closeAllDriversAndattachBrowserLogs();
-            ReportHelper.attachFullLogs();
+            DriverFactory.closeAllDrivers();
+            ReportHelper.attachEngineLog();
+            ReportHelper.attachIssuesLog();
             ReportHelper.attachCucumberReport();
             ReportHelper.attachExtentReport();
             ReportManagerHelper.setDiscreteLogging(true);
             GoogleTink.encrypt();
             ReportManagerHelper.generateAllureReportArchive();
             ReportManagerHelper.openAllureReportAfterExecution();
-            AlterSuiteListener.reportExecutionStatusToJira();
+            JiraHelper.reportExecutionStatusToJira();
+            ReportManagerHelper.logEngineClosure();
         }
     }
 
@@ -147,12 +139,8 @@ public class CucumberTestRunnerListener implements ConcurrentEventListener {
             // configuration method attachment is not added to the report (Allure ->
             // threadContext.getCurrent(); -> empty)
             ReportManagerHelper.attachTestLog(lastStartedScenarioName,
-                    InvokedMethodListener.createTestLog(Reporter.getOutput()));
+                    TestNGListenerHelper.createTestLog(Reporter.getOutput()));
         }
-        // resetting scope and config
-//        if (!DriverFactoryHelper.isMobileNativeExecution()) {
-//            ElementActions.switchToDefaultContent();
-//        }
     }
 
     private Optional<Feature> getFeature(URI uri) {
@@ -175,16 +163,10 @@ public class CucumberTestRunnerListener implements ConcurrentEventListener {
 
         if (testStep instanceof HookTestStep hookTestStep) {
             ReportManager.logDiscrete("Scenario Hook: " + hookTestStep.getHookType().name());
-            lastStartedStepName = hookTestStep.getHookType().name();
         }
 
         if (testStep instanceof PickleStepTestStep pickleStepTestStep) {
             ReportManager.logDiscrete("Scenario Step: " + pickleStepTestStep.getStep().getKeyword() + pickleStepTestStep.getStep().getText());
-            lastStartedStepName = pickleStepTestStep.getStep().getKeyword() + pickleStepTestStep.getStep().getText();
         }
-    }
-
-    private void stepFinishedHandler(TestStepFinished event) {
-        isLastFinishedStepOK = event.getResult().getStatus().isOk();
     }
 }

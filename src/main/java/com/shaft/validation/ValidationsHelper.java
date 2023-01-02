@@ -7,7 +7,7 @@ import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.gui.image.ScreenshotManager;
-import com.shaft.tools.io.reporting.ReportManagerHelper;
+import com.shaft.tools.io.helpers.ReportManagerHelper;
 import com.shaft.tools.support.JavaHelper;
 import com.shaft.validation.ValidationEnums.*;
 import io.restassured.response.Response;

@@ -13,16 +13,19 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package com.shaft.tools.listeners;
+package com.shaft.listeners;
 
 import com.shaft.cli.FileActions;
+import com.shaft.driver.DriverFactory;
 import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.gui.video.RecordManager;
+import com.shaft.listeners.helpers.JiraHelper;
+import com.shaft.listeners.helpers.TestNGListenerHelper;
 import com.shaft.tools.io.ProjectStructureManager;
 import com.shaft.tools.io.PropertyFileManager;
-import com.shaft.tools.io.reporting.ReportHelper;
-import com.shaft.tools.io.reporting.ReportManagerHelper;
+import com.shaft.tools.io.helpers.ReportHelper;
+import com.shaft.tools.io.helpers.ReportManagerHelper;
 import com.shaft.tools.security.GoogleTink;
 import io.cucumber.core.feature.FeatureParser;
 import io.cucumber.core.resource.Resource;
@@ -141,7 +144,7 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
         currentContainer.set(UUID.randomUUID().toString());
         forbidTestCaseStatusChange.set(false);
 
-        final Deque<String> tags = new LinkedList<>(currentTestCase.get().getTags());
+        new LinkedList<>(currentTestCase.get().getTags());
 
         final Feature feature = currentFeature.get();
 
@@ -215,10 +218,10 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
             // configuration method attachment is not added to the report (Allure ->
             // threadContext.getCurrent(); -> empty)
             ReportManagerHelper.attachTestLog(lastStartedScenarioName,
-                    InvokedMethodListener.createTestLog(Reporter.getOutput()));
+                    TestNGListenerHelper.createTestLog(Reporter.getOutput()));
         } else {
             ReportManagerHelper.attachTestLog(lastStartedScenarioName,
-                    InvokedMethodListener.createTestLog(Reporter.getOutput()));
+                    TestNGListenerHelper.createTestLog(Reporter.getOutput()));
         }
         // resetting scope and config
 //        if (!DriverFactoryHelper.isMobileNativeExecution()) {
@@ -328,20 +331,13 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
     }
 
     private Status translateTestCaseStatus(final Result testCaseResult) {
-        switch (testCaseResult.getStatus()) {
-            case FAILED:
-                return getStatus(testCaseResult.getError())
-                        .orElse(Status.FAILED);
-            case PASSED:
-                return Status.PASSED;
-            case SKIPPED:
-            case PENDING:
-                return Status.SKIPPED;
-            case AMBIGUOUS:
-            case UNDEFINED:
-            default:
-                return null;
-        }
+        return switch (testCaseResult.getStatus()) {
+            case FAILED -> getStatus(testCaseResult.getError())
+                    .orElse(Status.FAILED);
+            case PASSED -> Status.PASSED;
+            case SKIPPED, PENDING -> Status.SKIPPED;
+            case AMBIGUOUS, UNDEFINED, UNUSED -> null;
+        };
     }
 
     private List<Parameter> getExamplesAsParameters(
@@ -371,13 +367,17 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
 
         final TableRow row = maybeRow.get();
 
-        return IntStream.range(0, examples.getTableHeader().get().getCells().size())
-                .mapToObj(index -> {
-                    final String name = examples.getTableHeader().get().getCells().get(index).getValue();
-                    final String value = row.getCells().get(index).getValue();
-                    return createParameter(name, value);
-                })
-                .collect(Collectors.toList());
+        if (examples.getTableHeader().isPresent()) {
+            return IntStream.range(0, examples.getTableHeader().get().getCells().size())
+                    .mapToObj(index -> {
+                        final String name = examples.getTableHeader().get().getCells().get(index).getValue();
+                        final String value = row.getCells().get(index).getValue();
+                        return createParameter(name, value);
+                    })
+                    .collect(Collectors.toList());
+        } else {
+            return null;
+        }
     }
 
     private void createDataTableAttachment(final DataTableArgument dataTableArgument) {
@@ -521,15 +521,17 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
     private void shaftTeardown() {
         if (Reporter.getCurrentTestResult() == null) {
             // running in native Cucumber mode
-            ReportHelper.closeAllDriversAndattachBrowserLogs();
-            ReportHelper.attachFullLogs();
+            DriverFactory.closeAllDrivers();
+            ReportHelper.attachEngineLog();
+            ReportHelper.attachIssuesLog();
             ReportHelper.attachCucumberReport();
             ReportHelper.attachExtentReport();
             ReportManagerHelper.setDiscreteLogging(true);
             GoogleTink.encrypt();
             ReportManagerHelper.generateAllureReportArchive();
             ReportManagerHelper.openAllureReportAfterExecution();
-            AlterSuiteListener.reportExecutionStatusToJira();
+            JiraHelper.reportExecutionStatusToJira();
+            ReportManagerHelper.logEngineClosure();
         }
     }
 }

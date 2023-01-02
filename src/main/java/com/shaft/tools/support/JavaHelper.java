@@ -1,7 +1,7 @@
 package com.shaft.tools.support;
 
 import com.shaft.cli.FileActions;
-import com.shaft.tools.io.reporting.ReportManagerHelper;
+import com.shaft.tools.io.helpers.ReportManagerHelper;
 import org.testng.Assert;
 
 import java.util.ArrayList;

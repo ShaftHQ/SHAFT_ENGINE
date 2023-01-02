@@ -82,14 +82,17 @@ import org.testng.annotations.Test;
 - Run your ```TestClass.java``` as a TestNG Test Class.
 - The execution report will open automatically in your default web browser after the test run is completed.
 - Make sure to <b>Star</b> ⭐ the project to get notified when a new release is pushed out.
-- After upgrading your Engine it is sometimes recommended to delete the properties folder ```src\main\resources\properties``` and allow SHAFT to regenerate the defaults by running any test method.
-[^1]: Due to a known issue with IntelliJ you need to edit your run configuration templates before running your tests by following these steps:
-<br/>- Open 'Edit Run/Debug Configurations' dialog > Edit Configurations... > Edit configuration templates...
-<br/>- Select <b>TestNG</b> > Listeners > and add these listeners one by one:
-<br/>`com.shaft.tools.listeners.AlterSuiteListener`, `com.shaft.tools.listeners.SuiteListener`, `com.shaft.tools.listeners.InvokedMethodListener`
-<br/>- Select <b>Cucumber Java</b> > Program Arguments > and add this argument:
-<br/>`--plugin com.shaft.tools.listeners.CucumberFeatureListener`
-<br/>- After saving the changes, remember to delete any old test runs you may have triggered by mistake before adding the needed config.
+- After upgrading your Engine it is sometimes recommended to delete the properties
+  folder ```src\main\resources\properties``` and allow SHAFT to regenerate the defaults by running any test method.
+  [^1]: Due to a known issue with IntelliJ you need to edit your run configuration templates before running your tests
+  by following these steps:
+  <br/>- Open 'Edit Run/Debug Configurations' dialog > Edit Configurations... > Edit configuration templates...
+  <br/>- Select <b>TestNG</b> > Listeners > and add these listeners one by one:
+  <br/>`com.shaft.listeners.TestNGListener`
+  <br/>- Select <b>Cucumber Java</b> > Program Arguments > and add this argument:
+  <br/>`--plugin com.shaft.listeners.CucumberFeatureListener`
+  <br/>- After saving the changes, remember to delete any old test runs you may have triggered by mistake before adding
+  the needed config.
 
 
 ## Important Links

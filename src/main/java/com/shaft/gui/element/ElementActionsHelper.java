@@ -4,7 +4,7 @@ import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.gui.image.ImageProcessingActions;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.reporting.ReportManagerHelper;
+import com.shaft.tools.io.helpers.ReportManagerHelper;
 import com.shaft.tools.support.JavaScriptHelper;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.*;
@@ -87,6 +87,9 @@ class ElementActionsHelper {
         boolean validToCheckForVisibility = checkForVisibility && !elementLocator.toString().contains("input[@type='file']")
                 && !elementLocator.equals(By.tagName("html"));
 
+        var isMobileExecution = DriverFactoryHelper.isMobileNativeExecution() || DriverFactoryHelper.isMobileWebExecution();
+        var isSafariBowser = DriverFactoryHelper.getTargetBrowserName().toLowerCase().contains("safari");
+
         ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
         expectedExceptions.add(org.openqa.selenium.NoSuchElementException.class);
         expectedExceptions.add(org.openqa.selenium.StaleElementReferenceException.class);
@@ -94,11 +97,10 @@ class ElementActionsHelper {
         if (validToCheckForVisibility) {
             expectedExceptions.add(org.openqa.selenium.InvalidElementStateException.class);
         }
-        // the generic exception is added to handle a case with WebKit whereby the browser doesn't state the cause of the issue
-        expectedExceptions.add(org.openqa.selenium.WebDriverException.class);
-
-        var isMobileExecution = DriverFactoryHelper.isMobileNativeExecution() || DriverFactoryHelper.isMobileWebExecution();
-        var isSafariBowser = DriverFactoryHelper.getTargetBrowserName().toLowerCase().contains("safari");
+        if (isSafariBowser) {
+            // the generic exception is added to handle a case with WebKit whereby the browser doesn't state the cause of the issue
+            expectedExceptions.add(org.openqa.selenium.WebDriverException.class);
+        }
 
         try {
             return new FluentWait<>(driver)
@@ -142,8 +144,11 @@ class ElementActionsHelper {
         expectedExceptions.add(org.openqa.selenium.NoSuchElementException.class);
         expectedExceptions.add(org.openqa.selenium.StaleElementReferenceException.class);
         expectedExceptions.add(org.openqa.selenium.ElementNotInteractableException.class);
-        // the generic exception is added to handle a case with WebKit whereby the browser doesn't state the cause of the issue
-        expectedExceptions.add(org.openqa.selenium.WebDriverException.class);
+        var isSafariBowser = DriverFactoryHelper.getTargetBrowserName().toLowerCase().contains("safari");
+        if (isSafariBowser) {
+            // the generic exception is added to handle a case with WebKit whereby the browser doesn't state the cause of the issue
+            expectedExceptions.add(org.openqa.selenium.WebDriverException.class);
+        }
 
         try {
             return new FluentWait<>(driver)

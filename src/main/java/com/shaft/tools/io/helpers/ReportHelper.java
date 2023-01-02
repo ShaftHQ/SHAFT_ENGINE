@@ -1,12 +1,7 @@
-package com.shaft.tools.io.reporting;
+package com.shaft.tools.io.helpers;
 
 import com.shaft.cli.FileActions;
-import com.shaft.driver.DriverFactory;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.security.GoogleTink;
-import org.testng.ITestContext;
-import org.testng.annotations.AfterSuite;
-import org.testng.annotations.BeforeSuite;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
@@ -14,16 +9,14 @@ import java.util.Arrays;
 import java.util.Date;
 
 public class ReportHelper {
-    public static void attachFullLogs() {
+    public static void attachEngineLog() {
         String executionEndTimestamp = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
-        ReportManagerHelper.attachIssuesLog(executionEndTimestamp);
-        ReportManagerHelper.attachFullLog(executionEndTimestamp);
+        ReportManagerHelper.attachEngineLog(executionEndTimestamp);
     }
 
-    public static void closeAllDriversAndattachBrowserLogs() {
-//        if (Boolean.FALSE.equals(DriverFactoryHelper.isDriversListEmpty())) {
-        DriverFactory.closeAllDrivers();
-//        }
+    public static void attachIssuesLog() {
+        String executionEndTimestamp = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
+        ReportManagerHelper.attachIssuesLog(executionEndTimestamp);
     }
 
     public static void attachImportantLinks() {
@@ -75,36 +68,4 @@ public class ReportHelper {
             ReportManagerHelper.attach("HTML", "Extent Emailable Execution Report", FileActions.getInstance().readFile(ReportManagerHelper.getExtentReportFileName()));
         }
     }
-
-    //TODO: migrate invokedMethodListener, SuiteListener to annotations here?
-    @BeforeSuite(description = "Initializing Engine", alwaysRun = true)
-    public void setupActivities(ITestContext testContext) {
-        ReportManagerHelper.initializeAllureReportingEnvironment();
-        ReportManagerHelper.initializeExtentReportingEnvironment();
-        attachImportantLinks();
-        attachPropertyFiles();
-//        ReportManagerHelper.generateJDKShellFilesToProjectDirectory();
-        var suite = testContext.getSuite();
-        if (!(suite.getAllMethods().size() == 1 && suite.getAllMethods().get(0).getMethodName().equals("runScenario"))) {
-            // not cucumber test runner
-            ReportManagerHelper.setTotalNumberOfTests(suite.getAllMethods().size());
-        }
-        ReportManagerHelper.setDiscreteLogging(Boolean.parseBoolean(System.getProperty("alwaysLogDiscreetly")));
-        ReportManagerHelper.setDebugMode(Boolean.valueOf(System.getProperty("debugMode")));
-
-    }
-
-    @AfterSuite(description = "Cleaning up", alwaysRun = true)
-    public void teardownActivities() {
-        closeAllDriversAndattachBrowserLogs();
-        attachFullLogs();
-        attachCucumberReport();
-        attachExtentReport();
-        CheckpointCounter.attach();
-        ReportManagerHelper.setDiscreteLogging(true);
-        GoogleTink.encrypt();
-        ReportManagerHelper.generateAllureReportArchive();
-        ReportManagerHelper.openAllureReportAfterExecution();
-    }
-
 }

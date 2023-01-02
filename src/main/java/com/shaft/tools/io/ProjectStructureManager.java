@@ -1,7 +1,7 @@
 package com.shaft.tools.io;
 
 import com.shaft.cli.FileActions;
-import com.shaft.tools.io.reporting.ReportManagerHelper;
+import com.shaft.tools.io.helpers.ReportManagerHelper;
 
 import java.nio.file.Paths;
 import java.util.Arrays;

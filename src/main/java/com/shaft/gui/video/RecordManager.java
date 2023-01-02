@@ -5,11 +5,12 @@ import com.automation.remarks.video.recorder.IVideoRecorder;
 import com.automation.remarks.video.recorder.VideoRecorder;
 import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.reporting.ReportManagerHelper;
+import com.shaft.tools.io.helpers.ReportManagerHelper;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.android.AndroidStartScreenRecordingOptions;
 import io.appium.java_client.ios.IOSDriver;
 import io.appium.java_client.ios.IOSStartScreenRecordingOptions;
+import org.apache.commons.io.FileUtils;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
 import ws.schild.jave.Encoder;
@@ -19,10 +20,7 @@ import ws.schild.jave.encode.AudioAttributes;
 import ws.schild.jave.encode.EncodingAttributes;
 import ws.schild.jave.encode.VideoAttributes;
 
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
+import java.io.*;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Base64;
@@ -73,7 +71,7 @@ public class RecordManager {
     }
 
     public static void attachVideoRecording(Path pathToRecording){
-        if (pathToRecording!=null) {
+        if (pathToRecording != null) {
             String testMethodName = ReportManagerHelper.getTestMethodName();
             try {
                 ReportManagerHelper.attach("Video Recording", testMethodName,
@@ -84,21 +82,36 @@ public class RecordManager {
         }
     }
 
-    public static String attachVideoRecording() {
+    public static void attachVideoRecording() {
+        ReportManagerHelper.attach("Video Recording", ReportManagerHelper.getTestMethodName(), getVideoRecording());
+    }
+
+    public static String getVideoRecordingFilePath() {
+        try {
+            String tempFilePath = "target/tempVideoFile/";
+            FileUtils.copyInputStreamToFile(getVideoRecording(), new File(tempFilePath));
+            return tempFilePath;
+        } catch (IOException e) {
+            ReportManagerHelper.logDiscrete(e);
+            return "";
+        }
+    }
+
+    public static InputStream getVideoRecording() {
+        InputStream inputStream = null;
         String pathToRecording = "";
         String testMethodName = ReportManagerHelper.getTestMethodName();
 
         if (Boolean.TRUE.equals(RECORD_VIDEO) && recorder.get() != null) {
             pathToRecording = doVideoProcessing(ReportManagerHelper.isCurrentTestPassed(), recorder.get().stopAndSave(System.currentTimeMillis() + "_" + testMethodName));
-
             try {
-                ReportManagerHelper.attach("Video Recording", testMethodName,
-                        new FileInputStream(encodeRecording(pathToRecording)));
+                inputStream = new FileInputStream(encodeRecording(pathToRecording));
             } catch (FileNotFoundException e) {
                 ReportManagerHelper.logDiscrete(e);
+//                inputStream = new ByteArrayInputStream(new byte[0]);
             }
-
             recorder.set(null);
+
         } else if (Boolean.TRUE.equals(RECORD_VIDEO) && videoDriver.get() != null) {
             String base64EncodedRecording = "";
             if (videoDriver.get() instanceof AndroidDriver androidDriver) {
@@ -106,13 +119,11 @@ public class RecordManager {
             } else if (videoDriver.get() instanceof IOSDriver iosDriver) {
                 base64EncodedRecording = iosDriver.stopRecordingScreen();
             }
-            ReportManagerHelper.attach("Video Recording", testMethodName,
-                    new ByteArrayInputStream(Base64.getDecoder().decode(base64EncodedRecording)));
-
+            inputStream = new ByteArrayInputStream(Base64.getDecoder().decode(base64EncodedRecording));
             videoDriver.set(null);
             isRecordingStarted = false;
         }
-        return pathToRecording;
+        return inputStream;
     }
 
     private static File encodeRecording(String pathToRecording) {

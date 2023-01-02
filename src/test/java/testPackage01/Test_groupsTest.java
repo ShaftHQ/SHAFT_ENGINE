@@ -1,13 +1,14 @@
 package testPackage01;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.listeners.TestNGListener;
 import org.openqa.selenium.By;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Listeners;
 import org.testng.annotations.Test;
 
-@Listeners({com.shaft.tools.listeners.AlterSuiteListener.class, com.shaft.tools.listeners.SuiteListener.class, com.shaft.tools.listeners.InvokedMethodListener.class})
+@Listeners({TestNGListener.class})
 public class Test_groupsTest {
     SHAFT.GUI.WebDriver driver;
 

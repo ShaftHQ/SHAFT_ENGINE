@@ -1,11 +1,11 @@
-package com.shaft.tools.listeners;
+package com.shaft.listeners;
 
 import com.shaft.driver.DriverFactoryHelper;
 import com.shaft.gui.browser.WebDriverBrowserActions;
 import com.shaft.gui.element.WebDriverElementActions;
 import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.reporting.ReportManagerHelper;
+import com.shaft.tools.io.helpers.ReportManagerHelper;
 import com.shaft.tools.support.JavaHelper;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Sequence;
