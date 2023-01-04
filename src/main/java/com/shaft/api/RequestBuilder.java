@@ -1,7 +1,7 @@
 package com.shaft.api;
 
 import com.shaft.cli.FileActions;
-import com.shaft.tools.io.reporting.ReportManagerHelper;
+import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import io.restassured.config.RestAssuredConfig;
 import io.restassured.config.SSLConfig;
 import io.restassured.http.ContentType;

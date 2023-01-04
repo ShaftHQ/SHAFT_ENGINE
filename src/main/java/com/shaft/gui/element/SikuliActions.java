@@ -1,9 +1,11 @@
 package com.shaft.gui.element;
 
-import com.shaft.driver.DriverFactoryHelper;
-import com.shaft.gui.image.ScreenshotManager;
-import com.shaft.gui.video.RecordManager;
-import com.shaft.tools.io.reporting.ReportManagerHelper;
+import io.github.shafthq.shaft.driver.DriverFactoryHelper;
+import io.github.shafthq.shaft.gui.browser.JavaScriptWaitManager;
+import io.github.shafthq.shaft.gui.element.WebDriverElementActions;
+import io.github.shafthq.shaft.gui.image.ScreenshotManager;
+import io.github.shafthq.shaft.gui.video.RecordManager;
+import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import org.apache.commons.io.IOUtils;
 import org.sikuli.basics.Settings;
 import org.sikuli.script.*;
@@ -28,7 +30,7 @@ public class SikuliActions {
         this.applicationWindow = applicationWindow;
     }
 
-    protected static List<Object> prepareElementScreenshotAttachment(Screen screen, App applicationWindow, Pattern element, String actionName, boolean passFailStatus) {
+    public static List<Object> prepareElementScreenshotAttachment(Screen screen, App applicationWindow, Pattern element, String actionName, boolean passFailStatus) {
         return ScreenshotManager.captureScreenShotUsingSikuliX(screen, applicationWindow, element, actionName, passFailStatus);
     }
 
@@ -352,7 +354,7 @@ public class SikuliActions {
 
     private void initializeSikuliEngineForCurrentScreen() {
         if (DriverFactoryHelper.isWebExecution()) {
-            JavaScriptWaitManager.waitForLazyLoading();
+            JavaScriptWaitManager.waitForLazyLoading(DriverFactoryHelper.getDriver().get());
         }
         Settings.setShowActions(false);
         Settings.ActionLogs = true;

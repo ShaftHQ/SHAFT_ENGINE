@@ -2,14 +2,16 @@ package com.shaft.gui.element;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.shaft.driver.DriverFactoryHelper;
-import com.shaft.gui.image.ScreenshotManager;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.reporting.ReportManagerHelper;
 import io.appium.java_client.AppiumBy;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
+import io.github.shafthq.shaft.driver.DriverFactoryHelper;
+import io.github.shafthq.shaft.gui.element.ElementActionsHelper;
+import io.github.shafthq.shaft.gui.element.WebDriverElementActions;
+import io.github.shafthq.shaft.gui.image.ScreenshotManager;
+import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.*;
 
@@ -44,7 +46,7 @@ public class TouchActions {
     }
 
     /**
-     * Sends a keypress via the device soft keyboard.
+     * Sends a key-press via the device soft keyboard.
      *
      * @param key the key that should be pressed
      * @return a self-reference to be used to chain actions

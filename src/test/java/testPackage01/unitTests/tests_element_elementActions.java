@@ -19,7 +19,7 @@ public class tests_element_elementActions {
     @Test
     public void waitForElementToBePresent_true_expectedToPass() {
         BrowserActions.navigateToURL(driver.get(), "https://www.google.com/ncr", "www.google.com");
-        ElementActions.waitForElementToBePresent(driver.get(), GoogleSearch.googleLogo_image, 1, true);
+        ElementActions.waitForElementToBeReady(driver.get(), GoogleSearch.googleLogo_image);
         Validations.assertThat()
                 .element(driver.get(), GoogleSearch.googleLogo_image)
                 .matchesReferenceImage()
@@ -52,7 +52,7 @@ public class tests_element_elementActions {
     public void waitForElementToBePresent_true_expectedToFail() {
         BrowserActions.navigateToURL(driver.get(), "https://www.google.com/ncr", "www.google.com");
         try {
-            ElementActions.waitForElementToBePresent(driver.get(), By.id("bla"), 1, true);
+            ElementActions.waitForElementToBeReady(driver.get(), By.id("bla"));
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -61,14 +61,14 @@ public class tests_element_elementActions {
     @Test
     public void waitForElementToBePresent_false_expectedToPass() {
         BrowserActions.navigateToURL(driver.get(), "https://www.google.com/ncr", "www.google.com");
-        ElementActions.waitForElementToBePresent(driver.get(), By.id("bla"), 1, false);
+        ElementActions.waitForElementToBeInvisible(driver.get(), By.id("bla"));
     }
 
     @Test
     public void waitForElementToBePresent_false_expectedToFail() {
         BrowserActions.navigateToURL(driver.get(), "https://www.google.com/ncr", "www.google.com");
         try {
-            ElementActions.waitForElementToBePresent(driver.get(), GoogleSearch.googleLogo_image, 1, false);
+            ElementActions.waitForElementToBeInvisible(driver.get(), GoogleSearch.googleLogo_image);
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -78,7 +78,7 @@ public class tests_element_elementActions {
     public void waitForElementToBePresent_moreThanOneElement_expectedToFail() {
         BrowserActions.navigateToURL(driver.get(), "https://www.google.com/ncr", "www.google.com");
         try {
-            ElementActions.waitForElementToBePresent(driver.get(), By.xpath("//*"), 1, false);
+            ElementActions.waitForElementToBeInvisible(driver.get(), By.xpath("//*"));
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }

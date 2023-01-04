@@ -3,8 +3,8 @@ package com.shaft.cli;
 import com.google.common.hash.Hashing;
 import com.shaft.tools.io.PdfFileManager;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.reporting.ReportManagerHelper;
-import com.shaft.tools.support.JavaHelper;
+import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.tools.support.JavaHelper;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
@@ -85,6 +85,21 @@ public class FileActions {
         try {
             Collection<File> filesList = FileUtils.listFiles(new File(targetDirectory), TrueFileFilter.TRUE,
                     TrueFileFilter.TRUE);
+            filesList.forEach(file -> files.append(file.getName()).append(System.lineSeparator()));
+        } catch (IllegalArgumentException rootCauseException) {
+            ReportManagerHelper.log(rootCauseException);
+            failAction("Failed to list files in this directory: \"" + targetDirectory + "\"", rootCauseException);
+        }
+
+        passAction("Target Directory: \"" + targetDirectory + "\"", files.toString().trim());
+        return files.toString().trim();
+    }
+
+    public String listFilesInDirectory(String targetDirectory, TrueFileFilter recursively) {
+        StringBuilder files = new StringBuilder();
+        try {
+            Collection<File> filesList = FileUtils.listFiles(new File(targetDirectory), TrueFileFilter.TRUE,
+                    recursively);
             filesList.forEach(file -> files.append(file.getName()).append(System.lineSeparator()));
         } catch (IllegalArgumentException rootCauseException) {
             ReportManagerHelper.log(rootCauseException);
@@ -649,7 +664,7 @@ public class FileActions {
         // within SHAFT_Engine itself
         StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
         StackTraceElement parentMethod = stackTrace[4];
-        if (parentMethod.getClassName().contains("com.shaft")) {
+        if (parentMethod.getClassName().contains("shaft")) {
             ReportManager.logDiscrete(message);
         } else {
             if (!attachments.equals(new ArrayList<>())) {

@@ -6,7 +6,8 @@ import com.shaft.cli.TerminalActions;
 import com.shaft.db.DatabaseActions;
 import com.shaft.db.DatabaseActions.DatabaseType;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.listeners.InvokedMethodListener;
+import io.github.shafthq.shaft.driver.DriverFactoryHelper;
+import io.github.shafthq.shaft.listeners.TestNGListener;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.WebDriver;
 import org.sikuli.script.App;
@@ -68,8 +69,8 @@ public class DriverFactory {
      */
     private static void readCustomTestSuiteParameters() {
         // it's null in case of Cucumber native feature file execution
-        if (InvokedMethodListener.getXmlTest() != null) {
-            System.getProperties().putAll(InvokedMethodListener.getXmlTest().getAllParameters());
+        if (TestNGListener.getXmlTest() != null) {
+            System.getProperties().putAll(TestNGListener.getXmlTest().getAllParameters());
         }
     }
 
@@ -91,7 +92,6 @@ public class DriverFactory {
                 return DriverFactoryHelper.getDriver().get();
             }else {
                 // this is the new native app scenario
-                //TODO: there is a bug in the merge method and it doesn't respect the capabilities at all
                 browserStackOptions = BrowserStack.setupNativeAppExecution(System.getProperty("browserStack.username"), System.getProperty("browserStack.accessKey"),
                         System.getProperty("browserStack.deviceName"), System.getProperty("browserStack.platformVersion"), System.getProperty("browserStack.appRelativeFilePath"), System.getProperty("browserStack.appName")).merge(browserStackOptions);
                 DriverFactoryHelper.initializeDriver(DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);

@@ -5,7 +5,7 @@ import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.reporting.ReportManagerHelper;
+import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import org.testng.Assert;
 
 import java.io.BufferedReader;
