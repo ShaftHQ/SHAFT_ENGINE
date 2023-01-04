@@ -1,7 +1,7 @@
 package com.shaft.gui.element;
 
 import io.github.shafthq.shaft.driver.DriverFactoryHelper;
-import io.github.shafthq.shaft.gui.element.JavaScriptWaitManager;
+import io.github.shafthq.shaft.gui.browser.JavaScriptWaitManager;
 import io.github.shafthq.shaft.gui.element.WebDriverElementActions;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
 import io.github.shafthq.shaft.gui.video.RecordManager;

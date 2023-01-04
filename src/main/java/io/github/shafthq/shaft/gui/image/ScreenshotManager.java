@@ -5,7 +5,7 @@ import com.shaft.cli.FileActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.driver.DriverFactoryHelper;
-import io.github.shafthq.shaft.gui.element.JavaScriptWaitManager;
+import io.github.shafthq.shaft.gui.browser.JavaScriptWaitManager;
 import io.github.shafthq.shaft.properties.PropertyFileManager;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import org.imgscalr.Scalr;

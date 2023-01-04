@@ -3,7 +3,6 @@ package io.github.shafthq.shaft.gui.browser;
 import com.google.common.net.InternetDomainName;
 import com.shaft.driver.DriverFactory;
 import com.shaft.tools.io.ReportManager;
-import io.github.shafthq.shaft.gui.element.JavaScriptWaitManager;
 import io.github.shafthq.shaft.gui.element.WebDriverElementActions;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;

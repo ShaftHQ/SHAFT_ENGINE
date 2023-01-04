@@ -1,4 +1,4 @@
-package io.github.shafthq.shaft.gui.element;
+package io.github.shafthq.shaft.gui.browser;
 
 import io.github.shafthq.shaft.driver.DriverFactoryHelper;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
