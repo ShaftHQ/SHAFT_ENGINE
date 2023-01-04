@@ -16,6 +16,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ElementActionsHelper {
     private static long DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT = Integer
@@ -96,6 +97,7 @@ public class ElementActionsHelper {
         expectedExceptions.add(org.openqa.selenium.ElementNotInteractableException.class);
         if (validToCheckForVisibility) {
             expectedExceptions.add(org.openqa.selenium.InvalidElementStateException.class);
+            expectedExceptions.add(org.openqa.selenium.interactions.MoveTargetOutOfBoundsException.class);
         }
         if (isSafariBowser) {
             // the generic exception is added to handle a case with WebKit whereby the browser doesn't state the cause of the issue
@@ -103,6 +105,7 @@ public class ElementActionsHelper {
         }
 
         try {
+            AtomicBoolean attemptedToUseActionsToScrollToElement = new AtomicBoolean(false);
             return new FluentWait<>(driver)
                     .withTimeout(Duration.ofMillis(
                             DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT * numberOfAttempts))
@@ -112,9 +115,10 @@ public class ElementActionsHelper {
                         WebElement targetElement = nestedDriver.findElement(elementLocator);
                         if (validToCheckForVisibility) {
                             if (!isMobileExecution) {
-                                if (isSafariBowser) {
+                                if (isSafariBowser || attemptedToUseActionsToScrollToElement.get()) {
                                     ((Locatable) targetElement).getCoordinates().inViewPort();
                                 } else {
+                                    attemptedToUseActionsToScrollToElement.set(true);
                                     new Actions(driver).scrollToElement(targetElement).perform();
                                 }
                             } else {
@@ -149,6 +153,7 @@ public class ElementActionsHelper {
             // the generic exception is added to handle a case with WebKit whereby the browser doesn't state the cause of the issue
             expectedExceptions.add(org.openqa.selenium.WebDriverException.class);
         }
+        expectedExceptions.add(org.openqa.selenium.interactions.MoveTargetOutOfBoundsException.class);
 
         try {
             return new FluentWait<>(driver)

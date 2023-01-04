@@ -25,7 +25,7 @@ public class JavaScriptWaitManager {
         throw new IllegalStateException("Utility class");
     }
 
-    public static void setDriver(WebDriver driver) {
+    private static void setDriver(WebDriver driver) {
         jsWaitDriver.set(driver);
         jsExec = (JavascriptExecutor) jsWaitDriver.get();
         WAIT_FOR_LAZY_LOADING = Boolean.parseBoolean(System.getProperty("waitForLazyLoading"));
@@ -35,7 +35,8 @@ public class JavaScriptWaitManager {
     /**
      * Waits for jQuery, Angular, and/or Javascript if present on the current page.
      */
-    public static void waitForLazyLoading() {
+    public static void waitForLazyLoading(WebDriver driver) {
+        setDriver(driver);
         if (Boolean.TRUE.equals(WAIT_FOR_LAZY_LOADING)
                 && !DriverFactoryHelper.isMobileNativeExecution()) {
             try {

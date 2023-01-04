@@ -49,7 +49,7 @@ public class WebDriverBrowserActions {
      * @return the URL that's currently open in the current page
      */
     public static String getCurrentURL(WebDriver driver) {
-        JavaScriptWaitManager.waitForLazyLoading();
+        JavaScriptWaitManager.waitForLazyLoading(driver);
         var currentURL = "";
         try {
             currentURL = driver.getCurrentUrl();
@@ -67,7 +67,7 @@ public class WebDriverBrowserActions {
      * @return the title of the current window
      */
     public static String getCurrentWindowTitle(WebDriver driver) {
-        JavaScriptWaitManager.waitForLazyLoading();
+        JavaScriptWaitManager.waitForLazyLoading(driver);
         var currentWindowTitle = "";
         try {
             currentWindowTitle = driver.getTitle();
@@ -85,7 +85,7 @@ public class WebDriverBrowserActions {
      * @return the source of the current page
      */
     public static String getPageSource(WebDriver driver) {
-        JavaScriptWaitManager.waitForLazyLoading();
+        JavaScriptWaitManager.waitForLazyLoading(driver);
         var pageSource = "";
         try {
             pageSource = driver.getPageSource();
@@ -103,7 +103,7 @@ public class WebDriverBrowserActions {
      * @return the window handle for the current window
      */
     public static String getWindowHandle(WebDriver driver) {
-        JavaScriptWaitManager.waitForLazyLoading();
+        JavaScriptWaitManager.waitForLazyLoading(driver);
         var windowHandle = "";
         try {
             windowHandle = driver.getWindowHandle();
@@ -121,7 +121,7 @@ public class WebDriverBrowserActions {
      * @return the position of the current window
      */
     public static String getWindowPosition(WebDriver driver) {
-        JavaScriptWaitManager.waitForLazyLoading();
+        JavaScriptWaitManager.waitForLazyLoading(driver);
         var windowPosition = "";
         try {
             windowPosition = driver.manage().window().getPosition().toString();
@@ -139,7 +139,7 @@ public class WebDriverBrowserActions {
      * @return the size of the current window
      */
     public static String getWindowSize(WebDriver driver) {
-        JavaScriptWaitManager.waitForLazyLoading();
+        JavaScriptWaitManager.waitForLazyLoading(driver);
         var windowSize = "";
         try {
             windowSize = driver.manage().window().getSize().toString();
@@ -260,7 +260,7 @@ public class WebDriverBrowserActions {
              */
         }
         try {
-            JavaScriptWaitManager.waitForLazyLoading();
+            JavaScriptWaitManager.waitForLazyLoading(driver);
             String initialSource = driver.getPageSource();
             String initialURL = driver.getCurrentUrl();
             // remove trailing slash which may cause comparing the current and target urls
@@ -272,7 +272,7 @@ public class WebDriverBrowserActions {
             if (!initialURL.equals(modifiedTargetUrl)) {
                 // navigate to new url
                 navigateToNewURL(driver, initialURL, modifiedTargetUrl, targetUrlAfterRedirection);
-                JavaScriptWaitManager.waitForLazyLoading();
+                JavaScriptWaitManager.waitForLazyLoading(driver);
                 if ((WebDriverElementActions.getElementsCount(driver, By.tagName("html")) == 1)
                         && (!driver.getPageSource().equalsIgnoreCase(initialSource))) {
                     confirmThatWebsiteIsNotDown(driver, modifiedTargetUrl);
@@ -283,7 +283,7 @@ public class WebDriverBrowserActions {
             } else {
                 // already on the same page
                 driver.navigate().refresh();
-                JavaScriptWaitManager.waitForLazyLoading();
+                JavaScriptWaitManager.waitForLazyLoading(driver);
                 if (WebDriverElementActions.getElementsCount(driver, By.tagName("html")) == 1) {
                     confirmThatWebsiteIsNotDown(driver, modifiedTargetUrl);
                     passAction(driver, modifiedTargetUrl);
@@ -300,13 +300,13 @@ public class WebDriverBrowserActions {
      * @param driver the current instance of Selenium WebDriver
      */
     public static void navigateBack(WebDriver driver) {
-        JavaScriptWaitManager.waitForLazyLoading();
+        JavaScriptWaitManager.waitForLazyLoading(driver);
         String initialURL;
         var newURL = "";
         try {
             initialURL = driver.getCurrentUrl();
             driver.navigate().back();
-            JavaScriptWaitManager.waitForLazyLoading();
+            JavaScriptWaitManager.waitForLazyLoading(driver);
             (new WebDriverWait(driver, Duration.ofSeconds(NAVIGATION_TIMEOUT_INTEGER)))
                     .until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
             newURL = driver.getCurrentUrl();
@@ -326,13 +326,13 @@ public class WebDriverBrowserActions {
      * @param driver the current instance of Selenium WebDriver
      */
     public static void navigateForward(WebDriver driver) {
-        JavaScriptWaitManager.waitForLazyLoading();
+        JavaScriptWaitManager.waitForLazyLoading(driver);
         String initialURL;
         var newURL = "";
         try {
             initialURL = driver.getCurrentUrl();
             driver.navigate().forward();
-            JavaScriptWaitManager.waitForLazyLoading();
+            JavaScriptWaitManager.waitForLazyLoading(driver);
             (new WebDriverWait(driver, Duration.ofSeconds(NAVIGATION_TIMEOUT_INTEGER)))
                     .until(ExpectedConditions.not(ExpectedConditions.urlToBe(initialURL)));
             newURL = driver.getCurrentUrl();
@@ -352,7 +352,7 @@ public class WebDriverBrowserActions {
      * @param driver the current instance of Selenium WebDriver
      */
     public static void refreshCurrentPage(WebDriver driver) {
-        JavaScriptWaitManager.waitForLazyLoading();
+        JavaScriptWaitManager.waitForLazyLoading(driver);
         driver.navigate().refresh();
         passAction(driver, driver.getPageSource());
         // removed all exception handling as there was no comments on when and why this
@@ -366,7 +366,7 @@ public class WebDriverBrowserActions {
      */
     public static void closeCurrentWindow(WebDriver driver) {
         if (driver != null) {
-            JavaScriptWaitManager.waitForLazyLoading();
+            JavaScriptWaitManager.waitForLazyLoading(driver);
             try {
                 // TODO: handle session timeout while attempting to close empty window
                 String lastPageSource = driver.getPageSource();
@@ -671,7 +671,7 @@ public class WebDriverBrowserActions {
     }
 
     public static void capturePageSnapshot(WebDriver driver) {
-        JavaScriptWaitManager.waitForLazyLoading();
+        JavaScriptWaitManager.waitForLazyLoading(driver);
         var serializedPageData = "";
         try {
             if (driver instanceof ChromiumDriver chromiumDriver) {

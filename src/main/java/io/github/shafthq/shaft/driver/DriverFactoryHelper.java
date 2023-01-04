@@ -9,7 +9,6 @@ import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import io.github.shafthq.shaft.enums.OperatingSystems;
-import io.github.shafthq.shaft.gui.element.JavaScriptWaitManager;
 import io.github.shafthq.shaft.gui.video.RecordManager;
 import io.github.shafthq.shaft.properties.PropertyFileManager;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
@@ -662,7 +661,6 @@ public class DriverFactoryHelper {
             }
 
             if (!isMobileExecution) {
-                JavaScriptWaitManager.setDriver(driver.get());
                 if (Boolean.TRUE.equals(AUTO_MAXIMIZE)
                         && (
 //                                OperatingSystems.MACOS.equals(getOperatingSystemFromName(targetOperatingSystem))

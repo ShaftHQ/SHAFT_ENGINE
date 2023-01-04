@@ -477,7 +477,7 @@ public class ScreenshotManager {
         }
 
         try {
-            JavaScriptWaitManager.waitForLazyLoading();
+            JavaScriptWaitManager.waitForLazyLoading(DriverFactoryHelper.getDriver().get());
         } catch (Exception e) {
             ReportManagerHelper.log(e);
         }

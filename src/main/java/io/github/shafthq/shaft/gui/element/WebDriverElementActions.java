@@ -1301,7 +1301,7 @@ public class WebDriverElementActions {
             elementInformation.add(null);
             return elementInformation;
         }
-        JavaScriptWaitManager.waitForLazyLoading();
+//        JavaScriptWaitManager.waitForLazyLoading(driver);
         if (!elementLocator.equals(By.tagName("html"))) {
             if (numberOfAttempts.isEmpty() && checkForVisibility.isEmpty()) {
                 return ElementActionsHelper.waitForElementPresence(driver, elementLocator);
