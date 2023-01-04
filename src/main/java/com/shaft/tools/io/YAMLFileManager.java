@@ -1,7 +1,7 @@
 package com.shaft.tools.io;
 
-import com.shaft.tools.io.helpers.ReportManagerHelper;
-import com.shaft.tools.support.JavaHelper;
+import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.tools.support.JavaHelper;
 import org.testng.Assert;
 import org.yaml.snakeyaml.Yaml;
 

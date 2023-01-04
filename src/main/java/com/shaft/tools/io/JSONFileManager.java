@@ -1,8 +1,8 @@
 package com.shaft.tools.io;
 
 import com.shaft.cli.FileActions;
-import com.shaft.tools.io.helpers.ReportManagerHelper;
-import com.shaft.tools.support.JavaHelper;
+import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.tools.support.JavaHelper;
 import io.restassured.path.json.JsonPath;
 import io.restassured.path.json.exception.JsonPathException;
 import org.testng.Assert;
@@ -42,7 +42,7 @@ public class JSONFileManager {
     }
 
     /**
-     * Used internally to remove x. from the beginning of any jsonpath. This matches the generated jsonpaths by online helper tools such as https://jsonpathfinder.com/
+     * Used internally to remove x. from the beginning of any jsonpath. This matches the generated jsonpaths by online helper tools such as <a href="https://jsonpathfinder.com/">https://jsonpathfinder.com/</a>
      *
      * @param jsonPath the generated jsonpath
      * @return a clean jsonpath without the x. at the beginning of the string
@@ -59,7 +59,7 @@ public class JSONFileManager {
     /**
      * Reads the string value at the desired jsonpath within the target test data file
      *
-     * @param jsonPath the desired jsonpath that points to the needed test data, it can be written manually or generated using helper tools such as https://jsonpathfinder.com/
+     * @param jsonPath the desired jsonpath that points to the needed test data, it can be written manually or generated using helper tools such as <a href="https://jsonpathfinder.com/">https://jsonpathfinder.com/</a>
      * @return the string value of the desired test data
      */
     public String getTestData(String jsonPath) {
@@ -74,7 +74,7 @@ public class JSONFileManager {
     /**
      * Reads the list value at the desired jsonpath within the target test data file
      *
-     * @param jsonPath the desired jsonpath that points to the needed test data, it can be written manually or generated using helper tools such as https://jsonpathfinder.com/
+     * @param jsonPath the desired jsonpath that points to the needed test data, it can be written manually or generated using helper tools such as <a href="https://jsonpathfinder.com/">https://jsonpathfinder.com/</a>
      * @return the list value of the desired test data
      */
     public List<?> getTestDataAsList(String jsonPath) {
@@ -89,7 +89,7 @@ public class JSONFileManager {
     /**
      * Reads the map value at the desired jsonpath within the target test data file
      *
-     * @param jsonPath the desired jsonpath that points to the needed test data, it can be written manually or generated using helper tools such as https://jsonpathfinder.com/
+     * @param jsonPath the desired jsonpath that points to the needed test data, it can be written manually or generated using helper tools such as <a href="https://jsonpathfinder.com/">https://jsonpathfinder.com/</a>
      * @return the map value of the desired test data
      */
     public Map<?, ?> getTestDataAsMap(String jsonPath) {

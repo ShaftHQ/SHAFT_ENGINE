@@ -18,6 +18,6 @@ debug.log
 /.classpath
 /.project
 /bin/
-/src/main/resources/properties/
+/src/main/resources/properties/*.properties
 /generateJdk.bat
 /generateJdk.sh

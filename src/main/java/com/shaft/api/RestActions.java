@@ -6,11 +6,11 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.jayway.jsonpath.JsonPath;
 import com.shaft.tools.io.ReportManager;
-import com.shaft.tools.io.helpers.ReportManagerHelper;
-import com.shaft.tools.support.JavaHelper;
 import com.shaft.validation.Validations;
 import eu.medsea.mimeutil.MimeUtil;
 import eu.medsea.mimeutil.MimeUtil2;
+import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.tools.support.JavaHelper;
 import io.restassured.builder.MultiPartSpecBuilder;
 import io.restassured.builder.RequestSpecBuilder;
 import io.restassured.config.EncoderConfig;
@@ -263,7 +263,7 @@ public class RestActions {
                                                       String jsonPathToValueReference, String valueReference) {
         List<Object> list = getResponseJSONValueAsList(response, jsonPathToList);
         String value = "";
-        for (Object res : list) {
+        for (Object res : Objects.requireNonNull(list)) {
             if (Objects.equals(getResponseJSONValue(res, jsonPathToValueReference), valueReference)) {
                 value = getResponseJSONValue(res, jsonPathToValueNeeded);
             }
@@ -843,7 +843,7 @@ public class RestActions {
     /**
      * private helper method for sendGraphqlRequest() method - WITHOUT TOKEN.
      *
-     * @param base_URI_forHelperMethod    The Base URI without "graphql". example:: "https://api.example.com/"
+     * @param base_URI_forHelperMethod    The Base URI without "graphql". example:: "<a href="https://api.example.com/">https://api.example.com/</a>"
      * @param requestBody_forHelperMethod the request body.
      * @return Response object
      */
@@ -856,7 +856,7 @@ public class RestActions {
     /**
      * Perform Graphql Request using Query - WITHOUT Header.
      *
-     * @param base_URI The Base URI without "graphql". example:: "https://api.example.com/"
+     * @param base_URI The Base URI without "graphql". example:: "<a href="https://api.example.com/">https://api.example.com/</a>"
      * @param query    graphql query or mutation.
      * @return Graphql Response
      */
@@ -871,7 +871,7 @@ public class RestActions {
     /**
      * Perform Graphql Request using Query and Variables - WITHOUT Header.
      *
-     * @param base_URI  The Base URI without "graphql". example:: "https://api.example.com/"
+     * @param base_URI  The Base URI without "graphql". example:: "<a href="https://api.example.com/">https://api.example.com/</a>"
      * @param query     graphql query or mutation.
      * @param variables graphql variables; dynamic values of the query. please refer to this url for examples:: <a href="https://graphql.org/learn/queries/#variables">https://graphql.org/learn/queries/#variables</a>
      * @return Graphql Response
@@ -888,7 +888,7 @@ public class RestActions {
     /**
      * Perform Graphql Request using Query, Variables, and Fragments - WITHOUT Header.
      *
-     * @param base_URI  The Base URI without "graphql". example:: "https://api.example.com/"
+     * @param base_URI  The Base URI without "graphql". example:: "<a href="https://api.example.com/">https://api.example.com/</a>"
      * @param query     graphql query or mutation.
      * @param variables graphql variables; dynamic values of the query. please refer to this url for examples:: <a href="https://graphql.org/learn/queries/#variables">https://graphql.org/learn/queries/#variables</a>
      * @param fragment  graphql fragment; reusable units let you construct sets of fields, and then include them in queries where you need to. please refer to this url for examples:: <a href="https://graphql.org/learn/queries/#fragments">https://graphql.org/learn/queries/#fragments</a>
@@ -907,7 +907,7 @@ public class RestActions {
     /**
      * private helper method for sendGraphqlRequest method WITH Header.
      *
-     * @param base_URI_forHelperMethod    The Base URI without "graphql". example:: "https://api.example.com/"
+     * @param base_URI_forHelperMethod    The Base URI without "graphql". example:: "<a href="https://api.example.com/">https://api.example.com/</a>"
      * @param requestBody_forHelperMethod the request body.
      * @param headerKey_forHelperMethod   the name of the header that you want to add.
      * @param headerValue_forHelperMethod the value that will be put inside the key.
@@ -922,7 +922,7 @@ public class RestActions {
     /**
      * Perform Graphql Request using Query - WITH Header.
      *
-     * @param base_URI     The Base URI without "graphql". example:: "https://api.example.com/"
+     * @param base_URI     The Base URI without "graphql". example:: "<a href="https://api.example.com/">https://api.example.com/</a>"
      * @param query        graphql query or mutation.
      * @param header_key   the name of the header that you want to add. example:: "Authorization"
      * @param header_value the value that will be put inside the key. example:: "bearer ${token}"
@@ -939,7 +939,7 @@ public class RestActions {
     /**
      * Perform Graphql Request using Query and Variables - WITH Header.
      *
-     * @param base_URI     The Base URI without "graphql". example:: "https://api.example.com/"
+     * @param base_URI     The Base URI without "graphql". example:: "<a href="https://api.example.com/">https://api.example.com/</a>"
      * @param query        graphql query or mutation.
      * @param variables    graphql variables; dynamic values of the query. please refer to this url for examples:: <a href="https://graphql.org/learn/queries/#variables">https://graphql.org/learn/queries/#variables</a>
      * @param header_key   the name of the header that you want to add. example:: "Authorization"
@@ -958,7 +958,7 @@ public class RestActions {
     /**
      * Perform Graphql Request using Query, Variables, and Fragments - WITH Header.
      *
-     * @param base_URI     The Base URI without "graphql". example:: "https://api.example.com/"
+     * @param base_URI     The Base URI without "graphql". example:: "<a href="https://api.example.com/">https://api.example.com/</a>"
      * @param query        graphql query or mutation.
      * @param variables    graphql variables; dynamic values of the query. please refer to this url for examples:: <a href="https://graphql.org/learn/queries/#variables">https://graphql.org/learn/queries/#variables</a>
      * @param fragment     graphql fragment; reusable units let you construct sets of fields, and then include them in queries where you need to. please refer to this url for examples:: <a href="https://graphql.org/learn/queries/#fragments">https://graphql.org/learn/queries/#fragments</a>
@@ -1143,18 +1143,23 @@ public class RestActions {
 
     Response sendRequest(RequestType requestType, String request, RequestSpecification specs) {
         switch (requestType) {
-            case POST:
+            case POST -> {
                 return given().spec(specs).when().post(request).andReturn();
-            case PATCH:
+            }
+            case PATCH -> {
                 return given().spec(specs).when().patch(request).andReturn();
-            case PUT:
+            }
+            case PUT -> {
                 return given().spec(specs).when().put(request).andReturn();
-            case GET:
+            }
+            case GET -> {
                 return given().spec(specs).when().get(request).andReturn();
-            case DELETE:
+            }
+            case DELETE -> {
                 return given().spec(specs).when().delete(request).andReturn();
-            default:
-                break;
+            }
+            default -> {
+            }
         }
         return null;
     }

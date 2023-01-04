@@ -242,7 +242,7 @@ public class ElementSteps {
      */
     @When("I Wait for {int} attempt(s) for the element found by {string}: {string} to be present")
     public void waitForElementToBePresent(int numberOfTries, String locatorType, String locatorValue) {
-        com.shaft.gui.element.ElementActions.waitForElementToBePresent(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue), numberOfTries, true);
+        com.shaft.gui.element.ElementActions.waitForElementToBeReady(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue));
     }
 
     /**
@@ -257,7 +257,7 @@ public class ElementSteps {
      */
     @When("I Wait for {int} attempt(s) for the element found by {string}: {string} to be not present")
     public void waitForElementToBeNotPresent(int numberOfTries, String locatorType, String locatorValue) {
-        com.shaft.gui.element.ElementActions.waitForElementToBePresent(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue), numberOfTries, false);
+        com.shaft.gui.element.ElementActions.waitForElementToBeInvisible(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue));
     }
 
     /**

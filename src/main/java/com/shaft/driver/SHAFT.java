@@ -6,18 +6,19 @@ import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.db.DatabaseActions;
 import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.browser.WebDriverBrowserActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.SikuliActions;
-import com.shaft.listeners.WebDriverListener;
 import com.shaft.tools.io.ExcelFileManager;
 import com.shaft.tools.io.JSONFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.YAMLFileManager;
-import com.shaft.tools.io.helpers.ReportManagerHelper;
-import com.shaft.validation.RestValidationsBuilder;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
+import io.github.shafthq.shaft.driver.WizardHelpers;
+import io.github.shafthq.shaft.gui.browser.WebDriverBrowserActions;
+import io.github.shafthq.shaft.listeners.WebDriverListener;
+import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.validations.helpers.RestValidationsBuilder;
 import io.restassured.config.RestAssuredConfig;
 import io.restassured.response.Response;
 import org.openqa.selenium.MutableCapabilities;
@@ -74,7 +75,7 @@ public class SHAFT {
             public org.openqa.selenium.WebDriver getDriver() {
                 WebDriverListener webDriverListener = new WebDriverListener();
 
-                /**
+                /*
                  * Decorator is not working for appium drivers as per the following issues/articles
                  * https://github.com/appium/java-client/issues/1694
                  * https://github.com/appium/java-client/blob/master/docs/The-event_firing.md#createproxy-api-since-java-client-830

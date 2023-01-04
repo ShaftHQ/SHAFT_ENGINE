@@ -1,7 +1,8 @@
 package com.shaft.gui.element;
 
 import com.shaft.cli.FileActions;
-import com.shaft.driver.DriverFactoryHelper;
+import io.github.shafthq.shaft.driver.DriverFactoryHelper;
+import io.github.shafthq.shaft.gui.element.WebDriverElementActions;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
@@ -41,7 +42,7 @@ public class ElementActions {
     /**
      * Clicks on a certain element using Selenium WebDriver, or JavaScript
      *
-     * @param driver         the current instance of Selenium webdriver
+     * @param driver         the current instance of Selenium WebDriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      */
@@ -52,7 +53,7 @@ public class ElementActions {
     /**
      * If the element is outside the viewport, scrolls the bottom of the element to the bottom of the viewport.
      *
-     * @param driver         the current instance of Selenium webdriver
+     * @param driver         the current instance of Selenium WebDriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      */
@@ -63,7 +64,7 @@ public class ElementActions {
     /**
      * Waits for the element to be clickable, and then clicks and holds it.
      *
-     * @param driver         the current instance of Selenium webdriver
+     * @param driver         the current instance of Selenium WebDriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      */
@@ -75,7 +76,7 @@ public class ElementActions {
      * Attempts to perform a native clipboard action on the text from a certain web
      * element, like copy/cut/paste
      *
-     * @param driver         the current instance of Selenium webdriver
+     * @param driver         the current instance of Selenium WebDriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      * @param action         supports the following actions "copy", "paste", "cut",
@@ -88,7 +89,7 @@ public class ElementActions {
     /**
      * Double-clicks on an element using Selenium WebDriver's Actions Library
      *
-     * @param driver         the current instance of Selenium webdriver
+     * @param driver         the current instance of Selenium WebDriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      */
@@ -100,7 +101,7 @@ public class ElementActions {
      * Drags the source element and drops it onto the destination element using
      * javascript
      *
-     * @param driver                    the current instance of Selenium webdriver
+     * @param driver                    the current instance of Selenium WebDriver
      * @param sourceElementLocator      the locator of the source webElement that
      *                                  should be dragged under test (By xpath, id,
      *                                  selector, name ...etc)
@@ -116,7 +117,7 @@ public class ElementActions {
     /**
      * Drags the source element and drops it onto the determined offset
      *
-     * @param driver               the current instance of Selenium webdriver
+     * @param driver               the current instance of Selenium WebDriver
      * @param sourceElementLocator the locator of the source webElement that should
      *                             be dragged under test (By xpath, id, selector,
      *                             name ...etc)
@@ -135,7 +136,7 @@ public class ElementActions {
      * <p>
      * Note: This method does no validation on the output of the executed JavaScript
      *
-     * @param driver     the current instance of Selenium webdriver, which should
+     * @param driver     the current instance of Selenium WebDriver, which should
      *                   wrap around a native mobile object
      * @param command    the desired mobile command to be executed. e.g., "mobile:
      *                   scroll"
@@ -177,7 +178,7 @@ public class ElementActions {
      * attribute even when a property of the same name exists, then you should
      * evaluate Javascript to obtain the result you desire.
      *
-     * @param driver         the current instance of Selenium webdriver
+     * @param driver         the current instance of Selenium WebDriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      * @param attributeName  the target attribute of the webElement under test
@@ -197,7 +198,7 @@ public class ElementActions {
      * you should directly access the longhand properties (e.g. background-color) to
      * access the desired values.
      *
-     * @param driver         the current instance of Selenium webdriver
+     * @param driver         the current instance of Selenium WebDriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      * @param propertyName   the target CSS property of the webElement under test
@@ -232,7 +233,7 @@ public class ElementActions {
     /**
      * Returns the number of elements that match a certain elementLocator
      *
-     * @param driver         the current instance of Selenium webdriver
+     * @param driver         the current instance of Selenium WebDriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      * @return integer value that represents the number of elements that match the
@@ -257,7 +258,7 @@ public class ElementActions {
     /**
      * Returns the number of elements that match a certain elementLocator
      *
-     * @param driver           the current instance of Selenium webdriver
+     * @param driver           the current instance of Selenium WebDriver
      * @param elementLocator   the locator of the webElement under test (By xpath,
      *                         id, selector, name ...etc)
      * @param numberOfAttempts the number of retries before returning a count
@@ -274,7 +275,7 @@ public class ElementActions {
      * Retrieves the selected text from the target drop-down list element and
      * returns it as a string value.
      *
-     * @param driver         the current instance of Selenium webdriver
+     * @param driver         the current instance of Selenium WebDriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      * @return the selected text of the target webElement
@@ -287,7 +288,7 @@ public class ElementActions {
      * Retrieves element size from the target element and returns it as a string
      * value.
      *
-     * @param driver         the current instance of Selenium webdriver
+     * @param driver         the current instance of Selenium WebDriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      * @return the size of the webElement under test
@@ -299,7 +300,7 @@ public class ElementActions {
     /**
      * Retrieves tag name from the target element and returns it as a string value.
      *
-     * @param driver         the current instance of Selenium webdriver
+     * @param driver         the current instance of Selenium WebDriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      * @return the tag name of the webElement under test
@@ -311,7 +312,7 @@ public class ElementActions {
     /**
      * Retrieves text from the target element and returns it as a string value.
      *
-     * @param driver         the current instance of Selenium webdriver
+     * @param driver         the current instance of Selenium WebDriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      * @return the text value of the target webElement
@@ -324,7 +325,7 @@ public class ElementActions {
      * Returns the unique handle for currently active window. This can be used to
      * switch to this window at a later time.
      *
-     * @param driver the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium WebDriver
      * @return window handle
      */
     public static String getWindowHandle(WebDriver driver) {
@@ -335,7 +336,7 @@ public class ElementActions {
      * Returns a list of unique handles for all the currently open windows. This can
      * be used to switch to any of these windows at a later time.
      *
-     * @param driver the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium WebDriver
      * @return list of window handles
      */
     public static List<String> getWindowHandles(WebDriver driver) {
@@ -348,7 +349,7 @@ public class ElementActions {
      * another webElement and click on it, use hoverAndClick instead for a more
      * reliable result.
      *
-     * @param driver         the current instance of Selenium webdriver
+     * @param driver         the current instance of Selenium WebDriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      */
@@ -359,7 +360,7 @@ public class ElementActions {
     /**
      * Hovers over the hoverElements in sequence then clicks the clickableElement
      *
-     * @param driver                  the current instance of Selenium webdriver
+     * @param driver                  the current instance of Selenium WebDriver
      * @param hoverElementLocators    the list of locators of the webElements under
      *                                test upon which the hover action will be
      *                                performed in sequence (By xpath, id, selector,
@@ -375,7 +376,7 @@ public class ElementActions {
     /**
      * Hovers over the hoverElement then clicks the clickableElement
      *
-     * @param driver                  the current instance of Selenium webdriver
+     * @param driver                  the current instance of Selenium WebDriver
      * @param hoverElementLocator     the locator of the webElement under test upon
      *                                which the hover action will be performed (By
      *                                xpath, id, selector, name ...etc)
@@ -390,7 +391,7 @@ public class ElementActions {
     /**
      * Checks to see if an element is clickable
      *
-     * @param driver         the current instance of Selenium webdriver
+     * @param driver         the current instance of Selenium WebDriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      * @return boolean value, true if the element is clickable, and false if the
@@ -403,7 +404,7 @@ public class ElementActions {
     /**
      * Checks to see if an element is displayed
      *
-     * @param driver         the current instance of Selenium webdriver
+     * @param driver         the current instance of Selenium WebDriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      * @return boolean value, true if the element is displayed, and false if the
@@ -417,7 +418,7 @@ public class ElementActions {
      * Sends a keypress to the target element. Supported keys are: ENTER, RETURN,
      * TAB
      *
-     * @param driver         the current instance of Selenium webdriver
+     * @param driver         the current instance of Selenium WebDriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      * @param key            the key that should be pressed
@@ -429,7 +430,7 @@ public class ElementActions {
     /**
      * Sends a keypress to the target element.
      *
-     * @param driver         the current instance of Selenium webdriver
+     * @param driver         the current instance of Selenium WebDriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      * @param key            the key that should be pressed
@@ -442,7 +443,7 @@ public class ElementActions {
      * Waits dynamically for a specific element's text to change from the initial
      * value to a new unknown value. Waits until the default element identification timeout
      *
-     * @param driver         the current instance of Selenium webdriver
+     * @param driver         the current instance of Selenium WebDriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      * @param initialValue   the initial text value of the target webElement
@@ -454,7 +455,7 @@ public class ElementActions {
     /**
      * Selects an element from a dropdown list using its displayed text
      *
-     * @param driver         the current instance of Selenium webdriver
+     * @param driver         the current instance of Selenium WebDriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      * @param text           the text of the choice that you need to select from the
@@ -478,7 +479,7 @@ public class ElementActions {
     /**
      * Used to set value for an element (hidden or visible) using javascript
      *
-     * @param driver         the current instance of Selenium webdriver
+     * @param driver         the current instance of Selenium WebDriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      * @param value          the desired value that should be set for the target
@@ -491,7 +492,7 @@ public class ElementActions {
     /**
      * Used to submit a form using javascript
      *
-     * @param driver         the current instance of Selenium webdriver
+     * @param driver         the current instance of Selenium WebDriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      */
@@ -504,7 +505,7 @@ public class ElementActions {
      * {@link #switchToIframe(WebDriver, By)} to exit any iFrame layer and go back
      * to the main page
      *
-     * @param driver the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium WebDriver
      */
     public static void switchToDefaultContent(WebDriver driver) {
         WebDriverElementActions.switchToDefaultContent(driver);
@@ -527,7 +528,7 @@ public class ElementActions {
      * {@link #switchToDefaultContent(WebDriver)} to navigate inside any iFrame
      * layer and go back to the main page
      *
-     * @param driver         the current instance of Selenium webdriver
+     * @param driver         the current instance of Selenium WebDriver
      * @param elementLocator the locator of the iFrame webElement under test (By
      *                       xpath, id, selector, name ...etc)
      */
@@ -539,7 +540,7 @@ public class ElementActions {
      * Checks if there is any text in an element, clears it, then types the required
      * string into the target element.
      *
-     * @param driver         the current instance of Selenium webdriver
+     * @param driver         the current instance of Selenium WebDriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      * @param text           the target text that needs to be typed into the target
@@ -553,7 +554,7 @@ public class ElementActions {
      * Appends the required string into the target element, regardless of the
      * current text value.
      *
-     * @param driver         the current instance of Selenium webdriver
+     * @param driver         the current instance of Selenium WebDriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      * @param text           the target text that needs to be appended into the
@@ -567,7 +568,7 @@ public class ElementActions {
      * ValidationEnums the required file path into an input[type='file'] button, to
      * successfully upload the target file.
      *
-     * @param driver         the current instance of Selenium webdriver
+     * @param driver         the current instance of Selenium WebDriver
      * @param elementLocator the locator of the webElement under test (By xpath,
      *                       id, selector, name ...etc)
      * @param filePath       the full path to the file that needs to be uploaded, it can be absolute or relative
@@ -587,7 +588,7 @@ public class ElementActions {
      * string into the target element. Obfuscates the written text in the output
      * report. This action should be used for writing passwords and secure text.
      *
-     * @param driver         the current instance of Selenium webdriver
+     * @param driver         the current instance of Selenium WebDriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      * @param text           the target text that needs to be typed into the target
@@ -598,32 +599,11 @@ public class ElementActions {
     }
 
     /**
-     * @deprecated use {@link #waitForElementToBeReady(WebDriver, By)} or {@link #waitForElementToBeInvisible(WebDriver, By)} instead.
-     *
-     * Waits dynamically for a specific element to achieve the desired
-     * stateOfPresence on the current page. Waits for a specific number of retries
-     * multiplied by the default element identification timeout (in the POM.xml
-     * file)
-     *
-     * @param driver          the current instance of Selenium webdriver
-     * @param elementLocator  the locator of the webElement under test (By xpath,
-     *                        id, selector, name ...etc)
-     * @param numberOfTries   the number of times to try and wait for the element to
-     *                        achieve the desired stateOfPresence (default is 1)
-     * @param stateOfPresence the expected state of presence of the element; false
-     *                        is not present, and true is present
-     */
-    public static void waitForElementToBePresent(WebDriver driver, By elementLocator, int numberOfTries,
-                                                 boolean stateOfPresence) {
-        WebDriverElementActions.waitForElementToBePresent(driver, elementLocator, numberOfTries, stateOfPresence);
-    }
-
-    /**
      * Waits dynamically for a specific element to be present in DOM, and ready to interact with, on the current page.
      *
-     * @param driver          the current instance of Selenium webdriver
-     * @param elementLocator  the locator of the webElement under test (By xpath,
-     *                        id, selector, name ...etc)
+     * @param driver         the current instance of Selenium WebDriver
+     * @param elementLocator the locator of the webElement under test (By xpath,
+     *                       id, selector, name ...etc)
      */
     public static void waitForElementToBeReady(WebDriver driver, By elementLocator) {
         WebDriverElementActions.waitForElementToBePresent(driver, elementLocator, 1, true);
@@ -632,9 +612,9 @@ public class ElementActions {
     /**
      * Waits dynamically for a specific element to be detached from DOM, or hidden, on the current page.
      *
-     * @param driver          the current instance of Selenium webdriver
-     * @param elementLocator  the locator of the webElement under test (By xpath,
-     *                        id, selector, name ...etc)
+     * @param driver         the current instance of Selenium WebDriver
+     * @param elementLocator the locator of the webElement under test (By xpath,
+     *                       id, selector, name ...etc)
      */
     public static void waitForElementToBeInvisible(WebDriver driver, By elementLocator) {
         WebDriverElementActions.waitForElementToBePresent(driver, elementLocator, 1, false);
@@ -922,7 +902,7 @@ public class ElementActions {
     }
 
     /**
-     * Sends a keypress to the target element.
+     * Sends a key-press to the target element.
      *
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
@@ -1045,29 +1025,6 @@ public class ElementActions {
      */
     public ElementActions typeSecure(By elementLocator, String text) {
         typeSecure(DriverFactoryHelper.getDriver().get(), elementLocator, text);
-        return this;
-    }
-
-    /**
-     * @deprecated use {@link #waitToBeReady(By)} or {@link #waitToBeInvisible(By)} instead.
-     *
-     * Waits dynamically for a specific element to achieve the desired
-     * stateOfPresence on the current page. Waits for a specific number of retries
-     * multiplied by the default element identification timeout (in the POM.xml
-     * file)
-     *
-     * @param elementLocator  the locator of the webElement under test (By xpath,
-     *                        id, selector, name ...etc)
-     * @param numberOfTries   the number of times to try and wait for the element to
-     *                        achieve the desired stateOfPresence (default is 1)
-     * @param stateOfPresence the expected state of presence of the element; false
-     *                        is not present, and true is present
-     * @return a self-reference to be used to chain actions
-     */
-    @Deprecated
-    public ElementActions waitForElementToBePresent(By elementLocator, int numberOfTries, boolean stateOfPresence) {
-        waitForElementToBePresent(DriverFactoryHelper.getDriver().get(), elementLocator, numberOfTries,
-                stateOfPresence);
         return this;
     }
 

@@ -1,5 +1,6 @@
 package com.shaft.gui.browser;
 
+import io.github.shafthq.shaft.gui.browser.WebDriverBrowserActions;
 import org.openqa.selenium.WebDriver;
 
 public class BrowserActions {

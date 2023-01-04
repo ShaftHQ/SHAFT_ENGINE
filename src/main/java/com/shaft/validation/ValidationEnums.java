@@ -2,7 +2,7 @@ package com.shaft.validation;
 
 public class ValidationEnums {
 
-    protected enum ValidationType {
+    public enum ValidationType {
         POSITIVE(true), NEGATIVE(false);
 
         private final Boolean value;
@@ -11,7 +11,7 @@ public class ValidationEnums {
             this.value = type;
         }
 
-        boolean getValue() {
+        public boolean getValue() {
             return value;
         }
     }
@@ -25,7 +25,7 @@ public class ValidationEnums {
             this.value = type;
         }
 
-        int getValue() {
+        public int getValue() {
             return value;
         }
     }
@@ -39,7 +39,7 @@ public class ValidationEnums {
         LAYOUT_EYES
     }
 
-    protected enum ValidationCategory {
+    public enum ValidationCategory {
         HARD_ASSERT,
         SOFT_ASSERT
     }
@@ -53,12 +53,12 @@ public class ValidationEnums {
             this.value = type;
         }
 
-        String getValue() {
+        public String getValue() {
             return value;
         }
     }
 
-    protected enum ValidationState {
+    public enum ValidationState {
         PASSED(true), FAILED(false);
 
         private final Boolean value;
@@ -67,36 +67,7 @@ public class ValidationEnums {
             this.value = type;
         }
 
-        boolean getValue() {
-            return value;
-        }
-    }
-
-    @Deprecated
-    public enum ElementAttribute {
-        TEXT("text"), TAG_NAME("tagname"), SIZE("size"), SELECTED_TEXT("selectedtext");
-
-        private final String value;
-
-        ElementAttribute(String type) {
-            this.value = type;
-        }
-
-        String getValue() {
-            return value;
-        }
-    }
-
-    public enum BrowserAttribute {
-        CURRENT_URL("currenturl"), PAGE_SOURCE("pagesource"), TITLE("title"), WINDOW_HANDLE("windowhandle"), WINDOW_POSITION("windowposition"), WINDOW_SIZE("windowsize");
-
-        private final String value;
-
-        BrowserAttribute(String type) {
-            this.value = type;
-        }
-
-        String getValue() {
+        public boolean getValue() {
             return value;
         }
     }

@@ -1,5 +1,7 @@
 package com.shaft.validation;
 
+import io.github.shafthq.shaft.validations.helpers.ValidationsBuilder;
+
 public class Validations {
     /**
      * Start building your assertion (Note: if an assertion fails the test method execution will stop and fail)
