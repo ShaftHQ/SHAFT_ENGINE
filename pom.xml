@@ -749,7 +749,7 @@
                         </property>
                         <property>
                             <name>listener</name>
-                            <value>com.shaft.tools.listeners.$TestNGListener</value>
+                            <value>io.github.shafthq.shaft.listeners.TestNGListener</value>
                         </property>
                         <property>
                             <name>reporter</name>
@@ -771,6 +771,7 @@
                     </archive>
                     <includes>
                         <include>com/**/*</include>
+                        <include>io/**/*</include>
                         <include>resources/**/*</include>
                     </includes>
                 </configuration>
@@ -837,6 +838,7 @@
                     </archive>
                     <includes>
                         <include>com/**</include>
+                        <include>io/**</include>
                     </includes>
                 </configuration>
             </plugin>
