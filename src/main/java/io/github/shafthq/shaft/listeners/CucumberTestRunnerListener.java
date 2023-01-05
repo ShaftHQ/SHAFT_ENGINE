@@ -1,23 +1,16 @@
 package io.github.shafthq.shaft.listeners;
 
 import com.shaft.cli.FileActions;
-import com.shaft.driver.DriverFactory;
 import com.shaft.tools.io.ReportManager;
 import io.cucumber.core.feature.FeatureParser;
 import io.cucumber.core.gherkin.Feature;
 import io.cucumber.core.resource.Resource;
 import io.cucumber.plugin.ConcurrentEventListener;
 import io.cucumber.plugin.event.*;
-import io.github.shafthq.shaft.gui.image.ImageProcessingActions;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
 import io.github.shafthq.shaft.gui.video.RecordManager;
-import io.github.shafthq.shaft.listeners.helpers.JiraHelper;
 import io.github.shafthq.shaft.listeners.helpers.TestNGListenerHelper;
-import io.github.shafthq.shaft.properties.PropertyFileManager;
-import io.github.shafthq.shaft.tools.io.helpers.ProjectStructureManager;
-import io.github.shafthq.shaft.tools.io.helpers.ReportHelper;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
-import io.github.shafthq.shaft.tools.security.GoogleTink;
 import org.testng.Reporter;
 
 import java.io.ByteArrayInputStream;
@@ -25,6 +18,9 @@ import java.io.InputStream;
 import java.net.URI;
 import java.util.Optional;
 import java.util.UUID;
+
+import static io.github.shafthq.shaft.listeners.helpers.CucumberHelper.shaftSetup;
+import static io.github.shafthq.shaft.listeners.helpers.CucumberHelper.shaftTeardown;
 
 public class CucumberTestRunnerListener implements ConcurrentEventListener {
     private static String lastStartedScenarioName;
@@ -60,44 +56,6 @@ public class CucumberTestRunnerListener implements ConcurrentEventListener {
 
     private void handleTestRunFinished(TestRunFinished event) {
         shaftTeardown();
-    }
-
-
-    private void shaftSetup() {
-        if (Reporter.getCurrentTestResult() == null) {
-            // running in native Cucumber mode
-            System.setProperty("disableLogging", "true");
-            PropertyFileManager.readPropertyFiles();
-            ProjectStructureManager.initialize();
-            GoogleTink.initialize();
-            GoogleTink.decrypt();
-            System.setProperty("disableLogging", "false");
-            ReportManagerHelper.logEngineVersion();
-            ImageProcessingActions.loadOpenCV();
-            ReportManagerHelper.initializeAllureReportingEnvironment();
-            ReportManagerHelper.initializeExtentReportingEnvironment();
-            ReportHelper.attachImportantLinks();
-            ReportHelper.attachPropertyFiles();
-            ReportManagerHelper.setDiscreteLogging(Boolean.parseBoolean(System.getProperty("alwaysLogDiscreetly")));
-            ReportManagerHelper.setDebugMode(Boolean.valueOf(System.getProperty("debugMode")));
-        }
-    }
-
-    private void shaftTeardown() {
-        if (Reporter.getCurrentTestResult() == null) {
-            // running in native Cucumber mode
-            DriverFactory.closeAllDrivers();
-            ReportHelper.attachEngineLog();
-            ReportHelper.attachIssuesLog();
-            ReportHelper.attachCucumberReport();
-            ReportHelper.attachExtentReport();
-            ReportManagerHelper.setDiscreteLogging(true);
-            GoogleTink.encrypt();
-            ReportManagerHelper.generateAllureReportArchive();
-            ReportManagerHelper.openAllureReportAfterExecution();
-            JiraHelper.reportExecutionStatusToJira();
-            ReportManagerHelper.logEngineClosure();
-        }
     }
 
     private void caseStartedHandler(TestCaseStarted event) {

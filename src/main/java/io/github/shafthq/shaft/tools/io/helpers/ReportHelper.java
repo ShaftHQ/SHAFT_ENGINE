@@ -37,7 +37,7 @@ public class ReportHelper {
     }
 
     public static void attachPropertyFiles() {
-        ReportManager.logDiscrete("Initializing Custom PropertiesHelper...");
+        ReportManager.logDiscrete("Initializing Properties...");
         System.setProperty("disableLogging", "true");
         if (FileActions.getInstance().doesFileExist(System.getProperty("propertiesFolderPath"))) {
             List<List<Object>> attachments = new ArrayList<>();
