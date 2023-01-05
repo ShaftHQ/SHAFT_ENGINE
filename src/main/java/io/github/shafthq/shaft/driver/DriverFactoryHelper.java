@@ -114,14 +114,15 @@ public class DriverFactoryHelper {
         }
         try {
             attachWebDriverLogs();
+            BrowserActions.capturePageSnapshot(driver.get());
             //if dockerized wdm.quit the relevant one
             if (System.getProperty("executionAddress").contains("dockerized")) {
                 var pathToRecording = webDriverManager.get().getDockerRecordingPath(driver.get());
                 webDriverManager.get().quit(driver.get());
                 RecordManager.attachVideoRecording(pathToRecording);
+            } else {
+                driver.get().quit();
             }
-            BrowserActions.capturePageSnapshot(driver.get());
-            driver.get().quit();
         } catch (WebDriverException | NullPointerException e) {
             // driver was already closed at an earlier stage
         } catch (Exception e) {
