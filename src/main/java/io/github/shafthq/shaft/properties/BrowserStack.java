@@ -6,6 +6,7 @@ import org.aeonbits.owner.ConfigFactory;
 @Config.Sources({"system:properties",
         "file:src/main/resources/properties/browserStack.properties",
         "file:src/main/resources/properties/default/browserStack.properties",
+        "classpath:browserStack.properties",
 })
 public interface BrowserStack extends EngineProperties {
     //Based on BrowserStack capability builder

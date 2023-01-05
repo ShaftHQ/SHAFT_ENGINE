@@ -7,6 +7,7 @@ import org.aeonbits.owner.ConfigFactory;
 @Config.Sources({"system:properties",
         "file:src/main/resources/properties/WebCapabilities.properties",
         "file:src/main/resources/properties/default/WebCapabilities.properties",
+        "classpath:WebCapabilities.properties",
 })
 public interface Web extends EngineProperties {
     @Key("targetBrowserName")

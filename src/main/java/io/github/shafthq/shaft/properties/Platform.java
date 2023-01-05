@@ -7,6 +7,7 @@ import org.aeonbits.owner.ConfigFactory;
 @Config.Sources({"system:properties",
         "file:src/main/resources/properties/ExecutionPlatform.properties",
         "file:src/main/resources/properties/default/ExecutionPlatform.properties",
+        "classpath:ExecutionPlatform.properties",
 })
 public interface Platform extends EngineProperties {
     @Key("SHAFT.CrossBrowserMode")

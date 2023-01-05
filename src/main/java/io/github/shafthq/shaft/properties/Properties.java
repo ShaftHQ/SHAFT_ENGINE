@@ -11,8 +11,8 @@ public class Properties {
 //    public static Jira jira;
 //    public static Log4j log4j;
     public static Mobile mobile;
-    //    public static Path path;
-//    public static Pattern pattern;
+    public static Paths paths;
+    //    public static Pattern pattern;
 //    public static Flags flags;
 //    public static Reporting reporting;
 //    public static TestNG testNG;

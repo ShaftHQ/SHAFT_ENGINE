@@ -7,6 +7,7 @@ import org.aeonbits.owner.ConfigFactory;
 @Config.Sources({"system:properties",
         "file:src/main/resources/properties/MobileCapabilities.properties",
         "file:src/main/resources/properties/default/MobileCapabilities.properties",
+        "classpath:MobileCapabilities.properties",
 })
 public interface Mobile extends EngineProperties {
     //TODO: implement
