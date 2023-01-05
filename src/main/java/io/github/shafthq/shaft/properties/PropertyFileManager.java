@@ -22,7 +22,7 @@ public class PropertyFileManager {
     private static final String OS_WINDOWS = "Windows-64";
     private static final String OS_LINUX = "Linux-64";
     private static final String OS_MAC = "Mac-64";
-    private static final String DEFAULT_PROPERTIES_FOLDER_PATH = "src/main/resources/defaultProperties";
+    private static final String DEFAULT_PROPERTIES_FOLDER_PATH = "src/main/resources/properties/default";
     @Getter
     private static final String CUSTOM_PROPERTIES_FOLDER_PATH = "src/main/resources/properties";
     private static final String CUSTOM_PROPERTIES_FOLDER_PROPERTY_NAME = "propertiesFolderPath";

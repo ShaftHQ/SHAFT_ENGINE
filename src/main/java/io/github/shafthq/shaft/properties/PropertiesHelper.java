@@ -26,10 +26,11 @@ public class PropertiesHelper {
 
         //load property objects
         //TODO: implement missing property interfaces
-        Properties.browserStack = ConfigFactory.create(BrowserStack.class);
+        Properties.paths = ConfigFactory.create(Paths.class);
+        Properties.platform = ConfigFactory.create(Platform.class);
         Properties.web = ConfigFactory.create(Web.class);
         Properties.mobile = ConfigFactory.create(Mobile.class);
-        Properties.platform = ConfigFactory.create(Platform.class);
+        Properties.browserStack = ConfigFactory.create(BrowserStack.class);
 
         //TODO: post-processing based on loaded properties
         postProcessing();
@@ -41,7 +42,7 @@ public class PropertiesHelper {
 
     private static void overrideTargetOperatingSystemForLocalExecution() {
         String targetOperatingSystemPropertyName = "targetOperatingSystem";
-        if (System.getProperty("executionAddress").trim().equals("local")) {
+        if (Properties.platform.executionAddress().equals("local")) {
             if (SystemUtils.IS_OS_WINDOWS) {
                 Properties.platform.setProperty(targetOperatingSystemPropertyName, WINDOWS);
             } else if (SystemUtils.IS_OS_LINUX) {
@@ -63,9 +64,9 @@ public class PropertiesHelper {
         }
 
         if (propertiesFolderPath.contains("file:")) {
-            FileActions.getInstance().copyFolderFromJar(propertiesFolderPath, DEFAULT_PROPERTIES_FOLDER_PATH);
+            FileActions.getInstance().copyFolderFromJar(propertiesFolderPath, TARGET_PROPERTIES_FOLDER_PATH);
         } else {
-            FileActions.getInstance().copyFolder(propertiesFolderPath, DEFAULT_PROPERTIES_FOLDER_PATH);
+            FileActions.getInstance().copyFolder(propertiesFolderPath, TARGET_PROPERTIES_FOLDER_PATH);
         }
     }
 
