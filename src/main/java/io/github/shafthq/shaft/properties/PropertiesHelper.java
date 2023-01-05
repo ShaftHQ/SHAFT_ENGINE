@@ -63,10 +63,20 @@ public class PropertiesHelper {
             propertiesFolderPath = DEFAULT_PROPERTIES_FOLDER_PATH;
         }
 
+        // always override default properties
         if (propertiesFolderPath.contains("file:")) {
-            FileActions.getInstance().copyFolderFromJar(propertiesFolderPath, TARGET_PROPERTIES_FOLDER_PATH);
+            FileActions.getInstance().copyFolderFromJar(propertiesFolderPath, DEFAULT_PROPERTIES_FOLDER_PATH);
         } else {
-            FileActions.getInstance().copyFolder(propertiesFolderPath, TARGET_PROPERTIES_FOLDER_PATH);
+            FileActions.getInstance().copyFolder(propertiesFolderPath, DEFAULT_PROPERTIES_FOLDER_PATH);
+        }
+
+        // override target properties only if they do not exist
+        if (!FileActions.getInstance().doesFileExist(TARGET_PROPERTIES_FOLDER_PATH + "/path.properties")) {
+            if (propertiesFolderPath.contains("file:")) {
+                FileActions.getInstance().copyFolderFromJar(propertiesFolderPath, TARGET_PROPERTIES_FOLDER_PATH);
+            } else {
+                FileActions.getInstance().copyFolder(propertiesFolderPath, TARGET_PROPERTIES_FOLDER_PATH);
+            }
         }
     }
 
