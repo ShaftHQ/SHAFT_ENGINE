@@ -5,6 +5,7 @@ import io.github.shafthq.shaft.gui.image.ImageProcessingActions;
 import io.github.shafthq.shaft.listeners.helpers.JiraHelper;
 import io.github.shafthq.shaft.listeners.helpers.RetryAnalyzer;
 import io.github.shafthq.shaft.listeners.helpers.TestNGListenerHelper;
+import io.github.shafthq.shaft.properties.PropertiesHelper;
 import io.github.shafthq.shaft.properties.PropertyFileManager;
 import io.github.shafthq.shaft.tools.io.helpers.IssueReporter;
 import io.github.shafthq.shaft.tools.io.helpers.ProjectStructureManager;
@@ -43,7 +44,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         ReportManagerHelper.setDiscreteLogging(true);
         System.setProperty("disableLogging", "true");
         //TODO: Enable Properties Helper and refactor the old PropertyFileManager to read any unmapped user properties in a specific directory
-//        PropertiesHelper.initialize();
+        PropertiesHelper.initialize();
         PropertyFileManager.readPropertyFiles();
         ProjectStructureManager.initialize();
         DriverFactoryHelper.initializeSystemProperties();
