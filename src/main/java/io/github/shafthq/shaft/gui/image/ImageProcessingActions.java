@@ -20,6 +20,7 @@ import org.opencv.highgui.HighGui;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 import org.openqa.selenium.By;
+import org.openqa.selenium.UnsupportedCommandException;
 import org.openqa.selenium.WebDriver;
 import org.testng.Assert;
 
@@ -46,7 +47,7 @@ public class ImageProcessingActions {
             CV_ADAPTIVE_THRESH_MEAN_C = 0,
             CV_THRESH_BINARY_INV = 1;
 
-    private static final String aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
+    private static String aiFolderPath = "";
 
     private ImageProcessingActions() {
         throw new IllegalStateException("Utility class");
@@ -373,6 +374,9 @@ public class ImageProcessingActions {
 
     public static byte[] getReferenceImage(Object elementLocator) {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
+        if (aiFolderPath.isEmpty()) {
+            aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
+        }
         String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
         if (FileActions.getInstance().doesFileExist(referenceImagePath)) {
             return FileActions.getInstance().readFileAsByteArray(referenceImagePath);
@@ -401,15 +405,16 @@ public class ImageProcessingActions {
             boolean doesReferenceFileExist = FileActions.getInstance().doesFileExist(referenceImagePath);
 
             if (doesReferenceFileExist && (elementScreenshot!=null && elementScreenshot.length>0)) {
-                var snapshot = Shutterbug.shootElement(driver, elementLocator, CaptureElement.VIEWPORT, true);
                 boolean actualResult = false;
                 try {
+                    var snapshot = Shutterbug.shootElement(driver, elementLocator, CaptureElement.VIEWPORT, true);
                     actualResult = snapshot.equalsWithDiff(referenceImagePath, resultingImagePath, 0.1);
                 } catch (IOException e) {
-                    e.printStackTrace();
-                } catch (UnableToCompareImagesException ex){
+                    ReportManagerHelper.log(e);
+                } catch (UnableToCompareImagesException | UnsupportedCommandException exception) {
+                    ReportManager.logDiscrete("Failed to locate element using \"" + VisualValidationEngine.EXACT_SHUTTERBUG + "\", attempting to use \"" + VisualValidationEngine.EXACT_OPENCV + "\".");
                     // com.assertthat.selenium_shutterbug.utils.image.UnableToCompareImagesException: Images dimensions mismatch
-                    compareAgainstBaseline(driver, elementLocator,elementScreenshot, VisualValidationEngine.EXACT_OPENCV);
+                    actualResult = compareAgainstBaseline(driver, elementLocator, elementScreenshot, VisualValidationEngine.EXACT_OPENCV);
                 }
                 return actualResult;
             }else{

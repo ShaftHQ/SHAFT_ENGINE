@@ -30,6 +30,9 @@ public class AndroidBasicInteractionsTest {
                 .swipeElementIntoView(AppiumBy.accessibilityId("Expandable Lists"), TouchActions.SwipeDirection.DOWN)
                 .tap(AppiumBy.accessibilityId("Expandable Lists"))
                 .swipeElementIntoView(AppiumBy.accessibilityId("3. Simple Adapter"), TouchActions.SwipeDirection.DOWN)
+//                .swipeElementIntoView(AppiumBy.accessibilityId("3. Simple Adapter"), TouchActions.SwipeDirection.DOWN);
+//        shaftDriver.verifyThat().element(AppiumBy.accessibilityId("3. Simple Adapter")).matchesReferenceImage().perform();
+//        shaftDriver.element().performTouchAction()
                 .tap(AppiumBy.accessibilityId("3. Simple Adapter"))
                 .swipeElementIntoView(By.xpath("//android.widget.TextView[@text='Group 18']"), TouchActions.SwipeDirection.DOWN)
                 .tap(By.xpath("//android.widget.TextView[@text='Group 18']"))
@@ -39,12 +42,12 @@ public class AndroidBasicInteractionsTest {
 
     @BeforeMethod(onlyForGroups = {"Wizard"})
     public void beforeMethod_wizard() {
-//        System.setProperty("targetOperatingSystem", "Android");
-//        System.setProperty("mobile_automationName", "UIAutomator2");
-//        System.setProperty("mobile_appWaitActivity", "*");
-//        System.setProperty("mobile_disableWindowAnimation", "true");
-//        System.setProperty("executionAddress", "0.0.0.0:4723");
-//        System.setProperty("mobile_app", System.getProperty("testDataFolderPath") + "apps/ApiDemos-debug.apk");
+//        Properties.platform.setProperty("executionAddress", "0.0.0.0:4723");
+//        Properties.platform.setProperty("targetOperatingSystem", "Android");
+//        Properties.mobile.setProperty("mobile_automationName", "UIAutomator2");
+//        Properties.mobile.setProperty("mobile_appWaitActivity", "*");
+//        Properties.mobile.setProperty("mobile_disableWindowAnimation", "true");
+//        Properties.mobile.setProperty("mobile_app", Properties.paths.testData() + "apps/ApiDemos-debug.apk");
 
         shaftDriver = new SHAFT.GUI.WebDriver();
     }

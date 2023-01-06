@@ -1,5 +1,6 @@
 package io.github.shafthq.shaft.properties;
 
+import com.shaft.tools.io.ReportManager;
 import io.appium.java_client.remote.AutomationName;
 import org.aeonbits.owner.Config;
 import org.aeonbits.owner.ConfigFactory;
@@ -21,7 +22,7 @@ public interface Mobile extends EngineProperties {
 
     @Key("mobile_automationName")
     @DefaultValue(AutomationName.ANDROID_UIAUTOMATOR2)
-    AutomationName automationName();
+    String automationName();
 
     @Key("mobile_udid")
     @DefaultValue("")
@@ -52,5 +53,8 @@ public interface Mobile extends EngineProperties {
         var updatedProps = new java.util.Properties();
         updatedProps.setProperty(key, value);
         Properties.mobile = ConfigFactory.create(Mobile.class, updatedProps);
+        // temporarily set the system property to support hybrid read/write mode
+        System.setProperty(key, value);
+        ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
     }
 }

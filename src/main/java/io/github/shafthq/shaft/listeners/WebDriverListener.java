@@ -2,8 +2,6 @@ package io.github.shafthq.shaft.listeners;
 
 import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.driver.DriverFactoryHelper;
-import io.github.shafthq.shaft.gui.browser.WebDriverBrowserActions;
-import io.github.shafthq.shaft.gui.element.WebDriverElementActions;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import io.github.shafthq.shaft.tools.support.JavaHelper;
@@ -17,7 +15,12 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.time.Duration;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Set;
+
+import static io.github.shafthq.shaft.gui.element.ElementActionsHelper.getExpectedExceptions;
 
 public class WebDriverListener implements org.openqa.selenium.support.events.WebDriverListener, io.appium.java_client.proxy.MethodCallListener {
     private static final long DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT = Integer.parseInt(System.getProperty("defaultElementIdentificationTimeout").trim()) * 1000L;
@@ -33,11 +36,9 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     }
 
     public void onError(Object target, Method method, Object[] args, InvocationTargetException e) {
-        if (!isEngineCallToNativeMethod()) {
-            ReportManager.log(JavaHelper.convertToSentenceCase(method.getName()) + " action failed.");
-            ReportManagerHelper.attach(ScreenshotManager.captureScreenShot(DriverFactoryHelper.getDriver().get(), method.getName(), false));
-            ReportManagerHelper.log(e);
-        }
+        ReportManager.log(JavaHelper.convertToSentenceCase(method.getName()) + " action failed.");
+        ReportManagerHelper.attach(ScreenshotManager.captureScreenShot(DriverFactoryHelper.getDriver().get(), method.getName(), false));
+        ReportManagerHelper.log(e);
     }
 
     // WebDriver
@@ -52,49 +53,34 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     }
 
     public void afterGet(WebDriver driver, String url) {
-        if (!isEngineCallToNativeMethod()) {
-            ReportManager.log("Navigate to: \"" + url + "\".");
-        }
+        ReportManager.log("Navigate to \"" + url + "\".");
     }
 
     public void beforeGetCurrentUrl(WebDriver driver) {
     }
 
     public void afterGetCurrentUrl(String result, WebDriver driver) {
-        if (!isEngineCallToNativeMethod()) {
-            ReportManager.log("Current url is: \"" + result + "\".");
-        }
+        ReportManager.log("Current url is: \"" + result + "\".");
     }
 
     public void beforeGetTitle(WebDriver driver) {
     }
 
     public void afterGetTitle(WebDriver driver, String result) {
-        if (!isEngineCallToNativeMethod()) {
-            ReportManager.log("Current Window Title is: \"" + result + "\".");
-        }
+        ReportManager.log("Current Window Title is: \"" + result + "\".");
     }
 
     public void beforeFindElement(WebDriver driver, By locator) {
-        if (!isEngineCallToNativeMethod()) {
-            ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
-            expectedExceptions.add(org.openqa.selenium.NoSuchElementException.class);
-            expectedExceptions.add(org.openqa.selenium.StaleElementReferenceException.class);
-            expectedExceptions.add(org.openqa.selenium.ElementNotInteractableException.class);
-            // the generic exception is added to handle a case with WebKit whereby the browser doesn't state the cause of the issue
-            expectedExceptions.add(org.openqa.selenium.WebDriverException.class);
-
-            try {
-                new FluentWait<>(driver)
-                        .withTimeout(Duration.ofMillis(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT))
-                        .pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY))
-                        .ignoreAll(expectedExceptions)
-                        .until(nestedDriver -> nestedDriver.findElement(locator));
-            } catch (org.openqa.selenium.TimeoutException timeoutException) {
-                // In case the element was not found / not visible and the timeout expired
-                ReportManager.logDiscrete(timeoutException.getMessage() + " || " + timeoutException.getCause().getMessage().substring(0, timeoutException.getCause().getMessage().indexOf("\n")));
-                throw timeoutException;
-            }
+        try {
+            new FluentWait<>(driver)
+                    .withTimeout(Duration.ofMillis(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT))
+                    .pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY))
+                    .ignoreAll(getExpectedExceptions(false))
+                    .until(nestedDriver -> nestedDriver.findElement(locator));
+        } catch (org.openqa.selenium.TimeoutException timeoutException) {
+            // In case the element was not found / not visible and the timeout expired
+            ReportManager.logDiscrete(timeoutException.getMessage() + " || " + timeoutException.getCause().getMessage().substring(0, timeoutException.getCause().getMessage().indexOf("\n")));
+            throw timeoutException;
         }
     }
 
@@ -117,18 +103,14 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     }
 
     public void afterClose(WebDriver driver) {
-        if (!isEngineCallToNativeMethod()) {
             ReportManager.log("Successfully Closed Driver.");
-        }
     }
 
     public void beforeQuit(WebDriver driver) {
     }
 
     public void afterQuit(WebDriver driver) {
-        if (!isEngineCallToNativeMethod()) {
             ReportManager.log("Successfully Quit Driver.");
-        }
     }
 
     public void beforeGetWindowHandles(WebDriver driver) {
@@ -176,66 +158,56 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     }
 
     public void beforeClick(WebElement element) {
-        if (!isEngineCallToNativeMethod()) {
-            try {
-                (new WebDriverWait(DriverFactoryHelper.getDriver().get(), Duration.ofMillis(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT)))
-                        .until(ExpectedConditions.elementToBeClickable(element));
-            } catch (org.openqa.selenium.TimeoutException timeoutException) {
-                ReportManagerHelper.logDiscrete(timeoutException);
-                throw timeoutException;
-            }
+        try {
+            (new WebDriverWait(DriverFactoryHelper.getDriver().get(), Duration.ofMillis(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT)))
+                    .until(ExpectedConditions.elementToBeClickable(element));
+        } catch (org.openqa.selenium.TimeoutException timeoutException) {
+            ReportManagerHelper.logDiscrete(timeoutException);
+            throw timeoutException;
+        }
+        try {
+            ReportManager.log("Click " + getElementName(element) + ".");
+        } catch (Throwable throwable) {
+            ReportManager.log("Click.");
         }
     }
 
     public void afterClick(WebElement element) {
-        if (!isEngineCallToNativeMethod()) {
-            try {
-                ReportManager.log("Click " + getElementName(element) + ".");
-            } catch (Throwable throwable) {
-                ReportManager.log("Click.");
-            }
-        }
     }
 
     public void beforeSubmit(WebElement element) {
+        try {
+            ReportManager.log("Submit " + getElementName(element) + ".");
+        } catch (Throwable throwable) {
+            ReportManager.log("Submit.");
+        }
     }
 
     public void afterSubmit(WebElement element) {
-        if (!isEngineCallToNativeMethod()) {
-            try {
-                ReportManager.log("Submit " + getElementName(element) + ".");
-            } catch (Throwable throwable) {
-                ReportManager.log("Submit.");
-            }
-        }
     }
 
     public void beforeSendKeys(WebElement element, CharSequence... keysToSend) {
+        var stringBuilder = new StringBuilder();
+        Arrays.stream(keysToSend).toList().forEach(stringBuilder::append);
+        try {
+            ReportManager.log("Type \"" + stringBuilder + "\" into " + getElementName(element) + ".");
+        } catch (Throwable throwable) {
+            ReportManager.log("Type \"" + stringBuilder + "\".");
+        }
     }
 
     public void afterSendKeys(WebElement element, CharSequence... keysToSend) {
-        if (!isEngineCallToNativeMethod()) {
-            var stringBuilder = new StringBuilder();
-            Arrays.stream(keysToSend).toList().forEach(stringBuilder::append);
-            try {
-                ReportManager.log("Type \"" + stringBuilder + "\" into " + getElementName(element) + ".");
-            } catch (Throwable throwable) {
-                ReportManager.log("Type \"" + stringBuilder + "\".");
-            }
-        }
     }
 
     public void beforeClear(WebElement element) {
+        try {
+            ReportManager.log("Clear " + getElementName(element) + ".");
+        } catch (Throwable throwable) {
+            ReportManager.log("Clear.");
+        }
     }
 
     public void afterClear(WebElement element) {
-        if (!isEngineCallToNativeMethod()) {
-            try {
-                ReportManager.log("Clear " + getElementName(element) + ".");
-            } catch (Throwable throwable) {
-                ReportManager.log("Clear.");
-            }
-        }
     }
 
     public void beforeGetTagName(WebElement element) {
@@ -248,6 +220,11 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     }
 
     public void afterGetAttribute(WebElement element, String name, String result) {
+        try {
+            ReportManager.log("Get Attribute \"" + name + "\" from " + getElementName(element) + ", value is \"" + result + "\".");
+        } catch (Throwable throwable) {
+            ReportManager.log("Get Attribute \"" + name + "\", value is \"" + result + "\".");
+        }
     }
 
     public void beforeIsSelected(WebElement element) {
@@ -266,12 +243,10 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     }
 
     public void afterGetText(WebElement element, String result) {
-        if (!isEngineCallToNativeMethod()) {
-            try {
-                ReportManager.log("Get Text from " + getElementName(element) + ", text is \"" + result + "\".");
-            } catch (Throwable throwable) {
-                ReportManager.log("Get Text, text is :\"" + result + "\".");
-            }
+        try {
+            ReportManager.log("Get Text from " + getElementName(element) + ", text is \"" + result + "\".");
+        } catch (Throwable throwable) {
+            ReportManager.log("Get Text, text is :\"" + result + "\".");
         }
     }
 
@@ -320,48 +295,39 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     }
 
     public void beforeTo(WebDriver.Navigation navigation, String url) {
-        if (!isEngineCallToNativeMethod()) {
-            ReportManager.log("Navigate to url: \"" + url + "\".");
-        }
     }
 
     public void afterTo(WebDriver.Navigation navigation, String url) {
+        ReportManager.log("Navigate to url \"" + url + "\".");
     }
 
     public void beforeTo(WebDriver.Navigation navigation, URL url) {
-        if (!isEngineCallToNativeMethod()) {
-            ReportManager.log("Navigate to url: \"" + url + "\".");
-        }
     }
 
     public void afterTo(WebDriver.Navigation navigation, URL url) {
+        ReportManager.log("Navigate to url \"" + url + "\".");
     }
 
     public void beforeBack(WebDriver.Navigation navigation) {
-        if (!isEngineCallToNativeMethod()) {
-            ReportManager.log("Navigate back.");
-        }
     }
 
     public void afterBack(WebDriver.Navigation navigation) {
+        ReportManager.log("Navigate back.");
     }
 
     public void beforeForward(WebDriver.Navigation navigation) {
-        if (!isEngineCallToNativeMethod()) {
-            ReportManager.log("Navigate forward.");
-        }
+
     }
 
     public void afterForward(WebDriver.Navigation navigation) {
+        ReportManager.log("Navigate forward.");
     }
 
     public void beforeRefresh(WebDriver.Navigation navigation) {
-        if (!isEngineCallToNativeMethod()) {
-            ReportManager.log("Refresh current page.");
-        }
     }
 
     public void afterRefresh(WebDriver.Navigation navigation) {
+        ReportManager.log("Refresh current page.");
     }
 
     // Alert
@@ -391,9 +357,7 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     }
 
     public void beforeSendKeys(Alert alert, String text) {
-        if (!isEngineCallToNativeMethod()) {
             ReportManager.log("Type \"" + text + "\" into Alert.");
-        }
     }
 
     public void afterSendKeys(Alert alert, String text) {
@@ -502,12 +466,10 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     }
 
     public void beforeMaximize(WebDriver.Window window) {
-        if (!isEngineCallToNativeMethod()) {
-            ReportManager.log("Maximize Current Window.");
-        }
     }
 
     public void afterMaximize(WebDriver.Window window) {
+        ReportManager.log("Maximize Current Window.");
     }
 
     public void beforeFullscreen(WebDriver.Window window) {
@@ -521,22 +483,7 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
         if ("".equals(accessibleName)) {
             return "element";
         } else {
-            return accessibleName;
+            return "\"" + accessibleName + "\"";
         }
-    }
-
-    private boolean isEngineCallToNativeMethod() {
-        //declaringClass="io.github.shafthq.shaft.gui.browser.WebDriverBrowserActions"
-        var callingstack = Thread.currentThread().getStackTrace();
-        ArrayList<String> internalClasses = new ArrayList<>();
-        internalClasses.add(WebDriverElementActions.class.getCanonicalName());
-        internalClasses.add(WebDriverBrowserActions.class.getCanonicalName());
-
-        for (StackTraceElement element : callingstack) {
-            if (internalClasses.contains(element.getClassName())) {
-                return true;
-            }
-        }
-        return false;
     }
 }

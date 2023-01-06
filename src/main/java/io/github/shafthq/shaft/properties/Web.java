@@ -1,5 +1,6 @@
 package io.github.shafthq.shaft.properties;
 
+import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.enums.Browsers;
 import org.aeonbits.owner.Config;
 import org.aeonbits.owner.ConfigFactory;
@@ -12,7 +13,7 @@ import org.aeonbits.owner.ConfigFactory;
 public interface Web extends EngineProperties {
     @Key("targetBrowserName")
     @DefaultValue(Browsers.CHROME)
-    Browsers targetBrowserName();
+    String targetBrowserName();
 
     @Key("headlessExecution")
     @DefaultValue("false")
@@ -55,5 +56,8 @@ public interface Web extends EngineProperties {
         var updatedProps = new java.util.Properties();
         updatedProps.setProperty(key, value);
         Properties.web = ConfigFactory.create(Web.class, updatedProps);
+        // temporarily set the system property to support hybrid read/write mode
+        System.setProperty(key, value);
+        ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
     }
 }

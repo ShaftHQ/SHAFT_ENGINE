@@ -29,7 +29,7 @@ public class ElementActionsHelper {
         throw new IllegalStateException("Utility class");
     }
 
-    public static int waitForElementPresence_reducedTimeout(WebDriver driver, By elementLocator) {
+    public static int waitForElementPresenceWithReducedTimeout(WebDriver driver, By elementLocator) {
         DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT = 300; //this is used for faster mobile native scrolling. default for ios is 200 and for android is 250, this covers both
         var numberOfFoundElements = waitForElementPresence(driver, elementLocator);
         DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT = Integer
@@ -74,7 +74,7 @@ public class ElementActionsHelper {
             returnedValue.add(currentScreenImage);
             returnedValue.add(FileActions.getInstance().readFileAsByteArray(elementReferenceScreenshot));
             returnedValue.add(coordinates);
-        }else{
+        } else {
             // reference screenshot doesn't exist
             currentScreenImage = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
             returnedValue.add(currentScreenImage);
@@ -84,25 +84,35 @@ public class ElementActionsHelper {
         return returnedValue;
     }
 
-    public static List<Object> waitForElementPresence(WebDriver driver, By elementLocator, int numberOfAttempts, boolean checkForVisibility) {
-        boolean validToCheckForVisibility = checkForVisibility && !elementLocator.toString().contains("input[@type='file']")
+    private static boolean isValidToCheckForVisibility(By elementLocator, boolean checkForVisibility) {
+        return checkForVisibility && !elementLocator.toString().contains("input[@type='file']")
                 && !elementLocator.equals(By.tagName("html"));
+    }
 
-        var isMobileExecution = DriverFactoryHelper.isMobileNativeExecution() || DriverFactoryHelper.isMobileWebExecution();
-        var isSafariBowser = DriverFactoryHelper.getTargetBrowserName().toLowerCase().contains("safari");
+    private static boolean isSafariBrowser() {
+        return DriverFactoryHelper.getTargetBrowserName().toLowerCase().contains("safari");
+    }
 
+    public static ArrayList<Class<? extends Exception>> getExpectedExceptions(boolean isValidToCheckForVisibility) {
         ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
         expectedExceptions.add(org.openqa.selenium.NoSuchElementException.class);
         expectedExceptions.add(org.openqa.selenium.StaleElementReferenceException.class);
         expectedExceptions.add(org.openqa.selenium.ElementNotInteractableException.class);
-        if (validToCheckForVisibility) {
+        if (isValidToCheckForVisibility) {
             expectedExceptions.add(org.openqa.selenium.InvalidElementStateException.class);
             expectedExceptions.add(org.openqa.selenium.interactions.MoveTargetOutOfBoundsException.class);
         }
-        if (isSafariBowser) {
+        if (isSafariBrowser()) {
             // the generic exception is added to handle a case with WebKit whereby the browser doesn't state the cause of the issue
             expectedExceptions.add(org.openqa.selenium.WebDriverException.class);
         }
+        return expectedExceptions;
+    }
+
+    public static List<Object> waitForElementPresence(WebDriver driver, By elementLocator, int numberOfAttempts, boolean checkForVisibility) {
+        boolean isValidToCheckForVisibility = isValidToCheckForVisibility(elementLocator, checkForVisibility);
+
+        var isMobileExecution = DriverFactoryHelper.isMobileNativeExecution() || DriverFactoryHelper.isMobileWebExecution();
 
         try {
             AtomicBoolean attemptedToUseActionsToScrollToElement = new AtomicBoolean(false);
@@ -110,12 +120,12 @@ public class ElementActionsHelper {
                     .withTimeout(Duration.ofMillis(
                             DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT * numberOfAttempts))
                     .pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY))
-                    .ignoreAll(expectedExceptions)
+                    .ignoreAll(getExpectedExceptions(isValidToCheckForVisibility))
                     .until(nestedDriver -> {
                         WebElement targetElement = nestedDriver.findElement(elementLocator);
-                        if (validToCheckForVisibility) {
+                        if (isValidToCheckForVisibility) {
                             if (!isMobileExecution) {
-                                if (isSafariBowser || attemptedToUseActionsToScrollToElement.get()) {
+                                if (isSafariBrowser() || attemptedToUseActionsToScrollToElement.get()) {
                                     ((Locatable) targetElement).getCoordinates().inViewPort();
                                 } else {
                                     attemptedToUseActionsToScrollToElement.set(true);
@@ -129,11 +139,9 @@ public class ElementActionsHelper {
                         elementInformation.add(nestedDriver.findElements(elementLocator).size());
                         elementInformation.add(targetElement);
                         return elementInformation;
-//                        return nestedDriver.findElements(elementLocator).size();
                     });
         } catch (org.openqa.selenium.TimeoutException timeoutException) {
             // In case the element was not found / not visible and the timeout expired
-//            ReportManagerHelper.logDiscrete(e);
             ReportManager.logDiscrete(timeoutException.getMessage() + " || " + timeoutException.getCause().getMessage().substring(0, timeoutException.getCause().getMessage().indexOf("\n")));
             var elementInformation = new ArrayList<>();
             elementInformation.add(0);
@@ -144,23 +152,12 @@ public class ElementActionsHelper {
     }
 
     public static List<Object> scrollToFindElement(WebDriver driver, By elementLocator) {
-        ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
-        expectedExceptions.add(org.openqa.selenium.NoSuchElementException.class);
-        expectedExceptions.add(org.openqa.selenium.StaleElementReferenceException.class);
-        expectedExceptions.add(org.openqa.selenium.ElementNotInteractableException.class);
-        var isSafariBowser = DriverFactoryHelper.getTargetBrowserName().toLowerCase().contains("safari");
-        if (isSafariBowser) {
-            // the generic exception is added to handle a case with WebKit whereby the browser doesn't state the cause of the issue
-            expectedExceptions.add(org.openqa.selenium.WebDriverException.class);
-        }
-        expectedExceptions.add(org.openqa.selenium.interactions.MoveTargetOutOfBoundsException.class);
-
         try {
             return new FluentWait<>(driver)
                     .withTimeout(Duration.ofMillis(
                             DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT))
                     .pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY))
-                    .ignoreAll(expectedExceptions)
+                    .ignoreAll(getExpectedExceptions(true))
                     .until(nestedDriver -> {
                         WebElement targetElement;
                         try {
@@ -176,7 +173,6 @@ public class ElementActionsHelper {
                     });
         } catch (org.openqa.selenium.TimeoutException timeoutException) {
             // In case the element was not found / not visible and the timeout expired
-//            ReportManagerHelper.logDiscrete(e);
             ReportManager.logDiscrete(timeoutException.getMessage() + " || " + timeoutException.getCause().getMessage().substring(0, timeoutException.getCause().getMessage().indexOf("\n")));
             var elementInformation = new ArrayList<>();
             elementInformation.add(0);

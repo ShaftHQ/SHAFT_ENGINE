@@ -47,7 +47,10 @@ public class WebDriverElementActions {
      *                       selector, name ...etc)
      */
     public static void scrollToElement(WebDriver driver, By elementLocator) {
-        //TODO: if mobile, call swipeElementIntoView(null, targetElementLocator, swipeDirection);
+        // if mobile, call swipeElementIntoView(null, targetElementLocator, swipeDirection); for convenience
+        if (DriverFactoryHelper.isMobileNativeExecution()) {
+            performTouchAction(driver).swipeElementIntoView(elementLocator, TouchActions.SwipeDirection.DOWN);
+        }
         try {
             ElementActionsHelper.scrollToFindElement(driver, elementLocator);
             passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, getElementName(driver, elementLocator));

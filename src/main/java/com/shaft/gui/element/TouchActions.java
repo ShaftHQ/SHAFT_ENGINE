@@ -632,7 +632,7 @@ public class TouchActions {
 
         do {
             // appium native device
-            if (ElementActionsHelper.waitForElementPresence_reducedTimeout(driver, targetElementLocator)>0) {
+            if (ElementActionsHelper.waitForElementPresenceWithReducedTimeout(driver, targetElementLocator) > 0) {
                 // element is already on screen
                 isElementFound = true;
                 ReportManager.logDiscrete("Element found on screen.");
@@ -640,7 +640,7 @@ public class TouchActions {
                 // for the animated GIF:
                 WebDriverElementActions.takeScreenshot(driver, null, "swipeElementIntoView", null, true);
                 canStillScroll = attemptW3cCompliantActionsScroll(swipeDirection, scrollableElementLocator, targetElementLocator);
-                if (!canStillScroll && ElementActionsHelper.waitForElementPresence_reducedTimeout(driver, targetElementLocator)>0) {
+                if (!canStillScroll && ElementActionsHelper.waitForElementPresenceWithReducedTimeout(driver, targetElementLocator) > 0) {
                     // element was found after scrolling to the end of the page
                     isElementFound = true;
                     ReportManager.logDiscrete("Element found on screen.");

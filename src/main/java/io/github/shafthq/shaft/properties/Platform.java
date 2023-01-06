@@ -1,5 +1,6 @@
 package io.github.shafthq.shaft.properties;
 
+import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.enums.OperatingSystems;
 import org.aeonbits.owner.Config;
 import org.aeonbits.owner.ConfigFactory;
@@ -31,5 +32,8 @@ public interface Platform extends EngineProperties {
         var updatedProps = new java.util.Properties();
         updatedProps.setProperty(key, value);
         Properties.platform = ConfigFactory.create(Platform.class, updatedProps);
+        // temporarily set the system property to support hybrid read/write mode
+        System.setProperty(key, value);
+        ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
     }
 }
