@@ -4,6 +4,7 @@ import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.driver.DriverFactoryHelper;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
 import io.github.shafthq.shaft.gui.video.RecordManager;
+import io.github.shafthq.shaft.properties.Properties;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import io.qameta.allure.Issue;
 import io.qameta.allure.Issues;
@@ -95,9 +96,10 @@ public class TestNGListenerHelper {
                 chrome_test.setParallel(XmlSuite.ParallelMode.NONE);
                 chrome_test.setName(chrome_test.getName() + " - Chrome");
 
-                if ("parallelized".equals(System.getProperty("SHAFT.CrossBrowserMode"))) {
+                if (Properties.platform.crossBrowserMode().equals("parallelized")) {
                     suite.setParallel(XmlSuite.ParallelMode.TESTS);
                     suite.setThreadCount(3);
+                    System.setProperty("videoParams_recordVideo", "true");
                     System.setProperty("screenshotParams_screenshotType", "Regular");
                 }
             });

@@ -36,9 +36,9 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     }
 
     public void onError(Object target, Method method, Object[] args, InvocationTargetException e) {
-            ReportManager.log(JavaHelper.convertToSentenceCase(method.getName()) + " action failed.");
-            ReportManagerHelper.attach(ScreenshotManager.captureScreenShot(DriverFactoryHelper.getDriver().get(), method.getName(), false));
-            ReportManagerHelper.log(e);
+        ReportManager.log(JavaHelper.convertToSentenceCase(method.getName()) + " action failed.");
+        ReportManagerHelper.attach(ScreenshotManager.captureScreenShot(DriverFactoryHelper.getDriver().get(), method.getName(), false));
+        ReportManagerHelper.log(e);
     }
 
     // WebDriver
@@ -53,35 +53,35 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     }
 
     public void afterGet(WebDriver driver, String url) {
-            ReportManager.log("Navigate to: \"" + url + "\".");
+        ReportManager.log("Navigate to \"" + url + "\".");
     }
 
     public void beforeGetCurrentUrl(WebDriver driver) {
     }
 
     public void afterGetCurrentUrl(String result, WebDriver driver) {
-            ReportManager.log("Current url is: \"" + result + "\".");
+        ReportManager.log("Current url is: \"" + result + "\".");
     }
 
     public void beforeGetTitle(WebDriver driver) {
     }
 
     public void afterGetTitle(WebDriver driver, String result) {
-            ReportManager.log("Current Window Title is: \"" + result + "\".");
+        ReportManager.log("Current Window Title is: \"" + result + "\".");
     }
 
     public void beforeFindElement(WebDriver driver, By locator) {
-            try {
-                new FluentWait<>(driver)
-                        .withTimeout(Duration.ofMillis(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT))
-                        .pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY))
-                        .ignoreAll(getExpectedExceptions(false))
-                        .until(nestedDriver -> nestedDriver.findElement(locator));
-            } catch (org.openqa.selenium.TimeoutException timeoutException) {
-                // In case the element was not found / not visible and the timeout expired
-                ReportManager.logDiscrete(timeoutException.getMessage() + " || " + timeoutException.getCause().getMessage().substring(0, timeoutException.getCause().getMessage().indexOf("\n")));
-                throw timeoutException;
-            }
+        try {
+            new FluentWait<>(driver)
+                    .withTimeout(Duration.ofMillis(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT))
+                    .pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY))
+                    .ignoreAll(getExpectedExceptions(false))
+                    .until(nestedDriver -> nestedDriver.findElement(locator));
+        } catch (org.openqa.selenium.TimeoutException timeoutException) {
+            // In case the element was not found / not visible and the timeout expired
+            ReportManager.logDiscrete(timeoutException.getMessage() + " || " + timeoutException.getCause().getMessage().substring(0, timeoutException.getCause().getMessage().indexOf("\n")));
+            throw timeoutException;
+        }
     }
 
     public void afterFindElement(WebDriver driver, By locator, WebElement result) {
@@ -158,56 +158,56 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     }
 
     public void beforeClick(WebElement element) {
-            try {
-                (new WebDriverWait(DriverFactoryHelper.getDriver().get(), Duration.ofMillis(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT)))
-                        .until(ExpectedConditions.elementToBeClickable(element));
-            } catch (org.openqa.selenium.TimeoutException timeoutException) {
-                ReportManagerHelper.logDiscrete(timeoutException);
-                throw timeoutException;
-            }
+        try {
+            (new WebDriverWait(DriverFactoryHelper.getDriver().get(), Duration.ofMillis(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT)))
+                    .until(ExpectedConditions.elementToBeClickable(element));
+        } catch (org.openqa.selenium.TimeoutException timeoutException) {
+            ReportManagerHelper.logDiscrete(timeoutException);
+            throw timeoutException;
+        }
+        try {
+            ReportManager.log("Click " + getElementName(element) + ".");
+        } catch (Throwable throwable) {
+            ReportManager.log("Click.");
+        }
     }
 
     public void afterClick(WebElement element) {
-            try {
-                ReportManager.log("Click " + getElementName(element) + ".");
-            } catch (Throwable throwable) {
-                ReportManager.log("Click.");
-            }
     }
 
     public void beforeSubmit(WebElement element) {
+        try {
+            ReportManager.log("Submit " + getElementName(element) + ".");
+        } catch (Throwable throwable) {
+            ReportManager.log("Submit.");
+        }
     }
 
     public void afterSubmit(WebElement element) {
-            try {
-                ReportManager.log("Submit " + getElementName(element) + ".");
-            } catch (Throwable throwable) {
-                ReportManager.log("Submit.");
-            }
     }
 
     public void beforeSendKeys(WebElement element, CharSequence... keysToSend) {
+        var stringBuilder = new StringBuilder();
+        Arrays.stream(keysToSend).toList().forEach(stringBuilder::append);
+        try {
+            ReportManager.log("Type \"" + stringBuilder + "\" into " + getElementName(element) + ".");
+        } catch (Throwable throwable) {
+            ReportManager.log("Type \"" + stringBuilder + "\".");
+        }
     }
 
     public void afterSendKeys(WebElement element, CharSequence... keysToSend) {
-            var stringBuilder = new StringBuilder();
-            Arrays.stream(keysToSend).toList().forEach(stringBuilder::append);
-            try {
-                ReportManager.log("Type \"" + stringBuilder + "\" into " + getElementName(element) + ".");
-            } catch (Throwable throwable) {
-                ReportManager.log("Type \"" + stringBuilder + "\".");
-            }
     }
 
     public void beforeClear(WebElement element) {
+        try {
+            ReportManager.log("Clear " + getElementName(element) + ".");
+        } catch (Throwable throwable) {
+            ReportManager.log("Clear.");
+        }
     }
 
     public void afterClear(WebElement element) {
-            try {
-                ReportManager.log("Clear " + getElementName(element) + ".");
-            } catch (Throwable throwable) {
-                ReportManager.log("Clear.");
-            }
     }
 
     public void beforeGetTagName(WebElement element) {
@@ -220,6 +220,11 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     }
 
     public void afterGetAttribute(WebElement element, String name, String result) {
+        try {
+            ReportManager.log("Get Attribute \"" + name + "\" from " + getElementName(element) + ", value is \"" + result + "\".");
+        } catch (Throwable throwable) {
+            ReportManager.log("Get Attribute \"" + name + "\", value is \"" + result + "\".");
+        }
     }
 
     public void beforeIsSelected(WebElement element) {
@@ -238,11 +243,11 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     }
 
     public void afterGetText(WebElement element, String result) {
-            try {
-                ReportManager.log("Get Text from " + getElementName(element) + ", text is \"" + result + "\".");
-            } catch (Throwable throwable) {
-                ReportManager.log("Get Text, text is :\"" + result + "\".");
-            }
+        try {
+            ReportManager.log("Get Text from " + getElementName(element) + ", text is \"" + result + "\".");
+        } catch (Throwable throwable) {
+            ReportManager.log("Get Text, text is :\"" + result + "\".");
+        }
     }
 
     public void beforeFindElement(WebElement element, By locator) {
@@ -290,38 +295,39 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     }
 
     public void beforeTo(WebDriver.Navigation navigation, String url) {
-            ReportManager.log("Navigate to url: \"" + url + "\".");
     }
 
     public void afterTo(WebDriver.Navigation navigation, String url) {
+        ReportManager.log("Navigate to url \"" + url + "\".");
     }
 
     public void beforeTo(WebDriver.Navigation navigation, URL url) {
-            ReportManager.log("Navigate to url: \"" + url + "\".");
     }
 
     public void afterTo(WebDriver.Navigation navigation, URL url) {
+        ReportManager.log("Navigate to url \"" + url + "\".");
     }
 
     public void beforeBack(WebDriver.Navigation navigation) {
-            ReportManager.log("Navigate back.");
     }
 
     public void afterBack(WebDriver.Navigation navigation) {
+        ReportManager.log("Navigate back.");
     }
 
     public void beforeForward(WebDriver.Navigation navigation) {
-            ReportManager.log("Navigate forward.");
+
     }
 
     public void afterForward(WebDriver.Navigation navigation) {
+        ReportManager.log("Navigate forward.");
     }
 
     public void beforeRefresh(WebDriver.Navigation navigation) {
-            ReportManager.log("Refresh current page.");
     }
 
     public void afterRefresh(WebDriver.Navigation navigation) {
+        ReportManager.log("Refresh current page.");
     }
 
     // Alert
@@ -460,10 +466,10 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     }
 
     public void beforeMaximize(WebDriver.Window window) {
-            ReportManager.log("Maximize Current Window.");
     }
 
     public void afterMaximize(WebDriver.Window window) {
+        ReportManager.log("Maximize Current Window.");
     }
 
     public void beforeFullscreen(WebDriver.Window window) {
@@ -477,7 +483,7 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
         if ("".equals(accessibleName)) {
             return "element";
         } else {
-            return accessibleName;
+            return "\"" + accessibleName + "\"";
         }
     }
 }

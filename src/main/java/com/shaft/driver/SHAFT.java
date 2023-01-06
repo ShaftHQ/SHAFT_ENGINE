@@ -32,7 +32,7 @@ import java.util.List;
 public class SHAFT {
     public static class GUI {
         public static class WebDriver {
-            private final ThreadLocal<org.openqa.selenium.WebDriver> driverThreadLocal = new ThreadLocal<>();
+            private static final ThreadLocal<org.openqa.selenium.WebDriver> driverThreadLocal = new ThreadLocal<>();
 
             public WebDriver() {
                 driverThreadLocal.set(DriverFactory.getDriver());
