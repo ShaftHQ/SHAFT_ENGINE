@@ -12,7 +12,7 @@ import org.aeonbits.owner.ConfigFactory;
 public interface Web extends EngineProperties {
     @Key("targetBrowserName")
     @DefaultValue(Browsers.CHROME)
-    Browsers targetBrowserName();
+    String targetBrowserName();
 
     @Key("headlessExecution")
     @DefaultValue("false")

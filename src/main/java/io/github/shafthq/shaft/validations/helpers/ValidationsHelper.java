@@ -6,8 +6,10 @@ import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.ValidationEnums.*;
 import io.github.shafthq.shaft.driver.DriverFactoryHelper;
+import io.github.shafthq.shaft.enums.Browsers;
 import io.github.shafthq.shaft.gui.image.ImageProcessingActions;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
+import io.github.shafthq.shaft.properties.Properties;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import io.github.shafthq.shaft.tools.support.JavaHelper;
 import io.restassured.response.Response;
@@ -334,7 +336,7 @@ public class ValidationsHelper {
 
         //TODO: remove this temporary fix when this bug is fixed with shutterbug
         //https://github.com/assertthat/selenium-shutterbug/issues/105
-        if (System.getProperty("targetBrowserName").trim().equalsIgnoreCase("safari")){
+        if (Properties.web.targetBrowserName().equals(Browsers.SAFARI)) {
             visualValidationEngine = VisualValidationEngine.EXACT_OPENCV;
         }
 

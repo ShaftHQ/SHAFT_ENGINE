@@ -21,7 +21,7 @@ public interface Mobile extends EngineProperties {
 
     @Key("mobile_automationName")
     @DefaultValue(AutomationName.ANDROID_UIAUTOMATOR2)
-    AutomationName automationName();
+    String automationName();
 
     @Key("mobile_udid")
     @DefaultValue("")

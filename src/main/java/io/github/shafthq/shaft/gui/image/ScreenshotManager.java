@@ -6,6 +6,7 @@ import com.shaft.gui.element.ElementActions;
 import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.driver.DriverFactoryHelper;
 import io.github.shafthq.shaft.gui.browser.JavaScriptWaitManager;
+import io.github.shafthq.shaft.properties.Properties;
 import io.github.shafthq.shaft.properties.PropertyFileManager;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import org.imgscalr.Scalr;
@@ -56,8 +57,7 @@ public class ScreenshotManager {
     // TODO: parameterize the detailed gif value
     private static final Boolean DETAILED_GIF = true;
     private static final String DETAILED_GIF_REGEX = "(verify.*)|(assert.*)|(click.*)|(tap.*)|(key.*)|(navigate.*)";
-    private static final String AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH = System.getProperty("dynamicObjectRepositoryPath").trim()
-            +System.getProperty("targetBrowserName").trim()+"/";
+    private static String AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH = "";
     private static String screenshotFileName = "Screenshot";
     private static By targetElementLocator;
     private static boolean globalPassFailStatus = false;
@@ -72,7 +72,20 @@ public class ScreenshotManager {
     }
 
     public static String getAiAidedElementIdentificationFolderpath() {
-        return AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH;
+        if (AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH.isEmpty()) {
+            // fixes https://github.com/ShaftHQ/SHAFT_ENGINE/issues/808 by respecting OS/Platform information for mobile native
+            AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH = Properties.paths.dynamicObjectRepository()
+                    + Properties.platform.targetOperatingSystem() + "/";
+            if (DriverFactoryHelper.isMobileNativeExecution()) {
+                AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH += Properties.mobile.platformVersion() + "/";
+            } else {
+                //mobile web, or desktop web
+                AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH += Properties.web.targetBrowserName() + "/";
+            }
+            return AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH.replace(".", "_").replace(" ", "_").replace("-64", "");
+        } else {
+            return AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH;
+        }
     }
 
     /**

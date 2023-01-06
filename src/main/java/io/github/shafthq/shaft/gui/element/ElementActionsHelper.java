@@ -29,7 +29,7 @@ public class ElementActionsHelper {
         throw new IllegalStateException("Utility class");
     }
 
-    public static int waitForElementPresence_reducedTimeout(WebDriver driver, By elementLocator) {
+    public static int waitForElementPresenceWithReducedTimeout(WebDriver driver, By elementLocator) {
         DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT = 300; //this is used for faster mobile native scrolling. default for ios is 200 and for android is 250, this covers both
         var numberOfFoundElements = waitForElementPresence(driver, elementLocator);
         DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT = Integer
