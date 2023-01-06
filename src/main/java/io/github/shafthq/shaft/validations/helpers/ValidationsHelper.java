@@ -333,7 +333,7 @@ public class ValidationsHelper {
 
     protected static void validateElementMatches(ValidationCategory validationCategory, WebDriver driver, By elementLocator, VisualValidationEngine visualValidationEngine, ValidationType validationType,
                                                  String... optionalCustomLogMessage) {
-
+        lastUsedElementLocator = elementLocator;
         //TODO: remove this temporary fix when this bug is fixed with shutterbug
         //https://github.com/assertthat/selenium-shutterbug/issues/105
         if (Properties.web.targetBrowserName().equals(Browsers.SAFARI)) {

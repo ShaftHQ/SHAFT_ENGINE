@@ -77,7 +77,9 @@ public class ScreenshotManager {
             AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH = Properties.paths.dynamicObjectRepository()
                     + Properties.platform.targetOperatingSystem() + "/";
             if (DriverFactoryHelper.isMobileNativeExecution()) {
-                AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH += Properties.mobile.platformVersion() + "/";
+                if (!Properties.mobile.platformVersion().isEmpty()) {
+                    AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH += Properties.mobile.platformVersion() + "/";
+                }
             } else {
                 //mobile web, or desktop web
                 AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH += Properties.web.targetBrowserName() + "/";

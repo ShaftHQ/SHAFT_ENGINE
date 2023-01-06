@@ -1,5 +1,6 @@
 package io.github.shafthq.shaft.properties;
 
+import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.Config;
 import org.aeonbits.owner.ConfigFactory;
 
@@ -50,5 +51,8 @@ public interface Paths extends EngineProperties {
         var updatedProps = new java.util.Properties();
         updatedProps.setProperty(key, value);
         Properties.paths = ConfigFactory.create(Paths.class, updatedProps);
+        // temporarily set the system property to support hybrid read/write mode
+        System.setProperty(key, value);
+        ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
     }
 }
