@@ -318,6 +318,14 @@ public class TerminalActions {
                 // local execution
                 ReportManager
                         .logDiscrete("Attempting to perform the following command locally. Command: \"" + command + "\"");
+                // "cmd /c start E:\\batFiles\\MyBat.bat";
+                // https://coderanch.com/t/323662/java/Direct-Runtime-getRuntime-exec-output
+
+                if ("generate_allure_report.bat".equals(command)) {
+                    // hardcoded override to fix memory leak (infinite allure servers opened) on windows
+                    command = "cmd /c start " + System.getProperty("user.dir") + "\\" + command;
+                }
+
                 localProcess = Runtime.getRuntime().exec(command);
                 if (!unattended) {
                     localProcess.waitFor();
