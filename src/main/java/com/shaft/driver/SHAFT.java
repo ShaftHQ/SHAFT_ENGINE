@@ -22,7 +22,6 @@ import io.github.shafthq.shaft.validations.helpers.RestValidationsBuilder;
 import io.restassured.config.RestAssuredConfig;
 import io.restassured.response.Response;
 import org.openqa.selenium.MutableCapabilities;
-import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.support.events.EventFiringDecorator;
 import org.sikuli.script.App;
 
@@ -73,8 +72,6 @@ public class SHAFT {
              * @return the current Selenium WebDriver instance for custom manipulation
              */
             public org.openqa.selenium.WebDriver getDriver() {
-                WebDriverListener webDriverListener = new WebDriverListener();
-
                 /*
                  * Decorator is not working for appium drivers as per the following issues/articles
                  * https://github.com/appium/java-client/issues/1694
@@ -102,11 +99,11 @@ public class SHAFT {
 //                    return decoratedDriver;
 //                    return new EventFiringDecorator<>(IOSDriver.class, listener).decorate(iosDriver);
                     return driverThreadLocal.get();
-                } else if (driverThreadLocal.get() instanceof RemoteWebDriver remoteWebDriver) {
-                    return new EventFiringDecorator<>(RemoteWebDriver.class, webDriverListener).decorate(remoteWebDriver);
+//                } else if (driverThreadLocal.get() instanceof RemoteWebDriver remoteWebDriver) {
+//                    driverThreadLocal.set(new EventFiringDecorator<>(RemoteWebDriver.class, new WebDriverListener()).decorate(remoteWebDriver));
+                } else {
+                    return new EventFiringDecorator<>(org.openqa.selenium.WebDriver.class, new WebDriverListener()).decorate(driverThreadLocal.get());
                 }
-
-                return new EventFiringDecorator<>(org.openqa.selenium.WebDriver.class, webDriverListener).decorate(driverThreadLocal.get());
             }
         }
 

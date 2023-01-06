@@ -71,7 +71,6 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
      */
     @Override
     public void alter(List<XmlSuite> suites) {
-        TestNGListenerHelper.addWebDriverListener(suites);
         TestNGListenerHelper.configureTestNGProperties(suites);
         TestNGListenerHelper.updateDefaultSuiteAndTestNames(suites);
         TestNGListenerHelper.attachReportHelperClass(suites);

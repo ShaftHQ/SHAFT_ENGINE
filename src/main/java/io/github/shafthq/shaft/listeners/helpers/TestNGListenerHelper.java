@@ -22,22 +22,9 @@ import java.util.List;
 import java.util.Map;
 
 public class TestNGListenerHelper {
-    //    private static String allureUUIDThreadLocal = "";
+
     private static final ArrayList<ITestResult> beforeMethods = new ArrayList<>();
     private static final ArrayList<ITestResult> afterMethods = new ArrayList<>();
-
-//    public static void writeAllureUUID(){
-//        allureUUIDThreadLocal = Allure.getLifecycle().getCurrentTestCaseOrStep().orElse("");
-//    }
-//
-//    public static void readAllureUUID(){
-//        var lc = Allure.getLifecycle();
-//        lc.setCurrentTestCase(allureUUIDThreadLocal);
-//        lc.updateTestCase(allureUUIDThreadLocal, testResult -> {
-//            lc.scheduleTestCase(allureUUIDThreadLocal, testResult);
-//            lc.startTestCase(allureUUIDThreadLocal);
-//        });
-//    }
 
     public static void updateConfigurationMethodLogs(ITestResult iTestResult) {
         if (iTestResult.getMethod().isTest()) {
@@ -160,11 +147,7 @@ public class TestNGListenerHelper {
     }
 
     public static void attachReportHelperClass(List<XmlSuite> suites) {
-        suites.get(0).getTests().get(0).getClasses().add(new XmlClass(ConfigurationHelper.class.getName()));
-    }
-
-    public static void addWebDriverListener(List<XmlSuite> suites) {
-        suites.forEach(suite -> suite.addListener("io.github.shafthq.shaft.listeners.WebDriverListener"));
+        suites.forEach(xmlSuite -> xmlSuite.getTests().forEach(xmlTest -> xmlTest.getClasses().add(new XmlClass(ConfigurationHelper.class.getName()))));
     }
 
     public static void configureJVMProxy() {
