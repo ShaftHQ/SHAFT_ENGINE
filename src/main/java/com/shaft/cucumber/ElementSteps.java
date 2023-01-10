@@ -1,6 +1,7 @@
 package com.shaft.cucumber;
 
 import io.cucumber.java.en.When;
+import io.github.shafthq.shaft.gui.element.ElementActionsHelper;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
@@ -208,9 +209,9 @@ public class ElementSteps {
     }
 
     /**
-     * Used to set value for an element (hidden or visible) using javascript
+     * Used to SetProperty value for an element (hidden or visible) using javascript
      *
-     * @param value        the desired value that should be set for the target element
+     * @param value        the desired value that should be SetProperty for the target element
      * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue the value/expression of the desired element locator
      */
@@ -242,7 +243,7 @@ public class ElementSteps {
      */
     @When("I Wait for {int} attempt(s) for the element found by {string}: {string} to be present")
     public void waitForElementToBePresent(int numberOfTries, String locatorType, String locatorValue) {
-        com.shaft.gui.element.ElementActions.waitForElementToBeReady(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue));
+        ElementActionsHelper.waitForElementPresence(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue), numberOfTries);
     }
 
     /**

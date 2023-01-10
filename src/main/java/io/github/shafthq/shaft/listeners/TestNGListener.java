@@ -11,6 +11,7 @@ import io.github.shafthq.shaft.tools.io.helpers.IssueReporter;
 import io.github.shafthq.shaft.tools.io.helpers.ProjectStructureManager;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import io.github.shafthq.shaft.tools.security.GoogleTink;
+import io.qameta.allure.Allure;
 import lombok.Getter;
 import org.testng.*;
 import org.testng.annotations.ITestAnnotation;
@@ -27,15 +28,6 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Getter
     private static XmlTest xmlTest;
 
-    private static void setTotalNumberOfTests(ISuite testSuite) {
-        // This condition checks to confirm that this is not a cucumber test runner instance
-        // If this condition is removed the total number of tests will be zero because the cucumber
-        // test runner doesn't have any test methods
-        if (!(testSuite.getAllMethods().size() == 1 && testSuite.getAllMethods().get(0).getMethodName().equals("runScenario"))) {
-            ReportManagerHelper.setTotalNumberOfTests(testSuite.getAllMethods().size());
-        }
-    }
-
     /**
      * gets invoked before TestNG proceeds with invoking any other listener.
      */
@@ -44,6 +36,8 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         ReportManagerHelper.setDiscreteLogging(true);
         System.setProperty("disableLogging", "true");
         //TODO: Enable Properties Helper and refactor the old PropertyFileManager to read any unmapped user properties in a specific directory
+        Allure.getLifecycle();
+        Reporter.setEscapeHtml(false);
         PropertiesHelper.initialize();
         PropertyFileManager.readPropertyFiles();
         ProjectStructureManager.initialize();
@@ -86,7 +80,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
      */
     @Override
     public void onStart(ISuite suite) {
-        setTotalNumberOfTests(suite);
+        TestNGListenerHelper.setTotalNumberOfTests(suite);
     }
 
     /**

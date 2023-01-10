@@ -9,6 +9,7 @@ import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import io.github.shafthq.shaft.enums.OperatingSystems;
+import io.github.shafthq.shaft.gui.browser.BrowserActionsHelpers;
 import io.github.shafthq.shaft.gui.video.RecordManager;
 import io.github.shafthq.shaft.properties.PropertyFileManager;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
@@ -114,7 +115,8 @@ public class DriverFactoryHelper {
         }
         try {
             attachWebDriverLogs();
-            BrowserActions.capturePageSnapshot(driver.get());
+            BrowserActionsHelpers.attachPageSnapshot(driver.get());
+
             //if dockerized wdm.quit the relevant one
             if (System.getProperty("executionAddress").contains("dockerized")) {
                 var pathToRecording = webDriverManager.get().getDockerRecordingPath(driver.get());
@@ -182,6 +184,7 @@ public class DriverFactoryHelper {
         //https://github.com/GoogleChrome/chrome-launcher/blob/master/docs/chrome-flags-for-tools.md#--enable-automation
         switch (driverType) {
             case DESKTOP_FIREFOX -> {
+                // https://wiki.mozilla.org/Firefox/CommandLineOptions
                 // https://developer.mozilla.org/en-US/docs/Web/WebDriver/Capabilities/firefoxOptions
                 ffOptions = new FirefoxOptions();
                 var ffProfile = new FirefoxProfile();
@@ -203,6 +206,8 @@ public class DriverFactoryHelper {
                     proxy.setSslProxy(PROXY_SERVER_SETTINGS);
                     ffOptions.setProxy(proxy);
                 }
+                // Enable BiDi
+//                ffOptions.setCapability("webSocketUrl", true);
                 //merge customWebdriverCapabilities.properties
                 ffOptions = ffOptions.merge(PropertyFileManager.getCustomWebdriverDesiredCapabilities());
                 //merge hardcoded custom options

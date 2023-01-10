@@ -1,8 +1,9 @@
 package poms;
 
 import com.shaft.driver.SHAFT;
-import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Validations;
+import io.github.shafthq.shaft.gui.element.ElementActionsHelper;
+import io.github.shafthq.shaft.gui.element.FluentElementActions;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
@@ -30,11 +31,11 @@ public class GoogleSearchResults {
     }
 
     public void clickNext() {
-        new ElementActions(driver).scrollToElement(next_button).click(next_button);
+        new FluentElementActions(driver).scrollToElement(next_button).click(next_button);
     }
 
     public void assert10ResultsPerPage() {
-        SHAFT.Validations.assertThat().number(10).equals(ElementActions.getElementsCount(driver, searchResult_box));
+        SHAFT.Validations.assertThat().number(10).equals(ElementActionsHelper.getElementsCount(driver, searchResult_box));
     }
 
 }

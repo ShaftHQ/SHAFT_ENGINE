@@ -44,12 +44,11 @@ public class PropertiesHelper {
         String targetOperatingSystemPropertyName = "targetOperatingSystem";
         if (Properties.platform.executionAddress().equals("local")) {
             if (SystemUtils.IS_OS_WINDOWS) {
-                Properties.platform.setProperty(targetOperatingSystemPropertyName, WINDOWS);
+                Properties.platform.set().targetOperatingSystem(WINDOWS);
             } else if (SystemUtils.IS_OS_LINUX) {
-                Properties.platform.setProperty(targetOperatingSystemPropertyName, LINUX);
-
+                Properties.platform.set().targetOperatingSystem(LINUX);
             } else if (SystemUtils.IS_OS_MAC) {
-                Properties.platform.setProperty(targetOperatingSystemPropertyName, MAC);
+                Properties.platform.set().targetOperatingSystem(MAC);
             }
         }
     }

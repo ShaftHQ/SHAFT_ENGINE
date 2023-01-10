@@ -2,10 +2,10 @@ package io.github.shafthq.shaft.gui.image;
 
 import com.epam.healenium.SelfHealingDriver;
 import com.shaft.cli.FileActions;
-import com.shaft.gui.element.ElementActions;
 import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.driver.DriverFactoryHelper;
 import io.github.shafthq.shaft.gui.browser.JavaScriptWaitManager;
+import io.github.shafthq.shaft.gui.element.ElementActionsHelper;
 import io.github.shafthq.shaft.properties.Properties;
 import io.github.shafthq.shaft.properties.PropertyFileManager;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
@@ -229,7 +229,7 @@ public class ScreenshotManager {
                 List<WebElement> skippedElementsList = new ArrayList<>();
                 String[] skippedElementLocators = SCREENSHOT_PARAMS_SKIPPEDELEMENTSFROMSCREENSHOT.split(";");
                 for (String locator : skippedElementLocators) {
-                    if (ElementActions.getElementsCount(driver, By.xpath(locator),
+                    if (ElementActionsHelper.getElementsCount(driver, By.xpath(locator),
                             RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1) {
                         skippedElementsList.add(driver.findElement(By.xpath(locator)));
                     }
@@ -330,7 +330,7 @@ public class ScreenshotManager {
                             //expected to throw org.opencv.core.CvException if removed
                         }
 
-                        if (ElementActions.getElementsCount(driver, elementLocator, RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1){
+                        if (ElementActionsHelper.getElementsCount(driver, elementLocator, RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1) {
                             if ("JavaScript".equals(SCREENSHOT_PARAMS_HIGHLIGHTMETHOD)) {
                                 element = driver.findElement(elementLocator);
                                 js = (JavascriptExecutor) driver;
@@ -426,7 +426,7 @@ public class ScreenshotManager {
     private static byte[] takeElementScreenshot(WebDriver driver, By targetElementLocator, Boolean
             returnRegularScreenshotInCaseOfFailure) {
         try {
-            if (targetElementLocator != null && ElementActions.getElementsCount(driver, targetElementLocator,
+            if (targetElementLocator != null && ElementActionsHelper.getElementsCount(driver, targetElementLocator,
                     RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1) {
                 return driver.findElement(targetElementLocator).getScreenshotAs(OutputType.BYTES);
             } else {

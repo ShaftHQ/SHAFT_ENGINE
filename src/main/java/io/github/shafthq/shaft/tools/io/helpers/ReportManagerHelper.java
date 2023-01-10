@@ -17,6 +17,7 @@ import io.github.shafthq.shaft.properties.PropertyFileManager;
 import io.github.shafthq.shaft.tools.support.JavaHelper;
 import io.qameta.allure.Allure;
 import io.qameta.allure.Step;
+import io.qameta.allure.model.Status;
 import lombok.Getter;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.SystemUtils;
@@ -24,6 +25,7 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.config.Configurator;
+import org.testng.ITestResult;
 import org.testng.Reporter;
 
 import java.io.*;
@@ -268,7 +270,6 @@ public class ReportManagerHelper {
     public static void attach(String attachmentType, String attachmentName, String attachmentContent) {
         if (!attachmentContent.trim().equals("")) {
             createAttachment(attachmentType, attachmentName, new ByteArrayInputStream(attachmentContent.getBytes()));
-
         }
     }
 
@@ -547,13 +548,30 @@ public class ReportManagerHelper {
      */
 //    @Step("{logText}")
     public static void writeStepToReport(String logText) {
-        Allure.step(logText);
         createLogEntry(logText, true);
+        Allure.step(logText, getAllureStepStatus(logText));
+    }
+
+    private static Status getAllureStepStatus(String logText) {
+        if (logText != null && logText.toLowerCase().contains(" failed.")) {
+            return Status.FAILED;
+        }
+
+        if (Reporter.getCurrentTestResult() != null) {
+            var testNgStatus = Reporter.getCurrentTestResult().getStatus();
+            return switch (testNgStatus) {
+                case ITestResult.FAILURE -> Status.FAILED;
+                case ITestResult.SKIP -> Status.SKIPPED;
+                default -> Status.PASSED;
+            };
+        } else {
+            return Status.PASSED;
+        }
     }
 
     @Step("{logText}")
     static void writeStepToReport(String logText, List<List<Object>> attachments) {
-//        Allure.step(logText);
+//        Allure.step(logText, getAllureStepStatus());
         createLogEntry(logText, false);
 
         if (attachments != null && !attachments.isEmpty()) {
@@ -802,7 +820,7 @@ public class ReportManagerHelper {
      */
     @Step("Attachment: {attachmentType} - {attachmentName}")
     static void attachAsStep(String attachmentType, String attachmentName, InputStream attachmentContent) {
-//        Allure.step("Attachment: "+attachmentType+" - "+attachmentName);
+//        Allure.step("Attachment: "+attachmentType+" - "+attachmentName, getAllureStepStatus());
         createAttachment(attachmentType, attachmentName, attachmentContent);
     }
 
@@ -852,7 +870,7 @@ public class ReportManagerHelper {
     }
 
     public static void log(String logText, List<List<Object>> attachments) {
-        if (getDiscreteLogging() && !logText.toLowerCase().contains("failed") && isInternalStep()) {
+        if (!logText.toLowerCase().contains("failed") && getDiscreteLogging() && isInternalStep()) {
             createLogEntry(logText, Level.INFO);
             if (attachments != null && !attachments.isEmpty() && (attachments.size() > 1 || (attachments.get(0) != null && !attachments.get(0).isEmpty()))) {
                 attachments.forEach(attachment -> {
@@ -937,10 +955,10 @@ public class ReportManagerHelper {
         String logText;
         logText = formatStackTraceToLogEntry(t);
         if (t.getMessage() != null) {
-            log("An Exception Occured with this Message: " + t.getMessage().split("\n")[0].trim() + ".",
+            log("An Exception Occurred with this Message: " + t.getMessage().split("\n")[0].trim() + ".",
                     Collections.singletonList(Arrays.asList("Exception Stack Trace", t.getClass().getName(), logText)));
         } else {
-            log("An Exception Occured",
+            log("An Exception Occurred",
                     Collections.singletonList(Arrays.asList("Exception Stack Trace", t.getClass().getName(), logText)));
         }
     }
