@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       job-name: '[Ubuntu][Firefox][SeleniumGrid]'
-    name: Desktop Browsers ${{ env.job-name }}
+    name: Desktop Browsers '[Ubuntu][Firefox][SeleniumGrid]'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -52,7 +52,7 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       job-name: '[Ubuntu][GoogleChrome][SeleniumGrid]'
-    name: Desktop Browsers ${{ env.job-name }}
+    name: Desktop Browsers '[Ubuntu][GoogleChrome][SeleniumGrid]'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -91,7 +91,7 @@ jobs:
     runs-on: ubuntu-22.04
     env:
       job-name: '[Ubuntu][MicrosoftEdge][SeleniumGrid]'
-      name: Desktop Browsers ${{ env.job-name }}
+      name: Desktop Browsers '[Ubuntu][MicrosoftEdge][SeleniumGrid]'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -130,7 +130,7 @@ jobs:
     runs-on: windows-latest
     env:
       job-name: '[Windows][MicrosoftEdge][Local]'
-      name: Desktop Browsers ${{ env.job-name }}
+      name: Desktop Browsers '[Windows][MicrosoftEdge][Local]'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -165,7 +165,7 @@ jobs:
     runs-on: windows-latest
     env:
       job-name: '[Windows][GoogleChrome][Local]'
-      name: Desktop Browsers ${{ env.job-name }}
+      name: Desktop Browsers '[Windows][GoogleChrome][Local]'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -200,7 +200,7 @@ jobs:
     runs-on: macOS-12
     env:
       job-name: '[MacOSX][Safari][Local]'
-      name: Desktop Browsers ${{ env.job-name }}
+      name: Desktop Browsers '[MacOSX][Safari][Local]'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -235,7 +235,7 @@ jobs:
     runs-on: macOS-12
     env:
       job-name: '[MacOSX][GoogleChrome][Local]'
-      name: Desktop Browsers ${{ env.job-name }}
+      name: Desktop Browsers '[MacOSX][GoogleChrome][Local]'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
