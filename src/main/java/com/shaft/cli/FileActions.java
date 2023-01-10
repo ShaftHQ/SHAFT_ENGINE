@@ -87,7 +87,7 @@ public class FileActions {
                     TrueFileFilter.TRUE);
             filesList.forEach(file -> files.append(file.getName()).append(System.lineSeparator()));
         } catch (IllegalArgumentException rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
+
             failAction("Failed to list files in this directory: \"" + targetDirectory + "\"", rootCauseException);
         }
 
@@ -102,7 +102,7 @@ public class FileActions {
                     recursively);
             filesList.forEach(file -> files.append(file.getName()).append(System.lineSeparator()));
         } catch (IllegalArgumentException rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
+
             failAction("Failed to list files in this directory: \"" + targetDirectory + "\"", rootCauseException);
         }
 
@@ -118,7 +118,7 @@ public class FileActions {
                     TrueFileFilter.TRUE);
             filesList.forEach(file -> files.append(file.getAbsolutePath()).append(System.lineSeparator()));
         } catch (IllegalArgumentException rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
+
             failAction("Failed to list absolute file paths in this directory: \"" + targetDirectory + "\"", rootCauseException);
         }
         passAction("Target Directory: \"" + targetDirectory + "\"", files.toString().trim());
@@ -180,7 +180,7 @@ public class FileActions {
             fileBytes = Files.readAllBytes(Paths.get(targetFilePath));
             sha256 = Hashing.sha256().hashBytes(fileBytes).toString();
         } catch (IOException rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
+
             failAction("Failed to read file \"" + targetFilePath + "\"", rootCauseException);
         }
         passAction("Target File: \"" + targetFilePath + "\" | SHA-256: \"" + sha256 + "\"");
@@ -296,7 +296,7 @@ public class FileActions {
             Files.write(filePath, content);
             passAction("Target File Path: \"" + filePath + "\"", Arrays.toString(content));
         } catch (InvalidPathException | IOException rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
+
             failAction("Folder Name: \"" + fileFolderName + "\", File Name \"" + fileName + "\".", rootCauseException);
         }
     }
@@ -326,9 +326,8 @@ public class FileActions {
         try {
             data = Files.readAllBytes(filePath);
             passAction("File Path: \"" + filePath + "\"");
-        } catch (IOException e) {
-            ReportManagerHelper.log(e);
-            failAction(e);
+        } catch (IOException rootCauseException) {
+            failAction(rootCauseException);
         }
         return data;
     }
@@ -358,18 +357,17 @@ public class FileActions {
         while (i < numberOfRetries) {
             try {
                 doesFileExit = (new File(fileFolderName + fileName)).getAbsoluteFile().exists();
-            } catch (Exception e) {
-                ReportManagerHelper.log(e);
+            } catch (Exception rootCauseException) {
+                ReportManagerHelper.logDiscrete(rootCauseException);
             }
 
             if (Boolean.FALSE.equals(doesFileExit)) {
                 try {
                     Thread.sleep(500);
-                } catch (Exception e1) {
-                    ReportManagerHelper.log(e1);
+                } catch (Exception rootCauseException) {
+                    ReportManagerHelper.logDiscrete(rootCauseException);
                 }
             }
-
             i++;
         }
         passAction("File Path: \"" + fileFolderName + fileName + "\"");
@@ -380,9 +378,8 @@ public class FileActions {
         boolean doesFileExit = false;
         try {
             doesFileExit = (new File(targetFile)).getAbsoluteFile().exists();
-        } catch (Exception e) {
-            ReportManagerHelper.log(e);
-            failAction(e);
+        } catch (Exception rootCauseException) {
+            failAction(rootCauseException);
         }
         passAction("File Path: \"" + targetFile + "\"");
         return doesFileExit;
@@ -404,9 +401,8 @@ public class FileActions {
         try {
             filePath = (new File(fileFolderName + fileName)).getAbsolutePath();
             passAction("Relative File Path: \"" + fileFolderName + fileName + "\"", filePath);
-        } catch (Exception e) {
-            ReportManagerHelper.log(e);
-            failAction(e);
+        } catch (Exception rootCauseException) {
+            failAction(rootCauseException);
         }
         return filePath;
     }
@@ -424,9 +420,8 @@ public class FileActions {
         try {
             filePath = (new File(relativePath)).getAbsolutePath();
             passAction("Relative Folder Path: \"" + relativePath + "\"", filePath);
-        } catch (Exception e) {
-            ReportManagerHelper.log(e);
-            failAction(e);
+        } catch (Exception rootCauseException) {
+            failAction(rootCauseException);
         }
         return filePath;
     }
@@ -438,9 +433,8 @@ public class FileActions {
             FileUtils.copyDirectory(sourceFolder, destinationFolder);
             passAction(
                     "Source Folder: \"" + sourceFolderPath + "\" | Destination Folder: \"" + destinationFolder + "\"");
-        } catch (IOException e) {
-            ReportManagerHelper.log(e);
-            failAction(e);
+        } catch (IOException rootCauseException) {
+            failAction(rootCauseException);
         }
     }
 
@@ -483,9 +477,8 @@ public class FileActions {
                     }
                 }
             }
-        } catch (Exception e) {
-            ReportManagerHelper.log(e);
-            failAction(e);
+        } catch (Exception rootCauseException) {
+            failAction(rootCauseException);
         }
     }
 
@@ -497,9 +490,8 @@ public class FileActions {
         } catch (FileNotFoundException e) {
             // file is already deleted or was not found
             ReportManager.log("Folder \"" + folderPath + "\" was not found, it may have already been deleted.");
-        } catch (IOException e) {
-            ReportManagerHelper.log(e);
-            failAction(e);
+        } catch (IOException rootCauseException) {
+            failAction(rootCauseException);
         }
     }
 
@@ -507,9 +499,8 @@ public class FileActions {
         try {
             FileUtils.forceMkdir(new File(folderPath));
             passAction("Target Folder: \"" + folderPath + "\"");
-        } catch (IOException e) {
-            ReportManagerHelper.log(e);
-            failAction(e);
+        } catch (IOException rootCauseException) {
+            failAction(rootCauseException);
         }
     }
 
@@ -518,9 +509,8 @@ public class FileActions {
             FileUtils.forceMkdir(new File(folderPath));
             FileUtils.touch(new File(folderPath + fileName));
             passAction("Target Folder: \"" + folderPath + "\", Target File: \"" + fileName + "\"");
-        } catch (IOException e) {
-            ReportManagerHelper.log(e);
-            failAction(e);
+        } catch (IOException rootCauseException) {
+            failAction(rootCauseException);
         }
     }
 
@@ -532,18 +522,17 @@ public class FileActions {
                 var log = new StringBuilder();
                 Files.walk(Paths.get(srcFolder))
                         .filter(Files::isRegularFile)
-                        .forEach(filePath ->{
+                        .forEach(filePath -> {
                             log.append(filePath.toString());
                             log.append("\n");
                         });
-                ReportManager.log("Archiving the following files:\n"+log);
+                ReportManager.log("Archiving the following files:\n" + log);
             }
             zipFolder(srcFolder, destZipFile);
             result = true;
             passAction("Target Folder: \"" + srcFolder + "\" | Destination Archive: \"" + destZipFile + "\"");
-        } catch (Exception e) {
-            ReportManagerHelper.log(e);
-            failAction(e);
+        } catch (Exception rootCauseException) {
+            failAction(rootCauseException);
         }
         return result;
     }
@@ -565,7 +554,7 @@ public class FileActions {
             FileActions.getInstance().deleteFile(zip.getAbsolutePath());
             passAction("Target URL\"" + url + "\" | Destination Folder: \"" + destinationFolderPath + "\"");
         } catch (IOException rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
+
             failAction("file: " + url + " to directory: " + destinationFolderPath, rootCauseException);
         }
         return unpacked;
@@ -594,7 +583,7 @@ public class FileActions {
 
                 return downloadedFile;
             } catch (IOException rootCauseException) {
-                ReportManagerHelper.log(rootCauseException);
+
                 failAction("Target File URL: \"" + targetFileURL + "\", and Destination File Path: \""
                         + destinationFilePath + "\"", rootCauseException);
                 return null;
@@ -712,7 +701,7 @@ public class FileActions {
         try {
             FileUtils.copyFile(sourceFile, destinationFile);
         } catch (IOException rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
+
             failAction(rootCauseException);
         }
     }
@@ -732,9 +721,8 @@ public class FileActions {
              * close the zip objects
              */
             zip.flush();
-        } catch (IOException e) {
-            ReportManagerHelper.log(e);
-            failAction(e);
+        } catch (IOException rootCauseException) {
+            failAction(rootCauseException);
         }
     }
 
@@ -773,9 +761,8 @@ public class FileActions {
                          */
                         zip.write(buf, 0, len);
                     }
-                } catch (Exception e) {
-                    ReportManagerHelper.log(e);
-                    failAction(e);
+                } catch (Exception rootCauseException) {
+                    failAction(rootCauseException);
                 }
             }
         }

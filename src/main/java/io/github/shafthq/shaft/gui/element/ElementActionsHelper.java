@@ -75,7 +75,7 @@ public class ElementActionsHelper {
                 try {
                     Thread.sleep(ELEMENT_IDENTIFICATION_POLLING_DELAY);
                 } catch (InterruptedException e) {
-                    ReportManagerHelper.log(e);
+                    ReportManagerHelper.logDiscrete(e);
                 }
                 currentScreenImage = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
                 coordinates = ImageProcessingActions.findImageWithinCurrentPage(elementReferenceScreenshot, currentScreenImage);
@@ -280,7 +280,7 @@ public class ElementActionsHelper {
             }
             return true;
         } catch (Exception e) {
-            ReportManagerHelper.log(e);
+            ReportManagerHelper.logDiscrete(e);
             return false;
         }
     }
@@ -336,8 +336,8 @@ public class ElementActionsHelper {
                         break;
                     }
                 } catch (JavascriptException e) {
-                    ReportManagerHelper.log(e);
-                    ReportManager.log("Failed to suggest a new XPath for the target element with this deprecated locator \""
+                    ReportManagerHelper.logDiscrete(e);
+                    ReportManager.logDiscrete("Failed to suggest a new XPath for the target element with this deprecated locator \""
                             + deprecatedElementLocator + "\"");
                 }
             }
@@ -369,8 +369,8 @@ public class ElementActionsHelper {
                 // else only happens when switching to default content so there is no need to
                 // take a screenshot
             } catch (Exception e) {
-                ReportManagerHelper.log(e);
-                ReportManager.log(
+                ReportManagerHelper.logDiscrete(e);
+                ReportManager.logDiscrete(
                         "Failed to take a screenshot of the element as it doesn't exist anymore. Taking a screenshot of the whole page.");
                 return ScreenshotManager.captureScreenShot(driver, actionName, true);
             }
@@ -412,7 +412,7 @@ public class ElementActionsHelper {
             }
         } catch (InvalidElementStateException e) {
             // this was seen in case of attempting to type in an invalid element (an image)
-            ReportManagerHelper.log(e);
+            ReportManagerHelper.logDiscrete(e);
         }
     }
 
@@ -492,7 +492,7 @@ public class ElementActionsHelper {
             }
             return true;
         } catch (HeadlessException e) {
-            ReportManagerHelper.log(e);
+            ReportManagerHelper.logDiscrete(e);
             return false;
         }
     }
@@ -515,7 +515,7 @@ public class ElementActionsHelper {
                     });
         } catch (TimeoutException e) {
             // In case typing failed and the timeout expired
-            ReportManagerHelper.log(e);
+            ReportManagerHelper.logDiscrete(e);
         }
     }
 
@@ -549,7 +549,7 @@ public class ElementActionsHelper {
             } else {
                 return targetText;
             }
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             ReportManager.log("Failed to identify Target element with locator \"" + elementLocator + "\".");
             throw throwable;
 //            return null;
@@ -725,7 +725,7 @@ public class ElementActionsHelper {
                 if (accessibleName != null && !accessibleName.isBlank()) {
                     elementName = accessibleName;
                 }
-            } catch (Throwable throwable) {
+            } catch (Exception throwable) {
                 //do nothing
             }
         }
@@ -736,7 +736,11 @@ public class ElementActionsHelper {
             message = createReportMessage(actionName, testData, elementName, false);
             ReportManager.logDiscrete(message);
         } else {
-            message = reportActionResult(driver, actionName, testData, elementLocator, screenshots, elementName, false, rootCauseException[0]);
+            if (rootCauseException != null && rootCauseException.length >= 1) {
+                message = reportActionResult(driver, actionName, testData, elementLocator, screenshots, elementName, false, rootCauseException[0]);
+            } else {
+                message = reportActionResult(driver, actionName, testData, elementLocator, screenshots, elementName, false);
+            }
         }
 
         if (rootCauseException.length >= 1) {

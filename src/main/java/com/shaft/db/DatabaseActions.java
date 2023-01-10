@@ -111,7 +111,6 @@ public class DatabaseActions {
                 }
             }
         } catch (SQLException | NullPointerException rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
             failAction(reportMessage, rootCauseException);
         }
         if (Boolean.TRUE.equals(foundRow)) {
@@ -145,7 +144,6 @@ public class DatabaseActions {
                 }
             }
         } catch (SQLException | NullPointerException rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
             failAction(rootCauseException);
         }
         passAction(columnName);
@@ -169,7 +167,6 @@ public class DatabaseActions {
                 resultSet.beforeFirst(); // reset pointer
             }
         } catch (SQLException rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
             failAction(rootCauseException);
         }
         passAction();
@@ -297,7 +294,6 @@ public class DatabaseActions {
                 str.append(readColumnData(resultSet, columnsCount, lastRowID));
             }
         } catch (SQLException | NullPointerException rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
             failAction(rootCauseException);
         }
         return str.toString().trim();
@@ -316,7 +312,6 @@ public class DatabaseActions {
         try {
             resultSet = createStatement(createConnection()).executeQuery(sql);
         } catch (SQLException | NullPointerException rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
             failAction(getReportMessage("SELECT", sql), rootCauseException);
         }
 
@@ -345,7 +340,6 @@ public class DatabaseActions {
             affectedRows = createStatement(createConnection()).executeUpdate(sql);
             passAction(sql);
         } catch (SQLException | NullPointerException rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
             failAction(getReportMessage(queryType, sql), rootCauseException);
         }
         return affectedRows;
@@ -424,7 +418,6 @@ public class DatabaseActions {
                         Integer.parseInt(System.getProperty("databaseNetworkTimeout")) * 60000);
             }
         } catch (SQLException rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
             failAction(connectionString, rootCauseException);
         }
 
@@ -445,11 +438,9 @@ public class DatabaseActions {
             statement.setQueryTimeout(Integer.parseInt(System.getProperty("databaseQueryTimeout")));
         } catch (SQLFeatureNotSupportedException rootCauseException) {
             if (!rootCauseException.getMessage().contains("org.postgresql.jdbc4.Jdbc4Statement.setQueryTimeout")) {
-                ReportManagerHelper.log(rootCauseException);
-                failAction(connection.toString(), rootCauseException);
+                    failAction(connection.toString(), rootCauseException);
             }
         } catch (SQLException rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
             failAction(connection.toString(), rootCauseException);
         }
 

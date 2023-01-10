@@ -27,7 +27,7 @@ public class JiraHelper {
                         System.getProperty("ExecutionDescription"));
 
             } catch (Exception e) {
-                ReportManagerHelper.log(e);
+                ReportManagerHelper.logDiscrete(e);
             }
         }
     }

@@ -242,7 +242,7 @@ public class BrowserActions extends FluentBrowserActions {
         try {
             ((JavascriptExecutor) driver).executeScript("return window.stop;");
         } catch (Exception rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
+            ReportManagerHelper.logDiscrete(rootCauseException);
             /*
              * org.openqa.selenium.NoSuchSessionException: Session ID is null. Using
              * WebDriver after calling quit()? Build info: version: '3.141.59', revision:

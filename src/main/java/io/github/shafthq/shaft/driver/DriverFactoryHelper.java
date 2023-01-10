@@ -128,7 +128,7 @@ public class DriverFactoryHelper {
         } catch (WebDriverException | NullPointerException e) {
             // driver was already closed at an earlier stage
         } catch (Exception e) {
-            ReportManagerHelper.log(e);
+            ReportManagerHelper.logDiscrete(e);
         } finally {
             driver.remove();
             webDriverManager.remove();
@@ -475,14 +475,13 @@ public class DriverFactoryHelper {
             killSwitch = true;
             failAction("Unreachable Browser, terminated test suite execution.", e);
         } catch (WebDriverException e) {
-            ReportManagerHelper.log(e);
             if (e.getMessage().contains("Error forwarding the new session cannot find")) {
-                ReportManager.log("Failed to run remotely on: \"" + targetOperatingSystem + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \""
+                ReportManager.logDiscrete("Failed to run remotely on: \"" + targetOperatingSystem + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \""
                         + TARGET_HUB_URL + "\".");
                 failAction(
                         "Error forwarding the new session: Couldn't find a node that matches the desired capabilities.", e);
             } else {
-                ReportManager.log("Failed to run remotely on: \"" + targetOperatingSystem + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \""
+                ReportManager.logDiscrete("Failed to run remotely on: \"" + targetOperatingSystem + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \""
                         + TARGET_HUB_URL + "\".");
                 failAction("Unhandled Error.", e);
             }

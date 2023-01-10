@@ -38,7 +38,7 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     public void onError(Object target, Method method, Object[] args, InvocationTargetException e) {
         ReportManager.log(JavaHelper.convertToSentenceCase(method.getName()) + " action failed.");
         ReportManagerHelper.attach(ScreenshotManager.captureScreenShot(DriverFactoryHelper.getDriver().get(), method.getName(), false));
-        ReportManagerHelper.log(e);
+        ReportManagerHelper.logDiscrete(e);
     }
 
     // WebDriver
@@ -167,7 +167,7 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
         }
         try {
             ReportManager.log("Click " + getElementName(element) + ".");
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             ReportManager.log("Click.");
         }
     }
@@ -178,7 +178,7 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     public void beforeSubmit(WebElement element) {
         try {
             ReportManager.log("Submit " + getElementName(element) + ".");
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             ReportManager.log("Submit.");
         }
     }
@@ -191,7 +191,7 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
         Arrays.stream(keysToSend).toList().forEach(stringBuilder::append);
         try {
             ReportManager.log("Type \"" + stringBuilder + "\" into " + getElementName(element) + ".");
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             ReportManager.log("Type \"" + stringBuilder + "\".");
         }
     }
@@ -202,7 +202,7 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     public void beforeClear(WebElement element) {
         try {
             ReportManager.log("Clear " + getElementName(element) + ".");
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             ReportManager.log("Clear.");
         }
     }
@@ -222,7 +222,7 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     public void afterGetAttribute(WebElement element, String name, String result) {
         try {
             ReportManager.log("Get Attribute \"" + name + "\" from " + getElementName(element) + ", value is \"" + result + "\".");
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             ReportManager.log("Get Attribute \"" + name + "\", value is \"" + result + "\".");
         }
     }
@@ -245,7 +245,7 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     public void afterGetText(WebElement element, String result) {
         try {
             ReportManager.log("Get Text from " + getElementName(element) + ", text is \"" + result + "\".");
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             ReportManager.log("Get Text, text is :\"" + result + "\".");
         }
     }

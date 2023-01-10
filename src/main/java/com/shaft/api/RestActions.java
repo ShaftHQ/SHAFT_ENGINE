@@ -442,11 +442,9 @@ public class RestActions {
                         actualJsonArray);
             };
         } catch (IOException rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
             failAction("Couldn't find the desired file. \"" + referenceJsonFilePath + "\".", rootCauseException);
             comparisonResult = false;
         } catch (ParseException | JSONException rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
             failAction("Couldn't parse the desired file. \"" + referenceJsonFilePath + "\".", rootCauseException);
             comparisonResult = false;
         }
@@ -1114,7 +1112,6 @@ public class RestActions {
                     default -> builder.setBody(body);
                 }
             } catch (Exception rootCauseException) {
-                ReportManagerHelper.log(rootCauseException);
                 failAction("Issue with parsing body content", rootCauseException);
             }
         }

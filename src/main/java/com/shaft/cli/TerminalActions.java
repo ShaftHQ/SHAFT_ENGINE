@@ -273,7 +273,6 @@ public class TerminalActions {
             session.connect();
             ReportManager.logDiscrete("Successfully created SSH Session.");
         } catch (JSchException rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
             failAction(testData, rootCauseException);
         }
         return session;
@@ -339,11 +338,9 @@ public class TerminalActions {
                 errorReader = new BufferedReader(new InputStreamReader(localProcess.getErrorStream()));
             }
         } catch (InterruptedException rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
             failAction(command, rootCauseException);
             Thread.currentThread().interrupt();
         } catch (IOException | NullPointerException | JSchException rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
             failAction(command, rootCauseException);
         }
         return Arrays.asList(remoteSession, remoteChannelExecutor, localProcess, reader, errorReader);
@@ -356,7 +353,6 @@ public class TerminalActions {
             logBuilder.append(readConsoleLogs(reader));
             logBuilder.append(readConsoleLogs(errorReader));
         } catch (IOException rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
             failAction(command, rootCauseException);
         }
         return logBuilder.toString();

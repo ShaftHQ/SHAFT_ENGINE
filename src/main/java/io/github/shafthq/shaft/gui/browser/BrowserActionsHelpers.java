@@ -169,7 +169,7 @@ public class BrowserActionsHelpers {
             } catch (WebDriverException rootCauseException) {
                 // org.openqa.selenium.WebDriverException: unknown error: failed to change
                 // window state to maximized, current state is normal
-                ReportManagerHelper.log(rootCauseException);
+                ReportManagerHelper.logDiscrete(rootCauseException);
             }
         }
         return driver.manage().window().getSize();

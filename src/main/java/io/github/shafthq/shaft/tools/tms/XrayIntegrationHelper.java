@@ -69,7 +69,7 @@ public class XrayIntegrationHelper {
             _TestExecutionID = response.jsonPath().get("testExecIssue.key").toString();
             ReportManager.logDiscrete("ExecutionID: " + _TestExecutionID);
         } catch (Exception e) {
-            ReportManagerHelper.log(e);
+            ReportManagerHelper.logDiscrete(e);
         }
     }
 
@@ -100,7 +100,7 @@ public class XrayIntegrationHelper {
                     .put("/rest/api/2/issue/" + _TestExecutionID).then().extract().response();
 
         } catch (Exception e) {
-            ReportManagerHelper.log(e);
+            ReportManagerHelper.logDiscrete(e);
         }
     }
 
@@ -128,7 +128,7 @@ public class XrayIntegrationHelper {
             ReportManager.logDiscrete("ExecutionID: " + _TestExecutionID);
 
         } catch (Exception e) {
-            ReportManagerHelper.log(e);
+            ReportManagerHelper.logDiscrete(e);
         }
     }
 
@@ -167,7 +167,7 @@ public class XrayIntegrationHelper {
             return id;
 
         } catch (Exception e) {
-            ReportManagerHelper.log(e);
+            ReportManagerHelper.logDiscrete(e);
             return null;
         }
     }
@@ -193,7 +193,7 @@ public class XrayIntegrationHelper {
                     .post("/rest/api/2/issue/" + issueID + "/attachments")
                     .then().log().all().extract().response();
         } catch (Exception e) {
-            ReportManagerHelper.log(e);
+            ReportManagerHelper.logDiscrete(e);
         }
     }
 
@@ -217,7 +217,7 @@ public class XrayIntegrationHelper {
                     .put("/rest/api/2/issue/" + ticketID)
                     .then().log().all().extract().response();
         } catch (Exception e) {
-            ReportManagerHelper.log(e);
+            ReportManagerHelper.logDiscrete(e);
         }
     }
 

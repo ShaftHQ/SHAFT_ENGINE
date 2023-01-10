@@ -98,7 +98,7 @@ public class GoogleTink {
             FileActions.getInstance().writeToFile(relativeFolderPath, targetFileName, decryptedtext);
             ReportManager.log("Successfully Decrypted \"" + targetFileName + "\".");
         } catch (GeneralSecurityException | IOException e) {
-            ReportManagerHelper.log(e);
+            ReportManagerHelper.logDiscrete(e);
             ReportManager.log("Failed to Decrypt \"" + targetFileName + "\". It may already be in plaintext.");
 //            Assert.fail("Failed to Decrypt \""+targetFileName+"\".", e);
         }

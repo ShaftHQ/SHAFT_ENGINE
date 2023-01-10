@@ -47,12 +47,11 @@ public class JavaScriptWaitManager {
                 // do nothing
             } catch (WebDriverException e) {
                 if (!e.getMessage().contains("jQuery is not defined")) {
-                    ReportManagerHelper.log(e);
+                    ReportManagerHelper.logDiscrete(e);
                 }
                 // else do nothing
-
             } catch (Exception e) {
-                ReportManagerHelper.log(e);
+                ReportManagerHelper.logDiscrete(e);
             }
         }
     }
@@ -170,7 +169,7 @@ public class JavaScriptWaitManager {
         try {
             Thread.sleep(JavaScriptWaitManager.delayBetweenPolls);
         } catch (Exception e) {
-            ReportManagerHelper.log(e);
+            ReportManagerHelper.logDiscrete(e);
             // InterruptedException
         }
     }

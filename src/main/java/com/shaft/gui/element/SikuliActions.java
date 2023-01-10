@@ -325,7 +325,7 @@ public class SikuliActions {
                 try {
                     screen.wait(element).type(element, Key.BACKSPACE);
                 } catch (FindFailed findFailed) {
-                    ReportManagerHelper.log(findFailed);
+                    ReportManagerHelper.logDiscrete(findFailed);
                 }
             });
         }
