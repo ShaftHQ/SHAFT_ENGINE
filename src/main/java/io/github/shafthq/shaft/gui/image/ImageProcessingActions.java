@@ -12,6 +12,7 @@ import com.shaft.cli.FileActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Validations;
 import io.github.shafthq.shaft.driver.DriverFactoryHelper;
+import io.github.shafthq.shaft.tools.io.helpers.FailureReporter;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import nu.pattern.OpenCV;
 import org.opencv.core.Point;
@@ -22,7 +23,6 @@ import org.opencv.imgproc.Imgproc;
 import org.openqa.selenium.By;
 import org.openqa.selenium.UnsupportedCommandException;
 import org.openqa.selenium.WebDriver;
-import org.testng.Assert;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -123,8 +123,7 @@ public class ImageProcessingActions {
                 final String message = "Number of screenshots  [" + testFiles.length + "] from the test folder [" + testFolderPath
                         + "] do not match the number of screenshots [" + referenceFiles.length
                         + "] from the reference folder [" + referenceFolderPath + "].";
-                ReportManager.log(message);
-                Assert.fail(message);
+                FailureReporter.fail(message);
             }
 
         } catch (NullPointerException | IOException e) {

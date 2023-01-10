@@ -55,7 +55,7 @@ public class BrowserActionsHelpers {
 
     public static void failAction(WebDriver driver, String actionName, String testData,
                                   Exception... rootCauseException) {
-        String message = reportActionResult(driver, actionName, testData, false);
+        String message = reportActionResult(driver, actionName, testData, false, rootCauseException);
         if (rootCauseException != null && rootCauseException.length >= 1) {
             Assert.fail(message, rootCauseException[0]);
         } else {
@@ -64,7 +64,8 @@ public class BrowserActionsHelpers {
     }
 
     private static String reportActionResult(WebDriver driver, String actionName, String testData,
-                                             Boolean passFailStatus) {
+                                             Boolean passFailStatus,
+                                             Exception... rootCauseException) {
         actionName = JavaHelper.convertToSentenceCase(actionName);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
@@ -83,6 +84,13 @@ public class BrowserActionsHelpers {
                 message = message + " \"" + testData.trim() + "\"";
             }
         }
+
+        if (rootCauseException != null && rootCauseException.length >= 1) {
+            List<Object> actualValueAttachment = Arrays.asList("Browser Action Exception - " + actionName,
+                    "Stacktrace", ReportManagerHelper.formatStackTraceToLogEntry(rootCauseException[0]));
+            attachments.add(actualValueAttachment);
+        }
+
         message = message + ".";
 
         message = message.replace("Browser Action: ", "");

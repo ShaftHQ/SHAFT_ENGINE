@@ -736,7 +736,7 @@ public class ElementActionsHelper {
             message = createReportMessage(actionName, testData, elementName, false);
             ReportManager.logDiscrete(message);
         } else {
-            message = reportActionResult(driver, actionName, testData, elementLocator, screenshots, elementName, false);
+            message = reportActionResult(driver, actionName, testData, elementLocator, screenshots, elementName, false, rootCauseException[0]);
         }
 
         if (rootCauseException.length >= 1) {
@@ -782,7 +782,7 @@ public class ElementActionsHelper {
     }
 
     private static List<List<Object>> createReportAttachments(WebDriver driver, String actionName, String testData, By elementLocator,
-                                                              List<List<Object>> screenshots, Boolean passFailStatus) {
+                                                              List<List<Object>> screenshots, Boolean passFailStatus, Throwable... rootCauseException) {
         actionName = JavaHelper.convertToSentenceCase(actionName);
         List<List<Object>> attachments = new ArrayList<>();
         if (testData != null && testData.length() >= 500) {
@@ -800,6 +800,12 @@ public class ElementActionsHelper {
             }
         }
 
+        if (rootCauseException != null && rootCauseException.length >= 1) {
+            List<Object> actualValueAttachment = Arrays.asList("Element Action Exception - " + actionName,
+                    "Stacktrace", ReportManagerHelper.formatStackTraceToLogEntry(rootCauseException[0]));
+            attachments.add(actualValueAttachment);
+        }
+
         if (attachments.size() == 1 && attachments.get(0).isEmpty()) {
             return null;
         } else {
@@ -808,9 +814,9 @@ public class ElementActionsHelper {
     }
 
     private static String reportActionResult(WebDriver driver, String actionName, String testData, By elementLocator,
-                                             List<List<Object>> screenshots, String elementName, Boolean passFailStatus) {
+                                             List<List<Object>> screenshots, String elementName, Boolean passFailStatus, Throwable... rootCauseException) {
         String message = createReportMessage(actionName, testData, elementName, passFailStatus);
-        List<List<Object>> attachments = createReportAttachments(driver, actionName, testData, elementLocator, screenshots, passFailStatus);
+        List<List<Object>> attachments = createReportAttachments(driver, actionName, testData, elementLocator, screenshots, passFailStatus, rootCauseException);
 
         if (attachments != null && !attachments.equals(new ArrayList<>())) {
             ReportManagerHelper.log(message, attachments);

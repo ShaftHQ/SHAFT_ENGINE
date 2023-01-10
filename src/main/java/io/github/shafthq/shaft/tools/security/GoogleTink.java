@@ -13,8 +13,8 @@ import com.google.crypto.tink.signature.SignatureConfig;
 import com.google.crypto.tink.streamingaead.StreamingAeadConfig;
 import com.shaft.cli.FileActions;
 import com.shaft.tools.io.ReportManager;
+import io.github.shafthq.shaft.tools.io.helpers.FailureReporter;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
-import org.testng.Assert;
 
 import java.io.File;
 import java.io.IOException;
@@ -51,8 +51,7 @@ public class GoogleTink {
                 keysetHandle = internal_loadKeyset();
                 aead = keysetHandle.getPrimitive(Aead.class);
             } catch (GeneralSecurityException | IOException e) {
-                ReportManagerHelper.log(e);
-                Assert.fail("Failed to Initialize Google Tink Configuration.", e);
+                FailureReporter.fail(GoogleTink.class, "Failed to Initialize Google Tink Configuration.", e);
             }
         }
     }
@@ -88,8 +87,7 @@ public class GoogleTink {
             FileActions.getInstance().writeToFile(relativeFolderPath, targetFileName, ciphertext);
             ReportManager.log("Successfully Encrypted \"" + targetFileName + "\".");
         } catch (GeneralSecurityException | IOException e) {
-            ReportManagerHelper.log(e);
-            Assert.fail("Failed to Encrypt \"" + targetFileName + "\".", e);
+            FailureReporter.fail(GoogleTink.class, "Failed to Encrypt \"" + targetFileName + "\".", e);
         }
     }
 

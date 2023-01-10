@@ -12,6 +12,7 @@ import io.github.shafthq.shaft.enums.OperatingSystems;
 import io.github.shafthq.shaft.gui.browser.BrowserActionsHelpers;
 import io.github.shafthq.shaft.gui.video.RecordManager;
 import io.github.shafthq.shaft.properties.PropertyFileManager;
+import io.github.shafthq.shaft.tools.io.helpers.FailureReporter;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import io.github.shafthq.shaft.tools.support.JavaHelper;
 import lombok.AccessLevel;
@@ -28,7 +29,6 @@ import org.openqa.selenium.logging.LogType;
 import org.openqa.selenium.logging.LoggingPreferences;
 import org.openqa.selenium.remote.*;
 import org.openqa.selenium.safari.SafariOptions;
-import org.testng.Assert;
 import org.testng.Reporter;
 
 import java.net.MalformedURLException;
@@ -143,11 +143,9 @@ public class DriverFactoryHelper {
             message = message + " With the following test data \"" + testData + "\".";
         }
         if (rootCauseException != null && rootCauseException.length >= 1) {
-            ReportManagerHelper.log(rootCauseException[0]);
-            Assert.fail(message, rootCauseException[0]);
+            FailureReporter.fail(DriverFactoryHelper.class, message, rootCauseException[0]);
         } else {
-            ReportManager.log(message);
-            Assert.fail(message);
+            FailureReporter.fail(message);
         }
     }
 
@@ -678,8 +676,7 @@ public class DriverFactoryHelper {
             // start session recording
             RecordManager.startVideoRecording(driver.get());
         } catch (NullPointerException e) {
-            ReportManagerHelper.log(e);
-            Assert.fail("Unhandled Exception with Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".", e);
+            FailureReporter.fail(DriverFactoryHelper.class, "Unhandled Exception with Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".", e);
         }
 
         if (Boolean.parseBoolean(System.getProperty("heal-enabled").trim())) {

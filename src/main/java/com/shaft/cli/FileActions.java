@@ -630,7 +630,7 @@ public class FileActions {
     }
 
     private void failAction(String actionName, String testData, Exception... rootCauseException) {
-        String message = reportActionResult(actionName, testData, null, false);
+        String message = reportActionResult(actionName, testData, null, false, rootCauseException);
         if (rootCauseException != null && rootCauseException.length >= 1) {
             Assert.fail(message, rootCauseException[0]);
         } else {
@@ -638,7 +638,7 @@ public class FileActions {
         }
     }
 
-    private String reportActionResult(String actionName, String testData, String log, Boolean passFailStatus) {
+    private String reportActionResult(String actionName, String testData, String log, Boolean passFailStatus, Exception... rootCauseException) {
         actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
@@ -658,6 +658,12 @@ public class FileActions {
 
         if (log != null && !log.trim().equals("")) {
             attachments.add(Arrays.asList("File Action Actual Result", "Command Log", log));
+        }
+
+        if (rootCauseException != null && rootCauseException.length >= 1) {
+            List<Object> actualValueAttachment = Arrays.asList("File Action Exception - " + actionName,
+                    "Stacktrace", ReportManagerHelper.formatStackTraceToLogEntry(rootCauseException[0]));
+            attachments.add(actualValueAttachment);
         }
 
         // Minimize File Action log steps and move them to discrete logs if called

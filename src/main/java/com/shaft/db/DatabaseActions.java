@@ -196,7 +196,7 @@ public class DatabaseActions {
     }
 
     private static void failAction(String actionName, String testData, Exception... rootCauseException) {
-        String message = reportActionResult(actionName, testData, null, false);
+        String message = reportActionResult(actionName, testData, null, false, rootCauseException);
         if (rootCauseException != null && rootCauseException.length >= 1) {
             Assert.fail(message, rootCauseException[0]);
         } else {
@@ -215,7 +215,7 @@ public class DatabaseActions {
     }
 
     private static String reportActionResult(String actionName, String testData, String queryResult,
-                                             Boolean passFailStatus) {
+                                             Boolean passFailStatus, Exception... rootCauseException) {
         actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
@@ -235,6 +235,12 @@ public class DatabaseActions {
 
         if (queryResult != null && !queryResult.trim().equals("")) {
             attachments.add(Arrays.asList("Database Action Actual Result", "Query Result", queryResult));
+        }
+
+        if (rootCauseException != null && rootCauseException.length >= 1) {
+            List<Object> actualValueAttachment = Arrays.asList("Database Action Exception - " + actionName,
+                    "Stacktrace", ReportManagerHelper.formatStackTraceToLogEntry(rootCauseException[0]));
+            attachments.add(actualValueAttachment);
         }
 
         if (!attachments.equals(new ArrayList<>())) {

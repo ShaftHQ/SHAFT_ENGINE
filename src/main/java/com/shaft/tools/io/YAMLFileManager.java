@@ -1,8 +1,8 @@
 package com.shaft.tools.io;
 
+import io.github.shafthq.shaft.tools.io.helpers.FailureReporter;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import io.github.shafthq.shaft.tools.support.JavaHelper;
-import org.testng.Assert;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.FileInputStream;
@@ -75,7 +75,7 @@ public class YAMLFileManager {
      */
     public Object get(String key) {
         if (key == null || key.isEmpty()) {
-            sendFailureCompo("Key can't be null or empty");
+            FailureReporter.fail("Key can't be null or empty");
         }
 
         Object value;
@@ -89,7 +89,7 @@ public class YAMLFileManager {
             if (data.containsKey(key))
                 value = data.get(key);
             else {
-                sendFailureCompo("This key [" + key + "] is not exist");
+                FailureReporter.fail("This key [" + key + "] is not exist");
                 // unreachable because previous method throws AssertionError
                 throw new RuntimeException();
             }
@@ -168,7 +168,7 @@ public class YAMLFileManager {
         try {
             value = getString(key);
         } catch (ClassCastException ignore) {
-            sendFailureCompo("To support Long values please add 'L' at the end of the number");
+            FailureReporter.fail("To support Long values please add 'L' at the end of the number");
             // unreachable because previous method throws AssertionError
             throw new RuntimeException();
         }
@@ -178,7 +178,7 @@ public class YAMLFileManager {
             } catch (NumberFormatException ignore) {
             }
 
-        sendFailureCompo("Can't parse the value of the key [" + key + "] to be long");
+        FailureReporter.fail("Can't parse the value of the key [" + key + "] to be long");
         // unreachable because previous method throws AssertionError
         throw new RuntimeException();
     }
@@ -325,7 +325,7 @@ public class YAMLFileManager {
         try {
             in = new FileInputStream(filePath);
         } catch (FileNotFoundException rootCauseException) {
-            sendFailureCompo("Couldn't find the desired file. [" + filePath + "].", rootCauseException);
+            FailureReporter.fail(this.getClass(), "Couldn't find the desired file. [" + filePath + "].", rootCauseException);
             // unreachable because previous method throws AssertionError
             throw new RuntimeException();
         }
@@ -340,7 +340,7 @@ public class YAMLFileManager {
         try {
             file.close();
         } catch (IOException rootCauseException) {
-            sendFailureCompo("Couldn't close the following file. [" + filePath + "]",
+            FailureReporter.fail(this.getClass(), "Couldn't close the following file. [" + filePath + "]",
                     rootCauseException);
         }
     }
@@ -380,7 +380,7 @@ public class YAMLFileManager {
         try {
             v = clazz.cast(obj);
         } catch (ClassCastException rootCauseException) {
-            sendFailureCompo("Can't parse the value of [" + obj + "] to be of type [" + clazz.getSimpleName() + "]",
+            FailureReporter.fail(this.getClass(), "Can't parse the value of [" + obj + "] to be of type [" + clazz.getSimpleName() + "]",
                     rootCauseException);
             // unreachable because previous method throws AssertionError
             throw new RuntimeException();
@@ -402,7 +402,7 @@ public class YAMLFileManager {
                     .map(item -> parseObjectTo(item, clazz)).toList();
         }
 
-        sendFailureCompo("Can't parse the value of [" + obj + "] to be list");
+        FailureReporter.fail("Can't parse the value of [" + obj + "] to be list");
         // unreachable because previous method throws AssertionError
         throw new RuntimeException();
     }
@@ -423,16 +423,8 @@ public class YAMLFileManager {
             );
             return nMap;
         }
-        sendFailureCompo("Can't parse the value of [" + obj + "] to be map");
+        FailureReporter.fail("Can't parse the value of [" + obj + "] to be map");
         // unreachable because previous method throws AssertionError
         throw new RuntimeException();
-    }
-
-    private void sendFailureCompo(String msg, Exception... rootCauseException) {
-        if (rootCauseException.length > 0)
-            ReportManagerHelper.log(rootCauseException[0]);
-
-        ReportManager.log(msg);
-        Assert.fail(msg);
     }
 }
