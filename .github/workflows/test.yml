@@ -36,13 +36,13 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ env.job-name }}_Allure
+          name: Ubuntu_Firefox_Grid_Allure
           path: "generatedReport_*.zip"
       - name: Upload Extent Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ env.job-name }}_Extent
+          name: Ubuntu_Firefox_Grid_Extent
           path: "extent-reports/ExtentReports_*.html"
 
   Ubuntu_Chrome_Grid:
@@ -72,13 +72,13 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ env.job-name }}_Allure
+          name: Ubuntu_Chrome_Grid_Allure
           path: "generatedReport_*.zip"
       - name: Upload Extent Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ env.job-name }}_Extent
+          name: Ubuntu_Chrome_Grid_Extent
           path: "extent-reports/ExtentReports_*.html"
 
   Ubuntu_Edge_Grid:
@@ -108,13 +108,13 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ env.job-name }}_Allure
+          name: Ubuntu_Edge_Grid_Allure
           path: "generatedReport_*.zip"
       - name: Upload Extent Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ env.job-name }}_Extent
+          name: Ubuntu_Edge_Grid_Extent
           path: "extent-reports/ExtentReports_*.html"   
   
   Windows_Edge_Local:
@@ -140,13 +140,13 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ env.job-name }}_Allure
+          name: Windows_Edge_Local_Allure
           path: "generatedReport_*.zip"
       - name: Upload Extent Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ env.job-name }}_Extent
+          name: Windows_Edge_Local_Extent
           path: "extent-reports/ExtentReports_*.html"  
 
   Windows_Chrome_Local:
@@ -172,13 +172,13 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ env.job-name }}_Allure
+          name: Windows_Chrome_Local_Allure
           path: "generatedReport_*.zip"
       - name: Upload Extent Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ env.job-name }}_Extent
+          name: Windows_Chrome_Local_Extent
           path: "extent-reports/ExtentReports_*.html" 
 
   MacOSX_Safari_Local:
@@ -204,13 +204,13 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ env.job-name }}_Allure
+          name: MacOSX_Safari_Local_Allure
           path: "generatedReport_*.zip"
       - name: Upload Extent Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ env.job-name }}_Extent
+          name: MacOSX_Safari_Local_Extent
           path: "extent-reports/ExtentReports_*.html"  
 
   MacOSX_Chrome_Local:
@@ -238,11 +238,11 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ env.job-name }}_Allure
+          name: MacOSX_Chrome_Local_Allure
           path: "generatedReport_*.zip"
       - name: Upload Extent Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ env.job-name }}_Extent
+          name: MacOSX_Chrome_Local_Extent
           path: "extent-reports/ExtentReports_*.html"
