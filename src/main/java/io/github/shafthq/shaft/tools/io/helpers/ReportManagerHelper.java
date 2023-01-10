@@ -556,12 +556,17 @@ public class ReportManagerHelper {
         if (logText != null && logText.toLowerCase().contains(" failed.")) {
             return Status.FAILED;
         }
-        var testNgStatus = Reporter.getCurrentTestResult().getStatus();
-        return switch (testNgStatus) {
-            case ITestResult.FAILURE -> Status.FAILED;
-            case ITestResult.SKIP -> Status.SKIPPED;
-            default -> Status.PASSED;
-        };
+
+        if (Reporter.getCurrentTestResult() != null) {
+            var testNgStatus = Reporter.getCurrentTestResult().getStatus();
+            return switch (testNgStatus) {
+                case ITestResult.FAILURE -> Status.FAILED;
+                case ITestResult.SKIP -> Status.SKIPPED;
+                default -> Status.PASSED;
+            };
+        } else {
+            return Status.PASSED;
+        }
     }
 
     @Step("{logText}")

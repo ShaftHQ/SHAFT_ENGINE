@@ -8,10 +8,7 @@ import io.github.shafthq.shaft.properties.Properties;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import io.qameta.allure.Issue;
 import io.qameta.allure.Issues;
-import org.testng.ITestNGMethod;
-import org.testng.ITestResult;
-import org.testng.Reporter;
-import org.testng.SkipException;
+import org.testng.*;
 import org.testng.internal.ConfigurationMethod;
 import org.testng.xml.XmlClass;
 import org.testng.xml.XmlSuite;
@@ -26,6 +23,15 @@ public class TestNGListenerHelper {
 
     private static final ArrayList<ITestResult> beforeMethods = new ArrayList<>();
     private static final ArrayList<ITestResult> afterMethods = new ArrayList<>();
+
+    public static void setTotalNumberOfTests(ISuite testSuite) {
+        // This condition checks to confirm that this is not a cucumber test runner instance
+        // If this condition is removed the total number of tests will be zero because the cucumber
+        // test runner doesn't have any test methods
+        if (!(testSuite.getAllMethods().size() == 1 && testSuite.getAllMethods().get(0).getMethodName().equals("runScenario"))) {
+            ReportManagerHelper.setTotalNumberOfTests(testSuite.getAllMethods().size());
+        }
+    }
 
     public static void updateConfigurationMethodLogs(ITestResult iTestResult) {
         if (iTestResult.getMethod().isTest()) {
