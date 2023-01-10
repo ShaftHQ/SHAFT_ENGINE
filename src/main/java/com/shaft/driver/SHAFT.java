@@ -1,12 +1,12 @@
 package com.shaft.driver;
 
+import com.google.common.annotations.Beta;
 import com.shaft.api.RequestBuilder;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.db.DatabaseActions;
 import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.SikuliActions;
 import com.shaft.tools.io.ExcelFileManager;
 import com.shaft.tools.io.JSONFileManager;
@@ -15,7 +15,8 @@ import com.shaft.tools.io.YAMLFileManager;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import io.github.shafthq.shaft.driver.WizardHelpers;
-import io.github.shafthq.shaft.gui.browser.WebDriverBrowserActions;
+import io.github.shafthq.shaft.gui.browser.FluentBrowserActions;
+import io.github.shafthq.shaft.gui.element.FluentElementActions;
 import io.github.shafthq.shaft.listeners.WebDriverListener;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import io.github.shafthq.shaft.validations.helpers.RestValidationsBuilder;
@@ -50,11 +51,11 @@ public class SHAFT {
                 DriverFactory.closeAllDrivers();
             }
 
-            public ElementActions element() {
-                return new ElementActions(driverThreadLocal.get());
+            public FluentElementActions element() {
+                return new FluentElementActions(driverThreadLocal.get());
             }
 
-            public WebDriverBrowserActions browser() {
+            public FluentBrowserActions browser() {
                 return BrowserActions.performBrowserAction(driverThreadLocal.get());
             }
 
@@ -213,7 +214,6 @@ public class SHAFT {
         public TerminalActions terminal() {
             return new TerminalActions();
         }
-
         public FileActions file() {
             return new FileActions();
         }
@@ -234,7 +234,6 @@ public class SHAFT {
         public static WizardHelpers.StandaloneAssertions assertThat() {
             return new WizardHelpers.StandaloneAssertions();
         }
-
         public static WizardHelpers.StandaloneVerifications verifyThat() {
             return new WizardHelpers.StandaloneVerifications();
         }
@@ -252,6 +251,7 @@ public class SHAFT {
                 super(jsonFilePath);
             }
         }
+
         public static class EXCEL extends ExcelFileManager {
             /**
              * Creates a new instance of the test data Excel reader using the target Excel
@@ -267,7 +267,8 @@ public class SHAFT {
         public static class YAML extends YAMLFileManager {
             /**
              * Creates a new instance of the test data Excel reader using the target Excel
-             *  file path
+             * file path
+             *
              * @param yamlFilePath target test data yaml file path
              */
             public YAML(String yamlFilePath) {
@@ -275,6 +276,11 @@ public class SHAFT {
             }
         }
     }
+
+    @Beta
+    public static class Properties extends io.github.shafthq.shaft.properties.Properties {
+    }
+
     public static class Report {
         public static void log(String message) {
             ReportManager.logDiscrete(message);
@@ -287,7 +293,6 @@ public class SHAFT {
         public static void attach(String attachmentType, String attachmentName, String attachmentContent) {
             ReportManagerHelper.attach(attachmentType, attachmentName, attachmentContent);
         }
-
         public static void attach(String attachmentType, String attachmentName, InputStream attachmentContent) {
             ReportManagerHelper.attach(attachmentType, attachmentName, attachmentContent);
         }

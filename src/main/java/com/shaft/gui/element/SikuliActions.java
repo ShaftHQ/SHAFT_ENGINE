@@ -2,7 +2,7 @@ package com.shaft.gui.element;
 
 import io.github.shafthq.shaft.driver.DriverFactoryHelper;
 import io.github.shafthq.shaft.gui.browser.JavaScriptWaitManager;
-import io.github.shafthq.shaft.gui.element.WebDriverElementActions;
+import io.github.shafthq.shaft.gui.element.ElementActionsHelper;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
 import io.github.shafthq.shaft.gui.video.RecordManager;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
@@ -62,9 +62,9 @@ public class SikuliActions {
             element = prepareElementPattern(targetElement);
             clearAndType(element, text);
         } catch (IOException | FindFailed rootCauseException) {
-            WebDriverElementActions.failAction(screen, applicationWindow, element, formatTextForReport(text), rootCauseException);
+            ElementActionsHelper.failAction(screen, applicationWindow, element, formatTextForReport(text), rootCauseException);
         }
-        WebDriverElementActions.passAction(screen, applicationWindow, element, formatTextForReport(text));
+        ElementActionsHelper.passAction(screen, applicationWindow, element, formatTextForReport(text));
         return this;
     }
 
@@ -94,9 +94,9 @@ public class SikuliActions {
             element = prepareElementPattern(targetElement);
             screen.wait(element).type(text);
         } catch (IOException | FindFailed rootCauseException) {
-            WebDriverElementActions.failAction(screen, applicationWindow, element, formatTextForReport(text), rootCauseException);
+            ElementActionsHelper.failAction(screen, applicationWindow, element, formatTextForReport(text), rootCauseException);
         }
-        WebDriverElementActions.passAction(screen, applicationWindow, element, formatTextForReport(text));
+        ElementActionsHelper.passAction(screen, applicationWindow, element, formatTextForReport(text));
         return this;
     }
 
@@ -128,9 +128,9 @@ public class SikuliActions {
             element = prepareElementPattern(targetElement);
             clearAndType(element, text);
         } catch (IOException | FindFailed rootCauseException) {
-            WebDriverElementActions.failAction(screen, applicationWindow, element, formatTextForReport(text), rootCauseException);
+            ElementActionsHelper.failAction(screen, applicationWindow, element, formatTextForReport(text), rootCauseException);
         }
-        WebDriverElementActions.passAction(screen, applicationWindow, element, formatTextForReport(text).replaceAll(".", "•"));
+        ElementActionsHelper.passAction(screen, applicationWindow, element, formatTextForReport(text).replaceAll(".", "•"));
         return this;
     }
 
@@ -158,9 +158,9 @@ public class SikuliActions {
             elementText = screen.wait(element).getText();
             screen.wait(element).click();
         } catch (IOException | FindFailed rootCauseException) {
-            WebDriverElementActions.failAction(screen, applicationWindow, element, elementText, rootCauseException);
+            ElementActionsHelper.failAction(screen, applicationWindow, element, elementText, rootCauseException);
         }
-        WebDriverElementActions.passAction(screen, applicationWindow, element, formatTextForReport(elementText));
+        ElementActionsHelper.passAction(screen, applicationWindow, element, formatTextForReport(elementText));
         return this;
     }
 
@@ -187,9 +187,9 @@ public class SikuliActions {
             element = prepareElementPattern(targetElement);
             elementText = screen.wait(element).getText().replace("\n", "").trim();
         } catch (IOException | FindFailed rootCauseException) {
-            WebDriverElementActions.failAction(screen, applicationWindow, element, null, rootCauseException);
+            ElementActionsHelper.failAction(screen, applicationWindow, element, null, rootCauseException);
         }
-        WebDriverElementActions.passAction(screen, applicationWindow, element, formatTextForReport(elementText));
+        ElementActionsHelper.passAction(screen, applicationWindow, element, formatTextForReport(elementText));
         return elementText;
     }
 
@@ -217,9 +217,9 @@ public class SikuliActions {
             elementText = screen.wait(element).getText().replace("\n", "").trim();
             screen.wait(element).hover(element);
         } catch (IOException | FindFailed rootCauseException) {
-            WebDriverElementActions.failAction(screen, applicationWindow, element, elementText, rootCauseException);
+            ElementActionsHelper.failAction(screen, applicationWindow, element, elementText, rootCauseException);
         }
-        WebDriverElementActions.passAction(screen, applicationWindow, element, formatTextForReport(elementText));
+        ElementActionsHelper.passAction(screen, applicationWindow, element, formatTextForReport(elementText));
         return this;
     }
 
@@ -247,9 +247,9 @@ public class SikuliActions {
             elementText = screen.wait(element).getText().replace("\n", "").trim();
             screen.wait(element).doubleClick(element);
         } catch (IOException | FindFailed rootCauseException) {
-            WebDriverElementActions.failAction(screen, applicationWindow, element, elementText, rootCauseException);
+            ElementActionsHelper.failAction(screen, applicationWindow, element, elementText, rootCauseException);
         }
-        WebDriverElementActions.passAction(screen, applicationWindow, element, formatTextForReport(elementText));
+        ElementActionsHelper.passAction(screen, applicationWindow, element, formatTextForReport(elementText));
         return this;
     }
 
@@ -277,9 +277,9 @@ public class SikuliActions {
             elementText = screen.wait(element).getText().replace("\n", "").trim();
             screen.wait(element).rightClick(element);
         } catch (IOException | FindFailed rootCauseException) {
-            WebDriverElementActions.failAction(screen, applicationWindow, element, elementText, rootCauseException);
+            ElementActionsHelper.failAction(screen, applicationWindow, element, elementText, rootCauseException);
         }
-        WebDriverElementActions.passAction(screen, applicationWindow, element, formatTextForReport(elementText));
+        ElementActionsHelper.passAction(screen, applicationWindow, element, formatTextForReport(elementText));
         return this;
     }
 
@@ -311,9 +311,9 @@ public class SikuliActions {
             elementText = screen.wait(draggableElementPattern).getText().replace("\n", "").trim();
             screen.wait(draggableElementPattern).dragDrop(draggableElementPattern, targetElementPattern);
         } catch (IOException | FindFailed rootCauseException) {
-            WebDriverElementActions.failAction(screen, applicationWindow, draggableElementPattern, elementText, rootCauseException);
+            ElementActionsHelper.failAction(screen, applicationWindow, draggableElementPattern, elementText, rootCauseException);
         }
-        WebDriverElementActions.passAction(screen, applicationWindow, draggableElementPattern, elementText);
+        ElementActionsHelper.passAction(screen, applicationWindow, draggableElementPattern, elementText);
         return this;
     }
 
@@ -336,7 +336,7 @@ public class SikuliActions {
         try {
             return IOUtils.toByteArray(new FileInputStream(pathToTargetElementImage));
         } catch (IOException rootCauseException) {
-            WebDriverElementActions.failAction(null, "Failed to initialize SikuliAction; couldn't read the target Element Image", null, rootCauseException);
+            ElementActionsHelper.failAction(null, "Failed to initialize SikuliAction; couldn't read the target Element Image", null, rootCauseException);
             return new byte[0];
         }
     }

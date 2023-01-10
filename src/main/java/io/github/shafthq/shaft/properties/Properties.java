@@ -1,7 +1,9 @@
 package io.github.shafthq.shaft.properties;
+import com.google.common.annotations.Beta;
 
+@Beta
 public class Properties {
-    //TODO: implement missing property interfaces
+    //TODO: implement missing interfaces
     public static BrowserStack browserStack;
     //    public static Cucumber cucumber;
 //    public static Capabilities capabilities;

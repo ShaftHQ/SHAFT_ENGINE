@@ -5,6 +5,7 @@ import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.Validations;
+import io.github.shafthq.shaft.gui.element.ElementActionsHelper;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.testng.Assert;
@@ -19,7 +20,7 @@ public class tests_element_elementActions {
     @Test
     public void waitForElementToBePresent_true_expectedToPass() {
         BrowserActions.navigateToURL(driver.get(), "https://www.google.com/ncr", "www.google.com");
-        ElementActions.waitForElementToBeReady(driver.get(), GoogleSearch.googleLogo_image);
+        ElementActionsHelper.waitForElementPresence(driver.get(), GoogleSearch.googleLogo_image);
         Validations.assertThat()
                 .element(driver.get(), GoogleSearch.googleLogo_image)
                 .matchesReferenceImage()
@@ -52,7 +53,7 @@ public class tests_element_elementActions {
     public void waitForElementToBePresent_true_expectedToFail() {
         BrowserActions.navigateToURL(driver.get(), "https://www.google.com/ncr", "www.google.com");
         try {
-            ElementActions.waitForElementToBeReady(driver.get(), By.id("bla"));
+            ElementActionsHelper.waitForElementPresence(driver.get(), By.id("bla"));
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }

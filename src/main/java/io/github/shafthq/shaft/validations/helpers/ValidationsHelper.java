@@ -7,6 +7,7 @@ import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.ValidationEnums.*;
 import io.github.shafthq.shaft.driver.DriverFactoryHelper;
 import io.github.shafthq.shaft.enums.Browsers;
+import io.github.shafthq.shaft.gui.element.ElementActionsHelper;
 import io.github.shafthq.shaft.gui.image.ImageProcessingActions;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
 import io.github.shafthq.shaft.properties.Properties;
@@ -96,7 +97,7 @@ public class ValidationsHelper {
         String locatorSeparator = ", locator '";
 
         lastUsedElementLocator = elementLocator;
-        int elementsCount = ElementActions.getElementsCount(driver, elementLocator);
+        int elementsCount = ElementActionsHelper.getElementsCount(driver, elementLocator);
 
         if (validationType.getValue()) {
             // expecting a unique element to be present
@@ -357,19 +358,18 @@ public class ValidationsHelper {
             attachments.add(expectedValueAttachment);
         }
 
-        if (ElementActions.getElementsCount(driver, elementLocator) == 1) {
+        if (ElementActionsHelper.getElementsCount(driver, elementLocator) == 1) {
             byte[] elementScreenshot;
-
             Boolean actualResult;
 
-                elementScreenshot = ScreenshotManager.takeElementScreenshot(driver, elementLocator);
-                actualResult = ImageProcessingActions.compareAgainstBaseline(driver, elementLocator, elementScreenshot, ImageProcessingActions.VisualValidationEngine.valueOf(visualValidationEngine.name()));
+            elementScreenshot = ScreenshotManager.takeElementScreenshot(driver, elementLocator);
+            actualResult = ImageProcessingActions.compareAgainstBaseline(driver, elementLocator, elementScreenshot, ImageProcessingActions.VisualValidationEngine.valueOf(visualValidationEngine.name()));
 
             List<Object> actualValueAttachment = Arrays.asList("Validation Test Data", "Actual Screenshot",
                     elementScreenshot);
             attachments.add(actualValueAttachment);
 
-            if (visualValidationEngine.equals(VisualValidationEngine.EXACT_SHUTTERBUG) && !actualResult){
+            if (visualValidationEngine.equals(VisualValidationEngine.EXACT_SHUTTERBUG) && !actualResult) {
                 //if shutterbug and failed, get differences screenshot
                 byte[] shutterbugDifferencesImage = ImageProcessingActions.getShutterbugDifferencesImage(elementLocator);
                 if (!Arrays.equals(new byte[0], shutterbugDifferencesImage)) {

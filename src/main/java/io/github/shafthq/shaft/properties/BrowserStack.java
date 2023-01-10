@@ -1,10 +1,10 @@
 package io.github.shafthq.shaft.properties;
 
 import com.shaft.tools.io.ReportManager;
-import org.aeonbits.owner.Config;
+import org.aeonbits.owner.Config.Sources;
 import org.aeonbits.owner.ConfigFactory;
 
-@Config.Sources({"system:properties",
+@Sources({"system:properties",
         "file:src/main/resources/properties/browserStack.properties",
         "file:src/main/resources/properties/default/browserStack.properties",
         "classpath:browserStack.properties",
@@ -71,13 +71,18 @@ public interface BrowserStack extends EngineProperties {
     @DefaultValue("false")
     boolean local();
 
-    @Key("browserStack.seleniumVersion")
-    @DefaultValue("4.1.2")
-    String seleniumVersion();
+    private static void setProperty(String key, String value) {
+        var updatedProps = new java.util.Properties();
+        updatedProps.setProperty(key, value);
+        Properties.browserStack = ConfigFactory.create(BrowserStack.class, updatedProps);
+        // temporarily set the system property to support hybrid read/write mode
+        System.setProperty(key, value);
+        ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
+    }
 
-    @Key("browserStack.appiumVersion")
-    @DefaultValue("1.22.0")
-    String appiumVersion();
+    @Key("browserStack.seleniumVersion")
+    @DefaultValue("4.7.2")
+    String seleniumVersion();
 
     @Key("browserStack.acceptInsecureCerts")
     @DefaultValue("true")
@@ -97,13 +102,78 @@ public interface BrowserStack extends EngineProperties {
     @DefaultValue("")
     String geoLocation();
 
-    @Override
-    default void setProperty(String key, String value) {
-        var updatedProps = new java.util.Properties();
-        updatedProps.setProperty(key, value);
-        Properties.browserStack = ConfigFactory.create(BrowserStack.class, updatedProps);
-        // temporarily set the system property to support hybrid read/write mode
-        System.setProperty(key, value);
-        ReportManager.logDiscrete("Setting \"" + key + "\" property with \"" + value + "\".");
+    @Key("browserStack.appiumVersion")
+    @DefaultValue("2.0.0")
+    String appiumVersion();
+
+    default SetProperty set() {
+        return new SetProperty();
+    }
+
+    class SetProperty implements EngineProperties.SetProperty {
+        public void username(String value) {
+            setProperty("browserStack.username", value);
+        }
+
+        public void accessKey(String value) {
+            setProperty("browserStack.accessKey", value);
+        }
+
+        public void platformVersion(String value) {
+            setProperty("browserStack.platformVersion", value);
+        }
+
+        public void deviceName(String value) {
+            setProperty("browserStack.deviceName", value);
+        }
+
+        public void appUrl(String value) {
+            setProperty("browserStack.appUrl", value);
+        }
+
+        public void appName(String value) {
+            setProperty("browserStack.appName", value);
+        }
+
+        public void appRelativeFilePath(String value) {
+            setProperty("browserStack.appRelativeFilePath", value);
+        }
+
+        public void osVersion(String value) {
+            setProperty("browserStack.osVersion", value);
+        }
+
+        public void browserVersion(String value) {
+            setProperty("browserStack.browserVersion", value);
+        }
+
+        public void local(boolean value) {
+            setProperty("browserStack.local", String.valueOf(value));
+        }
+
+        public void seleniumVersion(String value) {
+            setProperty("browserStack.seleniumVersion", value);
+        }
+
+        public void appiumVersion(String value) {
+            setProperty("browserStack.appiumVersion", value);
+        }
+
+        public void acceptInsecureCerts(boolean value) {
+            setProperty("browserStack.acceptInsecureCerts", String.valueOf(value));
+        }
+
+        public void debug(boolean value) {
+            setProperty("browserStack.debug", String.valueOf(value));
+        }
+
+        public void networkLogs(boolean value) {
+            setProperty("browserStack.networkLogs", String.valueOf(value));
+        }
+
+        public void geoLocation(String value) {
+            setProperty("browserStack.geoLocation", value);
+        }
+
     }
 }

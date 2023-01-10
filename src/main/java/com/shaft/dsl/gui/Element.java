@@ -2,17 +2,18 @@ package com.shaft.dsl.gui;
 
 import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Validations;
+import io.github.shafthq.shaft.gui.element.FluentElementActions;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
 public abstract class Element {
     static WebDriver driver;
     final By locator;
-    final ElementActions elementActions;
+    final FluentElementActions elementActions;
 
     protected Element(By locator) {
         this.locator = locator;
-        elementActions = new ElementActions(driver);
+        elementActions = new FluentElementActions(driver);
     }
 
     public static WebDriver getDriver() {

@@ -318,7 +318,6 @@ public class TerminalActions {
                 // local execution
                 ReportManager
                         .logDiscrete("Attempting to perform the following command locally. Command: \"" + command + "\"");
-                // "cmd /c start E:\\batFiles\\MyBat.bat";
                 // https://coderanch.com/t/323662/java/Direct-Runtime-getRuntime-exec-output
 
                 if ("generate_allure_report.bat".equals(command)) {
