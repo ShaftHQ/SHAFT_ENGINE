@@ -9,11 +9,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  Ubuntu_Firefox:
+  Ubuntu_Firefox_Grid:
     runs-on: ubuntu-22.04
-    env:
-      job-name: '[Ubuntu][Firefox][SeleniumGrid]'
-    name: Desktop Browsers '[Ubuntu][Firefox][SeleniumGrid]'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -48,11 +45,8 @@ jobs:
           name: ${{ env.job-name }}_Extent
           path: "extent-reports/ExtentReports_*.html"
 
-  Ubuntu_Chrome:
+  Ubuntu_Chrome_Grid:
     runs-on: ubuntu-22.04
-    env:
-      job-name: '[Ubuntu][GoogleChrome][SeleniumGrid]'
-    name: Desktop Browsers '[Ubuntu][GoogleChrome][SeleniumGrid]'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -87,11 +81,8 @@ jobs:
           name: ${{ env.job-name }}_Extent
           path: "extent-reports/ExtentReports_*.html"
 
-  Ubuntu_Edge:
+  Ubuntu_Edge_Grid:
     runs-on: ubuntu-22.04
-    env:
-      job-name: '[Ubuntu][MicrosoftEdge][SeleniumGrid]'
-      name: Desktop Browsers '[Ubuntu][MicrosoftEdge][SeleniumGrid]'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -126,11 +117,8 @@ jobs:
           name: ${{ env.job-name }}_Extent
           path: "extent-reports/ExtentReports_*.html"   
   
-  Windows_Edge:
+  Windows_Edge_Local:
     runs-on: windows-latest
-    env:
-      job-name: '[Windows][MicrosoftEdge][Local]'
-      name: Desktop Browsers '[Windows][MicrosoftEdge][Local]'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -161,11 +149,8 @@ jobs:
           name: ${{ env.job-name }}_Extent
           path: "extent-reports/ExtentReports_*.html"  
 
-  Windows_Chrome:
+  Windows_Chrome_Local:
     runs-on: windows-latest
-    env:
-      job-name: '[Windows][GoogleChrome][Local]'
-      name: Desktop Browsers '[Windows][GoogleChrome][Local]'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -196,11 +181,8 @@ jobs:
           name: ${{ env.job-name }}_Extent
           path: "extent-reports/ExtentReports_*.html" 
 
-  MacOSX_Safari:
+  MacOSX_Safari_Local:
     runs-on: macOS-12
-    env:
-      job-name: '[MacOSX][Safari][Local]'
-      name: Desktop Browsers '[MacOSX][Safari][Local]'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -231,11 +213,8 @@ jobs:
           name: ${{ env.job-name }}_Extent
           path: "extent-reports/ExtentReports_*.html"  
 
-  MacOSX_Chrome:
+  MacOSX_Chrome_Local:
     runs-on: macOS-12
-    env:
-      job-name: '[MacOSX][GoogleChrome][Local]'
-      name: Desktop Browsers '[MacOSX][GoogleChrome][Local]'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
