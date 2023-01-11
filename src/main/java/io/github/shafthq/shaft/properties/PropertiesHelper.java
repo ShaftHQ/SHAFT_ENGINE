@@ -2,16 +2,13 @@ package io.github.shafthq.shaft.properties;
 
 import com.shaft.cli.FileActions;
 import com.shaft.tools.io.ReportManager;
+import io.github.shafthq.shaft.enums.OperatingSystems;
 import org.aeonbits.owner.ConfigFactory;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
 
 import java.io.File;
 import java.net.URL;
-
-import static io.appium.java_client.remote.MobilePlatform.MAC;
-import static io.github.shafthq.shaft.enums.OperatingSystems.LINUX;
-import static io.github.shafthq.shaft.enums.OperatingSystems.WINDOWS;
 
 
 public class PropertiesHelper {
@@ -41,14 +38,13 @@ public class PropertiesHelper {
     }
 
     private static void overrideTargetOperatingSystemForLocalExecution() {
-        String targetOperatingSystemPropertyName = "targetOperatingSystem";
         if (Properties.platform.executionAddress().equals("local")) {
             if (SystemUtils.IS_OS_WINDOWS) {
-                Properties.platform.set().targetOperatingSystem(WINDOWS);
+                Properties.platform.set().targetOperatingSystem(OperatingSystems.WINDOWS);
             } else if (SystemUtils.IS_OS_LINUX) {
-                Properties.platform.set().targetOperatingSystem(LINUX);
+                Properties.platform.set().targetOperatingSystem(OperatingSystems.LINUX);
             } else if (SystemUtils.IS_OS_MAC) {
-                Properties.platform.set().targetOperatingSystem(MAC);
+                Properties.platform.set().targetOperatingSystem(OperatingSystems.MACOS);
             }
         }
     }

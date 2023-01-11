@@ -123,7 +123,7 @@ public class BrowserActionsHelpers {
         var internalURL = targetUrl;
         try {
             if (targetUrl.startsWith(SHAFT.Properties.paths.testData())) {
-                internalURL = new File(targetUrl).getAbsolutePath();
+                internalURL = "file://" + new File(targetUrl).getAbsolutePath();
             }
         } catch (Exception exception) {
         }

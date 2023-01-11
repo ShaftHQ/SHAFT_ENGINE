@@ -7,6 +7,7 @@ import com.shaft.gui.browser.BrowserActions;
 import com.shaft.tools.io.ReportManager;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
+import io.appium.java_client.remote.options.UnhandledPromptBehavior;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import io.github.shafthq.shaft.enums.OperatingSystems;
 import io.github.shafthq.shaft.gui.browser.BrowserActionsHelpers;
@@ -307,6 +308,7 @@ public class DriverFactoryHelper {
             case DESKTOP_SAFARI, DESKTOP_WEBKIT -> {
                 sfOptions = new SafariOptions();
                 sfOptions.setCapability(CapabilityType.PLATFORM_NAME, getDesiredOperatingSystem());
+                sfOptions.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnhandledPromptBehavior.ACCEPT_AND_NOTIFY);
                 sfOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL);
                 sfOptions.setPageLoadTimeout(Duration.ofSeconds(PAGE_LOAD_TIMEOUT));
                 sfOptions.setScriptTimeout(Duration.ofSeconds(SCRIPT_TIMEOUT));
