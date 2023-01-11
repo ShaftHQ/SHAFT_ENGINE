@@ -1,6 +1,7 @@
 package io.github.shafthq.shaft.gui.browser;
 
 import com.google.common.net.InternetDomainName;
+import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
@@ -18,6 +19,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import org.testng.Assert;
 
 import java.awt.*;
+import java.io.File;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -118,8 +120,16 @@ public class BrowserActionsHelpers {
     }
 
     public static void navigateToNewURL(WebDriver driver, String initialURL, String targetUrl, String targetUrlAfterRedirection) {
+        var internalURL = targetUrl;
         try {
-            driver.navigate().to(targetUrl);
+            if (targetUrl.startsWith(SHAFT.Properties.paths.testData())) {
+                internalURL = new File(targetUrl).getAbsolutePath();
+            }
+        } catch (Exception exception) {
+        }
+
+        try {
+            driver.navigate().to(internalURL);
         } catch (WebDriverException rootCauseException) {
             failAction(driver, targetUrl, rootCauseException);
         }
@@ -247,7 +257,7 @@ public class BrowserActionsHelpers {
     }
 
     @SneakyThrows
-    public static String formatURL(String username, String password, String targetUrl) {
+    public static String formatURLForBasicAuthentication(String username, String password, String targetUrl) {
         if (targetUrl.startsWith("https://")) {
             return new URI("https://" + URLEncoder.encode(username, StandardCharsets.UTF_8) + ":" + URLEncoder.encode(password, StandardCharsets.UTF_8) + "@" + targetUrl.substring("https://".length())).toString();
         } else {

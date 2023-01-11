@@ -112,6 +112,10 @@ public class TerminalActions {
         this.dockerUsername = dockerUsername;
     }
 
+    public static TerminalActions getInstance() {
+        return new TerminalActions();
+    }
+
     private static String reportActionResult(String actionName, String testData, String log, Boolean passFailStatus, Exception... rootCauseException) {
         actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;

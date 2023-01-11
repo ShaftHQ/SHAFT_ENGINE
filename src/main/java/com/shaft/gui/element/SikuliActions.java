@@ -30,6 +30,10 @@ public class SikuliActions {
         this.applicationWindow = applicationWindow;
     }
 
+    public static SikuliActions getInstance() {
+        return new SikuliActions();
+    }
+
     public static List<Object> prepareElementScreenshotAttachment(Screen screen, App applicationWindow, Pattern element, String actionName, boolean passFailStatus) {
         return ScreenshotManager.captureScreenShotUsingSikuliX(screen, applicationWindow, element, actionName, passFailStatus);
     }

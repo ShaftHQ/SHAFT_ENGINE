@@ -35,6 +35,10 @@ public class TouchActions {
     public TouchActions() {
     }
 
+    public static TouchActions getInstance() {
+        return new TouchActions();
+    }
+
     /**
      * This is a convenience method to be able to call Element Actions from within the current Touch Actions instance.
      * <p>

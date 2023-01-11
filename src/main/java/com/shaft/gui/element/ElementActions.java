@@ -32,6 +32,10 @@ public class ElementActions extends FluentElementActions {
         new FluentElementActions();
     }
 
+    public static ElementActions getInstance() {
+        return new ElementActions();
+    }
+
     @Deprecated
     public static FluentElementActions performElementAction(WebDriver driver) {
         return new FluentElementActions();

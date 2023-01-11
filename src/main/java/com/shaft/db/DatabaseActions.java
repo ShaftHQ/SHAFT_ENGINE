@@ -61,6 +61,10 @@ public class DatabaseActions {
         }
     }
 
+    public static DatabaseActions getInstance(String customConnectionString) {
+        return new DatabaseActions(customConnectionString);
+    }
+
     /**
      * Returns a string representation of the provided resultSet object
      *

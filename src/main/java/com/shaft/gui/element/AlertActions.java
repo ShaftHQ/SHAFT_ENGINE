@@ -20,6 +20,10 @@ public class AlertActions {
     public AlertActions() {
     }
 
+    public static AlertActions getInstance() {
+        return new AlertActions();
+    }
+
     private static void waitForAlertToBePresent() {
         try {
             (new WebDriverWait(DriverFactoryHelper.getDriver().get(), Duration.ofSeconds(Integer.parseInt(System.getProperty("defaultElementIdentificationTimeout"))))).until(ExpectedConditions.alertIsPresent());
