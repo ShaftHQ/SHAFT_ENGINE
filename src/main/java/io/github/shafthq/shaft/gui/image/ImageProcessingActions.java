@@ -12,6 +12,7 @@ import com.shaft.cli.FileActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Validations;
 import io.github.shafthq.shaft.driver.DriverFactoryHelper;
+import io.github.shafthq.shaft.tools.io.helpers.FailureReporter;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import nu.pattern.OpenCV;
 import org.opencv.core.Point;
@@ -22,7 +23,6 @@ import org.opencv.imgproc.Imgproc;
 import org.openqa.selenium.By;
 import org.openqa.selenium.UnsupportedCommandException;
 import org.openqa.selenium.WebDriver;
-import org.testng.Assert;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -123,12 +123,11 @@ public class ImageProcessingActions {
                 final String message = "Number of screenshots  [" + testFiles.length + "] from the test folder [" + testFolderPath
                         + "] do not match the number of screenshots [" + referenceFiles.length
                         + "] from the reference folder [" + referenceFolderPath + "].";
-                ReportManager.log(message);
-                Assert.fail(message);
+                FailureReporter.fail(message);
             }
 
         } catch (NullPointerException | IOException e) {
-            ReportManagerHelper.log(e);
+            ReportManagerHelper.logDiscrete(e);
             ReportManager.log("Failed to compare image files ...");
         }
     }
@@ -210,7 +209,7 @@ public class ImageProcessingActions {
         try {
             ImageIO.write(image, "jpg", baos);
         } catch (IOException e) {
-            ReportManagerHelper.log(e);
+            ReportManagerHelper.logDiscrete(e);
         }
         return baos.toByteArray();
     }
@@ -316,7 +315,7 @@ public class ImageProcessingActions {
                         output = new File("target/openCV/" + timestamp + "_5_output.png");
                         ImageIO.write((BufferedImage) HighGui.toBufferedImage(img_original), "png", output);
                     } catch (IOException e) {
-                        ReportManagerHelper.log(e);
+                        ReportManagerHelper.logDiscrete(e);
                         return Collections.emptyList();
                     }
                 }
@@ -344,7 +343,7 @@ public class ImageProcessingActions {
                 }
                 return Arrays.asList(x, y);
             } catch (org.opencv.core.CvException e) {
-                ReportManagerHelper.log(e);
+                ReportManagerHelper.logDiscrete(e);
                 ReportManager.log("Failed to identify the element using AI; openCV core exception.");
             }
         }
@@ -410,7 +409,7 @@ public class ImageProcessingActions {
                     var snapshot = Shutterbug.shootElement(driver, elementLocator, CaptureElement.VIEWPORT, true);
                     actualResult = snapshot.equalsWithDiff(referenceImagePath, resultingImagePath, 0.1);
                 } catch (IOException e) {
-                    ReportManagerHelper.log(e);
+                    ReportManagerHelper.logDiscrete(e);
                 } catch (UnableToCompareImagesException | UnsupportedCommandException exception) {
                     ReportManager.logDiscrete("Failed to locate element using \"" + VisualValidationEngine.EXACT_SHUTTERBUG + "\", attempting to use \"" + VisualValidationEngine.EXACT_OPENCV + "\".");
                     // com.assertthat.selenium_shutterbug.utils.image.UnableToCompareImagesException: Images dimensions mismatch
@@ -485,7 +484,7 @@ public class ImageProcessingActions {
             ReportManager.logDiscrete("Successfully validated the element using AI; Applitools Eyes.");
             return eyesValidationResult.isNew() || eyesValidationResult.isPassed();
         } catch (DiffsFoundException e) {
-            ReportManagerHelper.log(e);
+            ReportManagerHelper.logDiscrete(e);
             return false;
         } finally {
             eyes.abortIfNotClosed();
@@ -583,10 +582,10 @@ public class ImageProcessingActions {
         try {
             //https://github.com/openpnp/opencv#api
             OpenCV.loadLocally();
-            ReportManager.logDiscrete("Loaded OpenCV \""+libName+"\".");
-        } catch (Throwable throwable) {
+            ReportManager.logDiscrete("Loaded OpenCV \"" + libName + "\".");
+        } catch (Exception throwable) {
             ReportManagerHelper.logDiscrete(throwable);
-            ReportManager.logDiscrete("Failed to load OpenCV \""+libName+"\". Try installing the binaries manually https://opencv.org/releases/, switching element highlighting to JavaScript...");
+            ReportManager.logDiscrete("Failed to load OpenCV \"" + libName + "\". Try installing the binaries manually https://opencv.org/releases/, switching element highlighting to JavaScript...");
             System.setProperty("screenshotParams_highlightMethod", "JavaScript");
         }
     }

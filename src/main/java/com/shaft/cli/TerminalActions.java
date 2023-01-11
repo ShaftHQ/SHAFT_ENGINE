@@ -112,7 +112,11 @@ public class TerminalActions {
         this.dockerUsername = dockerUsername;
     }
 
-    private static String reportActionResult(String actionName, String testData, String log, Boolean passFailStatus) {
+    public static TerminalActions getInstance() {
+        return new TerminalActions();
+    }
+
+    private static String reportActionResult(String actionName, String testData, String log, Boolean passFailStatus, Exception... rootCauseException) {
         actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
@@ -132,6 +136,12 @@ public class TerminalActions {
 
         if (log != null && !log.trim().equals("")) {
             attachments.add(Arrays.asList("Terminal Action Actual Result", "Command Log", log));
+        }
+
+        if (rootCauseException != null && rootCauseException.length >= 1) {
+            List<Object> actualValueAttachment = Arrays.asList("Terminal Action Exception - " + actionName,
+                    "Stacktrace", ReportManagerHelper.formatStackTraceToLogEntry(rootCauseException[0]));
+            attachments.add(actualValueAttachment);
         }
 
         if (!attachments.equals(new ArrayList<>())) {
@@ -238,7 +248,7 @@ public class TerminalActions {
     }
 
     private void failAction(String actionName, String testData, Exception... rootCauseException) {
-        String message = reportActionResult(actionName, testData, null, false);
+        String message = reportActionResult(actionName, testData, null, false, rootCauseException);
         if (rootCauseException != null && rootCauseException.length >= 1) {
             Assert.fail(message, rootCauseException[0]);
         } else {
@@ -267,7 +277,6 @@ public class TerminalActions {
             session.connect();
             ReportManager.logDiscrete("Successfully created SSH Session.");
         } catch (JSchException rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
             failAction(testData, rootCauseException);
         }
         return session;
@@ -333,11 +342,9 @@ public class TerminalActions {
                 errorReader = new BufferedReader(new InputStreamReader(localProcess.getErrorStream()));
             }
         } catch (InterruptedException rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
             failAction(command, rootCauseException);
             Thread.currentThread().interrupt();
         } catch (IOException | NullPointerException | JSchException rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
             failAction(command, rootCauseException);
         }
         return Arrays.asList(remoteSession, remoteChannelExecutor, localProcess, reader, errorReader);
@@ -350,7 +357,6 @@ public class TerminalActions {
             logBuilder.append(readConsoleLogs(reader));
             logBuilder.append(readConsoleLogs(errorReader));
         } catch (IOException rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
             failAction(command, rootCauseException);
         }
         return logBuilder.toString();

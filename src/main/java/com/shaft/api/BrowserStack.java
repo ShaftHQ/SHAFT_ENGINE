@@ -2,14 +2,12 @@ package com.shaft.api;
 
 import com.shaft.cli.FileActions;
 import com.shaft.tools.io.ReportManager;
+import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import org.openqa.selenium.MutableCapabilities;
 import org.testng.Assert;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 public class BrowserStack {
     private static final String hubUrl = "hub-cloud.browserstack.com";
@@ -146,7 +144,7 @@ public class BrowserStack {
     }
 
     private static void failAction(String testData, Throwable... rootCauseException) {
-        String message = reportActionResult(Thread.currentThread().getStackTrace()[2].getMethodName(), testData, false);
+        String message = reportActionResult(Thread.currentThread().getStackTrace()[2].getMethodName(), testData, false, rootCauseException);
         if (rootCauseException != null && rootCauseException.length >= 1) {
             Assert.fail(message, rootCauseException[0]);
         } else {
@@ -154,7 +152,7 @@ public class BrowserStack {
         }
     }
 
-    private static String reportActionResult(String actionName, String testData, Boolean passFailStatus) {
+    private static String reportActionResult(String actionName, String testData, Boolean passFailStatus, Throwable... rootCauseException) {
         actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
@@ -165,7 +163,17 @@ public class BrowserStack {
         if (testData != null && !testData.isEmpty()) {
             message = message + " With the following test data \"" + testData + "\".";
         }
-        ReportManager.log(message);
+
+        if (rootCauseException != null && rootCauseException.length >= 1) {
+            List<List<Object>> attachments = new ArrayList<>();
+            List<Object> actualValueAttachment = Arrays.asList("BrowserStack Action Exception - " + actionName,
+                    "Stacktrace", ReportManagerHelper.formatStackTraceToLogEntry(rootCauseException[0]));
+            attachments.add(actualValueAttachment);
+            ReportManagerHelper.log(message, attachments);
+        } else {
+            ReportManager.logDiscrete(message);
+        }
+
         return message;
     }
 }

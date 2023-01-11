@@ -14,7 +14,6 @@ import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.interactions.Locatable;
-import org.openqa.selenium.remote.UnreachableBrowserException;
 import org.openqa.selenium.support.locators.RelativeLocator;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.FluentWait;
@@ -75,7 +74,7 @@ public class ElementActionsHelper {
                 try {
                     Thread.sleep(ELEMENT_IDENTIFICATION_POLLING_DELAY);
                 } catch (InterruptedException e) {
-                    ReportManagerHelper.log(e);
+                    ReportManagerHelper.logDiscrete(e);
                 }
                 currentScreenImage = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
                 coordinates = ImageProcessingActions.findImageWithinCurrentPage(elementReferenceScreenshot, currentScreenImage);
@@ -251,6 +250,13 @@ public class ElementActionsHelper {
         }
     }
 
+    public static void dragAndDropUsingActions(WebDriver driver, By sourceElementLocator, By destinationElementLocator) {
+        new Actions(driver)
+                .dragAndDrop(((WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1))
+                        , ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, destinationElementLocator).get(1)))
+                .build().perform();
+    }
+
     public static void executeNativeMobileCommandUsingJavascript(WebDriver driver, String command, Map<String, String> parameters) {
         ((JavascriptExecutor) driver).executeScript(command, parameters);
     }
@@ -280,7 +286,7 @@ public class ElementActionsHelper {
             }
             return true;
         } catch (Exception e) {
-            ReportManagerHelper.log(e);
+            ReportManagerHelper.logDiscrete(e);
             return false;
         }
     }
@@ -336,8 +342,8 @@ public class ElementActionsHelper {
                         break;
                     }
                 } catch (JavascriptException e) {
-                    ReportManagerHelper.log(e);
-                    ReportManager.log("Failed to suggest a new XPath for the target element with this deprecated locator \""
+                    ReportManagerHelper.logDiscrete(e);
+                    ReportManager.logDiscrete("Failed to suggest a new XPath for the target element with this deprecated locator \""
                             + deprecatedElementLocator + "\"");
                 }
             }
@@ -369,8 +375,8 @@ public class ElementActionsHelper {
                 // else only happens when switching to default content so there is no need to
                 // take a screenshot
             } catch (Exception e) {
-                ReportManagerHelper.log(e);
-                ReportManager.log(
+                ReportManagerHelper.logDiscrete(e);
+                ReportManager.logDiscrete(
                         "Failed to take a screenshot of the element as it doesn't exist anymore. Taking a screenshot of the whole page.");
                 return ScreenshotManager.captureScreenShot(driver, actionName, true);
             }
@@ -412,7 +418,7 @@ public class ElementActionsHelper {
             }
         } catch (InvalidElementStateException e) {
             // this was seen in case of attempting to type in an invalid element (an image)
-            ReportManagerHelper.log(e);
+            ReportManagerHelper.logDiscrete(e);
         }
     }
 
@@ -492,18 +498,13 @@ public class ElementActionsHelper {
             }
             return true;
         } catch (HeadlessException e) {
-            ReportManagerHelper.log(e);
+            ReportManagerHelper.logDiscrete(e);
             return false;
         }
     }
 
     private static void performType(WebDriver driver, By elementLocator, String text) {
-        ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
-        expectedExceptions.add(StaleElementReferenceException.class);
-        expectedExceptions.add(ElementNotInteractableException.class);
-        expectedExceptions.add(UnreachableBrowserException.class);
-        expectedExceptions.add(NoSuchElementException.class);
-        expectedExceptions.add(WebDriverException.class);
+        ArrayList<Class<? extends Exception>> expectedExceptions = getExpectedExceptions(true);
         try {
             new FluentWait<>(driver)
                     .withTimeout(Duration.ofSeconds(5))
@@ -515,7 +516,7 @@ public class ElementActionsHelper {
                     });
         } catch (TimeoutException e) {
             // In case typing failed and the timeout expired
-            ReportManagerHelper.log(e);
+            ReportManagerHelper.logDiscrete(e);
         }
     }
 
@@ -526,9 +527,7 @@ public class ElementActionsHelper {
                 successfulTextLocationStrategy = determineSuccessfulTextLocationStrategy(driver,
                         elementLocator);
             }
-//            if (!successfulTextLocationStrategy.equals(TextDetectionStrategy.UNDEFINED)) {
             clearBeforeTyping(driver, elementLocator, successfulTextLocationStrategy);
-//            }
             if (!"".equals(targetText)) {
                 performType(driver, elementLocator, targetText);
             }
@@ -549,7 +548,7 @@ public class ElementActionsHelper {
             } else {
                 return targetText;
             }
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             ReportManager.log("Failed to identify Target element with locator \"" + elementLocator + "\".");
             throw throwable;
 //            return null;
@@ -583,7 +582,7 @@ public class ElementActionsHelper {
                 // in case of regular locator
                 switch (Integer.parseInt(matchingElementsInformation.get(0).toString())) {
                     case 0 ->
-                            failAction(driver, "zero elements found matching this locator", elementLocator, (Throwable) matchingElementsInformation.get(2));
+                            failAction(driver, "zero elements found matching this locator", null, (Throwable) matchingElementsInformation.get(2));
                     case 1 -> {
                         return matchingElementsInformation;
                     }
@@ -709,13 +708,18 @@ public class ElementActionsHelper {
         //TODO: merge all fail actions, make all methods call this one, get elementName where applicable instead of reporting null
         //this condition works if this is the first level of failure, but the first level is usually caught by the calling method
 
+//        boolean skipPageScreenshot = rootCauseException.length >= 1 && (
+//                TimeoutException.class.getName().equals(rootCauseException[0].getClass().getName()) //works to capture fluent wait failure
+//                        || (
+//                        rootCauseException[0].getMessage().contains("Identify unique element")
+//                                && isFoundInStacktrace(ValidationsHelper.class, rootCauseException[0])
+//                )//works to capture calling elementAction failure in case this is an assertion
+//        );
+
+        //don't take a second screenshot in case of validation failure  because the original element action will have always failed first
         boolean skipPageScreenshot = rootCauseException.length >= 1 && (
-                TimeoutException.class.getName().equals(rootCauseException[0].getClass().getName()) //works to capture fluent wait failure
-                        || (
-                        rootCauseException[0].getMessage().contains("Identify unique element")
-                                && isFoundInStacktrace(ValidationsHelper.class, rootCauseException[0])
-                )//works to capture calling elementAction failure in case this is an assertion
-        );
+                isFoundInStacktrace(ValidationsHelper.class, rootCauseException[0])
+                        && isFoundInStacktrace(ElementActionsHelper.class, rootCauseException[0]));
 
         String elementName = "";
         if (elementLocator != null) {
@@ -725,18 +729,22 @@ public class ElementActionsHelper {
                 if (accessibleName != null && !accessibleName.isBlank()) {
                     elementName = accessibleName;
                 }
-            } catch (Throwable throwable) {
+            } catch (Exception throwable) {
                 //do nothing
             }
         }
 
         String message;
         if (skipPageScreenshot) {
-            //don't try to take a screenshot again and SetProperty element locator to null in case element was not found by timeout or by nested element actions call
+            //don't try to take a screenshot again and set element locator to null in case element was not found by timeout or by nested element actions call
             message = createReportMessage(actionName, testData, elementName, false);
             ReportManager.logDiscrete(message);
         } else {
-            message = reportActionResult(driver, actionName, testData, elementLocator, screenshots, elementName, false);
+            if (rootCauseException != null && rootCauseException.length >= 1) {
+                message = reportActionResult(driver, actionName, testData, elementLocator, screenshots, elementName, false, rootCauseException[0]);
+            } else {
+                message = reportActionResult(driver, actionName, testData, elementLocator, screenshots, elementName, false);
+            }
         }
 
         if (rootCauseException.length >= 1) {
@@ -782,7 +790,7 @@ public class ElementActionsHelper {
     }
 
     private static List<List<Object>> createReportAttachments(WebDriver driver, String actionName, String testData, By elementLocator,
-                                                              List<List<Object>> screenshots, Boolean passFailStatus) {
+                                                              List<List<Object>> screenshots, Boolean passFailStatus, Throwable... rootCauseException) {
         actionName = JavaHelper.convertToSentenceCase(actionName);
         List<List<Object>> attachments = new ArrayList<>();
         if (testData != null && testData.length() >= 500) {
@@ -794,10 +802,21 @@ public class ElementActionsHelper {
             // screenshot taken before action (in case of click)
             attachments.addAll(screenshots);
         } else if (driver != null) {
-            List<Object> newScreenshot = takeScreenshot(driver, elementLocator, actionName, testData, passFailStatus);
+            List<Object> newScreenshot = null;
+            if (actionName.equals("Identify unique element")) {
+                newScreenshot = takeScreenshot(driver, null, actionName, testData, passFailStatus);
+            } else {
+                newScreenshot = takeScreenshot(driver, elementLocator, actionName, testData, passFailStatus);
+            }
             if (newScreenshot != null && !newScreenshot.equals(new ArrayList<>())) {
                 attachments.add(newScreenshot);
             }
+        }
+
+        if (rootCauseException != null && rootCauseException.length >= 1) {
+            List<Object> actualValueAttachment = Arrays.asList("Element Action Exception - " + actionName,
+                    "Stacktrace", ReportManagerHelper.formatStackTraceToLogEntry(rootCauseException[0]));
+            attachments.add(actualValueAttachment);
         }
 
         if (attachments.size() == 1 && attachments.get(0).isEmpty()) {
@@ -808,9 +827,9 @@ public class ElementActionsHelper {
     }
 
     private static String reportActionResult(WebDriver driver, String actionName, String testData, By elementLocator,
-                                             List<List<Object>> screenshots, String elementName, Boolean passFailStatus) {
+                                             List<List<Object>> screenshots, String elementName, Boolean passFailStatus, Throwable... rootCauseException) {
         String message = createReportMessage(actionName, testData, elementName, passFailStatus);
-        List<List<Object>> attachments = createReportAttachments(driver, actionName, testData, elementLocator, screenshots, passFailStatus);
+        List<List<Object>> attachments = createReportAttachments(driver, actionName, testData, elementLocator, screenshots, passFailStatus, rootCauseException);
 
         if (attachments != null && !attachments.equals(new ArrayList<>())) {
             ReportManagerHelper.log(message, attachments);

@@ -32,6 +32,10 @@ public class ElementActions extends FluentElementActions {
         new FluentElementActions();
     }
 
+    public static ElementActions getInstance() {
+        return new ElementActions();
+    }
+
     @Deprecated
     public static FluentElementActions performElementAction(WebDriver driver) {
         return new FluentElementActions();
@@ -81,7 +85,7 @@ public class ElementActions extends FluentElementActions {
                     // adding hover before clicking an element to enable styles to show in the
                     // execution screenshots and to solve issues clicking on certain elements.
                     (new Actions(driver)).moveToElement(((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1))).perform();
-                } catch (Throwable t) {
+                } catch (Exception t) {
 //                    ReportManagerHelper.logDiscrete(t);
                 }
                 List<Object> screenshot = takeScreenshot(driver, elementLocator, "click", null, true);
@@ -99,12 +103,9 @@ public class ElementActions extends FluentElementActions {
                             ElementActionsHelper.clickUsingJavascript(driver, elementLocator);
                         } catch (Exception rootCauseException) {
                             rootCauseException.initCause(exception1);
-                            ReportManagerHelper.log(exception1);
-                            ReportManagerHelper.log(rootCauseException);
                             failAction(driver, elementLocator, rootCauseException);
                         }
                     } else {
-                        ReportManagerHelper.log(exception1);
                         failAction(driver, elementLocator, exception1);
                     }
                 }
@@ -115,7 +116,7 @@ public class ElementActions extends FluentElementActions {
                 // removed to enhance performance, and replaced with a process to assert after
                 // every navigation
                 passAction(driver, elementLocator, "", screenshot, elementName);
-            } catch (Throwable throwable) {
+            } catch (Exception throwable) {
                 failAction(driver, elementLocator, throwable);
             }
         }
@@ -137,7 +138,7 @@ public class ElementActions extends FluentElementActions {
         try {
             ElementActionsHelper.scrollToFindElement(driver, elementLocator);
             passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, getElementName(driver, elementLocator));
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             failAction(driver, elementLocator, throwable);
         }
     }
@@ -160,7 +161,7 @@ public class ElementActions extends FluentElementActions {
             passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, elementName);
             (new Actions(driver)).clickAndHold(((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1))).build().perform();
             // takes screenshot before holding the element
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             failAction(driver, elementLocator, throwable);
         }
     }
@@ -191,7 +192,7 @@ public class ElementActions extends FluentElementActions {
             } else {
                 failAction(driver, action, elementLocator);
             }
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             failAction(driver, elementLocator, throwable);
         }
     }
@@ -217,7 +218,7 @@ public class ElementActions extends FluentElementActions {
                 failAction(driver, elementLocator, e);
             }
             passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, elementName);
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             failAction(driver, elementLocator, throwable);
         }
     }
@@ -238,40 +239,42 @@ public class ElementActions extends FluentElementActions {
     @Deprecated
     public static void dragAndDrop(WebDriver driver, By sourceElementLocator, By destinationElementLocator) {
         try {
+            Exception exception = new Exception();
             var elementName = getElementName(driver, sourceElementLocator);
             // replaced canFindUniqueElementForInternalUse, with countFoundElements for
             // destinationElement to bypass the check for element visibility
             // get source element start location
-            String startLocation = driver.findElement(sourceElementLocator).getLocation().toString();
+            String startLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)).getLocation().toString();
             // attempt to perform drag and drop
             try {
                 ElementActionsHelper.dragAndDropUsingJavascript(driver, sourceElementLocator, destinationElementLocator);
             } catch (Exception rootCauseException) {
-                ReportManagerHelper.log(rootCauseException);
-                failAction(driver, sourceElementLocator, rootCauseException);
+                exception = rootCauseException;
+                ReportManagerHelper.logDiscrete(rootCauseException);
             }
             // get source element end location
-            String endLocation = driver.findElement(sourceElementLocator).getLocation().toString();
+            String endLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)).getLocation().toString();
             String reportMessage = "Start point: " + startLocation + ", End point: " + endLocation;
             if (!endLocation.equals(startLocation)) {
                 passAction(driver, sourceElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, elementName);
             } else {
                 try {
-                    (new Actions(driver)).dragAndDrop(driver.findElement(sourceElementLocator),
-                            driver.findElement(destinationElementLocator)).build().perform();
+                    ElementActionsHelper.dragAndDropUsingActions(driver, sourceElementLocator, destinationElementLocator);
                 } catch (Exception rootCauseException) {
-                    ReportManagerHelper.log(rootCauseException);
+                    if (!exception.equals(new Exception())) {
+                        rootCauseException.initCause(exception);
+                    }
                     failAction(driver, sourceElementLocator, rootCauseException);
                 }
                 // get source element end location
-                endLocation = driver.findElement(sourceElementLocator).getLocation().toString();
+                endLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)).getLocation().toString();
                 if (!endLocation.equals(startLocation)) {
                     passAction(driver, sourceElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, elementName);
                 } else {
                     failAction(driver, reportMessage, sourceElementLocator);
                 }
             }
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             failAction(driver, sourceElementLocator, throwable);
         }
     }
@@ -299,7 +302,6 @@ public class ElementActions extends FluentElementActions {
                 (new Actions(driver)).dragAndDropBy(driver.findElement(sourceElementLocator), xOffset, yOffset).build()
                         .perform();
             } catch (Exception rootCauseException) {
-                ReportManagerHelper.log(rootCauseException);
                 failAction(driver, sourceElementLocator, rootCauseException);
             }
             String endLocation = driver.findElement(sourceElementLocator).getLocation().toString();
@@ -308,7 +310,7 @@ public class ElementActions extends FluentElementActions {
             } else {
                 failAction(driver, "Start point = End point: " + endLocation, sourceElementLocator);
             }
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             failAction(driver, sourceElementLocator, throwable);
         }
     }
@@ -387,7 +389,7 @@ public class ElementActions extends FluentElementActions {
                 failAction(driver, elementLocator, rootCauseException);
                 return null;
             }
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             failAction(driver, elementLocator, throwable);
             //unreachable code
             return null;
@@ -417,7 +419,7 @@ public class ElementActions extends FluentElementActions {
             String elementCssProperty = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).getCssValue(propertyName);
             passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementCssProperty, null, elementName);
             return elementCssProperty;
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             failAction(driver, elementLocator, throwable);
             //unreachable code
             return null;
@@ -488,7 +490,7 @@ public class ElementActions extends FluentElementActions {
                 failAction(driver, elementLocator, rootCauseException);
                 return null;
             }
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             failAction(driver, elementLocator, throwable);
             //unreachable code
             return null;
@@ -511,7 +513,7 @@ public class ElementActions extends FluentElementActions {
             String elementSize = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).getSize().toString();
             passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementSize, null, elementName);
             return elementSize;
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             failAction(driver, elementLocator, throwable);
             //unreachable code
             return null;
@@ -533,7 +535,7 @@ public class ElementActions extends FluentElementActions {
             String elementTagName = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).getTagName();
             passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementTagName, null, elementName);
             return elementTagName;
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             failAction(driver, elementLocator, throwable);
             //unreachable code
             return null;
@@ -564,7 +566,7 @@ public class ElementActions extends FluentElementActions {
             }
             passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementText, null, elementName);
             return elementText;
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             failAction(driver, elementLocator, throwable);
             //unreachable code
             return null;
@@ -615,11 +617,10 @@ public class ElementActions extends FluentElementActions {
             try {
                 (new Actions(driver)).moveToElement(((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1))).perform();
             } catch (Exception rootCauseException) {
-                ReportManagerHelper.log(rootCauseException);
                 failAction(driver, elementLocator, rootCauseException);
             }
             passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, elementName);
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             failAction(driver, elementLocator, throwable);
         }
     }
@@ -680,7 +681,7 @@ public class ElementActions extends FluentElementActions {
                 passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "element is not clickable", null, elementName);
                 return false;
             }
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             failAction(driver, elementLocator, throwable);
             //unreachable code
             return false;
@@ -703,7 +704,7 @@ public class ElementActions extends FluentElementActions {
             boolean isDisplayed = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).isDisplayed();
             passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, elementName);
             return isDisplayed;
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             failAction(driver, elementLocator, throwable);
             //unreachable code
             return false;
@@ -736,7 +737,7 @@ public class ElementActions extends FluentElementActions {
                 }
             }
             passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), key, null, elementName);
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             failAction(driver, key, elementLocator, throwable);
         }
     }
@@ -757,7 +758,7 @@ public class ElementActions extends FluentElementActions {
             // takes screenshot before moving the element out of view
             ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).sendKeys(key);
             passAction(driver, elementLocator, key.name(), screenshot, elementName);
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             failAction(driver, key.name(), elementLocator, throwable);
         }
     }
@@ -783,7 +784,7 @@ public class ElementActions extends FluentElementActions {
             } catch (Exception e) {
                 passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "from: \"" + initialValue + "\", to a new value.", null, elementName);
             }
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             failAction(driver, elementLocator, throwable);
         }
     }
@@ -820,7 +821,7 @@ public class ElementActions extends FluentElementActions {
             if (Boolean.FALSE.equals(isOptionFound)) {
                 failAction(driver, text, elementLocator);
             }
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             failAction(driver, text, elementLocator, throwable);
         }
     }
@@ -863,7 +864,7 @@ public class ElementActions extends FluentElementActions {
             } else {
                 failAction(driver, elementLocator);
             }
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             failAction(driver, elementLocator, throwable);
         }
     }
@@ -883,10 +884,9 @@ public class ElementActions extends FluentElementActions {
                 ElementActionsHelper.submitFormUsingJavascript(driver, elementLocator);
                 passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, elementName);
             } catch (Exception rootCauseException) {
-                ReportManagerHelper.log(rootCauseException);
                 failAction(driver, elementLocator, rootCauseException);
             }
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             failAction(driver, elementLocator, throwable);
         }
     }
@@ -907,8 +907,7 @@ public class ElementActions extends FluentElementActions {
             passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
             ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
         } catch (Exception rootCauseException) {
-//                ReportManagerHelper.log(rootCauseException);
-            failAction(driver, null, rootCauseException);
+//            failAction(driver, null, rootCauseException);
         }
     }
 
@@ -930,7 +929,7 @@ public class ElementActions extends FluentElementActions {
             ReportManagerHelper.setDiscreteLogging(true);
             passAction(driver, null, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(elementLocator), null, null);
             ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             failAction(driver, elementLocator, throwable);
         }
     }
@@ -958,7 +957,7 @@ public class ElementActions extends FluentElementActions {
                 failAction(driver, "Expected to type: \"" + text + "\", but ended up with: \"" + actualResult + "\"",
                         elementLocator);
             }
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             failAction(driver, elementLocator, throwable);
         }
     }
@@ -981,7 +980,7 @@ public class ElementActions extends FluentElementActions {
                 ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).sendKeys(text);
                 passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), text, null, elementName);
             }
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             failAction(driver, text, elementLocator, throwable);
         }
     }
@@ -1019,7 +1018,6 @@ public class ElementActions extends FluentElementActions {
                     ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).sendKeys(internalAbsoluteFilePath);
                 } catch (WebDriverException rootCauseException) {
                     rootCauseException.initCause(exception1);
-                    ReportManagerHelper.log(rootCauseException);
                     // happened for the first time on MacOSX due to incorrect file path separator
                     failAction(driver, internalAbsoluteFilePath, elementLocator, rootCauseException);
                 }
@@ -1033,7 +1031,7 @@ public class ElementActions extends FluentElementActions {
                 }
             }
             passAction(driver, elementLocator, internalAbsoluteFilePath, screenshot, elementName);
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             failAction(driver, internalAbsoluteFilePath, elementLocator, throwable);
         }
     }

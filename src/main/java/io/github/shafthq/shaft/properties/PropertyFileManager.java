@@ -2,7 +2,9 @@ package io.github.shafthq.shaft.properties;
 
 import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactory;
+import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
+import io.github.shafthq.shaft.enums.Browsers;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import lombok.Getter;
 import org.apache.commons.io.FileUtils;
@@ -68,9 +70,17 @@ public class PropertyFileManager {
             overrideTargetOperatingSystemForLocalExecution();
             manageMaximumPerformanceMode();
 
+            manageSafariBrowser();
+
             setMobilePlatform();
             readPropertyFiles = false;
             ReportManagerHelper.setDiscreteLogging(isDiscrete);
+        }
+    }
+
+    private static void manageSafariBrowser() {
+        if (SHAFT.Properties.web.targetBrowserName().equals(Browsers.SAFARI)) {
+            System.setProperty("screenshotParams_screenshotType", "element");
         }
     }
 
@@ -138,7 +148,7 @@ public class PropertyFileManager {
                                     + propertiesFolderPath + "]");
                 }
             } catch (Exception e) {
-                ReportManagerHelper.log(e);
+                ReportManagerHelper.logDiscrete(e);
             }
         }
     }
@@ -204,7 +214,7 @@ public class PropertyFileManager {
             System.getProperties().putAll(properties);
             // reset system properties
         } catch (IOException e) {
-            ReportManagerHelper.log(e);
+            ReportManagerHelper.logDiscrete(e);
         }
     }
 

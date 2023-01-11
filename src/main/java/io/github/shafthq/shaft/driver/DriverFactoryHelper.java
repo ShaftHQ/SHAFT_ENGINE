@@ -7,11 +7,13 @@ import com.shaft.gui.browser.BrowserActions;
 import com.shaft.tools.io.ReportManager;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
+import io.appium.java_client.remote.options.UnhandledPromptBehavior;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import io.github.shafthq.shaft.enums.OperatingSystems;
 import io.github.shafthq.shaft.gui.browser.BrowserActionsHelpers;
 import io.github.shafthq.shaft.gui.video.RecordManager;
 import io.github.shafthq.shaft.properties.PropertyFileManager;
+import io.github.shafthq.shaft.tools.io.helpers.FailureReporter;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import io.github.shafthq.shaft.tools.support.JavaHelper;
 import lombok.AccessLevel;
@@ -28,7 +30,6 @@ import org.openqa.selenium.logging.LogType;
 import org.openqa.selenium.logging.LoggingPreferences;
 import org.openqa.selenium.remote.*;
 import org.openqa.selenium.safari.SafariOptions;
-import org.testng.Assert;
 import org.testng.Reporter;
 
 import java.net.MalformedURLException;
@@ -128,7 +129,7 @@ public class DriverFactoryHelper {
         } catch (WebDriverException | NullPointerException e) {
             // driver was already closed at an earlier stage
         } catch (Exception e) {
-            ReportManagerHelper.log(e);
+            ReportManagerHelper.logDiscrete(e);
         } finally {
             driver.remove();
             webDriverManager.remove();
@@ -143,11 +144,9 @@ public class DriverFactoryHelper {
             message = message + " With the following test data \"" + testData + "\".";
         }
         if (rootCauseException != null && rootCauseException.length >= 1) {
-            ReportManagerHelper.log(rootCauseException[0]);
-            Assert.fail(message, rootCauseException[0]);
+            FailureReporter.fail(DriverFactoryHelper.class, message, rootCauseException[0]);
         } else {
-            ReportManager.log(message);
-            Assert.fail(message);
+            FailureReporter.fail(message);
         }
     }
 
@@ -309,6 +308,7 @@ public class DriverFactoryHelper {
             case DESKTOP_SAFARI, DESKTOP_WEBKIT -> {
                 sfOptions = new SafariOptions();
                 sfOptions.setCapability(CapabilityType.PLATFORM_NAME, getDesiredOperatingSystem());
+                sfOptions.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnhandledPromptBehavior.ACCEPT_AND_NOTIFY);
                 sfOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL);
                 sfOptions.setPageLoadTimeout(Duration.ofSeconds(PAGE_LOAD_TIMEOUT));
                 sfOptions.setScriptTimeout(Duration.ofSeconds(SCRIPT_TIMEOUT));
@@ -477,14 +477,13 @@ public class DriverFactoryHelper {
             killSwitch = true;
             failAction("Unreachable Browser, terminated test suite execution.", e);
         } catch (WebDriverException e) {
-            ReportManagerHelper.log(e);
             if (e.getMessage().contains("Error forwarding the new session cannot find")) {
-                ReportManager.log("Failed to run remotely on: \"" + targetOperatingSystem + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \""
+                ReportManager.logDiscrete("Failed to run remotely on: \"" + targetOperatingSystem + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \""
                         + TARGET_HUB_URL + "\".");
                 failAction(
                         "Error forwarding the new session: Couldn't find a node that matches the desired capabilities.", e);
             } else {
-                ReportManager.log("Failed to run remotely on: \"" + targetOperatingSystem + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \""
+                ReportManager.logDiscrete("Failed to run remotely on: \"" + targetOperatingSystem + "\", \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\", \""
                         + TARGET_HUB_URL + "\".");
                 failAction("Unhandled Error.", e);
             }
@@ -506,11 +505,17 @@ public class DriverFactoryHelper {
         } catch (org.openqa.selenium.SessionNotCreatedException sessionNotCreatedException) {
             if (sessionNotCreatedException.getMessage().contains("Could not start a new session.") || sessionNotCreatedException.getMessage().contains("Response code 404.")) {
                 // this exception is thrown when using an old appium 1.x server, appending old path to connect to the server
-                switch (os) {
-                    case ANDROID ->
-                            remoteWebDriver = new AndroidDriver(new URL(TARGET_HUB_URL + "wd/hub"), capabilities);
-                    case IOS -> remoteWebDriver = new IOSDriver(new URL(TARGET_HUB_URL + "wd/hub"), capabilities);
-                    default -> remoteWebDriver = new RemoteWebDriver(new URL(TARGET_HUB_URL + "wd/hub"), capabilities);
+                try {
+                    switch (os) {
+                        case ANDROID ->
+                                remoteWebDriver = new AndroidDriver(new URL(TARGET_HUB_URL + "wd/hub"), capabilities);
+                        case IOS -> remoteWebDriver = new IOSDriver(new URL(TARGET_HUB_URL + "wd/hub"), capabilities);
+                        default ->
+                                remoteWebDriver = new RemoteWebDriver(new URL(TARGET_HUB_URL + "wd/hub"), capabilities);
+                    }
+                } catch (org.openqa.selenium.SessionNotCreatedException sessionNotCreatedException2) {
+                    sessionNotCreatedException2.initCause(sessionNotCreatedException);
+                    throw sessionNotCreatedException;
                 }
             } else {
                 throw sessionNotCreatedException;
@@ -669,17 +674,15 @@ public class DriverFactoryHelper {
             if (!isMobileExecution) {
                 if (Boolean.TRUE.equals(AUTO_MAXIMIZE)
                         && (
-//                                OperatingSystems.MACOS.equals(getOperatingSystemFromName(targetOperatingSystem))
                         "Safari".equals(targetBrowserName) || "MozillaFirefox".equals(targetBrowserName)
                 )) {
-                    BrowserActions.maximizeWindow(driver.get());
+                    new BrowserActions().maximizeWindow();
                 }
             }
             // start session recording
             RecordManager.startVideoRecording(driver.get());
         } catch (NullPointerException e) {
-            ReportManagerHelper.log(e);
-            Assert.fail("Unhandled Exception with Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".", e);
+            FailureReporter.fail(DriverFactoryHelper.class, "Unhandled Exception with Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".", e);
         }
 
         if (Boolean.parseBoolean(System.getProperty("heal-enabled").trim())) {

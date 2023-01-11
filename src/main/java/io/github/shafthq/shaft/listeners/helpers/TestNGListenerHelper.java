@@ -109,6 +109,23 @@ public class TestNGListenerHelper {
                     System.setProperty("screenshotParams_screenshotType", "Regular");
                 }
             });
+        } else {
+            //if not cross browser mode, still aff some properties as parameters to the test suites for better reporting
+            var parameters = new java.util.HashMap<>(Map.of(
+                    "executionAddress", Properties.platform.executionAddress(),
+                    "targetOperatingSystem", Properties.platform.targetOperatingSystem()
+            ));
+
+            if (DriverFactoryHelper.isWebExecution()) {
+                parameters.put("targetBrowserName", Properties.web.targetBrowserName());
+            } else {
+                parameters.put("automationName", Properties.mobile.automationName());
+            }
+            suites.forEach(suite -> {
+                var params = suite.getParameters();
+                params.putAll(parameters);
+                suite.setParameters(params);
+            });
         }
     }
 
@@ -214,7 +231,7 @@ public class TestNGListenerHelper {
             Issue issue = method.getAnnotation(Issue.class);
             if (issue != null) {
                 SkipException ex = new SkipException("Skipping Test as it's expected to fail due to open issue: [" + issue.value() + "]");
-                ReportManagerHelper.log(ex);
+                ReportManagerHelper.logDiscrete(ex);
                 throw ex;
             }
             Issues issues = method.getAnnotation(Issues.class);
@@ -222,7 +239,7 @@ public class TestNGListenerHelper {
                 StringBuilder issueNames = new StringBuilder();
                 Arrays.stream(issues.value()).iterator().forEachRemaining(issueI -> issueNames.append(issueI.value()).append(" ,"));
                 SkipException ex = new SkipException("Skipping Test as it's expected to fail due to open issues: [" + issueNames.substring(0, issueNames.length() - 2) + "]");
-                ReportManagerHelper.log(ex);
+                ReportManagerHelper.logDiscrete(ex);
                 throw ex;
             }
         }
@@ -232,7 +249,7 @@ public class TestNGListenerHelper {
         // implementing the new kill switch at the start of every test method
         if (DriverFactoryHelper.isKillSwitch()) {
             SkipException ex = new SkipException("Skipping Test: " + iTestResult.getName());
-            ReportManagerHelper.log(ex);
+            ReportManagerHelper.logDiscrete(ex);
             throw ex;
         }
     }

@@ -35,6 +35,10 @@ public class TouchActions {
     public TouchActions() {
     }
 
+    public static TouchActions getInstance() {
+        return new TouchActions();
+    }
+
     /**
      * This is a convenience method to be able to call Element Actions from within the current Touch Actions instance.
      * <p>
@@ -536,9 +540,15 @@ public class TouchActions {
                     }
                 }
                 ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, null);
-            } catch (Exception e) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.", null, attachments);
+            } catch (AssertionError assertionError) {
+                //bubble up
+                throw assertionError;
+            } catch (Exception exception) {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.", null, attachments, exception);
             }
+        } catch (AssertionError assertionError) {
+            //bubble up
+            throw assertionError;
         } catch (Throwable throwable) {
             ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), scrollableElementLocator, throwable);
         }

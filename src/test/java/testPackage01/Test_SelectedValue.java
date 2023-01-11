@@ -1,37 +1,40 @@
 package testPackage01;
 
-import com.shaft.driver.DriverFactory;
-import com.shaft.driver.DriverFactory.DriverType;
-import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.element.ElementActions;
-import com.shaft.tools.io.ReportManager;
-import com.shaft.validation.Validations;
+import com.shaft.driver.SHAFT;
 import org.openqa.selenium.By;
-import org.openqa.selenium.WebDriver;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class Test_SelectedValue {
+    SHAFT.GUI.WebDriver driver;
     String baseURL = "https://yari-demos.prod.mdn.mozit.cloud/en-US/docs/Web/HTML/Element/select/_sample_.";
+    By select = By.tagName("select");
+
     @Test
     public void simpleSelect() {
-        WebDriver driver = DriverFactory.getDriver(DriverType.DESKTOP_CHROME);
-        BrowserActions.navigateToURL(driver, baseURL+"Basic_select.html");
-        By select = By.tagName("select");
-        ElementActions.select(driver, select, "Third Value");
-        ReportManager.log(ElementActions.getSelectedText(driver, select));
-        Validations.assertThat().element(driver, select).attribute("selectedText").equals("Third Value");
-        BrowserActions.closeCurrentWindow(driver);
+        String textToSelect = "Third Value";
+        driver.browser().navigateToURL(baseURL + "Basic_select.html")
+                .performElementAction().select(select, textToSelect);
+        driver.assertThat().element(select).attribute("selectedText").isEqualTo(textToSelect).perform();
     }
 
     @Test
     public void multipleSelect() {
-        WebDriver driver = DriverFactory.getDriver(DriverType.DESKTOP_CHROME);
-        BrowserActions.navigateToURL(driver, baseURL+"Advanced_select_with_multiple_features.html");
-        By select = By.tagName("select");
-        ElementActions.select(driver, select, "Dog");
-        ElementActions.select(driver, select, "Cat");
-        ReportManager.log(ElementActions.getSelectedText(driver, select));
-        Validations.assertThat().element(driver, select).attribute("selectedText").equals("DogCat");
-        BrowserActions.closeCurrentWindow(driver);
+        driver.browser().navigateToURL(baseURL + "Advanced_select_with_multiple_features.html")
+                .performElementAction().select(select, "Dog")
+                .select(select, "Cat");
+        driver.assertThat().element(select).attribute("selectedText").isEqualTo("DogCat").perform();
     }
+
+    @BeforeMethod
+    public void beforeMethod() {
+        driver = new SHAFT.GUI.WebDriver();
+    }
+
+    @AfterMethod
+    public void afterMethod() {
+        driver.quit();
+    }
+
 }

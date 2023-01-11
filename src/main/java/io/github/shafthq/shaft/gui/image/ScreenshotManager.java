@@ -40,7 +40,7 @@ public class ScreenshotManager {
             .getProperty("screenshotParams_whenToTakeAScreenshot");
     private static final Boolean SCREENSHOT_PARAMS_HIGHLIGHTELEMENTS = Boolean
             .valueOf(System.getProperty("screenshotParams_highlightElements"));
-    private static final String SCREENSHOT_PARAMS_SCREENSHOTTYPE = System
+    private static String SCREENSHOT_PARAMS_SCREENSHOTTYPE = System
             .getProperty("screenshotParams_screenshotType");
     private static String SCREENSHOT_PARAMS_HIGHLIGHTMETHOD = System
             .getProperty("screenshotParams_highlightMethod");
@@ -207,7 +207,7 @@ public class ScreenshotManager {
                 }
             } catch (IOException e) {
                 ReportManager.logDiscrete("Failed to create attachment.");
-                ReportManagerHelper.log(e);
+                ReportManagerHelper.logDiscrete(e);
             }
 
             startOrAppendToAnimatedGif(src);
@@ -243,7 +243,7 @@ public class ScreenshotManager {
                 return ScreenshotHelper.makeFullScreenshot(driver);
             }
         } catch (Exception e) {
-            ReportManagerHelper.log(e);
+            ReportManagerHelper.logDiscrete(e);
             return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
         }
     }
@@ -273,7 +273,7 @@ public class ScreenshotManager {
                 // this happens when the gif fails to start, maybe the browser window was
                 // already closed
             } catch (IOException | NullPointerException | IllegalStateException e) {
-                ReportManagerHelper.log(e);
+                ReportManagerHelper.logDiscrete(e);
             }
         }
         return "";
@@ -318,14 +318,14 @@ public class ScreenshotManager {
                      * element before taking the screenshot
                      */
                     if (takeScreenshot && Boolean.TRUE.equals(SCREENSHOT_PARAMS_HIGHLIGHTELEMENTS) && elementLocator != null){
-                        try{
+                        try {
                             // catching https://github.com/ShaftHQ/SHAFT_ENGINE/issues/640
                             Mat img = Imgcodecs.imdecode(new MatOfByte(), Imgcodecs.IMREAD_COLOR);
-                        } catch (java.lang.UnsatisfiedLinkError unsatisfiedLinkError){
+                        } catch (java.lang.UnsatisfiedLinkError unsatisfiedLinkError) {
                             ReportManagerHelper.logDiscrete(unsatisfiedLinkError);
                             ReportManager.logDiscrete("Caught an UnsatisfiedLinkError, switching element highlighting method to JavaScript instead of AI.");
                             SCREENSHOT_PARAMS_HIGHLIGHTMETHOD = "JavaScript";
-                        } catch (Throwable t){
+                        } catch (Exception exception) {
                             //do nothing in case of any other exception
                             //expected to throw org.opencv.core.CvException if removed
                         }
@@ -345,7 +345,7 @@ public class ScreenshotManager {
                 } catch (StaleElementReferenceException | ElementNotInteractableException e) {
                     // this happens when WebDriver fails to capture the elements initial style or
                     // fails to highlight the element for some reason
-                    ReportManagerHelper.log(e);
+                    ReportManagerHelper.logDiscrete(e);
                 }
 
                 /*
@@ -396,7 +396,7 @@ public class ScreenshotManager {
                 } catch (WebDriverException e) {
                     // this happens when a browser session crashes mid-execution, or the docker is
                     // unregistered
-                    ReportManagerHelper.log(e);
+                    ReportManagerHelper.logDiscrete(e);
                 }
             }
 //        }
@@ -410,7 +410,15 @@ public class ScreenshotManager {
 
         if (DriverFactoryHelper.isWebExecution()) {
             return switch (SCREENSHOT_PARAMS_SCREENSHOTTYPE.toLowerCase().trim()) {
-                case "fullpage" -> takeFullPageScreenshot(driver);
+                case "fullpage" -> {
+                    try {
+                        yield takeFullPageScreenshot(driver);
+                    } catch (Exception throwable) {
+                        ReportManagerHelper.logDiscrete(throwable);
+                        SCREENSHOT_PARAMS_SCREENSHOTTYPE = "element";
+                        yield takeScreenshot(driver);
+                    }
+                }
                 case "element" -> takeElementScreenshot(driver, targetElementLocator, true);
                 default -> ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
             };
@@ -437,7 +445,7 @@ public class ScreenshotManager {
                 }
             }
         } catch (Exception e) {
-            ReportManagerHelper.log(e);
+            ReportManagerHelper.logDiscrete(e);
             if (returnRegularScreenshotInCaseOfFailure) {
                 return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
             } else {
@@ -472,7 +480,7 @@ public class ScreenshotManager {
                 return Arrays.asList("Screenshot", screenshotFileName,
                         new ByteArrayInputStream(screenshotOutputStream.toByteArray()));
             } catch (IOException e) {
-                ReportManagerHelper.log(e);
+                ReportManagerHelper.logDiscrete(e);
                 return null;
             }
         } else{
@@ -494,7 +502,7 @@ public class ScreenshotManager {
         try {
             JavaScriptWaitManager.waitForLazyLoading(DriverFactoryHelper.getDriver().get());
         } catch (Exception e) {
-            ReportManagerHelper.log(e);
+            ReportManagerHelper.logDiscrete(e);
         }
         return regularElementStyle;
     }
@@ -557,7 +565,7 @@ public class ScreenshotManager {
                 // method
                 // or this happens when the window is already closed
             } catch (IOException | WebDriverException e) {
-                ReportManagerHelper.log(e);
+                ReportManagerHelper.logDiscrete(e);
             }
         }
     }
@@ -632,7 +640,7 @@ public class ScreenshotManager {
             // removed the old solution, the new fix is to ignore this exception, this will
             // leave the gif intact and will attach it even after failing to append to it
         } catch (WebDriverException | IOException | IllegalStateException | IllegalArgumentException | NullPointerException e) {
-            ReportManagerHelper.log(e);
+            ReportManagerHelper.logDiscrete(e);
         }
     }
 }

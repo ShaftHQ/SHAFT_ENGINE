@@ -29,7 +29,7 @@ public class ValidationsHelper {
     //TODO: implement element attribute and element exists validations for sikuli actions
     static ThreadLocal<ArrayList<String>> optionalCustomLogMessage = new ThreadLocal<>();
     private static By lastUsedElementLocator = null;
-    private static Boolean discreetLoggingState = Boolean.valueOf(System.getProperty("alwaysLogDiscreetly"));
+    private static final Boolean discreetLoggingState = Boolean.valueOf(System.getProperty("alwaysLogDiscreetly"));
     private static List<String> verificationFailuresList = new ArrayList<>();
     private static AssertionError verificationError = null;
 
@@ -133,7 +133,6 @@ public class ValidationsHelper {
     protected static void validateElementAttribute(ValidationCategory validationCategory, WebDriver driver, By elementLocator, String elementAttribute,
                                                    String expectedValue, ValidationComparisonType validationComparisonType, ValidationType validationType,
                                                    String... optionalCustomLogMessage) {
-
         processCustomLogMessage(optionalCustomLogMessage);
         String[] expectedAttributeStates = {"Value Should be", "Value Should not be"};
         String attributeSeparator = "' for the '";
@@ -141,8 +140,6 @@ public class ValidationsHelper {
 
         String actualValue;
         try {
-            discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
-            ReportManagerHelper.setDiscreteLogging(true);
             actualValue = switch (elementAttribute.toLowerCase()) {
                 case "text" -> ElementActions.getText(driver, elementLocator);
                 case "tagname" -> ElementActions.getTagName(driver, elementLocator);
@@ -150,8 +147,7 @@ public class ValidationsHelper {
                 case "selectedtext" -> ElementActions.getSelectedText(driver, elementLocator);
                 default -> ElementActions.getAttribute(driver, elementLocator, elementAttribute);
             };
-            ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
-        } catch (AssertionError e) {
+        } catch (Throwable e) {
             // force fail due to upstream failure
             if (validationType.getValue()) {
                 fail(validationCategory, expectedAttributeStates[0] + " '" + expectedValue + attributeSeparator + elementAttribute
@@ -183,10 +179,23 @@ public class ValidationsHelper {
         String propertySeparator = "' for the '";
         String locatorSeparator = "' CSS property, element locator '";
 
-        discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
-        ReportManagerHelper.setDiscreteLogging(true);
-        String actualValue = ElementActions.getCSSProperty(driver, elementLocator, propertyName);
-        ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
+        String actualValue;
+
+        try {
+            actualValue = ElementActions.getCSSProperty(driver, elementLocator, propertyName);
+        } catch (Throwable e) {
+            // force fail due to upstream failure
+            if (validationType.getValue()) {
+                fail(validationCategory, expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
+                                + locatorSeparator + elementLocator.toString() + "'",
+                        "Failed to read the desired element CSS property", validationComparisonType, validationType, e);
+            } else {
+                fail(validationCategory, expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
+                                + locatorSeparator + elementLocator.toString() + "'",
+                        "Failed to read the desired element CSS property", validationComparisonType, validationType, e);
+            }
+            return;
+        }
 
         lastUsedElementLocator = elementLocator;
         int comparisonResult = JavaHelper.compareTwoObjects(expectedValue, actualValue,
@@ -209,8 +218,6 @@ public class ValidationsHelper {
 
         String actualValue;
         try {
-            discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
-            ReportManagerHelper.setDiscreteLogging(true);
             actualValue = switch (browserAttribute.toLowerCase()) {
                 case "currenturl", "url" -> BrowserActions.getCurrentURL(driver);
                 case "pagesource" -> BrowserActions.getPageSource(driver);
@@ -220,8 +227,7 @@ public class ValidationsHelper {
                 case "windowsize" -> BrowserActions.getWindowSize(driver);
                 default -> "";
             };
-            ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
-        } catch (AssertionError e) {
+        } catch (Throwable e) {
             // force fail due to upstream failure
             if (validationType.getValue()) {
                 fail(validationCategory, expectedAttributeStates[0] + " '" + expectedValue + attributeSeparator + browserAttribute
@@ -674,18 +680,23 @@ public class ValidationsHelper {
             //}
         }
 
+        // attach failure reason
+        if (failureReason != null) {
+            List<Object> failureReasonAttachment = Arrays.asList("Validation Test Data", "Failure Reason",
+                    ReportManagerHelper.formatStackTraceToLogEntry(failureReason));
+            attachments.add(failureReasonAttachment);
+        }
+
+        // create the log entry with or without attachments
+        if (!attachments.isEmpty()) {
+            ReportManagerHelper.logNestedSteps(message.toString(), optionalCustomLogMessage.get(), attachments);
+        } else {
+            ReportManagerHelper.logNestedSteps(message.toString(), optionalCustomLogMessage.get(), null);
+        }
+
         // handling changes as per validationCategory hard/soft
         switch (validationCategory) {
             case HARD_ASSERT -> {
-                // create the log entry with or without attachments
-                if (!attachments.isEmpty()) {
-                    //ReportManagerHelper.log(message.toString(), attachments);
-                    ReportManagerHelper.logNestedSteps(message.toString(), optionalCustomLogMessage.get(), attachments);
-                } else {
-                    //ReportManager.log(message.toString());
-                    ReportManagerHelper.logNestedSteps(message.toString(), optionalCustomLogMessage.get(), null);
-                }
-
                 // set test state in case of failure
                 if (!validationState.getValue()) {
                     if (failureReason != null) {
@@ -696,22 +707,6 @@ public class ValidationsHelper {
                 }
             }
             case SOFT_ASSERT -> {
-                // handle failure reason in case of soft assert
-                if (failureReason != null) {
-                    List<Object> failureReasonAttachment = Arrays.asList("Validation Test Data", "Failure Reason",
-                            ReportManagerHelper.formatStackTraceToLogEntry(failureReason));
-                    attachments.add(failureReasonAttachment);
-                }
-
-                // create the log entry with or without attachments
-                if (!attachments.isEmpty()) {
-//                    ReportManagerHelper.log(message.toString(), attachments);
-                    ReportManagerHelper.logNestedSteps(message.toString(), optionalCustomLogMessage.get(), attachments);
-                } else {
-//                    ReportManager.log(message.toString());
-                    ReportManagerHelper.logNestedSteps(message.toString(), optionalCustomLogMessage.get(), null);
-                }
-
                 // set test state in case of failure
                 if (!validationState.getValue()) {
                     verificationFailuresList.add(message.toString());

@@ -1,11 +1,11 @@
 package com.shaft.tools.io;
 
 import com.shaft.cli.FileActions;
+import io.github.shafthq.shaft.tools.io.helpers.FailureReporter;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import io.github.shafthq.shaft.tools.support.JavaHelper;
 import io.restassured.path.json.JsonPath;
 import io.restassured.path.json.exception.JsonPathException;
-import org.testng.Assert;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -118,13 +118,9 @@ public class JSONFileManager {
                 case MAP -> testData = JsonPath.from(reader.get()).getMap(jsonPath);
             }
         } catch (ClassCastException rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
-            ReportManager.log("Incorrect jsonPath. [" + jsonPath + "].");
-            Assert.fail("Incorrect jsonPath. [" + jsonPath + "].");
+            FailureReporter.fail(this.getClass(), "Incorrect jsonPath. [" + jsonPath + "].", rootCauseException);
         } catch (JsonPathException | IllegalArgumentException rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
-            ReportManager.log("Couldn't read the desired file. [" + this.jsonFilePath + "].");
-            Assert.fail("Couldn't read the desired file. [" + this.jsonFilePath + "].");
+            FailureReporter.fail(this.getClass(), "Couldn't read the desired file. [" + this.jsonFilePath + "].", rootCauseException);
         }
         return testData;
     }
@@ -136,9 +132,7 @@ public class JSONFileManager {
         try {
             reader.set(new FileReader(FileActions.getInstance().getAbsolutePath(jsonFilePath)));
         } catch (FileNotFoundException rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
-            ReportManager.log("Couldn't find the desired file. [" + jsonFilePath + "].");
-            Assert.fail("Couldn't find the desired file. [" + jsonFilePath + "].");
+            FailureReporter.fail(this.getClass(), "Couldn't read the desired file. [" + this.jsonFilePath + "].", rootCauseException);
         }
     }
 

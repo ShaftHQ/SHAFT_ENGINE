@@ -1,7 +1,7 @@
 package com.shaft.tools.io;
 
 import com.shaft.cli.FileActions;
-import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.tools.io.helpers.FailureReporter;
 import io.github.shafthq.shaft.tools.support.JavaHelper;
 import org.apache.commons.io.FileUtils;
 import org.apache.pdfbox.cos.COSDocument;
@@ -9,7 +9,6 @@ import org.apache.pdfbox.io.RandomAccessBufferedFileInputStream;
 import org.apache.pdfbox.pdfparser.PDFParser;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
-import org.testng.Assert;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,9 +28,7 @@ public class PdfFileManager {
         file = new File(FileActions.getInstance().getAbsolutePath(folderName, fileName));
 
         if (!doesFileExist) {
-            ReportManager.log("Couldn't find the provided file [" + file
-                    + "]. It might need to wait more to download or the path isn't correct");
-            Assert.fail("Couldn't find the provided file [" + file
+            FailureReporter.fail("Couldn't find the provided file [" + file
                     + "]. It might need to wait more to download or the path isn't correct");
         }
     }
@@ -41,9 +38,7 @@ public class PdfFileManager {
         boolean doesFileExist = FileActions.getInstance().doesFileExist(pdfFilePath);
         file = new File(FileActions.getInstance().getAbsolutePath(pdfFilePath));
         if (!doesFileExist) {
-            ReportManager.log("Couldn't find the provided file [" + file
-                    + "]. It might need to wait more to download or the path isn't correct");
-            Assert.fail("Couldn't find the provided file [" + file
+            FailureReporter.fail("Couldn't find the provided file [" + file
                     + "]. It might need to wait more to download or the path isn't correct");
         }
     }
@@ -76,13 +71,12 @@ public class PdfFileManager {
                     FileActions.getInstance().deleteFile(relativeFilePath);
                 }
                 return fileContent;
-            } catch (java.io.IOException e) {
-                ReportManagerHelper.log(e);
-                Assert.fail("Failed to read this PDF file [" + relativeFilePath + "].");
+            } catch (java.io.IOException rootCauseException) {
+                FailureReporter.fail(PdfFileManager.class, "Failed to read this PDF file [" + relativeFilePath + "].", rootCauseException);
             }
 
         } else {
-            Assert.fail("This PDF file [" + relativeFilePath + "] doesn't exist.");
+            FailureReporter.fail("This PDF file [" + relativeFilePath + "] doesn't exist.");
         }
         return "";
     }
@@ -124,10 +118,8 @@ public class PdfFileManager {
     private RandomAccessBufferedFileInputStream readFileInputStream(File file) {
         try {
             stream = new RandomAccessBufferedFileInputStream(file);
-        } catch (IOException e) {
-            ReportManagerHelper.log(e);
-            ReportManager.log("Couldn't read the date from the provided file [" + file + "].");
-            Assert.fail("Couldn't read the data from the provided file [" + file + "].");
+        } catch (IOException rootCauseException) {
+            FailureReporter.fail(PdfFileManager.class, "Couldn't read the data from the provided file [" + file + "].", rootCauseException);
         }
         return stream;
     }
@@ -136,12 +128,8 @@ public class PdfFileManager {
         try {
             parser = new PDFParser(stream);
             parser.parse();
-        } catch (IOException e) {
-            ReportManagerHelper.log(e);
-            ReportManager.log(
-                    "Couldn't parse the stream that opened the document to be prepared to populate the COSDocument object.");
-            Assert.fail(
-                    "Couldn't parse the stream that opened the document to be prepared to populate the COSDocument object.");
+        } catch (IOException rootCauseException) {
+            FailureReporter.fail(PdfFileManager.class, "Couldn't parse the stream that opened the document to be prepared to populate the COSDocument object.", rootCauseException);
         }
         return parser;
     }
@@ -149,12 +137,8 @@ public class PdfFileManager {
     private COSDocument getParsedDocument(PDFParser parser) {
         try {
             cosDoc = parser.getDocument();
-        } catch (IOException e) {
-            ReportManagerHelper.log(e);
-            ReportManager.log(
-                    "Couldn't get the document that was parsed. Check that the document parsed before get the document.");
-            Assert.fail(
-                    "Couldn't get the document that was parsed. Check that the document parsed before get the document.");
+        } catch (IOException rootCauseException) {
+            FailureReporter.fail(PdfFileManager.class, "Couldn't get the document that was parsed. Check that the document parsed before get the document.", rootCauseException);
         }
         return cosDoc;
     }
@@ -169,10 +153,8 @@ public class PdfFileManager {
             // created the PDF
             // To get text sorted from left to right and top to bottom
             strip.setSortByPosition(true);
-        } catch (IOException e) {
-            ReportManagerHelper.log(e);
-            ReportManager.log("Couldn't load PDFTextStripper properties.");
-            Assert.fail("Couldn't load PDFTextStripper properties.");
+        } catch (IOException rootCauseException) {
+            FailureReporter.fail(PdfFileManager.class, "Couldn't load PDFTextStripper properties.", rootCauseException);
         }
 
         strip.setStartPage(startPageNumber);
@@ -182,10 +164,8 @@ public class PdfFileManager {
         String content = null;
         try {
             content = strip.getText(pdDoc);
-        } catch (IOException e) {
-            ReportManagerHelper.log(e);
-            ReportManager.log("Couldn't get document text. Document state is invalid or it is encrypted.");
-            Assert.fail("Couldn't get document text. Document state is invalid or it is encrypted.");
+        } catch (IOException rootCauseException) {
+            FailureReporter.fail(PdfFileManager.class, "Couldn't get document text. Document state is invalid or it is encrypted.", rootCauseException);
         }
         return content;
     }
@@ -194,10 +174,8 @@ public class PdfFileManager {
         try {
             strip = new PDFTextStripper();
             strip.setSortByPosition(true);
-        } catch (IOException e) {
-            ReportManagerHelper.log(e);
-            ReportManager.log("Couldn't load PDFTextStripper properties.");
-            Assert.fail("Couldn't load PDFTextStripper properties.");
+        } catch (IOException rootCauseException) {
+            FailureReporter.fail(PdfFileManager.class, "Couldn't load PDFTextStripper properties.", rootCauseException);
         }
 
         PDDocument pdDoc = new PDDocument(cosDoc);
@@ -205,10 +183,8 @@ public class PdfFileManager {
         String content = null;
         try {
             content = strip.getText(pdDoc);
-        } catch (IOException e) {
-            ReportManagerHelper.log(e);
-            ReportManager.log("Couldn't get document text. Document state is invalid or it is encrypted.");
-            Assert.fail("Couldn't get document text. Document state is invalid or it is encrypted.");
+        } catch (IOException rootCauseException) {
+            FailureReporter.fail(PdfFileManager.class, "Couldn't get document text. Document state is invalid or it is encrypted.", rootCauseException);
         }
         return content;
     }
@@ -217,10 +193,8 @@ public class PdfFileManager {
                                           DeleteFileAfterValidationStatus deleteFileAfterValidation) {
         try {
             stream.close();
-        } catch (IOException e) {
-            ReportManagerHelper.log(e);
-            ReportManager.log("Couldn't close the stream, check if it already opened.");
-            Assert.fail("Couldn't close the stream, check if it already opened.");
+        } catch (IOException rootCauseException) {
+            FailureReporter.fail(PdfFileManager.class, "Couldn't close the stream, check if it already opened.", rootCauseException);
         }
 
         // Delete the file from target folder for next run
@@ -228,10 +202,8 @@ public class PdfFileManager {
         if (deleteFileAfterValidation == DeleteFileAfterValidationStatus.TRUE) {
             try {
                 FileUtils.forceDelete(file);
-            } catch (IOException e) {
-                ReportManagerHelper.log(e);
-                ReportManager.log("Couldn't find the file, File directory may be null or file is not found.");
-                Assert.fail("Couldn't find the file, File directory may be null or file is not found.");
+            } catch (IOException rootCauseException) {
+                FailureReporter.fail(PdfFileManager.class, "Couldn't find the file, File directory may be null or file is not found.", rootCauseException);
             }
         }
 

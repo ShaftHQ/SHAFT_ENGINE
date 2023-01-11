@@ -1,6 +1,7 @@
 package io.github.shafthq.shaft.gui.browser;
 
 import com.google.common.net.InternetDomainName;
+import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
@@ -18,6 +19,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import org.testng.Assert;
 
 import java.awt.*;
+import java.io.File;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -55,7 +57,7 @@ public class BrowserActionsHelpers {
 
     public static void failAction(WebDriver driver, String actionName, String testData,
                                   Exception... rootCauseException) {
-        String message = reportActionResult(driver, actionName, testData, false);
+        String message = reportActionResult(driver, actionName, testData, false, rootCauseException);
         if (rootCauseException != null && rootCauseException.length >= 1) {
             Assert.fail(message, rootCauseException[0]);
         } else {
@@ -64,7 +66,8 @@ public class BrowserActionsHelpers {
     }
 
     private static String reportActionResult(WebDriver driver, String actionName, String testData,
-                                             Boolean passFailStatus) {
+                                             Boolean passFailStatus,
+                                             Exception... rootCauseException) {
         actionName = JavaHelper.convertToSentenceCase(actionName);
         String message;
         if (Boolean.TRUE.equals(passFailStatus)) {
@@ -75,7 +78,7 @@ public class BrowserActionsHelpers {
 
         List<List<Object>> attachments = new ArrayList<>();
         if (testData != null && !testData.isEmpty()) {
-            if (testData.length() >= 500 || testData.contains("</iframe>") || testData.contains("</html>")) {
+            if (testData.length() >= 500 || testData.contains("</iframe>") || testData.contains("</html>") || testData.startsWith("From: <Saved by Blink>")) {
                 List<Object> actualValueAttachment = Arrays.asList("Browser Action Test Data - " + actionName,
                         "Actual Value", testData);
                 attachments.add(actualValueAttachment);
@@ -83,6 +86,13 @@ public class BrowserActionsHelpers {
                 message = message + " \"" + testData.trim() + "\"";
             }
         }
+
+        if (rootCauseException != null && rootCauseException.length >= 1) {
+            List<Object> actualValueAttachment = Arrays.asList("Browser Action Exception - " + actionName,
+                    "Stacktrace", ReportManagerHelper.formatStackTraceToLogEntry(rootCauseException[0]));
+            attachments.add(actualValueAttachment);
+        }
+
         message = message + ".";
 
         message = message.replace("Browser Action: ", "");
@@ -110,8 +120,16 @@ public class BrowserActionsHelpers {
     }
 
     public static void navigateToNewURL(WebDriver driver, String initialURL, String targetUrl, String targetUrlAfterRedirection) {
+        var internalURL = targetUrl;
         try {
-            driver.navigate().to(targetUrl);
+            if (targetUrl.startsWith(SHAFT.Properties.paths.testData())) {
+                internalURL = "file://" + new File(targetUrl).getAbsolutePath();
+            }
+        } catch (Exception exception) {
+        }
+
+        try {
+            driver.navigate().to(internalURL);
         } catch (WebDriverException rootCauseException) {
             failAction(driver, targetUrl, rootCauseException);
         }
@@ -161,7 +179,7 @@ public class BrowserActionsHelpers {
             } catch (WebDriverException rootCauseException) {
                 // org.openqa.selenium.WebDriverException: unknown error: failed to change
                 // window state to maximized, current state is normal
-                ReportManagerHelper.log(rootCauseException);
+                ReportManagerHelper.logDiscrete(rootCauseException);
             }
         }
         return driver.manage().window().getSize();
@@ -239,7 +257,7 @@ public class BrowserActionsHelpers {
     }
 
     @SneakyThrows
-    public static String formatURL(String username, String password, String targetUrl) {
+    public static String formatURLForBasicAuthentication(String username, String password, String targetUrl) {
         if (targetUrl.startsWith("https://")) {
             return new URI("https://" + URLEncoder.encode(username, StandardCharsets.UTF_8) + ":" + URLEncoder.encode(password, StandardCharsets.UTF_8) + "@" + targetUrl.substring("https://".length())).toString();
         } else {

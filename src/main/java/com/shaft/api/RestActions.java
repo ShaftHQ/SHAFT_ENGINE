@@ -95,7 +95,7 @@ public class RestActions {
 
     private static void failAction(String actionName, String testData, Object requestBody, RequestSpecification specs, Response response,
                                    Throwable... rootCauseException) {
-        String message = reportActionResult(actionName, testData, requestBody, specs, response, false, null, false);
+        String message = reportActionResult(actionName, testData, requestBody, specs, response, false, null, false, rootCauseException);
         if (rootCauseException != null && rootCauseException.length >= 1) {
             Assert.fail(message, rootCauseException[0]);
         } else {
@@ -442,11 +442,9 @@ public class RestActions {
                         actualJsonArray);
             };
         } catch (IOException rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
             failAction("Couldn't find the desired file. \"" + referenceJsonFilePath + "\".", rootCauseException);
             comparisonResult = false;
         } catch (ParseException | JSONException rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
             failAction("Couldn't parse the desired file. \"" + referenceJsonFilePath + "\".", rootCauseException);
             comparisonResult = false;
         }
@@ -470,7 +468,7 @@ public class RestActions {
     }
 
     private static String reportActionResult(String actionName, String testData, Object requestBody, RequestSpecification specs, Response response,
-                                             Boolean isDiscrete, List<Object> expectedFileBodyAttachment, Boolean passFailStatus) {
+                                             Boolean isDiscrete, List<Object> expectedFileBodyAttachment, Boolean passFailStatus, Throwable... rootCauseException) {
 //        actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         actionName = JavaHelper.convertToSentenceCase(actionName);
         String message;
@@ -505,6 +503,12 @@ public class RestActions {
             }
             attachments.add(expectedFileBodyAttachment);
             attachments.add(reportResponseBody(response, initialLoggingState));
+
+            if (rootCauseException != null && rootCauseException.length >= 1) {
+                List<Object> actualValueAttachment = Arrays.asList("API Action Exception - " + actionName,
+                        "Stacktrace", ReportManagerHelper.formatStackTraceToLogEntry(rootCauseException[0]));
+                attachments.add(actualValueAttachment);
+            }
 
             if (Boolean.FALSE.equals(initialLoggingState)) {
                 ReportManagerHelper.log(message, attachments);
@@ -1108,7 +1112,6 @@ public class RestActions {
                     default -> builder.setBody(body);
                 }
             } catch (Exception rootCauseException) {
-                ReportManagerHelper.log(rootCauseException);
                 failAction("Issue with parsing body content", rootCauseException);
             }
         }

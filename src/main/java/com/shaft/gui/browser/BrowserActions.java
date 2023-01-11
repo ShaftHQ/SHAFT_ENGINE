@@ -35,6 +35,10 @@ public class BrowserActions extends FluentBrowserActions {
         new FluentBrowserActions();
     }
 
+    public static BrowserActions getInstance() {
+        return new BrowserActions();
+    }
+
     @Deprecated
     public static FluentBrowserActions performBrowserAction(WebDriver driver) {
         return new FluentBrowserActions();
@@ -242,7 +246,7 @@ public class BrowserActions extends FluentBrowserActions {
         try {
             ((JavascriptExecutor) driver).executeScript("return window.stop;");
         } catch (Exception rootCauseException) {
-            ReportManagerHelper.log(rootCauseException);
+            ReportManagerHelper.logDiscrete(rootCauseException);
             /*
              * org.openqa.selenium.NoSuchSessionException: Session ID is null. Using
              * WebDriver after calling quit()? Build info: version: '3.141.59', revision:
@@ -303,38 +307,31 @@ public class BrowserActions extends FluentBrowserActions {
      */
     @Deprecated
     public static void navigateToURLWithBasicAuthentication(WebDriver driver, String targetUrl, String username, String password, String targetUrlAfterAuthentication) {
-        String domainName = getDomainNameFromURL(targetUrl);
-        String driverName = System.getProperty("targetBrowserName");
-        if (driverName.equals("GoogleChrome") || driverName.equals("MicrosoftEdge")) {
+        try {
+            String domainName = getDomainNameFromURL(targetUrl);
             if (System.getProperty("executionAddress").equals("local")) {
                 Predicate<URI> uriPredicate = uri -> uri.getHost().contains(domainName);
                 ((HasAuthentication) driver).register(uriPredicate, UsernameAndPassword.of(username, password));
             } else {
-                try {
-                    AtomicReference<DevTools> devToolsAtomicReference = new AtomicReference<>();
-                    driver = new Augmenter().addDriverAugmentation("chrome",
-                            HasAuthentication.class,
-                            (caps, exec) -> (whenThisMatches, useTheseCredentials) -> {
-                                devToolsAtomicReference.get()
-                                        .createSessionIfThereIsNotOne();
-                                devToolsAtomicReference.get().getDomains()
-                                        .network()
-                                        .addAuthHandler(whenThisMatches,
-                                                useTheseCredentials);
-                            }).augment(driver);
-                    DevTools devTools = ((HasDevTools) driver).getDevTools();
-                    devTools.createSession();
-                    devToolsAtomicReference.set(devTools);
-                    ((HasAuthentication) driver).register(UsernameAndPassword.of(username, password));
-                } catch (org.openqa.selenium.remote.http.ConnectionFailedException |
-                         java.lang.IllegalArgumentException e) {
-                    //in case of remote connection but Unable to establish websocket connection
-                    targetUrl = formatURL(username, password, targetUrl);
-                }
+                AtomicReference<DevTools> devToolsAtomicReference = new AtomicReference<>();
+                driver = new Augmenter().addDriverAugmentation("chrome",
+                        HasAuthentication.class,
+                        (caps, exec) -> (whenThisMatches, useTheseCredentials) -> {
+                            devToolsAtomicReference.get()
+                                    .createSessionIfThereIsNotOne();
+                            devToolsAtomicReference.get().getDomains()
+                                    .network()
+                                    .addAuthHandler(whenThisMatches,
+                                            useTheseCredentials);
+                        }).augment(driver);
+                DevTools devTools = ((HasDevTools) driver).getDevTools();
+                devTools.createSession();
+                devToolsAtomicReference.set(devTools);
+                ((HasAuthentication) driver).register(UsernameAndPassword.of(username, password));
             }
-        } else {
-            //in case of ie, firefox, safari, ...etc
-            targetUrl = formatURL(username, password, targetUrl);
+        } catch (Exception e) {
+            ReportManagerHelper.logDiscrete(e);
+            targetUrl = formatURLForBasicAuthentication(username, password, targetUrl);
         }
         navigateToURL(driver, targetUrl, targetUrlAfterAuthentication);
     }

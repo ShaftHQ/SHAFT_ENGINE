@@ -301,7 +301,7 @@ public class ReportManagerHelper {
         try {
             engineLog = FileActions.getInstance().readFileAsByteArray(System.getProperty("appender.file.fileName"));
             FileActions.getInstance().deleteFile(System.getProperty("appender.file.fileName"));
-        } catch (Throwable throwable) {
+        } catch (Exception throwable) {
             logDiscrete(throwable);
         }
         ReportManagerHelper.setDiscreteLogging(initialLoggingState);
@@ -436,7 +436,7 @@ public class ReportManagerHelper {
     }
 
     public static void extentReportsCreateTest(String testName, String testDescription) {
-        if (!extentReport.equals(new ExtentReports()) && extentReport != null){
+        if (!extentReport.equals(new ExtentReports())) {
             if (testDescription.equals("")) {
                 extentTest.set(extentReport.createTest(testName));
             } else {
@@ -476,7 +476,7 @@ public class ReportManagerHelper {
     }
 
     public static void extentReportsFlush() {
-        if (generateExtentReports && extentReport!=null) {
+        if (generateExtentReports) {
             extentReport.flush();
         }
     }
@@ -553,7 +553,7 @@ public class ReportManagerHelper {
     }
 
     private static Status getAllureStepStatus(String logText) {
-        if (logText != null && logText.toLowerCase().contains(" failed.")) {
+        if (logText != null && logText.toLowerCase().contains("failed")) {
             return Status.FAILED;
         }
 
@@ -571,9 +571,7 @@ public class ReportManagerHelper {
 
     @Step("{logText}")
     static void writeStepToReport(String logText, List<List<Object>> attachments) {
-//        Allure.step(logText, getAllureStepStatus());
         createLogEntry(logText, false);
-
         if (attachments != null && !attachments.isEmpty()) {
             attachments.forEach(attachment -> {
                 if (attachment != null && !attachment.isEmpty() && attachment.get(2).getClass().toString().toLowerCase().contains("string")
@@ -703,7 +701,7 @@ public class ReportManagerHelper {
                 Boolean.valueOf(System.getProperty("cleanAllureResultsDirectoryBeforeExecution")))) {
             try {
                 FileActions.getInstance().deleteFolder(allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1));
-            } catch (Throwable t) {
+            } catch (Exception t) {
                 ReportManager.log("Failed to delete allure-results as it is currently open. Kindly restart your device to unlock the directory.");
             }
         }
@@ -755,7 +753,7 @@ public class ReportManagerHelper {
                 FileActions.getInstance().deleteFolder(allureExtractionLocation);
             } catch (AssertionError e) {
                 ReportManager.logDiscrete("Couldn't clear the allure extraction directory. Kindly terminate any running java process or restart your machine to fix this issue.");
-                ReportManagerHelper.log(e);
+                ReportManagerHelper.logDiscrete(e);
             }
             // download allure binary
             URL allureArchive = FileActions.getInstance().downloadFile(
@@ -820,7 +818,6 @@ public class ReportManagerHelper {
      */
     @Step("Attachment: {attachmentType} - {attachmentName}")
     static void attachAsStep(String attachmentType, String attachmentName, InputStream attachmentContent) {
-//        Allure.step("Attachment: "+attachmentType+" - "+attachmentName, getAllureStepStatus());
         createAttachment(attachmentType, attachmentName, attachmentContent);
     }
 
@@ -948,22 +945,22 @@ public class ReportManagerHelper {
      * Format an exception message and stack trace, and calls attach to add it as a
      * log entry.
      *
-     * @param t the throwable (exception or error) that will be logged in this
-     *          action
+     * @param throwable the throwable (exception or error) that will be logged in this
+     *                  action
      */
-    public static void log(Throwable t) {
+    public static void log(Throwable throwable) {
         String logText;
-        logText = formatStackTraceToLogEntry(t);
-        if (t.getMessage() != null) {
-            log("An Exception Occurred with this Message: " + t.getMessage().split("\n")[0].trim() + ".",
-                    Collections.singletonList(Arrays.asList("Exception Stack Trace", t.getClass().getName(), logText)));
+        logText = formatStackTraceToLogEntry(throwable);
+        if (throwable.getMessage() != null) {
+            log("An Exception Occurred with this Message: " + throwable.getMessage().split("\n")[0].trim() + ".",
+                    Collections.singletonList(Arrays.asList("Exception Stack Trace", throwable.getClass().getName(), logText)));
         } else {
             log("An Exception Occurred",
-                    Collections.singletonList(Arrays.asList("Exception Stack Trace", t.getClass().getName(), logText)));
+                    Collections.singletonList(Arrays.asList("Exception Stack Trace", throwable.getClass().getName(), logText)));
         }
     }
 
     public static void logDiscrete(Throwable t) {
-        createLogEntry(formatStackTraceToLogEntry(t), Level.INFO);
+        createLogEntry(formatStackTraceToLogEntry(t), Level.ERROR);
     }
 }

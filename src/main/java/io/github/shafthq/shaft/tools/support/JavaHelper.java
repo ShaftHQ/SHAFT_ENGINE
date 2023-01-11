@@ -103,7 +103,7 @@ public class JavaHelper {
             } catch (AssertionError e) {
                 return 0;
             } catch (Exception e) {
-                ReportManagerHelper.log(e);
+                ReportManagerHelper.logDiscrete(e);
                 return -2;
             }
         } else {
@@ -112,7 +112,7 @@ public class JavaHelper {
             } catch (AssertionError e) {
                 return 0;
             } catch (Exception e) {
-                ReportManagerHelper.log(e);
+                ReportManagerHelper.logDiscrete(e);
                 return -2;
             }
         }
