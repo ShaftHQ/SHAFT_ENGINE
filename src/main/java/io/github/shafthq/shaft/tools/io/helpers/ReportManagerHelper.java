@@ -436,7 +436,7 @@ public class ReportManagerHelper {
     }
 
     public static void extentReportsCreateTest(String testName, String testDescription) {
-        if (!extentReport.equals(new ExtentReports()) && extentReport != null){
+        if (!extentReport.equals(new ExtentReports())) {
             if (testDescription.equals("")) {
                 extentTest.set(extentReport.createTest(testName));
             } else {
@@ -476,7 +476,7 @@ public class ReportManagerHelper {
     }
 
     public static void extentReportsFlush() {
-        if (generateExtentReports && extentReport!=null) {
+        if (generateExtentReports) {
             extentReport.flush();
         }
     }
@@ -553,7 +553,7 @@ public class ReportManagerHelper {
     }
 
     private static Status getAllureStepStatus(String logText) {
-        if (logText != null && logText.toLowerCase().contains(" failed.")) {
+        if (logText != null && logText.toLowerCase().contains("failed")) {
             return Status.FAILED;
         }
 
@@ -571,9 +571,7 @@ public class ReportManagerHelper {
 
     @Step("{logText}")
     static void writeStepToReport(String logText, List<List<Object>> attachments) {
-//        Allure.step(logText, getAllureStepStatus());
         createLogEntry(logText, false);
-
         if (attachments != null && !attachments.isEmpty()) {
             attachments.forEach(attachment -> {
                 if (attachment != null && !attachment.isEmpty() && attachment.get(2).getClass().toString().toLowerCase().contains("string")
@@ -820,7 +818,6 @@ public class ReportManagerHelper {
      */
     @Step("Attachment: {attachmentType} - {attachmentName}")
     static void attachAsStep(String attachmentType, String attachmentName, InputStream attachmentContent) {
-//        Allure.step("Attachment: "+attachmentType+" - "+attachmentName, getAllureStepStatus());
         createAttachment(attachmentType, attachmentName, attachmentContent);
     }
 

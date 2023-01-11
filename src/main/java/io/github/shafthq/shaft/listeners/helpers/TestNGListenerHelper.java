@@ -109,6 +109,23 @@ public class TestNGListenerHelper {
                     System.setProperty("screenshotParams_screenshotType", "Regular");
                 }
             });
+        } else {
+            //if not cross browser mode, still aff some properties as parameters to the test suites for better reporting
+            var parameters = new java.util.HashMap<>(Map.of(
+                    "executionAddress", Properties.platform.executionAddress(),
+                    "targetOperatingSystem", Properties.platform.targetOperatingSystem()
+            ));
+
+            if (DriverFactoryHelper.isWebExecution()) {
+                parameters.put("targetBrowserName", Properties.web.targetBrowserName());
+            } else {
+                parameters.put("automationName", Properties.mobile.automationName());
+            }
+            suites.forEach(suite -> {
+                var params = suite.getParameters();
+                params.putAll(parameters);
+                suite.setParameters(params);
+            });
         }
     }
 

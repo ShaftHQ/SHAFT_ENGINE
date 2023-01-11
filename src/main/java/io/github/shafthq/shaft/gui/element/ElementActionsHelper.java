@@ -14,7 +14,6 @@ import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.interactions.Locatable;
-import org.openqa.selenium.remote.UnreachableBrowserException;
 import org.openqa.selenium.support.locators.RelativeLocator;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.FluentWait;
@@ -249,6 +248,13 @@ public class ElementActionsHelper {
             dragAndDropHelper = dragAndDropHelper + "$(arguments[0]).simulateDragDrop({dropTarget:arguments[1]});";
             ((JavascriptExecutor) driver).executeScript(dragAndDropHelper, driver.findElement(sourceElementLocator), driver.findElement(destinationElementLocator));
         }
+    }
+
+    public static void dragAndDropUsingActions(WebDriver driver, By sourceElementLocator, By destinationElementLocator) {
+        new Actions(driver)
+                .dragAndDrop(((WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1))
+                        , ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, destinationElementLocator).get(1)))
+                .build().perform();
     }
 
     public static void executeNativeMobileCommandUsingJavascript(WebDriver driver, String command, Map<String, String> parameters) {
@@ -498,12 +504,7 @@ public class ElementActionsHelper {
     }
 
     private static void performType(WebDriver driver, By elementLocator, String text) {
-        ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
-        expectedExceptions.add(StaleElementReferenceException.class);
-        expectedExceptions.add(ElementNotInteractableException.class);
-        expectedExceptions.add(UnreachableBrowserException.class);
-        expectedExceptions.add(NoSuchElementException.class);
-        expectedExceptions.add(WebDriverException.class);
+        ArrayList<Class<? extends Exception>> expectedExceptions = getExpectedExceptions(true);
         try {
             new FluentWait<>(driver)
                     .withTimeout(Duration.ofSeconds(5))
@@ -526,9 +527,7 @@ public class ElementActionsHelper {
                 successfulTextLocationStrategy = determineSuccessfulTextLocationStrategy(driver,
                         elementLocator);
             }
-//            if (!successfulTextLocationStrategy.equals(TextDetectionStrategy.UNDEFINED)) {
             clearBeforeTyping(driver, elementLocator, successfulTextLocationStrategy);
-//            }
             if (!"".equals(targetText)) {
                 performType(driver, elementLocator, targetText);
             }
@@ -583,7 +582,7 @@ public class ElementActionsHelper {
                 // in case of regular locator
                 switch (Integer.parseInt(matchingElementsInformation.get(0).toString())) {
                     case 0 ->
-                            failAction(driver, "zero elements found matching this locator", elementLocator, (Throwable) matchingElementsInformation.get(2));
+                            failAction(driver, "zero elements found matching this locator", null, (Throwable) matchingElementsInformation.get(2));
                     case 1 -> {
                         return matchingElementsInformation;
                     }
@@ -709,13 +708,18 @@ public class ElementActionsHelper {
         //TODO: merge all fail actions, make all methods call this one, get elementName where applicable instead of reporting null
         //this condition works if this is the first level of failure, but the first level is usually caught by the calling method
 
+//        boolean skipPageScreenshot = rootCauseException.length >= 1 && (
+//                TimeoutException.class.getName().equals(rootCauseException[0].getClass().getName()) //works to capture fluent wait failure
+//                        || (
+//                        rootCauseException[0].getMessage().contains("Identify unique element")
+//                                && isFoundInStacktrace(ValidationsHelper.class, rootCauseException[0])
+//                )//works to capture calling elementAction failure in case this is an assertion
+//        );
+
+        //don't take a second screenshot in case of validation failure  because the original element action will have always failed first
         boolean skipPageScreenshot = rootCauseException.length >= 1 && (
-                TimeoutException.class.getName().equals(rootCauseException[0].getClass().getName()) //works to capture fluent wait failure
-                        || (
-                        rootCauseException[0].getMessage().contains("Identify unique element")
-                                && isFoundInStacktrace(ValidationsHelper.class, rootCauseException[0])
-                )//works to capture calling elementAction failure in case this is an assertion
-        );
+                isFoundInStacktrace(ValidationsHelper.class, rootCauseException[0])
+                        && isFoundInStacktrace(ElementActionsHelper.class, rootCauseException[0]));
 
         String elementName = "";
         if (elementLocator != null) {
@@ -732,7 +736,7 @@ public class ElementActionsHelper {
 
         String message;
         if (skipPageScreenshot) {
-            //don't try to take a screenshot again and SetProperty element locator to null in case element was not found by timeout or by nested element actions call
+            //don't try to take a screenshot again and set element locator to null in case element was not found by timeout or by nested element actions call
             message = createReportMessage(actionName, testData, elementName, false);
             ReportManager.logDiscrete(message);
         } else {
@@ -798,7 +802,12 @@ public class ElementActionsHelper {
             // screenshot taken before action (in case of click)
             attachments.addAll(screenshots);
         } else if (driver != null) {
-            List<Object> newScreenshot = takeScreenshot(driver, elementLocator, actionName, testData, passFailStatus);
+            List<Object> newScreenshot = null;
+            if (actionName.equals("Identify unique element")) {
+                newScreenshot = takeScreenshot(driver, null, actionName, testData, passFailStatus);
+            } else {
+                newScreenshot = takeScreenshot(driver, elementLocator, actionName, testData, passFailStatus);
+            }
             if (newScreenshot != null && !newScreenshot.equals(new ArrayList<>())) {
                 attachments.add(newScreenshot);
             }

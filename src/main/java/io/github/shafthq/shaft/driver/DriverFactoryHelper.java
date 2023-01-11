@@ -503,11 +503,17 @@ public class DriverFactoryHelper {
         } catch (org.openqa.selenium.SessionNotCreatedException sessionNotCreatedException) {
             if (sessionNotCreatedException.getMessage().contains("Could not start a new session.") || sessionNotCreatedException.getMessage().contains("Response code 404.")) {
                 // this exception is thrown when using an old appium 1.x server, appending old path to connect to the server
-                switch (os) {
-                    case ANDROID ->
-                            remoteWebDriver = new AndroidDriver(new URL(TARGET_HUB_URL + "wd/hub"), capabilities);
-                    case IOS -> remoteWebDriver = new IOSDriver(new URL(TARGET_HUB_URL + "wd/hub"), capabilities);
-                    default -> remoteWebDriver = new RemoteWebDriver(new URL(TARGET_HUB_URL + "wd/hub"), capabilities);
+                try {
+                    switch (os) {
+                        case ANDROID ->
+                                remoteWebDriver = new AndroidDriver(new URL(TARGET_HUB_URL + "wd/hub"), capabilities);
+                        case IOS -> remoteWebDriver = new IOSDriver(new URL(TARGET_HUB_URL + "wd/hub"), capabilities);
+                        default ->
+                                remoteWebDriver = new RemoteWebDriver(new URL(TARGET_HUB_URL + "wd/hub"), capabilities);
+                    }
+                } catch (org.openqa.selenium.SessionNotCreatedException sessionNotCreatedException2) {
+                    sessionNotCreatedException2.initCause(sessionNotCreatedException);
+                    throw sessionNotCreatedException;
                 }
             } else {
                 throw sessionNotCreatedException;
@@ -666,10 +672,9 @@ public class DriverFactoryHelper {
             if (!isMobileExecution) {
                 if (Boolean.TRUE.equals(AUTO_MAXIMIZE)
                         && (
-//                                OperatingSystems.MACOS.equals(getOperatingSystemFromName(targetOperatingSystem))
                         "Safari".equals(targetBrowserName) || "MozillaFirefox".equals(targetBrowserName)
                 )) {
-                    BrowserActions.maximizeWindow(driver.get());
+                    new BrowserActions().maximizeWindow();
                 }
             }
             // start session recording

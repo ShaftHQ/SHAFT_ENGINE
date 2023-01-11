@@ -235,31 +235,35 @@ public class ElementActions extends FluentElementActions {
     @Deprecated
     public static void dragAndDrop(WebDriver driver, By sourceElementLocator, By destinationElementLocator) {
         try {
+            Exception exception = new Exception();
             var elementName = getElementName(driver, sourceElementLocator);
             // replaced canFindUniqueElementForInternalUse, with countFoundElements for
             // destinationElement to bypass the check for element visibility
             // get source element start location
-            String startLocation = driver.findElement(sourceElementLocator).getLocation().toString();
+            String startLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)).getLocation().toString();
             // attempt to perform drag and drop
             try {
                 ElementActionsHelper.dragAndDropUsingJavascript(driver, sourceElementLocator, destinationElementLocator);
             } catch (Exception rootCauseException) {
-                failAction(driver, sourceElementLocator, rootCauseException);
+                exception = rootCauseException;
+                ReportManagerHelper.logDiscrete(rootCauseException);
             }
             // get source element end location
-            String endLocation = driver.findElement(sourceElementLocator).getLocation().toString();
+            String endLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)).getLocation().toString();
             String reportMessage = "Start point: " + startLocation + ", End point: " + endLocation;
             if (!endLocation.equals(startLocation)) {
                 passAction(driver, sourceElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, elementName);
             } else {
                 try {
-                    (new Actions(driver)).dragAndDrop(driver.findElement(sourceElementLocator),
-                            driver.findElement(destinationElementLocator)).build().perform();
+                    ElementActionsHelper.dragAndDropUsingActions(driver, sourceElementLocator, destinationElementLocator);
                 } catch (Exception rootCauseException) {
+                    if (!exception.equals(new Exception())) {
+                        rootCauseException.initCause(exception);
+                    }
                     failAction(driver, sourceElementLocator, rootCauseException);
                 }
                 // get source element end location
-                endLocation = driver.findElement(sourceElementLocator).getLocation().toString();
+                endLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)).getLocation().toString();
                 if (!endLocation.equals(startLocation)) {
                     passAction(driver, sourceElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, elementName);
                 } else {

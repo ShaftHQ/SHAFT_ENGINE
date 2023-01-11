@@ -76,7 +76,7 @@ public class BrowserActionsHelpers {
 
         List<List<Object>> attachments = new ArrayList<>();
         if (testData != null && !testData.isEmpty()) {
-            if (testData.length() >= 500 || testData.contains("</iframe>") || testData.contains("</html>")) {
+            if (testData.length() >= 500 || testData.contains("</iframe>") || testData.contains("</html>") || testData.startsWith("From: <Saved by Blink>")) {
                 List<Object> actualValueAttachment = Arrays.asList("Browser Action Test Data - " + actionName,
                         "Actual Value", testData);
                 attachments.add(actualValueAttachment);
