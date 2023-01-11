@@ -54,6 +54,9 @@ public class PropertiesHelper {
     }
 
     private static void initializeDefaultProperties() {
+        //  https://www.selenium.dev/blog/2022/using-java11-httpclient/
+        System.setProperty("webdriver.http.factory", "jdk-http-client");
+
         URL propertiesFolder = PropertyFileManager.class.getResource(DEFAULT_PROPERTIES_FOLDER_PATH.replace("src/main", "") + "/");
         var propertiesFolderPath = "";
         if (propertiesFolder != null) {

@@ -2,10 +2,11 @@ package io.github.shafthq.shaft.validations.helpers;
 
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
+import com.shaft.gui.browser.BrowserActions;
+import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.ValidationEnums.*;
 import io.github.shafthq.shaft.driver.DriverFactoryHelper;
 import io.github.shafthq.shaft.enums.Browsers;
-import io.github.shafthq.shaft.gui.browser.JavaScriptWaitManager;
 import io.github.shafthq.shaft.gui.element.ElementActionsHelper;
 import io.github.shafthq.shaft.gui.image.ImageProcessingActions;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
@@ -15,8 +16,6 @@ import io.github.shafthq.shaft.tools.support.JavaHelper;
 import io.restassured.response.Response;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
-import org.openqa.selenium.support.ui.Select;
 import org.testng.Assert;
 
 import java.io.File;
@@ -142,19 +141,11 @@ public class ValidationsHelper {
         String actualValue;
         try {
             actualValue = switch (elementAttribute.toLowerCase()) {
-                case "text" ->
-                        ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).getText();
-                case "tagname" ->
-                        ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).getTagName();
-                case "size" ->
-                        ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).getSize().toString();
-                case "selectedtext" -> {
-                    StringBuilder elementSelectedText = new StringBuilder();
-                    new Select(((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1))).getAllSelectedOptions().forEach(selectedOption -> elementSelectedText.append(selectedOption.getText()));
-                    yield elementSelectedText.toString().trim();
-                }
-                default ->
-                        ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).getAttribute(elementAttribute);
+                case "text" -> ElementActions.getText(driver, elementLocator);
+                case "tagname" -> ElementActions.getTagName(driver, elementLocator);
+                case "size" -> ElementActions.getSize(driver, elementLocator);
+                case "selectedtext" -> ElementActions.getSelectedText(driver, elementLocator);
+                default -> ElementActions.getAttribute(driver, elementLocator, elementAttribute);
             };
         } catch (Throwable e) {
             // force fail due to upstream failure
@@ -191,7 +182,7 @@ public class ValidationsHelper {
         String actualValue;
 
         try {
-            actualValue = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).getCssValue(propertyName);
+            actualValue = ElementActions.getCSSProperty(driver, elementLocator, propertyName);
         } catch (Throwable e) {
             // force fail due to upstream failure
             if (validationType.getValue()) {
@@ -227,14 +218,13 @@ public class ValidationsHelper {
 
         String actualValue;
         try {
-            JavaScriptWaitManager.waitForLazyLoading(driver);
             actualValue = switch (browserAttribute.toLowerCase()) {
-                case "currenturl", "url" -> driver.getCurrentUrl();
-                case "pagesource" -> driver.getPageSource();
-                case "title" -> driver.getTitle();
-                case "windowhandle" -> driver.getWindowHandle();
-                case "windowposition" -> driver.manage().window().getPosition().toString();
-                case "windowsize" -> driver.manage().window().getSize().toString();
+                case "currenturl", "url" -> BrowserActions.getCurrentURL(driver);
+                case "pagesource" -> BrowserActions.getPageSource(driver);
+                case "title" -> BrowserActions.getCurrentWindowTitle(driver);
+                case "windowhandle" -> BrowserActions.getWindowHandle(driver);
+                case "windowposition" -> BrowserActions.getWindowPosition(driver);
+                case "windowsize" -> BrowserActions.getWindowSize(driver);
                 default -> "";
             };
         } catch (Throwable e) {
