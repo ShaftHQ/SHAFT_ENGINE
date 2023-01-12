@@ -1,8 +1,0 @@
-steps:
-  - uses: actions/checkout@master
-  - uses: codecov/codecov-action@v3
-    with:
-      token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
-      #      files: ./target/jacoco/jacoco.xml # optional
-      #      fail_ci_if_error: false # optional (default = false)
-      verbose: true # optional (default = false)
