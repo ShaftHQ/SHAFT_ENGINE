@@ -488,9 +488,9 @@ public class ReportManagerHelper {
             if (isCause) {
                 logBuilder.append(System.lineSeparator()).append("Caused by: ");
             }
-            logBuilder.append(t.getClass().getName()).append(":").append(System.lineSeparator()).append(t.getMessage()).append(System.lineSeparator());
+            logBuilder.append(t.getClass().getName()).append(":").append(" ").append(t.getMessage()).append(System.lineSeparator());
             for (StackTraceElement stackTraceElement : trace) {
-                logBuilder.append(stackTraceElement.toString()).append(System.lineSeparator());
+                logBuilder.append("\t").append(stackTraceElement.toString()).append(System.lineSeparator());
             }
             logBuilder.append(formatStackTraceToLogEntry(t.getCause(), true));
         }
