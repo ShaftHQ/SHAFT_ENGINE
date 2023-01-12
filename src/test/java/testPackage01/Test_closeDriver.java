@@ -59,7 +59,11 @@ public class Test_closeDriver {
     }
 
     private void basicNavigation() {
-        driver.get().browser().navigateToURL(SHAFT.Properties.paths.testData() + "test.html");
+        var url = "https://github.com/ShaftHQ/SHAFT_ENGINE";
+        if (SHAFT.Properties.platform.executionAddress().equals("local")) {
+            url = SHAFT.Properties.paths.testData() + "test.html";
+        }
+        driver.get().browser().navigateToURL(url);
     }
 
     @BeforeMethod
