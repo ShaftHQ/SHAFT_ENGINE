@@ -36,9 +36,8 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./target/jacoco/
           fail_ci_if_error: false
-          files: ./jacoco.xml
+          files: ./target/jacoco/jacoco.xml
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
@@ -80,9 +79,8 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./target/jacoco/
           fail_ci_if_error: false
-          files: ./jacoco.xml
+          files: ./target/jacoco/jacoco.xml
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
@@ -124,9 +122,8 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./target/jacoco/
           fail_ci_if_error: false
-          files: ./jacoco.xml
+          files: ./target/jacoco/jacoco.xml
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
@@ -164,9 +161,8 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./target/jacoco/
           fail_ci_if_error: false
-          files: ./jacoco.xml
+          files: ./target/jacoco/jacoco.xml
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
@@ -204,9 +200,8 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./target/jacoco/
           fail_ci_if_error: false
-          files: ./jacoco.xml
+          files: ./target/jacoco/jacoco.xml
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
@@ -244,9 +239,8 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./target/jacoco/
           fail_ci_if_error: false
-          files: ./jacoco.xml
+          files: ./target/jacoco/jacoco.xml
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
@@ -286,9 +280,8 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          directory: ./target/jacoco/
           fail_ci_if_error: false
-          files: ./jacoco.xml
+          files: ./target/jacoco/jacoco.xml
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
