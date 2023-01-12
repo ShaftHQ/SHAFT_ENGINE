@@ -39,9 +39,7 @@ jobs:
           directory: ./target/jacoco/
           fail_ci_if_error: false
           files: ./jacoco.xml
-          path_to_write_report: ./target/codecov_report.txt
-          verbose:
-            true
+          verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v3
@@ -85,9 +83,7 @@ jobs:
           directory: ./target/jacoco/
           fail_ci_if_error: false
           files: ./jacoco.xml
-          path_to_write_report: ./target/codecov_report.txt
-          verbose:
-            true
+          verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v3
@@ -131,9 +127,7 @@ jobs:
           directory: ./target/jacoco/
           fail_ci_if_error: false
           files: ./jacoco.xml
-          path_to_write_report: ./target/codecov_report.txt
-          verbose:
-            true
+          verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v3
@@ -173,9 +167,7 @@ jobs:
           directory: ./target/jacoco/
           fail_ci_if_error: false
           files: ./jacoco.xml
-          path_to_write_report: ./target/codecov_report.txt
-          verbose:
-            true
+          verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v3
@@ -215,9 +207,7 @@ jobs:
           directory: ./target/jacoco/
           fail_ci_if_error: false
           files: ./jacoco.xml
-          path_to_write_report: ./target/codecov_report.txt
-          verbose:
-            true
+          verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v3
@@ -257,9 +247,7 @@ jobs:
           directory: ./target/jacoco/
           fail_ci_if_error: false
           files: ./jacoco.xml
-          path_to_write_report: ./target/codecov_report.txt
-          verbose:
-            true
+          verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v3
@@ -301,7 +289,6 @@ jobs:
           directory: ./target/jacoco/
           fail_ci_if_error: false
           files: ./jacoco.xml
-          path_to_write_report: ./target/codecov_report.txt
           verbose: true
       - name: Upload Allure Report as Pipeline Artifact
         if: always()
