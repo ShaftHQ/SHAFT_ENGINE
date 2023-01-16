@@ -97,7 +97,7 @@ public class ElementActionsHelper {
     }
 
     private static boolean isValidToCheckForVisibility(By elementLocator, boolean checkForVisibility) {
-        return checkForVisibility && !elementLocator.toString().contains("input[@type='file']")
+        return checkForVisibility && !formatLocatorToString(elementLocator).contains("input[@type='file']")
                 && !elementLocator.equals(By.tagName("html"));
     }
 
@@ -195,12 +195,40 @@ public class ElementActionsHelper {
     }
 
 
-    public static boolean waitForElementToBeClickable(WebDriver driver, By elementLocator) {
+    public static boolean waitForElementToBeClickable(WebDriver driver, By elementLocator, Optional<String> actionToExecute) {
+        var clickUsingJavascriptWhenWebDriverClickFails = Boolean.parseBoolean(System.getProperty("clickUsingJavascriptWhenWebDriverClickFails"));
+
         if (!DriverFactoryHelper.isMobileNativeExecution()) {
             try {
                 (new WebDriverWait(driver, Duration.ofMillis(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT)))
                         .until(ExpectedConditions.elementToBeClickable(elementLocator));
+
+
+                var expectedExceptions = getExpectedExceptions(true);
+                if (!clickUsingJavascriptWhenWebDriverClickFails) {
+                    expectedExceptions.add(ElementClickInterceptedException.class);
+                }
+
+                return new FluentWait<>(driver)
+                        .withTimeout(Duration.ofMillis(
+                                DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT))
+                        .pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY))
+                        .ignoreAll(expectedExceptions)
+                        .until(nestedDriver -> {
+                            if (actionToExecute.isPresent()) {
+                                switch (actionToExecute.get().toLowerCase()) {
+                                    case "click" -> driver.findElement(elementLocator).click();
+                                    case "clickandhold" ->
+                                            (new Actions(driver)).clickAndHold(driver.findElement(elementLocator)).build().perform();
+                                }
+                            }
+                            return true;
+                        });
             } catch (org.openqa.selenium.TimeoutException e) {
+                if (clickUsingJavascriptWhenWebDriverClickFails && actionToExecute.isPresent() && actionToExecute.get().equalsIgnoreCase("click")) {
+                    ElementActionsHelper.clickUsingJavascript(driver, elementLocator);
+                    return true;
+                }
                 ReportManagerHelper.logDiscrete(e);
                 return false;
             }
@@ -398,7 +426,7 @@ public class ElementActionsHelper {
                 //this exception is thrown on some older selenium grid instances, I saw it with firefox running over selenoid
             }
         }
-        return elementLocator.toString();
+        return formatLocatorToString(elementLocator);
     }
 
     private static void clearBeforeTyping(WebDriver driver, By elementLocator,
@@ -723,7 +751,7 @@ public class ElementActionsHelper {
 
         String elementName = "";
         if (elementLocator != null) {
-            elementName = elementLocator.toString();
+            elementName = formatLocatorToString(elementLocator);
             try {
                 var accessibleName = driver.findElement(elementLocator).getAccessibleName();
                 if (accessibleName != null && !accessibleName.isBlank()) {
@@ -740,7 +768,7 @@ public class ElementActionsHelper {
             message = createReportMessage(actionName, testData, elementName, false);
             ReportManager.logDiscrete(message);
         } else {
-            if (rootCauseException != null && rootCauseException.length >= 1) {
+            if (rootCauseException.length >= 1) {
                 message = reportActionResult(driver, actionName, testData, elementLocator, screenshots, elementName, false, rootCauseException[0]);
             } else {
                 message = reportActionResult(driver, actionName, testData, elementLocator, screenshots, elementName, false);
@@ -771,7 +799,7 @@ public class ElementActionsHelper {
 
         if ((elementName != null && !elementName.isEmpty())) {
             var preposition = " ";
-            if (actionName.toLowerCase().contains("type") || actionName.toLowerCase().contains("SetProperty value using javascript")) {
+            if (actionName.toLowerCase().contains("type") || actionName.toLowerCase().contains("setproperty value using javascript")) {
                 preposition = " into ";
             } else if (actionName.toLowerCase().contains("get") || actionName.toLowerCase().contains("select")) {
                 preposition = " from ";
@@ -802,7 +830,7 @@ public class ElementActionsHelper {
             // screenshot taken before action (in case of click)
             attachments.addAll(screenshots);
         } else if (driver != null) {
-            List<Object> newScreenshot = null;
+            List<Object> newScreenshot;
             if (actionName.equals("Identify unique element")) {
                 newScreenshot = takeScreenshot(driver, null, actionName, testData, passFailStatus);
             } else {
@@ -849,6 +877,14 @@ public class ElementActionsHelper {
 
         public String getValue() {
             return value;
+        }
+    }
+
+    public static String formatLocatorToString(By locator) {
+        if (locator instanceof RelativeLocator.RelativeBy relativeLocator) {
+            return "Relative Locator: " + relativeLocator.getRemoteParameters().value().toString();
+        } else {
+            return locator.toString();
         }
     }
 }

@@ -36,16 +36,18 @@ import java.nio.file.FileSystems;
 import java.util.List;
 import java.util.*;
 
+import static io.github.shafthq.shaft.gui.element.ElementActionsHelper.formatLocatorToString;
+
 public class ImageProcessingActions {
     private static final String DIRECTORY_PROCESSING = "/processingDirectory/";
     private static final String DIRECTORY_FAILED = "/failedImagesDirectory/";
     private static final int
-            CV_MOP_CLOSE = 3,
+//            CV_MOP_CLOSE = 3,
             CV_THRESH_OTSU = 8,
-            CV_THRESH_BINARY = 0,
-            CV_ADAPTIVE_THRESH_GAUSSIAN_C = 1,
-            CV_ADAPTIVE_THRESH_MEAN_C = 0,
-            CV_THRESH_BINARY_INV = 1;
+            CV_THRESH_BINARY = 0;
+//            CV_ADAPTIVE_THRESH_GAUSSIAN_C = 1,
+//            CV_ADAPTIVE_THRESH_MEAN_C = 0,
+//            CV_THRESH_BINARY_INV = 1;
 
     private static String aiFolderPath = "";
 
@@ -53,21 +55,21 @@ public class ImageProcessingActions {
         throw new IllegalStateException("Utility class");
     }
 
-    public static void compareImageFolders(String referenceFolderPath, String testFolderPath, double threshhold) {
+    public static void compareImageFolders(String referenceFolderPath, String testFolderPath, double threshold) {
         // TODO: refactor to minimize File IO actions
         try {
             long fileCounter = 1;
 
-            File refrenceFolder = new File(referenceFolderPath);
+            File referenceFolder = new File(referenceFolderPath);
             File testFolder = new File(testFolderPath);
 
             // cleaning processing folders
-            FileActions.getInstance().deleteFolder(refrenceFolder.getAbsolutePath() + DIRECTORY_PROCESSING);
+            FileActions.getInstance().deleteFolder(referenceFolder.getAbsolutePath() + DIRECTORY_PROCESSING);
             FileActions.getInstance().deleteFolder(testFolder.getAbsolutePath() + DIRECTORY_PROCESSING);
             FileActions.getInstance().deleteFolder(testFolder.getAbsolutePath() + DIRECTORY_FAILED);
 
             // preparing objects for files
-            File[] referenceFiles = refrenceFolder.listFiles();
+            File[] referenceFiles = referenceFolder.listFiles();
             File[] testFiles = testFolder.listFiles();
 
             ReportManager.log("Comparing [" + Objects.requireNonNull(testFiles).length + "] image files from the testFolder ["
@@ -81,9 +83,9 @@ public class ImageProcessingActions {
             // confirming that the number of screenshots match
             if (referenceFiles.length == testFiles.length) {
                 // copy and rename reference screenshots to a processing directory
-                for (File refrenceScreenshot : referenceFiles) {
-                    FileActions.getInstance().copyFile(refrenceScreenshot.getAbsolutePath(),
-                            refrenceScreenshot.getParent() + DIRECTORY_PROCESSING + fileCounter);
+                for (File referenceScreenshot : referenceFiles) {
+                    FileActions.getInstance().copyFile(referenceScreenshot.getAbsolutePath(),
+                            referenceScreenshot.getParent() + DIRECTORY_PROCESSING + fileCounter);
                     fileCounter++;
                 }
 
@@ -98,7 +100,7 @@ public class ImageProcessingActions {
                 }
 
                 // point to the two new processing directories
-                File refrenceProcessingFolder = new File(referenceFolderPath + DIRECTORY_PROCESSING);
+                File referenceProcessingFolder = new File(referenceFolderPath + DIRECTORY_PROCESSING);
                 File testProcessingFolder = new File(testFolderPath + DIRECTORY_PROCESSING);
 
                 // preparing objects for files
@@ -110,11 +112,11 @@ public class ImageProcessingActions {
                 }
 
                 // compare images from the test directory against the reference directory
-                compareImageFolders(referenceFiles, testFiles, Objects.requireNonNull(testProcessingFiles), refrenceProcessingFolder,
-                        testProcessingFolder, threshhold);
+                compareImageFolders(referenceFiles, testFiles, Objects.requireNonNull(testProcessingFiles), referenceProcessingFolder,
+                        testProcessingFolder, threshold);
 
                 // cleaning processing folders
-                FileActions.getInstance().deleteFolder(refrenceFolder.getAbsolutePath() + DIRECTORY_PROCESSING);
+                FileActions.getInstance().deleteFolder(referenceFolder.getAbsolutePath() + DIRECTORY_PROCESSING);
                 FileActions.getInstance().deleteFolder(testFolder.getAbsolutePath() + DIRECTORY_PROCESSING);
 
             } else {
@@ -264,13 +266,13 @@ public class ImageProcessingActions {
                 double threshold = 0.80;
 
                 switch (attemptNumber) {
-                    case 0 -> matchMethod = Imgproc.TM_CCOEFF_NORMED;
+//                    case 0 -> matchMethod = Imgproc.TM_CCOEFF_NORMED;
                     case 1 -> matchMethod = Imgproc.TM_SQDIFF_NORMED;
                     case 2 -> matchMethod = Imgproc.TM_CCORR_NORMED;
                 }
 
                 switch (attemptNumber) {
-                    case 0 -> threshold = 0.80;
+//                    case 0 -> threshold = 0.80;
                     case 1 -> threshold = 0.70;
                     case 2 -> threshold = 0.60;
                 }
@@ -362,16 +364,16 @@ public class ImageProcessingActions {
                 }
                 attempts++;
             } while (Collections.emptyList().equals(foundLocation) && attempts < maxNumberOfAttempts);
-            return foundLocation;
+        return foundLocation;
     }
 
-    public static String formatElementLocatorToImagePath(Object elementLocator) {
-        String elementFileName = ReportManagerHelper.getCallingMethodFullName() + "_" + elementLocator.toString();
+    public static String formatElementLocatorToImagePath(By elementLocator) {
+        String elementFileName = ReportManagerHelper.getCallingMethodFullName() + "_" + formatLocatorToString(elementLocator);
         return elementFileName.replaceAll("[\\[\\]\\'\\/:]", "").replaceAll("[\\W\\s]", "_").replaceAll("_{2}", "_")
                 .replaceAll("_{2}", "_").replaceAll("contains", "_contains").replaceAll("_$", "");
     }
 
-    public static byte[] getReferenceImage(Object elementLocator) {
+    public static byte[] getReferenceImage(By elementLocator) {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
         if (aiFolderPath.isEmpty()) {
             aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
@@ -384,7 +386,7 @@ public class ImageProcessingActions {
         }
     }
 
-    public static byte[] getShutterbugDifferencesImage(Object elementLocator) {
+    public static byte[] getShutterbugDifferencesImage(By elementLocator) {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
         String referenceImagePath = aiFolderPath + hashedLocatorName + "_shutterbug.png";
         if (FileActions.getInstance().doesFileExist(referenceImagePath)) {
@@ -491,8 +493,8 @@ public class ImageProcessingActions {
         }
     }
 
-    private static void compareImageFolders(File[] refrenceFiles, File[] testFiles, File[] testProcessingFiles,
-                                            File refrenceProcessingFolder, File testProcessingFolder, double threshhold) throws IOException {
+    private static void compareImageFolders(File[] referenceFiles, File[] testFiles, File[] testProcessingFiles,
+                                            File referenceProcessingFolder, File testProcessingFolder, double threshold) throws IOException {
         // TODO: refactor to minimize File IO actions
         int passedImagesCount = 0;
         int failedImagesCount = 0;
@@ -507,7 +509,7 @@ public class ImageProcessingActions {
             float sizeA = dbA.getSize();
 
             BufferedImage biB = ImageIO.read(new File(
-                    refrenceProcessingFolder + FileSystems.getDefault().getSeparator() + screenshot.getName()));
+                    referenceProcessingFolder + FileSystems.getDefault().getSeparator() + screenshot.getName()));
             DataBuffer dbB = biB.getData().getDataBuffer();
             float sizeB = dbB.getSize();
             float count = 0;
@@ -529,10 +531,10 @@ public class ImageProcessingActions {
 
             // fetch the related reference screenshot file name using the current file
             // name/number as index
-            String relatedReferenceFileName = refrenceFiles[Integer.parseInt(screenshot.getName()) - 1].getName();
+            String relatedReferenceFileName = referenceFiles[Integer.parseInt(screenshot.getName()) - 1].getName();
 
             List<Object> referenceScreenshotAttachment = Arrays.asList("Reference Screenshot", relatedReferenceFileName,
-                    new FileInputStream(refrenceProcessingFolder + FileSystems.getDefault().getSeparator()
+                    new FileInputStream(referenceProcessingFolder + FileSystems.getDefault().getSeparator()
                             + screenshot.getName()));
 
             String relatedTestFileName = testFiles[Integer.parseInt(screenshot.getName()) - 1].getName();
@@ -541,7 +543,7 @@ public class ImageProcessingActions {
                     new FileInputStream(screenshot));
 
             ReportManagerHelper.log(
-                    "Test Screenshot [" + relatedTestFileName + "] and related Refrence Image ["
+                    "Test Screenshot [" + relatedTestFileName + "] and related Reference Image ["
                             + relatedReferenceFileName + "] match by [" + percentage + "] percent.",
                     Arrays.asList(referenceScreenshotAttachment, testScreenshotAttachment));
 
@@ -551,7 +553,7 @@ public class ImageProcessingActions {
                 ReportManagerHelper.setDiscreteLogging(true);
                 Validations.assertThat()
                         .number(percentage)
-                        .isGreaterThanOrEquals(threshhold)
+                        .isGreaterThanOrEquals(threshold)
                         .perform();
                 ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
                 passedImagesCount++;
@@ -561,19 +563,19 @@ public class ImageProcessingActions {
                 FileActions.getInstance().copyFile(screenshot.getAbsolutePath(),
                         testProcessingFolder.getParent() + DIRECTORY_FAILED + relatedTestFileName + "_testImage");
                 FileActions.getInstance().copyFile(
-                        refrenceProcessingFolder + FileSystems.getDefault().getSeparator() + screenshot.getName(),
-                        testProcessingFolder.getParent() + DIRECTORY_FAILED + relatedTestFileName + "_refrenceImage");
+                        referenceProcessingFolder + FileSystems.getDefault().getSeparator() + screenshot.getName(),
+                        testProcessingFolder.getParent() + DIRECTORY_FAILED + relatedTestFileName + "_referenceImage");
                 failedImagesCount++;
             }
 
             Validations.verifyThat()
                     .number(percentage)
-                    .isGreaterThanOrEquals(threshhold)
+                    .isGreaterThanOrEquals(threshold)
                     .perform();
         }
 
         ReportManager.log("[" + passedImagesCount + "] images passed, and [" + failedImagesCount
-                + "] images failed the threshold of [" + threshhold + "%] matching.");
+                + "] images failed the threshold of [" + threshold + "%] matching.");
 
     }
 

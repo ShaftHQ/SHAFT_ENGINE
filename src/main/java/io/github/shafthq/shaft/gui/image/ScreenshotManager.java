@@ -15,6 +15,7 @@ import org.opencv.core.MatOfByte;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.*;
+import org.openqa.selenium.support.locators.RelativeLocator;
 import org.sikuli.script.App;
 import org.sikuli.script.Pattern;
 import org.sikuli.script.Screen;
@@ -330,7 +331,9 @@ public class ScreenshotManager {
                             //expected to throw org.opencv.core.CvException if removed
                         }
 
-                        if (ElementActionsHelper.getElementsCount(driver, elementLocator, RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1) {
+                        int elementCount = ElementActionsHelper.getElementsCount(driver, elementLocator, RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION);
+                        boolean isRelativeLocator = elementLocator instanceof RelativeLocator.RelativeBy;
+                        if ((!isRelativeLocator && elementCount == 1) || (isRelativeLocator && elementCount >= 1)) {
                             if ("JavaScript".equals(SCREENSHOT_PARAMS_HIGHLIGHTMETHOD)) {
                                 element = driver.findElement(elementLocator);
                                 js = (JavascriptExecutor) driver;
@@ -415,7 +418,7 @@ public class ScreenshotManager {
                         yield takeFullPageScreenshot(driver);
                     } catch (Exception throwable) {
                         ReportManagerHelper.logDiscrete(throwable);
-                        SCREENSHOT_PARAMS_SCREENSHOTTYPE = "element";
+                        SCREENSHOT_PARAMS_SCREENSHOTTYPE = "regular";
                         yield takeScreenshot(driver);
                     }
                 }
