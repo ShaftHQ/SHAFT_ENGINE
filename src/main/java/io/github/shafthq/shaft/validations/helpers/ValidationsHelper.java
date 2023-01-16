@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static io.github.shafthq.shaft.gui.element.ElementActionsHelper.formatLocatorToString;
 import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchema;
 
 public class ValidationsHelper {
@@ -101,7 +102,7 @@ public class ValidationsHelper {
 
         if (validationType.getValue()) {
             // expecting a unique element to be present
-            final String expectedValue = expectedElementStates[0] + locatorSeparator + elementLocator.toString() + "'";
+            final String expectedValue = expectedElementStates[0] + locatorSeparator + formatLocatorToString(elementLocator) + "'";
             switch (elementsCount) {
                 case 0 -> {
                     lastUsedElementLocator = null; //reset lastUsedElementLocator to avoid attempting to find the element again
@@ -115,7 +116,7 @@ public class ValidationsHelper {
             }
         } else {
             // not expecting the element to be present
-            final String expectedValue = expectedElementStates[1] + locatorSeparator + elementLocator.toString() + "'";
+            final String expectedValue = expectedElementStates[1] + locatorSeparator + formatLocatorToString(elementLocator) + "'";
             switch (elementsCount) {
                 case 0 -> {
                     lastUsedElementLocator = null; //reset lastUsedElementLocator to avoid attempting to find the element again
@@ -138,24 +139,28 @@ public class ValidationsHelper {
         String attributeSeparator = "' for the '";
         String locatorSeparator = "' attribute, element locator '";
 
+        var isDiscrete = ReportManagerHelper.getDiscreteLogging();
+        ReportManagerHelper.setDiscreteLogging(true);
+
         String actualValue;
         try {
             actualValue = switch (elementAttribute.toLowerCase()) {
-                case "text" -> ElementActions.getText(driver, elementLocator);
-                case "tagname" -> ElementActions.getTagName(driver, elementLocator);
-                case "size" -> ElementActions.getSize(driver, elementLocator);
-                case "selectedtext" -> ElementActions.getSelectedText(driver, elementLocator);
-                default -> ElementActions.getAttribute(driver, elementLocator, elementAttribute);
+                case "text" -> new ElementActions(driver).getText(elementLocator);
+                case "tagname" -> new ElementActions(driver).getTagName(driver, elementLocator);
+                case "size" -> new ElementActions(driver).getSize(driver, elementLocator);
+                case "selectedtext" -> new ElementActions(driver).getSelectedText(elementLocator);
+                default -> new ElementActions(driver).getAttribute(elementLocator, elementAttribute);
             };
         } catch (Throwable e) {
+            ReportManagerHelper.setDiscreteLogging(isDiscrete);
             // force fail due to upstream failure
             if (validationType.getValue()) {
                 fail(validationCategory, expectedAttributeStates[0] + " '" + expectedValue + attributeSeparator + elementAttribute
-                                + locatorSeparator + elementLocator.toString() + "'",
+                                + locatorSeparator + formatLocatorToString(elementLocator) + "'",
                         "Failed to read the desired element attribute", validationComparisonType, validationType, e);
             } else {
                 fail(validationCategory, expectedAttributeStates[1] + " '" + expectedValue + attributeSeparator + elementAttribute
-                                + locatorSeparator + elementLocator.toString() + "'",
+                                + locatorSeparator + formatLocatorToString(elementLocator) + "'",
                         "Failed to read the desired element attribute", validationComparisonType, validationType, e);
             }
             return;
@@ -182,16 +187,16 @@ public class ValidationsHelper {
         String actualValue;
 
         try {
-            actualValue = ElementActions.getCSSProperty(driver, elementLocator, propertyName);
+            actualValue = new ElementActions(driver).getCSSProperty(elementLocator, propertyName);
         } catch (Throwable e) {
             // force fail due to upstream failure
             if (validationType.getValue()) {
                 fail(validationCategory, expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
-                                + locatorSeparator + elementLocator.toString() + "'",
+                                + locatorSeparator + formatLocatorToString(elementLocator) + "'",
                         "Failed to read the desired element CSS property", validationComparisonType, validationType, e);
             } else {
                 fail(validationCategory, expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
-                                + locatorSeparator + elementLocator.toString() + "'",
+                                + locatorSeparator + formatLocatorToString(elementLocator) + "'",
                         "Failed to read the desired element CSS property", validationComparisonType, validationType, e);
             }
             return;
@@ -524,7 +529,7 @@ public class ValidationsHelper {
         String propertySeparator = (String) args[1];
         String locatorSeparator = (String) args[2];
         int comparisonResult = (int) args[3];
-        var elementLocator = args[4];
+        var elementLocator = (args[4] != null) ? (By) args[4] : null;
         String propertyName = (String) args[5];
         String expectedValue = (String) args[6];
         String actualValue = (String) args[7];
@@ -537,12 +542,12 @@ public class ValidationsHelper {
             if (comparisonResult == 1) {
                 // match
                 pass(validationCategory, expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
-                                + locatorSeparator + elementLocator.toString() + "'", actualValue, validationComparisonType,
+                                + locatorSeparator + formatLocatorToString(elementLocator) + "'", actualValue, validationComparisonType,
                         validationType);
             } else {
                 // no match, or unhandled issue
                 fail(validationCategory, expectedAttributeStates[0] + " '" + expectedValue + propertySeparator + propertyName
-                                + locatorSeparator + elementLocator.toString() + "'", actualValue, validationComparisonType,
+                                + locatorSeparator + formatLocatorToString(elementLocator) + "'", actualValue, validationComparisonType,
                         validationType, null);
             }
         } else {
@@ -550,12 +555,12 @@ public class ValidationsHelper {
             if (comparisonResult == 1) {
                 // match
                 pass(validationCategory, expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
-                                + locatorSeparator + elementLocator.toString() + "'", actualValue, validationComparisonType,
+                                + locatorSeparator + formatLocatorToString(elementLocator) + "'", actualValue, validationComparisonType,
                         validationType);
             } else {
                 // no match, or unhandled issue
                 fail(validationCategory, expectedAttributeStates[1] + " '" + expectedValue + propertySeparator + propertyName
-                                + locatorSeparator + elementLocator.toString() + "'", actualValue, validationComparisonType,
+                                + locatorSeparator + formatLocatorToString(elementLocator) + "'", actualValue, validationComparisonType,
                         validationType, null);
             }
         }

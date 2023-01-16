@@ -108,6 +108,10 @@ public class SHAFT {
             }
         }
 
+        @Beta
+        public static class Locator extends io.github.shafthq.shaft.gui.locator.Locator {
+        }
+
         public static class SikuliDriver {
 
             private final App sikuliApp;

@@ -3,7 +3,8 @@ package io.github.shafthq.shaft.validations.helpers;
 import com.shaft.validation.ValidationEnums;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.support.locators.RelativeLocator;
+
+import static io.github.shafthq.shaft.gui.element.ElementActionsHelper.formatLocatorToString;
 
 public class ValidationsBuilder {
     protected final ValidationEnums.ValidationCategory validationCategory;
@@ -45,26 +46,22 @@ public class ValidationsBuilder {
     }
 
     /**
-     * Build a webdriver element validation to check against the target element
+     * Build a WebDriver element validation to check against the target element
      *
-     * @param driver  the current instance of Selenium webdriver
+     * @param driver  the current instance of Selenium WebDriver
      * @param locator the locator of the webElement under test (By xpath, id,
      *                selector, name ...etc)
      * @return a WebDriverElementValidationsBuilder object to continue building your validation
      */
     public WebDriverElementValidationsBuilder element(WebDriver driver, By locator) {
-        var stringLocator = locator.toString();
-        if (locator instanceof RelativeLocator.RelativeBy relativeLocator) {
-            stringLocator = "Relative Locator: " + relativeLocator.getRemoteParameters().value().toString();
-        }
-        reportMessageBuilder.append("The Element located by \"").append(stringLocator).append("\" ");
+        reportMessageBuilder.append("The Element located by \"").append(formatLocatorToString(locator)).append("\" ");
         return new WebDriverElementValidationsBuilder(validationCategory, driver, locator, reportMessageBuilder);
     }
 
     /**
-     * Build a webdriver browser validation to check against the target browser
+     * Build a WebDriver browser validation to check against the target browser
      *
-     * @param driver the current instance of Selenium webdriver
+     * @param driver the current instance of Selenium WebDriver
      * @return a WebDriverBrowserValidationsBuilder object to continue building your validation
      */
     public WebDriverBrowserValidationsBuilder browser(WebDriver driver) {

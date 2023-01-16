@@ -91,23 +91,11 @@ public class ElementActions extends FluentElementActions {
                 List<Object> screenshot = takeScreenshot(driver, elementLocator, "click", null, true);
                 // takes screenshot before clicking the element out of view
                 // wait for element to be clickable
-                if (Boolean.FALSE.equals(ElementActionsHelper.waitForElementToBeClickable(driver, elementLocator))) {
-                    failAction(driver, "element is not clickable", elementLocator);
-                }
                 try {
-                    ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).click();
-                } catch (Exception exception1) {
-                    var clickUsingJavascriptWhenWebDriverClickFails = Boolean.parseBoolean(System.getProperty("clickUsingJavascriptWhenWebDriverClickFails"));
-                    if (clickUsingJavascriptWhenWebDriverClickFails) {
-                        try {
-                            ElementActionsHelper.clickUsingJavascript(driver, elementLocator);
-                        } catch (Exception rootCauseException) {
-                            rootCauseException.initCause(exception1);
-                            failAction(driver, elementLocator, rootCauseException);
-                        }
-                    } else {
-                        failAction(driver, elementLocator, exception1);
-                    }
+                    WebElement element = (WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1);
+                    Boolean.FALSE.equals(ElementActionsHelper.waitForElementToBeClickable(driver, elementLocator, Optional.of("click")));
+                } catch (Exception exception) {
+                    failAction(driver, elementLocator, exception);
                 }
                 // issue: if performing a navigation after clicking on the login button,
                 // navigation is triggered immediately and hence it fails.
@@ -154,13 +142,12 @@ public class ElementActions extends FluentElementActions {
     public static void clickAndHold(WebDriver driver, By elementLocator) {
         try {
             var elementName = getElementName(driver, elementLocator);
-            if (Boolean.FALSE.equals(ElementActionsHelper.waitForElementToBeClickable(driver, elementLocator))) {
+            // TODO: take screenshot before clicking the element away
+            WebElement element = (WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1);
+            if (Boolean.FALSE.equals(ElementActionsHelper.waitForElementToBeClickable(driver, elementLocator, Optional.of("clickAndHold")))) {
                 failAction(driver, "element is not clickable", elementLocator);
             }
-            // wait for element to be clickable
             passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, elementName);
-            (new Actions(driver)).clickAndHold(((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1))).build().perform();
-            // takes screenshot before holding the element
         } catch (Exception throwable) {
             failAction(driver, elementLocator, throwable);
         }
@@ -672,7 +659,7 @@ public class ElementActions extends FluentElementActions {
     public static boolean isElementClickable(WebDriver driver, By elementLocator) {
         try {
             var elementName = getElementName(driver, elementLocator);
-            if (ElementActionsHelper.waitForElementToBeClickable(driver, elementLocator)) {
+            if (ElementActionsHelper.waitForElementToBeClickable(driver, elementLocator, Optional.empty())) {
                 //element is clickable
                 passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "element is clickable", null, elementName);
                 return true;
@@ -1073,7 +1060,7 @@ public class ElementActions extends FluentElementActions {
                                                  boolean stateOfPresence) {
         ReportManager.logDiscrete("Waiting for element to be present; elementLocator \"" + elementLocator + "\", numberOfTries\"" + numberOfTries + "\", stateOfPresence\"" + stateOfPresence + "\"...");
         String reportMessage = "waited for the element's state of presence to be (" + stateOfPresence
-                + "). Element locator (" + elementLocator.toString() + ")";
+                + "). Element locator (" + formatLocatorToString(elementLocator) + ")";
         if (Boolean.compare(stateOfPresence, Integer.parseInt(getMatchingElementsInformation(driver, elementLocator, Optional.of(numberOfTries), Optional.empty()).get(0).toString()) >= 1) == 0) {
             if (Boolean.TRUE.equals(stateOfPresence)) {
                 //element is expected to be present

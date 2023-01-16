@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 
+import static io.github.shafthq.shaft.gui.element.ElementActionsHelper.formatLocatorToString;
 import static java.util.Arrays.asList;
 
 @SuppressWarnings({"unused"})
@@ -169,7 +170,7 @@ public class TouchActions {
             }
 
             if (elementText == null || elementText.equals("")) {
-                elementText = elementLocator.toString();
+                elementText = formatLocatorToString(elementLocator);
             }
              ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, elementText.replaceAll("\n", " "), screenshot, null);
         } catch (Throwable throwable) {
