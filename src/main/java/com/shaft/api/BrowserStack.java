@@ -1,6 +1,7 @@
 package com.shaft.api;
 
 import com.shaft.cli.FileActions;
+import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import org.openqa.selenium.MutableCapabilities;
@@ -125,10 +126,10 @@ public class BrowserStack {
     }
 
     private static MutableCapabilities setBrowserStackProperties(String username, String password, String deviceName, String osVersion, String appUrl) {
-        System.setProperty("executionAddress", username + ":" + password + "@" + hubUrl);
-        System.setProperty("mobile_deviceName", deviceName);
-        System.setProperty("mobile_platformVersion", osVersion);
-        System.setProperty("mobile_app", appUrl);
+        SHAFT.Properties.platform.set().executionAddress(username + ":" + password + "@" + hubUrl);
+        SHAFT.Properties.mobile.set().deviceName(deviceName);
+        SHAFT.Properties.mobile.set().platformVersion(osVersion);
+        SHAFT.Properties.mobile.set().app(appUrl);
         MutableCapabilities browserStackCapabilities = new MutableCapabilities();
         HashMap<String, Object> browserstackOptions = new HashMap<>();
         browserstackOptions.put("appiumVersion", System.getProperty("browserStack.appiumVersion"));
