@@ -295,3 +295,44 @@ jobs:
         with:
           name: MacOSX_Chrome_Local_Extent
           path: "extent-reports/ExtentReports_*.html"
+
+  MacOSX_Safari_BrowserStack:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+          cache: 'maven'
+          check-latest: true
+      - name: Setup Chromium
+        uses: browser-actions/setup-chrome@latest
+      - name: Run tests
+        continue-on-error: true
+        run: mvn test -DexecutionAddress="browserstack" -DtargetOperatingSystem="Mac-64" -DtargetBrowserName="Safari" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Monterey" "-DbrowserStack.browserVersion=15.3" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*tests_browserActions.*], %regex[.*Test_chainableElementActions.*]"
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+          files: ./target/jacoco/jacoco.xml
+          verbose: true
+      - name: Upload Allure Report as Pipeline Artifact
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: MacOSX_Safari_BrowserStack_Allure
+          path: "generatedReport_*.zip"
+      - name: Upload Extent Report as Pipeline Artifact
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: MacOSX_Safari_BrowserStack_Extent
+          path: "extent-reports/ExtentReports_*.html"
