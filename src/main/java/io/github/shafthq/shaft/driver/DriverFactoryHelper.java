@@ -57,7 +57,7 @@ public class DriverFactoryHelper {
     @Getter(AccessLevel.PUBLIC)
     private static String targetOperatingSystem;
     @Getter(AccessLevel.PUBLIC)
-    private static String targetBrowserName;
+    private static String targetBrowserName = "";
     @Getter(AccessLevel.PUBLIC)
     private static final ThreadLocal<WebDriver> driver = new ThreadLocal<>();
     private static final ThreadLocal<WebDriverManager> webDriverManager = new ThreadLocal<>();
@@ -556,7 +556,11 @@ public class DriverFactoryHelper {
             default ->
                     failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
         }
-        ReportManager.log("Successfully Opened \"" + driverType.getValue() + "\".");
+        var driverName = driverType.getValue();
+        if (driverName.contains("MobileApp")) {
+            driverName = driverName.replace("Mobile", targetOperatingSystem);
+        }
+        ReportManager.log("Successfully Opened \"" + JavaHelper.convertToSentenceCase(driverName) + "\".");
     }
 
     private static Platform getDesiredOperatingSystem() {
