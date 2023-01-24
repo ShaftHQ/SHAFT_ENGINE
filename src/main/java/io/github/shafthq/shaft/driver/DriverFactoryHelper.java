@@ -19,6 +19,7 @@ import io.github.shafthq.shaft.tools.support.JavaHelper;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.Setter;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.chromium.ChromiumOptions;
@@ -57,6 +58,7 @@ public class DriverFactoryHelper {
     @Getter(AccessLevel.PUBLIC)
     private static String targetOperatingSystem;
     @Getter(AccessLevel.PUBLIC)
+    @Setter(AccessLevel.PUBLIC)
     private static String targetBrowserName;
     @Getter(AccessLevel.PUBLIC)
     private static final ThreadLocal<WebDriver> driver = new ThreadLocal<>();

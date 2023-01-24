@@ -102,13 +102,8 @@ public class ElementActionsHelper {
     }
 
     private static boolean isSafariBrowser() {
-        boolean isSafariBrowser= false;
-        try {
-            isSafariBrowser= DriverFactoryHelper.getTargetBrowserName().toLowerCase().contains("safari");
-        }
-        catch (NullPointerException exception){
-        }
-        return isSafariBrowser ;
+        DriverFactoryHelper.setTargetBrowserName(System.getProperty("targetBrowserName"));
+        return DriverFactoryHelper.getTargetBrowserName().toLowerCase().contains("safari");
     }
 
     public static ArrayList<Class<? extends Exception>> getExpectedExceptions(boolean isValidToCheckForVisibility) {
