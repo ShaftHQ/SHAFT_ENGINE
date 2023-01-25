@@ -158,7 +158,8 @@ jobs:
           path: "extent-reports/ExtentReports_*.html"
 
   Android_Native_BrowserStack:
-    runs-on: ubuntu-22.04
+    runs-on: macOS-12
+    timeout-minutes: 30
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -171,7 +172,7 @@ jobs:
           check-latest: true
       - name: Run tests
         continue-on-error: true
-        run: mvn test -DexecutionAddress="browserstack" -DtargetOperatingSystem="Android" -Dmobile_automationName="UIAutomator2" -DbrowserStack.platformVersion="11.0" -DbrowserStack.deviceName="Google Pixel 4" -DbrowserStack.appName="ApiDemos-debug.apk" -DbrowserStack.appRelativeFilePath="src/test/resources/testDataFiles/apps/ApiDemos-debug.apk" -DbrowserStack.appUrl=" " -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Android.*]"
+        run: mvn test -DexecutionAddress="browserstack" -DtargetOperatingSystem="Android" -Dmobile_automationName="UIAutomator2" -Dmobile_appWaitActivity="*" -Dmobile_disableWindowAnimation="true" -DbrowserStack.platformVersion="11.0" -DbrowserStack.deviceName="Google Pixel 4" -DbrowserStack.appName="ApiDemos-debug.apk" -DbrowserStack.appRelativeFilePath="src/test/resources/testDataFiles/apps/ApiDemos-debug.apk" -DbrowserStack.appUrl=" " -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Android.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
