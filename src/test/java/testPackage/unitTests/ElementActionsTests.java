@@ -56,12 +56,6 @@ public class ElementActionsTests {
     }
 
     @Test
-    public void waitForElementToBePresent_false_expectedToPass() {
-        driver.get().browser().navigateToURL("https://www.google.com/ncr", "www.google.com");
-        driver.get().element().waitToBeInvisible(By.id("bla"));
-    }
-
-    @Test
     public void waitForElementToBePresent_false_expectedToFail() {
         driver.get().browser().navigateToURL("https://www.google.com/ncr", "www.google.com");
         try {

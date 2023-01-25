@@ -297,7 +297,7 @@ public class Test_NewValidationHelper {
 
     @Test
     public void f36() {
-        Validations.assertThat().file("src/test/java/testPackage01/", "Test_NewValidationHelper.java").exists().perform();
+        Validations.assertThat().file("src/test/java/testPackage/", "Test_NewValidationHelper.java").exists().perform();
     }
 
     @Test
