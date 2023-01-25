@@ -1056,20 +1056,26 @@ public class ElementActions extends FluentElementActions {
      *                       id, selector, name ...etc)
      */
     @Deprecated
-    public static void waitForElementToBePresent(WebDriver driver, By elementLocator, int numberOfTries,
-                                                 boolean stateOfPresence) {
-        ReportManager.logDiscrete("Waiting for element to be present; elementLocator \"" + elementLocator + "\", numberOfTries\"" + numberOfTries + "\", stateOfPresence\"" + stateOfPresence + "\"...");
-        String reportMessage = "waited for the element's state of presence to be (" + stateOfPresence
+    public static void waitForElementToBePresent(WebDriver driver, By elementLocator, boolean isExpectedToBeVisible) {
+        ReportManager.logDiscrete("Waiting for element to be present; elementLocator \"" + elementLocator + "\", isExpectedToBeVisible\"" + isExpectedToBeVisible + "\"...");
+        String reportMessage = "waited for the element's state of visibility to be (" + isExpectedToBeVisible
                 + "). Element locator (" + formatLocatorToString(elementLocator) + ")";
-        if (Boolean.compare(stateOfPresence, Integer.parseInt(getMatchingElementsInformation(driver, elementLocator, Optional.of(numberOfTries), Optional.empty()).get(0).toString()) >= 1) == 0) {
-            if (Boolean.TRUE.equals(stateOfPresence)) {
-                //element is expected to be present
+
+        int elementCountIgnoringVisibility = Integer.valueOf(getMatchingElementsInformation(driver, elementLocator, Optional.of(1), Optional.of(false)).get(0).toString());
+//        int elementCountVisibileOnly = Integer.valueOf(getMatchingElementsInformation(driver, elementLocator, Optional.of(numberOfTries), Optional.of(true)).get(0).toString());
+
+        if (elementCountIgnoringVisibility >= 1) {
+            boolean isDisplayed = ((WebElement) identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1)).isDisplayed();
+            //element is present
+            if (isExpectedToBeVisible == isDisplayed) {
+                //either expected to be visible and is displayed, or not expected to be visible and not displayed
                 passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, getElementName(driver, elementLocator));
             } else {
-                //element is expected to be not present
-                passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, null);
+                //action should fail but the element exists
+                failAction(driver, reportMessage, elementLocator);
             }
         } else {
+            //action should fail because the element doesn't exist
             failAction(driver, reportMessage, elementLocator);
         }
     }
@@ -1081,8 +1087,8 @@ public class ElementActions extends FluentElementActions {
      * @param elementLocator the locator of the webElement under test (By xpath,
      *                       id, selector, name ...etc)
      */
-    @Deprecated
+    @Deprecated(forRemoval = true)
     public static void waitForElementToBeInvisible(WebDriver driver, By elementLocator) {
-        waitForElementToBePresent(driver, elementLocator, 1, false);
+        waitForElementToBePresent(driver, elementLocator, false);
     }
 }

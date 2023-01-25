@@ -476,7 +476,7 @@ public class FluentElementActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentElementActions waitToBeReady(By elementLocator) {
-        ElementActions.waitForElementToBePresent(DriverFactoryHelper.getDriver().get(), elementLocator, 1, true);
+        ElementActions.waitForElementToBePresent(DriverFactoryHelper.getDriver().get(), elementLocator, true);
         return this;
     }
 
@@ -493,7 +493,7 @@ public class FluentElementActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentElementActions waitToBeInvisible(By elementLocator) {
-        ElementActions.waitForElementToBePresent(DriverFactoryHelper.getDriver().get(), elementLocator, 1, false);
+        ElementActions.waitForElementToBePresent(DriverFactoryHelper.getDriver().get(), elementLocator, false);
         return this;
     }
 

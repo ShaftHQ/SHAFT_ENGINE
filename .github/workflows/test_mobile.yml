@@ -12,7 +12,7 @@ env:
   ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 60
 
 jobs:
-  mobile:
+  Android_Native_Emulator:
     name: Run Mobile-based Tests on MacOS
     runs-on: macOS-12
     timeout-minutes: 30
@@ -20,11 +20,6 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
-                  
-      #- name: Setup Gradle
-        #uses: gradle/gradle-build-action@v2
-        #with:
-           #gradle-version: 7.6
 
       - uses: maxim-lobanov/setup-android-tools@v1
         with:
@@ -130,32 +125,9 @@ jobs:
           #$ANDROID_HOME/platform-tools/adb exec-out screencap -p > emulator.png
           #osascript click.as
 
-      #- name: install recorder and record session
-        #run: |
-          #brew install ffmpeg
-          #$ANDROID_HOME/tools/emulator -port 18725 -verbose -no-window -no-audio -gpu swiftshader_indirect @Pixel_API_27_DEFAULT_x86_64 &
-          #ffmpeg -f avfoundation -i 0 -t 120 out.mov
-      # node -e "const exec = require('child_process'); exec.exec('ffmpeg -f avfoundation -i 0 -t 120 out.mov'); exec.exec('$ANDROID_HOME/tools/emulator -port 18725 -verbose -no-window -no-audio -gpu swiftshader_indirect @Pixel_5_API_31 &');"
-        #env:
-          #HOMEBREW_NO_INSTALL_CLEANUP: 1
-
-      - name: Run Android Tests
+      - name: Run tests
         continue-on-error: true
         run: mvn test -DexecutionAddress="localhost:4723" -DtargetOperatingSystem="Android" -Dmobile_automationName="UIAutomator2" -Dmobile_app="src/test/resources/TestDataFiles/apps/ApiDemos-debug.apk" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Android.*]"
-
-      #- name: Upload Video
-        #if: always()
-        #uses: actions/upload-artifact@master
-        #with:
-          #name: out
-          #path: out.mov
-
-      #- name: Upload Initial Device screenshot
-        #if: always()
-        #uses: actions/upload-artifact@v3
-        #with:
-          #name: screenshot.jpg
-          #path: screenshot.jpg
 
       - name: Upload Initial Emulator screenshot
         if: always()
@@ -175,12 +147,48 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: Mobile Native Tests Allure Report
+          name: Android_Native_Emulator_Allure
           path: "generatedReport_*.zip"
 
       - name: Upload Extent Report as Pipeline Artifact
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: Mobile Native Tests Extent Report
+          name: Android_Native_Emulator_Extent
+          path: "extent-reports/ExtentReports_*.html"
+
+  Android_Native_BrowserStack:
+    runs-on: macOS-12
+    timeout-minutes: 30
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+          cache: 'maven'
+          check-latest: true
+      - name: Run tests
+        continue-on-error: true
+        run: mvn test -DexecutionAddress="browserstack" -DtargetOperatingSystem="Android" -Dmobile_automationName="UIAutomator2" -Dmobile_appWaitActivity="*" -Dmobile_disableWindowAnimation="true" -DbrowserStack.platformVersion="11.0" -DbrowserStack.deviceName="Google Pixel 4" -DbrowserStack.appName="ApiDemos-debug.apk" -DbrowserStack.appRelativeFilePath="src/test/resources/testDataFiles/apps/ApiDemos-debug.apk" -DbrowserStack.appUrl=" " -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Android.*]"
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+          files: ./target/jacoco/jacoco.xml
+          verbose: true
+      - name: Upload Allure Report as Pipeline Artifact
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: Android_Native_BrowserStack_Allure
+          path: "generatedReport_*.zip"
+      - name: Upload Extent Report as Pipeline Artifact
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: Android_Native_BrowserStack_Extent
           path: "extent-reports/ExtentReports_*.html"
