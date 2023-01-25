@@ -39,7 +39,7 @@ Implementation steps:
 - found that extra dependencies are needed for remote key management, added them to the pom.xml
 - created a dedicated package and moved this file to under com.shaft.tools.security
 - created a demo java class (GoogleTink.java) to start playing around with the implementation
-- created a demo test class (src/test/java/testPackage01.tink/demo.java) to call the encrypt method from and see how it
+- created a demo test class (src/test/java/testPackage.tink/demo.java) to call the encrypt method from and see how it
   works
 - first attempt was successful and the file was encrypted as expected
 - first attempt to decrypt the file was a failure, the file was wiped
