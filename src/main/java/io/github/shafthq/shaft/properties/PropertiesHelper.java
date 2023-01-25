@@ -9,7 +9,7 @@ import org.apache.commons.lang3.SystemUtils;
 
 import java.io.File;
 import java.net.URL;
-
+import java.util.Arrays;
 
 public class PropertiesHelper {
     private static final String DEFAULT_PROPERTIES_FOLDER_PATH = "src/main/resources/properties/default";
@@ -21,6 +21,13 @@ public class PropertiesHelper {
         //attach property files
         attachPropertyFiles();
 
+        loadProperties();
+
+        //TODO: replace and remove legacy properties loader
+        PropertyFileManager.readPropertyFiles();
+    }
+
+    public static void loadProperties() {
         //load property objects
         //TODO: implement missing property interfaces
         Properties.paths = ConfigFactory.create(Paths.class);
@@ -35,6 +42,7 @@ public class PropertiesHelper {
 
     private static void postProcessing() {
         overrideTargetOperatingSystemForLocalExecution();
+        setMobilePlatform();
     }
 
     private static void overrideTargetOperatingSystemForLocalExecution() {
@@ -46,6 +54,13 @@ public class PropertiesHelper {
             } else if (SystemUtils.IS_OS_MAC) {
                 Properties.platform.set().targetOperatingSystem(OperatingSystems.MACOS);
             }
+        }
+    }
+
+    public static void setMobilePlatform() {
+        String targetOperatingSystem = Properties.platform.targetOperatingSystem();
+        if (Arrays.asList("Android", "iOS").contains(targetOperatingSystem)) {
+            Properties.mobile.set().platformName(Properties.platform.targetOperatingSystem().toLowerCase());
         }
     }
 

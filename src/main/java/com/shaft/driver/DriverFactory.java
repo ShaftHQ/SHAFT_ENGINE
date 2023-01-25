@@ -8,6 +8,7 @@ import com.shaft.db.DatabaseActions.DatabaseType;
 import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.driver.DriverFactoryHelper;
 import io.github.shafthq.shaft.listeners.TestNGListener;
+import io.github.shafthq.shaft.properties.PropertiesHelper;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.WebDriver;
 import org.sikuli.script.App;
@@ -20,7 +21,7 @@ public class DriverFactory {
      * @return a new Selenium WebDriver instance
      */
     public static WebDriver getDriver() {
-        readCustomTestSuiteParameters();
+        readLastMinuteUpdatedProperties();
         if (System.getProperty("executionAddress").contains("browserstack")) {
             return getBrowserStackDriver(new MutableCapabilities());
         } else {
@@ -36,7 +37,7 @@ public class DriverFactory {
      * @return a new Selenium WebDriver instance
      */
     public static WebDriver getDriver(DriverType driverType) {
-        readCustomTestSuiteParameters();
+        readLastMinuteUpdatedProperties();
         if (driverType.equals(DriverType.BROWSERSTACK)) {
             return getBrowserStackDriver(new MutableCapabilities());
         } else {
@@ -53,7 +54,7 @@ public class DriverFactory {
      * @return a new Selenium WebDriver instance
      */
     public static WebDriver getDriver(DriverType driverType, MutableCapabilities customDriverOptions) {
-        readCustomTestSuiteParameters();
+        readLastMinuteUpdatedProperties();
         if (driverType.equals(DriverType.BROWSERSTACK)) {
             return getBrowserStackDriver(customDriverOptions);
         } else {
@@ -67,7 +68,8 @@ public class DriverFactory {
      * read testng properties (enables modifying the test execution properties programatically)
      * used to duplicate the tests for each browser in case of cross-browser Execution
      */
-    private static void readCustomTestSuiteParameters() {
+    private static void readLastMinuteUpdatedProperties() {
+        PropertiesHelper.loadProperties();
         // it's null in case of Cucumber native feature file execution
         if (TestNGListener.getXmlTest() != null) {
             System.getProperties().putAll(TestNGListener.getXmlTest().getAllParameters());

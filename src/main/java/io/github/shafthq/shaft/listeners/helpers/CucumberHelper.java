@@ -4,7 +4,6 @@ import com.shaft.driver.DriverFactory;
 import io.github.shafthq.shaft.driver.DriverFactoryHelper;
 import io.github.shafthq.shaft.gui.image.ImageProcessingActions;
 import io.github.shafthq.shaft.properties.PropertiesHelper;
-import io.github.shafthq.shaft.properties.PropertyFileManager;
 import io.github.shafthq.shaft.tools.io.helpers.CheckpointCounter;
 import io.github.shafthq.shaft.tools.io.helpers.ProjectStructureManager;
 import io.github.shafthq.shaft.tools.io.helpers.ReportHelper;
@@ -18,7 +17,6 @@ public class CucumberHelper {
             // running in native Cucumber mode
             System.setProperty("disableLogging", "true");
             PropertiesHelper.initialize();
-            PropertyFileManager.readPropertyFiles();
             ProjectStructureManager.initialize();
             DriverFactoryHelper.initializeSystemProperties();
             TestNGListenerHelper.configureJVMProxy();

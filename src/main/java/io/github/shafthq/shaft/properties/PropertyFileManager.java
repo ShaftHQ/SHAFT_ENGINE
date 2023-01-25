@@ -72,7 +72,6 @@ public class PropertyFileManager {
 
             manageSafariBrowser();
 
-            setMobilePlatform();
             readPropertyFiles = false;
             ReportManagerHelper.setDiscreteLogging(isDiscrete);
         }
@@ -81,14 +80,6 @@ public class PropertyFileManager {
     private static void manageSafariBrowser() {
         if (SHAFT.Properties.web.targetBrowserName().equals(Browsers.SAFARI)) {
             System.setProperty("screenshotParams_screenshotType", "element");
-        }
-    }
-
-    private static void setMobilePlatform() {
-        String targetOperatingSystem = System.getProperty("targetOperatingSystem");
-        switch (targetOperatingSystem) {
-            case "Android", "iOS" -> System.setProperty("mobile_platformName", targetOperatingSystem);
-            default -> System.setProperty("mobile_platformName", "");
         }
     }
 
