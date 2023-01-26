@@ -242,13 +242,81 @@ public class DriverFactoryHelper {
                     options = new ChromeOptions();
                 }
                 options.setCapability(CapabilityType.PLATFORM_NAME, getDesiredOperatingSystem());
-                options.setHeadless(HEADLESS_EXECUTION);
+//                options.setHeadless(HEADLESS_EXECUTION);
+
+                if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
+                    options.addArguments("--headless=chrome");
+                }
                 if (Boolean.TRUE.equals(AUTO_MAXIMIZE)
                         && !ANDROID.equals(getOperatingSystemFromName(targetOperatingSystem))
                         && !IOS.equals(getOperatingSystemFromName(targetOperatingSystem))
                         && !OperatingSystems.MACOS.equals(getOperatingSystemFromName(targetOperatingSystem))) {
                     options.addArguments("--start-maximized");
                 }
+
+                // https://github.com/GoogleChrome/chrome-launcher/blob/main/docs/chrome-flags-for-tools.md
+                // https://docs.google.com/spreadsheets/d/1n-vw_PCPS45jX3Jt9jQaAhFqBY6Ge1vWF_Pa0k7dCk4/edit#gid=1265672696
+                options.addArguments("--enable-automation"
+                        , "--disable-background-timer-throttling"
+                        , "--disable-backgrounding-occluded-windows"
+                        , "--disable-features=CalculateNativeWinOcclusion"
+                        , "--disable-hang-monitor"
+                        , "--disable-component-update"
+                        , "--disable-domain-reliability"
+                        , "--disable-renderer-backgrounding"
+                        , "--disable-features=AutofillServerCommunication"
+                        , "--metrics-recording-only"
+                        , "--no-first-run"
+                        , "--no-default-browser-check"
+                        , "--remote-debugging-pipe"
+                        , "--remote-debugging-port=0"
+                        , "--silent-debugger-extension-api"
+                        , "--disable-extensions"
+                        , "--disable-component-extensions-with-background-pages"
+                        , "--disable-dev-shm-usage"
+                        , "--disable-gpu"
+                        , "--disable-features=MediaRouter"
+                        , "--disable-features=Translate"
+                        , "--disable-ipc-flooding-protection"
+                        , "--disable-background-networking"
+                        , "--mute-audio"
+                        , "--disable-breakpad"
+                        , "--ignore-certificate-errors"
+                        , "--auto-open-devtools-for-tabs"
+                        , "--disable-back-forward-cache"
+                        , "--disable-device-discovery-notifications"
+                        , "--export-tagged-pdf"
+                        , "--force-color-profile=srgb"
+                        , "--hide-scrollbars"
+                        , "--host-resolver-rules"
+                        , "--window-position=0,0"
+                        , "--window-size=1920,1080"
+                        , "--no-pings"
+                        , "--disable-features=PaintHolding"
+                        , "--disable-partial-raster"
+                        , "--in-process-gpu"
+                        , "--no-service-autorun"
+                        , "--disable-features=AvoidUnnecessaryBeforeUnloadCheckSync"
+                        , "--disable-features=CertificateTransparencyComponentUpdater"
+                        , "--disable-sync"
+                        , "--disable-features=OptimizationHints"
+                        , "--disable-features=DestroyProfileOnBrowserClose"
+                        , "--disable-features=DialMediaRouteProvider"
+                        , "--disable-features=GlobalMediaControls"
+                        , "--disable-features=ImprovedCookieControls"
+                        , "--disable-features=LazyFrameLoading"
+                        , "--disable-field-trial-config"
+                        , "--enable-features=NetworkService"
+                        , "--enable-features=NetworkServiceInProcess"
+                        , "--enable-use-zoom-for-dsf"
+                        , "--log-net-log"
+                        , "--net-log-capture-mode"
+                        , "--disable-client-side-phishing-detection"
+                        , "--disable-default-apps"
+                        , "--disable-features=InterestFeedContentSuggestions"
+                );
+
+
                 Map<String, Object> chromePreferences = new HashMap<>();
                 chromePreferences.put("profile.default_content_settings.popups", 0);
                 chromePreferences.put("download.prompt_for_download", "false");
