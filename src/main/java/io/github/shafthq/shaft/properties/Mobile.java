@@ -11,6 +11,10 @@ import org.aeonbits.owner.ConfigFactory;
         "classpath:MobileCapabilities.properties",
 })
 public interface Mobile extends EngineProperties {
+    @Key("mobile_platformName")
+    @DefaultValue("")
+    String platformName();
+
     @Key("mobile_platformVersion")
     @DefaultValue("")
     String platformVersion();
@@ -61,6 +65,10 @@ public interface Mobile extends EngineProperties {
     }
 
     class SetProperty implements EngineProperties.SetProperty {
+        public void platformName(String value) {
+            setProperty("mobile_platformName", value);
+        }
+
         public void platformVersion(String value) {
             setProperty("mobile_platformVersion", value);
         }

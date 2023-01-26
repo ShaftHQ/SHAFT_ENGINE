@@ -6,7 +6,6 @@ import io.github.shafthq.shaft.listeners.helpers.JiraHelper;
 import io.github.shafthq.shaft.listeners.helpers.RetryAnalyzer;
 import io.github.shafthq.shaft.listeners.helpers.TestNGListenerHelper;
 import io.github.shafthq.shaft.properties.PropertiesHelper;
-import io.github.shafthq.shaft.properties.PropertyFileManager;
 import io.github.shafthq.shaft.tools.io.helpers.IssueReporter;
 import io.github.shafthq.shaft.tools.io.helpers.ProjectStructureManager;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
@@ -39,7 +38,6 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         Allure.getLifecycle();
         Reporter.setEscapeHtml(false);
         PropertiesHelper.initialize();
-        PropertyFileManager.readPropertyFiles();
         ProjectStructureManager.initialize();
         DriverFactoryHelper.initializeSystemProperties();
         TestNGListenerHelper.configureJVMProxy();
