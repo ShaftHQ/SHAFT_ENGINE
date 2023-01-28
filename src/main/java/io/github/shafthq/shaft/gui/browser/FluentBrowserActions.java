@@ -255,15 +255,21 @@ public class FluentBrowserActions {
         return BrowserActions.getCookieDomain(DriverFactoryHelper.getDriver().get(), cookieName);
     }
 
+    /**
+     * Gets the cookie value.
+     *
+     * @param cookieName The cookie's name.
+     * @return the cookie value;
+     */
     public String getCookieValue(String cookieName) {
         return BrowserActions.getCookieValue(DriverFactoryHelper.getDriver().get(), cookieName);
     }
 
     /**
-     * Gets the cookie value.
+     * Gets the cookie path.
      *
      * @param cookieName The cookie's name.
-     * @return te cookie value;
+     * @return the cookie path;
      */
     public String getCookiePath(String cookieName) {
         return BrowserActions.getCookiePath(DriverFactoryHelper.getDriver().get(), cookieName);
