@@ -5,7 +5,10 @@ import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.TouchActions;
 import io.github.shafthq.shaft.driver.DriverFactoryHelper;
 import io.github.shafthq.shaft.gui.element.FluentElementActions;
+import org.openqa.selenium.Cookie;
 import org.openqa.selenium.WebDriver;
+
+import java.util.Set;
 
 public class FluentBrowserActions {
 
@@ -210,4 +213,39 @@ public class FluentBrowserActions {
         BrowserActions.switchToWindow(DriverFactoryHelper.getDriver().get(), nameOrHandle);
         return this;
     }
+
+    public FluentBrowserActions addCookie(String key, String value) {
+        BrowserActions.addCookie(DriverFactoryHelper.getDriver().get(), key, value);
+        return this;
+    }
+
+    public Cookie getCookie(String cookieName) {
+        return BrowserActions.getCookie(DriverFactoryHelper.getDriver().get(), cookieName);
+    }
+
+    public Set getAllCookies() {
+        return BrowserActions.getAllCookies(DriverFactoryHelper.getDriver().get());
+    }
+
+    public String getCookieDomain(String cookieName) {
+        return BrowserActions.getCookieDomain(DriverFactoryHelper.getDriver().get(), cookieName);
+    }
+
+    public String getCookieValue(String cookieName) {
+        return BrowserActions.getCookieValue(DriverFactoryHelper.getDriver().get(), cookieName);
+    }
+
+    public String getCookiePath(String cookieName) {
+        return BrowserActions.getCookiePath(DriverFactoryHelper.getDriver().get(), cookieName);
+    }
+    public FluentBrowserActions deleteCookie(String cookieName) {
+        BrowserActions.deleteCookie(DriverFactoryHelper.getDriver().get(), cookieName);
+        return this;
+    }
+
+    public FluentBrowserActions deleteAllCookie() {
+        BrowserActions.deleteAllCookies(DriverFactoryHelper.getDriver().get());
+        return this;
+    }
+
 }
