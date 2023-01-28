@@ -243,7 +243,7 @@ public class FluentBrowserActions {
         return this;
     }
 
-    public FluentBrowserActions deleteAllCookie() {
+    public FluentBrowserActions deleteAllCookies() {
         BrowserActions.deleteAllCookies(DriverFactoryHelper.getDriver().get());
         return this;
     }
