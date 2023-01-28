@@ -5,7 +5,10 @@ import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.TouchActions;
 import io.github.shafthq.shaft.driver.DriverFactoryHelper;
 import io.github.shafthq.shaft.gui.element.FluentElementActions;
+import org.openqa.selenium.Cookie;
 import org.openqa.selenium.WebDriver;
+
+import java.util.Set;
 
 public class FluentBrowserActions {
 
@@ -210,4 +213,87 @@ public class FluentBrowserActions {
         BrowserActions.switchToWindow(DriverFactoryHelper.getDriver().get(), nameOrHandle);
         return this;
     }
+
+    /**
+     * Adds a cookie to the current browsing context.
+     *
+     * @param name The cookie's name
+     * @param value The cookie's name
+     * @return a self-reference to be used to chain actions
+     */
+    public FluentBrowserActions addCookie(String name, String value) {
+        BrowserActions.addCookie(DriverFactoryHelper.getDriver().get(), name, value);
+        return this;
+    }
+
+    /**
+     * Gets a cookie with a given name.
+     *
+     * @param cookieName The cookie's name.
+     * @return the cookie.
+     */
+    public Cookie getCookie(String cookieName) {
+        return BrowserActions.getCookie(DriverFactoryHelper.getDriver().get(), cookieName);
+    }
+
+    /**
+     * Gets all cookies for the current browsing context.
+     *
+     * @return A Set of cookies for the current browsing context.
+     */
+    public Set getAllCookies() {
+        return BrowserActions.getAllCookies(DriverFactoryHelper.getDriver().get());
+    }
+
+    /**
+     * Gets the cookie domain.
+     *
+     * @param cookieName The cookie's name.
+     * @return te cookie domain;
+     */
+    public String getCookieDomain(String cookieName) {
+        return BrowserActions.getCookieDomain(DriverFactoryHelper.getDriver().get(), cookieName);
+    }
+
+    /**
+     * Gets the cookie value.
+     *
+     * @param cookieName The cookie's name.
+     * @return the cookie value;
+     */
+    public String getCookieValue(String cookieName) {
+        return BrowserActions.getCookieValue(DriverFactoryHelper.getDriver().get(), cookieName);
+    }
+
+    /**
+     * Gets the cookie path.
+     *
+     * @param cookieName The cookie's name.
+     * @return the cookie path;
+     */
+    public String getCookiePath(String cookieName) {
+        return BrowserActions.getCookiePath(DriverFactoryHelper.getDriver().get(), cookieName);
+    }
+
+    /**
+     * Deletes the cookie data matching with the provided cookie name for the current browsing context.
+     *
+     * @param cookieName The name of the cookie to delete.
+     * @return a self-reference to be used to chain actions.
+     */
+    public FluentBrowserActions deleteCookie(String cookieName) {
+        BrowserActions.deleteCookie(DriverFactoryHelper.getDriver().get(), cookieName);
+        return this;
+    }
+
+    /**
+     * Deletes all the cookies of the current browsing context.
+     *
+     * @return a self-reference to be used to chain actions.
+     */
+    public FluentBrowserActions deleteAllCookies() {
+        BrowserActions.deleteAllCookies(DriverFactoryHelper.getDriver().get());
+        return this;
+    }
+
 }
