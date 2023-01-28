@@ -1,6 +1,7 @@
 package io.github.shafthq.shaft.driver;
 
 import com.epam.healenium.SelfHealingDriver;
+import com.mysql.cj.util.StringUtils;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactory.DriverType;
 import com.shaft.gui.browser.BrowserActions;
@@ -22,7 +23,6 @@ import lombok.NonNull;
 import lombok.SneakyThrows;
 import me.tongfei.progressbar.ProgressBar;
 import me.tongfei.progressbar.ProgressBarBuilder;
-import org.apache.commons.lang3.math.NumberUtils;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.chromium.ChromiumOptions;
@@ -718,7 +718,7 @@ public class DriverFactoryHelper {
             if (!value.trim().equals("")) {
                 if (Arrays.asList("true", "false").contains(value.trim().toLowerCase())) {
                     desiredCapabilities.setCapability(capabilityName.split("mobile_")[1], Boolean.valueOf(value));
-                } else if (NumberUtils.isParsable(value.trim())) {
+                } else if (StringUtils.isStrictlyNumeric(value.trim())) {
                     desiredCapabilities.setCapability(capabilityName.split("mobile_")[1], Integer.valueOf(value));
                 } else {
                     desiredCapabilities.setCapability(capabilityName.split("mobile_")[1], value);
