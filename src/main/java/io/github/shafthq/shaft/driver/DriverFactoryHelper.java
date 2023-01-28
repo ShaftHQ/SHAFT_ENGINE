@@ -19,6 +19,10 @@ import io.github.shafthq.shaft.tools.support.JavaHelper;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.SneakyThrows;
+import me.tongfei.progressbar.ProgressBar;
+import me.tongfei.progressbar.ProgressBarBuilder;
+import org.apache.commons.lang3.math.NumberUtils;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.chromium.ChromiumOptions;
@@ -38,6 +42,8 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
 import static io.github.shafthq.shaft.enums.OperatingSystems.*;
@@ -70,6 +76,11 @@ public class DriverFactoryHelper {
     @Getter(AccessLevel.PUBLIC)
     private static boolean killSwitch = false;
 
+    // TODO: implement new environment variable to automatically spin up the server/emulator instances
+    private static final boolean appiumDockerizedExecution = false;
+    private static final boolean closeAppiumDockersAfterExecution = false;
+    private static final long appiumServerCreationTimeout = TimeUnit.MINUTES.toSeconds(15); // seconds
+    private static final int appiumServerCreationPollingInterval = 10; // seconds
 
     private DriverFactoryHelper() {
         throw new IllegalStateException("Utility class");
@@ -125,6 +136,10 @@ public class DriverFactoryHelper {
                 RecordManager.attachVideoRecording(pathToRecording);
             } else {
                 driver.get().quit();
+            }
+
+            if (appiumDockerizedExecution && closeAppiumDockersAfterExecution) {
+                ReportManagerHelper.deleteAndroidEmulatorContainers();
             }
         } catch (WebDriverException | NullPointerException e) {
             // driver was already closed at an earlier stage
@@ -304,7 +319,6 @@ public class DriverFactoryHelper {
                         , "--disable-default-apps"
                         , "--disable-features=InterestFeedContentSuggestions"
                 );
-
 
                 Map<String, Object> chromePreferences = new HashMap<>();
                 chromePreferences.put("profile.default_content_settings.popups", 0);
@@ -549,34 +563,68 @@ public class DriverFactoryHelper {
         }
     }
 
-    private static void setRemoteDriverInstance(Capabilities capabilities) throws MalformedURLException {
+    @SneakyThrows(Throwable.class)
+    private static void setRemoteDriverInstance(Capabilities capabilities) {
         ReportManager.logDiscrete(capabilities.toString());
-        RemoteWebDriver remoteWebDriver;
+        RemoteWebDriver remoteWebDriver = null;
         var os = getOperatingSystemFromName(targetOperatingSystem);
-        try {
-            switch (os) {
-                case ANDROID -> remoteWebDriver = new AndroidDriver(new URL(TARGET_HUB_URL), capabilities);
-                case IOS -> remoteWebDriver = new IOSDriver(new URL(TARGET_HUB_URL), capabilities);
-                default -> remoteWebDriver = new RemoteWebDriver(new URL(TARGET_HUB_URL), capabilities);
-            }
-        } catch (org.openqa.selenium.SessionNotCreatedException sessionNotCreatedException) {
-            if (sessionNotCreatedException.getMessage().contains("Could not start a new session.") || sessionNotCreatedException.getMessage().contains("Response code 404.")) {
-                // this exception is thrown when using an old appium 1.x server, appending old path to connect to the server
+        boolean serverReady = false;
+        var startTime = System.currentTimeMillis();
+        Throwable throwable = new Throwable();
+        ReportManager.logDiscrete("Attempting to connect to Appium server for up to " + TimeUnit.SECONDS.toMinutes(appiumServerCreationTimeout) + "min with " + appiumServerCreationPollingInterval + "sec polling interval.");
+
+        try (ProgressBar progressBar = new ProgressBarBuilder()
+                .setTaskName("Connecting to Appium Server")
+                .setUnit("Attempts", 1)
+                .setEtaFunction(state -> Optional.ofNullable(Duration.ofMillis((startTime + TimeUnit.SECONDS.toMillis(appiumServerCreationTimeout) - System.currentTimeMillis()))))
+                .showSpeed()
+                .setInitialMax(Math.round(appiumServerCreationTimeout / appiumServerCreationPollingInterval))
+                .build()) {
+            do {
                 try {
                     switch (os) {
-                        case ANDROID ->
-                                remoteWebDriver = new AndroidDriver(new URL(TARGET_HUB_URL + "wd/hub"), capabilities);
-                        case IOS -> remoteWebDriver = new IOSDriver(new URL(TARGET_HUB_URL + "wd/hub"), capabilities);
-                        default ->
-                                remoteWebDriver = new RemoteWebDriver(new URL(TARGET_HUB_URL + "wd/hub"), capabilities);
+                        case ANDROID -> remoteWebDriver = new AndroidDriver(new URL(TARGET_HUB_URL), capabilities);
+                        case IOS -> remoteWebDriver = new IOSDriver(new URL(TARGET_HUB_URL), capabilities);
+                        default -> remoteWebDriver = new RemoteWebDriver(new URL(TARGET_HUB_URL), capabilities);
                     }
-                } catch (org.openqa.selenium.SessionNotCreatedException sessionNotCreatedException2) {
-                    sessionNotCreatedException2.initCause(sessionNotCreatedException);
-                    throw sessionNotCreatedException;
+                    serverReady = true;
+                    // TODO: ensure catching only the correct exception otherwise there will be a risk to wait for no reason!
+                } catch (org.openqa.selenium.SessionNotCreatedException sessionNotCreatedException) {
+                    throwable = sessionNotCreatedException;
+                    if (sessionNotCreatedException.getMessage().contains("Response code 404.")) {
+                        // this exception is thrown when using an old appium 1.x server, appending old path to connect to the server
+                        try {
+                            switch (os) {
+                                case ANDROID ->
+                                        remoteWebDriver = new AndroidDriver(new URL(TARGET_HUB_URL + "wd/hub"), capabilities);
+                                case IOS ->
+                                        remoteWebDriver = new IOSDriver(new URL(TARGET_HUB_URL + "wd/hub"), capabilities);
+                                default ->
+                                        remoteWebDriver = new RemoteWebDriver(new URL(TARGET_HUB_URL + "wd/hub"), capabilities);
+                            }
+                            serverReady = true;
+                        } catch (org.openqa.selenium.SessionNotCreatedException sessionNotCreatedException2) {
+                            throwable = sessionNotCreatedException2;
+                            throwable.addSuppressed(sessionNotCreatedException);
+                        } catch (Throwable throwable1) {
+                            throwable = throwable1;
+                            throwable.addSuppressed(sessionNotCreatedException);
+                            throw throwable;
+                        }
+                    }
+//                    ReportManager.logDiscrete("Appium server is not ready yet ⏳, trying again in " + appiumServerCreationPollingInterval + " seconds...");
+                    Thread.sleep(TimeUnit.SECONDS.toMillis(appiumServerCreationPollingInterval));
+                    System.out.print("\n");
+                    progressBar.stepBy(Math.round(appiumServerCreationPollingInterval * (100.0 / appiumServerCreationTimeout)));
+                    System.out.print("\n");
                 }
-            } else {
-                throw sessionNotCreatedException;
-            }
+            } while (!serverReady || (System.currentTimeMillis() < startTime + TimeUnit.SECONDS.toMillis(appiumServerCreationTimeout)));
+            progressBar.stepTo(Math.round(appiumServerCreationTimeout / appiumServerCreationPollingInterval));
+        }
+
+        if (!serverReady) {
+            ReportManager.logDiscrete("Appium server was still not ready after " + TimeUnit.SECONDS.toMinutes(appiumServerCreationTimeout) + " minutes.");
+            throw throwable;
         }
         remoteWebDriver.setFileDetector(new LocalFileDetector());
         if (os.equals(ANDROID)
@@ -668,7 +716,13 @@ public class DriverFactoryHelper {
         Map<String, String> caps = PropertyFileManager.getAppiumDesiredCapabilities();
         caps.forEach((capabilityName, value) -> {
             if (!value.trim().equals("")) {
-                desiredCapabilities.setCapability(capabilityName.split("mobile_")[1], value);
+                if (Arrays.asList("true", "false").contains(value.trim().toLowerCase())) {
+                    desiredCapabilities.setCapability(capabilityName.split("mobile_")[1], Boolean.valueOf(value));
+                } else if (NumberUtils.isParsable(value.trim())) {
+                    desiredCapabilities.setCapability(capabilityName.split("mobile_")[1], Integer.valueOf(value));
+                } else {
+                    desiredCapabilities.setCapability(capabilityName.split("mobile_")[1], value);
+                }
             }
         });
         return desiredCapabilities;
@@ -716,6 +770,9 @@ public class DriverFactoryHelper {
             if (isMobileExecution) {
                 //mobile execution
                 driverType = DriverType.APPIUM_MOBILE_NATIVE;
+                if (appiumDockerizedExecution) {
+                    ReportManagerHelper.downloadAndroidEmulatorFiles();
+                }
                 setDriverOptions(driverType, customDriverOptions);
                 createNewRemoteDriverInstance(driverType);
             } else {

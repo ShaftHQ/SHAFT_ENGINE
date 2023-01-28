@@ -9,6 +9,7 @@ import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import org.testng.Assert;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.*;
@@ -24,7 +25,7 @@ public class TerminalActions {
     private String dockerName = "";
     private String dockerUsername;
 
-    private boolean unattended = false;
+    private boolean asynchronous = false;
 
     /**
      * This constructor is used for local terminal actions.
@@ -35,10 +36,10 @@ public class TerminalActions {
     /**
      * This constructor is used for local terminal actions.
      *
-     * @param unattended true for unattended execution of commands in a separate thread
+     * @param asynchronous true for asynchronous execution of commands in a separate thread
      */
-    public TerminalActions(boolean unattended) {
-        this.unattended = unattended;
+    public TerminalActions(boolean asynchronous) {
+        this.asynchronous = asynchronous;
     }
 
     /**
@@ -170,8 +171,8 @@ public class TerminalActions {
         // Perform command
         List<Object> teminalSession = executeCommand(command);
 
-        String exitStatus = "unattended";
-        if (!unattended) {
+        String exitStatus = "asynchronous";
+        if (!asynchronous) {
             // Capture logs and close readers
             BufferedReader reader = (BufferedReader) teminalSession.get(3);
             BufferedReader errorReader = (BufferedReader) teminalSession.get(4);
@@ -302,6 +303,29 @@ public class TerminalActions {
         return command.toString();
     }
 
+    private List<Object> executeLengthyCommand(String command) {
+        Process localProcess = null;
+        BufferedReader reader = null;
+        BufferedReader errorReader = null;
+        try {
+            ProcessBuilder pb = new ProcessBuilder(command);
+            pb.directory(new File(System.getProperty("user.dir")));
+            pb.inheritIO();
+            localProcess = pb.start();
+            if (!asynchronous) {
+                localProcess.waitFor();
+            }
+            reader = new BufferedReader(new InputStreamReader(localProcess.getInputStream()));
+            errorReader = new BufferedReader(new InputStreamReader(localProcess.getErrorStream()));
+        } catch (InterruptedException rootCauseException) {
+            failAction(command, rootCauseException);
+            Thread.currentThread().interrupt();
+        } catch (IOException rootCauseException) {
+            failAction(command, rootCauseException);
+        }
+        return Arrays.asList(null, null, localProcess, reader, errorReader);
+    }
+
     private List<Object> executeCommand(String command) {
         BufferedReader reader = null;
         BufferedReader errorReader = null;
@@ -325,21 +349,27 @@ public class TerminalActions {
                 }
             } else {
                 // local execution
-                ReportManager
-                        .logDiscrete("Attempting to perform the following command locally. Command: \"" + command + "\"");
-                // https://coderanch.com/t/323662/java/Direct-Runtime-getRuntime-exec-output
+                ReportManager.logDiscrete("Attempting to execute the following command locally. Command: \"" + command + "\"");
 
-                if ("generate_allure_report.bat".equals(command)) {
-                    // hardcoded override to fix memory leak (infinite allure servers opened) on windows
-                    command = "cmd /c start " + System.getProperty("user.dir") + "\\" + command;
-                }
+                if (command.contains("docker-compose.bat")) {
+                    List<Object> results = executeLengthyCommand(command);
+                    localProcess = (Process) results.get(2);
+                    reader = (BufferedReader) results.get(3);
+                    errorReader = (BufferedReader) results.get(4);
+                } else {
+                    // https://coderanch.com/t/323662/java/Direct-Runtime-getRuntime-exec-output
+                    if ("generate_allure_report.bat".equals(command)) {
+                        // hardcoded override to fix memory leak (infinite allure servers opened) on windows
+                        command = "cmd /c start " + System.getProperty("user.dir") + "\\" + command;
+                    }
 
-                localProcess = Runtime.getRuntime().exec(command);
-                if (!unattended) {
-                    localProcess.waitFor();
+                    localProcess = Runtime.getRuntime().exec(command);
+                    if (!asynchronous) {
+                        localProcess.waitFor();
+                    }
+                    reader = new BufferedReader(new InputStreamReader(localProcess.getInputStream()));
+                    errorReader = new BufferedReader(new InputStreamReader(localProcess.getErrorStream()));
                 }
-                reader = new BufferedReader(new InputStreamReader(localProcess.getInputStream()));
-                errorReader = new BufferedReader(new InputStreamReader(localProcess.getErrorStream()));
             }
         } catch (InterruptedException rootCauseException) {
             failAction(command, rootCauseException);
@@ -362,18 +392,18 @@ public class TerminalActions {
         return logBuilder.toString();
     }
 
-    private String readConsoleLogs(BufferedReader errorReader) throws IOException {
+    private String readConsoleLogs(BufferedReader reader) throws IOException {
         StringBuilder logBuilder = new StringBuilder();
-        if (errorReader != null) {
+        if (reader != null) {
             String logLine;
-            while ((logLine = errorReader.readLine()) != null) {
+            while ((logLine = reader.readLine()) != null) {
                 if (logBuilder.length() == 0) {
                     logBuilder.append(logLine);
                 } else {
                     logBuilder.append(System.lineSeparator()).append(logLine);
                 }
             }
-            errorReader.close();
+            reader.close();
         }
         return logBuilder.toString();
     }
