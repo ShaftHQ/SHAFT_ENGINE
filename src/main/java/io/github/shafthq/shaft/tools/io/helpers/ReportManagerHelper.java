@@ -11,6 +11,7 @@ import com.aventstack.extentreports.reporter.configuration.ViewName;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
+import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.listeners.CucumberFeatureListener;
 import io.github.shafthq.shaft.properties.PropertyFileManager;
@@ -45,6 +46,7 @@ public class ReportManagerHelper {
     private static final String SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE = "SHAFT Engine Logs";
     private static final String allureExtractionLocation = System.getProperty("user.home") + File.separator + ".m2"
             + File.separator + "repository" + File.separator + "allure" + File.separator;
+    private static final String androidEmulatorLocation = "src/main/resources/docker-compose/android-emulator/";
     private static String issuesLog = "";
     private static int issueCounter = 1;
     private static boolean discreteLogging = false;
@@ -770,6 +772,78 @@ public class ReportManagerHelper {
                 // make allure executable on Unix-based shells
                 (new TerminalActions()).performTerminalCommand("chmod u+x " + allureBinaryPath);
             }
+        }
+    }
+
+    public static void downloadAndroidEmulatorFiles() {
+        // https://github.com/amrsa1/Android-Emulator
+        var downloadableFileURLs = Arrays.asList(
+                "https://raw.githubusercontent.com/amrsa1/Android-Emulator/main/Dockerfile",
+                "https://raw.githubusercontent.com/amrsa1/Android-Emulator/main/docker-compose.yml",
+                "https://raw.githubusercontent.com/amrsa1/Android-Emulator/main/start_appium.sh",
+                "https://raw.githubusercontent.com/amrsa1/Android-Emulator/main/start_emu_headless.sh",
+                "https://raw.githubusercontent.com/amrsa1/Android-Emulator/main/start_vnc.sh",
+                "https://raw.githubusercontent.com/amrsa1/Android-Emulator/main/start_emu.sh");
+        downloadableFileURLs.forEach(url -> FileActions.getInstance().downloadFile(url, androidEmulatorLocation + url.substring(url.lastIndexOf("/") + 1)));
+
+        // Edit file to launch emulator in headed mode
+//        FileActions.getInstance().writeToFile(androidEmulatorLocation, "docker-compose.yml",
+//                FileActions.getInstance().readFile(androidEmulatorLocation, "docker-compose.yml").replace("start_emu_headless.sh","start_emu.sh"));
+
+        String appWithPath = SHAFT.Properties.mobile.app();
+        if (!"".equals(appWithPath)) {
+//            String appFileName = appWithPath.substring(appWithPath.lastIndexOf("/")+1);
+//            SHAFT.Properties.mobile.set().app(appFileName);
+            SHAFT.Properties.mobile.set().app(appWithPath.substring(appWithPath.lastIndexOf("/")));
+            SHAFT.Properties.platform.set().executionAddress("localhost:4725");
+        }
+
+        ReportManager.logDiscrete("Launching Android-Emulator and Appium 2 containers. If the containers aren't on your machine they may take some time to download (5.57 GB) depending on your internet connection...");
+        // https://github.com/appium/appium/issues/12287
+        System.setProperty("mobile_uiautomator2ServerInstallTimeout", "1200000");
+        System.setProperty("mobile_uiautomator2ServerLaunchTimeout", "1200000");
+        System.setProperty("mobile_adbExecTimeout", "1200000");
+
+        var logMessage = "with container id: ";
+        var runningContainers = executeCommand(androidEmulatorLocation, "docker ps");
+        if (!runningContainers.contains("android-emulator")) {
+            // Only bring it up if it's not already running to enhance performance
+            executeCommand(androidEmulatorLocation, "docker-compose -f " + androidEmulatorLocation + "docker-compose.yml up --scale android-service=1 -d");
+            logMessage = "Successfully initialized Android-Emulator and Appium 2 containerized instance " + logMessage;
+        } else {
+            logMessage = "Android-Emulator and Appium 2 containerized instance was already running " + logMessage;
+        }
+        var commandLog = executeCommand(androidEmulatorLocation, "docker ps -q");
+        var runningContainerID = commandLog.substring(commandLog.indexOf("\n")).trim();
+        ReportManager.logDiscrete(logMessage + runningContainerID);
+
+        if (!"".equals(appWithPath)) {
+            ReportManager.logDiscrete("Transferring " + SHAFT.Properties.mobile.app() + " to target container...");
+            // copy .apk to container root
+            executeCommand(androidEmulatorLocation, "docker cp " + FileActions.getInstance().getAbsolutePath(appWithPath) + " " + runningContainerID + ":/");
+            // make .apk editable
+            executeCommand(androidEmulatorLocation, "docker exec -d android-emulator chmod u+x " + SHAFT.Properties.mobile.app());
+        }
+    }
+
+    public static String deleteAndroidEmulatorContainers() {
+        ReportManager.logDiscrete("Destroying Android-Emulator and Appium 2 containers.");
+        return executeCommand(androidEmulatorLocation, "docker rm -f android-service", true);
+    }
+
+    private static String executeCommand(String location, String command) {
+        return executeCommand(location, command, false);
+    }
+
+    private static String executeCommand(String location, String command, boolean asynchronous) {
+        String fileName = command.substring(0, command.indexOf(" "));
+        if (SystemUtils.IS_OS_WINDOWS) {
+            FileActions.getInstance().writeToFile(location, fileName + ".bat", command);
+            return new TerminalActions(asynchronous).performTerminalCommand(location + fileName + ".bat");
+        } else {
+            FileActions.getInstance().writeToFile(location, fileName + ".sh", command);
+            new TerminalActions(asynchronous).performTerminalCommand("chmod u+x " + location + fileName + ".sh");
+            return new TerminalActions(asynchronous).performTerminalCommand("sh " + location + fileName + ".sh");
         }
     }
 
