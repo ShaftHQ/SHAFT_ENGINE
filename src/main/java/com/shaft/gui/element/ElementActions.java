@@ -597,6 +597,7 @@ public class ElementActions extends FluentElementActions {
      * @return integer value that represents the number of elements that match the
      * desired elementLocator
      */
+    @Deprecated
     public static int getElementsCount(WebDriver driver, By elementLocator) {
         return Integer.parseInt(ElementActionsHelper.getMatchingElementsInformation(driver, elementLocator, Optional.empty(), Optional.empty()).get(0).toString());
     }
@@ -1100,6 +1101,7 @@ public class ElementActions extends FluentElementActions {
      * @param elementLocator  the locator of the webElement under test (By xpath,
      *                        id, selector, name ...etc)
      */
+    @Deprecated(forRemoval = true)
     public static void waitForElementToBeReady(WebDriver driver, By elementLocator) {
         waitForElementToBePresent(driver, elementLocator, true);
     }
