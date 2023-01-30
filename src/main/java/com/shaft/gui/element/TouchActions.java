@@ -1,5 +1,6 @@
 package com.shaft.gui.element;
 
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.shaft.tools.io.ReportManager;
@@ -174,8 +175,12 @@ public class TouchActions {
             }
              ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, elementText.replaceAll("\n", " "), screenshot, null);
         } catch (Throwable throwable) {
-             ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
-        }
+             if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
+                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
+             } else {
+                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+             }
+         }
         return this;
     }
 
@@ -212,7 +217,11 @@ public class TouchActions {
                 ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, null);
             }
         } catch (Throwable throwable) {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
+            } else {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+            }
         }
         return this;
     }
@@ -250,7 +259,11 @@ public class TouchActions {
                 ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, null);
             }
         } catch (Throwable throwable) {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
+            } else {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+            }
         }
         return this;
     }
@@ -388,7 +401,11 @@ public class TouchActions {
                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), reportMessage, sourceElementLocator);
             }
         } catch (Throwable throwable) {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), sourceElementLocator, throwable);
+            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
+            } else {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), sourceElementLocator, throwable);
+            }
         }
         return this;
     }
@@ -428,7 +445,11 @@ public class TouchActions {
                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), reportMessage, elementLocator);
             }
         } catch (Throwable throwable) {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
+            } else {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+            }
         }
         return this;
     }
@@ -547,11 +568,12 @@ public class TouchActions {
             } catch (Exception exception) {
                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), "Couldn't find reference element on the current screen. If you can see it in the attached image then kindly consider cropping it and updating your reference image.", null, attachments, exception);
             }
-        } catch (AssertionError assertionError) {
-            //bubble up
-            throw assertionError;
         } catch (Throwable throwable) {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), scrollableElementLocator, throwable);
+            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
+            } else {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), scrollableElementLocator, throwable);
+            }
         }
         return this;
     }
@@ -588,7 +610,11 @@ public class TouchActions {
                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), targetElementLocator, e);
             }
         } catch (Throwable throwable) {
-            ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), scrollableElementLocator, throwable);
+            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
+            } else {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), scrollableElementLocator, throwable);
+            }
         }
         return this;
     }

@@ -14,7 +14,6 @@ import io.github.shafthq.shaft.tools.support.JavaHelper;
 import io.restassured.builder.MultiPartSpecBuilder;
 import io.restassured.builder.RequestSpecBuilder;
 import io.restassured.config.EncoderConfig;
-import io.restassured.config.HttpClientConfig;
 import io.restassured.config.RestAssuredConfig;
 import io.restassured.http.ContentType;
 import io.restassured.http.Cookie;
@@ -51,6 +50,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import static io.restassured.RestAssured.given;
+import static io.restassured.config.HttpClientConfig.httpClientConfig;
 
 @SuppressWarnings("unused")
 public class RestActions {
@@ -1018,7 +1018,7 @@ public class RestActions {
         // adding timeouts
         builder.setConfig(
                 (new RestAssuredConfig()).encoderConfig((new EncoderConfig()).defaultContentCharset("UTF-8").appendDefaultContentCharsetToContentTypeIfUndefined(appendDefaultContentCharsetToContentTypeIfUndefined)).and()
-                        .httpClient(HttpClientConfig.httpClientConfig()
+                        .httpClient(httpClientConfig()
                                 .setParam("http.connection.timeout", HTTP_CONNECTION_TIMEOUT * 1000)
                                 .setParam("http.socket.timeout", HTTP_SOCKET_TIMEOUT * 1000)
                                 .setParam("http.connection-manager.timeout", HTTP_CONNECTION_MANAGER_TIMEOUT * 1000)));

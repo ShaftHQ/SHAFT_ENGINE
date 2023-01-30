@@ -424,6 +424,7 @@ public class ElementActionsHelper {
             } catch (WebDriverException e) {
                 //happens on some elements that show unhandled inspector error
                 //this exception is thrown on some older selenium grid instances, I saw it with firefox running over selenoid
+                //ignore
             }
         }
         return formatLocatorToString(elementLocator);
@@ -431,22 +432,17 @@ public class ElementActionsHelper {
 
     private static void clearBeforeTyping(WebDriver driver, By elementLocator,
                                           TextDetectionStrategy successfulTextLocationStrategy) {
-        try {
-            // attempt clear using clear
-            ((WebElement) identifyUniqueElement(driver, elementLocator).get(1)).clear();
-            // attempt clear using letter by letter backspace
-            var attemptClearBeforeTypingUsingBackspace = Boolean.parseBoolean(System.getProperty("attemptClearBeforeTypingUsingBackspace"));
-            if (attemptClearBeforeTypingUsingBackspace) {
-                String elementText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator,
-                        successfulTextLocationStrategy);
+        // attempt clear using clear
+        ((WebElement) identifyUniqueElement(driver, elementLocator).get(1)).clear();
+        // attempt clear using letter by letter backspace
+        var attemptClearBeforeTypingUsingBackspace = Boolean.parseBoolean(System.getProperty("attemptClearBeforeTypingUsingBackspace"));
+        if (attemptClearBeforeTypingUsingBackspace) {
+            String elementText = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator,
+                    successfulTextLocationStrategy);
 
-                for (var character : elementText.toCharArray()) {
-                    ((WebElement) identifyUniqueElement(driver, elementLocator).get(1)).sendKeys(Keys.BACK_SPACE);
-                }
+            for (var character : elementText.toCharArray()) {
+                ((WebElement) identifyUniqueElement(driver, elementLocator).get(1)).sendKeys(Keys.BACK_SPACE);
             }
-        } catch (InvalidElementStateException e) {
-            // this was seen in case of attempting to type in an invalid element (an image)
-            ReportManagerHelper.logDiscrete(e);
         }
     }
 
@@ -549,37 +545,31 @@ public class ElementActionsHelper {
     }
 
     public static String typeWrapper(WebDriver driver, By elementLocator, String targetText) {
-        try {
-            TextDetectionStrategy successfulTextLocationStrategy = TextDetectionStrategy.UNDEFINED;
-            if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckTextWasTypedCorrectly")))) {
-                successfulTextLocationStrategy = determineSuccessfulTextLocationStrategy(driver,
-                        elementLocator);
-            }
-            clearBeforeTyping(driver, elementLocator, successfulTextLocationStrategy);
-            if (!"".equals(targetText)) {
-                performType(driver, elementLocator, targetText);
-            }
-            if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckTextWasTypedCorrectly")))) {
-                String actualText = confirmTypingWasSuccessful(driver, elementLocator, successfulTextLocationStrategy);
-                if (targetText.equals(actualText) || OBFUSCATED_STRING.repeat(targetText.length()).equals(actualText)) {
-                    return targetText;
-                } else {
-                    // attempt once to type using javascript then confirm typing was successful
-                    // again
-                    ElementActionsHelper.setValueUsingJavascript(driver, elementLocator, targetText);
-                    var textAfterSettingValueUsingJavascript = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator, TextDetectionStrategy.VALUE);
-                    if ("".equals(textAfterSettingValueUsingJavascript) && successfulTextLocationStrategy.equals(TextDetectionStrategy.UNDEFINED)) {
-                        return targetText;
-                    }
-                    return textAfterSettingValueUsingJavascript;
-                }
-            } else {
+        TextDetectionStrategy successfulTextLocationStrategy = TextDetectionStrategy.UNDEFINED;
+        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckTextWasTypedCorrectly")))) {
+            successfulTextLocationStrategy = determineSuccessfulTextLocationStrategy(driver,
+                    elementLocator);
+        }
+        clearBeforeTyping(driver, elementLocator, successfulTextLocationStrategy);
+        if (!"".equals(targetText)) {
+            performType(driver, elementLocator, targetText);
+        }
+        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckTextWasTypedCorrectly")))) {
+            String actualText = confirmTypingWasSuccessful(driver, elementLocator, successfulTextLocationStrategy);
+            if (targetText.equals(actualText) || OBFUSCATED_STRING.repeat(targetText.length()).equals(actualText)) {
                 return targetText;
+            } else {
+                // attempt once to type using javascript then confirm typing was successful
+                // again
+                ElementActionsHelper.setValueUsingJavascript(driver, elementLocator, targetText);
+                var textAfterSettingValueUsingJavascript = readTextBasedOnSuccessfulLocationStrategy(driver, elementLocator, TextDetectionStrategy.VALUE);
+                if ("".equals(textAfterSettingValueUsingJavascript) && successfulTextLocationStrategy.equals(TextDetectionStrategy.UNDEFINED)) {
+                    return targetText;
+                }
+                return textAfterSettingValueUsingJavascript;
             }
-        } catch (Exception throwable) {
-            ReportManager.log("Failed to identify Target element with locator \"" + elementLocator + "\".");
-            throw throwable;
-//            return null;
+        } else {
+            return targetText;
         }
     }
 
@@ -610,14 +600,16 @@ public class ElementActionsHelper {
                 // in case of regular locator
                 switch (Integer.parseInt(matchingElementsInformation.get(0).toString())) {
                     case 0 ->
-                            failAction(driver, "zero elements found matching this locator", null, (Throwable) matchingElementsInformation.get(2));
+                            Assert.fail("zero elements found matching this locator \"" + formatLocatorToString(elementLocator) + "\"", (Throwable) matchingElementsInformation.get(2));
+//                            failAction(driver, "zero elements found matching this locator", null, (Throwable) matchingElementsInformation.get(2));
                     case 1 -> {
                         return matchingElementsInformation;
                     }
                     default -> {
                         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckElementLocatorIsUnique")))) {
-                            failAction(driver, "multiple elements found matching this locator",
-                                    elementLocator);
+//                            failAction(driver, "multiple elements found matching this locator",
+//                                    elementLocator);
+                            Assert.fail("multiple elements found matching this locator \"" + formatLocatorToString(elementLocator) + "\"");
                         }
                         return matchingElementsInformation;
                     }
