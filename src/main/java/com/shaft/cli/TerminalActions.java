@@ -351,7 +351,7 @@ public class TerminalActions {
                 // local execution
                 ReportManager.logDiscrete("Attempting to execute the following command locally. Command: \"" + command + "\"");
 
-                if (command.contains("docker-compose.bat")) {
+                if (command.contains("docker_compose.bat")) {
                     List<Object> results = executeLengthyCommand(command);
                     localProcess = (Process) results.get(2);
                     reader = (BufferedReader) results.get(3);
