@@ -69,7 +69,6 @@ function check_emulator_focus() {
      CURRENT_FOCUS=$(adb shell dumpsys window 2>/dev/null | grep -i mCurrentFocus)
      echo "Current focus: ${CURRENT_FOCUS}"
      case "${CURRENT_FOCUS}" in
-
      *"Launcher"*)
        if [[ "${first_launcher}" == 1 ]]; then
          echo "Launcher seems to be ready, wait 15 sec for another popup..."
@@ -81,30 +80,18 @@ function check_emulator_focus() {
          rm /tmp/failed
        fi
      ;;
-
-       *"Not Responding: com.android.systemui"*)
-         echo "Dismiss System UI isn't responding alert"
-         adb shell input keyevent KEYCODE_ENTER
-         adb shell input keyevent KEYCODE_DPAD_DOWN
-         adb shell input keyevent KEYCODE_ENTER
-         first_launcher=1
-       ;;
-#       *"Not Responding: com.google.android.gms"*)
-#         echo "Dismiss GMS isn't responding alert"
-#         adb shell input keyevent KEYCODE_ENTER
-#         first_launcher=1
-#       ;;
-       *"Not Responding: system"*)
-         echo "Dismiss Process system isn't responding alert"
-         adb shell input keyevent KEYCODE_ENTER
-         first_launcher=1
-       ;;
-#       *"ConversationListActivity"*)
-#         echo "Close Messaging app"
-#         adb shell input keyevent KEYCODE_ENTER
-#         first_launcher=1
-#       ;;
-
+      *"Not Responding: com.android.systemui"*)
+        echo "Dismiss System UI isn't responding alert"
+        adb shell input keyevent KEYCODE_ENTER
+        adb shell input keyevent KEYCODE_DPAD_DOWN
+        adb shell input keyevent KEYCODE_ENTER
+        first_launcher=1
+      ;;
+      *"Not Responding: system"*)
+        echo "Dismiss Process system isn't responding alert"
+        adb shell input keyevent KEYCODE_ENTER
+        first_launcher=1
+      ;;
       *)
         adb shell input keyevent KEYCODE_ENTER
         first_launcher=1
@@ -112,7 +99,6 @@ function check_emulator_focus() {
         echo "Waiting for 5 sec for Android emulator to boot (${n})..."
         sleep 5
       ;;
-
      esac
   done
   echo "Android Emulator started."
