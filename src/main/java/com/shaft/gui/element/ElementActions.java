@@ -589,6 +589,19 @@ public class ElementActions extends FluentElementActions {
     }
 
     /**
+     * Returns the number of elements that match a certain elementLocator
+     *
+     * @param driver         the current instance of Selenium WebDriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @return integer value that represents the number of elements that match the
+     * desired elementLocator
+     */
+    public static int getElementsCount(WebDriver driver, By elementLocator) {
+        return Integer.parseInt(ElementActionsHelper.getMatchingElementsInformation(driver, elementLocator, Optional.empty(), Optional.empty()).get(0).toString());
+    }
+
+    /**
      * Hovers over target element. If you want to hover on a webElement to expose
      * another webElement and click on it, use hoverAndClick instead for a more
      * reliable result.
@@ -1078,6 +1091,17 @@ public class ElementActions extends FluentElementActions {
             //action should fail because the element doesn't exist
             failAction(driver, reportMessage, elementLocator);
         }
+    }
+
+    /**
+     * Waits dynamically for a specific element to be present in DOM, and ready to interact with, on the current page.
+     *
+     * @param driver          the current instance of Selenium WebDriver
+     * @param elementLocator  the locator of the webElement under test (By xpath,
+     *                        id, selector, name ...etc)
+     */
+    public static void waitForElementToBeReady(WebDriver driver, By elementLocator) {
+        waitForElementToBePresent(driver, elementLocator, true);
     }
 
     /**
