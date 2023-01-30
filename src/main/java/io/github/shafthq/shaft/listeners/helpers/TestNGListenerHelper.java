@@ -271,11 +271,12 @@ public class TestNGListenerHelper {
                 }
                 ReportManagerHelper.logTestInformation(className, methodName, methodDescription);
                 ReportManagerHelper.extentReportsCreateTest(className + "." + methodName, methodDescription);
-            } else if (iTestNGMethod instanceof ConfigurationMethod) {
-                className = iTestNGMethod.getTestClass().getName();
-                methodName = iTestNGMethod.getMethodName();
+            } else if (iTestNGMethod instanceof ConfigurationMethod configurationMethod) {
+                className = configurationMethod.getTestClass().getName();
+                methodName = configurationMethod.getMethodName();
+                var configurationMethodType = configurationMethod.getMethodName();
 
-                ReportManagerHelper.logConfigurationMethodInformation(className, methodName);
+                ReportManagerHelper.logConfigurationMethodInformation(className, methodName, configurationMethodType);
                 ReportManagerHelper.extentReportsReset();
             }
         }

@@ -21,3 +21,4 @@ debug.log
 /src/main/resources/properties/*.properties
 /generateJdk.bat
 /generateJdk.sh
+/src/main/resources/docker-compose/android-emulator/*

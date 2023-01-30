@@ -23,7 +23,7 @@ public class ReportHelper {
 
     public static void attachImportantLinks() {
         ReportManager.logDiscrete("Initializing Important Links...");
-        System.setProperty("disableLogging", "true");
+        disableLogging();
         String importantLinks = """
                 <ul>
                     <li>👨‍💻️ <a href="https://github.com/ShaftHQ/SHAFT_ENGINE" target=”_blank”>GitHub - Home</a></li>
@@ -33,12 +33,20 @@ public class ReportHelper {
                 </ul>""";
 
         ReportManagerHelper.attach("HTML", "Important Links", importantLinks);
+        enableLogging();
+    }
+
+    public static void enableLogging() {
         System.setProperty("disableLogging", "false");
+    }
+
+    public static void disableLogging() {
+        System.setProperty("disableLogging", "true");
     }
 
     public static void attachPropertyFiles() {
         ReportManager.logDiscrete("Initializing Properties...");
-        System.setProperty("disableLogging", "true");
+        disableLogging();
         if (FileActions.getInstance().doesFileExist(System.getProperty("propertiesFolderPath"))) {
             List<List<Object>> attachments = new ArrayList<>();
 
@@ -47,7 +55,7 @@ public class ReportHelper {
 
             ReportManagerHelper.logNestedSteps("Property Files", attachments);
         }
-        System.setProperty("disableLogging", "false");
+        enableLogging();
     }
 
     public static void attachCucumberReport() {
