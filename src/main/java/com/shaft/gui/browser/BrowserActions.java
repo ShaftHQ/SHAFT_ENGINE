@@ -19,6 +19,7 @@ import org.openqa.selenium.remote.Augmenter;
 import org.sikuli.script.App;
 
 import java.net.URI;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
@@ -585,4 +586,60 @@ public class BrowserActions extends FluentBrowserActions {
             failAction(driver, nameOrHandle);
         }
     }
+
+    @Deprecated
+    public static void addCookie(WebDriver driver, String key, String value) {
+        driver.manage().addCookie(new Cookie(key, value));
+        passAction(driver, "Add Cookie", "Key: " + key + " | Value: " + value);
+    }
+
+    @Deprecated
+    public static Cookie getCookie(WebDriver driver, String cookieName) {
+        Cookie cookie = driver.manage().getCookieNamed(cookieName);
+        if (cookie == null) {
+            failAction(driver, "Get Cookie", cookieName);
+        }
+        return cookie;
+    }
+
+    @Deprecated
+    public static Set getAllCookies(WebDriver driver) {
+        Set<Cookie> cookies = driver.manage().getCookies();
+        passAction("");
+        return cookies;
+    }
+
+    @Deprecated
+    public static String getCookieDomain(WebDriver driver, String cookieName) {
+        String cookieDomain = getCookie(driver, cookieName).getDomain();
+        passAction(driver, "Get Cookie Domain with name: " + cookieName, cookieDomain);
+        return cookieDomain;
+    }
+
+    @Deprecated
+    public static String getCookieValue(WebDriver driver, String cookieName) {
+        String cookieValue = getCookie(driver, cookieName).getValue();
+        passAction(driver, "Get Cookie Value with name: " + cookieName, cookieValue);
+        return cookieValue;
+    }
+
+    @Deprecated
+    public static String getCookiePath(WebDriver driver, String cookieName) {
+        String cookiePath = getCookie(driver, cookieName).getPath();
+        passAction(driver, "Get Cookie Path with name: " + cookieName, cookiePath);
+        return cookiePath;
+    }
+
+    @Deprecated
+    public static void deleteCookie(WebDriver driver, String cookieName) {
+        driver.manage().deleteCookieNamed(cookieName);
+        passAction(driver, "Delete Cookie", cookieName);
+    }
+
+    @Deprecated
+    public static void deleteAllCookies(WebDriver driver) {
+        driver.manage().deleteAllCookies();
+        passAction("");
+    }
+
 }
