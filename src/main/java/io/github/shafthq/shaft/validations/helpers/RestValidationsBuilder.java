@@ -136,6 +136,15 @@ public class RestValidationsBuilder {
         return new NativeValidationsBuilder(this);
     }
 
+    /**
+     * Use this to extract a certain value from the provided actual response object as list and check every item against it
+     *
+     * @param jsonPath JSONPath of the target value; the JSONPath expression that will be evaluated in order to extract the desired value [without the trailing $.]
+     *                 , please refer to these urls for examples:
+     *                 https://support.smartbear.com/alertsite/docs/monitors/api/endpoint/jsonpath.html
+     *                 http://jsonpath.com/
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
     public NativeValidationsBuilder extractedJsonValueAsList(String jsonPath) {
         this.validationMethod = "jsonPathValueAsListEquals";
         this.jsonPath = jsonPath;
