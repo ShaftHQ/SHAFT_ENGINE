@@ -154,6 +154,11 @@ public class ValidationsExecutor {
             case "jsonPathValueEquals" -> ValidationsHelper.validateEquals(validationCategory, expectedValue,
                     RestActions.getResponseJSONValue(response, jsonPath), validationComparisonType,
                     validationType, customReportMessage);
+            case "jsonPathValueAsListEquals" -> {
+                for (Object item : RestActions.getResponseJSONValueAsList((Response) response, jsonPath)) {
+                    ValidationsHelper.validateEquals(validationCategory, expectedValue, item.toString(), validationComparisonType, validationType, customReportMessage);
+                }
+            }
             case "responseBody" -> ValidationsHelper.validateEquals(validationCategory, expectedValue,
                     RestActions.getResponseBody((Response) response), validationComparisonType,
                     validationType, customReportMessage);

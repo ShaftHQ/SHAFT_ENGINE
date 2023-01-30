@@ -136,6 +136,13 @@ public class RestValidationsBuilder {
         return new NativeValidationsBuilder(this);
     }
 
+    public NativeValidationsBuilder extractedJsonValueAsList(String jsonPath) {
+        this.validationMethod = "jsonPathValueAsListEquals";
+        this.jsonPath = jsonPath;
+        reportMessageBuilder.append("extracted value from the JSON path \"").append(jsonPath).append("\" ");
+        return new NativeValidationsBuilder(this);
+    }
+
     public NativeValidationsBuilder body() {
         this.validationMethod = "responseBody";
         reportMessageBuilder.append("Body ");
