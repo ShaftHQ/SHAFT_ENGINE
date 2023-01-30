@@ -120,18 +120,18 @@ public class ReportManagerHelper {
 
     public static String prepareIssuesLog() {
         if (!listOfNewIssuesForFailedTests.isEmpty()) {
-            listOfNewIssuesForFailedTests.forEach(issue -> logIssue("Test Method \"" + issue.get(0) + "." + issue.get(1)
-                    + "\" failed. Please investigate and open a new Issue if needed.\n"));
+            listOfNewIssuesForFailedTests.forEach(issue -> logIssue("Test Method '" + issue.get(0) + "." + issue.get(1)
+                    + "' failed. Please investigate and open a new Issue if needed.\n"));
         }
         if (!listOfOpenIssuesForPassedTests.isEmpty()) {
             listOfOpenIssuesForPassedTests.forEach(issue -> {
                 if (!issue.get(3).trim().equals("")) {
-                    logIssue("Test Method \"" + issue.get(0) + "." + issue.get(1)
-                            + "\" passed. Please validate and close this open issue \"" + issue.get(2) + "\": \""
-                            + issue.get(3) + "\".\n");
+                    logIssue("Test Method '" + issue.get(0) + "." + issue.get(1)
+                            + "' passed. Please validate and close this open issue '" + issue.get(2) + "': '"
+                            + issue.get(3) + "'.\n");
                 } else {
-                    logIssue("Test Method \"" + issue.get(0) + "." + issue.get(1)
-                            + "\" passed. Please validate and close this open issue \"" + issue.get(2) + "\".\n");
+                    logIssue("Test Method '" + issue.get(0) + "." + issue.get(1)
+                            + "' passed. Please validate and close this open issue '" + issue.get(2) + "'.\n");
                 }
 
             });
@@ -139,11 +139,11 @@ public class ReportManagerHelper {
         if (!listOfOpenIssuesForFailedTests.isEmpty()) {
             listOfOpenIssuesForFailedTests.forEach(issue -> {
                 if (!issue.get(3).trim().equals("")) {
-                    logIssue("Test Method \"" + issue.get(0) + "." + issue.get(1) + "\" failed with open issue \""
-                            + issue.get(2) + "\": \"" + issue.get(3) + "\".\n");
+                    logIssue("Test Method '" + issue.get(0) + "." + issue.get(1) + "' failed with open issue '"
+                            + issue.get(2) + "': '" + issue.get(3) + "'.\n");
                 } else {
-                    logIssue("Test Method \"" + issue.get(0) + "." + issue.get(1) + "\" failed with open issue \""
-                            + issue.get(2) + "\".\n");
+                    logIssue("Test Method '" + issue.get(0) + "." + issue.get(1) + "' failed with open issue '"
+                            + issue.get(2) + "'.\n");
                 }
             });
         }
@@ -170,7 +170,7 @@ public class ReportManagerHelper {
      */
     public static void setDiscreteLogging(boolean discreteLogging) {
         if (debugMode) {
-            ReportManager.logDiscrete("Setting discrete logging to: \"" + discreteLogging + "\"");
+            ReportManager.logDiscrete("Setting discrete logging to: '" + discreteLogging + "'");
         }
         ReportManagerHelper.discreteLogging = discreteLogging;
     }
@@ -201,17 +201,19 @@ public class ReportManagerHelper {
     public static void logEngineVersion() {
         Configurator.initialize(null, PropertyFileManager.getCUSTOM_PROPERTIES_FOLDER_PATH() + "/log4j2.properties");
         logger = LogManager.getLogger(ReportManager.class.getName());
-        System.setOut(new PrintStream(new LogRedirector(LogManager.getLogger("out"), Level.INFO, System.out)));
-        System.setErr(new PrintStream(new LogRedirector(LogManager.getLogger("err"), Level.ERROR, System.err)));
-        String engineVersion = "Detected SHAFT Engine Version: \""
-                + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "\"";
+        System.setErr(new PrintStream(new LogRedirector(logger, Level.ERROR)));
+        System.setOut(new PrintStream(new LogRedirector(logger, Level.INFO)));
+        String engineVersion = "Powered by "
+                + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME);
         createImportantReportEntry(engineVersion);
     }
 
     public static void logEngineClosure() {
-        String copyrights = "This test run was powered by SHAFT Engine Version: \""
-                + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "\"" + System.lineSeparator()
-                + "SHAFT Engine is licensed under the MIT License: [https://github.com/ShaftHQ/SHAFT_ENGINE/blob/master/LICENSE].";
+        String copyrights = "This test run was powered by "
+                + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + System.lineSeparator()
+                + "SHAFT Engine is *and will always be* 100% FREE for commercial and private use" + System.lineSeparator()
+                + "in compliance with the MIT license" + System.lineSeparator()
+                + "https://github.com/ShaftHQ/SHAFT_ENGINE/blob/master/LICENSE";
         createImportantReportEntry(copyrights);
     }
 
@@ -221,20 +223,20 @@ public class ReportManagerHelper {
         StringBuilder reportMessage = new StringBuilder();
 
         if (totalNumberOfTests > 0) {
-            reportMessage.append("Starting Execution:\t");
-            reportMessage.append("\"");
+            reportMessage.append("Starting Execution: ");
+            reportMessage.append("'");
             reportMessage.append(testCasesCounter);
             reportMessage.append(" out of ");
             reportMessage.append(totalNumberOfTests);
-            reportMessage.append("\" test cases in the current suite");
+            reportMessage.append("' test cases in the current suite");
         } else {
             //it should never be ZERO
-            reportMessage.append("Starting Dynamic Test Suite Execution:\t");
+            reportMessage.append("Starting Dynamic Test Suite Execution: ");
         }
-        reportMessage.append("\nTest Method:\t\t\"").append(className).append(".").append(testMethodName).append("\"");
+        reportMessage.append("\nTest Method: '").append(className).append(".").append(testMethodName).append("'");
 
         if (!testDescription.equals("")) {
-            reportMessage.append("\nTest Description:\t\"").append(testDescription).append("\"");
+            reportMessage.append("\nTest Description: '").append(testDescription).append("'");
         }
 
         createImportantReportEntry(reportMessage.toString());
@@ -242,17 +244,17 @@ public class ReportManagerHelper {
 
     public static void logScenarioInformation(String keyword, String name, String steps) {
         testCasesCounter++;
-        createImportantReportEntry("Starting Execution:\t\"" + testCasesCounter + " out of " + totalNumberOfTests
-                + "\" scenarios in the \"" + featureName + "\" feature"
-                + "\n" + keyword + " Name:\t\t\"" + name
-                + "\"\n" + keyword + " Steps:\n" + steps);
+        createImportantReportEntry("Starting Execution: '" + testCasesCounter + " out of " + totalNumberOfTests
+                + "' scenarios in the '" + featureName + "' feature"
+                + "\n" + keyword + " Name: '" + name
+                + "'\n" + keyword + " Steps:\n" + steps);
     }
 
-    public static void logConfigurationMethodInformation(String className, String testMethodName) {
+    public static void logConfigurationMethodInformation(String className, String testMethodName, String configurationMethodType) {
         // In TestNG Reporter, this log entry is logged at the end of the previous test
         // (or null for the first test)
-        createImportantReportEntry("Starting Execution of a Configuration (Setup or Teardown) Method\nTest Method:\t\t\""
-                + className + "." + testMethodName + "\"");
+        createImportantReportEntry("Starting execution of " + JavaHelper.convertToSentenceCase(configurationMethodType).toLowerCase() + " configuration method\n'"
+                + className + "." + testMethodName + "'");
     }
 
     public static String formatStackTraceToLogEntry(Throwable t) {
@@ -306,8 +308,8 @@ public class ReportManagerHelper {
 
     public static void attachEngineLog(String executionEndTimestamp) {
         if (Boolean.FALSE.equals(Boolean.parseBoolean(System.getProperty("disableLogging")))) {
-            String engineLogCreated = "Successfully created attachment \"" + SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE + " - "
-                    + "Execution log" + "\"";
+            String engineLogCreated = "Successfully created attachment '" + SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE + " - "
+                    + "Execution log" + "'";
             var initialLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
             createLogEntry(engineLogCreated, true);
@@ -395,9 +397,9 @@ public class ReportManagerHelper {
 
     public static void setTestCaseDescription(String scenarioSteps) {
         if (scenarioSteps.contains("و")) {
-            Allure.getLifecycle().updateTestCase(testResult -> testResult.setDescriptionHtml("<p dir=\"rtl\">" + scenarioSteps + "</p>"));
+            Allure.getLifecycle().updateTestCase(testResult -> testResult.setDescriptionHtml("<p dir='rtl'>" + scenarioSteps + "</p>"));
         } else {
-            Allure.getLifecycle().updateTestCase(testResult -> testResult.setDescriptionHtml("<p dir=\"ltr\">" + scenarioSteps + "</p>"));
+            Allure.getLifecycle().updateTestCase(testResult -> testResult.setDescriptionHtml("<p dir='ltr'>" + scenarioSteps + "</p>"));
         }
     }
 
@@ -505,7 +507,7 @@ public class ReportManagerHelper {
             }
             logBuilder.append(t.getClass().getName()).append(":").append(" ").append(t.getMessage()).append(System.lineSeparator());
             for (StackTraceElement stackTraceElement : trace) {
-                logBuilder.append("\t").append(stackTraceElement.toString()).append(System.lineSeparator());
+                logBuilder.append(" ").append(stackTraceElement.toString()).append(System.lineSeparator());
             }
             logBuilder.append(formatStackTraceToLogEntry(t.getCause(), true));
         }
@@ -542,13 +544,48 @@ public class ReportManagerHelper {
         }
     }
 
+    private static String addSpacing(String log) {
+        if (log.contains(System.lineSeparator())) {
+            StringBuilder augmentedText = new StringBuilder();
+            augmentedText.append(System.lineSeparator());
+            StringBuilder lineByLine = new StringBuilder();
+            Arrays.stream(log.split(System.lineSeparator())).toList().forEach(line -> {
+                lineByLine.append(" ".repeat(Math.max(0, (144 - line.trim().length()) / 2)));
+                var trailingSpacing = lineByLine.toString();
+                lineByLine.append(line);
+                lineByLine.append(trailingSpacing);
+                augmentedText.append(lineByLine);
+                augmentedText.append(System.lineSeparator());
+                lineByLine.delete(0, lineByLine.length());
+            });
+            return augmentedText.toString();
+        } else {
+            StringBuilder augmentedText = new StringBuilder();
+            augmentedText.append(System.lineSeparator());
+            StringBuilder lineByLine = new StringBuilder();
+            lineByLine.append(" ".repeat(Math.max(0, (144 - log.length()) / 2)));
+            var trailingSpacing = lineByLine.toString();
+            lineByLine.append(log);
+            lineByLine.append(trailingSpacing);
+            augmentedText.append(lineByLine);
+            augmentedText.append(System.lineSeparator());
+            lineByLine.delete(0, lineByLine.length());
+            return augmentedText.toString();
+        }
+    }
+
+    private static String createSeparator(char ch) {
+        return String.valueOf(ch).repeat(144);
+    }
+
     private static void createImportantReportEntry(String logText) {
         boolean initialLoggingStatus = discreteLogging;
         setDiscreteLogging(false); // force log even if discrete logging was turned on
-        String log = System.lineSeparator()
-                + "################################################################################################################################################"
-                + System.lineSeparator() + logText.trim() + System.lineSeparator()
-                + "################################################################################################################################################";
+
+        String log = System.lineSeparator() +
+                createSeparator('-') +
+                addSpacing(logText.trim()) +
+                createSeparator('-');
 
         Reporter.log(log, false);
         logger.log(Level.INFO, log);
@@ -662,7 +699,7 @@ public class ReportManagerHelper {
     }
 
     private static void logAttachmentAction(String attachmentType, String attachmentName, ByteArrayOutputStream attachmentContent) {
-        createLogEntry("Successfully created attachment \"" + attachmentType + " - " + attachmentName + "\"", Level.INFO);
+        createLogEntry("Successfully created attachment '" + attachmentType + " - " + attachmentName + "'", Level.INFO);
         if (debugMode && !attachmentType.contains(SHAFT_ENGINE_LOGS_ATTACHMENT_TYPE)
                 && !attachmentType.equalsIgnoreCase("Selenium WebDriver Logs")
                 && !attachmentType.toLowerCase().contains("screenshot")
@@ -827,6 +864,15 @@ public class ReportManagerHelper {
         System.setProperty("mobile_adbExecTimeout", "1200000");
         ReportHelper.enableLogging();
 
+        //TODO: execute command to ensure that docker desktop/platform is installed and running
+        // else fail fast
+
+        //TODO: this is extremely slow... 15 minutes in setup is too much...
+        // implement the same solution but to be run locally without any containers...
+        // npm / python / dependenies / android images stored to local .m2
+        // install everything (if not already installed), run avd and run appium
+        // should be able to execute locally at least on linux, all CI/CD servers use linux anyway...
+
         ReportManager.logDiscrete("Launching Android-Emulator and Appium 2 containers. If the containers aren't on your machine they may take some time to download (5.57 GB) depending on your internet connection...");
         ReportHelper.disableLogging();
         var logMessage = "with container id: ";
@@ -884,7 +930,7 @@ public class ReportManagerHelper {
 
     private static String executeCommand(String location, String command, boolean asynchronous) {
         String fileName = command.substring(0, command.indexOf(" ", 7)).replaceAll(" ", "_");
-        var setExecutionLocationCommand = "cd \"" + androidEmulatorLocation + "\"\n";
+        var setExecutionLocationCommand = "cd '" + androidEmulatorLocation + "'\n";
         if (SystemUtils.IS_OS_WINDOWS) {
             FileActions.getInstance().writeToFile(location, fileName + ".bat", setExecutionLocationCommand + command);
             return new TerminalActions(asynchronous).performTerminalCommand(location + fileName + ".bat");
@@ -912,10 +958,10 @@ public class ReportManagerHelper {
         } else {
             // create Unix-based sh file
             commandsToServeAllureReport = Arrays
-                    .asList("#!/bin/bash", "parent_path=$( cd \"$(dirname \"${BASH_SOURCE[0]}\")\" ; pwd -P )",
-                            "cd \"" + allureExtractionLocation + "allure-" + allureVersion + "/bin/\"",
-                            "bash allure serve \"$parent_path/"
-                                    + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1) + "\"",
+                    .asList("#!/bin/bash", "parent_path=$( cd '$(dirname '${BASH_SOURCE[0]}')' ; pwd -P )",
+                            "cd '" + allureExtractionLocation + "allure-" + allureVersion + "/bin/'",
+                            "bash allure serve '$parent_path/"
+                                    + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1) + "'",
                             "exit"
 
                     );
@@ -947,9 +993,9 @@ public class ReportManagerHelper {
         List<String> commandsToOpenAllureReport;
         // create Unix-based sh file
         commandsToOpenAllureReport = Arrays.asList("#!/bin/bash",
-                "parent_path=$( cd \"$(dirname \"${BASH_SOURCE[0]}\")\" ; pwd -P )",
-                "cd \"$parent_path/allure/allure-" + System.getProperty(ALLURE_VERSION_PROPERTY_NAME) + "/bin/\"",
-                "bash allure open \"$parent_path/allure-report\"", "exit");
+                "parent_path=$( cd '$(dirname '${BASH_SOURCE[0]}')' ; pwd -P )",
+                "cd '$parent_path/allure/allure-" + System.getProperty(ALLURE_VERSION_PROPERTY_NAME) + "/bin/'",
+                "bash allure open '$parent_path/allure-report'", "exit");
         FileActions.getInstance().writeToFile("generatedReport/", "open_allure_report.sh", commandsToOpenAllureReport);
 
         // create windows batch file
@@ -969,9 +1015,9 @@ public class ReportManagerHelper {
                 + "/bin/allure";
 
         if (SystemUtils.IS_OS_WINDOWS) {
-            commandToCreateAllureReport = allureBinaryPath + ".bat" + " generate \""
+            commandToCreateAllureReport = allureBinaryPath + ".bat" + " generate '"
                     + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)
-                    + "\" -o \"generatedReport/allure-report\"";
+                    + "' -o 'generatedReport/allure-report'";
         } else {
             commandToCreateAllureReport = allureBinaryPath + " generate "
                     + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1)

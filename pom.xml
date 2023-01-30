@@ -898,6 +898,7 @@
                     <failIfNoSpecifiedTests>false</failIfNoSpecifiedTests>
                     <failIfNoTests>false</failIfNoTests>
                     <trimStackTrace>false</trimStackTrace>
+                    <useFile>false</useFile>
                     <encoding>UTF-8</encoding>
                     <properties>
                         <!--                        <property>-->

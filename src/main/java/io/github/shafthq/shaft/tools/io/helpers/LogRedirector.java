@@ -8,38 +8,49 @@ import java.io.OutputStream;
 
 public class LogRedirector extends OutputStream {
     private final Logger logger;
-    private final Level logLevel;
-    private final OutputStream outputStream;
+    private final Level level;
+    //    private final OutputStream outputStream;
+    private StringBuilder stringBuilder;
 
-    public LogRedirector(Logger logger, Level logLevel, OutputStream outputStream) {
-        super();
-
+    public LogRedirector(Logger logger, Level level) {
         this.logger = logger;
-        this.logLevel = logLevel;
-        this.outputStream = outputStream;
+        this.level = level;
+        stringBuilder = new StringBuilder();
     }
 
     @Override
     public void write(byte[] b) throws IOException {
-        outputStream.write(b);
-        String string = new String(b);
-        if (!string.trim().isEmpty())
-            logger.log(logLevel, string);
+        char c = (char) ((b[0] << 8) | (b[1] & 255));
+        if (c == '\r' || c == '\n') {
+            if (stringBuilder.length() > 0) {
+                logger.log(level, stringBuilder.toString());
+                stringBuilder = new StringBuilder();
+            }
+        } else
+            stringBuilder.append(c);
     }
 
     @Override
     public void write(byte[] b, int off, int len) throws IOException {
-        outputStream.write(b, off, len);
-        String string = new String(b, off, len);
-        if (!string.trim().isEmpty())
-            logger.log(logLevel, string);
+        char c = (char) ((b[off] << 8) | b[off + 1] | (b.length << len - off));
+        if (c == '\r' || c == '\n') {
+            if (stringBuilder.length() > 0) {
+                logger.log(level, stringBuilder.toString());
+                stringBuilder = new StringBuilder();
+            }
+        } else
+            stringBuilder.append(c);
     }
 
     @Override
     public void write(int b) throws IOException {
-        outputStream.write(b);
-        String string = String.valueOf((char) b);
-        if (!string.trim().isEmpty())
-            logger.log(logLevel, string);
+        char c = (char) b;
+        if (c == '\r' || c == '\n') {
+            if (stringBuilder.length() > 0) {
+                logger.log(level, stringBuilder.toString());
+                stringBuilder = new StringBuilder();
+            }
+        } else
+            stringBuilder.append(c);
     }
 }
