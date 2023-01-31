@@ -39,7 +39,7 @@ jobs:
         run: |
              run: |
               # Delete old file
-              brew cleanup -s
+              brew cleanup --prune=1 -s
               rm -rf "$(brew --cache)"
               
               # Install HAXM
