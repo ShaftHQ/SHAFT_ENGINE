@@ -179,7 +179,7 @@ public class AndroidBasicInteractionsTest {
 
 //        // local appium server (for local and github actions execution)
 //        System.setProperty("executionAddress", "0.0.0.0:4723");
-//        System.setProperty("mobile_app", System.getProperty("testDataFolderPath")+"apps/ApiDemos-debug.apk");
+//        System.setProperty("mobile_app", SHAFT.Properties.paths.testData()+"apps/ApiDemos-debug.apk");
 
         // local appium server (android-emulator docker-compose)
 //        System.setProperty("executionAddress", "localhost:4725");
