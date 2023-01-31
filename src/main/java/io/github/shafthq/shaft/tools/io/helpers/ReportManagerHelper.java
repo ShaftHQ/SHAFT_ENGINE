@@ -203,7 +203,7 @@ public class ReportManagerHelper {
     public static void logEngineVersion() {
         Configurator.initialize(null, PropertyFileManager.getCUSTOM_PROPERTIES_FOLDER_PATH() + "/log4j2.properties");
         logger = LogManager.getLogger(ReportManager.class.getName());
-        System.setErr(new PrintStream(new LogRedirector(logger, Level.ERROR)));
+        System.setErr(new PrintStream(new LogRedirector(logger, Level.WARN)));
         System.setOut(new PrintStream(new LogRedirector(logger, Level.INFO)));
         String engineVersion = "Powered by "
                 + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME);
@@ -212,9 +212,9 @@ public class ReportManagerHelper {
 
     public static void logEngineClosure() {
         String copyrights = "This test run was powered by "
-                + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + System.lineSeparator()
-                + "SHAFT Engine is *and will always be* 100% FREE for commercial and private use" + System.lineSeparator()
-                + "in compliance with the MIT license" + System.lineSeparator()
+                + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME) + "\n"
+                + "SHAFT Engine is *and will always be* 100% FREE for commercial and private use\n"
+                + "in compliance with the MIT license\n"
                 + "https://github.com/ShaftHQ/SHAFT_ENGINE/blob/master/LICENSE";
         createImportantReportEntry(copyrights);
     }
@@ -551,7 +551,7 @@ public class ReportManagerHelper {
         StringBuilder lineByLine = new StringBuilder();
 
         augmentedText.append(System.lineSeparator());
-        Arrays.stream(log.split(System.lineSeparator())).toList().forEach(line -> {
+        Arrays.stream(log.split("\n")).toList().forEach(line -> {
             var trailingSpacing = "";
             var spaces = Math.round(144 - line.trim().length()) / 2;
             if (spaces > 0) {
