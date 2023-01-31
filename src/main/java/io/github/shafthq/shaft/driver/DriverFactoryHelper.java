@@ -4,8 +4,8 @@ import com.epam.healenium.SelfHealingDriver;
 import com.google.common.base.Throwables;
 import com.mysql.cj.util.StringUtils;
 import com.shaft.cli.FileActions;
+import com.shaft.cli.TerminalActions;
 import com.shaft.driver.DriverFactory.DriverType;
-import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.tools.io.ReportManager;
 import io.appium.java_client.android.AndroidDriver;
@@ -17,7 +17,6 @@ import io.github.shafthq.shaft.gui.browser.BrowserActionsHelpers;
 import io.github.shafthq.shaft.gui.video.RecordManager;
 import io.github.shafthq.shaft.properties.PropertyFileManager;
 import io.github.shafthq.shaft.tools.io.helpers.FailureReporter;
-import io.github.shafthq.shaft.tools.io.helpers.ReportHelper;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import io.github.shafthq.shaft.tools.support.JavaHelper;
 import lombok.AccessLevel;
@@ -85,10 +84,13 @@ public class DriverFactoryHelper {
     private static final boolean appiumDockerizedExecution = false;
     private static final boolean closeAppiumDockersAfterExecution = false;
 
+    // TODO: implement new environment variable
+    private static final boolean appiumSelfManagedExecution = false;
+
     private static final long appiumServerInitializationTimeout = TimeUnit.MINUTES.toSeconds(15); // seconds
-    private static final int appiumServerInitializationPollingInterval = 5; // seconds
+    private static final int appiumServerInitializationPollingInterval = 1; // seconds
     private static final long appiumServerPreparationTimeout = TimeUnit.MINUTES.toSeconds(10); // seconds
-    private static final int appiumServerPreparationPollingInterval = 5; // seconds
+    private static final int appiumServerPreparationPollingInterval = 1; // seconds
 
     private DriverFactoryHelper() {
         throw new IllegalStateException("Utility class");
@@ -575,23 +577,19 @@ public class DriverFactoryHelper {
         // stage 1: ensure that the server is up and running
         ReportManager.logDiscrete("Attempting to connect to remote server for up to " + TimeUnit.SECONDS.toMinutes(appiumServerInitializationTimeout) + "min.");
         ScheduledExecutorService stage1Executor = Executors.newScheduledThreadPool(2);
-        stage1Executor.execute(() -> showProgressBar("Connecting to remote Server", appiumServerInitializationTimeout));
         stage1Executor.schedule(() -> {
-            ReportHelper.disableLogging();
             try {
+                TARGET_HUB_URL = TARGET_HUB_URL.contains("0.0.0.0") ? TARGET_HUB_URL.replace("0.0.0.0", "localhost") : TARGET_HUB_URL;
                 int statusCode = attemptRemoteServerPing();
                 stage1Executor.shutdownNow();
-                ReportHelper.enableLogging();
                 ReportManager.logDiscrete("Remote server is online, established successful connection with status code: " + statusCode + ".");
             } catch (Throwable throwable) {
                 stage1Executor.shutdownNow();
-                ReportHelper.enableLogging();
                 failAction("Failed to connect to remote server.", throwable);
             }
         }, 0, TimeUnit.SECONDS);
 
         if (!stage1Executor.awaitTermination(appiumServerInitializationTimeout, TimeUnit.SECONDS)) {
-            ReportHelper.enableLogging();
             failAction("Failed to connect to remote server. It was still not ready after " + TimeUnit.SECONDS.toMinutes(appiumServerInitializationTimeout) + " minutes.");
         }
 
@@ -601,21 +599,17 @@ public class DriverFactoryHelper {
         ScheduledExecutorService stage2Executor = Executors.newScheduledThreadPool(2);
         stage2Executor.execute(() -> showProgressBar("Instantiating remote driver instance", appiumServerPreparationTimeout));
         stage2Executor.schedule(() -> {
-            ReportHelper.disableLogging();
             try {
                 driver.set(attemptRemoteServerConnection(capabilities));
                 driver.get().setFileDetector(new LocalFileDetector());
-                stage2Executor.shutdownNow();
-                ReportHelper.enableLogging();
                 ReportManager.logDiscrete("Successfully instantiated remote driver instance.");
-            } catch (Throwable throwable) {
                 stage2Executor.shutdownNow();
-                ReportHelper.enableLogging();
+            } catch (Throwable throwable) {
                 failAction("Failed to instantiate remote driver instance.", throwable);
+                stage2Executor.shutdownNow();
             }
         }, 0, TimeUnit.SECONDS);
         if (!stage2Executor.awaitTermination(appiumServerPreparationTimeout, TimeUnit.SECONDS)) {
-            ReportHelper.enableLogging();
             failAction("Failed to instantiated remote driver instance. Remote server was still not ready after " + TimeUnit.SECONDS.toMinutes(appiumServerPreparationTimeout) + " minutes.");
         }
         DriverFactoryHelper.driver.set(driver.get());
@@ -623,36 +617,32 @@ public class DriverFactoryHelper {
 
     @SneakyThrows(InterruptedException.class)
     public static void showProgressBar(String taskName, long timeout) {
+        int stepSize = 1; //seconds
         try (ProgressBar progressBar = new ProgressBarBuilder()
                 .setTaskName(taskName)
                 .setInitialMax(timeout)
-                .setUnit(" seconds", 1)
+                .setUnit(" seconds", stepSize)
                 .build()) {
             do {
-                Thread.sleep(TimeUnit.SECONDS.toMillis(2));
+                Thread.sleep(TimeUnit.SECONDS.toMillis(stepSize));
                 progressBar.step();
             } while (progressBar.getCurrent() < progressBar.getMax());
         }
     }
 
-    @SneakyThrows({InterruptedException.class, Throwable.class})
+    @SneakyThrows(InterruptedException.class)
     private static int attemptRemoteServerPing() {
         do {
             try {
-                SHAFT.API session = new SHAFT.API(TARGET_HUB_URL);
-                session.get("status/").perform();
-                if (session.getResponseStatusCode() == 200) {
-                    return session.getResponseStatusCode();
+                String status = TerminalActions.getInstance(false).performTerminalCommand("curl " + TARGET_HUB_URL + "status/");
+                if (!status.contains("Unable to connect to the remote server")) {
+                    return 200;
+                }
+                status = TerminalActions.getInstance(false).performTerminalCommand("curl " + TARGET_HUB_URL + "wd/hub/status/");
+                if (!status.contains("Unable to connect to the remote server")) {
+                    return 200;
                 }
             } catch (Throwable ignored) {
-                try {
-                    SHAFT.API session = new SHAFT.API(TARGET_HUB_URL + "wd/hub");
-                    session.get("status/").perform();
-                    if (session.getResponseStatusCode() == 200) {
-                        return session.getResponseStatusCode();
-                    }
-                } catch (Throwable ignored2) {
-                }
             }
             Thread.sleep(TimeUnit.SECONDS.toMillis(appiumServerInitializationPollingInterval));
         } while (true);
@@ -840,6 +830,9 @@ public class DriverFactoryHelper {
                 driverType = DriverType.APPIUM_MOBILE_NATIVE;
                 if (appiumDockerizedExecution) {
                     ReportManagerHelper.downloadAndroidEmulatorFiles();
+                }
+                if (appiumSelfManagedExecution) {
+                    ReportManagerHelper.setupAppiumSelfManagedExecutionPrerequisites();
                 }
                 setDriverOptions(driverType, customDriverOptions);
                 createNewRemoteDriverInstance(driverType);

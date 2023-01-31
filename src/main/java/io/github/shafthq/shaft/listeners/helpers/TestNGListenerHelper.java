@@ -207,8 +207,7 @@ public class TestNGListenerHelper {
                 attachments.add(attachment);
 
             String logText = TestNGListenerHelper.createTestLog(Reporter.getOutput(iTestResult));
-            ReportManagerHelper.attachTestLog(iTestNGMethod.getMethodName(),
-                    logText);
+            ReportManagerHelper.attachTestLog(iTestNGMethod.getMethodName(), logText);
             JiraHelper.reportBugsToJIRA(attachments, logText, iTestResult, iTestNGMethod);
         }
     }

@@ -54,6 +54,7 @@ public class ReportManagerHelper {
     private static final String allureExtractionLocation = System.getProperty("user.home") + File.separator + ".m2"
             + File.separator + "repository" + File.separator + "allure" + File.separator;
     private static final String androidEmulatorLocation = "src/main/resources/docker-compose/android-emulator/";
+    private static final String androidSelfManagedEnvironmentLocation = System.getProperty("user.home") + File.separator + ".shaft" + File.separator + "android" + File.separator;
     private static String issuesLog = "";
     private static int issueCounter = 1;
     private static boolean discreteLogging = false;
@@ -78,7 +79,8 @@ public class ReportManagerHelper {
     private static String extentReportFileName = "";
     private static boolean generateExtentReports = true;
 
-    private static final long dockerDownloadTimeout = TimeUnit.MINUTES.toSeconds(45); // seconds
+    private static final long longDownloadTimeout = TimeUnit.MINUTES.toSeconds(45); // seconds
+    private static final long downloadTimeout = TimeUnit.MINUTES.toSeconds(10); // seconds
 
 
     private ReportManagerHelper() {
@@ -545,33 +547,24 @@ public class ReportManagerHelper {
     }
 
     private static String addSpacing(String log) {
-        if (log.contains(System.lineSeparator())) {
-            StringBuilder augmentedText = new StringBuilder();
-            augmentedText.append(System.lineSeparator());
-            StringBuilder lineByLine = new StringBuilder();
-            Arrays.stream(log.split(System.lineSeparator())).toList().forEach(line -> {
-                lineByLine.append(" ".repeat(Math.max(0, (144 - line.trim().length()) / 2)));
-                var trailingSpacing = lineByLine.toString();
-                lineByLine.append(line);
-                lineByLine.append(trailingSpacing);
-                augmentedText.append(lineByLine);
-                augmentedText.append(System.lineSeparator());
-                lineByLine.delete(0, lineByLine.length());
-            });
-            return augmentedText.toString();
-        } else {
-            StringBuilder augmentedText = new StringBuilder();
-            augmentedText.append(System.lineSeparator());
-            StringBuilder lineByLine = new StringBuilder();
-            lineByLine.append(" ".repeat(Math.max(0, (144 - log.length()) / 2)));
-            var trailingSpacing = lineByLine.toString();
-            lineByLine.append(log);
+        StringBuilder augmentedText = new StringBuilder();
+        StringBuilder lineByLine = new StringBuilder();
+
+        augmentedText.append(System.lineSeparator());
+        Arrays.stream(log.split(System.lineSeparator())).toList().forEach(line -> {
+            var trailingSpacing = "";
+            var spaces = Math.round(144 - line.trim().length()) / 2;
+            if (spaces > 0) {
+                lineByLine.append(" ".repeat(spaces));
+                trailingSpacing = lineByLine.toString();
+            }
+            lineByLine.append(line);
             lineByLine.append(trailingSpacing);
             augmentedText.append(lineByLine);
             augmentedText.append(System.lineSeparator());
             lineByLine.delete(0, lineByLine.length());
-            return augmentedText.toString();
-        }
+        });
+        return augmentedText.toString();
     }
 
     private static String createSeparator(char ch) {
@@ -827,6 +820,159 @@ public class ReportManagerHelper {
         }
     }
 
+    //TODO: implement as an alternate approach to docker-android
+//    public static void runGitHubActionWorkflowLocally(){
+    // run this command to download and install https://github.com/nektos/act
+    // curl -s https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash
+
+    // run this command to execute a workflow
+    // act -j lint -W .github/workflows/test_mobile.yml
+//    }
+
+    @SneakyThrows(InterruptedException.class)
+    public static void setupAppiumSelfManagedExecutionPrerequisites() {
+        // TODO: check if user has admin access
+        // TODO: create a list to manage URLs and commands for other OSs
+
+        //check that they are installed and can be executed
+        ReportManager.logDiscrete("Verifying Appium self-managed execution environment...");
+        String ANDROID_HOME = System.getenv("ANDROID_HOME");
+
+        if (ANDROID_HOME == null || "".equals(ANDROID_HOME)) {
+            String url = "https://dl.google.com/android/repository/commandlinetools-win-9477386_latest.zip";
+            ReportManager.logDiscrete("Downloading and installing SDK CMD Tools from " + url);
+
+            ScheduledExecutorService sdkCmdToolsDownloader = Executors.newScheduledThreadPool(2);
+            sdkCmdToolsDownloader.execute(() -> showProgressBar("Preparing SDK CMD Tools", downloadTimeout));
+            sdkCmdToolsDownloader.schedule(() -> {
+                ReportHelper.disableLogging();
+                try {
+                    String fileName = url.substring(url.lastIndexOf("/") + 1);
+                    FileActions.getInstance().unpackArchive(new URL(url), androidSelfManagedEnvironmentLocation + fileName);
+                    FileActions.getInstance().doesFileExist(androidSelfManagedEnvironmentLocation + "/cmdline-tools/latest/bin/");
+                    ReportHelper.enableLogging();
+                    ReportManager.logDiscrete("Successfully prepared SDK CMD tools.");
+                    sdkCmdToolsDownloader.shutdownNow();
+                } catch (Throwable throwable) {
+                    ReportHelper.enableLogging();
+                    Assert.fail("Failed to prepare SDK CMD tools.", throwable);
+                    sdkCmdToolsDownloader.shutdownNow();
+                }
+            }, 1, TimeUnit.SECONDS);
+
+            if (!sdkCmdToolsDownloader.awaitTermination(downloadTimeout, TimeUnit.SECONDS)) {
+                ReportHelper.enableLogging();
+                Assert.fail("SDK CMD tools were still not ready after " + TimeUnit.SECONDS.toMinutes(downloadTimeout) + " minutes.");
+            }
+            // this only runs if the thread succeeds
+            ANDROID_HOME = androidSelfManagedEnvironmentLocation;
+        }
+        ReportManager.logDiscrete("Found SDK CMD Tools at " + ANDROID_HOME + "/cmdline-tools/latest/bin/");
+
+        ReportHelper.disableLogging();
+        String avdList = TerminalActions.getInstance().performTerminalCommands(Arrays.asList(
+                "cd " + ANDROID_HOME + "/cmdline-tools/latest/bin/",
+                ".\\avdmanager list avd"));
+        boolean doesAVDExist = avdList.contains(".avd");
+        ReportHelper.enableLogging();
+
+        if (!doesAVDExist) {
+            var packages = Arrays.asList("cmdline-tools;latest", "emulator", "patcher;v4", "platform-tools",
+                    "build-tools;27.0.0", "platforms;android-27", "skiaparser;3", "sources;android-27", "system-images;android-27;default;x86_64", "");
+
+            ReportManager.logDiscrete("Downloading required android packages " + String.join(", ", packages) + "...");
+            try {
+                // update sdkmanager
+                TerminalActions.getInstance(false, true).performTerminalCommands(Arrays.asList(
+                        "cd " + ANDROID_HOME + "/cmdline-tools/latest/bin/",
+                        ".\\sdkmanager --update"));
+
+                // downloading packages
+                String finalANDROID_HOME = ANDROID_HOME;
+                packages.forEach(packageName -> {
+                    TerminalActions.getInstance(false, true).performTerminalCommands(Arrays.asList(
+                            "cd " + finalANDROID_HOME + "/cmdline-tools/latest/bin/",
+                            ".\\sdkmanager --install " + packageName));
+                });
+
+                // accepting licenses
+                TerminalActions.getInstance(false, true).performTerminalCommands(Arrays.asList(
+                        "cd " + ANDROID_HOME + "/cmdline-tools/latest/bin/",
+                        ".\\sdkmanager --licenses"));
+
+                // creating avd
+                TerminalActions.getInstance(false, true).performTerminalCommands(Arrays.asList(
+                        "cd " + ANDROID_HOME + "/cmdline-tools/latest/bin/",
+                        ".\\avdmanager create avd -n Pixel_a27_x86_64 -d pixel --package '" + packages.get(packages.size() - 2) + "'"));
+
+                // update avd list
+                avdList = TerminalActions.getInstance(false).performTerminalCommands(Arrays.asList(
+                        "cd " + ANDROID_HOME + "/cmdline-tools/latest/bin/",
+                        ".\\avdmanager list avd"));
+
+                ReportManager.logDiscrete("Successfully prepared android packages.");
+            } catch (Throwable throwable) {
+                Assert.fail("Failed to prepare android packages.", throwable);
+            }
+        }
+
+        String avdName = avdList.substring(avdList.lastIndexOf("Name:", avdList.indexOf("Device:"))).replace("Name: ", "");
+        avdName = avdName.substring(0, avdName.indexOf("\n")).trim();
+        ReportManager.logDiscrete("Launching emulator '" + avdName + "'...");
+
+        // TODO: Handle Emulator is already up and running
+
+        String finalAvdName = avdName;
+        try {
+            // launch emulator
+            TerminalActions.getInstance(true).performTerminalCommands(Arrays.asList(
+                    "cd " + ANDROID_HOME + "/emulator/",
+                    ".\\emulator -avd " + finalAvdName + " -gpu host -no-audio -no-boot-anim -camera-back none -camera-front none -qemu -m 2048"));
+
+            ReportManager.logDiscrete("Successfully launched emulator.");
+        } catch (Throwable throwable) {
+            Assert.fail("Failed to launched emulator.", throwable);
+        }
+        ReportHelper.disableLogging();
+        String NPM_VERSION = TerminalActions.getInstance(false).performTerminalCommand("npm --version").trim();
+        ReportHelper.enableLogging();
+        boolean isNPMInstalled = NPM_VERSION.matches(".*[0-9].*");
+        if (!isNPMInstalled) {
+            // install npm
+            String url = "https://nodejs.org/dist/v18.13.0/node-v18.13.0-win-x64.zip";
+            ReportManager.logDiscrete("Downloading and installing Node.js from " + url);
+            try {
+                String fileName = url.substring(url.lastIndexOf("/") + 1);
+                FileActions.getInstance().unpackArchive(new URL(url), androidSelfManagedEnvironmentLocation + fileName);
+                FileActions.getInstance().doesFileExist(androidSelfManagedEnvironmentLocation + "/npm/");
+                ReportManager.logDiscrete("Successfully prepared Node.js.");
+            } catch (Throwable throwable) {
+                Assert.fail("Failed to prepare Node.js.", throwable);
+            }
+
+            ReportHelper.disableLogging();
+            NPM_VERSION = TerminalActions.getInstance().performTerminalCommand("npm --version").trim();
+            ReportHelper.enableLogging();
+        }
+
+        ReportManager.logDiscrete("Using npm " + NPM_VERSION + " to install/upgrade Appium Server and drivers...");
+
+        TerminalActions.getInstance(false, true).performTerminalCommands(Arrays.asList(
+                "cd " + androidSelfManagedEnvironmentLocation + "/npm",
+                "npm install appium@next --location=global --force --foreground-scripts=true",
+                "appium driver install uiautomator2",
+                "appium driver update uiautomator2"));
+
+        ReportHelper.disableLogging();
+        String APPIUM_VERSION = TerminalActions.getInstance().performTerminalCommand("appium --version");
+        ReportHelper.enableLogging();
+
+        APPIUM_VERSION = APPIUM_VERSION.contains("info") ? APPIUM_VERSION.split("info")[0].trim() : APPIUM_VERSION.trim();
+        ReportManager.logDiscrete("Starting Appium server " + APPIUM_VERSION + "...");
+        // TODO: Handle Appium Server is already up and running
+        TerminalActions.getInstance(true).performTerminalCommand("appium --allow-cors --allow-insecure=true --debug-log-spacing --log-timestamp --relaxed-security");
+    }
+
     @SneakyThrows(java.lang.InterruptedException.class)
     public static void downloadAndroidEmulatorFiles() {
         ReportManager.logDiscrete("Downloading https://github.com/amrsa1/Android-Emulator container files...");
@@ -863,39 +1009,31 @@ public class ReportManagerHelper {
         System.setProperty("mobile_uiautomator2ServerLaunchTimeout", "1200000");
         System.setProperty("mobile_adbExecTimeout", "1200000");
         ReportHelper.enableLogging();
-
         //TODO: execute command to ensure that docker desktop/platform is installed and running
         // else fail fast
-
-        //TODO: this is extremely slow... 15 minutes in setup is too much...
-        // implement the same solution but to be run locally without any containers...
-        // npm / python / dependenies / android images stored to local .m2
-        // install everything (if not already installed), run avd and run appium
-        // should be able to execute locally at least on linux, all CI/CD servers use linux anyway...
-
         ReportManager.logDiscrete("Launching Android-Emulator and Appium 2 containers. If the containers aren't on your machine they may take some time to download (5.57 GB) depending on your internet connection...");
         ReportHelper.disableLogging();
         var logMessage = "with container id: ";
 
         ScheduledExecutorService stage1Executor = Executors.newScheduledThreadPool(2);
-        stage1Executor.execute(() -> showProgressBar("Fetching containers", dockerDownloadTimeout));
+        stage1Executor.execute(() -> showProgressBar("Fetching containers", longDownloadTimeout));
         stage1Executor.schedule(() -> {
             ReportHelper.disableLogging();
             try {
                 executeCommand(androidEmulatorLocation, "docker compose up --scale android-service=1 --detach --wait --no-recreate --remove-orphans");
-                stage1Executor.shutdownNow();
                 ReportHelper.enableLogging();
                 ReportManager.logDiscrete("Successfully prepared docker image.");
-            } catch (Throwable throwable) {
                 stage1Executor.shutdownNow();
+            } catch (Throwable throwable) {
                 ReportHelper.enableLogging();
                 Assert.fail("Failed to prepare docker image.", throwable);
+                stage1Executor.shutdownNow();
             }
         }, 1, TimeUnit.SECONDS);
 
-        if (!stage1Executor.awaitTermination(dockerDownloadTimeout, TimeUnit.SECONDS)) {
+        if (!stage1Executor.awaitTermination(longDownloadTimeout, TimeUnit.SECONDS)) {
             ReportHelper.enableLogging();
-            Assert.fail("Docker image was still not ready after " + TimeUnit.SECONDS.toMinutes(dockerDownloadTimeout) + " minutes.");
+            Assert.fail("Docker image was still not ready after " + TimeUnit.SECONDS.toMinutes(longDownloadTimeout) + " minutes.");
         }
 
         ReportHelper.disableLogging();
@@ -929,16 +1067,20 @@ public class ReportManagerHelper {
     }
 
     private static String executeCommand(String location, String command, boolean asynchronous) {
+        String consoleOutput = "";
         String fileName = command.substring(0, command.indexOf(" ", 7)).replaceAll(" ", "_");
         var setExecutionLocationCommand = "cd '" + androidEmulatorLocation + "'\n";
         if (SystemUtils.IS_OS_WINDOWS) {
             FileActions.getInstance().writeToFile(location, fileName + ".bat", setExecutionLocationCommand + command);
-            return new TerminalActions(asynchronous).performTerminalCommand(location + fileName + ".bat");
+            consoleOutput = new TerminalActions(asynchronous).performTerminalCommand(location + fileName + ".bat");
+            FileActions.getInstance().deleteFile(location + fileName + ".bat");
         } else {
             FileActions.getInstance().writeToFile(location, fileName + ".sh", setExecutionLocationCommand + command);
             new TerminalActions(asynchronous).performTerminalCommand("chmod u+x " + location + fileName + ".sh");
-            return new TerminalActions(asynchronous).performTerminalCommand("sh " + location + fileName + ".sh");
+            consoleOutput = new TerminalActions(asynchronous).performTerminalCommand("sh " + location + fileName + ".sh");
+            FileActions.getInstance().deleteFile(location + fileName + ".sh");
         }
+        return consoleOutput;
     }
 
     private static void writeGenerateReportShellFilesToProjectDirectory() {
