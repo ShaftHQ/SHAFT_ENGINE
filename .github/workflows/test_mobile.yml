@@ -39,7 +39,6 @@ jobs:
         run: |
              run: |
               brew autoremove
-              brew cask cleanup
               brew cleanup
               brew install intel-haxm
               
