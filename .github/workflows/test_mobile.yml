@@ -33,12 +33,16 @@ jobs:
             skiaparser;3
             sources;android-27
             system-images;android-27;default;x86_64
-          #cache: true
+          cache: true
 
       - name: Create Android emulator
         run: |
              run: |
+              brew autoremove
+              brew cask cleanup
+              brew cleanup
               brew install intel-haxm
+              
               # Install AVD files
               echo "y" | $ANDROID_HOME/tools/bin/sdkmanager --install 'system-images;android-27;default;x86_64'
               echo "y" | $ANDROID_HOME/tools/bin/sdkmanager --licenses
