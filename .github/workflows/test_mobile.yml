@@ -38,8 +38,11 @@ jobs:
       - name: Create Android emulator
         run: |
              run: |
-              brew autoremove
-              brew cleanup
+              # Delete old file
+              brew cleanup --prune=1 -s
+              rm -rf "$(brew --cache)"
+              
+              # Install HAXM
               brew install intel-haxm
               
               # Install AVD files
