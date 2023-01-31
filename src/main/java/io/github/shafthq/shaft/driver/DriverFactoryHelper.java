@@ -265,10 +265,9 @@ public class DriverFactoryHelper {
                     options = new ChromeOptions();
                 }
                 options.setCapability(CapabilityType.PLATFORM_NAME, getDesiredOperatingSystem());
-//                options.setHeadless(HEADLESS_EXECUTION);
 
                 if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
-                    options.addArguments("--headless=chrome");
+                    options.addArguments("--headless=new");
                 }
                 if (Boolean.TRUE.equals(AUTO_MAXIMIZE)
                         && !ANDROID.equals(getOperatingSystemFromName(targetOperatingSystem))
