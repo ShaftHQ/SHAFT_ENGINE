@@ -81,6 +81,13 @@ public class Tests_Api {
     }
 
     @Test
+    public void test_getResponseJSONValueAsList_validation() {
+        driver = new SHAFT.API("https://jsonplaceholder.typicode.com");
+        driver.get("/todos").perform();
+        driver.verifyThatResponse().extractedJsonValueAsList("$[?(@.completed==true)].completed").isEqualTo("true").perform();
+    }
+
+    @Test
     public void test_validationWizard_getResponseBody() {
         driver = new SHAFT.API("http://api.zippopotam.us/");
         driver.get("us/90210").perform();
