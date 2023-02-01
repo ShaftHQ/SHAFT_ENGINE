@@ -38,12 +38,11 @@ jobs:
       - name: Create Android emulator
         run: |
               # Delete old file
-              rm -rf /Users/runner/Library/Caches/Homebrew/downloads/1662603e2ad7cd976ee422fbe3ad7cdcfb558fc002db6cb24cc73e53e9191dbf--haxm-macosx_v7_8_0.zip
               brew cleanup --prune=1 -s
               rm -rf "$(brew --cache)"
               
               # Install HAXM
-              brew install intel-haxm
+              #brew install intel-haxm
               
               # Install AVD files
               echo "y" | $ANDROID_HOME/tools/bin/sdkmanager --install 'system-images;android-27;default;x86_64'
