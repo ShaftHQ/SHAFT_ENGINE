@@ -755,7 +755,9 @@ public class TouchActions {
             scrollParameters.putAll(ImmutableMap.of(
                     "direction", swipeDirection.toString()
             ));
-            canScrollMore = (Boolean) ((JavascriptExecutor) iosDriver).executeScript("mobile: scroll", scrollParameters);
+            //http://appium.github.io/appium-xcuitest-driver/4.16/execute-methods/#mobile-scroll
+            var ret= ((JavascriptExecutor) iosDriver).executeScript("mobile: scroll", scrollParameters);
+            canScrollMore = ret == Null?true: ret;
         }
         var logMessageAfter = "Attempted to scroll using these parameters: \"" + scrollParameters + "\"";
         if (canScrollMore) {
