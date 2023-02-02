@@ -37,13 +37,12 @@ jobs:
 
       - name: Create Android emulator
         run: |
-             run: |
               # Delete old file
               brew cleanup --prune=1 -s
               rm -rf "$(brew --cache)"
               
               # Install HAXM
-              brew install intel-haxm
+              #brew install intel-haxm
               
               # Install AVD files
               echo "y" | $ANDROID_HOME/tools/bin/sdkmanager --install 'system-images;android-27;default;x86_64'
