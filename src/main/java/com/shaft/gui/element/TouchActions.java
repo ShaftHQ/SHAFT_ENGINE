@@ -757,7 +757,7 @@ public class TouchActions {
             ));
             //http://appium.github.io/appium-xcuitest-driver/4.16/execute-methods/#mobile-scroll
             var ret= ((JavascriptExecutor) iosDriver).executeScript("mobile: scroll", scrollParameters);
-            canScrollMore = ret == Null?true: ret;
+            canScrollMore = (ret == null) ? true : ret;
         }
         var logMessageAfter = "Attempted to scroll using these parameters: \"" + scrollParameters + "\"";
         if (canScrollMore) {
