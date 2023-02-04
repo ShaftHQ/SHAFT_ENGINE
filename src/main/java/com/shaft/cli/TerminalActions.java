@@ -15,6 +15,10 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 @SuppressWarnings("unused")
 public class TerminalActions {
@@ -331,7 +335,7 @@ public class TerminalActions {
         }
 
         ReportHelper.disableLogging();
-        FileActions.getInstance().createFolder(directory);
+        FileActions.getInstance().createFolder(directory.replace("\"", ""));
         ReportHelper.enableLogging();
 
         boolean isWindows = SystemUtils.IS_OS_WINDOWS;
@@ -343,50 +347,71 @@ public class TerminalActions {
                 ProcessBuilder pb = new ProcessBuilder();
                 pb.directory(new File(finalDirectory));
 
-                String commandLogsDirectory = "target/commandLogs/";
-                ReportHelper.disableLogging();
-                Arrays.asList("input", "output", "error").forEach(fileName -> FileActions.getInstance().createFile(commandLogsDirectory, fileName));
-                ReportHelper.enableLogging();
-
                 // https://stackoverflow.com/a/10954450/12912100
-                if (isWindows && asynchronous) {
-                    pb.command("powershell.exe", "Start-Process powershell.exe '-NoExit \"[Console]::Title = ''SHAFT_Engine''; " + command + "\"'");
-                } else {
-                    pb.redirectInput(new File("target/commandLogs/input"));
-                    pb.redirectOutput(new File("target/commandLogs/output"));
-                    pb.redirectError(new File("target/commandLogs/error"));
-
-                    pb.command(command);
-                    if (isWindows) {
-                        pb.command("powershell.exe", "-Command", command);
+                if (isWindows) {
+                    if (asynchronous && verbose) {
+                        pb.command("powershell.exe", "Start-Process powershell.exe '-NoExit \"[Console]::Title = ''SHAFT_Engine''; " + command + "\"'");
                     } else {
-                        pb.command(command);
+                        pb.command("powershell.exe", "-Command", command);
                     }
+                } else {
+                    pb.command(command);
                 }
 
-                if (command.contains("docker_compose") || Boolean.TRUE.equals(verbose)) {
-                    pb.inheritIO();
-                }
-
-                Process localProcess = pb.start();
+                pb.redirectErrorStream(true);
 
                 if (!asynchronous) {
+                    Process localProcess = pb.start();
+
+                    // output logs
+                    String line;
+                    InputStreamReader isr = new InputStreamReader(localProcess.getInputStream());
+                    BufferedReader rdr = new BufferedReader(isr);
+                    while ((line = rdr.readLine()) != null) {
+                        if (Boolean.TRUE.equals(verbose)) {
+                            ReportManager.logDiscrete(line);
+                        }
+                        logs.append(line);
+                        logs.append("\n");
+                    }
+
+                    isr = new InputStreamReader(localProcess.getErrorStream());
+                    rdr = new BufferedReader(isr);
+                    while ((line = rdr.readLine()) != null) {
+                        if (Boolean.TRUE.equals(verbose)) {
+                            ReportManager.logDiscrete(line);
+                        }
+                        logs.append("\n");
+                        logs.append(line);
+                    }
+                    // Wait for the process to complete
                     localProcess.waitFor();
-                    // Capture logs
-                    ReportHelper.disableLogging();
-                    Arrays.asList("input", "output", "error").forEach(fileName -> logs.append(FileActions.getInstance().readFile(commandLogsDirectory + fileName)));
-                    ReportHelper.enableLogging();
                     // Retrieve the exit status of the executed command and destroy open sessions
                     exitStatuses.append(localProcess.exitValue());
                     localProcess.destroy();
                 } else {
+
                     exitStatuses.append("asynchronous");
+                    AtomicReference<Process> localProcess = new AtomicReference<>();
+                    ScheduledExecutorService asynchronousProcessExecution = Executors.newScheduledThreadPool(1);
+                    asynchronousProcessExecution.schedule(() -> {
+                        try {
+                            localProcess.set(pb.start());
+                            asynchronousProcessExecution.shutdownNow();
+                        } catch (Throwable throwable) {
+                            asynchronousProcessExecution.shutdownNow();
+                        }
+                    }, 0, TimeUnit.SECONDS);
+                    if (!asynchronousProcessExecution.awaitTermination(60, TimeUnit.MINUTES)) {
+                        localProcess.get().destroy();
+                        asynchronousProcessExecution.shutdownNow();
+                    }
                 }
             } catch (IOException | InterruptedException exception) {
                 failAction(longCommand, exception);
             }
         });
-        return Arrays.asList(logs.toString(), exitStatuses.toString());
+        return Arrays.asList(logs.toString().trim(), exitStatuses.toString());
     }
 
     private List<String> executeRemoteCommand(List<String> commands, String longCommand) {

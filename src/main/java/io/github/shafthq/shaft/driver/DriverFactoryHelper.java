@@ -8,6 +8,8 @@ import com.shaft.cli.TerminalActions;
 import com.shaft.driver.DriverFactory.DriverType;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.tools.io.ReportManager;
+import io.appium.java_client.AppiumDriver;
+import io.appium.java_client.Setting;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import io.appium.java_client.remote.options.UnhandledPromptBehavior;
@@ -15,6 +17,7 @@ import io.github.bonigarcia.wdm.WebDriverManager;
 import io.github.shafthq.shaft.enums.OperatingSystems;
 import io.github.shafthq.shaft.gui.browser.BrowserActionsHelpers;
 import io.github.shafthq.shaft.gui.video.RecordManager;
+import io.github.shafthq.shaft.properties.Properties;
 import io.github.shafthq.shaft.properties.PropertyFileManager;
 import io.github.shafthq.shaft.tools.io.helpers.FailureReporter;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
@@ -203,7 +206,7 @@ public class DriverFactoryHelper {
 
         //get proxy server
         // Proxy server settings | testing behind a proxy
-        String PROXY_SERVER_SETTINGS = System.getProperty("com.SHAFT.proxySettings");
+        String proxyServerSettings = System.getProperty("com.SHAFT.proxySettings");
 
         //https://github.com/GoogleChrome/chrome-launcher/blob/master/docs/chrome-flags-for-tools.md#--enable-automation
         switch (driverType) {
@@ -224,10 +227,10 @@ public class DriverFactoryHelper {
                 ffOptions.setPageLoadTimeout(Duration.ofSeconds(PAGE_LOAD_TIMEOUT));
                 ffOptions.setScriptTimeout(Duration.ofSeconds(SCRIPT_TIMEOUT));
                 //Add Proxy Setting if found
-                if (!PROXY_SERVER_SETTINGS.equals("")) {
+                if (!proxyServerSettings.equals("")) {
                     Proxy proxy = new Proxy();
-                    proxy.setHttpProxy(PROXY_SERVER_SETTINGS);
-                    proxy.setSslProxy(PROXY_SERVER_SETTINGS);
+                    proxy.setHttpProxy(proxyServerSettings);
+                    proxy.setSslProxy(proxyServerSettings);
                     ffOptions.setProxy(proxy);
                 }
                 // Enable BiDi
@@ -246,10 +249,10 @@ public class DriverFactoryHelper {
                 ieOptions.setPageLoadTimeout(Duration.ofSeconds(PAGE_LOAD_TIMEOUT));
                 ieOptions.setScriptTimeout(Duration.ofSeconds(SCRIPT_TIMEOUT));
                 //Add Proxy Setting if found
-                if (!PROXY_SERVER_SETTINGS.equals("")) {
+                if (!proxyServerSettings.equals("")) {
                     Proxy proxy = new Proxy();
-                    proxy.setHttpProxy(PROXY_SERVER_SETTINGS);
-                    proxy.setSslProxy(PROXY_SERVER_SETTINGS);
+                    proxy.setHttpProxy(proxyServerSettings);
+                    proxy.setSslProxy(proxyServerSettings);
                     ieOptions.setProxy(proxy);
                 }
                 //merge customWebdriverCapabilities.properties
@@ -260,129 +263,10 @@ public class DriverFactoryHelper {
                 }
             }
             case APPIUM_CHROME, DESKTOP_CHROME, DESKTOP_EDGE, DESKTOP_CHROMIUM -> {
-                ChromiumOptions<?> options;
                 if (driverType.equals(DriverType.DESKTOP_EDGE)) {
-                    options = new EdgeOptions();
+                    edOptions = (EdgeOptions) setupChromiumOptions(new EdgeOptions(), customDriverOptions);
                 } else {
-                    options = new ChromeOptions();
-                }
-                options.setCapability(CapabilityType.PLATFORM_NAME, getDesiredOperatingSystem());
-
-                if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
-                    options.addArguments("--headless=new");
-                }
-                if (Boolean.TRUE.equals(AUTO_MAXIMIZE)
-                        && !ANDROID.equals(getOperatingSystemFromName(targetOperatingSystem))
-                        && !IOS.equals(getOperatingSystemFromName(targetOperatingSystem))
-                        && !OperatingSystems.MACOS.equals(getOperatingSystemFromName(targetOperatingSystem))) {
-                    options.addArguments("--start-maximized");
-                } else {
-                    options.addArguments("--window-position=0,0", "--window-size=1920,1080");
-                }
-
-                // https://github.com/GoogleChrome/chrome-launcher/blob/main/docs/chrome-flags-for-tools.md
-                // https://docs.google.com/spreadsheets/d/1n-vw_PCPS45jX3Jt9jQaAhFqBY6Ge1vWF_Pa0k7dCk4/edit#gid=1265672696
-                options.addArguments("--enable-automation"
-                        , "--disable-background-timer-throttling"
-                        , "--disable-backgrounding-occluded-windows"
-                        , "--disable-features=CalculateNativeWinOcclusion"
-                        , "--disable-hang-monitor"
-                        , "--disable-domain-reliability"
-                        , "--disable-renderer-backgrounding"
-                        , "--disable-features=AutofillServerCommunication"
-                        , "--metrics-recording-only"
-                        , "--no-first-run"
-                        , "--no-default-browser-check"
-                        , "--remote-debugging-port=0"
-                        , "--silent-debugger-extension-api"
-                        , "--disable-extensions"
-                        , "--disable-component-extensions-with-background-pages"
-                        , "--disable-dev-shm-usage"
-                        , "--disable-features=MediaRouter"
-                        , "--disable-features=Translate"
-                        , "--disable-ipc-flooding-protection"
-                        , "--disable-background-networking"
-                        , "--mute-audio"
-                        , "--disable-breakpad"
-                        , "--ignore-certificate-errors"
-                        , "--disable-device-discovery-notifications"
-                        , "--force-color-profile=srgb"
-                        , "--hide-scrollbars"
-                        , "--host-resolver-rules"
-                        , "--no-pings"
-                        , "--disable-features=AvoidUnnecessaryBeforeUnloadCheckSync"
-                        , "--disable-features=CertificateTransparencyComponentUpdater"
-                        , "--disable-sync"
-                        , "--disable-features=OptimizationHints"
-                        , "--disable-features=DialMediaRouteProvider"
-                        , "--disable-features=GlobalMediaControls"
-                        , "--disable-features=ImprovedCookieControls"
-                        , "--disable-features=LazyFrameLoading"
-                        , "--disable-field-trial-config"
-                        , "--enable-features=NetworkService"
-                        , "--enable-features=NetworkServiceInProcess"
-                        , "--enable-use-zoom-for-dsf"
-                        , "--log-net-log"
-                        , "--net-log-capture-mode"
-                        , "--disable-client-side-phishing-detection"
-                        , "--disable-default-apps"
-                        , "--disable-features=InterestFeedContentSuggestions"
-                );
-
-                Map<String, Object> chromePreferences = new HashMap<>();
-                chromePreferences.put("profile.default_content_settings.popups", 0);
-                chromePreferences.put("download.prompt_for_download", "false");
-                chromePreferences.put("download.default_directory", downloadsFolderPath);
-                options.setExperimentalOption("prefs", chromePreferences);
-                options.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.ACCEPT_AND_NOTIFY);
-                options.setCapability(CapabilityType.ACCEPT_INSECURE_CERTS, true);
-                options.setPageLoadStrategy(PageLoadStrategy.EAGER); // https://www.skptricks.com/2018/08/timed-out-receiving-message-from-renderer-selenium.html
-                options.setPageLoadTimeout(Duration.ofSeconds(PAGE_LOAD_TIMEOUT));
-                options.setScriptTimeout(Duration.ofSeconds(SCRIPT_TIMEOUT));
-                //Add Proxy Setting if found
-                if (!PROXY_SERVER_SETTINGS.equals("")) {
-                    Proxy proxy = new Proxy();
-                    proxy.setHttpProxy(PROXY_SERVER_SETTINGS);
-                    proxy.setSslProxy(PROXY_SERVER_SETTINGS);
-                    options.setProxy(proxy);
-                }
-                //add logging preferences if enabled
-                if (Boolean.parseBoolean(System.getProperty("captureWebDriverLogs"))) {
-                    options.setCapability("goog:loggingPrefs", configureLoggingPreferences());
-                }
-                // Mobile Emulation
-                if (Boolean.TRUE.equals(MOBILE_EMULATION) &&
-                        (driverType.equals(DriverType.DESKTOP_CHROME) || driverType.equals(DriverType.DESKTOP_EDGE))) {
-                    Map<String, Object> mobileEmulation = new HashMap<>();
-                    if (Boolean.FALSE.equals(MOBILE_EMULATION_CUSTOM_DEVICE) && (!System.getProperty("mobileEmulation.deviceName").equals(""))) {
-                        mobileEmulation.put("deviceName", System.getProperty("mobileEmulation.deviceName"));
-                    } else if (Boolean.TRUE.equals(MOBILE_EMULATION_CUSTOM_DEVICE)) {
-                        if ((!System.getProperty("mobileEmulation.width").equals("")) && (!System.getProperty("mobileEmulation.height").equals(""))) {
-                            Map<String, Object> deviceMetrics = new HashMap<>();
-                            deviceMetrics.put("width", Integer.valueOf(System.getProperty("mobileEmulation.width")));
-                            deviceMetrics.put("height", Integer.valueOf(System.getProperty("mobileEmulation.height")));
-                            if (!System.getProperty("mobileEmulation.pixelRatio").equals("")) {
-                                deviceMetrics.put("pixelRatio", Float.valueOf(System.getProperty("mobileEmulation.pixelRatio")));
-                            }
-                            mobileEmulation.put("deviceMetrics", deviceMetrics);
-                        }
-                        if (!System.getProperty("mobileEmulation.userAgent").equals("")) {
-                            mobileEmulation.put("userAgent", System.getProperty("mobileEmulation.userAgent"));
-                        }
-                    }
-                    options.setExperimentalOption("mobileEmulation", mobileEmulation);
-                }
-                //merge customWebdriverCapabilities.properties
-                options = (ChromiumOptions<?>) options.merge(PropertyFileManager.getCustomWebdriverDesiredCapabilities());
-                //merge hardcoded custom options
-                if (customDriverOptions != null) {
-                    options = (ChromiumOptions<?>) options.merge(customDriverOptions);
-                }
-                //explicit type casting
-                if (driverType.equals(DriverType.DESKTOP_EDGE)) {
-                    edOptions = (EdgeOptions) options;
-                } else {
-                    chOptions = (ChromeOptions) options;
+                    chOptions = (ChromeOptions) setupChromiumOptions(new ChromeOptions(), customDriverOptions);
                 }
             }
             case DESKTOP_SAFARI, DESKTOP_WEBKIT -> {
@@ -393,10 +277,10 @@ public class DriverFactoryHelper {
                 sfOptions.setPageLoadTimeout(Duration.ofSeconds(PAGE_LOAD_TIMEOUT));
                 sfOptions.setScriptTimeout(Duration.ofSeconds(SCRIPT_TIMEOUT));
                 //Add Proxy Setting if found
-                if (!PROXY_SERVER_SETTINGS.equals("")) {
+                if (!proxyServerSettings.equals("")) {
                     Proxy proxy = new Proxy();
-                    proxy.setHttpProxy(PROXY_SERVER_SETTINGS);
-                    proxy.setSslProxy(PROXY_SERVER_SETTINGS);
+                    proxy.setHttpProxy(proxyServerSettings);
+                    proxy.setSslProxy(proxyServerSettings);
                     sfOptions.setProxy(proxy);
                 }
                 //merge customWebdriverCapabilities.properties
@@ -411,6 +295,119 @@ public class DriverFactoryHelper {
             default ->
                     failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
         }
+    }
+
+    private static ChromiumOptions<?> setupChromiumOptions(ChromiumOptions<?> options, MutableCapabilities customDriverOptions) {
+        options.setCapability(CapabilityType.PLATFORM_NAME, getDesiredOperatingSystem());
+
+        if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
+            options.addArguments("--headless=new");
+        }
+        if (Boolean.TRUE.equals(AUTO_MAXIMIZE)
+                && !ANDROID.equals(getOperatingSystemFromName(targetOperatingSystem))
+                && !IOS.equals(getOperatingSystemFromName(targetOperatingSystem))
+                && !OperatingSystems.MACOS.equals(getOperatingSystemFromName(targetOperatingSystem))) {
+            options.addArguments("--start-maximized");
+        } else {
+            options.addArguments("--window-position=0,0", "--window-size=1920,1080");
+        }
+
+        // https://github.com/GoogleChrome/chrome-launcher/blob/main/docs/chrome-flags-for-tools.md
+        // https://docs.google.com/spreadsheets/d/1n-vw_PCPS45jX3Jt9jQaAhFqBY6Ge1vWF_Pa0k7dCk4/edit#gid=1265672696
+        options.addArguments("--enable-automation"
+                , "--disable-background-timer-throttling"
+                , "--disable-backgrounding-occluded-windows"
+                , "--disable-features=CalculateNativeWinOcclusion"
+                , "--disable-hang-monitor"
+                , "--disable-domain-reliability"
+                , "--disable-renderer-backgrounding"
+                , "--disable-features=AutofillServerCommunication"
+                , "--metrics-recording-only"
+                , "--no-first-run"
+                , "--no-default-browser-check"
+                , "--remote-debugging-port=0"
+                , "--silent-debugger-extension-api"
+                , "--disable-extensions"
+                , "--disable-component-extensions-with-background-pages"
+                , "--disable-dev-shm-usage"
+                , "--disable-features=MediaRouter"
+                , "--disable-features=Translate"
+                , "--disable-ipc-flooding-protection"
+                , "--disable-background-networking"
+                , "--mute-audio"
+                , "--disable-breakpad"
+                , "--ignore-certificate-errors"
+                , "--disable-device-discovery-notifications"
+                , "--force-color-profile=srgb"
+                , "--hide-scrollbars"
+                , "--host-resolver-rules"
+                , "--no-pings"
+                , "--disable-features=AvoidUnnecessaryBeforeUnloadCheckSync"
+                , "--disable-features=CertificateTransparencyComponentUpdater"
+                , "--disable-sync"
+                , "--disable-features=OptimizationHints"
+                , "--disable-features=DialMediaRouteProvider"
+                , "--disable-features=GlobalMediaControls"
+                , "--disable-features=ImprovedCookieControls"
+                , "--disable-features=LazyFrameLoading"
+                , "--disable-field-trial-config"
+                , "--enable-features=NetworkService"
+                , "--enable-features=NetworkServiceInProcess"
+                , "--enable-use-zoom-for-dsf"
+                , "--log-net-log"
+                , "--net-log-capture-mode"
+                , "--disable-client-side-phishing-detection"
+                , "--disable-default-apps"
+                , "--disable-features=InterestFeedContentSuggestions"
+        );
+
+        Map<String, Object> chromePreferences = new HashMap<>();
+        chromePreferences.put("profile.default_content_settings.popups", 0);
+        chromePreferences.put("download.prompt_for_download", "false");
+        chromePreferences.put("download.default_directory", FileActions.getInstance().getAbsolutePath(Properties.paths.downloads()));
+        options.setExperimentalOption("prefs", chromePreferences);
+        options.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.ACCEPT_AND_NOTIFY);
+        options.setCapability(CapabilityType.ACCEPT_INSECURE_CERTS, true);
+        options.setPageLoadStrategy(PageLoadStrategy.EAGER); // https://www.skptricks.com/2018/08/timed-out-receiving-message-from-renderer-selenium.html
+        options.setPageLoadTimeout(Duration.ofSeconds(PAGE_LOAD_TIMEOUT));
+        options.setScriptTimeout(Duration.ofSeconds(SCRIPT_TIMEOUT));
+        //Add Proxy Setting if found
+        String proxy = Properties.platform.proxy();
+        if (!"".equals(proxy)) {
+            options.setProxy(new Proxy().setHttpProxy(proxy).setSslProxy(proxy));
+        }
+        //add logging preferences if enabled
+        if (Boolean.parseBoolean(System.getProperty("captureWebDriverLogs"))) {
+            options.setCapability("goog:loggingPrefs", configureLoggingPreferences());
+        }
+        // Mobile Emulation
+        if (Boolean.TRUE.equals(MOBILE_EMULATION) && isWebExecution()) {
+            Map<String, Object> mobileEmulation = new HashMap<>();
+            if (Boolean.FALSE.equals(MOBILE_EMULATION_CUSTOM_DEVICE) && (!System.getProperty("mobileEmulation.deviceName").equals(""))) {
+                mobileEmulation.put("deviceName", System.getProperty("mobileEmulation.deviceName"));
+            } else if (Boolean.TRUE.equals(MOBILE_EMULATION_CUSTOM_DEVICE)) {
+                if ((!System.getProperty("mobileEmulation.width").equals("")) && (!System.getProperty("mobileEmulation.height").equals(""))) {
+                    Map<String, Object> deviceMetrics = new HashMap<>();
+                    deviceMetrics.put("width", Integer.valueOf(System.getProperty("mobileEmulation.width")));
+                    deviceMetrics.put("height", Integer.valueOf(System.getProperty("mobileEmulation.height")));
+                    if (!System.getProperty("mobileEmulation.pixelRatio").equals("")) {
+                        deviceMetrics.put("pixelRatio", Float.valueOf(System.getProperty("mobileEmulation.pixelRatio")));
+                    }
+                    mobileEmulation.put("deviceMetrics", deviceMetrics);
+                }
+                if (!System.getProperty("mobileEmulation.userAgent").equals("")) {
+                    mobileEmulation.put("userAgent", System.getProperty("mobileEmulation.userAgent"));
+                }
+            }
+            options.setExperimentalOption("mobileEmulation", mobileEmulation);
+        }
+        //merge customWebdriverCapabilities.properties
+        options = (ChromiumOptions<?>) options.merge(PropertyFileManager.getCustomWebdriverDesiredCapabilities());
+        //merge hardcoded custom options
+        if (customDriverOptions != null) {
+            options = (ChromiumOptions<?>) options.merge(customDriverOptions);
+        }
+        return options;
     }
 
     private static LoggingPreferences configureLoggingPreferences(){
@@ -602,6 +599,25 @@ public class DriverFactoryHelper {
             try {
                 driver.set(attemptRemoteServerConnection(capabilities));
                 driver.get().setFileDetector(new LocalFileDetector());
+                if (!isWebExecution()) {
+                    // https://github.com/appium/appium-uiautomator2-driver#settings-api
+                    ((AppiumDriver) driver.get()).setSetting(Setting.WAIT_FOR_IDLE_TIMEOUT, 5000);
+                    ((AppiumDriver) driver.get()).setSetting(Setting.ALLOW_INVISIBLE_ELEMENTS, true);
+                    ((AppiumDriver) driver.get()).setSetting(Setting.IGNORE_UNIMPORTANT_VIEWS, false);
+                    ((AppiumDriver) driver.get()).setSetting("enableMultiWindows", true);
+
+
+//        elementResponseAttributes, shouldUseCompactResponses
+                    ((AppiumDriver) driver.get()).setSetting(Setting.MJPEG_SCALING_FACTOR, 25);
+                    ((AppiumDriver) driver.get()).setSetting(Setting.MJPEG_SERVER_SCREENSHOT_QUALITY, 100);
+                    ((AppiumDriver) driver.get()).setSetting("mjpegBilinearFiltering", true);
+                    ((AppiumDriver) driver.get()).setSetting("limitXPathContextScope", false);
+
+//                ((AppiumDriver) driver).setSetting("disableIdLocatorAutocompletion", true);
+//        https://github.com/appium/appium-uiautomator2-driver#mobile-deeplink
+//        http://code2test.com/appium-tutorial/how-to-use-uiselector-in-appium/
+//        https://github.com/appium/appium-uiautomator2-driver
+                }
                 ReportManager.logDiscrete("Successfully instantiated remote driver instance.");
                 stage2Executor.shutdownNow();
             } catch (Throwable throwable) {
@@ -634,11 +650,11 @@ public class DriverFactoryHelper {
     private static int attemptRemoteServerPing() {
         do {
             try {
-                String status = TerminalActions.getInstance(false).performTerminalCommand("curl " + TARGET_HUB_URL + "status/");
+                String status = TerminalActions.getInstance(false, true).performTerminalCommand("curl " + TARGET_HUB_URL + "status/");
                 if (!status.contains("Unable to connect to the remote server")) {
                     return 200;
                 }
-                status = TerminalActions.getInstance(false).performTerminalCommand("curl " + TARGET_HUB_URL + "wd/hub/status/");
+                status = TerminalActions.getInstance(false, true).performTerminalCommand("curl " + TARGET_HUB_URL + "wd/hub/status/");
                 if (!status.contains("Unable to connect to the remote server")) {
                     return 200;
                 }
@@ -783,6 +799,34 @@ public class DriverFactoryHelper {
                 }
             }
         });
+        if (appiumSelfManagedExecution) {
+            // experimental android capabilities
+            // https://github.com/appium/appium-uiautomator2-driver
+            desiredCapabilities.setCapability("appium:appWaitActivity", "*");
+            desiredCapabilities.setCapability("appium:fullReset", "true");
+            desiredCapabilities.setCapability("appium:printPageSourceOnFindFailure", "true");
+            desiredCapabilities.setCapability("appium:fullReset", "true");
+            desiredCapabilities.setCapability("appium:disableWindowAnimation", "true");
+            desiredCapabilities.setCapability("appium:forceAppLaunch", "true");
+            desiredCapabilities.setCapability("appium:autoGrantPermissions", "true");
+//            desiredCapabilities.setCapability("appium:otherApps", ",,,");
+            desiredCapabilities.setCapability("appium:allowTestPackages", "true");
+            desiredCapabilities.setCapability("appium:enforceAppInstall", "true");
+            desiredCapabilities.setCapability("appium:clearDeviceLogsOnStart", "true");
+            desiredCapabilities.setCapability("appium:ignoreHiddenApiPolicyError", "true");
+
+            desiredCapabilities.setCapability("appium:isHeadless", "true");
+            desiredCapabilities.setCapability("appium:noSign", "true");
+
+            desiredCapabilities.setCapability("appium:enableWebviewDetailsCollection", "true");
+            desiredCapabilities.setCapability("appium:showChromedriverLog", "true");
+
+            //TODO: support custom driver options here
+            //https://chromedriver.chromium.org/capabilities
+            desiredCapabilities.setCapability("appium:chromeOptions", setupChromiumOptions(new ChromeOptions(), null));
+//        desiredCapabilities.setCapability("appium:chromedriverArgs", "true"); //http://www.assertselenium.com/java/list-of-chrome-driver-command-line-arguments/
+            desiredCapabilities.setCapability("pageLoadStrategy", PageLoadStrategy.EAGER);
+        }
         return desiredCapabilities;
     }
 

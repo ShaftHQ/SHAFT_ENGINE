@@ -546,12 +546,12 @@ public class FileActions {
         File unpacked = null;
         try (InputStream in = new BufferedInputStream(url.openStream(), 1024)) {
             // make sure we get the actual file
-            File zip = File.createTempFile("arc", ".zip", targetDir);
+            File zip = File.createTempFile("archive_", url.toString().substring(url.toString().length() - 4), targetDir);
+            zip.deleteOnExit();
             OutputStream out = new BufferedOutputStream(new FileOutputStream(zip));
             copyInputStream(in, out);
             out.close();
             unpacked = unpackArchive(zip, targetDir);
-            FileActions.getInstance().deleteFile(zip.getAbsolutePath());
             passAction("Target URL\"" + url + "\" | Destination Folder: \"" + destinationFolderPath + "\"");
         } catch (IOException rootCauseException) {
 

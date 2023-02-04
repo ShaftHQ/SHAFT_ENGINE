@@ -25,7 +25,7 @@ public interface Platform extends EngineProperties {
 
     @Key("com.SHAFT.proxySettings")
     @DefaultValue("")
-    String proxySettings();
+    String proxy();
 
     private static void setProperty(String key, String value) {
         var updatedProps = new java.util.Properties();
