@@ -580,14 +580,19 @@ public class ImageProcessingActions {
     }
 
     public static void loadOpenCV() {
-        var libName = org.opencv.core.Core.NATIVE_LIBRARY_NAME;
+        var libName = "";
         try {
             //https://github.com/openpnp/opencv#api
+            libName = org.opencv.core.Core.NATIVE_LIBRARY_NAME;
             OpenCV.loadLocally();
             ReportManager.logDiscrete("Loaded OpenCV \"" + libName + "\".");
-        } catch (Exception throwable) {
+        } catch (Throwable throwable) {
             ReportManagerHelper.logDiscrete(throwable);
-            ReportManager.logDiscrete("Failed to load OpenCV \"" + libName + "\". Try installing the binaries manually https://opencv.org/releases/, switching element highlighting to JavaScript...");
+            if (!libName.equals("")) {
+                ReportManager.logDiscrete("Failed to load OpenCV \"" + libName + "\". Try installing the binaries manually https://opencv.org/releases/, switching element highlighting to JavaScript...");
+            } else {
+                ReportManager.logDiscrete("Failed to load OpenCV. Try installing the binaries manually https://opencv.org/releases/, switching element highlighting to JavaScript...");
+            }
             System.setProperty("screenshotParams_highlightMethod", "JavaScript");
         }
     }
