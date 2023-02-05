@@ -322,7 +322,7 @@ public class TerminalActions {
         StringBuilder exitStatuses = new StringBuilder();
         // local execution
         ReportManager.logDiscrete("Attempting to execute the following command locally. Command: \"" + longCommand + "\"");
-
+        boolean isWindows = SystemUtils.IS_OS_WINDOWS;
         String directory;
         LinkedList<String> internalCommands;
         if (commands.size() > 1 && commands.get(0).startsWith("cd ")) {
@@ -338,7 +338,6 @@ public class TerminalActions {
         FileActions.getInstance().createFolder(directory.replace("\"", ""));
         ReportHelper.enableLogging();
 
-        boolean isWindows = SystemUtils.IS_OS_WINDOWS;
         String finalDirectory = directory;
         internalCommands.forEach(command -> {
             //attempting global fix for backwards compatibility with Windows OS
@@ -355,7 +354,7 @@ public class TerminalActions {
                         pb.command("powershell.exe", "-Command", command);
                     }
                 } else {
-                    pb.command(command);
+                    pb.command("sh", "-c", command);
                 }
                 pb.redirectErrorStream(true);
                 pb.inheritIO();
