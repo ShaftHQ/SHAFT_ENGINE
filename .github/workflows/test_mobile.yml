@@ -132,7 +132,7 @@ jobs:
 
       - name: Run tests
         continue-on-error: true
-        run: mvn test -DexecutionAddress="localhost:4723" -DtargetOperatingSystem="Android" -Dmobile_automationName="UIAutomator2" -Dmobile_app="src/test/resources/TestDataFiles/apps/ApiDemos-debug.apk" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Android.*]"
+        run: mvn -e test -DexecutionAddress="localhost:4723" -DtargetOperatingSystem="Android" -Dmobile_automationName="UIAutomator2" -Dmobile_app="src/test/resources/TestDataFiles/apps/ApiDemos-debug.apk" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Android.*]"
 
       - name: Upload Initial Emulator screenshot
         if: always()
@@ -177,7 +177,7 @@ jobs:
           check-latest: true
       - name: Run tests
         continue-on-error: true
-        run: mvn test -DexecutionAddress="browserstack" -DtargetOperatingSystem="Android" -Dmobile_automationName="UIAutomator2" -Dmobile_appWaitActivity="*" -Dmobile_disableWindowAnimation="true" -DbrowserStack.platformVersion="11.0" -DbrowserStack.deviceName="Google Pixel 4" -DbrowserStack.appName="ApiDemos-debug.apk" -DbrowserStack.appRelativeFilePath="src/test/resources/testDataFiles/apps/ApiDemos-debug.apk" -DbrowserStack.appUrl=" " -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Android.*]"
+        run: mvn -e test -DexecutionAddress="browserstack" -DtargetOperatingSystem="Android" -Dmobile_automationName="UIAutomator2" -Dmobile_appWaitActivity="*" -Dmobile_disableWindowAnimation="true" -DbrowserStack.platformVersion="11.0" -DbrowserStack.deviceName="Google Pixel 4" -DbrowserStack.appName="ApiDemos-debug.apk" -DbrowserStack.appRelativeFilePath="src/test/resources/testDataFiles/apps/ApiDemos-debug.apk" -DbrowserStack.appUrl=" " -DgenerateAllureReportArchive="true" -Dtest="%regex[.*Android.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
