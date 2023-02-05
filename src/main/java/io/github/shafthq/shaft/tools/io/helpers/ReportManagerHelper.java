@@ -816,7 +816,11 @@ public class ReportManagerHelper {
 
             if (!SystemUtils.IS_OS_WINDOWS) {
                 // make allure executable on Unix-based shells
-                TerminalActions.getInstance(false, false).performTerminalCommand("chmod u+x " + allureBinaryPath);
+                try {
+                    TerminalActions.getInstance(false, false).performTerminalCommand("chmod u+x " + allureBinaryPath);
+                } catch (Throwable throwable) {
+                    ReportManagerHelper.log(throwable);
+                }
             }
         }
     }
