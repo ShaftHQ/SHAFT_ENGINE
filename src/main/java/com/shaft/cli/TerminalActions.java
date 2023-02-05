@@ -357,9 +357,8 @@ public class TerminalActions {
                 } else {
                     pb.command(command);
                 }
-
                 pb.redirectErrorStream(true);
-
+                pb.inheritIO();
                 if (!asynchronous) {
                     Process localProcess = pb.start();
 
