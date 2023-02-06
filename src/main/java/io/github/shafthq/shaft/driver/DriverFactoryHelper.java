@@ -1,7 +1,6 @@
 package io.github.shafthq.shaft.driver;
 
 import com.epam.healenium.SelfHealingDriver;
-import com.google.common.base.Throwables;
 import com.mysql.cj.util.StringUtils;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
@@ -92,7 +91,7 @@ public class DriverFactoryHelper {
 
     private static final long appiumServerInitializationTimeout = TimeUnit.MINUTES.toSeconds(15); // seconds
     private static final int appiumServerInitializationPollingInterval = 1; // seconds
-    private static final long appiumServerPreparationTimeout = TimeUnit.MINUTES.toSeconds(10); // seconds
+    private static final long remoteServerInstanceCreationTimeout = TimeUnit.MINUTES.toSeconds(1); // seconds
     private static final int appiumServerPreparationPollingInterval = 1; // seconds
 
     private DriverFactoryHelper() {
@@ -578,8 +577,8 @@ public class DriverFactoryHelper {
             try {
                 TARGET_HUB_URL = TARGET_HUB_URL.contains("0.0.0.0") ? TARGET_HUB_URL.replace("0.0.0.0", "localhost") : TARGET_HUB_URL;
                 int statusCode = attemptRemoteServerPing();
-                stage1Executor.shutdownNow();
                 ReportManager.logDiscrete("Remote server is online, established successful connection with status code: " + statusCode + ".");
+                stage1Executor.shutdownNow();
             } catch (Throwable throwable) {
                 stage1Executor.shutdownNow();
                 failAction("Failed to connect to remote server.", throwable);
@@ -591,10 +590,10 @@ public class DriverFactoryHelper {
         }
 
         // stage 2: create remove driver instance (requires some time with dockerized appium)
-        ReportManager.logDiscrete("Attempting to instantiate remote driver instance for up to " + TimeUnit.SECONDS.toMinutes(appiumServerPreparationTimeout) + "min.");
+        ReportManager.logDiscrete("Attempting to instantiate remote driver instance for up to " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + "min.");
         AtomicReference<RemoteWebDriver> driver = new AtomicReference<>();
         ScheduledExecutorService stage2Executor = Executors.newScheduledThreadPool(2);
-        stage2Executor.execute(() -> showProgressBar("Instantiating remote driver instance", appiumServerPreparationTimeout));
+        stage2Executor.execute(() -> showProgressBar("Instantiating remote driver instance", remoteServerInstanceCreationTimeout));
         stage2Executor.schedule(() -> {
             try {
                 driver.set(attemptRemoteServerConnection(capabilities));
@@ -605,14 +604,11 @@ public class DriverFactoryHelper {
                     ((AppiumDriver) driver.get()).setSetting(Setting.ALLOW_INVISIBLE_ELEMENTS, true);
                     ((AppiumDriver) driver.get()).setSetting(Setting.IGNORE_UNIMPORTANT_VIEWS, false);
                     ((AppiumDriver) driver.get()).setSetting("enableMultiWindows", true);
-
-
 //        elementResponseAttributes, shouldUseCompactResponses
                     ((AppiumDriver) driver.get()).setSetting(Setting.MJPEG_SCALING_FACTOR, 25);
                     ((AppiumDriver) driver.get()).setSetting(Setting.MJPEG_SERVER_SCREENSHOT_QUALITY, 100);
                     ((AppiumDriver) driver.get()).setSetting("mjpegBilinearFiltering", true);
                     ((AppiumDriver) driver.get()).setSetting("limitXPathContextScope", false);
-
 //                ((AppiumDriver) driver).setSetting("disableIdLocatorAutocompletion", true);
 //        https://github.com/appium/appium-uiautomator2-driver#mobile-deeplink
 //        http://code2test.com/appium-tutorial/how-to-use-uiselector-in-appium/
@@ -621,27 +617,29 @@ public class DriverFactoryHelper {
                 ReportManager.logDiscrete("Successfully instantiated remote driver instance.");
                 stage2Executor.shutdownNow();
             } catch (Throwable throwable) {
-                failAction("Failed to instantiate remote driver instance.", throwable);
                 stage2Executor.shutdownNow();
+                failAction("Failed to instantiate remote driver instance.", throwable);
             }
         }, 0, TimeUnit.SECONDS);
-        if (!stage2Executor.awaitTermination(appiumServerPreparationTimeout, TimeUnit.SECONDS)) {
-            failAction("Failed to instantiated remote driver instance. Remote server was still not ready after " + TimeUnit.SECONDS.toMinutes(appiumServerPreparationTimeout) + " minutes.");
+        if (!stage2Executor.awaitTermination(remoteServerInstanceCreationTimeout, TimeUnit.SECONDS)) {
+            failAction("Failed to instantiated remote driver instance. Remote server was still not ready after " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + " minutes.");
         }
         DriverFactoryHelper.driver.set(driver.get());
     }
 
     @SneakyThrows(InterruptedException.class)
     public static void showProgressBar(String taskName, long timeout) {
+        // http://tongfei.me/progressbar/imperative-usage/
         int stepSize = 1; //seconds
         try (ProgressBar progressBar = new ProgressBarBuilder()
-                .setTaskName(taskName)
-                .setInitialMax(timeout)
                 .setUnit(" seconds", stepSize)
+                .hideEta()
+                .setMaxRenderedLength(80)
                 .build()) {
+            progressBar.maxHint(timeout);
             do {
+                progressBar.stepBy(stepSize);
                 Thread.sleep(TimeUnit.SECONDS.toMillis(stepSize));
-                progressBar.step();
             } while (progressBar.getCurrent() < progressBar.getMax());
         }
     }
@@ -649,16 +647,13 @@ public class DriverFactoryHelper {
     @SneakyThrows(InterruptedException.class)
     private static int attemptRemoteServerPing() {
         do {
-            try {
-                String status = TerminalActions.getInstance(false, true).performTerminalCommand("curl " + TARGET_HUB_URL + "status/");
-                if (!status.contains("Unable to connect to the remote server")) {
-                    return 200;
-                }
-                status = TerminalActions.getInstance(false, true).performTerminalCommand("curl " + TARGET_HUB_URL + "wd/hub/status/");
-                if (!status.contains("Unable to connect to the remote server")) {
-                    return 200;
-                }
-            } catch (Throwable ignored) {
+            String status = TerminalActions.getInstance(false, true).performTerminalCommand("curl " + TARGET_HUB_URL + "status/");
+            if (status.contains("HTTP/1.1 200 OK")) {
+                return 200;
+            }
+            status = TerminalActions.getInstance(false, true).performTerminalCommand("curl " + TARGET_HUB_URL + "wd/hub/status/");
+            if (status.contains("HTTP/1.1 200 OK")) {
+                return 200;
             }
             Thread.sleep(TimeUnit.SECONDS.toMillis(appiumServerInitializationPollingInterval));
         } while (true);
@@ -667,32 +662,19 @@ public class DriverFactoryHelper {
     @SneakyThrows({java.net.MalformedURLException.class, InterruptedException.class})
     private static RemoteWebDriver attemptRemoteServerConnection(Capabilities capabilities) {
         ReportManager.logDiscrete(capabilities.toString());
-        org.openqa.selenium.SessionNotCreatedException sessionNotCreatedException;
         do {
             try {
                 return connectToRemoteServer(targetOperatingSystem, capabilities, false);
             } catch (org.openqa.selenium.SessionNotCreatedException sessionNotCreatedException1) {
-                sessionNotCreatedException = sessionNotCreatedException1;
                 try {
-                    if (isRemoteServerClosed(sessionNotCreatedException1)) {
-                        return connectToRemoteServer(targetOperatingSystem, capabilities, true);
-                    } else {
-                        throw sessionNotCreatedException;
-                    }
+                    return connectToRemoteServer(targetOperatingSystem, capabilities, true);
                 } catch (org.openqa.selenium.SessionNotCreatedException sessionNotCreatedException2) {
-                    sessionNotCreatedException = sessionNotCreatedException2;
-                    sessionNotCreatedException.addSuppressed(sessionNotCreatedException1);
-                    if (!isRemoteServerClosed(sessionNotCreatedException2)) {
-                        throw sessionNotCreatedException;
-                    }
+                    // do nothing
                 }
             }
+            //terminate in case of any other exception
             Thread.sleep(TimeUnit.SECONDS.toMillis(appiumServerPreparationPollingInterval));
         } while (true);
-    }
-
-    private static boolean isRemoteServerClosed(Throwable throwable) {
-        return Throwables.getRootCause(throwable) instanceof org.asynchttpclient.exception.RemotelyClosedException;
     }
 
     private static RemoteWebDriver connectToRemoteServer(String targetOperatingSystem, Capabilities capabilities, boolean isLegacy) throws MalformedURLException {

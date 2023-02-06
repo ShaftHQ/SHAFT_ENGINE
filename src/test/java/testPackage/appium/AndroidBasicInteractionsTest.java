@@ -197,7 +197,7 @@ public class AndroidBasicInteractionsTest {
 //        System.setProperty("browserStack.deviceName", "Google Pixel 7");
 //        System.setProperty("browserStack.appName", "ApiDemos-debug.apk");
 //        System.setProperty("browserStack.appRelativeFilePath", "");
-//        System.setProperty("browserStack.appUrl", "bs://030ae95f0aa6d82ca804e342adde364c2614b419");
+//        System.setProperty("browserStack.appUrl", "bs://e744ef24a081b0d4cb5f9699a5dd69d6a3a2dbce");
         driver = DriverFactory.getDriver();
     }
 

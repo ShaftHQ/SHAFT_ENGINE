@@ -357,7 +357,6 @@ public class TerminalActions {
                     pb.command("sh", "-c", command);
                 }
                 pb.redirectErrorStream(true);
-                pb.inheritIO();
                 if (!asynchronous) {
                     Process localProcess = pb.start();
 
@@ -372,7 +371,6 @@ public class TerminalActions {
                         logs.append(line);
                         logs.append("\n");
                     }
-
                     isr = new InputStreamReader(localProcess.getErrorStream());
                     rdr = new BufferedReader(isr);
                     while ((line = rdr.readLine()) != null) {
@@ -388,7 +386,6 @@ public class TerminalActions {
                     exitStatuses.append(localProcess.exitValue());
                     localProcess.destroy();
                 } else {
-
                     exitStatuses.append("asynchronous");
                     AtomicReference<Process> localProcess = new AtomicReference<>();
                     ScheduledExecutorService asynchronousProcessExecution = Executors.newScheduledThreadPool(1);
