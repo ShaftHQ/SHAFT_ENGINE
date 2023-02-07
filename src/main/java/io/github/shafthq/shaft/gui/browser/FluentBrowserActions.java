@@ -3,7 +3,7 @@ package io.github.shafthq.shaft.gui.browser;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.TouchActions;
-import io.github.shafthq.shaft.driver.DriverFactoryHelper;
+import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
 import io.github.shafthq.shaft.gui.element.FluentElementActions;
 import org.openqa.selenium.Cookie;
 import org.openqa.selenium.WebDriver;

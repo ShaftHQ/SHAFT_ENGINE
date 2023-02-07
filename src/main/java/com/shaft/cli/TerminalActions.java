@@ -18,7 +18,6 @@ import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 @SuppressWarnings("unused")
 public class TerminalActions {
@@ -340,7 +339,6 @@ public class TerminalActions {
 
         String finalDirectory = directory;
         internalCommands.forEach(command -> {
-            //attempting global fix for backwards compatibility with Windows OS
             command = command.contains(".bat") && !command.startsWith(".\\") ? ".\\" + command : command;
             try {
                 ProcessBuilder pb = new ProcessBuilder();
@@ -349,17 +347,16 @@ public class TerminalActions {
                 // https://stackoverflow.com/a/10954450/12912100
                 if (isWindows) {
                     if (asynchronous && verbose) {
-                        pb.command("powershell.exe", "Start-Process powershell.exe '-NoExit \"[Console]::Title = ''SHAFT_Engine''; " + command + "\"'");
+                        pb.command("powershell.exe", "Start-Process powershell.exe '-NoExit -WindowStyle Minimized \"[Console]::Title = ''SHAFT_Engine''; " + command + "\"'");
                     } else {
                         pb.command("powershell.exe", "-Command", command);
                     }
                 } else {
                     pb.command("sh", "-c", command);
                 }
-                pb.redirectErrorStream(true);
                 if (!asynchronous) {
+                    pb.redirectErrorStream(true);
                     Process localProcess = pb.start();
-
                     // output logs
                     String line;
                     InputStreamReader isr = new InputStreamReader(localProcess.getInputStream());
@@ -381,24 +378,21 @@ public class TerminalActions {
                         logs.append(line);
                     }
                     // Wait for the process to complete
-                    localProcess.waitFor();
+                    localProcess.waitFor(Long.parseLong(System.getProperty("shellSessionTimeout")), TimeUnit.MINUTES);
                     // Retrieve the exit status of the executed command and destroy open sessions
                     exitStatuses.append(localProcess.exitValue());
-                    localProcess.destroy();
                 } else {
                     exitStatuses.append("asynchronous");
-                    AtomicReference<Process> localProcess = new AtomicReference<>();
                     ScheduledExecutorService asynchronousProcessExecution = Executors.newScheduledThreadPool(1);
                     asynchronousProcessExecution.schedule(() -> {
                         try {
-                            localProcess.set(pb.start());
-                            asynchronousProcessExecution.shutdownNow();
+                            pb.start();
+                            asynchronousProcessExecution.shutdown();
                         } catch (Throwable throwable) {
                             asynchronousProcessExecution.shutdownNow();
                         }
                     }, 0, TimeUnit.SECONDS);
-                    if (!asynchronousProcessExecution.awaitTermination(60, TimeUnit.MINUTES)) {
-                        localProcess.get().destroy();
+                    if (!asynchronousProcessExecution.awaitTermination(Long.parseLong(System.getProperty("shellSessionTimeout")), TimeUnit.MINUTES)) {
                         asynchronousProcessExecution.shutdownNow();
                     }
                 }

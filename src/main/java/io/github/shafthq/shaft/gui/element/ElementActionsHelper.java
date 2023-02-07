@@ -3,7 +3,7 @@ package io.github.shafthq.shaft.gui.element;
 import com.shaft.cli.FileActions;
 import com.shaft.gui.element.SikuliActions;
 import com.shaft.tools.io.ReportManager;
-import io.github.shafthq.shaft.driver.DriverFactoryHelper;
+import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
 import io.github.shafthq.shaft.gui.image.ImageProcessingActions;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
@@ -88,6 +88,7 @@ public class ElementActionsHelper {
             returnedValue.add(coordinates);
         } else {
             // reference screenshot doesn't exist
+            ReportManager.log("Reference screenshot not found. Kindly confirm the image exists under this path: \"" + elementReferenceScreenshot + "\"");
             currentScreenImage = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
             returnedValue.add(currentScreenImage);
             returnedValue.add(new byte[0]);

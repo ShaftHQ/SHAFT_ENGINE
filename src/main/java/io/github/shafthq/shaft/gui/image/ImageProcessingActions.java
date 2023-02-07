@@ -11,7 +11,7 @@ import com.assertthat.selenium_shutterbug.utils.image.UnableToCompareImagesExcep
 import com.shaft.cli.FileActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Validations;
-import io.github.shafthq.shaft.driver.DriverFactoryHelper;
+import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
 import io.github.shafthq.shaft.tools.io.helpers.FailureReporter;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import nu.pattern.OpenCV;
@@ -326,20 +326,20 @@ public class ImageProcessingActions {
                     return Collections.emptyList();
                 }
 
-                // returning the top left corner point plus 1x and 1y
+                // returning the top left corner +1 pixel
                 int x = Integer.parseInt(String.valueOf(matchLoc.x + 1).split("\\.")[0]);
                 int y = Integer.parseInt(String.valueOf(matchLoc.y + 1).split("\\.")[0]);
 
                 // creating highlighted image to be attached to the report
                 try {
-                Imgproc.rectangle(img_original, matchLoc, new Point(matchLoc.x + templ.cols(), matchLoc.y + templ.rows()),
-                        new Scalar(0, 0, 0), 2, 8, 0);
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                ImageIO.write((BufferedImage) HighGui.toBufferedImage(img_original), "png", baos);
-                var screenshot = ScreenshotManager.prepareImageforReport(baos.toByteArray(), "AI identified element");
-                List<List<Object>> attachments = new LinkedList<>();
-                attachments.add(screenshot);
-                ReportManagerHelper.log("Successfully identified the element using AI; OpenCV. "+accuracyMessage, attachments);
+                    Imgproc.rectangle(img_original, matchLoc, new Point(matchLoc.x + templ.cols(), matchLoc.y + templ.rows()),
+                            new Scalar(67, 176, 42), 2, 8, 0); // selenium-green
+                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                    ImageIO.write((BufferedImage) HighGui.toBufferedImage(img_original), "png", baos);
+                    var screenshot = ScreenshotManager.prepareImageforReport(baos.toByteArray(), "AI identified element");
+                    List<List<Object>> attachments = new LinkedList<>();
+                    attachments.add(screenshot);
+                    ReportManagerHelper.log("Successfully identified the element using AI; OpenCV. " + accuracyMessage, attachments);
                 } catch (IOException e) {
                     ReportManager.log("Successfully identified the element using AI; OpenCV. "+accuracyMessage);
                 }
@@ -360,7 +360,9 @@ public class ImageProcessingActions {
                 try {
                     foundLocation = attemptToFindImageUsingOpenCV(referenceImagePath, currentPageScreenshot, attempts);
                 } catch (Exception e) {
-                    //Do Nothing
+                    if (attempts >= maxNumberOfAttempts) {
+                        throw e;
+                    }
                 }
                 attempts++;
             } while (Collections.emptyList().equals(foundLocation) && attempts < maxNumberOfAttempts);

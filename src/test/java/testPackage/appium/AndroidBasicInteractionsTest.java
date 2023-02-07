@@ -116,8 +116,8 @@ public class AndroidBasicInteractionsTest {
     @Test(groups = {"Legacy"})
     public void visualElementIdentification_samedpi() {
         ElementActions.performTouchAction(driver)
-                .swipeElementIntoView("src/main/resources/dynamicObjectRepository/content.png", TouchActions.SwipeDirection.DOWN)
-                .tap("src/main/resources/dynamicObjectRepository/content.png");
+                .swipeElementIntoView("src/main/resources/dynamicObjectRepository/Android/content.png", TouchActions.SwipeDirection.DOWN)
+                .tap("src/main/resources/dynamicObjectRepository/Android/content.png");
         Validations.assertThat()
                 .element(driver, AppiumBy.accessibilityId("Assets"))
                 .exists()

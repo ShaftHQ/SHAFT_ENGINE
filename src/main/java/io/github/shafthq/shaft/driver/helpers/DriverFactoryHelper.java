@@ -1,4 +1,4 @@
-package io.github.shafthq.shaft.driver;
+package io.github.shafthq.shaft.driver.helpers;
 
 import com.epam.healenium.SelfHealingDriver;
 import com.mysql.cj.util.StringUtils;
@@ -82,13 +82,6 @@ public class DriverFactoryHelper {
     @Getter(AccessLevel.PUBLIC)
     private static boolean killSwitch = false;
 
-    // TODO: implement new environment variable to automatically spin up the server/emulator instances
-    private static final boolean appiumDockerizedExecution = false;
-    private static final boolean closeAppiumDockersAfterExecution = false;
-
-    // TODO: implement new environment variable
-    private static final boolean appiumSelfManagedExecution = false;
-
     private static final long appiumServerInitializationTimeout = TimeUnit.MINUTES.toSeconds(15); // seconds
     private static final int appiumServerInitializationPollingInterval = 1; // seconds
     private static final long remoteServerInstanceCreationTimeout = TimeUnit.MINUTES.toSeconds(1); // seconds
@@ -148,10 +141,6 @@ public class DriverFactoryHelper {
                 RecordManager.attachVideoRecording(pathToRecording);
             } else {
                 driver.get().quit();
-            }
-
-            if (appiumDockerizedExecution && closeAppiumDockersAfterExecution) {
-                ReportManagerHelper.deleteAndroidEmulatorContainers();
             }
         } catch (WebDriverException | NullPointerException e) {
             // driver was already closed at an earlier stage
@@ -586,6 +575,7 @@ public class DriverFactoryHelper {
         }, 0, TimeUnit.SECONDS);
 
         if (!stage1Executor.awaitTermination(appiumServerInitializationTimeout, TimeUnit.SECONDS)) {
+            stage1Executor.shutdownNow();
             failAction("Failed to connect to remote server. It was still not ready after " + TimeUnit.SECONDS.toMinutes(appiumServerInitializationTimeout) + " minutes.");
         }
 
@@ -622,6 +612,7 @@ public class DriverFactoryHelper {
             }
         }, 0, TimeUnit.SECONDS);
         if (!stage2Executor.awaitTermination(remoteServerInstanceCreationTimeout, TimeUnit.SECONDS)) {
+            stage2Executor.shutdownNow();
             failAction("Failed to instantiated remote driver instance. Remote server was still not ready after " + TimeUnit.SECONDS.toMinutes(remoteServerInstanceCreationTimeout) + " minutes.");
         }
         DriverFactoryHelper.driver.set(driver.get());
@@ -637,6 +628,7 @@ public class DriverFactoryHelper {
                 .setMaxRenderedLength(80)
                 .build()) {
             progressBar.maxHint(timeout);
+            ReportManager.logDiscrete(taskName + "...");
             do {
                 progressBar.stepBy(stepSize);
                 Thread.sleep(TimeUnit.SECONDS.toMillis(stepSize));
@@ -768,7 +760,6 @@ public class DriverFactoryHelper {
 
     private static DesiredCapabilities initializeMobileDesiredCapabilities() {
         var desiredCapabilities = new DesiredCapabilities();
-
         Map<String, String> caps = PropertyFileManager.getAppiumDesiredCapabilities();
         caps.forEach((capabilityName, value) -> {
             if (!value.trim().equals("")) {
@@ -781,34 +772,29 @@ public class DriverFactoryHelper {
                 }
             }
         });
-        if (appiumSelfManagedExecution) {
-            // experimental android capabilities
-            // https://github.com/appium/appium-uiautomator2-driver
-            desiredCapabilities.setCapability("appium:appWaitActivity", "*");
-            desiredCapabilities.setCapability("appium:fullReset", "true");
-            desiredCapabilities.setCapability("appium:printPageSourceOnFindFailure", "true");
-            desiredCapabilities.setCapability("appium:fullReset", "true");
-            desiredCapabilities.setCapability("appium:disableWindowAnimation", "true");
-            desiredCapabilities.setCapability("appium:forceAppLaunch", "true");
-            desiredCapabilities.setCapability("appium:autoGrantPermissions", "true");
+        // experimental android capabilities
+        // https://github.com/appium/appium-uiautomator2-driver
+        desiredCapabilities.setCapability("appium:appWaitActivity", "*");
+        desiredCapabilities.setCapability("appium:fullReset", "true");
+        desiredCapabilities.setCapability("appium:printPageSourceOnFindFailure", "true");
+        desiredCapabilities.setCapability("appium:fullReset", "true");
+        desiredCapabilities.setCapability("appium:disableWindowAnimation", "true");
+        desiredCapabilities.setCapability("appium:forceAppLaunch", "true");
+        desiredCapabilities.setCapability("appium:autoGrantPermissions", "true");
 //            desiredCapabilities.setCapability("appium:otherApps", ",,,");
-            desiredCapabilities.setCapability("appium:allowTestPackages", "true");
-            desiredCapabilities.setCapability("appium:enforceAppInstall", "true");
-            desiredCapabilities.setCapability("appium:clearDeviceLogsOnStart", "true");
-            desiredCapabilities.setCapability("appium:ignoreHiddenApiPolicyError", "true");
-
-            desiredCapabilities.setCapability("appium:isHeadless", "true");
-            desiredCapabilities.setCapability("appium:noSign", "true");
-
-            desiredCapabilities.setCapability("appium:enableWebviewDetailsCollection", "true");
-            desiredCapabilities.setCapability("appium:showChromedriverLog", "true");
-
-            //TODO: support custom driver options here
-            //https://chromedriver.chromium.org/capabilities
-            desiredCapabilities.setCapability("appium:chromeOptions", setupChromiumOptions(new ChromeOptions(), null));
+        desiredCapabilities.setCapability("appium:allowTestPackages", "true");
+        desiredCapabilities.setCapability("appium:enforceAppInstall", "true");
+        desiredCapabilities.setCapability("appium:clearDeviceLogsOnStart", "true");
+        desiredCapabilities.setCapability("appium:ignoreHiddenApiPolicyError", "true");
+        desiredCapabilities.setCapability("appium:isHeadless", "true");
+        desiredCapabilities.setCapability("appium:noSign", "true");
+        desiredCapabilities.setCapability("appium:enableWebviewDetailsCollection", "true");
+        desiredCapabilities.setCapability("appium:showChromedriverLog", "true");
+        //TODO: support custom driver options here
+        //https://chromedriver.chromium.org/capabilities
+        desiredCapabilities.setCapability("appium:chromeOptions", setupChromiumOptions(new ChromeOptions(), null));
 //        desiredCapabilities.setCapability("appium:chromedriverArgs", "true"); //http://www.assertselenium.com/java/list-of-chrome-driver-command-line-arguments/
-            desiredCapabilities.setCapability("pageLoadStrategy", PageLoadStrategy.EAGER);
-        }
+        desiredCapabilities.setCapability("pageLoadStrategy", PageLoadStrategy.EAGER);
         return desiredCapabilities;
     }
 
@@ -854,12 +840,6 @@ public class DriverFactoryHelper {
             if (isMobileExecution) {
                 //mobile execution
                 driverType = DriverType.APPIUM_MOBILE_NATIVE;
-                if (appiumDockerizedExecution) {
-                    ReportManagerHelper.downloadAndroidEmulatorFiles();
-                }
-                if (appiumSelfManagedExecution) {
-                    ReportManagerHelper.setupAppiumSelfManagedExecutionPrerequisites();
-                }
                 setDriverOptions(driverType, customDriverOptions);
                 createNewRemoteDriverInstance(driverType);
             } else {

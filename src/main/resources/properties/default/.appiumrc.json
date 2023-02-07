@@ -9,7 +9,6 @@
     "keep-alive-timeout": 1800,
     "plugin": {
       "device-farm": {
-        "max-sessions": 4,
         "platform": "both",
         "remote": [
           "http://hub-cloud.browserstack.com",
