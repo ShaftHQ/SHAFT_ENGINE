@@ -1,6 +1,7 @@
 package io.github.shafthq.shaft.listeners;
 
-import io.github.shafthq.shaft.driver.DriverFactoryHelper;
+import io.github.shafthq.shaft.driver.helpers.AppiumSelfManagementHelper;
+import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
 import io.github.shafthq.shaft.gui.image.ImageProcessingActions;
 import io.github.shafthq.shaft.listeners.helpers.JiraHelper;
 import io.github.shafthq.shaft.listeners.helpers.RetryAnalyzer;
@@ -65,7 +66,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     public void alter(List<XmlSuite> suites) {
         TestNGListenerHelper.configureTestNGProperties(suites);
         TestNGListenerHelper.updateDefaultSuiteAndTestNames(suites);
-        TestNGListenerHelper.attachReportHelperClass(suites);
+        TestNGListenerHelper.attachConfigurationHelperClass(suites);
         //All alterations should be finalized before duplicating the
         //test suites for cross browser execution
         TestNGListenerHelper.configureCrossBrowserExecution(suites);
@@ -155,5 +156,8 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         ReportManagerHelper.generateAllureReportArchive();
         ReportManagerHelper.openAllureReportAfterExecution();
         ReportManagerHelper.logEngineClosure();
+        if (AppiumSelfManagementHelper.isAppiumDockerizedExecution() && AppiumSelfManagementHelper.isTerminateAppiumContainersAfterExecution()) {
+            AppiumSelfManagementHelper.terminateAppiumContainers();
+        }
     }
 }

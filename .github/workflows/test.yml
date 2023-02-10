@@ -11,6 +11,7 @@ on:
 jobs:
   Ubuntu_Firefox_Grid:
     runs-on: ubuntu-22.04
+    timeout-minutes: 45
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -27,7 +28,7 @@ jobs:
         run: docker ps
       - name: Run tests
         continue-on-error: true
-        run: mvn test -DexecutionAddress="localhost:4444" -DtargetOperatingSystem="Linux-64" -DtargetBrowserName="MozillaFirefox" -DheadlessExecution="true" -DgenerateAllureReportArchive="true" -Dtest="!%regex[.*Test_MobileEmulation.*], !%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*Android.*], !%regex[.*IOS.*], !%regex[.*Windows.*]"
+        run: mvn -e test -DexecutionAddress="localhost:4444" -DtargetOperatingSystem="Linux-64" -DtargetBrowserName="MozillaFirefox" -DheadlessExecution="true" -DgenerateAllureReportArchive="true" -Dtest="!%regex[.*Test_MobileEmulation.*], !%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*Android.*], !%regex[.*IOS.*], !%regex[.*Windows.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -50,6 +51,7 @@ jobs:
 
   Ubuntu_Chrome_Grid:
     runs-on: ubuntu-22.04
+    timeout-minutes: 45
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -66,7 +68,7 @@ jobs:
         run: docker ps
       - name: Run tests
         continue-on-error: true
-        run: mvn test -DexecutionAddress="localhost:4444" -DtargetOperatingSystem="Linux-64" -DtargetBrowserName="GoogleChrome" -DheadlessExecution="true" -DgenerateAllureReportArchive="true" -Dtest="!%regex[.*Test_MobileEmulation.*], !%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*Android.*], !%regex[.*IOS.*], !%regex[.*Windows.*]"
+        run: mvn -e test -DexecutionAddress="localhost:4444" -DtargetOperatingSystem="Linux-64" -DtargetBrowserName="GoogleChrome" -DheadlessExecution="true" -DgenerateAllureReportArchive="true" -Dtest="!%regex[.*Test_MobileEmulation.*], !%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*Android.*], !%regex[.*IOS.*], !%regex[.*Windows.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -89,6 +91,7 @@ jobs:
 
   Ubuntu_Edge_Grid:
     runs-on: ubuntu-22.04
+    timeout-minutes: 45
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -105,7 +108,7 @@ jobs:
         run: docker ps
       - name: Run tests
         continue-on-error: true
-        run: mvn test -DexecutionAddress="localhost:4444" -DtargetOperatingSystem="Linux-64" -DtargetBrowserName="MicrosoftEdge" -DheadlessExecution="true" -DgenerateAllureReportArchive="true" -Dtest="!%regex[.*Test_MobileEmulation.*], !%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*Android.*], !%regex[.*IOS.*], !%regex[.*Windows.*]"
+        run: mvn -e test -DexecutionAddress="localhost:4444" -DtargetOperatingSystem="Linux-64" -DtargetBrowserName="MicrosoftEdge" -DheadlessExecution="true" -DgenerateAllureReportArchive="true" -Dtest="!%regex[.*Test_MobileEmulation.*], !%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*Android.*], !%regex[.*IOS.*], !%regex[.*Windows.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -128,6 +131,7 @@ jobs:
   
   Windows_Edge_Local:
     runs-on: windows-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -140,7 +144,7 @@ jobs:
           check-latest: true
       - name: Run tests
         continue-on-error: true
-        run: mvn test -DexecutionAddress="local" -DtargetOperatingSystem="Windows-64" -DtargetBrowserName="MicrosoftEdge" -DheadlessExecution="true" -DgenerateAllureReportArchive="true" -Dtest="!%regex[.*Test_MobileEmulation.*], !%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*Android.*], !%regex[.*IOS.*], !%regex[.*Windows.*]"
+        run: mvn -e test -DexecutionAddress="local" -DtargetOperatingSystem="Windows-64" -DtargetBrowserName="MicrosoftEdge" -DheadlessExecution="true" -DgenerateAllureReportArchive="true" -Dtest="!%regex[.*Test_MobileEmulation.*], !%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*Android.*], !%regex[.*IOS.*], !%regex[.*Windows.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -163,6 +167,7 @@ jobs:
 
   Windows_Chrome_Local:
     runs-on: windows-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -175,7 +180,7 @@ jobs:
           check-latest: true
       - name: Run tests
         continue-on-error: true
-        run: mvn test -DexecutionAddress="local" -DtargetOperatingSystem="Windows-64" -DtargetBrowserName="GoogleChrome" -DheadlessExecution="true" -DgenerateAllureReportArchive="true" -Dtest="!%regex[.*Test_MobileEmulation.*], !%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*Android.*], !%regex[.*IOS.*], !%regex[.*Windows.*]"
+        run: mvn -e test -DexecutionAddress="local" -DtargetOperatingSystem="Windows-64" -DtargetBrowserName="GoogleChrome" -DheadlessExecution="true" -DgenerateAllureReportArchive="true" -Dtest="!%regex[.*Test_MobileEmulation.*], !%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*Android.*], !%regex[.*IOS.*], !%regex[.*Windows.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -198,6 +203,7 @@ jobs:
 
   MacOSX_Safari_Local:
     runs-on: macOS-12
+    timeout-minutes: 45
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -210,7 +216,7 @@ jobs:
           check-latest: true
       - name: Run tests
         continue-on-error: true
-        run: mvn test -DretryMaximumNumberOfAttempts="2" -DexecutionAddress="local" -DtargetOperatingSystem="Mac-64" -DtargetBrowserName="Safari" -DgenerateAllureReportArchive="true" -Dtest="!%regex[.*Test_MobileEmulation.*], !%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*Android.*], !%regex[.*IOS.*], !%regex[.*Windows.*], !%regex[.*BasicAuthentication.*]"
+        run: mvn -e test -DretryMaximumNumberOfAttempts="2" -DexecutionAddress="local" -DtargetOperatingSystem="Mac-64" -DtargetBrowserName="Safari" -DgenerateAllureReportArchive="true" -Dtest="!%regex[.*Test_MobileEmulation.*], !%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*Android.*], !%regex[.*IOS.*], !%regex[.*Windows.*], !%regex[.*BasicAuthentication.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -233,6 +239,7 @@ jobs:
 
   MacOSX_Chrome_Local:
     runs-on: macOS-12
+    timeout-minutes: 45
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -247,7 +254,7 @@ jobs:
         uses: browser-actions/setup-chrome@latest
       - name: Run tests
         continue-on-error: true
-        run: mvn test -DexecutionAddress="local" -DtargetOperatingSystem="Mac-64" -DtargetBrowserName="GoogleChrome" -DheadlessExecution="true" -DgenerateAllureReportArchive="true" -Dtest="!%regex[.*Test_MobileEmulation.*], !%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*Android.*], !%regex[.*IOS.*], !%regex[.*Windows.*], !%regex[.*BasicAuthentication.*]"
+        run: mvn -e test -DexecutionAddress="local" -DtargetOperatingSystem="Mac-64" -DtargetBrowserName="GoogleChrome" -DheadlessExecution="true" -DgenerateAllureReportArchive="true" -Dtest="!%regex[.*Test_MobileEmulation.*], !%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*Android.*], !%regex[.*IOS.*], !%regex[.*Windows.*], !%regex[.*BasicAuthentication.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -270,6 +277,7 @@ jobs:
 
   MacOSX_Safari_BrowserStack:
     runs-on: ubuntu-22.04
+    timeout-minutes: 45
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -282,7 +290,7 @@ jobs:
           check-latest: true
       - name: Run tests
         continue-on-error: true
-        run: mvn test -DexecutionAddress="browserstack" -DtargetOperatingSystem="Mac-64" -DtargetBrowserName="Safari" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Monterey" "-DbrowserStack.browserVersion=15.3" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*tests_browserActions.*], %regex[.*Test_chainableElementActions.*]"
+        run: mvn -e test -DexecutionAddress="browserstack" -DtargetOperatingSystem="Mac-64" -DtargetBrowserName="Safari" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Monterey" "-DbrowserStack.browserVersion=15.3" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*tests_browserActions.*], %regex[.*Test_chainableElementActions.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:

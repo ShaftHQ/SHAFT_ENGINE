@@ -5,7 +5,9 @@ import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 import com.shaft.tools.io.ReportManager;
+import io.github.shafthq.shaft.tools.io.helpers.ReportHelper;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import org.apache.commons.lang3.SystemUtils;
 import org.testng.Assert;
 
 import java.io.BufferedReader;
@@ -13,6 +15,9 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 @SuppressWarnings("unused")
 public class TerminalActions {
@@ -26,6 +31,7 @@ public class TerminalActions {
     private String dockerUsername;
 
     private boolean asynchronous = false;
+    private boolean verbose = false;
 
     /**
      * This constructor is used for local terminal actions.
@@ -40,6 +46,11 @@ public class TerminalActions {
      */
     public TerminalActions(boolean asynchronous) {
         this.asynchronous = asynchronous;
+    }
+
+    private TerminalActions(boolean asynchronous, boolean verbose) {
+        this.asynchronous = asynchronous;
+        this.verbose = verbose;
     }
 
     /**
@@ -117,6 +128,14 @@ public class TerminalActions {
         return new TerminalActions();
     }
 
+    public static TerminalActions getInstance(boolean asynchronous) {
+        return new TerminalActions(asynchronous);
+    }
+
+    public static TerminalActions getInstance(boolean asynchronous, boolean verbose) {
+        return new TerminalActions(asynchronous, verbose);
+    }
+
     private static String reportActionResult(String actionName, String testData, String log, Boolean passFailStatus, Exception... rootCauseException) {
         actionName = actionName.substring(0, 1).toUpperCase() + actionName.substring(1);
         String message;
@@ -163,27 +182,21 @@ public class TerminalActions {
     }
 
     public String performTerminalCommands(List<String> commands) {
-        String log = null;
+        var internalCommands = commands;
 
         // Build long command and refactor for dockerized execution if needed
-        String command = buildLongCommand(commands);
+        String longCommand = buildLongCommand(internalCommands);
+
+        if (internalCommands.size() == 1 && internalCommands.get(0).contains(" && ")) {
+            internalCommands = List.of(internalCommands.get(0).split(" && "));
+        }
 
         // Perform command
-        List<Object> teminalSession = executeCommand(command);
+        List<String> exitLogs = isRemoteTerminal() ? executeRemoteCommand(internalCommands, longCommand) : executeLocalCommand(internalCommands, longCommand);
 
-        String exitStatus = "asynchronous";
-        if (!asynchronous) {
-            // Capture logs and close readers
-            BufferedReader reader = (BufferedReader) teminalSession.get(3);
-            BufferedReader errorReader = (BufferedReader) teminalSession.get(4);
-            log = captureTerminalLogs(reader, errorReader, command);
+        String log = exitLogs.get(0);
+        String exitStatus = exitLogs.get(1);
 
-            // Retrieve the exit status of the executed command and destroy open sessions
-            Session remoteSession = (Session) teminalSession.get(0);
-            ChannelExec remoteChannelExecutor = (ChannelExec) teminalSession.get(1);
-            Process localProcess = (Process) teminalSession.get(2);
-            exitStatus = String.valueOf(getExitStatus(remoteSession, remoteChannelExecutor, localProcess));
-        }
         // Prepare final log message
         StringBuilder reportMessage = new StringBuilder();
         if (!sshHostName.equals("")) {
@@ -196,7 +209,7 @@ public class TerminalActions {
         if (sshKeyFileName != null && !sshKeyFileName.equals("")) {
             reportMessage.append(" | Key File: \"").append(sshKeyFileFolderName).append(sshKeyFileName).append("\"");
         }
-        reportMessage.append(" | Command: \"").append(command).append("\"");
+        reportMessage.append(" | Command: \"").append(longCommand).append("\"");
         reportMessage.append(" | Exit Status: \"").append(exitStatus).append("\"");
 
         if (log != null) {
@@ -303,93 +316,122 @@ public class TerminalActions {
         return command.toString();
     }
 
-    private List<Object> executeLengthyCommand(String command) {
-        Process localProcess = null;
-        BufferedReader reader = null;
-        BufferedReader errorReader = null;
-        try {
-            ProcessBuilder pb = new ProcessBuilder(command);
-            pb.directory(new File(System.getProperty("user.dir")));
-            pb.inheritIO();
-            localProcess = pb.start();
-            if (!asynchronous) {
-                localProcess.waitFor();
-            }
-            reader = new BufferedReader(new InputStreamReader(localProcess.getInputStream()));
-            errorReader = new BufferedReader(new InputStreamReader(localProcess.getErrorStream()));
-        } catch (InterruptedException rootCauseException) {
-            failAction(command, rootCauseException);
-            Thread.currentThread().interrupt();
-        } catch (IOException rootCauseException) {
-            failAction(command, rootCauseException);
+    private List<String> executeLocalCommand(List<String> commands, String longCommand) {
+        StringBuilder logs = new StringBuilder();
+        StringBuilder exitStatuses = new StringBuilder();
+        // local execution
+        ReportManager.logDiscrete("Attempting to execute the following command locally. Command: \"" + longCommand + "\"");
+        boolean isWindows = SystemUtils.IS_OS_WINDOWS;
+        String directory;
+        LinkedList<String> internalCommands;
+        if (commands.size() > 1 && commands.get(0).startsWith("cd ")) {
+            directory = commands.get(0).replace("cd ", "");
+            internalCommands = new LinkedList<>(commands);
+            internalCommands.remove(0);
+        } else {
+            directory = System.getProperty("user.dir");
+            internalCommands = new LinkedList<>(commands);
         }
-        return Arrays.asList(null, null, localProcess, reader, errorReader);
-    }
 
-    private List<Object> executeCommand(String command) {
-        BufferedReader reader = null;
-        BufferedReader errorReader = null;
-        Session remoteSession = null;
-        ChannelExec remoteChannelExecutor = null;
-        Process localProcess = null;
-        try {
-            if (isRemoteTerminal()) {
-                int sessionTimeout = Integer.parseInt(System.getProperty("shellSessionTimeout")) * 1000;
-                // remote execution
-                ReportManager.logDiscrete(
-                        "Attempting to perform the following command remotely. Command: \"" + command + "\"");
-                remoteSession = createSSHsession();
-                if (remoteSession != null) {
-                    remoteSession.setTimeout(sessionTimeout);
-                    remoteChannelExecutor = (ChannelExec) remoteSession.openChannel("exec");
-                    remoteChannelExecutor.setCommand(command);
-                    remoteChannelExecutor.connect();
-                    reader = new BufferedReader(new InputStreamReader(remoteChannelExecutor.getInputStream()));
-                    errorReader = new BufferedReader(new InputStreamReader(remoteChannelExecutor.getErrStream()));
-                }
-            } else {
-                // local execution
-                ReportManager.logDiscrete("Attempting to execute the following command locally. Command: \"" + command + "\"");
+        ReportHelper.disableLogging();
+        FileActions.getInstance().createFolder(directory.replace("\"", ""));
+        ReportHelper.enableLogging();
 
-                if (command.contains("docker_compose.bat")) {
-                    List<Object> results = executeLengthyCommand(command);
-                    localProcess = (Process) results.get(2);
-                    reader = (BufferedReader) results.get(3);
-                    errorReader = (BufferedReader) results.get(4);
+        String finalDirectory = directory;
+        internalCommands.forEach(command -> {
+            command = command.contains(".bat") && !command.startsWith(".\\") ? ".\\" + command : command;
+            try {
+                ProcessBuilder pb = new ProcessBuilder();
+                pb.directory(new File(finalDirectory));
+
+                // https://stackoverflow.com/a/10954450/12912100
+                if (isWindows) {
+                    if (asynchronous && verbose) {
+                        pb.command("powershell.exe", "Start-Process powershell.exe '-NoExit -WindowStyle Minimized \"[Console]::Title = ''SHAFT_Engine''; " + command + "\"'");
+                    } else {
+                        pb.command("powershell.exe", "-Command", command);
+                    }
                 } else {
-                    // https://coderanch.com/t/323662/java/Direct-Runtime-getRuntime-exec-output
-                    if ("generate_allure_report.bat".equals(command)) {
-                        // hardcoded override to fix memory leak (infinite allure servers opened) on windows
-                        command = "cmd /c start " + System.getProperty("user.dir") + "\\" + command;
-                    }
-
-                    localProcess = Runtime.getRuntime().exec(command);
-                    if (!asynchronous) {
-                        localProcess.waitFor();
-                    }
-                    reader = new BufferedReader(new InputStreamReader(localProcess.getInputStream()));
-                    errorReader = new BufferedReader(new InputStreamReader(localProcess.getErrorStream()));
+                    pb.command("sh", "-c", command);
                 }
+                if (!asynchronous) {
+                    pb.redirectErrorStream(true);
+                    Process localProcess = pb.start();
+                    // output logs
+                    String line;
+                    InputStreamReader isr = new InputStreamReader(localProcess.getInputStream());
+                    BufferedReader rdr = new BufferedReader(isr);
+                    while ((line = rdr.readLine()) != null) {
+                        if (Boolean.TRUE.equals(verbose)) {
+                            ReportManager.logDiscrete(line);
+                        }
+                        logs.append(line);
+                        logs.append("\n");
+                    }
+                    isr = new InputStreamReader(localProcess.getErrorStream());
+                    rdr = new BufferedReader(isr);
+                    while ((line = rdr.readLine()) != null) {
+                        if (Boolean.TRUE.equals(verbose)) {
+                            ReportManager.logDiscrete(line);
+                        }
+                        logs.append("\n");
+                        logs.append(line);
+                    }
+                    // Wait for the process to complete
+                    localProcess.waitFor(Long.parseLong(System.getProperty("shellSessionTimeout")), TimeUnit.MINUTES);
+                    // Retrieve the exit status of the executed command and destroy open sessions
+                    exitStatuses.append(localProcess.exitValue());
+                } else {
+                    exitStatuses.append("asynchronous");
+                    ScheduledExecutorService asynchronousProcessExecution = Executors.newScheduledThreadPool(1);
+                    asynchronousProcessExecution.schedule(() -> {
+                        try {
+                            pb.start();
+                            asynchronousProcessExecution.shutdown();
+                        } catch (Throwable throwable) {
+                            asynchronousProcessExecution.shutdownNow();
+                        }
+                    }, 0, TimeUnit.SECONDS);
+                    if (!asynchronousProcessExecution.awaitTermination(Long.parseLong(System.getProperty("shellSessionTimeout")), TimeUnit.MINUTES)) {
+                        asynchronousProcessExecution.shutdownNow();
+                    }
+                }
+            } catch (IOException | InterruptedException exception) {
+                failAction(longCommand, exception);
             }
-        } catch (InterruptedException rootCauseException) {
-            failAction(command, rootCauseException);
-            Thread.currentThread().interrupt();
-        } catch (IOException | NullPointerException | JSchException rootCauseException) {
-            failAction(command, rootCauseException);
-        }
-        return Arrays.asList(remoteSession, remoteChannelExecutor, localProcess, reader, errorReader);
+        });
+        return Arrays.asList(logs.toString().trim(), exitStatuses.toString());
     }
 
-    private String captureTerminalLogs(BufferedReader reader, BufferedReader errorReader, String command) {
-        StringBuilder logBuilder = new StringBuilder();
-        try {
-            String logLine;
-            logBuilder.append(readConsoleLogs(reader));
-            logBuilder.append(readConsoleLogs(errorReader));
-        } catch (IOException rootCauseException) {
-            failAction(command, rootCauseException);
+    private List<String> executeRemoteCommand(List<String> commands, String longCommand) {
+        StringBuilder logs = new StringBuilder();
+        StringBuilder exitStatuses = new StringBuilder();
+        int sessionTimeout = Integer.parseInt(System.getProperty("shellSessionTimeout")) * 1000;
+        // remote execution
+        ReportManager.logDiscrete(
+                "Attempting to perform the following command remotely. Command: \"" + longCommand + "\"");
+        Session remoteSession = createSSHsession();
+        if (remoteSession != null) {
+            try {
+                remoteSession.setTimeout(sessionTimeout);
+                ChannelExec remoteChannelExecutor = (ChannelExec) remoteSession.openChannel("exec");
+                remoteChannelExecutor.setCommand(longCommand);
+                remoteChannelExecutor.connect();
+
+                // Capture logs and close readers
+                BufferedReader reader = new BufferedReader(new InputStreamReader(remoteChannelExecutor.getInputStream()));
+                BufferedReader errorReader = new BufferedReader(new InputStreamReader(remoteChannelExecutor.getErrStream()));
+                logs.append(readConsoleLogs(reader));
+                logs.append(readConsoleLogs(errorReader));
+
+                // Retrieve the exit status of the executed command and destroy open sessions
+                exitStatuses.append(remoteChannelExecutor.getExitStatus());
+                remoteSession.disconnect();
+            } catch (JSchException | IOException exception) {
+                failAction(longCommand, exception);
+            }
         }
-        return logBuilder.toString();
+        return Arrays.asList(logs.toString(), exitStatuses.toString());
     }
 
     private String readConsoleLogs(BufferedReader reader) throws IOException {
@@ -407,17 +449,4 @@ public class TerminalActions {
         }
         return logBuilder.toString();
     }
-
-    private int getExitStatus(Session remoteSession, ChannelExec remoteChannelExecutor, Process localProcess) {
-        int exitStatus = 0;
-        if (remoteSession != null && remoteChannelExecutor != null) {
-            exitStatus = remoteChannelExecutor.getExitStatus();
-            remoteSession.disconnect();
-        } else if (localProcess != null) {
-            exitStatus = localProcess.exitValue();
-            localProcess.destroy();
-        }
-        return exitStatus;
-    }
-
 }

@@ -1,7 +1,7 @@
 package io.github.shafthq.shaft.listeners.helpers;
 
 import com.shaft.tools.io.ReportManager;
-import io.github.shafthq.shaft.driver.DriverFactoryHelper;
+import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
 import io.github.shafthq.shaft.gui.video.RecordManager;
 import io.github.shafthq.shaft.properties.Properties;
@@ -173,7 +173,7 @@ public class TestNGListenerHelper {
         });
     }
 
-    public static void attachReportHelperClass(List<XmlSuite> suites) {
+    public static void attachConfigurationHelperClass(List<XmlSuite> suites) {
         suites.forEach(xmlSuite -> xmlSuite.getTests().forEach(xmlTest -> xmlTest.getClasses().add(new XmlClass(ConfigurationHelper.class.getName()))));
     }
 
@@ -207,8 +207,7 @@ public class TestNGListenerHelper {
                 attachments.add(attachment);
 
             String logText = TestNGListenerHelper.createTestLog(Reporter.getOutput(iTestResult));
-            ReportManagerHelper.attachTestLog(iTestNGMethod.getMethodName(),
-                    logText);
+            ReportManagerHelper.attachTestLog(iTestNGMethod.getMethodName(), logText);
             JiraHelper.reportBugsToJIRA(attachments, logText, iTestResult, iTestNGMethod);
         }
     }

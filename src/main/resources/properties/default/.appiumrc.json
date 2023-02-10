@@ -1,0 +1,34 @@
+{
+  "server": {
+    "allow-cors": true,
+    "debug-log-spacing": true,
+    "allow-insecure": [
+      "adb_shell",
+      "chromedriver_autodownload"
+    ],
+    "keep-alive-timeout": 1800,
+    "plugin": {
+      "device-farm": {
+        "platform": "both",
+        "remote": [
+          "http://hub-cloud.browserstack.com",
+          "http://127.0.0.1:4723"
+        ]
+      }
+    },
+    "local-timezone": true,
+    "log-no-colors": false,
+    "log-timestamp": true,
+    "long-stacktrace": true,
+    "relaxed-security": true,
+    "use-drivers": [
+      "xcuitest",
+      "uiautomator2"
+    ],
+    "use-plugins": [
+      "device-farm",
+      "appium-dashboard",
+      "images"
+    ]
+  }
+}

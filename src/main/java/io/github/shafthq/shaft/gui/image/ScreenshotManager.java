@@ -3,7 +3,7 @@ package io.github.shafthq.shaft.gui.image;
 import com.epam.healenium.SelfHealingDriver;
 import com.shaft.cli.FileActions;
 import com.shaft.tools.io.ReportManager;
-import io.github.shafthq.shaft.driver.DriverFactoryHelper;
+import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
 import io.github.shafthq.shaft.gui.browser.JavaScriptWaitManager;
 import io.github.shafthq.shaft.gui.element.ElementActionsHelper;
 import io.github.shafthq.shaft.properties.Properties;
@@ -384,7 +384,7 @@ public class ScreenshotManager {
                     if (takeScreenshot && !SCREENSHOT_PARAMS_HIGHLIGHTMETHOD.equals("JavaScript") && elementLocation != null) {
                         Color color;
                         if (globalPassFailStatus) {
-                            color = new Color(165, 210, 165); // green
+                            color = new Color(67, 176, 42); // selenium-green
                         } else {
                             color = new Color(255, 255, 153); // yellow
                         }

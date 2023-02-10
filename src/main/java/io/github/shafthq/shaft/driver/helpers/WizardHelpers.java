@@ -1,4 +1,4 @@
-package io.github.shafthq.shaft.driver;
+package io.github.shafthq.shaft.driver.helpers;
 
 import io.github.shafthq.shaft.validations.helpers.*;
 import org.openqa.selenium.By;

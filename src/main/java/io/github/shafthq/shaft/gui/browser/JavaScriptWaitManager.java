@@ -1,6 +1,6 @@
 package io.github.shafthq.shaft.gui.browser;
 
-import io.github.shafthq.shaft.driver.DriverFactoryHelper;
+import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import io.github.shafthq.shaft.tools.support.JavaScriptHelper;
 import org.openqa.selenium.JavascriptExecutor;

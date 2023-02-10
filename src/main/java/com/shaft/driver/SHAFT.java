@@ -14,7 +14,7 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.YAMLFileManager;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
-import io.github.shafthq.shaft.driver.WizardHelpers;
+import io.github.shafthq.shaft.driver.helpers.WizardHelpers;
 import io.github.shafthq.shaft.gui.browser.FluentBrowserActions;
 import io.github.shafthq.shaft.gui.element.FluentElementActions;
 import io.github.shafthq.shaft.listeners.WebDriverListener;

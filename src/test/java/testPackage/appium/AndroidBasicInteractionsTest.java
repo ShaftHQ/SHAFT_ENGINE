@@ -116,8 +116,8 @@ public class AndroidBasicInteractionsTest {
     @Test(groups = {"Legacy"})
     public void visualElementIdentification_samedpi() {
         ElementActions.performTouchAction(driver)
-                .swipeElementIntoView("src/main/resources/dynamicObjectRepository/content.png", TouchActions.SwipeDirection.DOWN)
-                .tap("src/main/resources/dynamicObjectRepository/content.png");
+                .swipeElementIntoView("src/main/resources/dynamicObjectRepository/Android/content.png", TouchActions.SwipeDirection.DOWN)
+                .tap("src/main/resources/dynamicObjectRepository/Android/content.png");
         Validations.assertThat()
                 .element(driver, AppiumBy.accessibilityId("Assets"))
                 .exists()
@@ -172,14 +172,12 @@ public class AndroidBasicInteractionsTest {
     @BeforeMethod(onlyForGroups = {"Legacy"})
     public void setup() {
         // common attributes
-//        System.setProperty("targetOperatingSystem", "Android");
-//        System.setProperty("mobile_automationName", "UIAutomator2");
-//        System.setProperty("mobile_appWaitActivity","*");
-//        System.setProperty("mobile_disableWindowAnimation","true");
+        System.setProperty("targetOperatingSystem", "Android");
+        System.setProperty("mobile_automationName", "UIAutomator2");
 
-//        // local appium server (for local and github actions execution)
-//        System.setProperty("executionAddress", "0.0.0.0:4723");
-//        System.setProperty("mobile_app", System.getProperty("testDataFolderPath")+"apps/ApiDemos-debug.apk");
+        // local appium server (for local and github actions execution)
+        System.setProperty("executionAddress", "0.0.0.0:4723");
+        System.setProperty("mobile_app", SHAFT.Properties.paths.testData() + "apps/ApiDemos-debug.apk");
 
         // local appium server (android-emulator docker-compose)
 //        System.setProperty("executionAddress", "localhost:4725");
@@ -199,7 +197,7 @@ public class AndroidBasicInteractionsTest {
 //        System.setProperty("browserStack.deviceName", "Google Pixel 7");
 //        System.setProperty("browserStack.appName", "ApiDemos-debug.apk");
 //        System.setProperty("browserStack.appRelativeFilePath", "");
-//        System.setProperty("browserStack.appUrl", "bs://030ae95f0aa6d82ca804e342adde364c2614b419");
+//        System.setProperty("browserStack.appUrl", "bs://e744ef24a081b0d4cb5f9699a5dd69d6a3a2dbce");
         driver = DriverFactory.getDriver();
     }
 
