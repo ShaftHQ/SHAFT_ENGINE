@@ -15,7 +15,7 @@ jobs:
   Android_Native_Emulator:
     name: Run Mobile-based Tests on MacOS
     runs-on: macOS-12
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - name: Checkout Code
@@ -164,7 +164,7 @@ jobs:
 
   Android_Native_BrowserStack:
     runs-on: macOS-12
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
