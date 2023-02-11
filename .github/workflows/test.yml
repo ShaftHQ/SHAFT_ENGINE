@@ -11,7 +11,7 @@ on:
 jobs:
   Ubuntu_Firefox_Grid:
     runs-on: ubuntu-22.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -51,7 +51,7 @@ jobs:
 
   Ubuntu_Chrome_Grid:
     runs-on: ubuntu-22.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -91,7 +91,7 @@ jobs:
 
   Ubuntu_Edge_Grid:
     runs-on: ubuntu-22.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -131,7 +131,7 @@ jobs:
   
   Windows_Edge_Local:
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -167,7 +167,7 @@ jobs:
 
   Windows_Chrome_Local:
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -203,7 +203,7 @@ jobs:
 
   MacOSX_Safari_Local:
     runs-on: macOS-12
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -239,7 +239,7 @@ jobs:
 
   MacOSX_Chrome_Local:
     runs-on: macOS-12
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -277,7 +277,7 @@ jobs:
 
   MacOSX_Safari_BrowserStack:
     runs-on: ubuntu-22.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
