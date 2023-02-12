@@ -29,7 +29,7 @@ public class IOSBasicInteractionsTest {
         // common attributes
         System.setProperty("targetOperatingSystem", "iOS");
         System.setProperty("mobile_automationName", "XCUITest");
-        System.setProperty("mobile_appWaitActivity","*");
+        System.setProperty("mobile_appWaitActivity", "*");
 
         // local appium server (for local and github actions execution)
 //        System.setProperty("executionAddress", "0.0.0.0:4723");
@@ -37,19 +37,19 @@ public class IOSBasicInteractionsTest {
 //        driver = DriverFactory.getDriver();
 
         // remote browserstack server (new app version)
-//        System.setProperty("browserStack.platformVersion", "14");
-//        System.setProperty("browserStack.deviceName", "iPhone 12 Pro Max");
-//        System.setProperty("browserStack.appName", "TestApp");
-//        System.setProperty("browserStack.appRelativeFilePath", "src/test/resources/TestDataFiles/apps/BStackSampleApp.ipa");
-//        System.setProperty("browserStack.appUrl", "");
+        System.setProperty("browserStack.platformVersion", "14");
+        System.setProperty("browserStack.deviceName", "iPhone 12 Pro Max");
+        System.setProperty("browserStack.appName", "TestApp");
+        System.setProperty("browserStack.appRelativeFilePath", "src/test/resources/TestDataFiles/apps/BStackSampleApp.ipa");
+        System.setProperty("browserStack.appUrl", "");
 //        driver = DriverFactory.getBrowserStackDriver();
 
         // remote browserstack server (existing app version)
-        System.setProperty("browserStack.platformVersion", "14");
-        System.setProperty("browserStack.deviceName", "iPhone 12 Pro Max");
-        System.setProperty("browserStack.appName", "");
-        System.setProperty("browserStack.appRelativeFilePath", "");
-        System.setProperty("browserStack.appUrl", "bs://e2c374a22cf954e582b5c02e9a9f7cfd650a8325");
+//        System.setProperty("browserStack.platformVersion", "14");
+//        System.setProperty("browserStack.deviceName", "iPhone 12 Pro Max");
+//        System.setProperty("browserStack.appName", "");
+//        System.setProperty("browserStack.appRelativeFilePath", "");
+//        System.setProperty("browserStack.appUrl", "bs://e2c374a22cf954e582b5c02e9a9f7cfd650a8325");
         driver = DriverFactory.getDriver();
 
     }

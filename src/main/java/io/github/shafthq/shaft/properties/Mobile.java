@@ -11,6 +11,14 @@ import org.aeonbits.owner.ConfigFactory;
         "classpath:MobileCapabilities.properties",
 })
 public interface Mobile extends EngineProperties {
+    @Key("selfManaged")
+    @DefaultValue("false")
+    boolean selfManaged();
+
+    @Key("selfManagedAndroidVersion")
+    @DefaultValue("31")
+    int selfManagedAndroidVersion();
+
     @Key("mobile_platformName")
     @DefaultValue("")
     String platformName();
@@ -65,6 +73,15 @@ public interface Mobile extends EngineProperties {
     }
 
     class SetProperty implements EngineProperties.SetProperty {
+
+        public void selfManagedAndroidVersion(int value) {
+            setProperty("selfManagedAndroidVersion", String.valueOf(value));
+        }
+
+        public void selfManaged(boolean value) {
+            setProperty("selfManaged", String.valueOf(value));
+        }
+
         public void platformName(String value) {
             setProperty("mobile_platformName", value);
         }

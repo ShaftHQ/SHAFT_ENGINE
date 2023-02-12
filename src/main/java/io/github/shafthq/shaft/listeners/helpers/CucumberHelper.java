@@ -46,9 +46,6 @@ public class CucumberHelper {
             if (appiumDockerizedExecution) {
                 AppiumSelfManagementHelper.downloadAndroidEmulatorFiles();
             }
-            if (appiumSelfManagedExecution) {
-                AppiumSelfManagementHelper.setupAppiumSelfManagedExecutionPrerequisites();
-            }
         }
     }
 

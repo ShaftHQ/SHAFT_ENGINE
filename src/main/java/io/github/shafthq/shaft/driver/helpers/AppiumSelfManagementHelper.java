@@ -23,24 +23,23 @@ import java.util.concurrent.TimeUnit;
 import static io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper.showProgressBar;
 
 public class AppiumSelfManagementHelper {
-    // TODO: implement new environment variable to automatically spin up the server/emulator instances
+    // TODO: implement new environment variables for dockerized instance (or remove the code)
     @Getter
     private static final boolean appiumDockerizedExecution = false;
+    private static AppiumSelfManagementHelper singleInstance = null;
+    private final String cliToolsVersion = "9477386_latest";
+    private final String nodeJsVersion = "v18.14.0";
     @Getter
     private static final boolean terminateAppiumContainersAfterExecution = false;
-    // TODO: implement new environment variable
-    @Getter
-    private static final boolean appiumSelfManagedExecution = false;
-    private static final long longDownloadTimeout = TimeUnit.MINUTES.toSeconds(45); // seconds
-    private static final long downloadTimeout = TimeUnit.MINUTES.toSeconds(10); // seconds
-    private static final String androidEmulatorLocation = "src/main/resources/docker-compose/android-emulator/";
-    private static final String androidSelfManagedEnvironmentLocation = System.getProperty("user.home") + File.separator + ".shaft" + File.separator + "android" + File.separator;
 
-    private static final String TargetAVDImageName = "Pixel_a31_x86_64";
+    private static final long longDownloadTimeout = TimeUnit.MINUTES.toSeconds(45); // seconds
+    private final long downloadTimeout = TimeUnit.MINUTES.toSeconds(10); // seconds
+    private static final String androidEmulatorLocation = "src/main/resources/docker-compose/android-emulator/";
+    private final String androidSelfManagedEnvironmentLocation = System.getProperty("user.home") + File.separator + ".shaft" + File.separator + "android" + File.separator;
+
 
     @SneakyThrows(InterruptedException.class)
-    @Step("Setting up Appium self-managed execution environment")
-    public static void setupAppiumSelfManagedExecutionPrerequisites() {
+    private AppiumSelfManagementHelper() {
         System.setProperty("videoParams_recordVideo", "true");
         // TODO: check if user has admin access
         // TODO: create a list to manage URLs for other OSs
@@ -74,21 +73,38 @@ public class AppiumSelfManagementHelper {
         }
     }
 
-    private static void setupAndroidSDKCMDTools() throws InterruptedException {
+    @Step("Setting up Appium self-managed execution environment")
+    public static AppiumSelfManagementHelper setupAppiumSelfManagedExecutionPrerequisites() {
+        if (singleInstance == null) {
+            singleInstance = new AppiumSelfManagementHelper();
+        }
+        return singleInstance;
+    }
+
+    private void setupAndroidSDKCMDTools() throws InterruptedException {
         ReportManager.logDiscrete("Verifying Android SDK CLI tools...");
         String ANDROID_HOME = System.getenv("ANDROID_HOME");
         System.setProperty("ANDROID_HOME", ANDROID_HOME);
 
         if ("".equals(ANDROID_HOME)) {
-            String url = "https://dl.google.com/android/repository/commandlinetools-win-9477386_latest.zip";
+            String url = "https://dl.google.com/android/repository/commandlinetools-${OS}-" + cliToolsVersion + ".zip";
+            if (SystemUtils.IS_OS_MAC) {
+                url = url.replace("${OS}", "mac");
+            } else if (SystemUtils.IS_OS_WINDOWS) {
+                url = url.replace("${OS}", "win");
+            } else {
+                //default is linux
+                url = url.replace("${OS}", "linux");
+            }
             ReportManager.logDiscrete("Downloading and installing Android SDK CLI Tools from " + url);
 
             ScheduledExecutorService sdkCmdToolsDownloader = Executors.newScheduledThreadPool(2);
             sdkCmdToolsDownloader.execute(() -> showProgressBar("Preparing Android SDK CLI Tools", downloadTimeout));
+            String finalUrl = url;
             sdkCmdToolsDownloader.schedule(() -> {
                 ReportHelper.disableLogging();
                 try {
-                    FileActions.getInstance().unpackArchive(new URL(url), androidSelfManagedEnvironmentLocation);
+                    FileActions.getInstance().unpackArchive(new URL(finalUrl), androidSelfManagedEnvironmentLocation);
                     ReportManager.logDiscrete("Successfully prepared Android SDK CLI tools.");
                     sdkCmdToolsDownloader.shutdownNow();
                 } catch (Throwable throwable) {
@@ -110,7 +126,7 @@ public class AppiumSelfManagementHelper {
         ReportManager.logDiscrete("Found Android SDK CLI Tools at " + System.getProperty("ANDROID_HOME") + "/cmdline-tools/latest/bin/");
     }
 
-    private static void setupAndroidPackages() {
+    private void setupAndroidPackages() {
         ReportManager.logDiscrete("Verifying Android packages...");
         String ANDROID_HOME = System.getProperty("ANDROID_HOME");
         ReportHelper.disableLogging();
@@ -121,9 +137,10 @@ public class AppiumSelfManagementHelper {
 
         boolean doesAVDExist = avdList.contains(".avd") && avdList.contains(getAvdName());
         if (!doesAVDExist) {
+            var targetAndroidVersion = Properties.mobile.selfManagedAndroidVersion();
             var packages = Arrays.asList("'emulator'", "'patcher;v4'", "'platform-tools'",
-                    "'build-tools;31.0.0'", "'platforms;android-31'", "'skiaparser;3'", "'sources;android-31'"
-                    , "'system-images;android-31;default;x86_64'");
+                    "'build-tools;" + targetAndroidVersion + ".0.0'", "'platforms;android-" + targetAndroidVersion + "'", "'skiaparser;3'", "'sources;android-" + targetAndroidVersion + "'"
+                    , "'system-images;android-" + targetAndroidVersion + ";default;x86_64'");
 
             ReportManager.logDiscrete("Downloading and updating required android packages " + String.join(", ", packages) + "...");
             try {
@@ -156,7 +173,7 @@ public class AppiumSelfManagementHelper {
         }
     }
 
-    private static void launchAndroidEmulator() {
+    private void launchAndroidEmulator() {
         // TODO: Handle Emulator is already up and running
         String ANDROID_HOME = System.getProperty("ANDROID_HOME");
         String avdName = getAvdName();
@@ -173,27 +190,11 @@ public class AppiumSelfManagementHelper {
         }
     }
 
-    private static String getAvdName() {
-        //TODO: support custom AVD name
-        var avdName = "";
-        if (!"".equals(TargetAVDImageName)) {
-            return TargetAVDImageName;
-        } else {
-            String ANDROID_HOME = System.getProperty("ANDROID_HOME");
-            if (ANDROID_HOME == null || "".equals(ANDROID_HOME)) {
-                ANDROID_HOME = androidSelfManagedEnvironmentLocation;
-            }
-            String avdList = TerminalActions.getInstance(false, true).performTerminalCommands(Arrays.asList(
-                    "cd " + ANDROID_HOME + "/cmdline-tools/latest/bin/",
-                    ".\\avdmanager list avd"));
-            // use last available device
-            avdName = avdList.substring(avdList.lastIndexOf("Name:", avdList.indexOf("Device:"))).replace("Name: ", "");
-            avdName = avdName.substring(0, avdName.indexOf("\n")).trim();
-            return avdName;
-        }
+    private String getAvdName() {
+        return "Pixel_android" + Properties.mobile.selfManagedAndroidVersion() + "_x86_64";
     }
 
-    private static void setupNPM() {
+    private void setupNPM() {
         ReportManager.logDiscrete("Verifying NPM installation...");
 
         ReportHelper.disableLogging();
@@ -202,7 +203,17 @@ public class AppiumSelfManagementHelper {
         boolean isNPMInstalled = NPM_VERSION.matches(".*[0-9].*");
         if (!isNPMInstalled) {
             // install npm
-            String url = "https://nodejs.org/dist/v18.13.0/node-v18.13.0-win-x64.zip";
+            String url = "https://nodejs.org/dist/" + nodeJsVersion + "/node-" + nodeJsVersion + "-";
+            if (SystemUtils.IS_OS_MAC) {
+                url = url + "darwin-x64.tar.gz";
+            } else if (SystemUtils.IS_OS_WINDOWS) {
+                url = url + "win-x64.zip";
+
+            } else {
+                //default is linux
+                url = url + "linux-x64.tar.xzp";
+
+            }
             ReportManager.logDiscrete("Downloading and installing Node.js from " + url);
             try {
                 String fileName = url.substring(url.lastIndexOf("/") + 1);
@@ -214,7 +225,7 @@ public class AppiumSelfManagementHelper {
         }
     }
 
-    private static void setupAppiumComponents() {
+    private void setupAppiumComponents() {
         ReportManager.logDiscrete("Verifying Appium 2.x server and components...");
 
         ReportHelper.disableLogging();
@@ -285,7 +296,7 @@ public class AppiumSelfManagementHelper {
         }
     }
 
-    private static void launchAppiumServer() {
+    private void launchAppiumServer() {
         //update appium version variable
         ReportHelper.disableLogging();
         var APPIUM_VERSION = TerminalActions.getInstance(false, false).performTerminalCommand("appium --version");
@@ -301,7 +312,7 @@ public class AppiumSelfManagementHelper {
                         "appium server --use-plugins=images,device-farm,appium-dashboard --relaxed-security"
                 ));
 
-        ReportManager.log("Appium Device Farm is now up and running: http://localhost:4723/dashboard/");
+        ReportManager.log("Appium Device Farm is now up and running: http://" + Properties.platform.executionAddress() + "/dashboard/");
     }
 
     @SneakyThrows(java.lang.InterruptedException.class)

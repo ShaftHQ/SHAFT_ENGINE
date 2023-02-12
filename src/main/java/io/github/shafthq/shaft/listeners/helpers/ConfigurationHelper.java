@@ -15,9 +15,6 @@ public class ConfigurationHelper {
     public void suiteSetup(ITestContext testContext) {
         ReportHelper.attachImportantLinks();
         ReportHelper.attachPropertyFiles();
-        if (AppiumSelfManagementHelper.isAppiumSelfManagedExecution()) {
-            AppiumSelfManagementHelper.setupAppiumSelfManagedExecutionPrerequisites();
-        }
         if (AppiumSelfManagementHelper.isAppiumDockerizedExecution()) {
             AppiumSelfManagementHelper.downloadAndroidEmulatorFiles();
         }

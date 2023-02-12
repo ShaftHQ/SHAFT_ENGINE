@@ -721,7 +721,7 @@ public class DriverFactoryHelper {
     private static Platform getDesiredOperatingSystem() {
 //        OperatingSystems operatingSystem = getOperatingSystemFromName(targetOperatingSystem);
         switch (targetOperatingSystem) {
-            case OperatingSystems.WINDOWS -> {
+            case WINDOWS -> {
                 return Platform.WINDOWS;
             }
             case LINUX -> {
@@ -801,6 +801,11 @@ public class DriverFactoryHelper {
     }
 
     public static void initializeDriver() {
+        if (Properties.mobile.selfManaged()) {
+            //singleton initialization
+            AppiumSelfManagementHelper.setupAppiumSelfManagedExecutionPrerequisites();
+        }
+
         var mobile_browserName = System.getProperty("mobile_browserName");
         String targetBrowserName = System.getProperty("targetBrowserName");
 
