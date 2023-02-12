@@ -4,7 +4,9 @@ import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.TouchActions;
 import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
+import io.github.shafthq.shaft.driver.helpers.WizardHelpers;
 import io.github.shafthq.shaft.gui.browser.FluentBrowserActions;
+import io.github.shafthq.shaft.validations.helpers.WebDriverElementValidationsBuilder;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
@@ -53,8 +55,16 @@ public class FluentElementActions {
         return new FluentBrowserActions();
     }
 
-    private FluentElementActions and() {
+    public FluentElementActions and() {
         return this;
+    }
+
+    public WebDriverElementValidationsBuilder assertThat(By elementLocator) {
+        return new WizardHelpers.WebDriverAssertions(DriverFactoryHelper.getDriver()).element(elementLocator);
+    }
+
+    public WebDriverElementValidationsBuilder verifyThat(By elementLocator) {
+        return new WizardHelpers.WebDriverVerifications(DriverFactoryHelper.getDriver()).element(elementLocator);
     }
 
     public int getElementsCount(By elementLocator) {

@@ -33,7 +33,7 @@ public class AlertActions {
         return new FluentBrowserActions();
     }
 
-    private AlertActions and() {
+    public AlertActions and() {
         return this;
     }
 

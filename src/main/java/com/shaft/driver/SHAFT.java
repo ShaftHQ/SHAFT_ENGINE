@@ -62,7 +62,7 @@ public class SHAFT {
             }
 
             public FluentBrowserActions browser() {
-                return BrowserActions.performBrowserAction(driverThreadLocal.get());
+                return new BrowserActions(driverThreadLocal.get());
             }
 
             public AlertActions alert() {
