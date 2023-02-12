@@ -30,6 +30,18 @@ public class FluentBrowserActions {
         return new FluentElementActions();
     }
 
+    public TouchActions touch() {
+        return new TouchActions();
+    }
+
+    public AlertActions alert() {
+        return new AlertActions();
+    }
+
+    public FluentElementActions element() {
+        return new FluentElementActions();
+    }
+
     /**
      * Attempts to capture a page snapshot archive in the format of a .mht file
      * Works only for Chromium based driver instances

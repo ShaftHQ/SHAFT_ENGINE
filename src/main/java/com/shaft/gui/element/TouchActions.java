@@ -53,6 +53,14 @@ public class TouchActions {
         return new FluentElementActions(DriverFactoryHelper.getDriver().get());
     }
 
+    public FluentElementActions element() {
+        return new FluentElementActions(DriverFactoryHelper.getDriver().get());
+    }
+
+    private TouchActions and() {
+        return this;
+    }
+
     /**
      * Sends a key-press via the device soft keyboard.
      *

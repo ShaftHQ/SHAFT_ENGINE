@@ -7,7 +7,9 @@ import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.db.DatabaseActions;
 import com.shaft.gui.browser.BrowserActions;
+import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.SikuliActions;
+import com.shaft.gui.element.TouchActions;
 import com.shaft.tools.io.ExcelFileManager;
 import com.shaft.tools.io.JSONFileManager;
 import com.shaft.tools.io.ReportManager;
@@ -55,8 +57,16 @@ public class SHAFT {
                 return new FluentElementActions(driverThreadLocal.get());
             }
 
+            public TouchActions touch() {
+                return new TouchActions(driverThreadLocal.get());
+            }
+
             public FluentBrowserActions browser() {
                 return BrowserActions.performBrowserAction(driverThreadLocal.get());
+            }
+
+            public AlertActions alert() {
+                return new AlertActions(driverThreadLocal.get());
             }
 
             public WizardHelpers.WebDriverAssertions assertThat() {

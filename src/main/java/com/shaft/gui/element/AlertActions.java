@@ -2,6 +2,7 @@ package com.shaft.gui.element;
 
 import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
+import io.github.shafthq.shaft.gui.browser.FluentBrowserActions;
 import io.github.shafthq.shaft.gui.element.ElementActionsHelper;
 import io.github.shafthq.shaft.gui.element.FluentElementActions;
 import org.openqa.selenium.NoAlertPresentException;
@@ -22,6 +23,18 @@ public class AlertActions {
 
     public static AlertActions getInstance() {
         return new AlertActions();
+    }
+
+    public TouchActions touch() {
+        return new TouchActions();
+    }
+
+    public FluentBrowserActions browser() {
+        return new FluentBrowserActions();
+    }
+
+    private AlertActions and() {
+        return this;
     }
 
     private static void waitForAlertToBePresent() {

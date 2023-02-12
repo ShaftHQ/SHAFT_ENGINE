@@ -41,6 +41,22 @@ public class FluentElementActions {
         return new FluentBrowserActions();
     }
 
+    public TouchActions touch() {
+        return new TouchActions();
+    }
+
+    public AlertActions alert() {
+        return new AlertActions();
+    }
+
+    public FluentBrowserActions browser() {
+        return new FluentBrowserActions();
+    }
+
+    private FluentElementActions and() {
+        return this;
+    }
+
     public int getElementsCount(By elementLocator) {
         return ElementActionsHelper.getElementsCount(DriverFactoryHelper.getDriver().get(), elementLocator);
     }
