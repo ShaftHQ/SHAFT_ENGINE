@@ -625,7 +625,7 @@ public class ReportManagerHelper {
     }
 
     private static void createAttachment(String attachmentType, String attachmentName, InputStream attachmentContent) {
-        if (attachmentContent != null && Boolean.FALSE.equals(Boolean.parseBoolean(System.getProperty("disableLogging")))) {
+        if (attachmentContent != null) {
             var baos = new ByteArrayOutputStream();
             try {
                 attachmentContent.transferTo(baos);

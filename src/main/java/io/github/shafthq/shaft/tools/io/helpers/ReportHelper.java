@@ -50,8 +50,11 @@ public class ReportHelper {
         if (FileActions.getInstance().doesFileExist(System.getProperty("propertiesFolderPath"))) {
             List<List<Object>> attachments = new ArrayList<>();
 
-            var propertyFiles = Arrays.asList(FileActions.getInstance().listFilesInDirectory(System.getProperty("propertiesFolderPath"), null).split(System.lineSeparator()));
+            var propertyFiles = Arrays.asList(FileActions.getInstance().listFilesInDirectory(System.getProperty("propertiesFolderPath"), null).replaceAll("default" + System.lineSeparator(), "").replaceAll(".*json", "").trim().split(System.lineSeparator()));
             propertyFiles.forEach(file -> attachments.add(Arrays.asList("Properties", file.replace(".properties", ""), FileActions.getInstance().readFile(System.getProperty("propertiesFolderPath") + File.separator + file))));
+
+            var jsonFiles = Arrays.asList(FileActions.getInstance().listFilesInDirectory(System.getProperty("propertiesFolderPath"), null).replaceAll("default" + System.lineSeparator(), "").replaceAll(".*properties", "").trim().split(System.lineSeparator()));
+            jsonFiles.forEach(file -> attachments.add(Arrays.asList("JSON", file.replace(".json", ""), FileActions.getInstance().readFile(System.getProperty("propertiesFolderPath") + File.separator + file))));
 
             ReportManagerHelper.logNestedSteps("Property Files", attachments);
         }

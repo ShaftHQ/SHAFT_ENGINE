@@ -21,6 +21,7 @@ import io.github.shafthq.shaft.properties.PropertyFileManager;
 import io.github.shafthq.shaft.tools.io.helpers.FailureReporter;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import io.github.shafthq.shaft.tools.support.JavaHelper;
+import io.qameta.allure.Step;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NonNull;
@@ -560,6 +561,7 @@ public class DriverFactoryHelper {
     }
 
     @SneakyThrows(InterruptedException.class)
+    @Step("Setting up remote driver instance")
     private static void setRemoteDriverInstance(Capabilities capabilities) {
         // stage 1: ensure that the server is up and running
         ReportManager.logDiscrete("Attempting to connect to remote server for up to " + TimeUnit.SECONDS.toMinutes(appiumServerInitializationTimeout) + "min.");
