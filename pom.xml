@@ -705,8 +705,12 @@
     <build>
         <resources>
             <resource>
-                <directory>${project.basedir}/src/main/resources</directory>
-                <targetPath>${project.basedir}/target/classes/resources</targetPath>
+                <directory>${project.basedir}/src/main/resources/allure</directory>
+                <targetPath>${project.basedir}/target/classes/resources/allure</targetPath>
+            </resource>
+            <resource>
+                <directory>${project.basedir}/src/main/resources/properties/default</directory>
+                <targetPath>${project.basedir}/target/classes/resources/properties/default</targetPath>
             </resource>
             <resource>
                 <directory>${project.basedir}/src/main/javadoc</directory>
