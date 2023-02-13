@@ -823,9 +823,9 @@ public class ReportManagerHelper {
         } else {
             // create Unix-based sh file
             commandsToServeAllureReport = Arrays
-                    .asList("#!/bin/bash", "parent_path=$( cd '$(dirname '${BASH_SOURCE[0]}')' ; pwd -P )",
+                    .asList("#!/bin/bash", "parent_path=$('$(dirname:- '${BASH_SOURCE[0]}')' ; pwd -P )",
                             "cd '" + allureExtractionLocation + "allure-" + allureVersion + "/bin/'",
-                            "bash allure serve '$parent_path/"
+                            "bash allure serve $parent_path'/"
                                     + allureResultsFolderPath.substring(0, allureResultsFolderPath.length() - 1) + "'",
                             "exit"
 
