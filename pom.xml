@@ -136,7 +136,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-handler</artifactId>
-            <version>4.1.87.Final</version>
+            <version>4.1.88.Final</version>
         </dependency>
 
         <!-- APPIUM -->
