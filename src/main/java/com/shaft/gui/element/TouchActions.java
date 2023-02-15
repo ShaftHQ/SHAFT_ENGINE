@@ -621,13 +621,11 @@ public class TouchActions {
 
     /**
      * Attempts to scroll element into view using androidUIAutomator
-     *
      * @param targetText
-     * @param driver
      * @return a self-reference to be used to chain actions
      */
-    public TouchActions swipeElementIntoView(String targetText, WebDriver driver) {
-        driver.findElement(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))" + ".scrollIntoView(new UiSelector().textContains(\"" + targetText + "\"))"));
+    public TouchActions swipeElementIntoView(String targetText) {
+        DriverFactoryHelper.getDriver().get().findElement(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))" + ".scrollIntoView(new UiSelector().textContains(\"" + targetText + "\"))"));
         return this;
     }
 
