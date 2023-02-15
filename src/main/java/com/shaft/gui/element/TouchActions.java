@@ -117,17 +117,17 @@ public class TouchActions {
         } else {
             // Perform tap action by coordinates
 //            if (DriverFactoryHelper.isMobileNativeExecution()) {
-                PointerInput input = new PointerInput(PointerInput.Kind.TOUCH, "finger1");
-                Sequence tap = new Sequence(input, 0);
-                tap.addAction(input.createPointerMove(Duration.ZERO, PointerInput.Origin.viewport(), coordinates.get(0), coordinates.get(1)));
-                tap.addAction(input.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
-                tap.addAction(new Pause(input, Duration.ofMillis(200)));
-                tap.addAction(input.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
-                try {
-                    ((AppiumDriver) DriverFactoryHelper.getDriver().get()).perform(ImmutableList.of(tap));
-                } catch (UnsupportedCommandException exception) {
-                    ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, exception);
-                }
+            PointerInput input = new PointerInput(PointerInput.Kind.TOUCH, "finger1");
+            Sequence tap = new Sequence(input, 0);
+            tap.addAction(input.createPointerMove(Duration.ZERO, PointerInput.Origin.viewport(), coordinates.get(0), coordinates.get(1)));
+            tap.addAction(input.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
+            tap.addAction(new Pause(input, Duration.ofMillis(200)));
+            tap.addAction(input.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+            try {
+                ((AppiumDriver) DriverFactoryHelper.getDriver().get()).perform(ImmutableList.of(tap));
+            } catch (UnsupportedCommandException exception) {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, exception);
+            }
 //            } else {
 //                (new org.openqa.selenium.interactions.touch.TouchActions(DriverFactoryHelper.getDriver().get()))
 //                        .down(coordinates.get(0), coordinates.get(1))
@@ -147,7 +147,7 @@ public class TouchActions {
      * @return a self-reference to be used to chain actions
      */
     public TouchActions tap(By elementLocator) {
-         try{
+        try {
             String elementText = "";
             if (CAPTURE_CLICKED_ELEMENT_TEXT) {
                 try {
@@ -160,7 +160,7 @@ public class TouchActions {
                     // do nothing
                 }
             }
-             List<Object> screenshot = ElementActionsHelper.takeScreenshot(DriverFactoryHelper.getDriver().get(), elementLocator, "tap", null, true);
+            List<Object> screenshot = ElementActionsHelper.takeScreenshot(DriverFactoryHelper.getDriver().get(), elementLocator, "tap", null, true);
             // takes screenshot before clicking the element out of view
 
             try {
@@ -173,14 +173,14 @@ public class TouchActions {
             if (elementText == null || elementText.equals("")) {
                 elementText = formatLocatorToString(elementLocator);
             }
-             ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, elementText.replaceAll("\n", " "), screenshot, null);
+            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, elementText.replaceAll("\n", " "), screenshot, null);
         } catch (Throwable throwable) {
-             if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
-                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
-             } else {
-                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
-             }
-         }
+            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
+            } else {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+            }
+        }
         return this;
     }
 
@@ -603,7 +603,7 @@ public class TouchActions {
                         new Actions(DriverFactoryHelper.getDriver().get()).moveToElement(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), scrollableElementLocator).get(1))).scrollToElement(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), targetElementLocator).get(1))).perform();
                     } else {
                         new Actions(DriverFactoryHelper.getDriver().get()).scrollToElement(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), targetElementLocator).get(1))).perform();
-                        }
+                    }
                 }
                 ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), targetElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
             } catch (Exception e) {
@@ -616,6 +616,19 @@ public class TouchActions {
                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), scrollableElementLocator, throwable);
             }
         }
+        return this;
+    }
+    /**
+     * Attempts to scroll element into view using androidUIAutomator
+     *
+     * @param targetText
+     * @param driver
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions swipeElementIntoView(String targetText, WebDriver driver) {
+
+        driver.findElement(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
+                + ".scrollIntoView(new UiSelector().textContains(\"" + targetText + "\"))"));
         return this;
     }
 
@@ -644,14 +657,14 @@ public class TouchActions {
                 // for the animated GIF:
                 ElementActionsHelper.takeScreenshot(DriverFactoryHelper.getDriver().get(), null, "swipeElementIntoView", null, true);
                 canStillScroll = attemptW3cCompliantActionsScroll(swipeDirection, scrollableElementLocator, null);
-                if (!canStillScroll){
+                if (!canStillScroll) {
                     // check if element can be found after scrolling to the end of the page
                     visualIdentificationObjects = ElementActionsHelper.waitForElementPresence(DriverFactoryHelper.getDriver().get(), targetElementImage);
                     coordinates = (List<Integer>) visualIdentificationObjects.get(2);
-                  if(!Collections.emptyList().equals(coordinates)) {
-                      isElementFound = true;
-                      ReportManager.logDiscrete("Element found on screen.");
-                  }
+                    if (!Collections.emptyList().equals(coordinates)) {
+                        isElementFound = true;
+                        ReportManager.logDiscrete("Element found on screen.");
+                    }
                 }
             }
             blindScrollingAttempts++;
@@ -696,9 +709,7 @@ public class TouchActions {
         int scrollingSpeed = 100;
         String scrollDirection = "Forward";
         ReportManager.logDiscrete("Swiping to find Element using UiSelector.");
-        By androidUIAutomator = AppiumBy
-                .androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true).instance("
-                        + scrollableElementInstanceNumber + ")).scroll" + scrollDirection + "(" + scrollingSpeed + ")");
+        By androidUIAutomator = AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true).instance(" + scrollableElementInstanceNumber + ")).scroll" + scrollDirection + "(" + scrollingSpeed + ")");
         ElementActionsHelper.getElementsCount(DriverFactoryHelper.getDriver().get(), androidUIAutomator);
     }
 
@@ -721,22 +732,21 @@ public class TouchActions {
         if (scrollableElementLocator != null) {
             //scrolling inside an element
             Rectangle elementRectangle = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), scrollableElementLocator).get(1)).getRect();
-            scrollParameters.putAll(ImmutableMap.of(
-                    "height", elementRectangle.getHeight() * 90 / 100
-            ));
+            scrollParameters.putAll(ImmutableMap.of("height", elementRectangle.getHeight() * 90 / 100));
             //percent 0.5 works for UP/DOWN, optimized to 0.8 to scroll faster and introduced delay 1000ms after every scroll action to increase stability
             switch (swipeDirection) {
-                case UP -> scrollParameters.putAll(ImmutableMap.of("percent", 0.8, "height", elementRectangle.getHeight() * 90 / 100, "width", elementRectangle.getWidth(), "left", elementRectangle.getX(), "top", elementRectangle.getHeight() - 100));
-                case DOWN -> scrollParameters.putAll(ImmutableMap.of("percent", 0.8, "height", elementRectangle.getHeight() * 90 / 100, "width", elementRectangle.getWidth(), "left", elementRectangle.getX(), "top", 100));
-                case RIGHT -> scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth() * 70 / 100, "left", 100, "top", elementRectangle.getY()));
-                case LEFT -> scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth(), "left", elementRectangle.getX() + (elementRectangle.getWidth() * 50 / 100), "top", elementRectangle.getY()));
+                case UP ->
+                        scrollParameters.putAll(ImmutableMap.of("percent", 0.8, "height", elementRectangle.getHeight() * 90 / 100, "width", elementRectangle.getWidth(), "left", elementRectangle.getX(), "top", elementRectangle.getHeight() - 100));
+                case DOWN ->
+                        scrollParameters.putAll(ImmutableMap.of("percent", 0.8, "height", elementRectangle.getHeight() * 90 / 100, "width", elementRectangle.getWidth(), "left", elementRectangle.getX(), "top", 100));
+                case RIGHT ->
+                        scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth() * 70 / 100, "left", 100, "top", elementRectangle.getY()));
+                case LEFT ->
+                        scrollParameters.putAll(ImmutableMap.of("percent", 1, "height", elementRectangle.getHeight(), "width", elementRectangle.getWidth(), "left", elementRectangle.getX() + (elementRectangle.getWidth() * 50 / 100), "top", elementRectangle.getY()));
             }
         } else {
             //scrolling inside the screen
-            scrollParameters.putAll(ImmutableMap.of(
-                    "width", screenSize.getWidth(), "height", screenSize.getHeight() * 90 / 100,
-                    "percent", 0.8
-            ));
+            scrollParameters.putAll(ImmutableMap.of("width", screenSize.getWidth(), "height", screenSize.getHeight() * 90 / 100, "percent", 0.8));
             switch (swipeDirection) {
                 case UP -> scrollParameters.putAll(ImmutableMap.of("left", 0, "top", screenSize.getHeight() - 100));
                 case DOWN -> scrollParameters.putAll(ImmutableMap.of("left", 0, "top", 100));
@@ -747,16 +757,12 @@ public class TouchActions {
         }
 
         if (DriverFactoryHelper.getDriver().get() instanceof AndroidDriver androidDriver) {
-            scrollParameters.putAll(ImmutableMap.of(
-                    "direction", swipeDirection.toString()
-            ));
+            scrollParameters.putAll(ImmutableMap.of("direction", swipeDirection.toString()));
             canScrollMore = (Boolean) ((JavascriptExecutor) androidDriver).executeScript("mobile: scrollGesture", scrollParameters);
         } else if (DriverFactoryHelper.getDriver().get() instanceof IOSDriver iosDriver) {
-            scrollParameters.putAll(ImmutableMap.of(
-                    "direction", swipeDirection.toString()
-            ));
+            scrollParameters.putAll(ImmutableMap.of("direction", swipeDirection.toString()));
             //http://appium.github.io/appium-xcuitest-driver/4.16/execute-methods/#mobile-scroll
-            var ret= ((JavascriptExecutor) iosDriver).executeScript("mobile: scroll", scrollParameters);
+            var ret = ((JavascriptExecutor) iosDriver).executeScript("mobile: scroll", scrollParameters);
             canScrollMore = ret == null || (Boolean) ret;
         }
         var logMessageAfter = "Attempted to scroll using these parameters: \"" + scrollParameters + "\"";
@@ -779,22 +785,11 @@ public class TouchActions {
         Point source = new Point(size.getWidth(), size.getHeight());
 
         Sequence pinchAndZoom1 = new Sequence(finger, 0);
-        pinchAndZoom1.addAction(finger.createPointerMove(Duration.ofMillis(0),
-                        PointerInput.Origin.viewport(), source.x / 2, source.y / 2))
-                .addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()))
-                .addAction(new Pause(finger, Duration.ofMillis(110)))
-                .addAction(finger.createPointerMove(Duration.ofMillis(600),
-                        PointerInput.Origin.viewport(), source.x / 3, source.y / 3))
-                .addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+        pinchAndZoom1.addAction(finger.createPointerMove(Duration.ofMillis(0), PointerInput.Origin.viewport(), source.x / 2, source.y / 2)).addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg())).addAction(new Pause(finger, Duration.ofMillis(110))).addAction(finger.createPointerMove(Duration.ofMillis(600), PointerInput.Origin.viewport(), source.x / 3, source.y / 3)).addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
 
 
         Sequence pinchAndZoom2 = new Sequence(finger2, 0);
-        pinchAndZoom2.addAction(finger2.createPointerMove(Duration.ofMillis(0),
-                        PointerInput.Origin.viewport(), source.x / 2, source.y / 2))
-                .addAction(finger2.createPointerDown(PointerInput.MouseButton.LEFT.asArg()))
-                .addAction(finger2.createPointerMove(Duration.ofMillis(600),
-                        PointerInput.Origin.viewport(), source.x * 3 / 4, source.y * 3 / 4))
-                .addAction(finger2.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+        pinchAndZoom2.addAction(finger2.createPointerMove(Duration.ofMillis(0), PointerInput.Origin.viewport(), source.x / 2, source.y / 2)).addAction(finger2.createPointerDown(PointerInput.MouseButton.LEFT.asArg())).addAction(finger2.createPointerMove(Duration.ofMillis(600), PointerInput.Origin.viewport(), source.x * 3 / 4, source.y * 3 / 4)).addAction(finger2.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
 
         ((AppiumDriver) DriverFactoryHelper.getDriver().get()).perform(asList(pinchAndZoom1, pinchAndZoom2));
     }
@@ -809,24 +804,11 @@ public class TouchActions {
         Point source = new Point(size.getWidth(), size.getHeight());
 
         Sequence pinchAndZoom1 = new Sequence(finger, 0);
-        pinchAndZoom1
-                .addAction(finger.createPointerMove(Duration.ofMillis(0),
-                        PointerInput.Origin.viewport(), source.x / 3, source.y / 3))
-                .addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg()))
-                .addAction(new Pause(finger, Duration.ofMillis(110)))
-                .addAction(finger.createPointerMove(Duration.ofMillis(600),
-                        PointerInput.Origin.viewport(), source.x / 2, source.y / 2))
-                .addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+        pinchAndZoom1.addAction(finger.createPointerMove(Duration.ofMillis(0), PointerInput.Origin.viewport(), source.x / 3, source.y / 3)).addAction(finger.createPointerDown(PointerInput.MouseButton.LEFT.asArg())).addAction(new Pause(finger, Duration.ofMillis(110))).addAction(finger.createPointerMove(Duration.ofMillis(600), PointerInput.Origin.viewport(), source.x / 2, source.y / 2)).addAction(finger.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
 
 
         Sequence pinchAndZoom2 = new Sequence(finger2, 0);
-        pinchAndZoom2.addAction(finger2.createPointerMove(Duration.ofMillis(0),
-                        PointerInput.Origin.viewport(), source.x * 3 / 4, source.y * 3 / 4))
-                .addAction(finger2.createPointerDown(PointerInput.MouseButton.LEFT.asArg()))
-                .addAction(new Pause(finger, Duration.ofMillis(100)))
-                .addAction(finger2.createPointerMove(Duration.ofMillis(600),
-                        PointerInput.Origin.viewport(), source.x / 2, source.y / 2))
-                .addAction(finger2.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+        pinchAndZoom2.addAction(finger2.createPointerMove(Duration.ofMillis(0), PointerInput.Origin.viewport(), source.x * 3 / 4, source.y * 3 / 4)).addAction(finger2.createPointerDown(PointerInput.MouseButton.LEFT.asArg())).addAction(new Pause(finger, Duration.ofMillis(100))).addAction(finger2.createPointerMove(Duration.ofMillis(600), PointerInput.Origin.viewport(), source.x / 2, source.y / 2)).addAction(finger2.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
 
         ((AppiumDriver) DriverFactoryHelper.getDriver().get()).perform(asList(pinchAndZoom1, pinchAndZoom2));
     }
@@ -868,8 +850,7 @@ public class TouchActions {
     }
 
     public enum KeyboardKeys {
-        GO(ImmutableMap.of("action", "go")), DONE(ImmutableMap.of("action", "done")), SEARCH(ImmutableMap.of("action", "search")), SEND(ImmutableMap.of("action", "send")),
-        NEXT(ImmutableMap.of("action", "next")), PREVIOUS(ImmutableMap.of("action", "previous")), NORMAL(ImmutableMap.of("action", "normal")), UNSPECIFIED(ImmutableMap.of("action", "unspecified")), NONE(ImmutableMap.of("action", "none"));
+        GO(ImmutableMap.of("action", "go")), DONE(ImmutableMap.of("action", "done")), SEARCH(ImmutableMap.of("action", "search")), SEND(ImmutableMap.of("action", "send")), NEXT(ImmutableMap.of("action", "next")), PREVIOUS(ImmutableMap.of("action", "previous")), NORMAL(ImmutableMap.of("action", "normal")), UNSPECIFIED(ImmutableMap.of("action", "unspecified")), NONE(ImmutableMap.of("action", "none"));
 
         private final ImmutableMap<?, ?> value;
 
