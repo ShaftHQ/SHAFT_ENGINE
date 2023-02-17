@@ -187,8 +187,12 @@ public class TerminalActions {
         // Build long command and refactor for dockerized execution if needed
         String longCommand = buildLongCommand(internalCommands);
 
-        if (internalCommands.size() == 1 && internalCommands.get(0).contains(" && ")) {
-            internalCommands = List.of(internalCommands.get(0).split(" && "));
+        if (internalCommands.size() == 1) {
+            if (internalCommands.get(0).contains(" && ")) {
+                internalCommands = List.of(internalCommands.get(0).split(" && "));
+            } else if (internalCommands.get(0).contains(" ; ")) {
+                internalCommands = List.of(internalCommands.get(0).split(" ; "));
+            }
         }
 
         // Perform command
@@ -320,7 +324,7 @@ public class TerminalActions {
         StringBuilder logs = new StringBuilder();
         StringBuilder exitStatuses = new StringBuilder();
         // local execution
-        ReportManager.logDiscrete("Attempting to execute the following command locally. Command: \"" + longCommand + "\"");
+//        ReportManager.logDiscrete("Attempting to execute the following command locally. Command: \"" + longCommand + "\"");
         boolean isWindows = SystemUtils.IS_OS_WINDOWS;
         String directory;
         LinkedList<String> internalCommands;
@@ -339,7 +343,8 @@ public class TerminalActions {
 
         String finalDirectory = directory;
         internalCommands.forEach(command -> {
-            command = command.contains(".bat") && !command.startsWith(".\\") ? ".\\" + command : command;
+            command = command.contains(".bat") && !command.contains(".\\") ? ".\\" + command : command;
+            ReportManager.logDiscrete("Executing: \"" + command + "\" locally.");
             try {
                 ProcessBuilder pb = new ProcessBuilder();
                 pb.directory(new File(finalDirectory));
