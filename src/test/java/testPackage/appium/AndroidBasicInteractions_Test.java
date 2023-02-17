@@ -5,6 +5,8 @@ import com.shaft.gui.element.TouchActions;
 import io.appium.java_client.AppiumBy;
 import io.appium.java_client.android.Activity;
 import io.appium.java_client.android.AndroidDriver;
+import io.appium.java_client.remote.AutomationName;
+import io.appium.java_client.remote.MobilePlatform;
 import org.openqa.selenium.By;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -12,7 +14,7 @@ import org.testng.annotations.Test;
 
 import java.time.Duration;
 
-public class AndroidBasicInteractionsTest {
+public class AndroidBasicInteractions_Test {
     private SHAFT.GUI.WebDriver driver;
     private final String PACKAGE = "io.appium.android.apis";
 
@@ -143,12 +145,12 @@ public class AndroidBasicInteractionsTest {
     @BeforeMethod
     public void setup() {
         // common attributes
-        SHAFT.Properties.platform.set().targetOperatingSystem("Android");
-        SHAFT.Properties.mobile.set().automationName("UIAutomator2");
+        SHAFT.Properties.platform.set().targetOperatingSystem(MobilePlatform.ANDROID);
+        SHAFT.Properties.mobile.set().automationName(AutomationName.ANDROID_UIAUTOMATOR2);
 
         // self-managed execution
-        SHAFT.Properties.mobile.set().selfManaged(true);
-        SHAFT.Properties.mobile.set().selfManagedAndroidVersion(13);
+//        SHAFT.Properties.mobile.set().selfManaged(true);
+//        SHAFT.Properties.mobile.set().selfManagedAndroidSDKVersion(31);
 
         // local appium server (for local and GitHub actions execution)
         SHAFT.Properties.platform.set().executionAddress("localhost:4723");
