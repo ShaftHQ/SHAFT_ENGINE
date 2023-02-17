@@ -6,8 +6,8 @@ import io.appium.java_client.AppiumBy;
 import io.appium.java_client.android.Activity;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.remote.AutomationName;
-import io.appium.java_client.remote.MobilePlatform;
 import org.openqa.selenium.By;
+import org.openqa.selenium.Platform;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -145,7 +145,7 @@ public class androidBasicInteractionsTest {
     @BeforeMethod
     public void setup() {
         // common attributes
-        SHAFT.Properties.platform.set().targetPlatform(MobilePlatform.ANDROID);
+        SHAFT.Properties.platform.set().targetPlatform(Platform.ANDROID.name());
         SHAFT.Properties.mobile.set().automationName(AutomationName.ANDROID_UIAUTOMATOR2);
 
         // self-managed execution
@@ -154,18 +154,18 @@ public class androidBasicInteractionsTest {
 
         // local appium server (for local and GitHub actions execution)
         SHAFT.Properties.platform.set().executionAddress("localhost:4723");
-        SHAFT.Properties.mobile.set().app(SHAFT.Properties.paths.testData() + "apps/ApiDemos-debug.apk");
+        SHAFT.Properties.mobile.set().app("src/test/resources/testDataFiles/apps/ApiDemos-debug.apk");
 
         // local appium server (android-emulator docker-compose)
 //        SHAFT.Properties.platform.set().executionAddress("localhost:4725");
-//        SHAFT.Properties.mobile.set().app(SHAFT.Properties.paths.testData() + "apps/ApiDemos-debug.apk");
+//        SHAFT.Properties.mobile.set().app("src/test/resources/testDataFiles/apps/ApiDemos-debug.apk");
 
         // remote browserstack server (new app version)
 //        SHAFT.Properties.platform.set().executionAddress("browserstack");
 //        SHAFT.Properties.browserStack.set().platformVersion("13.0");
 //        SHAFT.Properties.browserStack.set().deviceName("Google Pixel 7");
 //        SHAFT.Properties.browserStack.set().appName("ApiDemos-debug.apk");
-//        SHAFT.Properties.browserStack.set().appRelativeFilePath(System.getProperty("testDataFolderPath")+"apps/ApiDemos-debug.apk");
+//        SHAFT.Properties.browserStack.set().appRelativeFilePath("src/test/resources/testDataFiles/apps/ApiDemos-debug.apk");
 //        SHAFT.Properties.browserStack.set().appUrl("");
 
         // remote browserstack server (existing app version)

@@ -177,7 +177,7 @@ jobs:
           check-latest: true
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test -DexecutionAddress="browserstack" -DtargetOperatingSystem="ANDROID" -Dmobile_automationName="UIAutomator2" -Dmobile_appWaitActivity="*" -Dmobile_disableWindowAnimation="true" -DbrowserStack.platformVersion="11.0" -DbrowserStack.deviceName="Google Pixel 4" -DbrowserStack.appName="ApiDemos-debug.apk" -DbrowserStack.appRelativeFilePath="src/test/resources/testDataFiles/apps/ApiDemos-debug.apk" -DbrowserStack.appUrl=" " -DgenerateAllureReportArchive="true" -Dtest="%regex[.*android.*]"
+        run: mvn -e test -DexecutionAddress="browserstack" -DtargetOperatingSystem="ANDROID" -Dmobile_automationName="UIAutomator2" -DbrowserStack.platformVersion="13.0" -DbrowserStack.deviceName="Google Pixel 7" -DbrowserStack.appName="ApiDemos-debug.apk" -DbrowserStack.appRelativeFilePath="src/test/resources/testDataFiles/apps/ApiDemos-debug.apk" -DbrowserStack.appUrl=" " -DgenerateAllureReportArchive="true" -Dtest="%regex[.*android.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:

@@ -1,5 +1,6 @@
 package io.github.shafthq.shaft.gui.element;
 
+import com.google.common.base.Throwables;
 import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.TouchActions;
@@ -10,9 +11,14 @@ import io.github.shafthq.shaft.validations.helpers.WebDriverElementValidationsBu
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.ui.Select;
+import org.openqa.selenium.support.ui.UnexpectedTagNameException;
 
 import java.util.List;
 import java.util.Map;
+
+import static io.github.shafthq.shaft.gui.element.ElementActionsHelper.*;
 
 public class FluentElementActions {
     public FluentElementActions(WebDriver driver) {
@@ -79,7 +85,26 @@ public class FluentElementActions {
      * @return the selected text of the target webElement
      */
     public String getSelectedText(By elementLocator) {
-        return ElementActions.getSelectedText(DriverFactoryHelper.getDriver().get(), elementLocator);
+        try {
+            var elementName = getElementName(DriverFactoryHelper.getDriver().get(), elementLocator);
+            StringBuilder elementSelectedText = new StringBuilder();
+            try {
+                new Select(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1))).getAllSelectedOptions().forEach(selectedOption -> elementSelectedText.append(selectedOption.getText()));
+                passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementSelectedText.toString().trim(), null, elementName);
+                return elementSelectedText.toString().trim();
+            } catch (UnexpectedTagNameException rootCauseException) {
+                failAction(DriverFactoryHelper.getDriver().get(), elementLocator, rootCauseException);
+                return null;
+            }
+        } catch (Throwable throwable) {
+            // has to be throwable to catch assertion errors in case element was not found
+            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
+            } else {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+            }
+        }
+        return null;
     }
 
     /**
