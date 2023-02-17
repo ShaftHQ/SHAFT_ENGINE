@@ -76,7 +76,7 @@ public class ScreenshotManager {
         if (AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH.isEmpty()) {
             // fixes https://github.com/ShaftHQ/SHAFT_ENGINE/issues/808 by respecting OS/Platform information for mobile native
             AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH = Properties.paths.dynamicObjectRepository()
-                    + Properties.platform.targetOperatingSystem() + "/";
+                    + Properties.platform.targetPlatform() + "/";
             if (DriverFactoryHelper.isMobileNativeExecution()) {
                 if (!Properties.mobile.platformVersion().isEmpty()) {
                     AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH += Properties.mobile.platformVersion() + "/";
@@ -85,7 +85,7 @@ public class ScreenshotManager {
                 //mobile web, or desktop web
                 AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH += Properties.web.targetBrowserName() + "/";
             }
-            return AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH.replace(".", "_").replace(" ", "_").replace("-64", "");
+            return AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH.replace(".", "_").replace(" ", "_");
         } else {
             return AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH;
         }

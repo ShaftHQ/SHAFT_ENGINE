@@ -5,13 +5,13 @@ import com.shaft.driver.SHAFT;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Validations;
 import io.appium.java_client.AppiumBy;
-import io.github.shafthq.shaft.enums.OperatingSystems;
+import org.openqa.selenium.Platform;
 import org.openqa.selenium.WebDriver;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-public class IOSBasicInteractions_Test {
+public class iosBasicInteractionsTest {
     private WebDriver driver;
 
     @Test
@@ -29,7 +29,7 @@ public class IOSBasicInteractions_Test {
     @BeforeClass
     public void setup() {
         // common attributes
-        SHAFT.Properties.platform.set().targetOperatingSystem(OperatingSystems.IOS);
+        SHAFT.Properties.platform.set().targetPlatform(Platform.IOS.toString());
         SHAFT.Properties.mobile.set().automationName("XCUITest");
         System.setProperty("mobile_appWaitActivity", "*");
 

@@ -10,7 +10,7 @@ public class ProjectStructureManager {
     public static void initialize() {
         ReportManager.logDiscrete("Initializing Project Structure...");
         System.setProperty("disableLogging", "true");
-        if (Properties.platform.executionAddress().trim().equals("local")
+        if (Properties.platform.executionAddress().equals("local")
                 && !FileActions.getInstance().doesFileExist(Properties.paths.properties() + "ExecutionPlatform.properties")
                 && !Paths.get(System.getProperty("user.dir")).getFileName().toString().equals("SHAFT_Engine")) {
             FileActions.getInstance().createFolder(Properties.paths.properties());

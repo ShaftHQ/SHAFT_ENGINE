@@ -2,7 +2,6 @@ package io.github.shafthq.shaft.listeners.helpers;
 
 import com.shaft.driver.DriverFactory;
 import io.github.shafthq.shaft.driver.helpers.AppiumSelfManagementHelper;
-import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
 import io.github.shafthq.shaft.gui.image.ImageProcessingActions;
 import io.github.shafthq.shaft.properties.PropertiesHelper;
 import io.github.shafthq.shaft.tools.io.helpers.CheckpointCounter;
@@ -25,7 +24,6 @@ public class CucumberHelper {
             System.setProperty("disableLogging", "true");
             PropertiesHelper.initialize();
             ProjectStructureManager.initialize();
-            DriverFactoryHelper.initializeSystemProperties();
             TestNGListenerHelper.configureJVMProxy();
             GoogleTink.initialize();
             GoogleTink.decrypt();

@@ -169,7 +169,7 @@ public class BrowserActionsHelpers {
                                                                   String targetBrowserName, String targetOperatingSystem) {
         if ((!"local".equals(executionAddress) && !"GoogleChrome".equals(targetBrowserName))
                 || ("local".equals(executionAddress)
-                && !("GoogleChrome".equals(targetBrowserName) && "Mac-64".equals(targetOperatingSystem)))) {
+                && !("GoogleChrome".equals(targetBrowserName) && "Mac".equals(targetOperatingSystem)))) {
             try {
                 driver.manage().window().maximize();
                 Dimension currentWindowSize = driver.manage().window().getSize();

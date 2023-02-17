@@ -17,7 +17,7 @@ public class Test_threadSafe_grid4 {
     @SuppressWarnings({"CommentedOutCode", "EmptyMethod"})
     public void setupRemoteParallelExecution(){
 //        System.setProperty("executionAddress","localhost:4444");
-//        System.setProperty("targetOperatingSystem","Linux-64");
+//        System.setProperty("targetOperatingSystem","Linux");
 //        System.setProperty("maximumPerformanceMode","2");
     }
 

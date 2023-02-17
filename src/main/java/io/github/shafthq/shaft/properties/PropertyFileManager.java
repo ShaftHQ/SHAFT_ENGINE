@@ -10,6 +10,7 @@ import lombok.Getter;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.openqa.selenium.MutableCapabilities;
+import org.openqa.selenium.Platform;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -21,9 +22,9 @@ import java.util.Map;
 import java.util.Objects;
 
 public class PropertyFileManager {
-    private static final String OS_WINDOWS = "Windows-64";
-    private static final String OS_LINUX = "Linux-64";
-    private static final String OS_MAC = "Mac-64";
+    //    private static final String OS_WINDOWS = "Windows";
+//    private static final String OS_LINUX = "Linux";
+//    private static final String OS_MAC = "Mac";
     private static final String DEFAULT_PROPERTIES_FOLDER_PATH = "src/main/resources/properties/default";
     @Getter
     private static final String CUSTOM_PROPERTIES_FOLDER_PATH = "src/main/resources/properties";
@@ -67,11 +68,8 @@ public class PropertyFileManager {
             // This section set the default properties values for Execution/path/pattern
             readPropertyFiles(getDefaultPropertiesFolderPath());
 
-            overrideTargetOperatingSystemForLocalExecution();
             manageMaximumPerformanceMode();
-
             manageSafariBrowser();
-
             readPropertyFiles = false;
             ReportManagerHelper.setDiscreteLogging(isDiscrete);
         }
@@ -79,7 +77,7 @@ public class PropertyFileManager {
 
     private static void manageSafariBrowser() {
         if (SHAFT.Properties.web.targetBrowserName().equals(Browsers.SAFARI)) {
-            System.setProperty("screenshotParams_screenshotType", "element");
+            System.setProperty("screenshotParams_screenshotType", "Regular");
         }
     }
 
@@ -210,14 +208,13 @@ public class PropertyFileManager {
     }
 
     private static void overrideTargetOperatingSystemForLocalExecution() {
-        String targetOperatingSystemPropertyName = "targetOperatingSystem";
-        if (System.getProperty("executionAddress").trim().equals("local")) {
+        if ("local".equals(SHAFT.Properties.platform.executionAddress())) {
             if (SystemUtils.IS_OS_WINDOWS) {
-                System.setProperty(targetOperatingSystemPropertyName, OS_WINDOWS);
+                SHAFT.Properties.platform.set().targetPlatform(Platform.WINDOWS.toString());
             } else if (SystemUtils.IS_OS_LINUX) {
-                System.setProperty(targetOperatingSystemPropertyName, OS_LINUX);
+                SHAFT.Properties.platform.set().targetPlatform(Platform.LINUX.toString());
             } else if (SystemUtils.IS_OS_MAC) {
-                System.setProperty(targetOperatingSystemPropertyName, OS_MAC);
+                SHAFT.Properties.platform.set().targetPlatform(Platform.MAC.toString());
             }
         }
     }
