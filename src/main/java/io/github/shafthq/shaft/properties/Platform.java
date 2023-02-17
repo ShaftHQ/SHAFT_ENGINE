@@ -1,7 +1,6 @@
 package io.github.shafthq.shaft.properties;
 
 import com.shaft.tools.io.ReportManager;
-import io.github.shafthq.shaft.enums.OperatingSystems;
 import org.aeonbits.owner.Config.Sources;
 import org.aeonbits.owner.ConfigFactory;
 
@@ -20,8 +19,8 @@ public interface Platform extends EngineProperties {
     String executionAddress();
 
     @Key("targetOperatingSystem")
-    @DefaultValue(OperatingSystems.LINUX)
-    String targetOperatingSystem();
+    @DefaultValue("Linux")
+    String targetPlatform();
 
     @Key("com.SHAFT.proxySettings")
     @DefaultValue("")
@@ -52,7 +51,7 @@ public interface Platform extends EngineProperties {
         /**
          * @param value io.github.shafthq.shaft.enums.OperatingSystems
          */
-        public void targetOperatingSystem(String value) {
+        public void targetPlatform(String value) {
             setProperty("targetOperatingSystem", value);
         }
 

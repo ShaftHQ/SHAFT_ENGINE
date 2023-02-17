@@ -7,15 +7,6 @@
       "chromedriver_autodownload"
     ],
     "keep-alive-timeout": 1800,
-    "plugin": {
-      "device-farm": {
-        "platform": "both",
-        "remote": [
-          "http://hub-cloud.browserstack.com",
-          "http://127.0.0.1:4723"
-        ]
-      }
-    },
     "local-timezone": true,
     "log-no-colors": false,
     "log-timestamp": true,
@@ -29,6 +20,30 @@
       "device-farm",
       "appium-dashboard",
       "images"
-    ]
+    ],
+    "plugin": {
+      "device-farm": {
+        "platform": "both",
+        "remote": [
+          {
+            "cloudName": "browserstack",
+            "url": "http://hub-cloud.browserstack.com/wd/hub",
+            "devices": [
+              {
+                "deviceName": "Google Pixel 7",
+                "os_version": "13.0",
+                "platform": "android"
+              },
+              {
+                "deviceName": "iPhone 14",
+                "os_version": "16",
+                "platform": "ios"
+              }
+            ]
+          },
+          "http://127.0.0.1:4723"
+        ]
+      }
+    }
   }
 }

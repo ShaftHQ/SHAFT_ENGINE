@@ -1,30 +1,27 @@
 package testPackage.appium;
 
-import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
-import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.TouchActions;
-import com.shaft.validation.Validations;
 import io.appium.java_client.AppiumBy;
 import io.appium.java_client.android.Activity;
 import io.appium.java_client.android.AndroidDriver;
+import io.appium.java_client.remote.AutomationName;
 import org.openqa.selenium.By;
-import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.Platform;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.time.Duration;
 
-public class AndroidBasicInteractionsTest {
-    private WebDriver driver;
-    private SHAFT.GUI.WebDriver shaftDriver;
+public class androidBasicInteractionsTest {
+    private SHAFT.GUI.WebDriver driver;
     private final String PACKAGE = "io.appium.android.apis";
 
-    @Test(groups = {"Wizard"})
+    @Test
     public void wizard_scrollInExpandableLists_verticalScrolling_insideScreen() {
-        ((AndroidDriver) shaftDriver.getDriver()).runAppInBackground(Duration.ofSeconds(5));
-        shaftDriver.element().performTouchAction()
+        ((AndroidDriver) driver.getDriver()).runAppInBackground(Duration.ofSeconds(5));
+        driver.element().performTouchAction()
                 .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
                 .tap(AppiumBy.accessibilityId("Views"))
                 .swipeElementIntoView(AppiumBy.accessibilityId("Expandable Lists"), TouchActions.SwipeDirection.DOWN)
@@ -40,26 +37,9 @@ public class AndroidBasicInteractionsTest {
                 .swipeElementIntoView(By.xpath("//android.widget.TextView[@text='Group 1']"), TouchActions.SwipeDirection.UP);
     }
 
-    @BeforeMethod(onlyForGroups = {"Wizard"})
-    public void beforeMethod_wizard() {
-//        Properties.platform.setProperty("executionAddress", "0.0.0.0:4723");
-//        Properties.platform.setProperty("targetOperatingSystem", "Android");
-//        Properties.mobile.setProperty("mobile_automationName", "UIAutomator2");
-//        Properties.mobile.setProperty("mobile_appWaitActivity", "*");
-//        Properties.mobile.setProperty("mobile_disableWindowAnimation", "true");
-//        Properties.mobile.setProperty("mobile_app", Properties.paths.testData() + "apps/ApiDemos-debug.apk");
-
-        shaftDriver = new SHAFT.GUI.WebDriver();
-    }
-
-    @AfterMethod(onlyForGroups = {"Wizard"})
-    public void afterMethod_wizard() {
-        shaftDriver.quit();
-    }
-
-    @Test(groups = {"Legacy"})
+    @Test
     public void scrollInExpandableLists_verticalScrolling_insideScreen() {
-        ElementActions.performTouchAction(driver)
+        driver.touch()
                 .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
                 .tap(AppiumBy.accessibilityId("Views"))
                 .swipeElementIntoView(AppiumBy.accessibilityId("Expandable Lists"), TouchActions.SwipeDirection.DOWN)
@@ -72,9 +52,9 @@ public class AndroidBasicInteractionsTest {
                 .swipeElementIntoView(By.xpath("//android.widget.TextView[@text='Group 1']"), TouchActions.SwipeDirection.UP);
     }
 
-    @Test(groups = {"Legacy"})
+    @Test
     public void scrollInExpandableLists_verticalScrolling_insideElement(){
-        ElementActions.performTouchAction(driver)
+        driver.touch()
                 .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
                 .tap(AppiumBy.accessibilityId("Views"))
                 .swipeElementIntoView(AppiumBy.accessibilityId("Splitting Touches across Views"), TouchActions.SwipeDirection.DOWN)
@@ -85,9 +65,9 @@ public class AndroidBasicInteractionsTest {
                 .tap(By.xpath("//android.widget.ListView[2]/android.widget.TextView[@text='Abbaye de Belloc']"));
     }
 
-    @Test(groups = {"Legacy"})
+    @Test
     public void scrollInExpandableLists_verticalScrolling_insideElement2(){
-        ElementActions.performTouchAction(driver)
+        driver.touch()
                 .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
                 .tap(AppiumBy.accessibilityId("Views"))
                 .swipeElementIntoView(AppiumBy.accessibilityId("Splitting Touches across Views"), TouchActions.SwipeDirection.DOWN)
@@ -98,9 +78,9 @@ public class AndroidBasicInteractionsTest {
                 .tap(By.xpath("//android.widget.ListView[1]/android.widget.TextView[@text='Abbaye de Belloc']"));
     }
 
-    @Test(groups = {"Legacy"})
+    @Test
     public void scrollInExpandableLists_horizontalScrolling_insideElement(){
-        ElementActions.performTouchAction(driver)
+        driver.touch()
                 .swipeElementIntoView(AppiumBy.accessibilityId("Views"), TouchActions.SwipeDirection.DOWN)
                 .tap(AppiumBy.accessibilityId("Views"))
                 .swipeElementIntoView(AppiumBy.accessibilityId("Tabs"), TouchActions.SwipeDirection.DOWN)
@@ -113,96 +93,93 @@ public class AndroidBasicInteractionsTest {
                 .tap(By.xpath("//android.widget.HorizontalScrollView//android.widget.TextView[@text='TAB 1']"));
     }
 
-    @Test(groups = {"Legacy"})
+    @Test
     public void visualElementIdentification_samedpi() {
-        ElementActions.performTouchAction(driver)
+        driver.touch()
                 .swipeElementIntoView("src/main/resources/dynamicObjectRepository/Android/content.png", TouchActions.SwipeDirection.DOWN)
                 .tap("src/main/resources/dynamicObjectRepository/Android/content.png");
-        Validations.assertThat()
-                .element(driver, AppiumBy.accessibilityId("Assets"))
-                .exists()
-                .perform();
+
+        driver.assertThat().element(AppiumBy.accessibilityId("Assets")).exists().perform();
     }
 
-    //@Test(groups = {"Legacy"})
+    //    @Test
     public void visualElementIdentification_requiresProcessing() {
-        ElementActions.performTouchAction(driver)
+        driver.touch()
                 .swipeElementIntoView("src/main/resources/dynamicObjectRepository/content2.png", TouchActions.SwipeDirection.DOWN)
                 .tap("src/main/resources/dynamicObjectRepository/content2.png");
-        Validations.assertThat()
-                .element(driver, AppiumBy.accessibilityId("Assets"))
-                .exists()
-                .perform();
+
+        driver.assertThat().element(AppiumBy.accessibilityId("Assets")).exists().perform();
     }
 
-    @Test(groups = {"Legacy"})
+    @Test
     public void testSendKeys() {
         String SEARCH_ACTIVITY = ".app.SearchInvoke";
-        ((AndroidDriver) driver).startActivity(new Activity(PACKAGE, SEARCH_ACTIVITY));
-            ElementActions.type(driver, By.id("txt_query_prefill"), "Hello world!");
-            ElementActions.performTouchAction(driver).tap(By.id("btn_start_search"));
-            Validations.assertThat()
-                    .element(driver, By.id("android:id/search_src_text"))
-                    .text()
-                    .isEqualTo("Hello world!")
-                    .perform();
+        ((AndroidDriver) driver.getDriver()).startActivity(new Activity(PACKAGE, SEARCH_ACTIVITY));
+
+        driver.element().type(By.id("txt_query_prefill"), "Hello world!")
+                .and().touch().tap(By.id("btn_start_search"))
+                .and().assertThat(By.id("android:id/search_src_text")).text().isEqualTo("Hello world!").perform();
     }
 
-    @Test(groups = {"Legacy"})
+    @Test
     public void testOpensAlert() {
         // Open the "Alert Dialog" activity of the android app
         String ALERT_DIALOG_ACTIVITY = ".app.AlertDialogSamples";
-        ((AndroidDriver) driver).startActivity(new Activity(PACKAGE, ALERT_DIALOG_ACTIVITY));
+        ((AndroidDriver) driver.getDriver()).startActivity(new Activity(PACKAGE, ALERT_DIALOG_ACTIVITY));
 
         // Click button that opens a dialog
-        ElementActions.performTouchAction(driver).tap(By.id("io.appium.android.apis:id/two_buttons"));
+        driver.element().touch().tap(By.id("io.appium.android.apis:id/two_buttons"));
 
         // Check that the dialog is there
-        Validations.verifyThat()
-                .element(driver, By.id("android:id/alertTitle"))
+        driver.verifyThat()
+                .element(By.id("android:id/alertTitle"))
                 .text()
                 .isEqualTo("Lorem ipsum dolor sit aie consectetur adipiscing\nPlloaso mako nuto siwuf cakso dodtos anr koop.")
                 .perform();
 
         // Close the dialog
-        ElementActions.performTouchAction(driver).tap(By.id("android:id/button1"));
+        driver.element().touch().tap(By.id("android:id/button1"));
     }
 
     @SuppressWarnings("CommentedOutCode")
-    @BeforeMethod(onlyForGroups = {"Legacy"})
+    @BeforeMethod
     public void setup() {
         // common attributes
-        System.setProperty("targetOperatingSystem", "Android");
-        System.setProperty("mobile_automationName", "UIAutomator2");
+        SHAFT.Properties.platform.set().targetPlatform(Platform.ANDROID.name());
+        SHAFT.Properties.mobile.set().automationName(AutomationName.ANDROID_UIAUTOMATOR2);
 
-        // local appium server (for local and github actions execution)
-        System.setProperty("executionAddress", "0.0.0.0:4723");
-        System.setProperty("mobile_app", SHAFT.Properties.paths.testData() + "apps/ApiDemos-debug.apk");
+        // self-managed execution
+//        SHAFT.Properties.mobile.set().selfManaged(true);
+//        SHAFT.Properties.mobile.set().selfManagedAndroidSDKVersion(31);
+
+        // local appium server (for local and GitHub actions execution)
+        SHAFT.Properties.platform.set().executionAddress("localhost:4723");
+        SHAFT.Properties.mobile.set().app("src/test/resources/testDataFiles/apps/ApiDemos-debug.apk");
 
         // local appium server (android-emulator docker-compose)
-//        System.setProperty("executionAddress", "localhost:4725");
-//        System.setProperty("mobile_app", SHAFT.Properties.paths.testData()+"apps/ApiDemos-debug.apk");
+//        SHAFT.Properties.platform.set().executionAddress("localhost:4725");
+//        SHAFT.Properties.mobile.set().app("src/test/resources/testDataFiles/apps/ApiDemos-debug.apk");
 
         // remote browserstack server (new app version)
-//        System.setProperty("executionAddress", "browserstack");
-//        System.setProperty("browserStack.platformVersion", "11.0");
-//        System.setProperty("browserStack.deviceName", "Google Pixel 4");
-//        System.setProperty("browserStack.appName", "ApiDemos-debug.apk");
-//        System.setProperty("browserStack.appRelativeFilePath", System.getProperty("testDataFolderPath")+"apps/ApiDemos-debug.apk");
-//        System.setProperty("browserStack.appUrl", "");
+//        SHAFT.Properties.platform.set().executionAddress("browserstack");
+//        SHAFT.Properties.browserStack.set().platformVersion("13.0");
+//        SHAFT.Properties.browserStack.set().deviceName("Google Pixel 7");
+//        SHAFT.Properties.browserStack.set().appName("ApiDemos-debug.apk");
+//        SHAFT.Properties.browserStack.set().appRelativeFilePath("src/test/resources/testDataFiles/apps/ApiDemos-debug.apk");
+//        SHAFT.Properties.browserStack.set().appUrl("");
 
         // remote browserstack server (existing app version)
-//        System.setProperty("executionAddress", "browserstack");
-//        System.setProperty("browserStack.platformVersion", "13.0");
-//        System.setProperty("browserStack.deviceName", "Google Pixel 7");
-//        System.setProperty("browserStack.appName", "ApiDemos-debug.apk");
-//        System.setProperty("browserStack.appRelativeFilePath", "");
-//        System.setProperty("browserStack.appUrl", "bs://e744ef24a081b0d4cb5f9699a5dd69d6a3a2dbce");
-        driver = DriverFactory.getDriver();
+//        SHAFT.Properties.platform.set().executionAddress("browserstack");
+//        SHAFT.Properties.browserStack.set().platformVersion("13.0");
+//        SHAFT.Properties.browserStack.set().deviceName("Google Pixel 7");
+//        SHAFT.Properties.browserStack.set().appName("ApiDemos-debug.apk");
+//        SHAFT.Properties.browserStack.set().appRelativeFilePath("");
+//        SHAFT.Properties.browserStack.set().appUrl("bs://e744ef24a081b0d4cb5f9699a5dd69d6a3a2dbce");
+        driver = new SHAFT.GUI.WebDriver();
     }
 
-    @AfterMethod(onlyForGroups = {"Legacy"})
+    @AfterMethod
     public void teardown() {
-        DriverFactory.closeAllDrivers();
+        driver.quit();
     }
 }

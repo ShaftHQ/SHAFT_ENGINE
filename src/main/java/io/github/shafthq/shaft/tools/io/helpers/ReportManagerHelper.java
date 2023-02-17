@@ -186,9 +186,15 @@ public class ReportManagerHelper {
         ReportHelper.enableLogging();
     }
 
-    public static void logEngineVersion() {
+    private static void initializeLogger() {
         Configurator.initialize(null, PropertyFileManager.getCUSTOM_PROPERTIES_FOLDER_PATH() + "/log4j2.properties");
         logger = LogManager.getLogger(ReportManager.class.getName());
+    }
+
+    public static void logEngineVersion() {
+        if (logger == null) {
+            initializeLogger();
+        }
         System.setErr(new PrintStream(new LogRedirector(logger, Level.WARN)));
         System.setOut(new PrintStream(new LogRedirector(logger, Level.INFO)));
         String engineVersion = "Powered by "
@@ -510,6 +516,9 @@ public class ReportManagerHelper {
             }
             String log = REPORT_MANAGER_PREFIX + logText.trim() + " @" + timestamp;
             Reporter.log(log, false);
+            if (logger == null) {
+                initializeLogger();
+            }
             logger.log(loglevel, logText.trim());
         }
     }
@@ -527,6 +536,9 @@ public class ReportManagerHelper {
             }
 
             if (addToConsoleLog) {
+                if (logger == null) {
+                    initializeLogger();
+                }
                 logger.log(Level.INFO, logText.trim());
             }
         }
@@ -567,6 +579,9 @@ public class ReportManagerHelper {
                 createSeparator('-');
 
         Reporter.log(log, false);
+        if (logger == null) {
+            initializeLogger();
+        }
         logger.log(Level.INFO, log);
         setDiscreteLogging(initialLoggingStatus);
     }
@@ -625,12 +640,15 @@ public class ReportManagerHelper {
     }
 
     private static void createAttachment(String attachmentType, String attachmentName, InputStream attachmentContent) {
-        if (attachmentContent != null && Boolean.FALSE.equals(Boolean.parseBoolean(System.getProperty("disableLogging")))) {
+        if (attachmentContent != null) {
             var baos = new ByteArrayOutputStream();
             try {
                 attachmentContent.transferTo(baos);
             } catch (IOException e) {
                 var error = "Error while creating Attachment";
+                if (logger == null) {
+                    initializeLogger();
+                }
                 logger.info(error, e);
                 Reporter.log(error, false);
             }
@@ -693,6 +711,9 @@ public class ReportManagerHelper {
             if (!theString.isEmpty()) {
                 String logEntry = REPORT_MANAGER_PREFIX + "Debugging Attachment Entry" + " @" + timestamp
                         + System.lineSeparator() + theString + System.lineSeparator();
+                if (logger == null) {
+                    initializeLogger();
+                }
                 logger.info(logEntry);
             }
         }
@@ -1000,5 +1021,19 @@ public class ReportManagerHelper {
 
     public static void logDiscrete(Throwable t) {
         createLogEntry(formatStackTraceToLogEntry(t), Level.ERROR);
+    }
+
+    public static void logDiscrete(Throwable t, org.apache.logging.log4j.Level logLevel) {
+        createLogEntry(formatStackTraceToLogEntry(t), logLevel);
+    }
+
+    /**
+     * Creates a custom log entry that will not be added as a step in the execution report, but you can see it in the attached execution log txt file
+     *
+     * @param logText  the text that will be logged by action
+     * @param logLevel Level.ERROR, TRACE, INFO, WARN, DEBUG, FATAL
+     */
+    public static void logDiscrete(String logText, org.apache.logging.log4j.Level logLevel) {
+        createLogEntry(logText, logLevel);
     }
 }

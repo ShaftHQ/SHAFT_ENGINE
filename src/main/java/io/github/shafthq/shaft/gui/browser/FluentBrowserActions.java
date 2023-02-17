@@ -4,7 +4,9 @@ import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.TouchActions;
 import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
+import io.github.shafthq.shaft.driver.helpers.WizardHelpers;
 import io.github.shafthq.shaft.gui.element.FluentElementActions;
+import io.github.shafthq.shaft.validations.helpers.WebDriverBrowserValidationsBuilder;
 import org.openqa.selenium.Cookie;
 import org.openqa.selenium.WebDriver;
 
@@ -28,6 +30,30 @@ public class FluentBrowserActions {
 
     public FluentElementActions performElementAction() {
         return new FluentElementActions();
+    }
+
+    public TouchActions touch() {
+        return new TouchActions();
+    }
+
+    public AlertActions alert() {
+        return new AlertActions();
+    }
+
+    public FluentElementActions element() {
+        return new FluentElementActions();
+    }
+
+    public FluentBrowserActions and() {
+        return this;
+    }
+
+    public WebDriverBrowserValidationsBuilder assertThat() {
+        return new WizardHelpers.WebDriverAssertions(DriverFactoryHelper.getDriver()).browser();
+    }
+
+    public WebDriverBrowserValidationsBuilder verifyThat() {
+        return new WizardHelpers.WebDriverVerifications(DriverFactoryHelper.getDriver()).browser();
     }
 
     /**

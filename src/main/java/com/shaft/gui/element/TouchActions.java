@@ -9,10 +9,12 @@ import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
+import io.github.shafthq.shaft.driver.helpers.WizardHelpers;
 import io.github.shafthq.shaft.gui.element.ElementActionsHelper;
 import io.github.shafthq.shaft.gui.element.FluentElementActions;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.validations.helpers.WebDriverElementValidationsBuilder;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.*;
 
@@ -51,6 +53,22 @@ public class TouchActions {
      */
     public FluentElementActions performElementAction() {
         return new FluentElementActions(DriverFactoryHelper.getDriver().get());
+    }
+
+    public FluentElementActions element() {
+        return new FluentElementActions(DriverFactoryHelper.getDriver().get());
+    }
+
+    public TouchActions and() {
+        return this;
+    }
+
+    public WebDriverElementValidationsBuilder assertThat(By elementLocator) {
+        return new WizardHelpers.WebDriverAssertions(DriverFactoryHelper.getDriver()).element(elementLocator);
+    }
+
+    public WebDriverElementValidationsBuilder verifyThat(By elementLocator) {
+        return new WizardHelpers.WebDriverVerifications(DriverFactoryHelper.getDriver()).element(elementLocator);
     }
 
     /**

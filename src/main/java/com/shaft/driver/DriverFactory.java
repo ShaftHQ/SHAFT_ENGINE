@@ -8,7 +8,6 @@ import com.shaft.db.DatabaseActions.DatabaseType;
 import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
 import io.github.shafthq.shaft.listeners.TestNGListener;
-import io.github.shafthq.shaft.properties.PropertiesHelper;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.WebDriver;
 import org.sikuli.script.App;
@@ -65,11 +64,10 @@ public class DriverFactory {
 
     /**
      * override properties with test suite properties
-     * read testng properties (enables modifying the test execution properties programatically)
+     * read testng properties (enables modifying the test execution properties programmatically)
      * used to duplicate the tests for each browser in case of cross-browser Execution
      */
     private static void readLastMinuteUpdatedProperties() {
-        PropertiesHelper.loadProperties();
         // it's null in case of Cucumber native feature file execution
         if (TestNGListener.getXmlTest() != null) {
             System.getProperties().putAll(TestNGListener.getXmlTest().getAllParameters());
@@ -83,29 +81,32 @@ public class DriverFactory {
      * @return a new Selenium WebDriver instance using BrowserStack
      */
     private static WebDriver getBrowserStackDriver(MutableCapabilities browserStackOptions) {
-        String appUrl = System.getProperty("browserStack.appUrl");
+        String appUrl = SHAFT.Properties.browserStack.appUrl();
         if ("".equals(appUrl)) {
             // new native app OR web execution
-            if ("".equals(System.getProperty("browserStack.appRelativeFilePath"))){
+            if ("".equals(SHAFT.Properties.browserStack.appRelativeFilePath())) {
                 // this means it's a web execution (desktop or mobile)
-                browserStackOptions = BrowserStack.setupDesktopWebExecution().merge(browserStackOptions);
-                // TODO: support web mobile execution
+                if (DriverFactoryHelper.isMobileWebExecution()) {
+                    // TODO: support web mobile execution
+                    browserStackOptions = BrowserStack.setupMobileWebExecution().merge(browserStackOptions);
+                } else {
+                    // desktop web
+                    browserStackOptions = BrowserStack.setupDesktopWebExecution().merge(browserStackOptions);
+                }
                 DriverFactoryHelper.initializeDriver(browserStackOptions);
-                return DriverFactoryHelper.getDriver().get();
-            }else {
+            } else {
                 // this is the new native app scenario
-                browserStackOptions = BrowserStack.setupNativeAppExecution(System.getProperty("browserStack.username"), System.getProperty("browserStack.accessKey"),
-                        System.getProperty("browserStack.deviceName"), System.getProperty("browserStack.platformVersion"), System.getProperty("browserStack.appRelativeFilePath"), System.getProperty("browserStack.appName")).merge(browserStackOptions);
+                browserStackOptions = BrowserStack.setupNativeAppExecution(SHAFT.Properties.browserStack.username(), SHAFT.Properties.browserStack.accessKey(),
+                        SHAFT.Properties.browserStack.deviceName(), SHAFT.Properties.browserStack.platformVersion(), SHAFT.Properties.browserStack.appRelativeFilePath(), SHAFT.Properties.browserStack.appName()).merge(browserStackOptions);
                 DriverFactoryHelper.initializeDriver(DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
-                return DriverFactoryHelper.getDriver().get();
             }
         } else {
             // this is the existing version from a native app scenario
-            browserStackOptions = BrowserStack.setupNativeAppExecution(System.getProperty("browserStack.username"), System.getProperty("browserStack.accessKey"),
-                    System.getProperty("browserStack.deviceName"), System.getProperty("browserStack.platformVersion"), appUrl).merge(browserStackOptions);
+            browserStackOptions = BrowserStack.setupNativeAppExecution(SHAFT.Properties.browserStack.username(), SHAFT.Properties.browserStack.accessKey(),
+                    SHAFT.Properties.browserStack.deviceName(), SHAFT.Properties.browserStack.platformVersion(), appUrl).merge(browserStackOptions);
             DriverFactoryHelper.initializeDriver(DriverType.APPIUM_MOBILE_NATIVE, browserStackOptions);
-            return DriverFactoryHelper.getDriver().get();
         }
+        return DriverFactoryHelper.getDriver().get();
 
     }
 
@@ -147,7 +148,7 @@ public class DriverFactory {
      * Creates a new Database driver instance to facilitate using the Database Actions Library
      *
      * @param databaseType database type that you want to connect with:
-     *                     DatabaseType.MY_SQL ,SQL_SERVER,POSTGRE_SQL.
+     *                     DatabaseType.MY_SQL ,SQL_SERVER,POSTGRES_SQL.
      * @param ip           IP address that has database installation that we need to
      *                     connect to (e.g. 72.55.136.25)
      * @param port         port of database installation on the server (e.g. 3306)
@@ -183,8 +184,8 @@ public class DriverFactory {
      */
     public enum DriverType {
         SIKULI("SikuliActions"), BROWSERSTACK("BrowserStack"), DATABASE("DatabaseActions"), TERMINAL("TerminalActions"), API("RestActions"), DESKTOP_FIREFOX("MozillaFirefox"), DESKTOP_CHROME("GoogleChrome"), DESKTOP_SAFARI("Safari"),
-        DESKTOP_INTERNET_EXPLORER("MicrosoftInternetExplorer"), DESKTOP_EDGE("MicrosoftEdge"), DESKTOP_CHROMIUM("Chromium"), DESKTOP_WEBKIT("Webkit"), APPIUM_CHROME("Chrome"),
-        APPIUM_CHROMIUM("Chromium"), APPIUM_BROWSER("Browser"), APPIUM_MOBILE_NATIVE("NativeMobileApp");
+        DESKTOP_INTERNET_EXPLORER("MicrosoftInternetExplorer"), DESKTOP_EDGE("MicrosoftEdge"), DESKTOP_CHROMIUM("Chromium"), DESKTOP_WEBKIT("Webkit"), APPIUM_CHROME("chrome"),
+        APPIUM_CHROMIUM("Chromium"), APPIUM_BROWSER("Browser"), APPIUM_SAMSUNG_BROWSER("samsung"), APPIUM_MOBILE_NATIVE("NativeMobileApp");
 
         private final String value;
 

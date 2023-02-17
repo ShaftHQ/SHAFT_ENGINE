@@ -1,7 +1,6 @@
 package io.github.shafthq.shaft.listeners;
 
 import io.github.shafthq.shaft.driver.helpers.AppiumSelfManagementHelper;
-import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
 import io.github.shafthq.shaft.gui.image.ImageProcessingActions;
 import io.github.shafthq.shaft.listeners.helpers.JiraHelper;
 import io.github.shafthq.shaft.listeners.helpers.RetryAnalyzer;
@@ -40,7 +39,6 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         Reporter.setEscapeHtml(false);
         PropertiesHelper.initialize();
         ProjectStructureManager.initialize();
-        DriverFactoryHelper.initializeSystemProperties();
         TestNGListenerHelper.configureJVMProxy();
         GoogleTink.initialize();
         GoogleTink.decrypt();

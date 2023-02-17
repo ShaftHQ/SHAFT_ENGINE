@@ -2,7 +2,6 @@ package io.github.shafthq.shaft.properties;
 
 import com.shaft.cli.FileActions;
 import com.shaft.tools.io.ReportManager;
-import io.github.shafthq.shaft.enums.OperatingSystems;
 import org.aeonbits.owner.ConfigFactory;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SystemUtils;
@@ -35,32 +34,30 @@ public class PropertiesHelper {
         Properties.web = ConfigFactory.create(Web.class);
         Properties.mobile = ConfigFactory.create(Mobile.class);
         Properties.browserStack = ConfigFactory.create(BrowserStack.class);
-
-        //TODO: post-processing based on loaded properties
-        postProcessing();
     }
 
-    private static void postProcessing() {
+    public static void postProcessing() {
         overrideTargetOperatingSystemForLocalExecution();
         setMobilePlatform();
     }
 
     private static void overrideTargetOperatingSystemForLocalExecution() {
-        if (Properties.platform.executionAddress().equals("local")) {
+        var executionAddress = Properties.platform.executionAddress();
+        if (executionAddress.equals("local")) {
             if (SystemUtils.IS_OS_WINDOWS) {
-                Properties.platform.set().targetOperatingSystem(OperatingSystems.WINDOWS);
+                Properties.platform.set().targetPlatform(org.openqa.selenium.Platform.WINDOWS.toString());
             } else if (SystemUtils.IS_OS_LINUX) {
-                Properties.platform.set().targetOperatingSystem(OperatingSystems.LINUX);
+                Properties.platform.set().targetPlatform(org.openqa.selenium.Platform.LINUX.toString());
             } else if (SystemUtils.IS_OS_MAC) {
-                Properties.platform.set().targetOperatingSystem(OperatingSystems.MACOS);
+                Properties.platform.set().targetPlatform(org.openqa.selenium.Platform.MAC.toString());
             }
         }
     }
 
     public static void setMobilePlatform() {
-        String targetOperatingSystem = Properties.platform.targetOperatingSystem();
+        String targetOperatingSystem = Properties.platform.targetPlatform();
         if (Arrays.asList("Android", "iOS").contains(targetOperatingSystem)) {
-            Properties.mobile.set().platformName(Properties.platform.targetOperatingSystem().toLowerCase());
+            Properties.mobile.set().platformName(Properties.platform.targetPlatform().toLowerCase());
         }
     }
 

@@ -14,7 +14,6 @@ import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.Select;
-import org.openqa.selenium.support.ui.UnexpectedTagNameException;
 import org.sikuli.script.App;
 
 import java.nio.file.FileSystems;
@@ -495,26 +494,7 @@ public class ElementActions extends FluentElementActions {
      */
     @Deprecated
     public static String getSelectedText(WebDriver driver, By elementLocator) {
-        try {
-            var elementName = getElementName(driver, elementLocator);
-            StringBuilder elementSelectedText = new StringBuilder();
-            try {
-                new Select(((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1))).getAllSelectedOptions().forEach(selectedOption -> elementSelectedText.append(selectedOption.getText()));
-                passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementSelectedText.toString().trim(), null, elementName);
-                return elementSelectedText.toString().trim();
-            } catch (UnexpectedTagNameException rootCauseException) {
-                failAction(driver, elementLocator, rootCauseException);
-                return null;
-            }
-        } catch (Throwable throwable) {
-            // has to be throwable to catch assertion errors in case element was not found
-            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
-            } else {
-                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
-            }
-        }
-        return null;
+        return new FluentElementActions().getSelectedText(elementLocator);
     }
 
     /**

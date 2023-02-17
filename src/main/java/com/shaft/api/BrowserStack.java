@@ -21,7 +21,7 @@ public class BrowserStack {
 
     /**
      * Use this method to set up all the needed capabilities to be able to upload and test the latest version of your native application.
-     * You can refer to the getting started guide for BrowserStack App Automate to get all the needed information here https://app-automate.browserstack.com/dashboard/v2/getting-started
+     * You can refer to the getting started guide for BrowserStack App Automate to get all the needed information here <a href="https://app-automate.browserstack.com/dashboard/v2/getting-started">BrowserStack: Getting Started</a>
      *
      * @param username              Your BrowserStack username
      * @param password              Your BrowserStack password
@@ -72,7 +72,7 @@ public class BrowserStack {
 
     /**
      * Use this method to set up all the needed capabilities to be able to test an already uploaded version of your native application.
-     * You can refer to the getting started guide for BrowserStack App Automate to get all the needed information here https://app-automate.browserstack.com/dashboard/v2/getting-started
+     * You can refer to the getting started guide for BrowserStack App Automate to get all the needed information here <a href="https://app-automate.browserstack.com/dashboard/v2/getting-started">BrowserStack: Getting Started</a>
      *
      * @param username   Your BrowserStack username
      * @param password   Your BrowserStack password
@@ -89,35 +89,58 @@ public class BrowserStack {
         return browserStackCapabilities;
     }
 
-    public static MutableCapabilities setupDesktopWebExecution(){
-        ReportManager.logDiscrete("Setting up BrowserStack configuration for desktop web execution...");
-        String username = System.getProperty("browserStack.username");
-        String password = System.getProperty("browserStack.accessKey");
-        String os = System.getProperty("targetOperatingSystem");
-        String osVersion = System.getProperty("browserStack.osVersion");
+    public static MutableCapabilities setupMobileWebExecution() {
+        ReportManager.logDiscrete("Setting up BrowserStack configuration for mobile web execution...");
+        String username = SHAFT.Properties.browserStack.username();
+        String password = SHAFT.Properties.browserStack.accessKey();
+        String os = SHAFT.Properties.platform.targetPlatform();
+        String osVersion = SHAFT.Properties.browserStack.osVersion();
 
         String testData = "Username: " + username + ", Password: " + password + ", Operating System: " + os + ", Operating System Version: " + osVersion;
         // set properties
-        System.setProperty("executionAddress", username + ":" + password + "@" + hubUrl);
-        System.setProperty("browserName", System.getProperty("targetBrowserName"));
+        SHAFT.Properties.platform.set().executionAddress(username + ":" + password + "@" + hubUrl);
 
         MutableCapabilities browserStackCapabilities = new MutableCapabilities();
-        var browserVersion = System.getProperty("browserStack.browserVersion");
-        if (browserVersion!=null && !"".equals(browserVersion.trim())) {
-            browserStackCapabilities.setCapability("browserVersion", System.getProperty("browserStack.browserVersion"));
+        HashMap<String, Object> browserstackOptions = new HashMap<>();
+        browserstackOptions.put("osVersion", osVersion);
+        browserstackOptions.put("local", SHAFT.Properties.browserStack.local());
+        browserstackOptions.put("appiumVersion", SHAFT.Properties.browserStack.appiumVersion());
+        browserstackOptions.put("deviceName", SHAFT.Properties.browserStack.deviceName());
+        browserStackCapabilities.setCapability("bstack:options", browserstackOptions);
+
+        passAction(testData);
+        return browserStackCapabilities;
+    }
+
+    public static MutableCapabilities setupDesktopWebExecution() {
+        ReportManager.logDiscrete("Setting up BrowserStack configuration for desktop web execution...");
+        String username = SHAFT.Properties.browserStack.username();
+        String password = SHAFT.Properties.browserStack.accessKey();
+        String os = SHAFT.Properties.platform.targetPlatform();
+        String osVersion = SHAFT.Properties.browserStack.osVersion();
+
+        String testData = "Username: " + username + ", Password: " + password + ", Operating System: " + os + ", Operating System Version: " + osVersion;
+        // set properties
+        SHAFT.Properties.platform.set().executionAddress(username + ":" + password + "@" + hubUrl);
+        System.setProperty("browserName", SHAFT.Properties.web.targetBrowserName());
+
+        MutableCapabilities browserStackCapabilities = new MutableCapabilities();
+        var browserVersion = SHAFT.Properties.browserStack.browserVersion();
+        if (browserVersion != null && !"".equals(browserVersion.trim())) {
+            browserStackCapabilities.setCapability("browserVersion", SHAFT.Properties.browserStack.browserVersion());
         }
         HashMap<String, Object> browserstackOptions = new HashMap<>();
-        if (os.toLowerCase().contains("mac")){
+        if (os.toLowerCase().contains("mac")) {
             browserstackOptions.put("os", "OS X");
-        } else if (os.toLowerCase().contains("windows")){
+        } else if (os.toLowerCase().contains("windows")) {
             browserstackOptions.put("os", "Windows");
         }
         browserstackOptions.put("osVersion", osVersion);
-        browserstackOptions.put("local", System.getProperty("browserStack.local"));
-        browserstackOptions.put("seleniumVersion", System.getProperty("browserStack.seleniumVersion"));
-        String geoLocation = System.getProperty("browserStack.geoLocation");
-        if (geoLocation!= null && !"".equals(geoLocation)) {
-            browserstackOptions.put("geoLocation", System.getProperty("browserStack.geoLocation"));
+        browserstackOptions.put("local", SHAFT.Properties.browserStack.local());
+        browserstackOptions.put("seleniumVersion", SHAFT.Properties.browserStack.seleniumVersion());
+        String geoLocation = SHAFT.Properties.browserStack.geoLocation();
+        if (geoLocation != null && !"".equals(geoLocation)) {
+            browserstackOptions.put("geoLocation", SHAFT.Properties.browserStack.geoLocation());
         }
         browserStackCapabilities.setCapability("bstack:options", browserstackOptions);
 
@@ -132,10 +155,10 @@ public class BrowserStack {
         SHAFT.Properties.mobile.set().app(appUrl);
         MutableCapabilities browserStackCapabilities = new MutableCapabilities();
         HashMap<String, Object> browserstackOptions = new HashMap<>();
-        browserstackOptions.put("appiumVersion", System.getProperty("browserStack.appiumVersion"));
-        browserstackOptions.put("acceptInsecureCerts", System.getProperty("browserStack.acceptInsecureCerts"));
-        browserstackOptions.put("debug", System.getProperty("browserStack.debug"));
-        browserstackOptions.put("networkLogs", System.getProperty("browserStack.networkLogs"));
+        browserstackOptions.put("appiumVersion", SHAFT.Properties.browserStack.appiumVersion());
+        browserstackOptions.put("acceptInsecureCerts", SHAFT.Properties.browserStack.acceptInsecureCerts());
+        browserstackOptions.put("debug", SHAFT.Properties.browserStack.debug());
+        browserstackOptions.put("networkLogs", SHAFT.Properties.browserStack.networkLogs());
         browserStackCapabilities.setCapability("bstack:options", browserstackOptions);
         return browserStackCapabilities;
     }

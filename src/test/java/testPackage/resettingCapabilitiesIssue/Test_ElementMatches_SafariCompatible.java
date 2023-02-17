@@ -21,7 +21,7 @@ public class Test_ElementMatches_SafariCompatible {
     public void beforeMethod(){
         // remote browserstack server
 //        System.setProperty("executionAddress","browserstack");
-//        System.setProperty("targetOperatingSystem","Mac-64");
+//        System.setProperty("targetOperatingSystem","Mac");
 //        System.setProperty("targetBrowserName","Safari");
 //        System.setProperty("browserStack.browserVersion","15.3");
 //        System.setProperty("browserStack.osVersion", "Monterey");
