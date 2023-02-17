@@ -52,6 +52,7 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
         with:
+          check_name: Ubuntu_Firefox_Grid Test Results
           files: |
             target/surefire-reports/TEST-*.xml
 
@@ -98,6 +99,7 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
         with:
+          check_name: Ubuntu_Chrome_Grid Test Results
           files: |
             target/surefire-reports/TEST-*.xml
 
@@ -144,9 +146,10 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
         with:
+          check_name: Ubuntu_Edge_Grid Test Results
           files: |
             target/surefire-reports/TEST-*.xml
-  
+
   Windows_Edge_Local:
     runs-on: windows-latest
     timeout-minutes: 60
@@ -186,6 +189,7 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action/composite@v2
         if: always()
         with:
+          check_name: Windows_Edge_Local Test Results
           files: |
             target/surefire-reports/TEST-*.xml
 
@@ -228,6 +232,7 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action/composite@v2
         if: always()
         with:
+          check_name: Windows_Chrome_Local Test Results
           files: |
             target/surefire-reports/TEST-*.xml
 
@@ -270,6 +275,7 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action/composite@v2
         if: always()
         with:
+          check_name: MacOSX_Safari_Local Test Results
           files: |
             target/surefire-reports/TEST-*.xml
 
@@ -314,8 +320,9 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action/composite@v2
         if: always()
         with:
-            files: |
-              target/surefire-reports/TEST-*.xml
+          check_name: MacOSX_Chrome_Local Test Results
+          files: |
+            target/surefire-reports/TEST-*.xml
 
   MacOSX_Safari_BrowserStack:
     runs-on: ubuntu-22.04
@@ -353,8 +360,9 @@ jobs:
           name: MacOSX_Safari_BrowserStack_Extent
           path: "extent-reports/ExtentReports_*.html"
       - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2
+        uses: EnricoMi/publish-unit-test-result-action/composite@v2
         if: always()
         with:
+          check_name: MacOSX_Safari_BrowserStack Test Results
           files: |
             target/surefire-reports/TEST-*.xml

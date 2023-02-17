@@ -165,6 +165,7 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action/composite@v2
         if: always()
         with:
+          check_name: Android_Native_Emulator Test Results
           files: |
             target/surefire-reports/TEST-*.xml
 
@@ -207,5 +208,6 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action/composite@v2
         if: always()
         with:
+          check_name: Android_Native_BrowserStack Test Results
           files: |
             target/surefire-reports/TEST-*.xml
