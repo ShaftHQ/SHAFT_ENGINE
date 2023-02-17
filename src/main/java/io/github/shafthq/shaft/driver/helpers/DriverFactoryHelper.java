@@ -803,7 +803,8 @@ public class DriverFactoryHelper {
     }
 
     public static void initializeDriver() {
-        if (Properties.mobile.selfManaged()) {
+        if (Properties.mobile.selfManaged() && (Properties.platform.targetOperatingSystem().equals(OperatingSystems.ANDROID)
+                || Properties.platform.targetOperatingSystem().equals(IOS))) {
             //singleton initialization
             AppiumSelfManagementHelper.setupAppiumSelfManagedExecutionPrerequisites();
         }
