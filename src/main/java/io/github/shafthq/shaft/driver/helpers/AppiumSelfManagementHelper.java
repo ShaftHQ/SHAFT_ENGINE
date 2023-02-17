@@ -16,6 +16,7 @@ import java.io.File;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -36,7 +37,8 @@ public class AppiumSelfManagementHelper {
     private final long downloadTimeout = TimeUnit.MINUTES.toSeconds(10); // seconds
     private static final String androidEmulatorLocation = "src/main/resources/docker-compose/android-emulator/";
     private final String androidSelfManagedEnvironmentLocation = System.getProperty("user.home") + File.separator + ".shaft" + File.separator + "android" + File.separator;
-
+    private final String subpathToBin = "cmdline-tools" + File.separator + "latest" + File.separator + "bin";
+    private final String subpathToPlatform = "platform-tools";
 
     @SneakyThrows(InterruptedException.class)
     private AppiumSelfManagementHelper() {
@@ -48,29 +50,32 @@ public class AppiumSelfManagementHelper {
         ReportManager.logDiscrete("Verifying Appium self-managed execution environment...");
 
         // FORK to SETUP ANDROID SDK CLI AND SETUP APPIUM SERVER IN PARALLEL
-        ScheduledExecutorService prepareAppiumSelfManagedEnvironment = Executors.newScheduledThreadPool(2);
-        prepareAppiumSelfManagedEnvironment.execute(() -> {
-            try {
-                setupAndroidSDKCLITools();
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-            setupAndroidPackages();
-            launchAndroidEmulator();
-            prepareAppiumSelfManagedEnvironment.shutdown();
-        });
+//        ScheduledExecutorService prepareAppiumSelfManagedEnvironment = Executors.newScheduledThreadPool(2);
+//        if (Properties.platform.targetOperatingSystem().equals(OperatingSystems.ANDROID)) {
+//            prepareAppiumSelfManagedEnvironment.execute(() -> {
+//                try {
+        setupAndroidSDKCLITools();
+//                } catch (InterruptedException e) {
+//                    throw new RuntimeException(e);
+//                }
+        setupAndroidSDKPlatformTools();
+        setupAndroidPackages();
+        launchAndroidEmulator();
+//                prepareAppiumSelfManagedEnvironment.shutdown();
+//            });
+//        }
 
-        prepareAppiumSelfManagedEnvironment.execute(() -> {
-            setupNPM();
-            setupAppiumComponents();
-            launchAppiumServer();
-            prepareAppiumSelfManagedEnvironment.shutdown();
-        });
+//        prepareAppiumSelfManagedEnvironment.execute(() -> {
+        setupNPM();
+        setupAppiumComponents();
+        launchAppiumServer();
+//            prepareAppiumSelfManagedEnvironment.shutdown();
+//        });
 
-        if (!prepareAppiumSelfManagedEnvironment.awaitTermination(longDownloadTimeout, TimeUnit.SECONDS)) {
-            prepareAppiumSelfManagedEnvironment.shutdownNow();
-            Assert.fail("Appium self-managed execution environment was still not ready after " + TimeUnit.SECONDS.toMinutes(longDownloadTimeout) + " minutes.");
-        }
+//        if (!prepareAppiumSelfManagedEnvironment.awaitTermination(longDownloadTimeout, TimeUnit.SECONDS)) {
+//            prepareAppiumSelfManagedEnvironment.shutdownNow();
+//            Assert.fail("Appium self-managed execution environment was still not ready after " + TimeUnit.SECONDS.toMinutes(longDownloadTimeout) + " minutes.");
+//        }
     }
 
     @Step("Setting up Appium self-managed execution environment")
@@ -167,10 +172,14 @@ public class AppiumSelfManagementHelper {
     @Step("Setting up Android SDK CLI tools")
     private void setupAndroidSDKCLITools() throws InterruptedException {
         ReportManager.logDiscrete("Verifying Android SDK CLI tools...");
-        String ANDROID_HOME = System.getenv("ANDROID_HOME");
-        System.setProperty("ANDROID_HOME", ANDROID_HOME);
+        // using an already existing android_home will cause issues upgrading due to lack of admin access.
+//        String ANDROID_HOME = System.getenv("ANDROID_HOME");
+//        System.setProperty("ANDROID_HOME", ANDROID_HOME);
 
-        if ("".equals(ANDROID_HOME)) {
+        // setting a static and self-managed android home directory is the better approach to fully control all downloaded binaries
+        System.setProperty("ANDROID_HOME", androidSelfManagedEnvironmentLocation);
+
+        if (!FileActions.getInstance().doesFileExist(System.getProperty("ANDROID_HOME") + subpathToBin)) {
             String url = "https://dl.google.com/android/repository/commandlinetools-${OS}-" + cliToolsVersion + ".zip";
             if (SystemUtils.IS_OS_MAC) {
                 url = url.replace("${OS}", "mac");
@@ -189,6 +198,7 @@ public class AppiumSelfManagementHelper {
                 ReportHelper.disableLogging();
                 try {
                     FileActions.getInstance().unpackArchive(new URL(finalUrl), androidSelfManagedEnvironmentLocation);
+                    FileActions.getInstance().copyFolder(androidSelfManagedEnvironmentLocation + "cmdline-tools" + File.separator + "bin", androidSelfManagedEnvironmentLocation + subpathToBin);
                     ReportManager.logDiscrete("Successfully prepared Android SDK CLI tools.");
                     sdkCmdToolsDownloader.shutdownNow();
                 } catch (Throwable throwable) {
@@ -203,11 +213,56 @@ public class AppiumSelfManagementHelper {
                 sdkCmdToolsDownloader.shutdownNow();
                 Assert.fail("Android SDK CLI tools were still not ready after " + TimeUnit.SECONDS.toMinutes(downloadTimeout) + " minutes.");
             }
-            // this only runs if the thread succeeds
-            System.setProperty("ANDROID_HOME", androidSelfManagedEnvironmentLocation);
+//            // this only runs if the thread succeeds
+//            System.setProperty("ANDROID_HOME", androidSelfManagedEnvironmentLocation);
         }
 
-        ReportManager.logDiscrete("Found Android SDK CLI Tools at " + System.getProperty("ANDROID_HOME") + "/cmdline-tools/latest/bin/");
+        ReportManager.logDiscrete("Found Android SDK CLI Tools at " + System.getProperty("ANDROID_HOME") + subpathToBin);
+    }
+
+    @Step("Setting up Android SDK Platform tools")
+    private void setupAndroidSDKPlatformTools() throws InterruptedException {
+        ReportManager.logDiscrete("Verifying Android SDK Platform tools...");
+
+        if (!FileActions.getInstance().doesFileExist(System.getProperty("ANDROID_HOME") + subpathToPlatform)) {
+            String url = "https://dl.google.com/android/repository/platform-tools-latest-${OS}.zip";
+            if (SystemUtils.IS_OS_MAC) {
+                url = url.replace("${OS}", "darwin");
+            } else if (SystemUtils.IS_OS_WINDOWS) {
+                url = url.replace("${OS}", "windows");
+            } else {
+                //default is linux
+                url = url.replace("${OS}", "linux");
+            }
+            ReportManager.logDiscrete("Downloading and installing Android SDK Platform Tools from " + url);
+
+            ScheduledExecutorService sdkCmdToolsDownloader = Executors.newScheduledThreadPool(2);
+            sdkCmdToolsDownloader.execute(() -> showProgressBar("Preparing Android SDK Platform Tools", downloadTimeout));
+            String finalUrl = url;
+            sdkCmdToolsDownloader.schedule(() -> {
+                ReportHelper.disableLogging();
+                try {
+                    FileActions.getInstance().unpackArchive(new URL(finalUrl), androidSelfManagedEnvironmentLocation);
+//                    FileActions.getInstance().copyFolder(androidSelfManagedEnvironmentLocation+"cmdline-tools"+File.separator+"bin", androidSelfManagedEnvironmentLocation+subpathToBin);
+                    ReportManager.logDiscrete("Successfully prepared Android SDK Platform tools.");
+                    sdkCmdToolsDownloader.shutdownNow();
+                } catch (Throwable throwable) {
+                    ReportHelper.enableLogging();
+                    sdkCmdToolsDownloader.shutdownNow();
+                    Assert.fail("Failed to prepare Android SDK Platform tools.", throwable);
+                }
+            }, 0, TimeUnit.SECONDS);
+
+            if (!sdkCmdToolsDownloader.awaitTermination(downloadTimeout, TimeUnit.SECONDS)) {
+                ReportHelper.enableLogging();
+                sdkCmdToolsDownloader.shutdownNow();
+                Assert.fail("Android SDK Platform tools were still not ready after " + TimeUnit.SECONDS.toMinutes(downloadTimeout) + " minutes.");
+            }
+//            // this only runs if the thread succeeds
+//            System.setProperty("ANDROID_HOME", androidSelfManagedEnvironmentLocation);
+        }
+
+        ReportManager.logDiscrete("Found Android SDK Platform Tools at " + System.getProperty("ANDROID_HOME") + subpathToPlatform);
     }
 
     @Step("Setting up Android packages")
@@ -215,42 +270,56 @@ public class AppiumSelfManagementHelper {
         ReportManager.logDiscrete("Verifying Android packages...");
         String ANDROID_HOME = System.getProperty("ANDROID_HOME");
         ReportHelper.disableLogging();
-        String avdList = TerminalActions.getInstance(false, true).performTerminalCommands(Arrays.asList(
-                "cd " + ANDROID_HOME + "/cmdline-tools/latest/bin/",
-                ".\\avdmanager list avd"));
+
+        //https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_environment_variables?view=powershell-7.3#saving-environment-variables-with-setenvironmentvariable
+        var path = TerminalActions.getInstance(false, false).performTerminalCommand("[Environment]::GetEnvironmentVariable('Path', 'User')");
+
+        // add only the missing properties as user environment variables
+        if (!path.contains(ANDROID_HOME + "cmdline-tools" + File.separator + "latest;"))
+            path = ANDROID_HOME + "cmdline-tools" + File.separator + "latest;" + path;
+        if (!path.contains(ANDROID_HOME + subpathToBin + ";")) path = ANDROID_HOME + subpathToBin + ";" + path;
+        if (!path.contains(ANDROID_HOME + subpathToPlatform + ";"))
+            path = ANDROID_HOME + subpathToPlatform + ";" + path;
+        if (!path.contains(ANDROID_HOME + "bin;")) path = ANDROID_HOME + "bin;" + path;
+        if (!path.contains(ANDROID_HOME + "bin;")) path = ANDROID_HOME + "lib;" + path;
+
+        // if nothing is augmented, then this would only reset the path variable without messing it up
+        LinkedList<String> setEnvironmentVariables = new LinkedList<>();
+        setEnvironmentVariables.addAll(Arrays.asList(
+                "[Environment]::SetEnvironmentVariable('JAVA_HOME', '" + System.getProperty("java.home") + "', 'User')",
+                "[Environment]::SetEnvironmentVariable('ANDROID_HOME', '" + ANDROID_HOME + "', 'User')",
+                "[Environment]::SetEnvironmentVariable('Path', '" + path + "', 'User')"));
+        TerminalActions.getInstance(false, true).performTerminalCommands(setEnvironmentVariables);
+
+        String avdList = TerminalActions.getInstance(false, true).performTerminalCommands(Arrays.asList("$Env:Path = [System.Environment]::GetEnvironmentVariable('Path','User')",
+                "avdmanager list avd"));
         ReportHelper.enableLogging();
 
-        boolean doesAVDExist = avdList.contains(".avd") && avdList.contains(getAvdName());
+        var targetAndroidVersion = Properties.mobile.selfManagedAndroidSDKVersion();
+        boolean doesAVDExist = avdList.contains(".avd") && avdList.contains(getAvdName()) && avdList.contains("Based on: Android " + targetAndroidVersion);
         if (!doesAVDExist) {
-            var targetAndroidVersion = Properties.mobile.selfManagedAndroidVersion();
             var packages = Arrays.asList("'emulator'", "'patcher;v4'", "'platform-tools'",
                     "'build-tools;" + targetAndroidVersion + ".0.0'", "'platforms;android-" + targetAndroidVersion + "'", "'skiaparser;3'", "'sources;android-" + targetAndroidVersion + "'"
                     , "'system-images;android-" + targetAndroidVersion + ";default;x86_64'");
-
             ReportManager.logDiscrete("Downloading and updating required android packages " + String.join(", ", packages) + "...");
             try {
                 // update sdkmanager
-                //TODO: updating where it should not update
-//                // update fails because it can't delete the folder it's running from! :D
-//                TerminalActions.getInstance(false, true).performTerminalCommands(Arrays.asList(
-//                        "cd " + ANDROID_HOME + "/cmdline-tools/latest/bin/",
-//                        "echo \"y\" | .\\sdkmanager --update"));
-
+                TerminalActions.getInstance(false, true).performTerminalCommands(Arrays.asList("$Env:Path = [System.Environment]::GetEnvironmentVariable('Path','User')",
+                        "echo \"y\" | sdkmanager --update"));
                 // downloading packages
-                packages.forEach(packageName -> TerminalActions.getInstance(false, true).performTerminalCommands(Arrays.asList(
-                        "cd " + ANDROID_HOME + "/cmdline-tools/latest/bin/",
-                        "echo \"y\" | .\\sdkmanager --install " + packageName)));
-
+                LinkedList<String> commands = new LinkedList<>();
+                commands.add("$Env:Path = [System.Environment]::GetEnvironmentVariable('Path','User')");
+                LinkedList<String> finalCommands = commands;
+                packages.forEach(packageName -> {
+                    finalCommands.add("echo \"y\" | sdkmanager --install " + packageName);
+                });
+                TerminalActions.getInstance(false, true).performTerminalCommands(finalCommands);
                 // accepting licenses
-                TerminalActions.getInstance(false, true).performTerminalCommands(Arrays.asList(
-                        "cd " + ANDROID_HOME + "/cmdline-tools/latest/bin/",
-                        "echo " + "\"y\" | " + ".\\sdkmanager --licenses"));
-
+                TerminalActions.getInstance(false, true).performTerminalCommands(Arrays.asList("$Env:Path = [System.Environment]::GetEnvironmentVariable('Path','User')",
+                        "echo \"y\" | sdkmanager --licenses"));
                 // creating avd
-                TerminalActions.getInstance(false, true).performTerminalCommands(Arrays.asList(
-                        "cd " + ANDROID_HOME + "/cmdline-tools/latest/bin/",
-                        ".\\avdmanager create avd -n " + getAvdName() + " -d pixel --package " + packages.get(packages.size() - 1)));
-
+                TerminalActions.getInstance(false, true).performTerminalCommands(Arrays.asList("$Env:Path = [System.Environment]::GetEnvironmentVariable('Path','User')",
+                        "avdmanager  create avd -n " + getAvdName() + " -d pixel --package " + packages.get(packages.size() - 1)));
                 ReportManager.logDiscrete("Successfully prepared android packages.");
             } catch (Throwable throwable) {
                 Assert.fail("Failed to prepare android packages.", throwable);
@@ -259,7 +328,7 @@ public class AppiumSelfManagementHelper {
     }
 
     private String getAvdName() {
-        return "Pixel_android" + Properties.mobile.selfManagedAndroidVersion() + "_x86_64";
+        return "Pixel_android" + Properties.mobile.selfManagedAndroidSDKVersion() + "_x86_64";
     }
 
     @Step("Launching Android emulator")
@@ -270,7 +339,7 @@ public class AppiumSelfManagementHelper {
         ReportManager.logDiscrete("Launching Android emulator '" + avdName + "'...");
 
         try {
-            TerminalActions.getInstance(true, false).performTerminalCommands(Arrays.asList(
+            TerminalActions.getInstance(true, false).performTerminalCommands(Arrays.asList("$Env:Path = [System.Environment]::GetEnvironmentVariable('Path','User')",
                     "cd " + ANDROID_HOME + "/emulator/",
                     ".\\emulator -avd " + avdName + " -no-snapshot-load  -gpu host -no-audio -no-boot-anim -camera-back none -camera-front none -qemu -m 2048"));
 
@@ -295,16 +364,13 @@ public class AppiumSelfManagementHelper {
                 url = url + "darwin-x64.tar.gz";
             } else if (SystemUtils.IS_OS_WINDOWS) {
                 url = url + "win-x64.zip";
-
             } else {
                 //default is linux
                 url = url + "linux-x64.tar.xzp";
-
             }
             ReportManager.logDiscrete("Downloading and installing Node.js from " + url);
             try {
-                String fileName = url.substring(url.lastIndexOf("/") + 1);
-                FileActions.getInstance().unpackArchive(new URL(url), androidSelfManagedEnvironmentLocation + fileName);
+                FileActions.getInstance().unpackArchive(new URL(url), androidSelfManagedEnvironmentLocation + "npm" + File.separator);
                 ReportManager.logDiscrete("Successfully prepared Node.js.");
             } catch (Throwable throwable) {
                 Assert.fail("Failed to prepare Node.js.", throwable);
@@ -328,7 +394,7 @@ public class AppiumSelfManagementHelper {
             ReportManager.logDiscrete("Removing any instance of the deprecated Appium 1.x, and installing the latest Appium 2.x server...");
 
             TerminalActions.getInstance(false, true).performTerminalCommands(Arrays.asList(
-                    "cd " + androidSelfManagedEnvironmentLocation + "/npm",
+                    "cd " + androidSelfManagedEnvironmentLocation + File.separator + "npm",
                     "npm uninstall appium -g", "npm uninstall appium",
                     "npm install --global --force --foreground-scripts appium@next"
             ));
@@ -339,7 +405,7 @@ public class AppiumSelfManagementHelper {
             ReportManager.logDiscrete("Installing the latest Appium 2.x drivers, and plugins...");
 
             TerminalActions.getInstance(false, true).performTerminalCommands(Arrays.asList(
-                    "cd " + androidSelfManagedEnvironmentLocation + "/npm",
+                    "cd " + androidSelfManagedEnvironmentLocation + File.separator + "npm",
                     "appium driver install xcuitest",
                     "appium driver install uiautomator2",
                     "appium plugin install images",
@@ -349,7 +415,7 @@ public class AppiumSelfManagementHelper {
         } else {
             ReportManager.logDiscrete("Updating all existing Appium 2.x components (server, drivers, and plugins)...");
             TerminalActions.getInstance(false, true).performTerminalCommands(Arrays.asList(
-                    "cd " + androidSelfManagedEnvironmentLocation + "/npm",
+                    "cd " + androidSelfManagedEnvironmentLocation + File.separator + "npm",
                     "npm update appium",
                     "appium driver update installed --unsafe",
                     "appium plugin update installed --unsafe"
@@ -392,14 +458,15 @@ public class AppiumSelfManagementHelper {
         ReportHelper.enableLogging();
 
         ReportManager.logDiscrete("Launching Appium server " + APPIUM_VERSION + "...");
-        System.setProperty("BS_USERNAME", Properties.browserStack.username());
-        System.setProperty("BS_PASSWORD", Properties.browserStack.accessKey());
 
+        //set browserstack credentials inside user variables
+        TerminalActions.getInstance(false, true).performTerminalCommands(Arrays.asList("[Environment]::SetEnvironmentVariable('BS_USERNAME', '" + Properties.browserStack.username() + "', 'User')",
+                "[Environment]::SetEnvironmentVariable('BS_PASSWORD', '" + Properties.browserStack.accessKey() + "', 'User')"));
+
+        //initialize appium server
         TerminalActions.getInstance(true, true)
-                .performTerminalCommands(Arrays.asList(
-                        "cd " + Properties.paths.properties(),
-                        "appium server --use-plugins=images,device-farm,appium-dashboard --relaxed-security"
-                ));
+                .performTerminalCommands(Arrays.asList("cd " + Properties.paths.properties()
+                        , "appium --config .appiumrc.json"));
 
         ReportManager.log("Appium Device Farm is now up and running: http://" + Properties.platform.executionAddress() + "/dashboard/");
     }
