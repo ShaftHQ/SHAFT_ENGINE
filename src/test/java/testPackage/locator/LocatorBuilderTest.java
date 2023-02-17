@@ -82,7 +82,7 @@ public class LocatorBuilderTest {
     @Test
     public void hasClass() {
         driver.browser().navigateToURL("https://www.selenium.dev/");
-        By locator = Locator.hasTagName("h1").hasClass("display-1 mt-0 mt-md-5 pb-1").build();
+        By locator = Locator.hasTagName("h1").hasClass("display-1").build();
         driver.assertThat().element(locator).text().isEqualTo("Selenium automates browsers. That's it!").perform();
     }
 
