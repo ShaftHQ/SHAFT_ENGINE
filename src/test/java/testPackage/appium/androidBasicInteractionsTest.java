@@ -153,8 +153,8 @@ public class androidBasicInteractionsTest {
 //        SHAFT.Properties.mobile.set().selfManagedAndroidSDKVersion(31);
 
         // local appium server (for local and GitHub actions execution)
-//        SHAFT.Properties.platform.set().executionAddress("localhost:4723");
-//        SHAFT.Properties.mobile.set().app(SHAFT.Properties.paths.testData() + "apps/ApiDemos-debug.apk");
+        SHAFT.Properties.platform.set().executionAddress("localhost:4723");
+        SHAFT.Properties.mobile.set().app(SHAFT.Properties.paths.testData() + "apps/ApiDemos-debug.apk");
 
         // local appium server (android-emulator docker-compose)
 //        SHAFT.Properties.platform.set().executionAddress("localhost:4725");
@@ -169,12 +169,12 @@ public class androidBasicInteractionsTest {
 //        SHAFT.Properties.browserStack.set().appUrl("");
 
         // remote browserstack server (existing app version)
-        SHAFT.Properties.platform.set().executionAddress("browserstack");
-        SHAFT.Properties.browserStack.set().platformVersion("13.0");
-        SHAFT.Properties.browserStack.set().deviceName("Google Pixel 7");
-        SHAFT.Properties.browserStack.set().appName("ApiDemos-debug.apk");
-        SHAFT.Properties.browserStack.set().appRelativeFilePath("");
-        SHAFT.Properties.browserStack.set().appUrl("bs://e744ef24a081b0d4cb5f9699a5dd69d6a3a2dbce");
+//        SHAFT.Properties.platform.set().executionAddress("browserstack");
+//        SHAFT.Properties.browserStack.set().platformVersion("13.0");
+//        SHAFT.Properties.browserStack.set().deviceName("Google Pixel 7");
+//        SHAFT.Properties.browserStack.set().appName("ApiDemos-debug.apk");
+//        SHAFT.Properties.browserStack.set().appRelativeFilePath("");
+//        SHAFT.Properties.browserStack.set().appUrl("bs://e744ef24a081b0d4cb5f9699a5dd69d6a3a2dbce");
         driver = new SHAFT.GUI.WebDriver();
     }
 

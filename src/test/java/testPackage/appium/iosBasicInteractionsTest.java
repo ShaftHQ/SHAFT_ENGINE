@@ -42,11 +42,11 @@ public class iosBasicInteractionsTest {
 
         // remote browserstack server (new app version)
 //        SHAFT.Properties.platform.set().executionAddress("browserstack");
-        SHAFT.Properties.browserStack.set().platformVersion("14");
-        SHAFT.Properties.browserStack.set().deviceName("iPhone 12 Pro Max");
-        SHAFT.Properties.browserStack.set().appName("TestApp");
-        SHAFT.Properties.browserStack.set().appRelativeFilePath(System.getProperty("testDataFolderPath") + "apps/BStackSampleApp.ipa");
-        SHAFT.Properties.browserStack.set().appUrl("");
+//        SHAFT.Properties.browserStack.set().platformVersion("14");
+//        SHAFT.Properties.browserStack.set().deviceName("iPhone 12 Pro Max");
+//        SHAFT.Properties.browserStack.set().appName("TestApp");
+//        SHAFT.Properties.browserStack.set().appRelativeFilePath(System.getProperty("testDataFolderPath") + "apps/BStackSampleApp.ipa");
+//        SHAFT.Properties.browserStack.set().appUrl("");
 
         // remote browserstack server (existing app version)
 //        System.setProperty("browserStack.platformVersion", "14");
