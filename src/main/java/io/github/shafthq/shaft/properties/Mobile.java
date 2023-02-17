@@ -15,9 +15,9 @@ public interface Mobile extends EngineProperties {
     @DefaultValue("false")
     boolean selfManaged();
 
-    @Key("selfManagedAndroidVersion")
+    @Key("selfManagedAndroidSDKVersion")
     @DefaultValue("31")
-    int selfManagedAndroidVersion();
+    int selfManagedAndroidSDKVersion();
 
     @Key("mobile_platformName")
     @DefaultValue("")
@@ -74,8 +74,8 @@ public interface Mobile extends EngineProperties {
 
     class SetProperty implements EngineProperties.SetProperty {
 
-        public void selfManagedAndroidVersion(int value) {
-            setProperty("selfManagedAndroidVersion", String.valueOf(value));
+        public void selfManagedAndroidSDKVersion(int value) {
+            setProperty("selfManagedAndroidSDKVersion", String.valueOf(value));
         }
 
         public void selfManaged(boolean value) {
