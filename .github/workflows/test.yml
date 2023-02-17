@@ -360,7 +360,7 @@ jobs:
           name: MacOSX_Safari_BrowserStack_Extent
           path: "extent-reports/ExtentReports_*.html"
       - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action/composite@v2
+        uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
         with:
           check_name: MacOSX_Safari_BrowserStack Test Results
