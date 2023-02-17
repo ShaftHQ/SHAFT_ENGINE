@@ -116,13 +116,13 @@ public class BrowserStack {
         ReportManager.logDiscrete("Setting up BrowserStack configuration for desktop web execution...");
         String username = SHAFT.Properties.browserStack.username();
         String password = SHAFT.Properties.browserStack.accessKey();
-        String os = System.getProperty("targetOperatingSystem");
+        String os = SHAFT.Properties.platform.targetPlatform();
         String osVersion = SHAFT.Properties.browserStack.osVersion();
 
         String testData = "Username: " + username + ", Password: " + password + ", Operating System: " + os + ", Operating System Version: " + osVersion;
         // set properties
-        System.setProperty("executionAddress", username + ":" + password + "@" + hubUrl);
-        System.setProperty("browserName", System.getProperty("targetBrowserName"));
+        SHAFT.Properties.platform.set().executionAddress(username + ":" + password + "@" + hubUrl);
+        System.setProperty("browserName", SHAFT.Properties.web.targetBrowserName());
 
         MutableCapabilities browserStackCapabilities = new MutableCapabilities();
         var browserVersion = SHAFT.Properties.browserStack.browserVersion();

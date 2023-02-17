@@ -37,6 +37,13 @@ public class Test_Wizard_GUI_ThreadSafe {
 
     @BeforeClass
     public void beforeClass() {
+        //BrowserStack Web
+//        SHAFT.Properties.platform.set().executionAddress("browserstack");
+//        SHAFT.Properties.platform.set().targetPlatform(Platform.MAC.name());
+//        SHAFT.Properties.web.set().targetBrowserName(Browser.SAFARI.browserName());
+//        SHAFT.Properties.browserStack.set().browserVersion("15.3");
+//        SHAFT.Properties.browserStack.set().osVersion("Monterey");
+
         driver.set(new SHAFT.GUI.WebDriver());
         testData.set(new SHAFT.TestData.JSON("simpleJSON.json"));
     }
