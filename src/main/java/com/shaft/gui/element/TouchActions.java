@@ -135,17 +135,17 @@ public class TouchActions {
         } else {
             // Perform tap action by coordinates
 //            if (DriverFactoryHelper.isMobileNativeExecution()) {
-                PointerInput input = new PointerInput(PointerInput.Kind.TOUCH, "finger1");
-                Sequence tap = new Sequence(input, 0);
-                tap.addAction(input.createPointerMove(Duration.ZERO, PointerInput.Origin.viewport(), coordinates.get(0), coordinates.get(1)));
-                tap.addAction(input.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
-                tap.addAction(new Pause(input, Duration.ofMillis(200)));
-                tap.addAction(input.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
-                try {
-                    ((AppiumDriver) DriverFactoryHelper.getDriver().get()).perform(ImmutableList.of(tap));
-                } catch (UnsupportedCommandException exception) {
-                    ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, exception);
-                }
+            PointerInput input = new PointerInput(PointerInput.Kind.TOUCH, "finger1");
+            Sequence tap = new Sequence(input, 0);
+            tap.addAction(input.createPointerMove(Duration.ZERO, PointerInput.Origin.viewport(), coordinates.get(0), coordinates.get(1)));
+            tap.addAction(input.createPointerDown(PointerInput.MouseButton.LEFT.asArg()));
+            tap.addAction(new Pause(input, Duration.ofMillis(200)));
+            tap.addAction(input.createPointerUp(PointerInput.MouseButton.LEFT.asArg()));
+            try {
+                ((AppiumDriver) DriverFactoryHelper.getDriver().get()).perform(ImmutableList.of(tap));
+            } catch (UnsupportedCommandException exception) {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, exception);
+            }
 //            } else {
 //                (new org.openqa.selenium.interactions.touch.TouchActions(DriverFactoryHelper.getDriver().get()))
 //                        .down(coordinates.get(0), coordinates.get(1))
@@ -165,7 +165,7 @@ public class TouchActions {
      * @return a self-reference to be used to chain actions
      */
     public TouchActions tap(By elementLocator) {
-         try{
+        try{
             String elementText = "";
             if (CAPTURE_CLICKED_ELEMENT_TEXT) {
                 try {
@@ -178,7 +178,7 @@ public class TouchActions {
                     // do nothing
                 }
             }
-             List<Object> screenshot = ElementActionsHelper.takeScreenshot(DriverFactoryHelper.getDriver().get(), elementLocator, "tap", null, true);
+            List<Object> screenshot = ElementActionsHelper.takeScreenshot(DriverFactoryHelper.getDriver().get(), elementLocator, "tap", null, true);
             // takes screenshot before clicking the element out of view
 
             try {
@@ -191,14 +191,14 @@ public class TouchActions {
             if (elementText == null || elementText.equals("")) {
                 elementText = formatLocatorToString(elementLocator);
             }
-             ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, elementText.replaceAll("\n", " "), screenshot, null);
+            ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), elementLocator, elementText.replaceAll("\n", " "), screenshot, null);
         } catch (Throwable throwable) {
-             if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
-                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
-             } else {
-                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
-             }
-         }
+            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
+            } else {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+            }
+        }
         return this;
     }
 
@@ -621,7 +621,7 @@ public class TouchActions {
                         new Actions(DriverFactoryHelper.getDriver().get()).moveToElement(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), scrollableElementLocator).get(1))).scrollToElement(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), targetElementLocator).get(1))).perform();
                     } else {
                         new Actions(DriverFactoryHelper.getDriver().get()).scrollToElement(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), targetElementLocator).get(1))).perform();
-                        }
+                    }
                 }
                 ElementActionsHelper.passAction(DriverFactoryHelper.getDriver().get(), targetElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
             } catch (Exception e) {
@@ -636,7 +636,16 @@ public class TouchActions {
         }
         return this;
     }
-
+    /**
+     * Attempts to scroll element into view using androidUIAutomator
+     * @param targetText
+     * @return a self-reference to be used to chain actions
+     */
+    public TouchActions swipeElementIntoView(String targetText) {
+        DriverFactoryHelper.getDriver().get().findElement(AppiumBy.androidUIAutomator("new UiScrollable(new UiSelector().scrollable(true))"
+                + ".scrollIntoView(new UiSelector().textContains(\"" + targetText + "\"))"));
+        return this;
+    }
     @SuppressWarnings("unchecked")
     private List<Object> attemptToSwipeElementIntoViewInNativeApp(By scrollableElementLocator, String targetElementImage, SwipeDirection swipeDirection) {
         boolean isElementFound = false;
@@ -666,10 +675,10 @@ public class TouchActions {
                     // check if element can be found after scrolling to the end of the page
                     visualIdentificationObjects = ElementActionsHelper.waitForElementPresence(DriverFactoryHelper.getDriver().get(), targetElementImage);
                     coordinates = (List<Integer>) visualIdentificationObjects.get(2);
-                  if(!Collections.emptyList().equals(coordinates)) {
-                      isElementFound = true;
-                      ReportManager.logDiscrete("Element found on screen.");
-                  }
+                    if(!Collections.emptyList().equals(coordinates)) {
+                        isElementFound = true;
+                        ReportManager.logDiscrete("Element found on screen.");
+                    }
                 }
             }
             blindScrollingAttempts++;
