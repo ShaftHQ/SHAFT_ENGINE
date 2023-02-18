@@ -48,6 +48,13 @@ jobs:
         with:
           name: Ubuntu_Firefox_Grid_Extent
           path: "extent-reports/ExtentReports_*.html"
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          check_name: Ubuntu_Firefox_Grid Test Results
+          files: |
+            target/surefire-reports/TEST-*.xml
 
   Ubuntu_Chrome_Grid:
     runs-on: ubuntu-22.04
@@ -88,6 +95,13 @@ jobs:
         with:
           name: Ubuntu_Chrome_Grid_Extent
           path: "extent-reports/ExtentReports_*.html"
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          check_name: Ubuntu_Chrome_Grid Test Results
+          files: |
+            target/surefire-reports/TEST-*.xml
 
   Ubuntu_Edge_Grid:
     runs-on: ubuntu-22.04
@@ -127,8 +141,15 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: Ubuntu_Edge_Grid_Extent
-          path: "extent-reports/ExtentReports_*.html"   
-  
+          path: "extent-reports/ExtentReports_*.html"
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          check_name: Ubuntu_Edge_Grid Test Results
+          files: |
+            target/surefire-reports/TEST-*.xml
+
   Windows_Edge_Local:
     runs-on: windows-latest
     timeout-minutes: 60
@@ -163,7 +184,14 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: Windows_Edge_Local_Extent
-          path: "extent-reports/ExtentReports_*.html"  
+          path: "extent-reports/ExtentReports_*.html"
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action/composite@v2
+        if: always()
+        with:
+          check_name: Windows_Edge_Local Test Results
+          files: |
+            target/surefire-reports/TEST-*.xml
 
   Windows_Chrome_Local:
     runs-on: windows-latest
@@ -199,7 +227,14 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: Windows_Chrome_Local_Extent
-          path: "extent-reports/ExtentReports_*.html" 
+          path: "extent-reports/ExtentReports_*.html"
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action/composite@v2
+        if: always()
+        with:
+          check_name: Windows_Chrome_Local Test Results
+          files: |
+            target/surefire-reports/TEST-*.xml
 
   MacOSX_Safari_Local:
     runs-on: macOS-12
@@ -235,7 +270,14 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: MacOSX_Safari_Local_Extent
-          path: "extent-reports/ExtentReports_*.html"  
+          path: "extent-reports/ExtentReports_*.html"
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action/composite@v2
+        if: always()
+        with:
+          check_name: MacOSX_Safari_Local Test Results
+          files: |
+            target/surefire-reports/TEST-*.xml
 
   MacOSX_Chrome_Local:
     runs-on: macOS-12
@@ -274,6 +316,13 @@ jobs:
         with:
           name: MacOSX_Chrome_Local_Extent
           path: "extent-reports/ExtentReports_*.html"
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action/composite@v2
+        if: always()
+        with:
+          check_name: MacOSX_Chrome_Local Test Results
+          files: |
+            target/surefire-reports/TEST-*.xml
 
   MacOSX_Safari_BrowserStack:
     runs-on: ubuntu-22.04
@@ -310,3 +359,10 @@ jobs:
         with:
           name: MacOSX_Safari_BrowserStack_Extent
           path: "extent-reports/ExtentReports_*.html"
+      - name: Publish Test Results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always()
+        with:
+          check_name: MacOSX_Safari_BrowserStack Test Results
+          files: |
+            target/surefire-reports/TEST-*.xml
