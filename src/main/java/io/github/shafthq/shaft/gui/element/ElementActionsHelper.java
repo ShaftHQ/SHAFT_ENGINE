@@ -107,6 +107,10 @@ public class ElementActionsHelper {
         return DriverFactoryHelper.getTargetBrowserName().toLowerCase().contains("safari");
     }
 
+    private static boolean isFirefoxBrowser() {
+        return DriverFactoryHelper.getTargetBrowserName().toLowerCase().contains("firefox");
+    }
+
     public static ArrayList<Class<? extends Exception>> getExpectedExceptions(boolean isValidToCheckForVisibility) {
         ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
         expectedExceptions.add(org.openqa.selenium.NoSuchElementException.class);
@@ -140,7 +144,7 @@ public class ElementActionsHelper {
                         WebElement targetElement = nestedDriver.findElement(elementLocator);
                         if (isValidToCheckForVisibility) {
                             if (!isMobileExecution) {
-                                if (isSafariBrowser() || attemptedToUseActionsToScrollToElement.get()) {
+                                if (isSafariBrowser() || isFirefoxBrowser() || attemptedToUseActionsToScrollToElement.get()) {
                                     ((Locatable) targetElement).getCoordinates().inViewPort();
                                 } else {
                                     attemptedToUseActionsToScrollToElement.set(true);
