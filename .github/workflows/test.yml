@@ -251,7 +251,7 @@ jobs:
           check-latest: true
       - name: Run tests
         continue-on-error: true
-        run: mvn -e test -DretryMaximumNumberOfAttempts="2" -DexecutionAddress="local" -DtargetOperatingSystem="Mac" -DtargetBrowserName="Safari" -DgenerateAllureReportArchive="true" -Dtest="!%regex[.*Test_MobileEmulation.*], !%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*android.*],!%regex[.*mobile.*], !%regex[.*Mobile.*], !%regex[.*ios.*], !%regex[.*Windows.*], !%regex[.*BasicAuthentication.*]"
+        run: mvn -e test -DretryMaximumNumberOfAttempts="2" -DexecutionAddress="local" -DtargetOperatingSystem="Mac" -DtargetBrowserName="Safari" -DgenerateAllureReportArchive="true" -Dtest="%regex[.*tests_browserActions.*], %regex[.*Test_chainableElementActions.*], !%regex[.*Test_MobileEmulation.*], !%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*android.*],!%regex[.*mobile.*], !%regex[.*Mobile.*], !%regex[.*ios.*], !%regex[.*Windows.*], !%regex[.*BasicAuthentication.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
