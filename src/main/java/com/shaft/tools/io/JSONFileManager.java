@@ -1,4 +1,4 @@
-﻿package com.shaft.tools.io;
+package com.shaft.tools.io;
 
 import com.shaft.cli.FileActions;
 import io.github.shafthq.shaft.tools.io.helpers.FailureReporter;
