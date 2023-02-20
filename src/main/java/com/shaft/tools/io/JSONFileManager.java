@@ -10,6 +10,8 @@ import io.restassured.path.json.exception.JsonPathException;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -130,9 +132,11 @@ public class JSONFileManager {
      */
     private void initializeReader() {
         try {
-            reader.set(new FileReader(FileActions.getInstance().getAbsolutePath(jsonFilePath)));
+            reader.set(new FileReader(FileActions.getInstance().getAbsolutePath(jsonFilePath), StandardCharsets.UTF_8));
         } catch (FileNotFoundException rootCauseException) {
             FailureReporter.fail(this.getClass(), "Couldn't read the desired file. [" + this.jsonFilePath + "].", rootCauseException);
+        } catch (IOException formatException) {
+            FailureReporter.fail(this.getClass(), "file didn't match the specified format. [" + this.jsonFilePath + "].", formatException);
         }
     }
 
