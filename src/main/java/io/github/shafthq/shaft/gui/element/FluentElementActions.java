@@ -562,4 +562,29 @@ public class FluentElementActions {
         ElementActions.waitForTextToChange(DriverFactoryHelper.getDriver().get(), elementLocator, initialValue);
         return this;
     }
+
+    /**
+     * Checks to see if an element is displayed
+     *
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @return boolean value, true if the element is displayed, and false if the
+     * element is not displayed
+     */
+    public boolean isElementDisplayed(By elementLocator) {
+        return ElementActions.isElementDisplayed(DriverFactoryHelper.getDriver().get(), elementLocator);
+    }
+
+    /**
+     * Checks to see if an element is clickable
+     *
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @return boolean value, true if the element is clickable, and false if the
+     * element is not clickable
+     */
+    public boolean isElementClickable(By elementLocator) {
+        return ElementActions.isElementClickable(DriverFactoryHelper.getDriver().get(), elementLocator);
+    }
+
 }
