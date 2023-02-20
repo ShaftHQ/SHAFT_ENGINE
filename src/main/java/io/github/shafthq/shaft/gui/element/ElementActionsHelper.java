@@ -98,6 +98,17 @@ public class ElementActionsHelper {
         return returnedValue;
     }
 
+    public static boolean waitForElementInvisibility(By elementLocator) {
+        try {
+            (new WebDriverWait(DriverFactoryHelper.getDriver().get(), Duration.ofMillis(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT)))
+                    .until(ExpectedConditions.invisibilityOfElementLocated(elementLocator));
+        } catch (TimeoutException e) {
+            ReportManagerHelper.logDiscrete(e);
+            return false;
+        }
+        return true;
+    }
+
     private static boolean isValidToCheckForVisibility(By elementLocator, boolean checkForVisibility) {
         return checkForVisibility && !formatLocatorToString(elementLocator).contains("input[@type='file']")
                 && !elementLocator.equals(By.tagName("html"));
