@@ -1166,12 +1166,16 @@ public class ElementActions extends FluentElementActions {
                 if (isExpectedToBeVisible == isDisplayed) {
                     //either expected to be visible and is displayed, or not expected to be visible and not displayed
                     passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, getElementName(driver, elementLocator));
-                } else if (isExpectedToBeVisible == false && isDisplayed){
-                    (new WebDriverWait(DriverFactoryHelper.getDriver().get(), Duration.ofSeconds(Integer.parseInt(System.getProperty("defaultElementIdentificationTimeout")))))
-                            .until(ExpectedConditions.invisibilityOfElementLocated(elementLocator));
-                    passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, getElementName(driver, elementLocator));
+                } else if (isExpectedToBeVisible == false && isDisplayed) {
+                    // Element is displayed and needed to wait until it's invisible
+                    if (ElementActionsHelper.waitForElementInvisibility(elementLocator)) {
+                        passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, getElementName(driver, elementLocator));
+                    } else {
+                        // Element still exists after timeout
+                        failAction(driver, reportMessage, elementLocator);
+                    }
                 } else {
-                    //action should fail but the element exists
+                    // Element is not displayed
                     failAction(driver, reportMessage, elementLocator);
                 }
             } else {
