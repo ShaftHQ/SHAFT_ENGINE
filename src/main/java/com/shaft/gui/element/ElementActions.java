@@ -13,10 +13,13 @@ import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Actions;
+import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
+import org.openqa.selenium.support.ui.WebDriverWait;
 import org.sikuli.script.App;
 
 import java.nio.file.FileSystems;
+import java.time.Duration;
 import java.util.*;
 
 import static io.github.shafthq.shaft.gui.element.ElementActionsHelper.*;
@@ -1164,8 +1167,9 @@ public class ElementActions extends FluentElementActions {
                     //either expected to be visible and is displayed, or not expected to be visible and not displayed
                     passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, getElementName(driver, elementLocator));
                 } else {
-                    //action should fail but the element exists
-                    failAction(driver, reportMessage, elementLocator);
+                    (new WebDriverWait(DriverFactoryHelper.getDriver().get(), Duration.ofSeconds(Integer.parseInt(System.getProperty("defaultElementIdentificationTimeout")))))
+                            .until(ExpectedConditions.invisibilityOfElementLocated(elementLocator));
+                    passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, getElementName(driver, elementLocator));
                 }
             } else {
                 //action should fail because the element doesn't exist
