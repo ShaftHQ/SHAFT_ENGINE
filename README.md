@@ -17,16 +17,28 @@
 # SHAFT: Unified Test Automation Engine
 
 
-## 🔗 Important Links
-- You can change the target browser, operating system, timeouts, and other configurations using the ⚙️ [Configuration Manager](https://ShaftHQ.github.io/SHAFT_ENGINE/).
-- And you can learn more from the 👤 [User Guide](https://ShaftHQ.github.io/SHAFT_Engine_Docusaurus/) and 📚 [Javadocs](https://ShaftHQ.github.io/SHAFT_ENGINE/apidocs/index.html).
+[🦸‍♂️ Powered by the best](https://github.com/ShaftHQ/SHAFT_ENGINE#-powered-by).
+
+[🟢 Selenium Ecosystem proud member](https://www.selenium.dev/ecosystem/).
+
+[👨‍🏫 Fully Documented](https://ShaftHQ.github.io/SHAFT_Engine_Docusaurus/).
+
+[🤝 Fully supported](https://github.com/ShaftHQ/SHAFT_ENGINE#-support--contributions).
+
+[🌍 Used by thousands](https://github.com/ShaftHQ/SHAFT_ENGINE#-who-else-is-using-shaft-2).
+
+[🤨 Oddly familiar](https://github.com/ShaftHQ/SHAFT_ENGINE#-tech-stack).
+
+[🔋 Batteries included](https://github.com/MohabMohie/using_SHAFT_Engine).
+
+[🪄 No magic required](https://ShaftHQ.github.io/SHAFT_ENGINE/).
 
 
 <a id="quick-start-guide"></a>
 ## 🏃 Quick Start Guide
 
 ### Option 1: Template Project
-- Simply use this [Template Project](https://github.com/MohabMohie/using_SHAFT_Engine) to get started with one click.
+- Use our [Template Project](https://github.com/MohabMohie/using_SHAFT_Engine) to get started with one click.
 
 ### Option 2: New Project
 #### Step 1: Initial Setup
@@ -137,7 +149,7 @@ import org.testng.annotations.Test;
 - And feel free to create PRs directly. [This lovely tutorial](https://dev.to/genicsblog/how-to-create-a-pull-request-in-github-correctly-20np) will help.
 
 
-## 👥 Who else is using SHAFT? [^4]
+## 🌍 Who else is using SHAFT? [^4]
 <img height="50" title="_VOIS (Vodafone Intelligent Solution)" alt="_VOIS (Vodafone Intelligent Solution)" src="https://www.vodafone.com/_next/image?url=https%3A%2F%2Fcontent.vodafone.com%2Fsites%2Fdefault%2Ffiles%2Finline-images%2FgN08grNr8s9vipkhltm4sWWezExdQg5LwJrGY2Ma2ojTjCnvi2.png&w=1600&q=100" href="https://www.vodafone.com/careers/professional-career-areas/shared-services">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img height="50" title="GET Group Holdings" alt="GET Group Holdings" src="https://www.getgroup.com/wp-content/themes/get-group-holdings/assets/images/logo-high-res-2.png" href="https://www.getgroup.com/">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img height="50" title="MOMRA (Saudi Arabia's Ministry of Municipal and Rural Affairs)" alt="MOMRA (Saudi Arabia's Ministry of Municipal and Rural Affairs)" src="https://momrah.gov.sa/themes/custom/momrah/assets/images/mh-logo-full.png" href="https://momra.gov.sa/">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img height="50" title="Vodafone (Egypt)" alt="Vodafone (Egypt)" src="https://upload.wikimedia.org/wikipedia/commons/9/90/Logonewvodafone.png" href="https://www.vodafone.com.eg">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img height="50" title="Solutions by STC" alt="Solutions by STC" src="https://solutions.com.sa/wp-content/uploads/2019/11/logo.svg" href="https://solutions.com.sa/">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img height="50" title="GIZA Systems" alt="GIZA Systems" src="https://gizasystems.com/img/logo.png" href="https://gizasystems.com/">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img height="50" title="Euronet" alt="Euronet" src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Euronet_Worldwide_logo.svg/1920px-Euronet_Worldwide_logo.svg.png" href="https://www.euronetworldwide.com/">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img height="50" title="Terkwaz Business Solutions" alt="Terkwaz Business Solutions" src="https://images.wuzzuf-data.net/files/company_logo/Terkwaz-Solutions-Jordan-35434-1578830823.png" href="https://www.terkwaz.com/">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img height="50" title="Incorta" alt="Incorta" src="https://media-exp1.licdn.com/dms/image/C560BAQHUWHhKl0xrCA/company-logo_200_200/0/1660913597037?e=2147483647&v=beta&t=CiDPUEvlIBqztN5gCre-pQ5f7M-03_02IQgJtL18wG8" href="https://www.incorta.com/">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img height="50" title="BayanTech" alt="BayanTech" src="https://bayan-tech.com/wp-content/uploads/2020/01/Bayan-Logo-2.png" href="https://bayan-tech.com/">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img height="50" title="Adam.ai" alt="Adam.ai" src="https://images.prismic.io/adamdotai/8e6625b0-e32b-4bee-b1b8-ebdc1d30cbfe_full-logo.svg?ixlib=gatsbyFP&auto=compress%2Cformat&fit=max&q=50" href="https://adam.ai/">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img height="50" title="ACT Global Soft" alt="ACT Global Soft" src="https://www.act.eg/wp-content/uploads/2021/01/3.png" href="https://www.act.eg/">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img height="50" title="elmenus" alt="elmenus" src="https://assets-global.website-files.com/625d19c77d49d0aa53047be3/625d19c77d49d0142c047d36_615c77e71175c38163bca403_elmenus.png" href="https://www.elmenus.com/">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img height="50" title="IDEMIA" alt="IDEMIA" src="https://wikiimg.tojsiabtv.com/wikipedia/commons/thumb/2/2e/IDEMIA_Logo.jpg/1280px-IDEMIA_Logo.jpg" href="https://www.idemia.com/">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img height="50" title="iHorizons" alt="iHorizons" src="https://www.ihorizons.com/sites/all/themes/ihorizons_theme/imgs/logo.png" href="https://www.ihorizons.com/">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img height="50" title="Robusta" alt="Robusta" src="https://images.wuzzuf-data.net/files/company_logo/Robusta-Egypt-7927.png" href="https://robustastudio.com/">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<img height="50" title="Paymob Solutions" alt="Paymob Solutions" src="https://www.paymob.com/images/paymobLogo.png" href="https://www.paymob.com/">
 
 [^4]: Company names are collected via anonymous surveys and provided freely by engineers who claimed to be using SHAFT_Engine within these companies.
