@@ -98,6 +98,17 @@ public class ElementActionsHelper {
         return returnedValue;
     }
 
+    public static boolean waitForElementInvisibility(By elementLocator) {
+        try {
+            (new WebDriverWait(DriverFactoryHelper.getDriver().get(), Duration.ofMillis(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT)))
+                    .until(ExpectedConditions.invisibilityOfElementLocated(elementLocator));
+        } catch (TimeoutException e) {
+            ReportManagerHelper.logDiscrete(e);
+            return false;
+        }
+        return true;
+    }
+
     private static boolean isValidToCheckForVisibility(By elementLocator, boolean checkForVisibility) {
         return checkForVisibility && !formatLocatorToString(elementLocator).contains("input[@type='file']")
                 && !elementLocator.equals(By.tagName("html"));
@@ -105,6 +116,10 @@ public class ElementActionsHelper {
 
     private static boolean isSafariBrowser() {
         return DriverFactoryHelper.getTargetBrowserName().toLowerCase().contains("safari");
+    }
+
+    private static boolean isFirefoxBrowser() {
+        return DriverFactoryHelper.getTargetBrowserName().toLowerCase().contains("firefox");
     }
 
     public static ArrayList<Class<? extends Exception>> getExpectedExceptions(boolean isValidToCheckForVisibility) {
@@ -140,7 +155,7 @@ public class ElementActionsHelper {
                         WebElement targetElement = nestedDriver.findElement(elementLocator);
                         if (isValidToCheckForVisibility) {
                             if (!isMobileExecution) {
-                                if (isSafariBrowser() || attemptedToUseActionsToScrollToElement.get()) {
+                                if (isSafariBrowser() || isFirefoxBrowser() || attemptedToUseActionsToScrollToElement.get()) {
                                     ((Locatable) targetElement).getCoordinates().inViewPort();
                                 } else {
                                     attemptedToUseActionsToScrollToElement.set(true);
