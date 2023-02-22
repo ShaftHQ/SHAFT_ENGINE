@@ -161,13 +161,13 @@ jobs:
         with:
           name: Android_Native_Emulator_Extent
           path: "extent-reports/ExtentReports_*.html"
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action/composite@v2
-        if: always()
-        with:
-          check_name: Android_Native_Emulator Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
+#       - name: Publish Test Results
+#         uses: EnricoMi/publish-unit-test-result-action/composite@v2
+#         if: always()
+#         with:
+#           check_name: Android_Native_Emulator Test Results
+#           files: |
+#             target/surefire-reports/TEST-*.xml
 
   Android_Native_BrowserStack:
     runs-on: macOS-12
@@ -204,10 +204,10 @@ jobs:
         with:
           name: Android_Native_BrowserStack_Extent
           path: "extent-reports/ExtentReports_*.html"
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action/composite@v2
-        if: always()
-        with:
-          check_name: Android_Native_BrowserStack Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
+#       - name: Publish Test Results
+#         uses: EnricoMi/publish-unit-test-result-action/composite@v2
+#         if: always()
+#         with:
+#           check_name: Android_Native_BrowserStack Test Results
+#           files: |
+#             target/surefire-reports/TEST-*.xml
