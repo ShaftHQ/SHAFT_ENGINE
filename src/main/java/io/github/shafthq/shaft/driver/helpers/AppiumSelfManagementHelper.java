@@ -2,7 +2,6 @@ package io.github.shafthq.shaft.driver.helpers;
 
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
-import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.properties.Properties;
 import io.github.shafthq.shaft.tools.io.helpers.ReportHelper;
@@ -17,11 +16,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
-import static io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper.showProgressBar;
 
 public class AppiumSelfManagementHelper {
     // TODO: implement new environment variables for dockerized instance (or remove the code)
@@ -33,9 +28,6 @@ public class AppiumSelfManagementHelper {
     @Getter
     private static final boolean terminateAppiumContainersAfterExecution = false;
 
-    private static final long longDownloadTimeout = TimeUnit.MINUTES.toSeconds(45); // seconds
-    private final long downloadTimeout = TimeUnit.MINUTES.toSeconds(10); // seconds
-    private static final String androidEmulatorLocation = "src/main/resources/docker-compose/android-emulator/";
     private final String androidSelfManagedEnvironmentLocation = System.getProperty("user.home") + File.separator + ".shaft" + File.separator + "android" + File.separator;
     private final String subpathToBin = "cmdline-tools" + File.separator + "latest" + File.separator + "bin";
     private final String subpathToPlatform = "platform-tools";
@@ -49,7 +41,7 @@ public class AppiumSelfManagementHelper {
         //check that they are installed and can be executed
         ReportManager.logDiscrete("Verifying Appium self-managed execution environment...");
 
-        // FORK to SETUP ANDROID SDK CLI AND SETUP APPIUM SERVER IN PARALLEL
+        // FORK to SET UP ANDROID SDK CLI AND SETUP APPIUM SERVER IN PARALLEL
 //        ScheduledExecutorService prepareAppiumSelfManagedEnvironment = Executors.newScheduledThreadPool(2);
 //        if (Properties.platform.targetOperatingSystem().equals(OperatingSystems.ANDROID)) {
 //            prepareAppiumSelfManagedEnvironment.execute(() -> {
@@ -58,7 +50,6 @@ public class AppiumSelfManagementHelper {
 //                } catch (InterruptedException e) {
 //                    throw new RuntimeException(e);
 //                }
-        setupAndroidSDKPlatformTools();
         setupAndroidPackages();
         launchAndroidEmulator();
 //                prepareAppiumSelfManagedEnvironment.shutdown();
@@ -86,91 +77,8 @@ public class AppiumSelfManagementHelper {
         return singleInstance;
     }
 
-    @SneakyThrows(java.lang.InterruptedException.class)
-    @Step("Downloading Android emulator files")
-    public static void downloadAndroidEmulatorFiles() {
-        ReportManager.logDiscrete("Downloading https://github.com/amrsa1/Android-Emulator container files...");
-        ReportHelper.disableLogging();
-        // https://github.com/amrsa1/Android-Emulator
-        var downloadableFileURLs = Arrays.asList(
-                "https://raw.githubusercontent.com/amrsa1/Android-Emulator/main/Dockerfile",
-                "https://raw.githubusercontent.com/amrsa1/Android-Emulator/main/docker-compose.yml",
-                "https://raw.githubusercontent.com/amrsa1/Android-Emulator/main/start_appium.sh",
-                "https://raw.githubusercontent.com/amrsa1/Android-Emulator/main/start_emu_headless.sh",
-                "https://raw.githubusercontent.com/amrsa1/Android-Emulator/main/start_vnc.sh",
-                "https://raw.githubusercontent.com/amrsa1/Android-Emulator/main/start_emu.sh");
-        downloadableFileURLs.forEach(url -> FileActions.getInstance().downloadFile(url, androidEmulatorLocation + url.substring(url.lastIndexOf("/") + 1)));
-        ReportHelper.enableLogging();
-
-        ReportManager.logDiscrete("Customizing container configuration...");
-        ReportHelper.disableLogging();
-
-        // Edit file to fix System UI isn't responding
-        // https://github.com/actions/runner-images/issues/2741
-        // https://github.com/amrsa1/Android-Emulator/issues/2
-//        https://github.com/akv-platform/espressodemo/blob/main/.github/workflows/blank.yml
-//        https://github.com/actions/runner-images/issues/3719
-        FileActions.getInstance().writeToFile(androidEmulatorLocation, "start_emu_headless.sh",
-                FileActions.getInstance().readFile("src/main/resources/docker-compose/", "start_emu_headless"));
-
-        String appWithPath = SHAFT.Properties.mobile.app();
-        if (!"".equals(appWithPath)) {
-            SHAFT.Properties.mobile.set().app(appWithPath.substring(appWithPath.lastIndexOf("/")));
-            SHAFT.Properties.platform.set().executionAddress("localhost:4725");
-        }
-        // https://github.com/appium/appium/issues/12287
-        System.setProperty("mobile_uiautomator2ServerInstallTimeout", "1200000");
-        System.setProperty("mobile_uiautomator2ServerLaunchTimeout", "1200000");
-        System.setProperty("mobile_adbExecTimeout", "1200000");
-        ReportHelper.enableLogging();
-        //TODO: execute command to ensure that docker desktop/platform is installed and running
-        // else fail fast
-        ReportManager.logDiscrete("Launching Android-Emulator and Appium 2 containers. If the containers aren't on your machine they may take some time to download (5.57 GB) depending on your internet connection...");
-        ReportHelper.disableLogging();
-        var logMessage = "with container id: ";
-
-        ScheduledExecutorService stage1Executor = Executors.newScheduledThreadPool(2);
-        stage1Executor.execute(() -> showProgressBar("Fetching containers", longDownloadTimeout));
-        stage1Executor.schedule(() -> {
-            ReportHelper.disableLogging();
-            try {
-                executeCommand("docker compose up --scale android-service=1 --detach --wait --no-recreate --remove-orphans");
-                ReportHelper.enableLogging();
-                ReportManager.logDiscrete("Successfully prepared docker image.");
-                stage1Executor.shutdownNow();
-            } catch (Throwable throwable) {
-                ReportHelper.enableLogging();
-                stage1Executor.shutdownNow();
-                Assert.fail("Failed to prepare docker image.", throwable);
-            }
-        }, 0, TimeUnit.SECONDS);
-
-        if (!stage1Executor.awaitTermination(longDownloadTimeout, TimeUnit.SECONDS)) {
-            ReportHelper.enableLogging();
-            Assert.fail("Docker image was still not ready after " + TimeUnit.SECONDS.toMinutes(longDownloadTimeout) + " minutes.");
-        }
-
-        ReportHelper.disableLogging();
-        logMessage = "Successfully initialized Android-Emulator and Appium 2 containerized instance " + logMessage;
-        var commandLog = executeCommand("docker ps -q");
-        var runningContainerID = commandLog.substring(commandLog.lastIndexOf("\n")).trim();
-
-        ReportHelper.enableLogging();
-        ReportManager.logDiscrete(logMessage + runningContainerID);
-
-        if (!"".equals(appWithPath)) {
-            ReportManager.logDiscrete("Transferring " + SHAFT.Properties.mobile.app().replace("/", "") + " to target container...");
-            ReportHelper.disableLogging();
-            // copy .apk to container root
-            executeCommand("docker cp " + FileActions.getInstance().getAbsolutePath(appWithPath) + " " + runningContainerID + ":/");
-            // make .apk editable
-            executeCommand("docker exec -d android-emulator chmod u+x " + SHAFT.Properties.mobile.app());
-            ReportHelper.enableLogging();
-        }
-    }
-
     @Step("Setting up Android SDK CLI tools")
-    private void setupAndroidSDKCLITools() throws InterruptedException {
+    private void setupAndroidSDKCLITools() {
         ReportManager.logDiscrete("Verifying Android SDK CLI tools...");
         // using an already existing android_home will cause issues upgrading due to lack of admin access.
 //        String ANDROID_HOME = System.getenv("ANDROID_HOME");
@@ -190,79 +98,20 @@ public class AppiumSelfManagementHelper {
                 url = url.replace("${OS}", "linux");
             }
             ReportManager.logDiscrete("Downloading and installing Android SDK CLI Tools from " + url);
-
-            ScheduledExecutorService sdkCmdToolsDownloader = Executors.newScheduledThreadPool(2);
-            sdkCmdToolsDownloader.execute(() -> showProgressBar("Preparing Android SDK CLI Tools", downloadTimeout));
-            String finalUrl = url;
-            sdkCmdToolsDownloader.schedule(() -> {
-                ReportHelper.disableLogging();
-                try {
-                    FileActions.getInstance().unpackArchive(new URL(finalUrl), androidSelfManagedEnvironmentLocation);
-                    FileActions.getInstance().copyFolder(androidSelfManagedEnvironmentLocation + "cmdline-tools" + File.separator + "bin", androidSelfManagedEnvironmentLocation + subpathToBin);
-                    ReportManager.logDiscrete("Successfully prepared Android SDK CLI tools.");
-                    sdkCmdToolsDownloader.shutdownNow();
-                } catch (Throwable throwable) {
-                    ReportHelper.enableLogging();
-                    sdkCmdToolsDownloader.shutdownNow();
-                    Assert.fail("Failed to prepare Android SDK CLI tools.", throwable);
-                }
-            }, 0, TimeUnit.SECONDS);
-
-            if (!sdkCmdToolsDownloader.awaitTermination(downloadTimeout, TimeUnit.SECONDS)) {
+            ReportHelper.disableLogging();
+            try {
+                FileActions.getInstance().unpackArchive(new URL(url), androidSelfManagedEnvironmentLocation);
+                FileActions.getInstance().copyFolder(androidSelfManagedEnvironmentLocation + "cmdline-tools" + File.separator + "bin", androidSelfManagedEnvironmentLocation + subpathToBin);
+                ReportManager.logDiscrete("Successfully prepared Android SDK CLI tools.");
+            } catch (Throwable throwable) {
                 ReportHelper.enableLogging();
-                sdkCmdToolsDownloader.shutdownNow();
-                Assert.fail("Android SDK CLI tools were still not ready after " + TimeUnit.SECONDS.toMinutes(downloadTimeout) + " minutes.");
+                Assert.fail("Failed to prepare Android SDK CLI tools.", throwable);
             }
 //            // this only runs if the thread succeeds
 //            System.setProperty("ANDROID_HOME", androidSelfManagedEnvironmentLocation);
         }
 
         ReportManager.logDiscrete("Found Android SDK CLI Tools at " + System.getProperty("ANDROID_HOME") + subpathToBin);
-    }
-
-    @Step("Setting up Android SDK Platform tools")
-    private void setupAndroidSDKPlatformTools() throws InterruptedException {
-        ReportManager.logDiscrete("Verifying Android SDK Platform tools...");
-
-        if (!FileActions.getInstance().doesFileExist(System.getProperty("ANDROID_HOME") + subpathToPlatform)) {
-            String url = "https://dl.google.com/android/repository/platform-tools-latest-${OS}.zip";
-            if (SystemUtils.IS_OS_MAC) {
-                url = url.replace("${OS}", "darwin");
-            } else if (SystemUtils.IS_OS_WINDOWS) {
-                url = url.replace("${OS}", "windows");
-            } else {
-                //default is linux
-                url = url.replace("${OS}", "linux");
-            }
-            ReportManager.logDiscrete("Downloading and installing Android SDK Platform Tools from " + url);
-
-            ScheduledExecutorService sdkCmdToolsDownloader = Executors.newScheduledThreadPool(2);
-            sdkCmdToolsDownloader.execute(() -> showProgressBar("Preparing Android SDK Platform Tools", downloadTimeout));
-            String finalUrl = url;
-            sdkCmdToolsDownloader.schedule(() -> {
-                ReportHelper.disableLogging();
-                try {
-                    FileActions.getInstance().unpackArchive(new URL(finalUrl), androidSelfManagedEnvironmentLocation);
-//                    FileActions.getInstance().copyFolder(androidSelfManagedEnvironmentLocation+"cmdline-tools"+File.separator+"bin", androidSelfManagedEnvironmentLocation+subpathToBin);
-                    ReportManager.logDiscrete("Successfully prepared Android SDK Platform tools.");
-                    sdkCmdToolsDownloader.shutdownNow();
-                } catch (Throwable throwable) {
-                    ReportHelper.enableLogging();
-                    sdkCmdToolsDownloader.shutdownNow();
-                    Assert.fail("Failed to prepare Android SDK Platform tools.", throwable);
-                }
-            }, 0, TimeUnit.SECONDS);
-
-            if (!sdkCmdToolsDownloader.awaitTermination(downloadTimeout, TimeUnit.SECONDS)) {
-                ReportHelper.enableLogging();
-                sdkCmdToolsDownloader.shutdownNow();
-                Assert.fail("Android SDK Platform tools were still not ready after " + TimeUnit.SECONDS.toMinutes(downloadTimeout) + " minutes.");
-            }
-//            // this only runs if the thread succeeds
-//            System.setProperty("ANDROID_HOME", androidSelfManagedEnvironmentLocation);
-        }
-
-        ReportManager.logDiscrete("Found Android SDK Platform Tools at " + System.getProperty("ANDROID_HOME") + subpathToPlatform);
     }
 
     @Step("Setting up Android packages")
@@ -284,8 +133,7 @@ public class AppiumSelfManagementHelper {
         if (!path.contains(ANDROID_HOME + "bin;")) path = ANDROID_HOME + "lib;" + path;
 
         // if nothing is augmented, then this would only reset the path variable without messing it up
-        LinkedList<String> setEnvironmentVariables = new LinkedList<>();
-        setEnvironmentVariables.addAll(Arrays.asList(
+        LinkedList<String> setEnvironmentVariables = new LinkedList<>(Arrays.asList(
                 "[Environment]::SetEnvironmentVariable('JAVA_HOME', '" + System.getProperty("java.home") + "', 'User')",
                 "[Environment]::SetEnvironmentVariable('ANDROID_HOME', '" + ANDROID_HOME + "', 'User')",
                 "[Environment]::SetEnvironmentVariable('Path', '" + path + "', 'User')"));
@@ -309,11 +157,8 @@ public class AppiumSelfManagementHelper {
                 // downloading packages
                 LinkedList<String> commands = new LinkedList<>();
                 commands.add("$Env:Path = [System.Environment]::GetEnvironmentVariable('Path','User')");
-                LinkedList<String> finalCommands = commands;
-                packages.forEach(packageName -> {
-                    finalCommands.add("echo \"y\" | sdkmanager --install " + packageName);
-                });
-                TerminalActions.getInstance(false, true).performTerminalCommands(finalCommands);
+                packages.forEach(packageName -> commands.add("echo \"y\" | sdkmanager --install " + packageName));
+                TerminalActions.getInstance(false, true).performTerminalCommands(commands);
                 // accepting licenses
                 TerminalActions.getInstance(false, true).performTerminalCommands(Arrays.asList("$Env:Path = [System.Environment]::GetEnvironmentVariable('Path','User')",
                         "echo \"y\" | sdkmanager --licenses"));
@@ -470,33 +315,4 @@ public class AppiumSelfManagementHelper {
 
         ReportManager.log("Appium Device Farm is now up and running: http://" + Properties.platform.executionAddress() + "/dashboard/");
     }
-
-    public static void terminateAppiumContainers() {
-        ReportManager.logDiscrete("Terminating Appium containers...");
-        ReportHelper.disableLogging();
-        executeCommand("docker rm -f android-service", true);
-        ReportHelper.enableLogging();
-    }
-
-    private static String executeCommand(String command) {
-        return executeCommand(command, false);
-    }
-
-    private static String executeCommand(String command, boolean asynchronous) {
-        String consoleOutput;
-        String fileName = command.substring(0, command.indexOf(" ", 7)).replaceAll(" ", "_");
-        var setExecutionLocationCommand = "cd '" + androidEmulatorLocation + "'\n";
-        if (SystemUtils.IS_OS_WINDOWS) {
-            FileActions.getInstance().writeToFile(AppiumSelfManagementHelper.androidEmulatorLocation, fileName + ".bat", setExecutionLocationCommand + command);
-            consoleOutput = new TerminalActions(asynchronous).performTerminalCommand(AppiumSelfManagementHelper.androidEmulatorLocation + fileName + ".bat");
-            FileActions.getInstance().deleteFile(AppiumSelfManagementHelper.androidEmulatorLocation + fileName + ".bat");
-        } else {
-            FileActions.getInstance().writeToFile(AppiumSelfManagementHelper.androidEmulatorLocation, fileName + ".sh", setExecutionLocationCommand + command);
-            new TerminalActions(asynchronous).performTerminalCommand("chmod u+x " + AppiumSelfManagementHelper.androidEmulatorLocation + fileName + ".sh");
-            consoleOutput = new TerminalActions(asynchronous).performTerminalCommand("sh " + AppiumSelfManagementHelper.androidEmulatorLocation + fileName + ".sh");
-            FileActions.getInstance().deleteFile(AppiumSelfManagementHelper.androidEmulatorLocation + fileName + ".sh");
-        }
-        return consoleOutput;
-    }
-
 }
