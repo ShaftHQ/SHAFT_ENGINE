@@ -67,7 +67,7 @@ public class RequestBuilder {
         this.sessionConfigs = session.getSessionConfigs();
         this.requestType = requestType;
         this.serviceName = serviceName;
-        this.targetStatusCode = 200;
+        this.targetStatusCode = 0;
         this.contentType = ContentType.ANY.toString();
         this.authenticationType = AuthenticationType.NONE;
         this.appendDefaultContentCharsetToContentTypeIfUndefined = true;
@@ -99,7 +99,7 @@ public class RequestBuilder {
     }
 
     /**
-     * Sets the expected target status code for the API request that you're currently building. By default, this value is set to 200, but you can change it by calling this method.
+     * Sets the expected target status code for the API request that you're currently building. By default, this value is set to any number between 200 and 299 which means that the request was successful as per the <a href="https://www.w3.org/Protocols/HTTP/HTRESP.html">W3C Standard documentation</a>.
      *
      * @param targetStatusCode the expected target status code.
      * @return a self-reference to be used to continue building your API request
