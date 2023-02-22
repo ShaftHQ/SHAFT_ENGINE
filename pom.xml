@@ -693,13 +693,6 @@
             <version>${jacoco-maven-plugin.version}</version>
             <type>maven-plugin</type>
         </dependency>
-
-        <!-- https://mvnrepository.com/artifact/me.tongfei/progressbar -->
-        <dependency>
-            <groupId>me.tongfei</groupId>
-            <artifactId>progressbar</artifactId>
-            <version>0.9.5</version>
-        </dependency>
     </dependencies>
 
     <build>

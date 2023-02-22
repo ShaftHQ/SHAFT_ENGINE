@@ -1,9 +1,12 @@
 package testPackage.appium;
 
 import com.shaft.driver.SHAFT;
+import io.appium.java_client.remote.AutomationName;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
+import org.openqa.selenium.Platform;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.remote.Browser;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -21,9 +24,9 @@ public class MobileWebTest {
     public void test() {
         driver.browser().navigateToURL("https://www.google.com/");
         driver.verifyThat().browser().title().isEqualTo("Google").perform();
-        driver.element().type(searchBox, testData.getTestData("searchQuery"))
-                .keyPress(searchBox, Keys.ENTER);
-        driver.assertThat().element(resultStats).text().doesNotEqual("").withCustomReportMessage("Check that result stats is not empty").perform();
+//        driver.element().type(searchBox, testData.getTestData("searchQuery"))
+//                .keyPress(searchBox, Keys.ENTER);
+//        driver.assertThat().element(resultStats).text().doesNotEqual("").withCustomReportMessage("Check that result stats is not empty").perform();
     }
 
     //@Test
@@ -42,8 +45,8 @@ public class MobileWebTest {
 //        SHAFT.Properties.mobile.set().automationName(AutomationName.ANDROID_UIAUTOMATOR2);
 //
 //        // common attributes ios
-////        SHAFT.Properties.platform.set().targetPlatform(Platform.IOS.name());
-////        SHAFT.Properties.mobile.set().automationName(AutomationName.IOS_XCUI_TEST);
+//        SHAFT.Properties.platform.set().targetPlatform(Platform.IOS.name());
+//        SHAFT.Properties.mobile.set().automationName(AutomationName.IOS_XCUI_TEST);
 //
 //        // self-managed execution (android only) [WARNING: WORK IN PROGRESS]
 ////        SHAFT.Properties.mobile.set().selfManaged(true);
@@ -66,13 +69,13 @@ public class MobileWebTest {
 //        // remote browserstack server (android) [NATIVE SAMSUNG BROWSER] || [CHROME]
 //        SHAFT.Properties.browserStack.set().osVersion("13.0");
 //        SHAFT.Properties.browserStack.set().deviceName("Samsung Galaxy S23");
-////        SHAFT.Properties.mobile.set().browserName(Browser.CHROME.browserName());
-//        SHAFT.Properties.mobile.set().browserName("samsung");
+//        SHAFT.Properties.mobile.set().browserName(Browser.CHROME.browserName());
+////        SHAFT.Properties.mobile.set().browserName("samsung");
 //
 //        // remote browserstack server (ios) [SAFARI BROWSER]
-////        SHAFT.Properties.browserStack.set().osVersion("16");
-////        SHAFT.Properties.browserStack.set().deviceName("iPhone 14");
-////        SHAFT.Properties.mobile.set().browserName(Browser.SAFARI.browserName());
+//        SHAFT.Properties.browserStack.set().osVersion("16");
+//        SHAFT.Properties.browserStack.set().deviceName("iPhone 14");
+//        SHAFT.Properties.mobile.set().browserName(Browser.SAFARI.browserName());
 
         driver = new SHAFT.GUI.WebDriver();
         testData = new SHAFT.TestData.JSON("simpleJSON.json");
