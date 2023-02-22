@@ -7,7 +7,6 @@ import io.github.shafthq.shaft.properties.Properties;
 import io.github.shafthq.shaft.tools.io.helpers.ReportHelper;
 import io.qameta.allure.Step;
 import lombok.Getter;
-import lombok.SneakyThrows;
 import org.apache.commons.lang3.SystemUtils;
 import org.testng.Assert;
 
@@ -16,12 +15,9 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
-import java.util.concurrent.TimeUnit;
 
 public class AppiumSelfManagementHelper {
     // TODO: implement new environment variables for dockerized instance (or remove the code)
-    @Getter
-    private static final boolean appiumDockerizedExecution = false;
     private static AppiumSelfManagementHelper singleInstance = null;
     private final String cliToolsVersion = "9477386_latest";
     private final String nodeJsVersion = "v18.14.0";
@@ -32,7 +28,6 @@ public class AppiumSelfManagementHelper {
     private final String subpathToBin = "cmdline-tools" + File.separator + "latest" + File.separator + "bin";
     private final String subpathToPlatform = "platform-tools";
 
-    @SneakyThrows(InterruptedException.class)
     private AppiumSelfManagementHelper() {
         System.setProperty("videoParams_recordVideo", "true");
         // TODO: check if user has admin access
