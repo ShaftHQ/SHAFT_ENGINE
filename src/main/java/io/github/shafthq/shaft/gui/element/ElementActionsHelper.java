@@ -14,7 +14,6 @@ import io.github.shafthq.shaft.validations.helpers.ValidationsHelper;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Actions;
-import org.openqa.selenium.interactions.Locatable;
 import org.openqa.selenium.support.locators.RelativeLocator;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.FluentWait;
@@ -28,7 +27,6 @@ import java.awt.*;
 import java.time.Duration;
 import java.util.List;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ElementActionsHelper {
     public static final String OBFUSCATED_STRING = "•";
@@ -110,7 +108,11 @@ public class ElementActionsHelper {
     }
 
     private static boolean isValidToCheckForVisibility(By elementLocator, boolean checkForVisibility) {
-        return checkForVisibility && !formatLocatorToString(elementLocator).contains("input[@type='file']")
+        var locatorString = formatLocatorToString(elementLocator).toLowerCase();
+        return checkForVisibility
+                && !locatorString.contains("type='file'")
+                && !locatorString.contains("type=\"file\"")
+                && !locatorString.contains("frame")
                 && !elementLocator.equals(By.tagName("html"));
     }
 
@@ -144,8 +146,7 @@ public class ElementActionsHelper {
         var isMobileExecution = DriverFactoryHelper.isMobileNativeExecution() || DriverFactoryHelper.isMobileWebExecution();
 
         try {
-            JavaScriptWaitManager.waitForLazyLoading(driver);
-            AtomicBoolean attemptedToUseActionsToScrollToElement = new AtomicBoolean(false);
+//            JavaScriptWaitManager.waitForLazyLoading(driver);
             return new FluentWait<>(driver)
                     .withTimeout(Duration.ofMillis(
                             DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT * numberOfAttempts))
@@ -155,12 +156,10 @@ public class ElementActionsHelper {
                         WebElement targetElement = nestedDriver.findElement(elementLocator);
                         if (isValidToCheckForVisibility) {
                             if (!isMobileExecution) {
-                                if (isSafariBrowser() || isFirefoxBrowser() || attemptedToUseActionsToScrollToElement.get()) {
-                                    ((Locatable) targetElement).getCoordinates().inViewPort();
-                                } else {
-                                    attemptedToUseActionsToScrollToElement.set(true);
-                                    new Actions(driver).scrollToElement(targetElement).perform();
-                                }
+                                // the world is not ready yet for this action........
+    //                                        new Actions(driver).scrollToElement(targetElement).perform();
+                                ((JavascriptExecutor) driver).executeScript("""
+                                            arguments[0].scrollIntoView({behavior: "auto", block: "center", inline: "center"});""", targetElement);
                             } else {
                                 targetElement.isDisplayed();
                             }
@@ -622,14 +621,11 @@ public class ElementActionsHelper {
                 switch (Integer.parseInt(matchingElementsInformation.get(0).toString())) {
                     case 0 ->
                             Assert.fail("zero elements found matching this locator \"" + formatLocatorToString(elementLocator) + "\"", (Throwable) matchingElementsInformation.get(2));
-//                            failAction(driver, "zero elements found matching this locator", null, (Throwable) matchingElementsInformation.get(2));
                     case 1 -> {
                         return matchingElementsInformation;
                     }
                     default -> {
                         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckElementLocatorIsUnique")))) {
-//                            failAction(driver, "multiple elements found matching this locator",
-//                                    elementLocator);
                             Assert.fail("multiple elements found matching this locator \"" + formatLocatorToString(elementLocator) + "\"");
                         }
                         return matchingElementsInformation;
