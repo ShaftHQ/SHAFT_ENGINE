@@ -31,6 +31,7 @@ import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.chromium.ChromiumOptions;
 import org.openqa.selenium.edge.EdgeOptions;
+import org.openqa.selenium.firefox.FirefoxDriverLogLevel;
 import org.openqa.selenium.firefox.FirefoxOptions;
 import org.openqa.selenium.firefox.FirefoxProfile;
 import org.openqa.selenium.ie.InternetExplorerOptions;
@@ -183,6 +184,9 @@ public class DriverFactoryHelper {
                 // https://developer.mozilla.org/en-US/docs/Web/WebDriver/Capabilities/firefoxOptions
                 ffOptions = new FirefoxOptions();
                 var ffProfile = new FirefoxProfile();
+                ffProfile.setAssumeUntrustedCertificateIssuer(true);
+                ffProfile.setAcceptUntrustedCertificates(true);
+                ffProfile.setAlwaysLoadNoFocusLib(true);
                 ffProfile.setPreference("browser.download.dir", downloadsFolderPath);
                 ffProfile.setPreference("browser.download.folderList", 2);
                 ffProfile.setPreference("browser.helperApps.neverAsk.saveToDisk",
@@ -192,10 +196,13 @@ public class DriverFactoryHelper {
                 if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
                     ffOptions.addArguments("-headless");
                 }
-                ffOptions.addArguments("-foreground");
-                ffOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL);
+                // console.error: "Warning: unrecognized command line flag -foreground\n"
+//                ffOptions.addArguments("-foreground");
+                ffOptions.setPageLoadStrategy(PageLoadStrategy.EAGER);
                 ffOptions.setPageLoadTimeout(Duration.ofSeconds(PAGE_LOAD_TIMEOUT));
                 ffOptions.setScriptTimeout(Duration.ofSeconds(SCRIPT_TIMEOUT));
+                ffOptions.setLogLevel(FirefoxDriverLogLevel.WARN);
+                // console.warn: services.settings: Allow by setting MOZ_REMOTE_SETTINGS_DEVTOOLS=1 in the environment
                 //Add Proxy Setting if found
                 if (!proxyServerSettings.equals("")) {
                     Proxy proxy = new Proxy();
@@ -204,7 +211,11 @@ public class DriverFactoryHelper {
                     ffOptions.setProxy(proxy);
                 }
                 // Enable BiDi
-//                ffOptions.setCapability("webSocketUrl", true);
+                ffOptions.setCapability("webSocketUrl", true);
+                //                CDP	ERROR	Invalid browser preferences for CDP. Set "fission.webContentIsolationStrategy"to 0 and "fission.bfcacheInParent" to false before Firefox starts.
+                ffOptions.setCapability("fission.webContentIsolationStrategy", 0);
+                ffOptions.setCapability("fission.bfcacheInParent", false);
+//                console.warn: services.settings: Allow by setting MOZ_REMOTE_SETTINGS_DEVTOOLS=1 in the environment
                 //merge customWebdriverCapabilities.properties
                 ffOptions = ffOptions.merge(PropertyFileManager.getCustomWebdriverDesiredCapabilities());
                 //merge hardcoded custom options
@@ -764,8 +775,8 @@ public class DriverFactoryHelper {
             AppiumSelfManagementHelper.setupAppiumSelfManagedExecutionPrerequisites();
         }
 
-        var mobile_browserName = System.getProperty("mobile_browserName");
-        String targetBrowserName = System.getProperty("targetBrowserName");
+        String mobile_browserName = SHAFT.Properties.mobile.browserName();
+        String targetBrowserName = SHAFT.Properties.web.targetBrowserName();
 
         // it's null in case of native cucumber execution
         if (Reporter.getCurrentTestResult() != null) {
@@ -783,7 +794,7 @@ public class DriverFactoryHelper {
     }
 
     public static void initializeDriver(MutableCapabilities customDriverOptions) {
-        var mobile_browserName = System.getProperty("mobile_browserName");
+        String mobile_browserName = SHAFT.Properties.mobile.browserName();
         String targetBrowserName;
 
         var overridingBrowserName = Reporter.getCurrentTestResult().getTestContext().getCurrentXmlTest().getParameter("targetBrowserName");
@@ -832,7 +843,7 @@ public class DriverFactoryHelper {
             if (!isMobileExecution) {
                 if (Boolean.TRUE.equals(AUTO_MAXIMIZE)
                         && (
-                        "Safari".equalsIgnoreCase(targetBrowserName) || "MozillaFirefox".equalsIgnoreCase(targetBrowserName)
+                        Browser.SAFARI.browserName().equalsIgnoreCase(targetBrowserName) || Browser.FIREFOX.browserName().equalsIgnoreCase(targetBrowserName)
                 )) {
                     new BrowserActions().maximizeWindow();
                 }
@@ -853,7 +864,7 @@ public class DriverFactoryHelper {
     public static void initializeSystemProperties() {
         PropertiesHelper.postProcessing();
         AUTO_MAXIMIZE = Boolean.valueOf(System.getProperty("autoMaximizeBrowserWindow").trim());
-        HEADLESS_EXECUTION = Boolean.valueOf(System.getProperty("headlessExecution").trim());
+        HEADLESS_EXECUTION = SHAFT.Properties.web.headlessExecution();
         EXECUTION_ADDRESS = SHAFT.Properties.platform.executionAddress();
         TARGET_HUB_URL = (EXECUTION_ADDRESS.trim().toLowerCase().startsWith("http")) ? EXECUTION_ADDRESS : "http://" + EXECUTION_ADDRESS + "/";
         PAGE_LOAD_TIMEOUT = Integer.parseInt(System.getProperty("pageLoadTimeout"));
