@@ -169,8 +169,8 @@ public final class PropertyFileManager {
      */
     private static void manageMaximumPerformanceMode() {
         String maximumPerformanceMode = System.getProperty("maximumPerformanceMode");
-        switch (maximumPerformanceMode) {
-            case "true", "1", "2" -> {
+        /*~~(null)~~>*/switch (maximumPerformanceMode) {
+            /*~~(null)~~>*/case "true":, "1", "2" -> {
                 System.setProperty("aiPoweredSelfHealingElementIdentification", String.valueOf(false));
                 System.setProperty("autoMaximizeBrowserWindow", String.valueOf(true));
                 System.setProperty("screenshotParams_whenToTakeAScreenshot", "ValidationPointsOnly");
@@ -187,7 +187,7 @@ public final class PropertyFileManager {
                     System.setProperty("headlessExecution", String.valueOf(true));
                 }
             }
-            case "false", "0" -> {
+            case "false":, "0" -> {
                 // do nothing
             }
         }
