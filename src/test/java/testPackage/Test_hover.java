@@ -1,4 +1,4 @@
-package testPackage;
+package testpackage;
 
 import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;

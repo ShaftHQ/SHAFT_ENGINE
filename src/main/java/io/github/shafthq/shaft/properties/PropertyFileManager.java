@@ -21,7 +21,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-public class PropertyFileManager {
+public final class PropertyFileManager {
     //    private static final String OS_WINDOWS = "Windows";
 //    private static final String OS_LINUX = "Linux";
 //    private static final String OS_MAC = "Mac";
@@ -56,7 +56,7 @@ public class PropertyFileManager {
                 String propertyKey = ((String) (props.keySet().toArray())[i]).trim();
                 if (propertyKey.contains(CUSTOM_PROPERTIES_FOLDER_PROPERTY_NAME)
                         && !propertyKey.equals(CUSTOM_PROPERTIES_FOLDER_PROPERTY_NAME)
-                        && !props.getProperty(propertyKey).trim().equals("")) {
+                        && !"".equals(props.getProperty(propertyKey).trim())) {
                     readPropertyFiles(props.getProperty(propertyKey));
                 }
             }
@@ -173,8 +173,8 @@ public class PropertyFileManager {
      */
     private static void manageMaximumPerformanceMode() {
         String maximumPerformanceMode = System.getProperty("maximumPerformanceMode");
-        switch (maximumPerformanceMode) {
-            case "true", "1", "2" -> {
+        /*~~(null)~~>*/switch (maximumPerformanceMode) {
+            case "true":, "1", "2" -> {
                 System.setProperty("aiPoweredSelfHealingElementIdentification", String.valueOf(false));
                 System.setProperty("autoMaximizeBrowserWindow", String.valueOf(true));
                 System.setProperty("screenshotParams_whenToTakeAScreenshot", "ValidationPointsOnly");
@@ -187,10 +187,11 @@ public class PropertyFileManager {
                 System.setProperty("debugMode", String.valueOf(false));
                 System.setProperty("captureClickedElementText", String.valueOf(false));
                 System.setProperty("headlessExecution", String.valueOf(false));
-                if (maximumPerformanceMode.equals("2") && !DriverFactory.DriverType.SAFARI.getValue().equals(SHAFT.Properties.web.targetBrowserName()))
+                if ("2".equals(maximumPerformanceMode) && !DriverFactory.DriverType.SAFARI.getValue().equals(SHAFT.Properties.web.targetBrowserName())) {
                     System.setProperty("headlessExecution", String.valueOf(true));
+                }break;
             }
-            case "false", "0" -> {
+            case "false":, "0" -> {
             }
         }
     }
