@@ -187,7 +187,8 @@ public class PropertyFileManager {
                 System.setProperty("debugMode", String.valueOf(false));
                 System.setProperty("captureClickedElementText", String.valueOf(false));
                 System.setProperty("headlessExecution", String.valueOf(false));
-                if (maximumPerformanceMode.equals("2") && !DriverFactory.DriverType.DESKTOP_SAFARI.getValue().equals(System.getProperty("targetBrowserName"))) System.setProperty("headlessExecution", String.valueOf(true));
+                if (maximumPerformanceMode.equals("2") && !DriverFactory.DriverType.SAFARI.getValue().equals(SHAFT.Properties.web.targetBrowserName()))
+                    System.setProperty("headlessExecution", String.valueOf(true));
             }
             case "false", "0" -> {
             }

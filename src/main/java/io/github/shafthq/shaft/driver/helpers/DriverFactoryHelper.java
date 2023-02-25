@@ -31,6 +31,7 @@ import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.chromium.ChromiumOptions;
 import org.openqa.selenium.edge.EdgeOptions;
+import org.openqa.selenium.firefox.FirefoxDriverLogLevel;
 import org.openqa.selenium.firefox.FirefoxOptions;
 import org.openqa.selenium.firefox.FirefoxProfile;
 import org.openqa.selenium.ie.InternetExplorerOptions;
@@ -162,12 +163,12 @@ public class DriverFactoryHelper {
     private static DriverType getDriverTypeFromName(String driverName) {
         int values = DriverType.values().length;
         for (var i = 0; i < values; i++) {
-            if (Arrays.asList(DriverType.values()).get(i).getValue().equalsIgnoreCase(driverName.trim())) {
+            if (driverName.trim().toLowerCase().contains(Arrays.asList(DriverType.values()).get(i).getValue().toLowerCase())) {
                 return Arrays.asList(DriverType.values()).get(i);
             }
         }
         failAction("Unsupported Driver Type \"" + driverName + "\".");
-        return DriverType.DESKTOP_CHROME;
+        return DriverType.CHROME;
     }
     private static void setDriverOptions(DriverType driverType, MutableCapabilities customDriverOptions) {
         String downloadsFolderPath = FileActions.getInstance().getAbsolutePath(System.getProperty("downloadsFolderPath"));
@@ -178,7 +179,7 @@ public class DriverFactoryHelper {
 
         //https://github.com/GoogleChrome/chrome-launcher/blob/master/docs/chrome-flags-for-tools.md#--enable-automation
         switch (driverType) {
-            case DESKTOP_FIREFOX -> {
+            case FIREFOX -> {
                 // https://wiki.mozilla.org/Firefox/CommandLineOptions
                 // https://developer.mozilla.org/en-US/docs/Web/WebDriver/Capabilities/firefoxOptions
                 ffOptions = new FirefoxOptions();
@@ -192,8 +193,8 @@ public class DriverFactoryHelper {
                 if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
                     ffOptions.addArguments("-headless");
                 }
-                ffOptions.addArguments("-foreground");
-                ffOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL);
+                ffOptions.setLogLevel(FirefoxDriverLogLevel.WARN);
+                ffOptions.setPageLoadStrategy(PageLoadStrategy.EAGER);
                 ffOptions.setPageLoadTimeout(Duration.ofSeconds(PAGE_LOAD_TIMEOUT));
                 ffOptions.setScriptTimeout(Duration.ofSeconds(SCRIPT_TIMEOUT));
                 //Add Proxy Setting if found
@@ -204,7 +205,7 @@ public class DriverFactoryHelper {
                     ffOptions.setProxy(proxy);
                 }
                 // Enable BiDi
-//                ffOptions.setCapability("webSocketUrl", true);
+                ffOptions.setCapability("webSocketUrl", true);
                 //merge customWebdriverCapabilities.properties
                 ffOptions = ffOptions.merge(PropertyFileManager.getCustomWebdriverDesiredCapabilities());
                 //merge hardcoded custom options
@@ -212,7 +213,7 @@ public class DriverFactoryHelper {
                     ffOptions = ffOptions.merge(customDriverOptions);
                 }
             }
-            case DESKTOP_INTERNET_EXPLORER -> {
+            case IE -> {
                 ieOptions = new InternetExplorerOptions();
                 ieOptions.setCapability(CapabilityType.PLATFORM_NAME, Properties.platform.targetPlatform());
                 ieOptions.setPageLoadStrategy(PageLoadStrategy.NORMAL);
@@ -232,14 +233,14 @@ public class DriverFactoryHelper {
                     ieOptions = ieOptions.merge(customDriverOptions);
                 }
             }
-            case DESKTOP_CHROME, DESKTOP_EDGE, DESKTOP_CHROMIUM -> {
-                if (driverType.equals(DriverType.DESKTOP_EDGE)) {
+            case CHROME, EDGE, CHROMIUM -> {
+                if (driverType.equals(DriverType.EDGE)) {
                     edOptions = (EdgeOptions) setupChromiumOptions(new EdgeOptions(), customDriverOptions);
                 } else {
                     chOptions = (ChromeOptions) setupChromiumOptions(new ChromeOptions(), customDriverOptions);
                 }
             }
-            case DESKTOP_SAFARI, DESKTOP_WEBKIT -> {
+            case SAFARI, WEBKIT -> {
                 sfOptions = new SafariOptions();
                 sfOptions.setCapability(CapabilityType.PLATFORM_NAME, Properties.platform.targetPlatform());
                 sfOptions.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnhandledPromptBehavior.ACCEPT_AND_NOTIFY);
@@ -404,27 +405,27 @@ public class DriverFactoryHelper {
 
         try {
             switch (driverType) {
-                case DESKTOP_FIREFOX -> {
+                case FIREFOX -> {
                     ReportManager.logDiscrete(WEBDRIVERMANAGER_MESSAGE);
 //                    driver.set(ThreadGuard.protect(WebDriverManager.firefoxdriver().proxy(proxy).capabilities(ffOptions).create()));
                     driver.set(WebDriverManager.firefoxdriver().proxy(proxy).capabilities(ffOptions).create());
                 }
-                case DESKTOP_INTERNET_EXPLORER -> {
+                case IE -> {
                     ReportManager.logDiscrete(WEBDRIVERMANAGER_MESSAGE);
 //                    driver.set(ThreadGuard.protect(WebDriverManager.iedriver().proxy(proxy).capabilities(ieOptions).create()));
                     driver.set(WebDriverManager.iedriver().proxy(proxy).capabilities(ieOptions).create());
                 }
-                case DESKTOP_CHROME -> {
+                case CHROME -> {
                     ReportManager.logDiscrete(WEBDRIVERMANAGER_MESSAGE);
 //                    driver.set(ThreadGuard.protect(WebDriverManager.chromedriver().proxy(proxy).capabilities(chOptions).create()));
                     driver.set(WebDriverManager.chromedriver().proxy(proxy).capabilities(chOptions).create());
                 }
-                case DESKTOP_EDGE -> {
+                case EDGE -> {
                     ReportManager.logDiscrete(WEBDRIVERMANAGER_MESSAGE);
 //                    driver.set(ThreadGuard.protect(WebDriverManager.edgedriver().proxy(proxy).capabilities(edOptions).create()));
                     driver.set(WebDriverManager.edgedriver().proxy(proxy).capabilities(edOptions).create());
                 }
-                case DESKTOP_SAFARI -> {
+                case SAFARI -> {
                     ReportManager.logDiscrete(WEBDRIVERMANAGER_MESSAGE);
 //                    driver.set(ThreadGuard.protect(WebDriverManager.safaridriver().proxy(proxy).capabilities(sfOptions).create()));
                     driver.set(WebDriverManager.safaridriver().proxy(proxy).capabilities(sfOptions).create());
@@ -448,22 +449,22 @@ public class DriverFactoryHelper {
 
         try {
             switch (driverType) {
-                case DESKTOP_FIREFOX -> {
+                case FIREFOX -> {
                     ReportManager.logDiscrete(ffOptions.toString());
                     ReportManager.logDiscrete(WEBDRIVERMANAGER_DOCKERIZED_MESSAGE);
                     webDriverManager.set(WebDriverManager.firefoxdriver().capabilities(ffOptions));
                 }
-                case DESKTOP_CHROME -> {
+                case CHROME -> {
                     ReportManager.logDiscrete(chOptions.toString());
                     ReportManager.logDiscrete(WEBDRIVERMANAGER_DOCKERIZED_MESSAGE);
                     webDriverManager.set(WebDriverManager.chromedriver().capabilities(chOptions));
                 }
-                case DESKTOP_EDGE -> {
+                case EDGE -> {
                     ReportManager.logDiscrete(edOptions.toString());
                     ReportManager.logDiscrete(WEBDRIVERMANAGER_DOCKERIZED_MESSAGE);
                     webDriverManager.set(WebDriverManager.edgedriver().capabilities(edOptions));
                 }
-                case DESKTOP_SAFARI -> {
+                case SAFARI -> {
                     ReportManager.logDiscrete(sfOptions.toString());
                     ReportManager.logDiscrete(WEBDRIVERMANAGER_DOCKERIZED_MESSAGE);
                     webDriverManager.set(WebDriverManager.safaridriver().capabilities(sfOptions));
@@ -661,11 +662,11 @@ public class DriverFactoryHelper {
 
     private static void configureRemoteDriverInstance(DriverType driverType, DesiredCapabilities appiumDesiredCapabilities) throws MalformedURLException {
         switch (driverType) {
-            case DESKTOP_FIREFOX -> setRemoteDriverInstance(ffOptions);
-            case DESKTOP_INTERNET_EXPLORER -> setRemoteDriverInstance(ieOptions);
-            case DESKTOP_CHROME, DESKTOP_CHROMIUM -> setRemoteDriverInstance(chOptions);
-            case DESKTOP_EDGE -> setRemoteDriverInstance(edOptions);
-            case DESKTOP_SAFARI, DESKTOP_WEBKIT -> {
+            case FIREFOX -> setRemoteDriverInstance(ffOptions);
+            case IE -> setRemoteDriverInstance(ieOptions);
+            case CHROME, CHROMIUM -> setRemoteDriverInstance(chOptions);
+            case EDGE -> setRemoteDriverInstance(edOptions);
+            case SAFARI, WEBKIT -> {
                 if (!Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())
                         && !Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
                     setRemoteDriverInstance(sfOptions);
@@ -830,10 +831,11 @@ public class DriverFactoryHelper {
             }
 
             if (!isMobileExecution) {
+                var targetBrowserName = SHAFT.Properties.web.targetBrowserName().toLowerCase();
                 if (Boolean.TRUE.equals(AUTO_MAXIMIZE)
                         && (
-                        "Safari".equalsIgnoreCase(targetBrowserName) || "MozillaFirefox".equalsIgnoreCase(targetBrowserName)
-                )) {
+                        targetBrowserName.contains(Browser.SAFARI.browserName().toLowerCase())
+                                || targetBrowserName.contains(Browser.FIREFOX.browserName().toLowerCase()))) {
                     new BrowserActions().maximizeWindow();
                 }
             }
