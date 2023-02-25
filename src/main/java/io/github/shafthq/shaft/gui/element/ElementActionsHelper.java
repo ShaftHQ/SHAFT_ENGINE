@@ -28,7 +28,6 @@ import java.awt.*;
 import java.time.Duration;
 import java.util.List;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ElementActionsHelper {
     public static final String OBFUSCATED_STRING = "•";
@@ -110,7 +109,11 @@ public class ElementActionsHelper {
     }
 
     private static boolean isValidToCheckForVisibility(By elementLocator, boolean checkForVisibility) {
-        return checkForVisibility && !formatLocatorToString(elementLocator).contains("input[@type='file']")
+        var locatorString = formatLocatorToString(elementLocator).toLowerCase();
+        return checkForVisibility
+                && !locatorString.contains("type='file'")
+                && !locatorString.contains("type=\"file\"")
+                && !locatorString.contains("frame")
                 && !elementLocator.equals(By.tagName("html"));
     }
 
@@ -144,8 +147,7 @@ public class ElementActionsHelper {
         var isMobileExecution = DriverFactoryHelper.isMobileNativeExecution() || DriverFactoryHelper.isMobileWebExecution();
 
         try {
-            JavaScriptWaitManager.waitForLazyLoading(driver);
-            AtomicBoolean attemptedToUseActionsToScrollToElement = new AtomicBoolean(false);
+//            JavaScriptWaitManager.waitForLazyLoading(driver);
             return new FluentWait<>(driver)
                     .withTimeout(Duration.ofMillis(
                             DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT * numberOfAttempts))
@@ -155,11 +157,18 @@ public class ElementActionsHelper {
                         WebElement targetElement = nestedDriver.findElement(elementLocator);
                         if (isValidToCheckForVisibility) {
                             if (!isMobileExecution) {
-                                if (isSafariBrowser() || isFirefoxBrowser() || attemptedToUseActionsToScrollToElement.get()) {
-                                    ((Locatable) targetElement).getCoordinates().inViewPort();
-                                } else {
-                                    attemptedToUseActionsToScrollToElement.set(true);
-                                    new Actions(driver).scrollToElement(targetElement).perform();
+                                try {
+                                    // native Javascript scroll to center (smooth / auto)
+                                    ((JavascriptExecutor) driver).executeScript("""
+                                            arguments[0].scrollIntoView({behavior: "smooth", block: "center", inline: "center"});""", targetElement);
+                                } catch (Throwable throwable){
+                                    try {
+                                        // w3c compliant scroll
+                                        new Actions(driver).scrollToElement(targetElement).perform();
+                                    } catch (Throwable throwable1){
+                                        // old school selenium scroll
+                                        ((Locatable) targetElement).getCoordinates().inViewPort();
+                                    }
                                 }
                             } else {
                                 targetElement.isDisplayed();

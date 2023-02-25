@@ -24,7 +24,7 @@ engines:
   source_code: {}
   steps:
   - id: "openrewrite"
-    skip: false
+    skip: true
     parameters:
       recipes:
       - "org.openrewrite.java.cleanup.CommonStaticAnalysis"
