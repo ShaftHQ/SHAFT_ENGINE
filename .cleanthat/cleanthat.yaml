@@ -20,7 +20,7 @@ engines:
     parameters:
       configuration: "repository:/.cleanthat/spotless.yaml"
 - engine: "openrewrite"
-  skip: false
+  skip: true
   source_code: {}
   steps:
   - id: "openrewrite"
