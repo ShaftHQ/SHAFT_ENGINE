@@ -8,9 +8,7 @@ import io.github.shafthq.shaft.enums.Browsers;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import lombok.Getter;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.SystemUtils;
 import org.openqa.selenium.MutableCapabilities;
-import org.openqa.selenium.Platform;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -22,9 +20,7 @@ import java.util.Map;
 import java.util.Objects;
 
 public final class PropertyFileManager {
-    //    private static final String OS_WINDOWS = "Windows";
-//    private static final String OS_LINUX = "Linux";
-//    private static final String OS_MAC = "Mac";
+
     private static final String DEFAULT_PROPERTIES_FOLDER_PATH = "src/main/resources/properties/default";
     @Getter
     private static final String CUSTOM_PROPERTIES_FOLDER_PATH = "src/main/resources/properties";
@@ -98,7 +94,7 @@ public final class PropertyFileManager {
         return appiumDesiredCapabilities;
     }
 
-    public static MutableCapabilities getCustomWebdriverDesiredCapabilities() {
+    public static MutableCapabilities getCustomWebDriverDesiredCapabilities() {
         MutableCapabilities customDriverOptions = new MutableCapabilities();
         java.util.Properties props = System.getProperties();
         props.forEach((key, value) -> {
@@ -173,8 +169,8 @@ public final class PropertyFileManager {
      */
     private static void manageMaximumPerformanceMode() {
         String maximumPerformanceMode = System.getProperty("maximumPerformanceMode");
-        /*~~(null)~~>*/switch (maximumPerformanceMode) {
-            case "true":, "1", "2" -> {
+        switch (maximumPerformanceMode) {
+            case "true", "1", "2" -> {
                 System.setProperty("aiPoweredSelfHealingElementIdentification", String.valueOf(false));
                 System.setProperty("autoMaximizeBrowserWindow", String.valueOf(true));
                 System.setProperty("screenshotParams_whenToTakeAScreenshot", "ValidationPointsOnly");
@@ -189,9 +185,10 @@ public final class PropertyFileManager {
                 System.setProperty("headlessExecution", String.valueOf(false));
                 if ("2".equals(maximumPerformanceMode) && !DriverFactory.DriverType.SAFARI.getValue().equals(SHAFT.Properties.web.targetBrowserName())) {
                     System.setProperty("headlessExecution", String.valueOf(true));
-                }break;
+                }
             }
-            case "false":, "0" -> {
+            case "false", "0" -> {
+                // do nothing
             }
         }
     }
@@ -206,18 +203,6 @@ public final class PropertyFileManager {
             // reset system properties
         } catch (IOException e) {
             ReportManagerHelper.logDiscrete(e);
-        }
-    }
-
-    private static void overrideTargetOperatingSystemForLocalExecution() {
-        if ("local".equals(SHAFT.Properties.platform.executionAddress())) {
-            if (SystemUtils.IS_OS_WINDOWS) {
-                SHAFT.Properties.platform.set().targetPlatform(Platform.WINDOWS.toString());
-            } else if (SystemUtils.IS_OS_LINUX) {
-                SHAFT.Properties.platform.set().targetPlatform(Platform.LINUX.toString());
-            } else if (SystemUtils.IS_OS_MAC) {
-                SHAFT.Properties.platform.set().targetPlatform(Platform.MAC.toString());
-            }
         }
     }
 }

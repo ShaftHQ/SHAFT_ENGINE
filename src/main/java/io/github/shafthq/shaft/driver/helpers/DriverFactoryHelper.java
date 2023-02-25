@@ -207,7 +207,7 @@ public class DriverFactoryHelper {
                 // Enable BiDi
                 ffOptions.setCapability("webSocketUrl", true);
                 //merge customWebdriverCapabilities.properties
-                ffOptions = ffOptions.merge(PropertyFileManager.getCustomWebdriverDesiredCapabilities());
+                ffOptions = ffOptions.merge(PropertyFileManager.getCustomWebDriverDesiredCapabilities());
                 //merge hardcoded custom options
                 if (customDriverOptions != null) {
                     ffOptions = ffOptions.merge(customDriverOptions);
@@ -227,7 +227,7 @@ public class DriverFactoryHelper {
                     ieOptions.setProxy(proxy);
                 }
                 //merge customWebdriverCapabilities.properties
-                ieOptions = ieOptions.merge(PropertyFileManager.getCustomWebdriverDesiredCapabilities());
+                ieOptions = ieOptions.merge(PropertyFileManager.getCustomWebDriverDesiredCapabilities());
                 //merge hardcoded custom options
                 if (customDriverOptions != null) {
                     ieOptions = ieOptions.merge(customDriverOptions);
@@ -255,14 +255,14 @@ public class DriverFactoryHelper {
                     sfOptions.setProxy(proxy);
                 }
                 //merge customWebdriverCapabilities.properties
-                sfOptions = sfOptions.merge(PropertyFileManager.getCustomWebdriverDesiredCapabilities());
+                sfOptions = sfOptions.merge(PropertyFileManager.getCustomWebDriverDesiredCapabilities());
                 //merge hardcoded custom options
                 if (customDriverOptions != null) {
                     sfOptions = sfOptions.merge(customDriverOptions);
                 }
             }
             case APPIUM_MOBILE_NATIVE, APPIUM_SAMSUNG_BROWSER, APPIUM_CHROME, APPIUM_CHROMIUM ->
-                    appiumCapabilities = new DesiredCapabilities(PropertyFileManager.getCustomWebdriverDesiredCapabilities().merge(customDriverOptions));
+                    appiumCapabilities = new DesiredCapabilities(PropertyFileManager.getCustomWebDriverDesiredCapabilities().merge(customDriverOptions));
             default ->
                     failAction("Unsupported Driver Type \"" + JavaHelper.convertToSentenceCase(driverType.getValue()) + "\".");
         }
@@ -373,7 +373,7 @@ public class DriverFactoryHelper {
             options.setExperimentalOption("mobileEmulation", mobileEmulation);
         }
         //merge customWebdriverCapabilities.properties
-        options = (ChromiumOptions<?>) options.merge(PropertyFileManager.getCustomWebdriverDesiredCapabilities());
+        options = (ChromiumOptions<?>) options.merge(PropertyFileManager.getCustomWebDriverDesiredCapabilities());
         //merge hardcoded custom options
         if (customDriverOptions != null) {
             options = (ChromiumOptions<?>) options.merge(customDriverOptions);
