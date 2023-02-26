@@ -1,7 +1,6 @@
 package testPackage;
 
 import com.shaft.driver.DriverFactory;
-import com.shaft.driver.DriverFactory.DriverType;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
 import org.openqa.selenium.By;
@@ -22,7 +21,7 @@ public class Test_hover {
 
     @BeforeClass // Set-up method, to be run once before the first test
     public void beforeClass() {
-        driver = DriverFactory.getDriver(DriverType.DESKTOP_CHROME);
+        driver = DriverFactory.getDriver();
     }
 
     @AfterClass
