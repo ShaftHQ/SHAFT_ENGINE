@@ -45,7 +45,8 @@ public class BrowserStack {
 
         List<Object> customID = new ArrayList<>();
         customID.add("custom_id");
-        String custom_id = "SHAFT_Engine_" + appName.replaceAll(" ", "_");
+        String userProvidedCustomID = SHAFT.Properties.browserStack.customID();
+        String custom_id = "".equals(userProvidedCustomID) ? "SHAFT_Engine_" + appName.replaceAll(" ", "_") : userProvidedCustomID;
         customID.add(custom_id);
         ReportManager.logDiscrete("BrowserStack custom_id: " + custom_id);
 
