@@ -42,6 +42,11 @@ public interface BrowserStack extends EngineProperties {
     @DefaultValue("")
     String appUrl();
 
+    //Use customID to test the latest uploaded version as the above url expires regularly
+    @Key("browserStack.customID")
+    @DefaultValue("")
+    String customID();
+
     //Use appName and appRelativeFilePath to upload a new app file and test it
     @Key("browserStack.appName")
     @DefaultValue("")
@@ -129,6 +134,10 @@ public interface BrowserStack extends EngineProperties {
 
         public void appUrl(String value) {
             setProperty("browserStack.appUrl", value);
+        }
+
+        public void customID(String value) {
+            setProperty("browserStack.customID", value);
         }
 
         public void appName(String value) {
