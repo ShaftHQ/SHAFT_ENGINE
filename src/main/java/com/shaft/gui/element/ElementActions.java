@@ -13,13 +13,10 @@ import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Actions;
-import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.Select;
-import org.openqa.selenium.support.ui.WebDriverWait;
 import org.sikuli.script.App;
 
 import java.nio.file.FileSystems;
-import java.time.Duration;
 import java.util.*;
 
 import static io.github.shafthq.shaft.gui.element.ElementActionsHelper.*;
@@ -579,7 +576,9 @@ public class ElementActions extends FluentElementActions {
             return elementText;
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
+            var rootCauseClassName = Throwables.getRootCause(throwable).getClass().getName();
+            if (rootCauseClassName.equals(org.openqa.selenium.NoSuchElementException.class.getName())
+                    || rootCauseClassName.equals(org.openqa.selenium.InvalidSelectorException.class.getName())) {
                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
             } else {
                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
