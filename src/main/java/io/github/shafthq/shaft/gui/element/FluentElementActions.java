@@ -7,6 +7,8 @@ import com.shaft.gui.element.TouchActions;
 import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
 import io.github.shafthq.shaft.driver.helpers.WizardHelpers;
 import io.github.shafthq.shaft.gui.browser.FluentBrowserActions;
+import io.github.shafthq.shaft.gui.image.ScreenshotManager;
+import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import io.github.shafthq.shaft.validations.helpers.WebDriverElementValidationsBuilder;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
@@ -15,6 +17,7 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.UnexpectedTagNameException;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -587,4 +590,8 @@ public class FluentElementActions {
         return ElementActions.isElementClickable(DriverFactoryHelper.getDriver().get(), elementLocator);
     }
 
+    public FluentElementActions captureScreenshot(By elementLocator) {
+        ReportManagerHelper.log("Capture element screenshot", Collections.singletonList(ScreenshotManager.prepareImageforReport(ScreenshotManager.takeElementScreenshot(DriverFactoryHelper.getDriver().get(), elementLocator), "captureScreenshot")));
+        return this;
+    }
 }

@@ -4,6 +4,7 @@ import com.epam.healenium.SelfHealingDriver;
 import com.shaft.cli.FileActions;
 import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
+import io.github.shafthq.shaft.enums.Screenshots;
 import io.github.shafthq.shaft.gui.browser.JavaScriptWaitManager;
 import io.github.shafthq.shaft.gui.element.ElementActionsHelper;
 import io.github.shafthq.shaft.properties.Properties;
@@ -41,8 +42,25 @@ public class ScreenshotManager {
             .getProperty("screenshotParams_whenToTakeAScreenshot");
     private static final Boolean SCREENSHOT_PARAMS_HIGHLIGHTELEMENTS = Boolean
             .valueOf(System.getProperty("screenshotParams_highlightElements"));
-    private static String SCREENSHOT_PARAMS_SCREENSHOTTYPE = System
-            .getProperty("screenshotParams_screenshotType");
+    private static Screenshots SCREENSHOT_PARAMS_SCREENSHOTTYPE = setScreenshotType();
+
+    private static Screenshots setScreenshotType() {
+        switch (System.getProperty("screenshotParams_screenshotType").toLowerCase().trim()) {
+            case "element" -> {
+                return Screenshots.ELEMENT;
+            }
+            case "regular" -> {
+                return Screenshots.VIEWPORT;
+            }
+            case "fullpage" -> {
+                return Screenshots.FULL;
+            }
+            default -> {
+                return null;
+            }
+        }
+    }
+
     private static String SCREENSHOT_PARAMS_HIGHLIGHTMETHOD = System
             .getProperty("screenshotParams_highlightMethod");
     private static final String SCREENSHOT_PARAMS_SKIPPEDELEMENTSFROMSCREENSHOT = System
@@ -182,8 +200,8 @@ public class ScreenshotManager {
             byte[] src = null;
             try {
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                switch (SCREENSHOT_PARAMS_SCREENSHOTTYPE.toLowerCase().trim()) {
-                    case "element":
+                switch (SCREENSHOT_PARAMS_SCREENSHOTTYPE) {
+                    case ELEMENT:
                         if (element != null) {
                             try {
                                 ImageIO.write(screen.capture(screen.wait(element).getRect()).getImage(), "png", baos);
@@ -193,13 +211,13 @@ public class ScreenshotManager {
                                 //do nothing and fall into the next type of screenshot
                             }
                         }
-                    case "regular":
+                    case VIEWPORT:
                         if (applicationWindow != null) {
                             ImageIO.write(screen.capture(applicationWindow.waitForWindow()).getImage(), "png", baos);
                             src = baos.toByteArray();
                             break;
                         }
-                    case "fullpage":
+                    case FULL:
                         ImageIO.write(screen.capture().getImage(), "png", baos);
                         src = baos.toByteArray();
                         break;
@@ -221,12 +239,16 @@ public class ScreenshotManager {
         return null;
     }
 
+    public static byte[] takeViewportScreenshot(WebDriver driver) {
+        return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+    }
+
     public static byte[] takeFullPageScreenshot(WebDriver driver) {
         try {
-            if(!System.getProperty("setParallel").equals("NONE")){
+            if (!System.getProperty("setParallel").equals("NONE")) {
                 //in case of parallel execution, force regular screenshots
-                return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
-            }else if (SCREENSHOT_PARAMS_SKIPPEDELEMENTSFROMSCREENSHOT.length() > 0) {
+                return takeViewportScreenshot(driver);
+            } else if (SCREENSHOT_PARAMS_SKIPPEDELEMENTSFROMSCREENSHOT.length() > 0) {
                 List<WebElement> skippedElementsList = new ArrayList<>();
                 String[] skippedElementLocators = SCREENSHOT_PARAMS_SKIPPEDELEMENTSFROMSCREENSHOT.split(";");
                 for (String locator : skippedElementLocators) {
@@ -245,7 +267,7 @@ public class ScreenshotManager {
             }
         } catch (Exception e) {
             ReportManagerHelper.logDiscrete(e);
-            return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+            return ScreenshotManager.takeViewportScreenshot(driver);
         }
     }
 
@@ -412,24 +434,24 @@ public class ScreenshotManager {
         }
 
         if (DriverFactoryHelper.isWebExecution()) {
-            return switch (SCREENSHOT_PARAMS_SCREENSHOTTYPE.toLowerCase().trim()) {
-                case "fullpage" -> {
+            return switch (SCREENSHOT_PARAMS_SCREENSHOTTYPE) {
+                case FULL -> {
                     try {
                         yield takeFullPageScreenshot(driver);
                     } catch (Exception throwable) {
                         ReportManagerHelper.logDiscrete(throwable);
-                        SCREENSHOT_PARAMS_SCREENSHOTTYPE = "regular";
+                        SCREENSHOT_PARAMS_SCREENSHOTTYPE = Screenshots.VIEWPORT;
                         yield takeScreenshot(driver);
                     }
                 }
-                case "element" -> takeElementScreenshot(driver, targetElementLocator, true);
-                default -> ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+                case ELEMENT -> takeElementScreenshot(driver, targetElementLocator, true);
+                default -> ScreenshotManager.takeViewportScreenshot(driver);
             };
         }else {
-            if (SCREENSHOT_PARAMS_SCREENSHOTTYPE.toLowerCase().trim().equals("element")) {
+            if (SCREENSHOT_PARAMS_SCREENSHOTTYPE.equals(Screenshots.ELEMENT)) {
                 return takeElementScreenshot(driver, targetElementLocator, true);
             } else {
-                return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+                return ScreenshotManager.takeViewportScreenshot(driver);
             }
         }
     }
@@ -442,7 +464,7 @@ public class ScreenshotManager {
                 return driver.findElement(targetElementLocator).getScreenshotAs(OutputType.BYTES);
             } else {
                 if (returnRegularScreenshotInCaseOfFailure) {
-                    return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+                    return ScreenshotManager.takeViewportScreenshot(driver);
                 } else {
                     return new byte[]{};
                 }
@@ -450,23 +472,28 @@ public class ScreenshotManager {
         } catch (Exception e) {
             ReportManagerHelper.logDiscrete(e);
             if (returnRegularScreenshotInCaseOfFailure) {
-                return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+                return ScreenshotManager.takeViewportScreenshot(driver);
             } else {
                 return new byte[]{};
             }
         }
     }
 
+    public static String generateAttachmentFileName(String actionName) {
+        testCaseName = ReportManagerHelper.getTestMethodName();
+        var fileName = System.currentTimeMillis() + "_" + testCaseName + "_" + actionName;
+        if (!"".equals(globalPassFailAppendedText)) {
+            fileName = fileName + "_" + globalPassFailAppendedText;
+        }
+        return fileName;
+    }
+
     public static List<Object> prepareImageforReport(byte[] image, String actionName) {
-        if (image !=null && image.length>0) {
+        if (image != null && image.length > 0) {
             /*
              * Declare screenshot file name
              */
-            testCaseName = ReportManagerHelper.getTestMethodName();
-            screenshotFileName = System.currentTimeMillis() + "_" + testCaseName + "_" + actionName;
-            if (!"".equals(globalPassFailAppendedText)) {
-                screenshotFileName = screenshotFileName + "_" + globalPassFailAppendedText;
-            }
+            screenshotFileName = generateAttachmentFileName(actionName);
 
             /*
              * Adding Screenshot to the Report.
