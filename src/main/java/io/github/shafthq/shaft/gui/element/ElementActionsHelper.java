@@ -187,6 +187,14 @@ public class ElementActionsHelper {
             elementInformation.add(null);
             elementInformation.add(timeoutException);
             return elementInformation;
+        } catch (org.openqa.selenium.InvalidSelectorException invalidSelectorException) {
+            // In case the selector is not valid
+            ReportManager.logDiscrete(invalidSelectorException.getMessage());
+            var elementInformation = new ArrayList<>();
+            elementInformation.add(0);
+            elementInformation.add(null);
+            elementInformation.add(invalidSelectorException);
+            return elementInformation;
         }
     }
 
@@ -626,27 +634,21 @@ public class ElementActionsHelper {
         var matchingElementsInformation = getMatchingElementsInformation(driver, elementLocator, Optional.empty(), Optional.of(checkForVisibility));
 
         if (elementLocator != null) {
-            if (!(elementLocator instanceof RelativeLocator.RelativeBy)) {
-                // in case of regular locator
-                switch (Integer.parseInt(matchingElementsInformation.get(0).toString())) {
-                    case 0 ->
-                            Assert.fail("zero elements found matching this locator \"" + formatLocatorToString(elementLocator) + "\"", (Throwable) matchingElementsInformation.get(2));
-//                            failAction(driver, "zero elements found matching this locator", null, (Throwable) matchingElementsInformation.get(2));
-                    case 1 -> {
-                        return matchingElementsInformation;
+            // in case of regular locator
+            switch (Integer.parseInt(matchingElementsInformation.get(0).toString())) {
+                case 0 ->
+                        Assert.fail("zero elements found matching this locator \"" + formatLocatorToString(elementLocator) + "\"", (Throwable) matchingElementsInformation.get(2));
+                case 1 -> {
+                    return matchingElementsInformation;
+                }
+                default -> {
+                    if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckElementLocatorIsUnique")))
+                            && !(elementLocator instanceof RelativeLocator.RelativeBy)) {
+                        Assert.fail("multiple elements found matching this locator \"" + formatLocatorToString(elementLocator) + "\"");
                     }
-                    default -> {
-                        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckElementLocatorIsUnique")))) {
-//                            failAction(driver, "multiple elements found matching this locator",
-//                                    elementLocator);
-                            Assert.fail("multiple elements found matching this locator \"" + formatLocatorToString(elementLocator) + "\"");
-                        }
-                        return matchingElementsInformation;
-                    }
+                    return matchingElementsInformation;
                 }
             }
-            //in case of relativeLocator
-            return matchingElementsInformation;
         } else {
             // in case locator is null
             failAction(driver, "element locator is NULL.", null);
@@ -662,7 +664,6 @@ public class ElementActionsHelper {
             elementInformation.add(null);
             return elementInformation;
         }
-//        JavaScriptWaitManager.waitForLazyLoading(driver);
         if (!elementLocator.equals(By.tagName("html"))) {
             if (numberOfAttempts.isEmpty() && checkForVisibility.isEmpty()) {
                 return ElementActionsHelper.waitForElementPresence(driver, elementLocator);
