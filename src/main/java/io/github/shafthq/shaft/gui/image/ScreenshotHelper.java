@@ -1,8 +1,10 @@
 package io.github.shafthq.shaft.gui.image;
 
-import com.google.common.collect.ImmutableMap;
 import org.apache.commons.io.output.ByteArrayOutputStream;
-import org.openqa.selenium.*;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.OutputType;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chromium.ChromiumDriver;
 import org.openqa.selenium.firefox.FirefoxDriver;
 
@@ -20,17 +22,6 @@ public class ScreenshotHelper {
 
     private ScreenshotHelper() {
         throw new IllegalStateException("Utility class");
-    }
-
-    protected static Object sendCommand(ChromiumDriver chromiumDriver, String cmd, Object params) {
-        return chromiumDriver.executeCdpCommand("sendCommand", ImmutableMap.of("cmd", cmd, "params", params)).values();
-    }
-
-    @SuppressWarnings("unchecked")
-    protected static Object sendEvaluate(ChromiumDriver chromiumDriver, String script) {
-        Object response = sendCommand(chromiumDriver, "Runtime.evaluate", ImmutableMap.of("returnByValue", true, "expression", script));
-        Object result = ((Map<String, ?>) response).get("result");
-        return ((Map<String, ?>) result).get("value");
     }
 
     @SuppressWarnings("unchecked")
@@ -61,7 +52,7 @@ public class ScreenshotHelper {
             scrollVerticallyTo(driver, 0);
             hideScroll(driver);
             // No need to hide elements for first attempt
-            byte[] bytes = getScreenShot(driver);
+            byte[] bytes = ScreenshotManager.takeViewportScreenshot(driver);
 
             showHideElements(driver, true, skipElements);
             long longScrollHeight = (Long) ((JavascriptExecutor) driver)
@@ -95,13 +86,13 @@ public class ScreenshotHelper {
                 for (int i = 0; i < times - 1; i++) {
                     scroll += adaptedCapturedHeight;
                     scrollVerticallyTo(driver, scroll);
-                    BufferedImage nextImage = ImageIO.read(new ByteArrayInputStream(getScreenShot(driver)));
+                    BufferedImage nextImage = ImageIO.read(new ByteArrayInputStream(ScreenshotManager.takeViewportScreenshot(driver)));
                     g2dTile.drawImage(nextImage, 0, (i + 1) * capturedHeight, null);
                 }
                 if (leftover > 0) {
                     scroll += adaptedCapturedHeight;
                     scrollVerticallyTo(driver, scroll);
-                    BufferedImage nextImage = ImageIO.read(new ByteArrayInputStream(getScreenShot(driver)));
+                    BufferedImage nextImage = ImageIO.read(new ByteArrayInputStream(ScreenshotManager.takeViewportScreenshot(driver)));
                     BufferedImage lastPart = nextImage.getSubimage(0,
                             nextImage.getHeight() - (int) (((double) leftover) * devicePixelRatio), nextImage.getWidth(),
                             leftover);
@@ -144,10 +135,6 @@ public class ScreenshotHelper {
                         skipElement);
             }
         }
-    }
-
-    private static byte[] getScreenShot(WebDriver driver) {
-        return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
     }
 
     private static void scrollVerticallyTo(WebDriver driver, int scroll) {

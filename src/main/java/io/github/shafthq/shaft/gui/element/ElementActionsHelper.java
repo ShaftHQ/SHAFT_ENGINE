@@ -76,7 +76,7 @@ public class ElementActionsHelper {
                 } catch (InterruptedException e) {
                     ReportManagerHelper.logDiscrete(e);
                 }
-                currentScreenImage = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+                currentScreenImage = ScreenshotManager.takeViewportScreenshot(driver);
                 coordinates = ImageProcessingActions.findImageWithinCurrentPage(elementReferenceScreenshot, currentScreenImage);
                 if (!Collections.emptyList().equals(coordinates)) {
                     isFound = true;
@@ -89,7 +89,7 @@ public class ElementActionsHelper {
         } else {
             // reference screenshot doesn't exist
             ReportManager.log("Reference screenshot not found. Kindly confirm the image exists under this path: \"" + elementReferenceScreenshot + "\"");
-            currentScreenImage = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+            currentScreenImage = ScreenshotManager.takeViewportScreenshot(driver);
             returnedValue.add(currentScreenImage);
             returnedValue.add(new byte[0]);
             returnedValue.add(Collections.emptyList());

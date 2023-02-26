@@ -5,17 +5,21 @@ import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.TouchActions;
 import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
 import io.github.shafthq.shaft.driver.helpers.WizardHelpers;
+import io.github.shafthq.shaft.enums.Screenshots;
 import io.github.shafthq.shaft.gui.element.FluentElementActions;
+import io.github.shafthq.shaft.gui.image.ScreenshotManager;
+import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import io.github.shafthq.shaft.validations.helpers.WebDriverBrowserValidationsBuilder;
 import org.openqa.selenium.Cookie;
-import org.openqa.selenium.WebDriver;
 
+import java.io.ByteArrayInputStream;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Set;
 
-public class FluentBrowserActions {
+import static io.github.shafthq.shaft.gui.browser.BrowserActionsHelpers.failAction;
 
-    public FluentBrowserActions(WebDriver driver) {
-    }
+public class FluentBrowserActions {
 
     public FluentBrowserActions() {
     }
@@ -62,7 +66,6 @@ public class FluentBrowserActions {
      * For other driver types attempts to attach the current page source (for web)
      * or accessibility tree (for mobile)
      *
-     * @return
      */
     public FluentBrowserActions capturePageSnapshot() {
         BrowserActions.capturePageSnapshot(DriverFactoryHelper.getDriver().get());
@@ -322,4 +325,49 @@ public class FluentBrowserActions {
         return this;
     }
 
+    /**
+     * Use this action to return a full page screenshot. This is a synonym to {@link  FluentBrowserActions#captureScreenshot(Screenshots type)} if you pass Screenshots.FULL
+     *
+     * @return a self-reference for chainable actions
+     */
+    public FluentBrowserActions captureScreenshot() {
+        return this.captureScreenshot(Screenshots.FULL);
+    }
+
+    /**
+     * Use this action to return a page screenshot. If you want to capture a screenshot then use this method instead {@see FluentBrowserActions#captureSnapshot()}
+     *
+     * @param type can either be Screenshots.FULL, or Screenshots.VIEWPORT
+     * @return a self-reference for chainable actions
+     */
+    public FluentBrowserActions captureScreenshot(Screenshots type) {
+        var logText = "Capture " + type.getValue().toLowerCase() + " screenshot";
+        switch (type) {
+            case FULL ->
+                    ReportManagerHelper.log(logText, Collections.singletonList(ScreenshotManager.prepareImageforReport(ScreenshotManager.takeFullPageScreenshot(DriverFactoryHelper.getDriver().get()), "captureScreenshot")));
+            case VIEWPORT ->
+                    ReportManagerHelper.log(logText, Collections.singletonList(ScreenshotManager.prepareImageforReport(ScreenshotManager.takeViewportScreenshot(DriverFactoryHelper.getDriver().get()), "captureScreenshot")));
+            case ELEMENT ->
+                    failAction(DriverFactoryHelper.getDriver().get(), "Were you trying to use driver.element().captureScreenshot() instead?");
+        }
+        return this;
+    }
+
+    /**
+     * Use this action to return a page snapshot. A page snapshot is a single .mht file that contains the full page DOM and any related assets
+     * to help you view the page as a whole. If you want to capture a screenshot then use this method instead @see FluentBrowserActions#captureScreenshot()
+     *
+     * @return a self-reference for chainable actions
+     */
+    public FluentBrowserActions captureSnapshot() {
+        var logMessage = "";
+        var pageSnapshot = BrowserActionsHelpers.capturePageSnapshot(DriverFactoryHelper.getDriver().get(), true);
+        if (pageSnapshot.startsWith("From: <Saved by Blink>")) {
+            logMessage = "Capture page snapshot";
+        } else if (pageSnapshot.startsWith("<html")) {
+            logMessage = "Capture page HTML";
+        }
+        ReportManagerHelper.log(logMessage, Arrays.asList(Arrays.asList(logMessage, ScreenshotManager.generateAttachmentFileName("captureSnapshot"), new ByteArrayInputStream(pageSnapshot.getBytes()))));
+        return this;
+    }
 }
