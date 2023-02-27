@@ -48,7 +48,7 @@ public class Test_RelativeLocators {
         driver.set(DriverFactory.getDriver());
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void afterMethod(){
         DriverFactory.closeAllDrivers();
     }

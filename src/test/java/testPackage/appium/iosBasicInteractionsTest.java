@@ -58,7 +58,7 @@ public class iosBasicInteractionsTest {
 
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void teardown() {
         DriverFactory.closeAllDrivers();
     }

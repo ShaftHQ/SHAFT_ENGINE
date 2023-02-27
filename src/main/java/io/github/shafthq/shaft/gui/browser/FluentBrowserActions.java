@@ -22,6 +22,7 @@ import static io.github.shafthq.shaft.gui.browser.BrowserActionsHelpers.failActi
 public class FluentBrowserActions {
 
     public FluentBrowserActions() {
+        JavaScriptWaitManager.waitForLazyLoading(DriverFactoryHelper.getDriver().get());
     }
 
     public TouchActions performTouchAction() {
@@ -53,11 +54,11 @@ public class FluentBrowserActions {
     }
 
     public WebDriverBrowserValidationsBuilder assertThat() {
-        return new WizardHelpers.WebDriverAssertions(DriverFactoryHelper.getDriver()).browser();
+        return new WizardHelpers.WebDriverAssertions().browser();
     }
 
     public WebDriverBrowserValidationsBuilder verifyThat() {
-        return new WizardHelpers.WebDriverVerifications(DriverFactoryHelper.getDriver()).browser();
+        return new WizardHelpers.WebDriverVerifications().browser();
     }
 
     /**

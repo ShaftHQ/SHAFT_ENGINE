@@ -4,7 +4,6 @@ import com.shaft.cli.FileActions;
 import com.shaft.gui.element.SikuliActions;
 import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
-import io.github.shafthq.shaft.gui.browser.JavaScriptWaitManager;
 import io.github.shafthq.shaft.gui.image.ImageProcessingActions;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
 import io.github.shafthq.shaft.gui.locator.ShadowLocatorBuilder;
@@ -210,7 +209,6 @@ public class ElementActionsHelper {
 
     public static List<Object> scrollToFindElement(WebDriver driver, By elementLocator) {
         try {
-            JavaScriptWaitManager.waitForLazyLoading(driver);
             return new FluentWait<>(driver)
                     .withTimeout(Duration.ofMillis(
                             DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT))
@@ -246,7 +244,6 @@ public class ElementActionsHelper {
 
         if (!DriverFactoryHelper.isMobileNativeExecution()) {
             try {
-                JavaScriptWaitManager.waitForLazyLoading(driver);
                 (new WebDriverWait(driver, Duration.ofMillis(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT)))
                         .until(ExpectedConditions.elementToBeClickable(elementLocator));
 
@@ -585,7 +582,6 @@ public class ElementActionsHelper {
     private static void performType(WebDriver driver, By elementLocator, String text) {
         ArrayList<Class<? extends Exception>> expectedExceptions = getExpectedExceptions(true);
         try {
-            JavaScriptWaitManager.waitForLazyLoading(driver);
             new FluentWait<>(driver)
                     .withTimeout(Duration.ofSeconds(5))
                     .pollingEvery(Duration.ofSeconds(1))

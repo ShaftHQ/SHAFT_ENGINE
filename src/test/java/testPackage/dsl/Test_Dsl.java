@@ -19,7 +19,7 @@ public class Test_Dsl {
         driver.browser().navigateToURL("http://the-internet.herokuapp.com/");
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     void afterMethod() {
         driver.quit();
     }

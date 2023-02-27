@@ -63,7 +63,7 @@ public class Test_Cookies {
         driver.browser().navigateToURL("http://www.example.com");
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void afterMethod() {
         driver.quit();
     }

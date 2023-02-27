@@ -178,7 +178,7 @@ public class androidBasicInteractionsTest {
         driver = new SHAFT.GUI.WebDriver();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void teardown() {
         driver.quit();
     }

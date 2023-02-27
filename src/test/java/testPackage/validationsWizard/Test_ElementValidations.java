@@ -63,7 +63,7 @@ public class Test_ElementValidations {
         driver.get().navigate().to("data:text/html,<script>var result;</script><button alt='Google' onclick='result=\"Clicked\"'>Go</button>");
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void afterClass() {
         DriverFactory.closeAllDrivers();
     }

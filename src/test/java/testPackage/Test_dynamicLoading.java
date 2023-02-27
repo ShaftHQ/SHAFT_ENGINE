@@ -32,7 +32,7 @@ public class Test_dynamicLoading {
         driver.set(DriverFactory.getDriver());
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void afterMethod() {
         BrowserActions.closeCurrentWindow(driver.get());
         driver.remove();

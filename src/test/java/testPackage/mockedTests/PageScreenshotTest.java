@@ -42,7 +42,7 @@ public class PageScreenshotTest {
         driver.get().browser().navigateToURL(testPage);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void afterMethod() {
         driver.get().quit();
         driver.remove();

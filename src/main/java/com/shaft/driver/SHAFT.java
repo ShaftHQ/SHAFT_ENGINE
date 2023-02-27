@@ -6,7 +6,6 @@ import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.db.DatabaseActions;
-import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.SikuliActions;
 import com.shaft.gui.element.TouchActions;
@@ -16,6 +15,7 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.YAMLFileManager;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
+import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
 import io.github.shafthq.shaft.driver.helpers.WizardHelpers;
 import io.github.shafthq.shaft.gui.browser.FluentBrowserActions;
 import io.github.shafthq.shaft.gui.element.FluentElementActions;
@@ -35,18 +35,17 @@ import java.util.List;
 public class SHAFT {
     public static class GUI {
         public static class WebDriver {
-            private static final ThreadLocal<org.openqa.selenium.WebDriver> driverThreadLocal = new ThreadLocal<>();
 
             public WebDriver() {
-                driverThreadLocal.set(DriverFactory.getDriver());
+                DriverFactory.getDriver();
             }
 
             public WebDriver(DriverFactory.DriverType driverType) {
-                driverThreadLocal.set(DriverFactory.getDriver(driverType));
+                DriverFactory.getDriver(driverType);
             }
 
             public WebDriver(DriverFactory.DriverType driverType, MutableCapabilities mutableCapabilities) {
-                driverThreadLocal.set(DriverFactory.getDriver(driverType, mutableCapabilities));
+                DriverFactory.getDriver(driverType, mutableCapabilities);
             }
 
             public void quit() {
@@ -54,27 +53,27 @@ public class SHAFT {
             }
 
             public FluentElementActions element() {
-                return new FluentElementActions(driverThreadLocal.get());
+                return new FluentElementActions();
             }
 
             public TouchActions touch() {
-                return new TouchActions(driverThreadLocal.get());
+                return new TouchActions();
             }
 
             public FluentBrowserActions browser() {
-                return new BrowserActions(driverThreadLocal.get());
+                return new FluentBrowserActions();
             }
 
             public AlertActions alert() {
-                return new AlertActions(driverThreadLocal.get());
+                return new AlertActions();
             }
 
             public WizardHelpers.WebDriverAssertions assertThat() {
-                return new WizardHelpers.WebDriverAssertions(driverThreadLocal);
+                return new WizardHelpers.WebDriverAssertions();
             }
 
             public WizardHelpers.WebDriverVerifications verifyThat() {
-                return new WizardHelpers.WebDriverVerifications(driverThreadLocal);
+                return new WizardHelpers.WebDriverVerifications();
             }
 
             /**
@@ -90,7 +89,7 @@ public class SHAFT {
                  * https://github.com/SeleniumHQ/selenium/blob/316f9738a8e2079265a0691954ca8847e68c598d/java/test/org/openqa/selenium/support/events/EventFiringDecoratorTest.java#L422
                  */
 
-                if (driverThreadLocal.get() instanceof AndroidDriver androidDriver) {
+                if (DriverFactoryHelper.getDriver().get() instanceof AndroidDriver androidDriver) {
 //                    AndroidDriver decoratedDriver = createProxy(
 //                            AndroidDriver.class,
 //                            new Object[] {androidDriver},
@@ -99,8 +98,8 @@ public class SHAFT {
 //                    );
 //                    return decoratedDriver;
 //                    return new EventFiringDecorator<>(AndroidDriver.class, listener).decorate(androidDriver);
-                    return driverThreadLocal.get();
-                } else if (driverThreadLocal.get() instanceof IOSDriver iosDriver) {
+                    return DriverFactoryHelper.getDriver().get();
+                } else if (DriverFactoryHelper.getDriver().get() instanceof IOSDriver iosDriver) {
 //                    IOSDriver decoratedDriver = createProxy(
 //                            IOSDriver.class,
 //                            new Object[] {iosDriver},
@@ -109,11 +108,11 @@ public class SHAFT {
 //                    );
 //                    return decoratedDriver;
 //                    return new EventFiringDecorator<>(IOSDriver.class, listener).decorate(iosDriver);
-                    return driverThreadLocal.get();
+                    return DriverFactoryHelper.getDriver().get();
 //                } else if (driverThreadLocal.get() instanceof RemoteWebDriver remoteWebDriver) {
 //                    driverThreadLocal.set(new EventFiringDecorator<>(RemoteWebDriver.class, new WebDriverListener()).decorate(remoteWebDriver));
                 } else {
-                    return new EventFiringDecorator<>(org.openqa.selenium.WebDriver.class, new WebDriverListener()).decorate(driverThreadLocal.get());
+                    return new EventFiringDecorator<>(org.openqa.selenium.WebDriver.class, new WebDriverListener()).decorate(DriverFactoryHelper.getDriver().get());
                 }
             }
         }

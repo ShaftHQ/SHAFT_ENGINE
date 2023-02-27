@@ -69,10 +69,10 @@ import org.testng.annotations.Test;
     public void beforeClass() {
         driver = new SHAFT.GUI.WebDriver();
         testData = new SHAFT.TestData.JSON("simpleJSON.json");
-    }
+        }
 
-    @AfterClass
-    public void afterClass() {
+@AfterClass(alwaysRun = true)
+public void afterClass(){
         driver.quit();
     }
 ```

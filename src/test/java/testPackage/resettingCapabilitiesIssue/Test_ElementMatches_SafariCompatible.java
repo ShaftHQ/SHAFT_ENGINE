@@ -27,7 +27,7 @@ public class Test_ElementMatches_SafariCompatible {
 //        System.setProperty("browserStack.osVersion", "Monterey");
         driver =  new SHAFT.GUI.WebDriver();
     }
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void afterMethod(){
         driver.quit();
     }

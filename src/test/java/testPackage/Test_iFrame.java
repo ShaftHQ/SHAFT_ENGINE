@@ -44,7 +44,7 @@ public class Test_iFrame {
         driver = DriverFactory.getDriver();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void afterClass() {
         BrowserActions.closeCurrentWindow(driver);
     }

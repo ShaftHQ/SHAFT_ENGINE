@@ -23,7 +23,7 @@ public class Test_URLNavigation {
 //        driver = DriverFactory.getDriver();
 //    }
 //
-//    @AfterClass
+//    @AfterClass(alwaysRun = true)
 //    public void afterClass() {
 //        DriverFactory.closeAllDrivers();
 //    }

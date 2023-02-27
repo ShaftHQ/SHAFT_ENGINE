@@ -22,7 +22,7 @@ public class Test_JSPromptBox {
         BrowserActions.navigateToURL(driver, "http://the-internet.herokuapp.com/javascript_alerts");
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void tearDownDriver() {
         BrowserActions.closeCurrentWindow(driver);
     }

@@ -32,7 +32,7 @@ public class Test_SelectedValue {
         driver = new SHAFT.GUI.WebDriver();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void afterMethod() {
         driver.quit();
     }

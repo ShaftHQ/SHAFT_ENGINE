@@ -316,7 +316,7 @@ public class Test_NewValidationHelper {
         BrowserActions.navigateToURL(driver, "https://the-internet.herokuapp.com/");
     }
 
-    @AfterMethod(onlyForGroups = {"browserBasedTests"})
+    @AfterMethod(onlyForGroups = {"browserBasedTests"}, alwaysRun = true)
     public void closeBrowser() {
         DriverFactory.closeAllDrivers();
     }
