@@ -126,11 +126,11 @@ public class JavaHelper {
                 if (expectedValue == null) {
                     Assert.assertNull(actualValue);
                 } else if (expectedValue instanceof String expectedString && actualValue instanceof String actualString) {
-                    Assert.assertEquals(expectedString, actualString);
+                    Assert.assertEquals(actualString, expectedString);
                 } else if (expectedValue instanceof Number expectedNumber && actualValue instanceof Number actualNumber) {
-                    Assert.assertEquals(expectedNumber, actualNumber);
-                } else if (actualValue != null) {
-                    Assert.assertEquals(expectedValue, actualValue);
+                    Assert.assertEquals(actualNumber, expectedNumber);
+                } else {
+                    Assert.assertEquals(actualValue, expectedValue);
                 }
             }
             case 2 ->
@@ -157,13 +157,11 @@ public class JavaHelper {
                 if (expectedValue == null) {
                     Assert.assertNotNull(actualValue);
                 } else if (expectedValue instanceof String expectedString && actualValue instanceof String actualString) {
-                    Assert.assertNotEquals(expectedString, actualString);
+                    Assert.assertNotEquals(actualString, expectedString);
                 } else if (expectedValue instanceof Number expectedNumber && actualValue instanceof Number actualNumber) {
-                    Assert.assertNotEquals(expectedNumber, actualNumber);
-                } else if (actualValue != null) {
-                    Assert.assertNotEquals(expectedValue, actualValue);
+                    Assert.assertNotEquals(actualNumber, expectedNumber);
                 } else {
-                    Assert.assertNotNull(expectedValue);
+                    Assert.assertNotEquals(actualValue, expectedValue);
                 }
             }
             case 2 ->
