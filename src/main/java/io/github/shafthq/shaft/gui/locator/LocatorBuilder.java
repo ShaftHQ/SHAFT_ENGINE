@@ -1,14 +1,26 @@
 package io.github.shafthq.shaft.gui.locator;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.openqa.selenium.By;
+import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.locators.RelativeLocator;
 
 import java.util.ArrayList;
 
 public class LocatorBuilder {
+
+    @Getter
+    @Setter
+    static By shadowDomLocator;
     private String tagName = "*";
     private ArrayList<String> parameters = new ArrayList<>();
     private String order = "";
+    @Getter
+    @Setter
+    static WebElement shadowElement;
+    @Setter
+    private static Locators mode = Locators.XPATH;
 
     private LocatorBuilder() {
         // do nothing
@@ -98,6 +110,9 @@ public class LocatorBuilder {
     }
 
     public By build() {
+        if (mode == Locators.CSS) {
+            return By.cssSelector(buildSelectorExpression());
+        }
         return By.xpath(buildXpathExpression());
     }
 
@@ -111,5 +126,26 @@ public class LocatorBuilder {
         } else {
             return xpathExpression.toString();
         }
+    }
+
+    String buildSelectorExpression() {
+        StringBuilder cssExpression = new StringBuilder();
+        tagName = tagName.equals("*") ? "" : tagName;
+        cssExpression.append(tagName);
+        parameters.forEach(parameter -> cssExpression.append(parameter.replace("@", "")));
+        if (!order.equals("")) {
+            if (order.matches("[0-9]+")) {
+                order = ":nth-child(" + order + ")";
+            } else if (order.equals("last()")) {
+                order = ":last-child";
+            }
+            return "(" + cssExpression + ")" + this.order;
+        } else {
+            return cssExpression.toString();
+        }
+    }
+
+    public ShadowLocatorBuilder insideShadowDom(By shadowDomLocator) {
+        return new ShadowLocatorBuilder(this, shadowDomLocator, By.cssSelector(buildSelectorExpression()));
     }
 }

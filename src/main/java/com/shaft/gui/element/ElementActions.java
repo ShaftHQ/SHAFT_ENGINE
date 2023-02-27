@@ -302,16 +302,16 @@ public class ElementActions extends FluentElementActions {
     public static void dragAndDropByOffset(WebDriver driver, By sourceElementLocator, int xOffset, int yOffset) {
         try {
             var elementName = getElementName(driver, sourceElementLocator);
-            WebElement sourceElement = driver.findElement(sourceElementLocator);
+            WebElement sourceElement = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1));
             String startLocation = sourceElement.getLocation().toString();
             // attempt to perform drag and drop
             try {
-                (new Actions(driver)).dragAndDropBy(driver.findElement(sourceElementLocator), xOffset, yOffset).build()
+                (new Actions(driver)).dragAndDropBy(((WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)), xOffset, yOffset).build()
                         .perform();
             } catch (Exception rootCauseException) {
                 failAction(driver, sourceElementLocator, rootCauseException);
             }
-            String endLocation = driver.findElement(sourceElementLocator).getLocation().toString();
+            String endLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)).getLocation().toString();
             if (!endLocation.equals(startLocation)) {
                 passAction(driver, sourceElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "Start point: " + startLocation + ", End point: " + endLocation, null, elementName);
             } else {
