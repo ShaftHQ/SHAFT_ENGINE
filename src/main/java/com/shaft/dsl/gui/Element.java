@@ -33,20 +33,20 @@ public abstract class Element {
     }
 
     public void shouldExist() {
-        Validations.assertThat().element(driver, locator).exists().perform();
+        Validations.assertThat().element(locator).exists().perform();
     }
 
     public void shouldExist(String reportMsg) {
-        Validations.assertThat().element(driver, locator).exists()
+        Validations.assertThat().element(locator).exists()
                 .withCustomReportMessage(reportMsg).perform();
     }
 
     public void shouldNotExist() {
-        Validations.assertThat().element(driver, locator).exists().perform();
+        Validations.assertThat().element(locator).exists().perform();
     }
 
     public void shouldNotExist(String reportMsg) {
-        Validations.assertThat().element(driver, locator).exists()
+        Validations.assertThat().element(locator).exists()
                 .withCustomReportMessage(reportMsg).perform();
     }
 }

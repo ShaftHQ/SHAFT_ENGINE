@@ -27,7 +27,7 @@ public class Test_lazyLoading {
         driver.set(new SHAFT.GUI.WebDriver());
     }
 
-    @AfterMethod(description = "Quit Driver")
+    @AfterMethod(description = "Quit Driver", alwaysRun = true)
     public void afterMethod() {
         driver.get().quit();
     }

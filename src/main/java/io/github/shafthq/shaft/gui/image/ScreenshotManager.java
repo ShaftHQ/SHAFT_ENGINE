@@ -254,7 +254,7 @@ public class ScreenshotManager {
                 for (String locator : skippedElementLocators) {
                     if (ElementActionsHelper.getElementsCount(driver, By.xpath(locator),
                             RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1) {
-                        skippedElementsList.add(driver.findElement(By.xpath(locator)));
+                        skippedElementsList.add(((WebElement) ElementActionsHelper.identifyUniqueElement(driver, By.xpath(locator)).get(1)));
                     }
                 }
 
@@ -357,13 +357,13 @@ public class ScreenshotManager {
                         boolean isRelativeLocator = elementLocator instanceof RelativeLocator.RelativeBy;
                         if ((!isRelativeLocator && elementCount == 1) || (isRelativeLocator && elementCount >= 1)) {
                             if ("JavaScript".equals(SCREENSHOT_PARAMS_HIGHLIGHTMETHOD)) {
-                                element = driver.findElement(elementLocator);
+                                element = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1));
                                 js = (JavascriptExecutor) driver;
                                 regularElementStyle = highlightElementAndReturnDefaultStyle(element, js,
                                         setHighlightedElementStyle());
                             } else {
                                 // default to using AI
-                                elementLocation = driver.findElement(elementLocator).getRect();
+                                elementLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).getRect();
                             }
                         }
                     }
@@ -461,7 +461,7 @@ public class ScreenshotManager {
         try {
             if (targetElementLocator != null && ElementActionsHelper.getElementsCount(driver, targetElementLocator,
                     RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1) {
-                return driver.findElement(targetElementLocator).getScreenshotAs(OutputType.BYTES);
+                return ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, targetElementLocator).get(1)).getScreenshotAs(OutputType.BYTES);
             } else {
                 if (returnRegularScreenshotInCaseOfFailure) {
                     return ScreenshotManager.takeViewportScreenshot(driver);

@@ -80,7 +80,7 @@ public class ElementActionsTests {
         driver.set(new SHAFT.GUI.WebDriver());
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void afterMethod() {
         driver.get().quit();
     }

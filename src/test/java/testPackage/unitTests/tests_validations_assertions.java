@@ -314,7 +314,7 @@ public class tests_validations_assertions {
         }
     }
 
-    @AfterMethod(onlyForGroups = {"WebBased"})
+    @AfterMethod(onlyForGroups = {"WebBased"}, alwaysRun = true)
     public void afterMethod() {
         BrowserActions.closeCurrentWindow(driver);
     }

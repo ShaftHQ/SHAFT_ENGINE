@@ -78,7 +78,6 @@ public class BrowserActions extends FluentBrowserActions {
      */
     @Deprecated
     public static String getCurrentURL(WebDriver driver) {
-        JavaScriptWaitManager.waitForLazyLoading(driver);
         var currentURL = "";
         try {
             currentURL = driver.getCurrentUrl();
@@ -97,7 +96,6 @@ public class BrowserActions extends FluentBrowserActions {
      */
     @Deprecated
     public static String getCurrentWindowTitle(WebDriver driver) {
-        JavaScriptWaitManager.waitForLazyLoading(driver);
         var currentWindowTitle = "";
         try {
             currentWindowTitle = driver.getTitle();
@@ -116,7 +114,6 @@ public class BrowserActions extends FluentBrowserActions {
      */
     @Deprecated
     public static String getPageSource(WebDriver driver) {
-        JavaScriptWaitManager.waitForLazyLoading(driver);
         var pageSource = "";
         try {
             pageSource = driver.getPageSource();
@@ -137,7 +134,6 @@ public class BrowserActions extends FluentBrowserActions {
      */
     @Deprecated
     public static void capturePageSnapshot(WebDriver driver) {
-        JavaScriptWaitManager.waitForLazyLoading(driver);
         var serializedPageData = BrowserActionsHelpers.capturePageSnapshot(driver, true);
         passAction(driver, serializedPageData);
     }
@@ -151,7 +147,6 @@ public class BrowserActions extends FluentBrowserActions {
      */
     @Deprecated
     public static String getWindowHandle(WebDriver driver) {
-        JavaScriptWaitManager.waitForLazyLoading(driver);
         var windowHandle = "";
         try {
             windowHandle = driver.getWindowHandle();
@@ -170,7 +165,6 @@ public class BrowserActions extends FluentBrowserActions {
      */
     @Deprecated
     public static String getWindowPosition(WebDriver driver) {
-        JavaScriptWaitManager.waitForLazyLoading(driver);
         var windowPosition = "";
         try {
             windowPosition = driver.manage().window().getPosition().toString();
@@ -189,7 +183,6 @@ public class BrowserActions extends FluentBrowserActions {
      */
     @Deprecated
     public static String getWindowSize(WebDriver driver) {
-        JavaScriptWaitManager.waitForLazyLoading(driver);
         var windowSize = "";
         try {
             windowSize = driver.manage().window().getSize().toString();
@@ -344,13 +337,11 @@ public class BrowserActions extends FluentBrowserActions {
      */
     @Deprecated
     public static void navigateBack(WebDriver driver) {
-        JavaScriptWaitManager.waitForLazyLoading(driver);
         String initialURL;
         var newURL = "";
         try {
             initialURL = driver.getCurrentUrl();
             driver.navigate().back();
-            JavaScriptWaitManager.waitForLazyLoading(driver);
             BrowserActionsHelpers.waitUntilURLIsNot(driver, initialURL);
             newURL = driver.getCurrentUrl();
             if (!newURL.equals(initialURL)) {
@@ -370,7 +361,6 @@ public class BrowserActions extends FluentBrowserActions {
      */
     @Deprecated
     public static void navigateForward(WebDriver driver) {
-        JavaScriptWaitManager.waitForLazyLoading(driver);
         String initialURL;
         var newURL = "";
         try {
@@ -396,7 +386,6 @@ public class BrowserActions extends FluentBrowserActions {
      */
     @Deprecated
     public static void refreshCurrentPage(WebDriver driver) {
-        JavaScriptWaitManager.waitForLazyLoading(driver);
         driver.navigate().refresh();
         passAction(driver, driver.getPageSource());
     }
@@ -409,7 +398,6 @@ public class BrowserActions extends FluentBrowserActions {
     @Deprecated
     public static void closeCurrentWindow(WebDriver driver) {
         if (driver != null) {
-            JavaScriptWaitManager.waitForLazyLoading(driver);
             try {
                 // TODO: handle session timeout while attempting to close empty window
                 String lastPageSource = driver.getPageSource();
@@ -603,7 +591,7 @@ public class BrowserActions extends FluentBrowserActions {
     }
 
     @Deprecated
-    public static Set getAllCookies(WebDriver driver) {
+    public static Set<Cookie> getAllCookies(WebDriver driver) {
         Set<Cookie> cookies = driver.manage().getCookies();
         passAction("");
         return cookies;

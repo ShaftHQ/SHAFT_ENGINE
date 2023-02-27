@@ -28,7 +28,7 @@ public class Test_CrossBrowserExecution {
         driver.set(new SHAFT.GUI.WebDriver());
     }
 
-    @AfterMethod(description = "Teardown Browser")
+    @AfterMethod(description = "Teardown Browser", alwaysRun = true)
     public void afterMethod() {
         driver.get().quit();
     }

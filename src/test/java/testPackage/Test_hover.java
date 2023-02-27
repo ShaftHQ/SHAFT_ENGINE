@@ -24,7 +24,7 @@ public class Test_hover {
         driver = DriverFactory.getDriver();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void afterClass() {
         BrowserActions.closeCurrentWindow(driver);
     }

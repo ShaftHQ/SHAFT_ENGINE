@@ -88,7 +88,7 @@ public class tests_browserActions {
         driver.get().browser().navigateToURL("https://duckduckgo.com/?");
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void afterMethod() {
         driver.get().browser().navigateToURL("https://duckduckgo.com/?");
         driver.get().browser().closeCurrentWindow();

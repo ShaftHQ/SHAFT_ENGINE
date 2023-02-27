@@ -1,6 +1,7 @@
 package io.github.shafthq.shaft.validations.helpers;
 
 import com.shaft.validation.ValidationEnums;
+import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
@@ -45,28 +46,34 @@ public class ValidationsBuilder {
         return new NumberValidationsBuilder(this);
     }
 
+    public WebDriverElementValidationsBuilder element(WebDriver driver, By locator) {
+        return element(locator);
+    }
+
     /**
      * Build a WebDriver element validation to check against the target element
      *
-     * @param driver  the current instance of Selenium WebDriver
      * @param locator the locator of the webElement under test (By xpath, id,
      *                selector, name ...etc)
      * @return a WebDriverElementValidationsBuilder object to continue building your validation
      */
-    public WebDriverElementValidationsBuilder element(WebDriver driver, By locator) {
+    public WebDriverElementValidationsBuilder element(By locator) {
         reportMessageBuilder.append("The Element located by \"").append(formatLocatorToString(locator)).append("\" ");
-        return new WebDriverElementValidationsBuilder(validationCategory, driver, locator, reportMessageBuilder);
+        return new WebDriverElementValidationsBuilder(validationCategory, DriverFactoryHelper.getDriver().get(), locator, reportMessageBuilder);
+    }
+
+    public WebDriverBrowserValidationsBuilder browser(WebDriver driver) {
+        return browser();
     }
 
     /**
      * Build a WebDriver browser validation to check against the target browser
      *
-     * @param driver the current instance of Selenium WebDriver
      * @return a WebDriverBrowserValidationsBuilder object to continue building your validation
      */
-    public WebDriverBrowserValidationsBuilder browser(WebDriver driver) {
+    public WebDriverBrowserValidationsBuilder browser() {
         reportMessageBuilder.append("The Browser ");
-        return new WebDriverBrowserValidationsBuilder(validationCategory, driver, reportMessageBuilder);
+        return new WebDriverBrowserValidationsBuilder(validationCategory, DriverFactoryHelper.getDriver().get(), reportMessageBuilder);
     }
 
     /**

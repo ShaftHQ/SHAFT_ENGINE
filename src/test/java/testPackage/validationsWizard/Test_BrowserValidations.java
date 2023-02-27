@@ -28,7 +28,7 @@ public class Test_BrowserValidations {
         BrowserActions.navigateToURL(driver, url);
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void afterClass() {
         DriverFactory.closeAllDrivers();
     }

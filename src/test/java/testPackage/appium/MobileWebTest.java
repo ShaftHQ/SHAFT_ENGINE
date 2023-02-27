@@ -1,12 +1,9 @@
 package testPackage.appium;
 
 import com.shaft.driver.SHAFT;
-import io.appium.java_client.remote.AutomationName;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
-import org.openqa.selenium.Platform;
 import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.remote.Browser;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -81,7 +78,7 @@ public class MobileWebTest {
         testData = new SHAFT.TestData.JSON("simpleJSON.json");
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void afterClass() {
         driver.quit();
     }

@@ -121,30 +121,33 @@ public class DriverFactoryHelper {
     }
 
     public static void closeDriver() {
-        if (System.getProperty("videoParams_scope").trim().equals("DriverSession")) {
-            RecordManager.attachVideoRecording();
-        }
-        try {
-            attachWebDriverLogs();
-            BrowserActionsHelpers.attachPageSnapshot(driver.get());
-
-            //if dockerized wdm.quit the relevant one
-            if (System.getProperty("executionAddress").contains("dockerized")) {
-                var pathToRecording = webDriverManager.get().getDockerRecordingPath(driver.get());
-                webDriverManager.get().quit(driver.get());
-                RecordManager.attachVideoRecording(pathToRecording);
-            } else {
-                driver.get().quit();
+        if (driver.get() != null) {
+            if (System.getProperty("videoParams_scope").trim().equals("DriverSession")) {
+                RecordManager.attachVideoRecording();
             }
-        } catch (WebDriverException | NullPointerException e) {
-            // driver was already closed at an earlier stage
-        } catch (Exception e) {
-            ReportManagerHelper.logDiscrete(e);
-        } finally {
-            driver.remove();
-            webDriverManager.remove();
-            ReportManager.log("Successfully Closed Driver.");
+            try {
+                attachWebDriverLogs();
+                BrowserActionsHelpers.attachPageSnapshot(driver.get());
+
+                //if dockerized wdm.quit the relevant one
+                if (System.getProperty("executionAddress").contains("dockerized")) {
+                    var pathToRecording = webDriverManager.get().getDockerRecordingPath(driver.get());
+                    webDriverManager.get().quit(driver.get());
+                    RecordManager.attachVideoRecording(pathToRecording);
+                } else {
+                    driver.get().quit();
+                }
+            } catch (WebDriverException | NullPointerException e) {
+                // driver was already closed at an earlier stage
+            } catch (Exception e) {
+                ReportManagerHelper.logDiscrete(e);
+            } finally {
+                driver.remove();
+                webDriverManager.remove();
+                ReportManager.log("Successfully Closed Driver.");
+            }
         }
+        ReportManager.log("Driver is already closed.");
     }
 
     private static void failAction(String testData, Throwable... rootCauseException) {

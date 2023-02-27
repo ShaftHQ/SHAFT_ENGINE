@@ -2,7 +2,6 @@ package io.github.shafthq.shaft.listeners;
 
 import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
-import io.github.shafthq.shaft.gui.browser.JavaScriptWaitManager;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import io.github.shafthq.shaft.tools.support.JavaHelper;
@@ -73,7 +72,6 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
 
     public void beforeFindElement(WebDriver driver, By locator) {
         try {
-            JavaScriptWaitManager.waitForLazyLoading(driver);
             new FluentWait<>(driver)
                     .withTimeout(Duration.ofMillis(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT))
                     .pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY))

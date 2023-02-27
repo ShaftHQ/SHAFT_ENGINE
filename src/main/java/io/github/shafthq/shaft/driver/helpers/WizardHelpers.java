@@ -6,34 +6,32 @@ import org.openqa.selenium.WebDriver;
 
 public class WizardHelpers {
     public static class WebDriverAssertions {
-        private final ThreadLocal<org.openqa.selenium.WebDriver> driverThreadLocal;
-
-        public WebDriverAssertions(ThreadLocal<WebDriver> driverThreadLocal) {
-            this.driverThreadLocal = driverThreadLocal;
+        public WebDriverAssertions() {
         }
 
         public WebDriverBrowserValidationsBuilder browser() {
-            return com.shaft.validation.Validations.assertThat().browser(driverThreadLocal.get());
+            return com.shaft.validation.Validations.assertThat().browser();
         }
 
         public WebDriverElementValidationsBuilder element(By locator) {
-            return com.shaft.validation.Validations.assertThat().element(driverThreadLocal.get(), locator);
+            return com.shaft.validation.Validations.assertThat().element(locator);
         }
     }
 
     public static class WebDriverVerifications {
-        private final ThreadLocal<org.openqa.selenium.WebDriver> driverThreadLocal;
 
         public WebDriverVerifications(ThreadLocal<WebDriver> driverThreadLocal) {
-            this.driverThreadLocal = driverThreadLocal;
+        }
+
+        public WebDriverVerifications() {
         }
 
         public WebDriverBrowserValidationsBuilder browser() {
-            return com.shaft.validation.Validations.verifyThat().browser(driverThreadLocal.get());
+            return com.shaft.validation.Validations.verifyThat().browser();
         }
 
         public WebDriverElementValidationsBuilder element(By locator) {
-            return com.shaft.validation.Validations.verifyThat().element(driverThreadLocal.get(), locator);
+            return com.shaft.validation.Validations.verifyThat().element(locator);
         }
     }
 

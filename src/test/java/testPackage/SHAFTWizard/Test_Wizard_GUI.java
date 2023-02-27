@@ -61,7 +61,7 @@ public class Test_Wizard_GUI {
         testData = new SHAFT.TestData.JSON("simpleJSON.json");
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void afterClass() {
         driver.quit();
     }

@@ -4,9 +4,10 @@ import com.shaft.cli.FileActions;
 import com.shaft.gui.element.SikuliActions;
 import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
-import io.github.shafthq.shaft.gui.browser.JavaScriptWaitManager;
 import io.github.shafthq.shaft.gui.image.ImageProcessingActions;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
+import io.github.shafthq.shaft.gui.locator.ShadowLocatorBuilder;
+import io.github.shafthq.shaft.tools.io.helpers.ReportHelper;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import io.github.shafthq.shaft.tools.support.JavaHelper;
 import io.github.shafthq.shaft.tools.support.JavaScriptHelper;
@@ -143,7 +144,6 @@ public class ElementActionsHelper {
 
     public static List<Object> waitForElementPresence(WebDriver driver, By elementLocator, int numberOfAttempts, boolean checkForVisibility) {
         boolean isValidToCheckForVisibility = isValidToCheckForVisibility(elementLocator, checkForVisibility);
-
         var isMobileExecution = DriverFactoryHelper.isMobileNativeExecution() || DriverFactoryHelper.isMobileWebExecution();
 
         try {
@@ -154,18 +154,23 @@ public class ElementActionsHelper {
                     .pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY))
                     .ignoreAll(getExpectedExceptions(isValidToCheckForVisibility))
                     .until(nestedDriver -> {
-                        WebElement targetElement = nestedDriver.findElement(elementLocator);
+                        WebElement targetElement;
+                        if (formatLocatorToString(elementLocator).toLowerCase().contains("shadow") && ShadowLocatorBuilder.shadowDomLocator != null) {
+                            targetElement = driver.findElement(ShadowLocatorBuilder.shadowDomLocator).getShadowRoot().findElement(ShadowLocatorBuilder.cssSelector);
+                        } else {
+                            targetElement = nestedDriver.findElement(elementLocator);
+                        }
                         if (isValidToCheckForVisibility) {
                             if (!isMobileExecution) {
                                 try {
                                     // native Javascript scroll to center (smooth / auto)
                                     ((JavascriptExecutor) driver).executeScript("""
                                             arguments[0].scrollIntoView({behavior: "smooth", block: "center", inline: "center"});""", targetElement);
-                                } catch (Throwable throwable){
+                                } catch (Throwable throwable) {
                                     try {
                                         // w3c compliant scroll
                                         new Actions(driver).scrollToElement(targetElement).perform();
-                                    } catch (Throwable throwable1){
+                                    } catch (Throwable throwable1) {
                                         // old school selenium scroll
                                         ((Locatable) targetElement).getCoordinates().inViewPort();
                                     }
@@ -175,7 +180,11 @@ public class ElementActionsHelper {
                             }
                         }
                         var elementInformation = new ArrayList<>();
-                        elementInformation.add(nestedDriver.findElements(elementLocator).size());
+                        if (formatLocatorToString(elementLocator).toLowerCase().contains("shadow") && ShadowLocatorBuilder.shadowDomLocator != null) {
+                            elementInformation.add(driver.findElement(ShadowLocatorBuilder.shadowDomLocator).getShadowRoot().findElements(ShadowLocatorBuilder.cssSelector).size());
+                        } else {
+                            elementInformation.add(nestedDriver.findElements(elementLocator).size());
+                        }
                         elementInformation.add(targetElement);
                         return elementInformation;
                     });
@@ -200,7 +209,6 @@ public class ElementActionsHelper {
 
     public static List<Object> scrollToFindElement(WebDriver driver, By elementLocator) {
         try {
-            JavaScriptWaitManager.waitForLazyLoading(driver);
             return new FluentWait<>(driver)
                     .withTimeout(Duration.ofMillis(
                             DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT))
@@ -236,7 +244,6 @@ public class ElementActionsHelper {
 
         if (!DriverFactoryHelper.isMobileNativeExecution()) {
             try {
-                JavaScriptWaitManager.waitForLazyLoading(driver);
                 (new WebDriverWait(driver, Duration.ofMillis(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT)))
                         .until(ExpectedConditions.elementToBeClickable(elementLocator));
 
@@ -254,9 +261,10 @@ public class ElementActionsHelper {
                         .until(nestedDriver -> {
                             if (actionToExecute.isPresent()) {
                                 switch (actionToExecute.get().toLowerCase()) {
-                                    case "click" -> driver.findElement(elementLocator).click();
+                                    case "click" ->
+                                            ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).click();
                                     case "clickandhold" ->
-                                            (new Actions(driver)).clickAndHold(driver.findElement(elementLocator)).build().perform();
+                                            (new Actions(driver)).clickAndHold(((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1))).build().perform();
                                 }
                             }
                             return true;
@@ -300,7 +308,7 @@ public class ElementActionsHelper {
 
     public static void clickUsingJavascript(WebDriver driver, By elementLocator) {
         if (DriverFactoryHelper.isWebExecution()) {
-            ((JavascriptExecutor) driver).executeScript("arguments[arguments.length - 1].click();", driver.findElement(elementLocator));
+            ((JavascriptExecutor) driver).executeScript("arguments[arguments.length - 1].click();", ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)));
         }
     }
 
@@ -311,7 +319,7 @@ public class ElementActionsHelper {
             js.executeAsyncScript(jQueryLoader /* , http://localhost:8080/jquery-1.7.2.js */);
             String dragAndDropHelper = JavaScriptHelper.ELEMENT_DRAG_AND_DROP.getValue();
             dragAndDropHelper = dragAndDropHelper + "$(arguments[0]).simulateDragDrop({dropTarget:arguments[1]});";
-            ((JavascriptExecutor) driver).executeScript(dragAndDropHelper, driver.findElement(sourceElementLocator), driver.findElement(destinationElementLocator));
+            ((JavascriptExecutor) driver).executeScript(dragAndDropHelper, ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)), ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, destinationElementLocator).get(1)));
         }
     }
 
@@ -329,7 +337,7 @@ public class ElementActionsHelper {
     public static void submitFormUsingJavascript(WebDriver driver, By elementLocator) {
         if (DriverFactoryHelper.isWebExecution()) {
             ((JavascriptExecutor) driver).executeScript("arguments[0].submit();",
-                    driver.findElement(elementLocator));
+                    ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)));
         }
     }
 
@@ -337,9 +345,9 @@ public class ElementActionsHelper {
         if (DriverFactoryHelper.isWebExecution()) {
 
             if (Boolean.TRUE.equals(desiredIsVisibleState)) {
-                ((JavascriptExecutor) driver).executeScript("arguments[0].setAttribute('style', 'display:block !important;');", driver.findElement(elementLocator));
+                ((JavascriptExecutor) driver).executeScript("arguments[0].setAttribute('style', 'display:block !important;');", ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)));
             } else {
-                ((JavascriptExecutor) driver).executeScript("arguments[0].setAttribute('style', 'display:none');", driver.findElement(elementLocator));
+                ((JavascriptExecutor) driver).executeScript("arguments[0].setAttribute('style', 'display:none');", ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)));
             }
         }
     }
@@ -347,13 +355,20 @@ public class ElementActionsHelper {
     public static boolean setValueUsingJavascript(WebDriver driver, By elementLocator, String value) {
         try {
             if (DriverFactoryHelper.isWebExecution()) {
-                ((JavascriptExecutor) driver).executeScript("arguments[0].value='" + value + "';", driver.findElement(elementLocator));
+                ((JavascriptExecutor) driver).executeScript("arguments[0].value='" + value + "';", ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)));
             }
             return true;
         } catch (Exception e) {
             ReportManagerHelper.logDiscrete(e);
             return false;
         }
+    }
+
+    public static String suggestNewXpathUsingJavascript(WebDriver driver, WebElement targetElement) {
+        ReportHelper.disableLogging();
+        var suggestedXpath = suggestNewXpathUsingJavascript(driver, targetElement, null);
+        ReportHelper.enableLogging();
+        return suggestedXpath;
     }
 
     public static String suggestNewXpathUsingJavascript(WebDriver driver, WebElement targetElement, By deprecatedElementLocator) {
@@ -567,7 +582,6 @@ public class ElementActionsHelper {
     private static void performType(WebDriver driver, By elementLocator, String text) {
         ArrayList<Class<? extends Exception>> expectedExceptions = getExpectedExceptions(true);
         try {
-            JavaScriptWaitManager.waitForLazyLoading(driver);
             new FluentWait<>(driver)
                     .withTimeout(Duration.ofSeconds(5))
                     .pollingEvery(Duration.ofSeconds(1))
@@ -636,8 +650,12 @@ public class ElementActionsHelper {
         if (elementLocator != null) {
             // in case of regular locator
             switch (Integer.parseInt(matchingElementsInformation.get(0).toString())) {
-                case 0 ->
+                case 0 -> {
+                    if (matchingElementsInformation.size() > 2) {
                         Assert.fail("zero elements found matching this locator \"" + formatLocatorToString(elementLocator) + "\"", (Throwable) matchingElementsInformation.get(2));
+                    }
+                    Assert.fail("zero elements found matching this locator \"" + formatLocatorToString(elementLocator) + "\"");
+                }
                 case 1 -> {
                     return matchingElementsInformation;
                 }
@@ -776,7 +794,7 @@ public class ElementActionsHelper {
         if (elementLocator != null) {
             elementName = formatLocatorToString(elementLocator);
             try {
-                var accessibleName = driver.findElement(elementLocator).getAccessibleName();
+                var accessibleName = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).getAccessibleName();
                 if (accessibleName != null && !accessibleName.isBlank()) {
                     elementName = accessibleName;
                 }

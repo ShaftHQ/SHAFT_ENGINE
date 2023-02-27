@@ -5,9 +5,13 @@ import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.tools.io.PdfFileManager;
 import com.shaft.validation.ValidationEnums;
+import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
+import io.github.shafthq.shaft.gui.browser.JavaScriptWaitManager;
 import io.restassured.response.Response;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
+
+import java.util.Objects;
 
 
 public class ValidationsExecutor {
@@ -132,6 +136,7 @@ public class ValidationsExecutor {
      * Execute this validation
      */
     public void perform() {
+        JavaScriptWaitManager.waitForLazyLoading(DriverFactoryHelper.getDriver().get());
         if ("".equals(customReportMessage)) {
             customReportMessage = reportMessageBuilder.toString();
         }
@@ -155,7 +160,7 @@ public class ValidationsExecutor {
                     RestActions.getResponseJSONValue(response, jsonPath), validationComparisonType,
                     validationType, customReportMessage);
             case "jsonPathValueAsListEquals" -> {
-                for (Object value : RestActions.getResponseJSONValueAsList((Response) response, jsonPath)) {
+                for (Object value : Objects.requireNonNull(RestActions.getResponseJSONValueAsList((Response) response, jsonPath))) {
                     ValidationsHelper.validateEquals(validationCategory, expectedValue, value.toString(), validationComparisonType, validationType, customReportMessage);
                 }
             }

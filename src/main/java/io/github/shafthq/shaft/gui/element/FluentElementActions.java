@@ -69,11 +69,11 @@ public class FluentElementActions {
     }
 
     public WebDriverElementValidationsBuilder assertThat(By elementLocator) {
-        return new WizardHelpers.WebDriverAssertions(DriverFactoryHelper.getDriver()).element(elementLocator);
+        return new WizardHelpers.WebDriverAssertions().element(elementLocator);
     }
 
     public WebDriverElementValidationsBuilder verifyThat(By elementLocator) {
-        return new WizardHelpers.WebDriverVerifications(DriverFactoryHelper.getDriver()).element(elementLocator);
+        return new WizardHelpers.WebDriverVerifications().element(elementLocator);
     }
 
     public int getElementsCount(By elementLocator) {

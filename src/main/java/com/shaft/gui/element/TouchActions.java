@@ -64,11 +64,11 @@ public class TouchActions {
     }
 
     public WebDriverElementValidationsBuilder assertThat(By elementLocator) {
-        return new WizardHelpers.WebDriverAssertions(DriverFactoryHelper.getDriver()).element(elementLocator);
+        return new WizardHelpers.WebDriverAssertions().element(elementLocator);
     }
 
     public WebDriverElementValidationsBuilder verifyThat(By elementLocator) {
-        return new WizardHelpers.WebDriverVerifications(DriverFactoryHelper.getDriver()).element(elementLocator);
+        return new WizardHelpers.WebDriverVerifications().element(elementLocator);
     }
 
     /**
@@ -636,9 +636,11 @@ public class TouchActions {
         }
         return this;
     }
+
     /**
      * Attempts to scroll element into view using androidUIAutomator
-     * @param targetText
+     *
+     * @param targetText element text to be used to swipe it into view
      * @return a self-reference to be used to chain actions
      */
     public TouchActions swipeElementIntoView(String targetText) {

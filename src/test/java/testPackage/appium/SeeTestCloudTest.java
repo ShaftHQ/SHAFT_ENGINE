@@ -27,7 +27,7 @@
 //                        .type(By.xpath("//*[@id='passwordTextField']"), "company")
 //                        .click(By.xpath("//*[@id='loginButton']"));
 //    }
-//    @AfterMethod
+//    @AfterMethod(alwaysRun = true)
 //    public void afterMethod(){
 //        driver.quit();
 //    }
