@@ -139,7 +139,29 @@ public class FluentElementActions {
         ElementActions.click(DriverFactoryHelper.getDriver().get(), elementLocator);
         return this;
     }
-
+/**
+ * Clicks on certain element using javaScript only 
+ * 
+ * @param driver is an instance of webdriver 
+ * 
+ * @param the locator of the webElement under test (By xpath, id,
+ *                       selector, name ...etc)
+ * @return a self-reference to be used to chain actions
+ */
+ public  FluentElementActions clickUsingJavascript(WebDriver driver, By elementLocator) {
+    	
+    	try {
+    	var elementName = getElementName(driver, elementLocator);
+    	List<Object> screenshot = takeScreenshot(driver, elementLocator, "click", null, true);
+    	ElementActionsHelper.clickUsingJavascript(driver, elementLocator);
+    	passAction(driver, elementLocator, "", screenshot, elementName);
+    	}
+    	catch(Exception exception) {
+    		failAction(driver, elementLocator, exception);	
+    	}
+    	
+    	return this;
+    }
     /**
      * If the element is outside the viewport, scrolls the bottom of the element to the bottom of the viewport.
      *
