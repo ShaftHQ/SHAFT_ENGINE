@@ -49,7 +49,7 @@ public class SHAFT {
             }
 
             public void quit() {
-                DriverFactory.closeAllDrivers();
+                DriverFactoryHelper.closeDriver();
             }
 
             public FluentElementActions element() {
