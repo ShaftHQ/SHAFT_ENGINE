@@ -153,8 +153,8 @@ public class androidBasicInteractionsTest {
 //        SHAFT.Properties.mobile.set().selfManagedAndroidSDKVersion(31);
 
         // local appium server (for local and GitHub actions execution)
-        SHAFT.Properties.platform.set().executionAddress("localhost:4723");
-        SHAFT.Properties.mobile.set().app("src/test/resources/testDataFiles/apps/ApiDemos-debug.apk");
+//        SHAFT.Properties.platform.set().executionAddress("localhost:4723");
+//        SHAFT.Properties.mobile.set().app("src/test/resources/testDataFiles/apps/ApiDemos-debug.apk");
 
         // local appium server (android-emulator docker-compose)
 //        SHAFT.Properties.platform.set().executionAddress("localhost:4725");
