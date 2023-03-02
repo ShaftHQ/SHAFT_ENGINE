@@ -224,15 +224,24 @@ public class SHAFT {
     }
 
     public static class CLI {
+        private CLI() {
+            throw new IllegalStateException("Utility class");
+        }
+
         public TerminalActions terminal() {
             return new TerminalActions();
         }
+
         public FileActions file() {
             return new FileActions();
         }
     }
 
     public static class DB {
+        private DB() {
+            throw new IllegalStateException("Utility class");
+        }
+
         public DatabaseActions performDatabaseActions(DatabaseActions.DatabaseType databaseType, String ip, String port, String name, String username,
                                                       String password) {
             return new DatabaseActions(databaseType, ip, port, name, username, password);
@@ -244,9 +253,14 @@ public class SHAFT {
     }
 
     public static class Validations {
+        private Validations() {
+            throw new IllegalStateException("Utility class");
+        }
+
         public static WizardHelpers.StandaloneAssertions assertThat() {
             return new WizardHelpers.StandaloneAssertions();
         }
+
         public static WizardHelpers.StandaloneVerifications verifyThat() {
             return new WizardHelpers.StandaloneVerifications();
         }
@@ -295,6 +309,10 @@ public class SHAFT {
     }
 
     public static class Report {
+        private Report() {
+            throw new IllegalStateException("Utility class");
+        }
+
         public static void log(String message) {
             ReportManager.logDiscrete(message);
         }
