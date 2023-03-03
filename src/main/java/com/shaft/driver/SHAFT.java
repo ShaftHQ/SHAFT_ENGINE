@@ -227,6 +227,7 @@ public class SHAFT {
         public TerminalActions terminal() {
             return new TerminalActions();
         }
+
         public FileActions file() {
             return new FileActions();
         }
@@ -244,9 +245,14 @@ public class SHAFT {
     }
 
     public static class Validations {
+        private Validations() {
+            throw new IllegalStateException("Utility class");
+        }
+
         public static WizardHelpers.StandaloneAssertions assertThat() {
             return new WizardHelpers.StandaloneAssertions();
         }
+
         public static WizardHelpers.StandaloneVerifications verifyThat() {
             return new WizardHelpers.StandaloneVerifications();
         }
@@ -295,6 +301,10 @@ public class SHAFT {
     }
 
     public static class Report {
+        private Report() {
+            throw new IllegalStateException("Utility class");
+        }
+
         public static void log(String message) {
             ReportManager.logDiscrete(message);
         }

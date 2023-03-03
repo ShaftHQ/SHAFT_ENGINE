@@ -1,16 +1,16 @@
 package com.shaft.cucumber;
 
+import com.shaft.driver.SHAFT;
 import io.cucumber.java.en.When;
-import io.github.shafthq.shaft.gui.element.ElementActionsHelper;
 import org.openqa.selenium.By;
-import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.Keys;
 
 import java.util.Objects;
 
 public class ElementSteps {
-    private final ThreadLocal<WebDriver> driver;
+    private final ThreadLocal<SHAFT.GUI.WebDriver> driver;
 
-    public ElementSteps(ThreadLocal<WebDriver> driver) {
+    public ElementSteps(ThreadLocal<SHAFT.GUI.WebDriver> driver) {
         this.driver = Objects.requireNonNullElseGet(driver, ThreadLocal::new);
     }
 
@@ -55,7 +55,7 @@ public class ElementSteps {
     @When("I Type {string} into the element found by {string}: {string}")
 //    @عندما("اقوم بكتابة {string} بداخل مربع الكتابة المحدد بإستخدام {string} بقيمة {string}")
     public void type(String text, String locatorType, String locatorValue) {
-        com.shaft.gui.element.ElementActions.type(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue), text);
+        driver.get().element().type(getLocatorFromTypeAndValue(locatorType, locatorValue), text);
     }
 
     /**
@@ -68,7 +68,7 @@ public class ElementSteps {
      */
     @When("I Type {string} securely into the element found by {string}: {string}")
     public void typeSecure(String text, String locatorType, String locatorValue) {
-        com.shaft.gui.element.ElementActions.typeSecure(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue), text);
+        driver.get().element().typeSecure(getLocatorFromTypeAndValue(locatorType, locatorValue), text);
     }
 
     /**
@@ -81,7 +81,7 @@ public class ElementSteps {
      */
     @When("I Append the text {string} to the element found by {string}: {string}")
     public void typeAppend(String text, String locatorType, String locatorValue) {
-        com.shaft.gui.element.ElementActions.typeAppend(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue), text);
+        driver.get().element().typeAppend(getLocatorFromTypeAndValue(locatorType, locatorValue), text);
     }
 
     /**
@@ -94,7 +94,7 @@ public class ElementSteps {
      */
     @When("I Upload the file {string} to the element found by {string}: {string}")
     public void typeFileLocationForUpload(String absoluteFilePath, String locatorType, String locatorValue) {
-        com.shaft.gui.element.ElementActions.typeFileLocationForUpload(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue), absoluteFilePath);
+        driver.get().element().typeFileLocationForUpload(getLocatorFromTypeAndValue(locatorType, locatorValue), absoluteFilePath);
     }
 
     /**
@@ -107,7 +107,7 @@ public class ElementSteps {
     @When("I Press the {string} key into the element found by {string}: {string}")
 //    @عندما("اقوم بالضغط على زر {string} بداخل عنصر الويب المحدد بإستخدام {string} بقيمة {string}")
     public void keyPress(String key, String locatorType, String locatorValue) {
-        com.shaft.gui.element.ElementActions.keyPress(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue), key);
+        driver.get().element().keyPress(getLocatorFromTypeAndValue(locatorType, locatorValue), Keys.valueOf(key.toUpperCase()));
     }
 
     /**
@@ -118,7 +118,7 @@ public class ElementSteps {
      */
     @When("I Click the element found by {string}: {string}")
     public void click(String locatorType, String locatorValue) {
-        com.shaft.gui.element.ElementActions.click(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue));
+        driver.get().element().click(getLocatorFromTypeAndValue(locatorType, locatorValue));
     }
 
     /**
@@ -129,7 +129,7 @@ public class ElementSteps {
      */
     @When("I Click and hold the element found by {string}: {string}")
     public void clickAndHold(String locatorType, String locatorValue) {
-        com.shaft.gui.element.ElementActions.clickAndHold(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue));
+        driver.get().element().clickAndHold(getLocatorFromTypeAndValue(locatorType, locatorValue));
     }
 
     /**
@@ -143,7 +143,7 @@ public class ElementSteps {
      */
     @When("I use the clipboard to perform {string} on the element found by {string}: {string}")
     public void clipboardActions(String action, String locatorType, String locatorValue) {
-        com.shaft.gui.element.ElementActions.clipboardActions(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue), action);
+        driver.get().element().clipboardActions(getLocatorFromTypeAndValue(locatorType, locatorValue), action);
     }
 
     /**
@@ -154,7 +154,7 @@ public class ElementSteps {
      */
     @When("I Double-click the element found by {string}: {string}")
     public void doubleClick(String locatorType, String locatorValue) {
-        com.shaft.gui.element.ElementActions.doubleClick(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue));
+        driver.get().element().doubleClick(getLocatorFromTypeAndValue(locatorType, locatorValue));
     }
 
     /**
@@ -167,7 +167,7 @@ public class ElementSteps {
      */
     @When("I Drag the element found by {string}: {string} and drop it on the element found by {string}: {string}")
     public void dragAndDrop(String sourceLocatorType, String sourceLocatorValue, String destinationLocatorType, String destinationLocatorValue) {
-        com.shaft.gui.element.ElementActions.dragAndDrop(driver.get(), getLocatorFromTypeAndValue(sourceLocatorType, sourceLocatorValue), getLocatorFromTypeAndValue(destinationLocatorType, destinationLocatorValue));
+        driver.get().element().dragAndDrop(getLocatorFromTypeAndValue(sourceLocatorType, sourceLocatorValue), getLocatorFromTypeAndValue(destinationLocatorType, destinationLocatorValue));
     }
 
     /**
@@ -182,7 +182,7 @@ public class ElementSteps {
      */
     @When("I Drag the element found by {string}: {string} and drop it by offset x={int} and y={int}")
     public void dragAndDropByOffset(String locatorType, String locatorValue, int xOffset, int yOffset) {
-        com.shaft.gui.element.ElementActions.dragAndDropByOffset(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue), xOffset, yOffset);
+        driver.get().element().dragAndDropByOffset(getLocatorFromTypeAndValue(locatorType, locatorValue), xOffset, yOffset);
     }
 
     /**
@@ -193,7 +193,7 @@ public class ElementSteps {
      */
     @When("I Hover over the element found by {string}: {string}")
     public void hover(String locatorType, String locatorValue) {
-        com.shaft.gui.element.ElementActions.hover(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue));
+        driver.get().element().hover(getLocatorFromTypeAndValue(locatorType, locatorValue));
     }
 
     /**
@@ -205,7 +205,7 @@ public class ElementSteps {
      */
     @When("I Select {string} from the drop-down list element found by {string}: {string}")
     public void select(String text, String locatorType, String locatorValue) {
-        com.shaft.gui.element.ElementActions.select(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue), text);
+        driver.get().element().select(getLocatorFromTypeAndValue(locatorType, locatorValue), text);
     }
 
     /**
@@ -217,7 +217,7 @@ public class ElementSteps {
      */
     @When("I Set the value {string} into the element found by {string}: {string}")
     public void setValueUsingJavaScript(String value, String locatorType, String locatorValue) {
-        com.shaft.gui.element.ElementActions.setValueUsingJavaScript(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue), value);
+        driver.get().element().setValueUsingJavaScript(getLocatorFromTypeAndValue(locatorType, locatorValue), value);
     }
 
     /**
@@ -228,7 +228,7 @@ public class ElementSteps {
      */
     @When("I Submit the form found by {string}: {string}")
     public void submitFormUsingJavaScript(String locatorType, String locatorValue) {
-        com.shaft.gui.element.ElementActions.submitFormUsingJavaScript(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue));
+        driver.get().element().submitFormUsingJavaScript(getLocatorFromTypeAndValue(locatorType, locatorValue));
     }
 
     /**
@@ -243,7 +243,7 @@ public class ElementSteps {
      */
     @When("I Wait for {int} attempt(s) for the element found by {string}: {string} to be present")
     public void waitForElementToBePresent(int numberOfTries, String locatorType, String locatorValue) {
-        ElementActionsHelper.waitForElementPresence(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue), numberOfTries);
+        driver.get().element().waitToBeReady(getLocatorFromTypeAndValue(locatorType, locatorValue));
     }
 
     /**
@@ -258,7 +258,7 @@ public class ElementSteps {
      */
     @When("I Wait for {int} attempt(s) for the element found by {string}: {string} to be not present")
     public void waitForElementToBeNotPresent(int numberOfTries, String locatorType, String locatorValue) {
-        com.shaft.gui.element.ElementActions.waitForElementToBeInvisible(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue));
+        driver.get().element().waitToBeInvisible(getLocatorFromTypeAndValue(locatorType, locatorValue));
     }
 
     /**
@@ -273,7 +273,8 @@ public class ElementSteps {
      */
     @When("I Wait for the text inside the element found by {string}: {string} to change from the initial value {string}")
     public void waitForTextToChange(String locatorType, String locatorValue, String initialValue) {
-        com.shaft.gui.element.ElementActions.waitForTextToChange(driver.get(), getLocatorFromTypeAndValue(locatorType, locatorValue), initialValue);
+        driver.get().element().waitForTextToChange(getLocatorFromTypeAndValue(locatorType, locatorValue), initialValue);
+
     }
 
     protected enum LocatorType {
