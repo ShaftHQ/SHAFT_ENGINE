@@ -487,6 +487,8 @@ jobs:
   Android_Native_BrowserStack:
     runs-on: macOS-12
     timeout-minutes: 45
+    if: ${{ always() }}
+    needs: [GUI_Chrome_Cucumber]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -531,7 +533,7 @@ jobs:
     runs-on: macOS-12
     timeout-minutes: 45
     if: ${{ always() }}
-    needs: [Android_Native_BrowserStack]
+    needs: [GUI_Chrome_Cucumber, Android_Native_BrowserStack]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -576,7 +578,7 @@ jobs:
     runs-on: macOS-12
     timeout-minutes: 45
     if: ${{ always() }}
-    needs: [Android_Native_BrowserStack, iOS_Web_SAFARI_BrowserStack]
+    needs: [GUI_Chrome_Cucumber, Android_Native_BrowserStack, iOS_Web_SAFARI_BrowserStack]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -621,7 +623,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 45
     if: ${{ always() }}
-    needs: [Android_Native_BrowserStack, iOS_Web_SAFARI_BrowserStack, Android_Web_Chrome_BrowserStack]
+    needs: [GUI_Chrome_Cucumber, Android_Native_BrowserStack, iOS_Web_SAFARI_BrowserStack, Android_Web_Chrome_BrowserStack]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -690,9 +692,9 @@ jobs:
         continue-on-error: true
         run: |
           if [ "$RUNNER_OS" == "Linux" ]; then
-               mvn test -DexecutionAddress="localhost:4444" -DtargetOperatingSystem="Linux-64" -DmaximumPerformanceMode="2" -DtargetBrowserName="GoogleChrome" -DgenerateAllureReportArchive="true" -Dtest=".*CucumberTestRunner.*"
+               mvn test "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=GoogleChrome" "-DmaximumPerformanceMode=2" "-DgenerateAllureReportArchive=true" "-Dtest=.*CucumberTestRunner.*"
           elif [ "$RUNNER_OS" == "macOS" ]; then
-               mvn test -DexecutionAddress="browserstack" -DtargetOperatingSystem="Mac-64" -DmaximumPerformanceMode="1" -DtargetBrowserName="Safari" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Monterey" "-DbrowserStack.browserVersion=15.3" -DgenerateAllureReportArchive="true" -Dtest=".*CucumberTestRunner.*"
+               mvn test "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DmaximumPerformanceMode=1" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Monterey" "-DbrowserStack.browserVersion=15.3" -DgenerateAllureReportArchive="true" -Dtest=".*CucumberTestRunner.*"
           else
                echo "$RUNNER_OS not supported"
                exit 1
@@ -701,7 +703,7 @@ jobs:
         if: runner.os == 'Windows'
         continue-on-error: true
         run: |
-          mvn test -DexecutionAddress="local" -DtargetOperatingSystem="Windows-64" -DmaximumPerformanceMode="2" -DtargetBrowserName="MicrosoftEdge" -DgenerateAllureReportArchive="true" -Dtest=".*CucumberTestRunner.*"
+          mvn test -DexecutionAddress="local" -DtargetOperatingSystem="WINDOWS" -DmaximumPerformanceMode="2" -DtargetBrowserName="MicrosoftEdge" -DgenerateAllureReportArchive="true" -Dtest=".*CucumberTestRunner.*"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
