@@ -224,10 +224,6 @@ public class SHAFT {
     }
 
     public static class CLI {
-        private CLI() {
-            throw new IllegalStateException("Utility class");
-        }
-
         public TerminalActions terminal() {
             return new TerminalActions();
         }
@@ -238,10 +234,6 @@ public class SHAFT {
     }
 
     public static class DB {
-        private DB() {
-            throw new IllegalStateException("Utility class");
-        }
-
         public DatabaseActions performDatabaseActions(DatabaseActions.DatabaseType databaseType, String ip, String port, String name, String username,
                                                       String password) {
             return new DatabaseActions(databaseType, ip, port, name, username, password);
