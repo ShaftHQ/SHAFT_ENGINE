@@ -62,6 +62,7 @@ public class DriverFactoryHelper {
     private static String TARGET_HUB_URL;
     private static Boolean MOBILE_EMULATION;
     private static Boolean MOBILE_EMULATION_CUSTOM_DEVICE;
+    private static Boolean LIGHTHOUSE_EXEUTION;
     private static final String WEBDRIVERMANAGER_MESSAGE = "Identifying OS/Driver combination and selecting the correct driver version automatically. Please note that if a new driver executable will be downloaded it may take some time...";
     private static final String WEBDRIVERMANAGER_DOCKERIZED_MESSAGE = "Identifying target OS/Browser and setting up the dockerized environment automatically. Please note that if a new docker container will be downloaded it may take some time...";
     private static int PAGE_LOAD_TIMEOUT;
@@ -279,6 +280,11 @@ public class DriverFactoryHelper {
         if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
             options.addArguments("--headless=new");
         }
+        if (Boolean.TRUE.equals(LIGHTHOUSE_EXEUTION)) {
+            options.addArguments("--remote-debugging-port=" + System.getProperty("lightHouseExeution.Port") + "");
+            options.addArguments("--no-sandbox");
+        }
+
         if (Boolean.TRUE.equals(AUTO_MAXIMIZE)
                 && !Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())
                 && !Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())
@@ -885,5 +891,6 @@ public class DriverFactoryHelper {
         SCRIPT_TIMEOUT = Integer.parseInt(System.getProperty("scriptExecutionTimeout"));
         MOBILE_EMULATION = SHAFT.Properties.web.isMobileEmulation();
         MOBILE_EMULATION_CUSTOM_DEVICE = SHAFT.Properties.web.mobileEmulation_isCustomDevice();
+        LIGHTHOUSE_EXEUTION = Boolean.valueOf(System.getProperty("lightHouseExeution").trim());
     }
 }
