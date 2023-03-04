@@ -125,13 +125,12 @@ public class JavaHelper {
                 // case sensitive literal equivalence
                 if (expectedValue == null) {
                     Assert.assertNull(actualValue);
-                } else if (Number.class.equals(expectedValue.getClass())
-                        || (actualValue != null && Number.class.equals(actualValue.getClass()))) {
-                    Assert.assertEquals(String.valueOf(expectedValue), (String.valueOf(actualValue)));
-                } else if (actualValue != null) {
-                    Assert.assertEquals(expectedValue, actualValue);
+                } else if (expectedValue instanceof String expectedString && actualValue instanceof String actualString) {
+                    Assert.assertEquals(actualString, expectedString);
+                } else if (expectedValue instanceof Number expectedNumber && actualValue instanceof Number actualNumber) {
+                    Assert.assertEquals(actualNumber, expectedNumber);
                 } else {
-                    Assert.assertNull(expectedValue);
+                    Assert.assertEquals(actualValue, expectedValue);
                 }
             }
             case 2 ->
@@ -157,13 +156,12 @@ public class JavaHelper {
                 // case sensitive literal equivalence
                 if (expectedValue == null) {
                     Assert.assertNotNull(actualValue);
-                } else if (Number.class.equals(expectedValue.getClass())
-                        || (actualValue != null && Number.class.equals(actualValue.getClass()))) {
-                    Assert.assertNotEquals(String.valueOf(expectedValue), (String.valueOf(actualValue)));
-                } else if (actualValue != null) {
-                    Assert.assertNotEquals(expectedValue, actualValue);
+                } else if (expectedValue instanceof String expectedString && actualValue instanceof String actualString) {
+                    Assert.assertNotEquals(actualString, expectedString);
+                } else if (expectedValue instanceof Number expectedNumber && actualValue instanceof Number actualNumber) {
+                    Assert.assertNotEquals(actualNumber, expectedNumber);
                 } else {
-                    Assert.assertNotNull(expectedValue);
+                    Assert.assertNotEquals(actualValue, expectedValue);
                 }
             }
             case 2 ->

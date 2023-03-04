@@ -60,7 +60,7 @@ public class Test_dragAndDrop {
         driver = DriverFactory.getDriver();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void afterMethod() {
         BrowserActions.closeCurrentWindow(driver);
     }

@@ -72,7 +72,7 @@ public class Test_BasicAuthentication {
         driver = new SHAFT.GUI.WebDriver();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void afterMethod(){
         driver.quit();
     }

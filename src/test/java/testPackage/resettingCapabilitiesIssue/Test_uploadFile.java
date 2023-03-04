@@ -35,7 +35,7 @@ public class Test_uploadFile {
         BrowserActions.setWindowSize(driver.get(), 1920, 1080);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void afterMethod() {
         BrowserActions.closeCurrentWindow(driver.get());
         driver.remove();

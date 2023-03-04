@@ -23,7 +23,7 @@ public class Test_JSConfirmBox {
         BrowserActions.navigateToURL(driver, "http://the-internet.herokuapp.com/javascript_alerts");
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void tearDownDriver() {
         BrowserActions.closeCurrentWindow(driver);
     }

@@ -302,16 +302,16 @@ public class ElementActions extends FluentElementActions {
     public static void dragAndDropByOffset(WebDriver driver, By sourceElementLocator, int xOffset, int yOffset) {
         try {
             var elementName = getElementName(driver, sourceElementLocator);
-            WebElement sourceElement = driver.findElement(sourceElementLocator);
+            WebElement sourceElement = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1));
             String startLocation = sourceElement.getLocation().toString();
             // attempt to perform drag and drop
             try {
-                (new Actions(driver)).dragAndDropBy(driver.findElement(sourceElementLocator), xOffset, yOffset).build()
+                (new Actions(driver)).dragAndDropBy(((WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)), xOffset, yOffset).build()
                         .perform();
             } catch (Exception rootCauseException) {
                 failAction(driver, sourceElementLocator, rootCauseException);
             }
-            String endLocation = driver.findElement(sourceElementLocator).getLocation().toString();
+            String endLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)).getLocation().toString();
             if (!endLocation.equals(startLocation)) {
                 passAction(driver, sourceElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "Start point: " + startLocation + ", End point: " + endLocation, null, elementName);
             } else {
@@ -576,7 +576,9 @@ public class ElementActions extends FluentElementActions {
             return elementText;
         } catch (Throwable throwable) {
             // has to be throwable to catch assertion errors in case element was not found
-            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
+            var rootCauseClassName = Throwables.getRootCause(throwable).getClass().getName();
+            if (rootCauseClassName.equals(org.openqa.selenium.NoSuchElementException.class.getName())
+                    || rootCauseClassName.equals(org.openqa.selenium.InvalidSelectorException.class.getName())) {
                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
             } else {
                 ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
@@ -1163,8 +1165,16 @@ public class ElementActions extends FluentElementActions {
                 if (isExpectedToBeVisible == isDisplayed) {
                     //either expected to be visible and is displayed, or not expected to be visible and not displayed
                     passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, getElementName(driver, elementLocator));
+                } else if (isExpectedToBeVisible == false && isDisplayed) {
+                    // Element is displayed and needed to wait until it's invisible
+                    if (ElementActionsHelper.waitForElementInvisibility(elementLocator)) {
+                        passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, getElementName(driver, elementLocator));
+                    } else {
+                        // Element still exists after timeout
+                        failAction(driver, reportMessage, elementLocator);
+                    }
                 } else {
-                    //action should fail but the element exists
+                    // Element is not displayed
                     failAction(driver, reportMessage, elementLocator);
                 }
             } else {

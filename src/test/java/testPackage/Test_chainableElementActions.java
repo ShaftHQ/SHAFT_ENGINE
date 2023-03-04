@@ -26,7 +26,7 @@ public class Test_chainableElementActions {
         driver.assertThat().element(searchBox).text().equals("chained type 2345");
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void afterMethod(){
         driver.quit();
     }

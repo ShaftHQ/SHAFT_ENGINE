@@ -10,6 +10,7 @@ import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
 import io.github.shafthq.shaft.listeners.TestNGListener;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.remote.Browser;
 import org.sikuli.script.App;
 
 public class DriverFactory {
@@ -183,8 +184,8 @@ public class DriverFactory {
      * List of the supported driver types for execution
      */
     public enum DriverType {
-        SIKULI("SikuliActions"), BROWSERSTACK("BrowserStack"), DATABASE("DatabaseActions"), TERMINAL("TerminalActions"), API("RestActions"), DESKTOP_FIREFOX("MozillaFirefox"), DESKTOP_CHROME("GoogleChrome"), DESKTOP_SAFARI("Safari"),
-        DESKTOP_INTERNET_EXPLORER("MicrosoftInternetExplorer"), DESKTOP_EDGE("MicrosoftEdge"), DESKTOP_CHROMIUM("Chromium"), DESKTOP_WEBKIT("Webkit"), APPIUM_CHROME("chrome"),
+        SIKULI("SikuliActions"), BROWSERSTACK("BrowserStack"), DATABASE("DatabaseActions"), TERMINAL("TerminalActions"), API("RestActions"), FIREFOX(Browser.FIREFOX.browserName()), CHROME(Browser.CHROME.browserName()), SAFARI(Browser.SAFARI.browserName()),
+        IE(Browser.IE.browserName()), EDGE(Browser.EDGE.browserName()), CHROMIUM("Chromium"), WEBKIT("Webkit"), APPIUM_CHROME("chrome"),
         APPIUM_CHROMIUM("Chromium"), APPIUM_BROWSER("Browser"), APPIUM_SAMSUNG_BROWSER("samsung"), APPIUM_MOBILE_NATIVE("NativeMobileApp");
 
         private final String value;

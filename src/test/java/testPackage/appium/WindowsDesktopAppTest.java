@@ -23,7 +23,7 @@
 //        driver = new WindowsDriver<>(getServiceUrl(), caps);
 //    }
 //
-//    @AfterTest
+//    @AfterTest(alwaysRun = true)
 //    public void tearDown( ) {
 //        driver.quit();
 //    }

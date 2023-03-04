@@ -31,7 +31,7 @@ public class Test_fullPageScreenshotWithHeader {
         driver = DriverFactory.getDriver();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void afterClass() {
         BrowserActions.closeCurrentWindow(driver);
     }

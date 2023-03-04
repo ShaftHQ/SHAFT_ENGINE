@@ -91,7 +91,7 @@
 //
 //    }
 //
-//    @AfterClass
+//    @AfterClass(alwaysRun = true)
 //    public void afterClass(){
 ////        System.setProperty("generateExtentReports", "true");
 ////        System.setProperty("setVerbose", "1");
@@ -106,7 +106,7 @@
 //        driver.set(WebDriverManager.chromedriver().create());
 //    }
 //
-//    @AfterMethod
+//    @AfterMethod(alwaysRun = true)
 //    public void afterMethod() {
 //        driver.get().quit();
 //        driver.remove();

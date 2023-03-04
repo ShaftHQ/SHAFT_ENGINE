@@ -48,7 +48,7 @@ public class Test_Wizard_GUI_ThreadSafe {
         testData.set(new SHAFT.TestData.JSON("simpleJSON.json"));
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void afterClass() {
         driver.get().quit();
         driver.remove();

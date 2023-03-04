@@ -871,7 +871,7 @@ public class ReportManagerHelper {
      * @param attachmentContent the content of this attachment
      */
     @Step("Attachment: {attachmentType} - {attachmentName}")
-    static void attachAsStep(String attachmentType, String attachmentName, InputStream attachmentContent) {
+    public static void attachAsStep(String attachmentType, String attachmentName, InputStream attachmentContent) {
         createAttachment(attachmentType, attachmentName, attachmentContent);
     }
 

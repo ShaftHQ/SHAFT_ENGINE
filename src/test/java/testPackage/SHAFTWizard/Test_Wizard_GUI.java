@@ -16,6 +16,14 @@ public class Test_Wizard_GUI {
 
     By searchBox = By.name("q");
     By resultStats = By.id("result-stats");
+    
+    //locators of test_ClickUsingJavaScript
+    By emailField = By.xpath("//input[@name='user-name']");
+    By passwordField = By.xpath("//input[@name='password']");
+    By loginButton = By.xpath("//input[@name='login-button']");
+	By product1 = By.xpath("//button[@name='add-to-cart-sauce-labs-backpack']");
+	By shoppingCartButton = By.xpath("//a[@class='shopping_cart_link']");
+	By productName = By.xpath("//div[@class='inventory_item_name']");
 
     @Test
     public void test() {
@@ -34,6 +42,18 @@ public class Test_Wizard_GUI {
         nativeWebDriver.findElement(searchBox).sendKeys(testData.getTestData("searchQuery") + Keys.ENTER);
         Assert.assertNotEquals(nativeWebDriver.findElement(resultStats).getText(), "");
     }
+    
+    @Test
+    public void test_ClickUsingJavaScript() {
+    	driver.browser().navigateToURL("https://www.saucedemo.com");
+		driver.element().type(emailField, "standard_user");
+		driver.element().type(passwordField, "secret_sauce");
+		driver.element().clickUsingJavascript(driver.getDriver(), loginButton);
+		driver.element().clickUsingJavascript(driver.getDriver(), product1);
+		driver.element().clickUsingJavascript(driver.getDriver(), shoppingCartButton);
+		driver.verifyThat().element(productName).text().equals("Sauce Labs Backpack");
+		  }
+
 
     @BeforeClass
     public void beforeClass() {
@@ -41,7 +61,7 @@ public class Test_Wizard_GUI {
         testData = new SHAFT.TestData.JSON("simpleJSON.json");
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void afterClass() {
         driver.quit();
     }

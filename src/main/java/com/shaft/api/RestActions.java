@@ -1206,12 +1206,20 @@ public class RestActions {
         try {
             boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
             ReportManagerHelper.setDiscreteLogging(true);
-            ReportManager.logDiscrete("Response status code: \"" + response.getStatusCode() + "\", status line: \"" + response.getStatusLine() + "\"");
+            var statusCode = response.getStatusCode();
+            ReportManager.logDiscrete("Response status code: \"" + statusCode + "\", status line: \"" + response.getStatusLine() + "\"");
             if (AUTOMATICALLY_ASSERT_RESPONSE_STATUS_CODE) {
-                Validations.assertThat().number(response.getStatusCode())
-                        .isEqualTo(targetStatusCode)
-                        .withCustomReportMessage("Evaluating the actual response status code against the expected one...")
-                        .perform();
+                if (targetStatusCode != 0) {
+                    Validations.assertThat().number(statusCode)
+                            .isEqualTo(targetStatusCode)
+                            .withCustomReportMessage("Evaluating the actual response status code "+statusCode+" against the expected one "+targetStatusCode+"...")
+                            .perform();
+                } else {
+                    Validations.assertThat().object(statusCode>=200 && statusCode<300)
+                            .isTrue()
+                            .withCustomReportMessage("Evaluating the actual response status code is between 200 and 299 which means it was successfull as per https://www.w3.org/Protocols/HTTP/HTRESP.html...")
+                            .perform();
+                }
             }
             ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
             return true;
