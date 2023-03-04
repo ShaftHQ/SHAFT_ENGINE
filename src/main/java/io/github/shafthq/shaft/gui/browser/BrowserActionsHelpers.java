@@ -8,6 +8,7 @@ import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import io.github.shafthq.shaft.tools.support.JavaHelper;
 import io.github.shafthq.shaft.tools.support.JavaScriptHelper;
 import lombok.SneakyThrows;
+import org.apache.logging.log4j.Level;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.Point;
 import org.openqa.selenium.*;
@@ -126,6 +127,7 @@ public class BrowserActionsHelpers {
                 internalURL = "file://" + new File(targetUrl).getAbsolutePath();
             }
         } catch (Exception exception) {
+            ReportManagerHelper.logDiscrete(exception, Level.DEBUG);
         }
 
         try {
@@ -134,7 +136,7 @@ public class BrowserActionsHelpers {
             failAction(driver, targetUrl, rootCauseException);
         }
 
-        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckNavigationWasSuccessful")))) {
+        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckNavigationWasSuccessful"))) && !targetUrl.contains("\n")) {
             checkNavigationWasSuccessful(driver, initialURL, targetUrl, targetUrlAfterRedirection);
         }
     }

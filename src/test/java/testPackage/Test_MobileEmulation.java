@@ -42,7 +42,7 @@ public class Test_MobileEmulation {
         System.setProperty("isMobileEmulation", "true");
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void afterClass() {
         driver.quit();
     }

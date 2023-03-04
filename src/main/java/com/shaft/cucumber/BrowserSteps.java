@@ -1,17 +1,15 @@
 package com.shaft.cucumber;
 
-import com.shaft.driver.DriverFactory;
-import com.shaft.gui.browser.BrowserActions;
+import com.shaft.driver.SHAFT;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.When;
-import org.openqa.selenium.WebDriver;
 
 import java.util.Objects;
 
 public class BrowserSteps {
-    private final ThreadLocal<WebDriver> driver;
+    private final ThreadLocal<SHAFT.GUI.WebDriver> driver;
 
-    public BrowserSteps(ThreadLocal<WebDriver> driver) {
+    public BrowserSteps(ThreadLocal<SHAFT.GUI.WebDriver> driver) {
         this.driver = Objects.requireNonNullElseGet(driver, ThreadLocal::new);
     }
 
@@ -21,7 +19,7 @@ public class BrowserSteps {
     @Given("I Open the target browser")
 //    @بفرض("انى قمت بفتح المتصفح المطلوب")
     public void getBrowser() {
-        driver.set(DriverFactory.getDriver());
+        driver.set(new SHAFT.GUI.WebDriver());
     }
 
     /**
@@ -32,7 +30,7 @@ public class BrowserSteps {
     @When("I Navigate to {string}")
 //    @عندما("اقوم بزيارة هذا الموقع {string}")
     public void navigateToURL(String targetUrl) {
-        BrowserActions.navigateToURL(driver.get(), targetUrl);
+        driver.get().browser().navigateToURL(targetUrl);
     }
 
     /**
@@ -45,7 +43,7 @@ public class BrowserSteps {
      */
     @When("I Navigate to {string} and get redirected to {string}")
     public void navigateToURL(String targetUrl, String targetUrlAfterRedirection) {
-        BrowserActions.navigateToURL(driver.get(), targetUrl, targetUrlAfterRedirection);
+        driver.get().browser().navigateToURL(targetUrl, targetUrlAfterRedirection);
     }
 
     /**
@@ -53,7 +51,7 @@ public class BrowserSteps {
      */
     @When("I Navigate back")
     public void navigateBack() {
-        BrowserActions.navigateBack(driver.get());
+        driver.get().browser().navigateBack();
     }
 
     /**
@@ -61,27 +59,27 @@ public class BrowserSteps {
      */
     @When("I Navigate forward")
     public void navigateForward() {
-        BrowserActions.navigateForward(driver.get());
+        driver.get().browser().navigateForward();
     }
 
     @When("I Maximize the current window")
     public void maximizeWindow() {
-        BrowserActions.maximizeWindow(driver.get());
+        driver.get().browser().maximizeWindow();
     }
 
     @When("I Resize the current window size to {int} width * {int} height")
     public void setWindowSize(int width, int height) {
-        BrowserActions.setWindowSize(driver.get(), width, height);
+        driver.get().browser().setWindowSize(width, height);
     }
 
     @When("I Full Screen the current window")
     public void fullScreenWindow() {
-        BrowserActions.fullScreenWindow(driver.get());
+        driver.get().browser().fullScreenWindow();
     }
 
     @When("I Refresh the current window")
     public void refreshCurrentPage() {
-        BrowserActions.refreshCurrentPage(driver.get());
+        driver.get().browser().refreshCurrentPage();
     }
 
     /**
@@ -90,6 +88,6 @@ public class BrowserSteps {
     @When("I Close the current window")
 //    @عندما("اقوم بغلق نافذة المتصفح الحالية")
     public void closeCurrentWindow() {
-        BrowserActions.closeCurrentWindow(driver.get());
+        driver.get().quit();
     }
 }

@@ -51,7 +51,7 @@ public class Test_sikulix {
         calculator = DriverFactory.getSikuliApp("Calculator");
     }
 
-    //@AfterClass
+    //@AfterClass(alwaysRun = true)
     public void closeApplication() {
     	DriverFactory.closeSikuliApp(calculator);
     }

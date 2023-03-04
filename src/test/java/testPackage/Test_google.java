@@ -53,7 +53,7 @@ public class Test_google {
         driver = DriverFactory.getDriver();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void afterClass() {
         DriverFactory.closeAllDrivers();
     }

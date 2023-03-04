@@ -2,11 +2,11 @@ package io.github.shafthq.shaft.validations.helpers;
 
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
-import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.ValidationEnums.*;
 import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
 import io.github.shafthq.shaft.enums.Browsers;
+import io.github.shafthq.shaft.gui.browser.FluentBrowserActions;
 import io.github.shafthq.shaft.gui.element.ElementActionsHelper;
 import io.github.shafthq.shaft.gui.image.ImageProcessingActions;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
@@ -16,6 +16,7 @@ import io.github.shafthq.shaft.tools.support.JavaHelper;
 import io.restassured.response.Response;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
 import org.testng.Assert;
 
 import java.io.File;
@@ -145,11 +146,13 @@ public class ValidationsHelper {
         String actualValue;
         try {
             actualValue = switch (elementAttribute.toLowerCase()) {
-                case "text" -> new ElementActions(driver).getText(elementLocator);
-                case "tagname" -> new ElementActions(driver).getTagName(driver, elementLocator);
-                case "size" -> new ElementActions(driver).getSize(driver, elementLocator);
-                case "selectedtext" -> new ElementActions(driver).getSelectedText(elementLocator);
-                default -> new ElementActions(driver).getAttribute(elementLocator, elementAttribute);
+                case "text" -> new ElementActions().getText(elementLocator);
+                case "tagname" ->
+                        ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).getTagName();
+                case "size" ->
+                        ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).getSize().toString();
+                case "selectedtext" -> new ElementActions().getSelectedText(elementLocator);
+                default -> new ElementActions().getAttribute(elementLocator, elementAttribute);
             };
         } catch (Throwable e) {
             ReportManagerHelper.setDiscreteLogging(isDiscrete);
@@ -224,12 +227,12 @@ public class ValidationsHelper {
         String actualValue;
         try {
             actualValue = switch (browserAttribute.toLowerCase()) {
-                case "currenturl", "url" -> BrowserActions.getCurrentURL(driver);
-                case "pagesource" -> BrowserActions.getPageSource(driver);
-                case "title" -> BrowserActions.getCurrentWindowTitle(driver);
-                case "windowhandle" -> BrowserActions.getWindowHandle(driver);
-                case "windowposition" -> BrowserActions.getWindowPosition(driver);
-                case "windowsize" -> BrowserActions.getWindowSize(driver);
+                case "currenturl", "url" -> new FluentBrowserActions().getCurrentURL();
+                case "pagesource" -> new FluentBrowserActions().getPageSource();
+                case "title" -> new FluentBrowserActions().getCurrentWindowTitle();
+                case "windowhandle" -> new FluentBrowserActions().getWindowHandle();
+                case "windowposition" -> new FluentBrowserActions().getWindowPosition();
+                case "windowsize" -> new FluentBrowserActions().getWindowSize();
                 default -> "";
             };
         } catch (Throwable e) {

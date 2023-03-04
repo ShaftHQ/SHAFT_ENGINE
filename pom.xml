@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>io.github.shafthq</groupId>
     <artifactId>SHAFT_ENGINE</artifactId>
-    <version>7.1.20230220</version> <!-- UPDATE internal.properties -->
+    <version>7.1.20230227</version> <!-- UPDATE internal.properties -->
     <name>${project.groupId}:${project.artifactId}</name>
     <description>Selenium Hybrid Automation Framework for Testing [SHAFT]</description>
     <url>https://github.com/ShaftHQ/SHAFT_ENGINE</url>
@@ -47,7 +47,7 @@
         <testng.version>7.7.1</testng.version>
 
         <mssql-jdbc.version>9.4.1.jre16-preview</mssql-jdbc.version>
-        <mysql-connector-java.version>8.0.30</mysql-connector-java.version>
+        <mysql-connector-java.version>8.0.32</mysql-connector-java.version>
         <postgresql.version>9.1-901-1.jdbc4</postgresql.version>
         <!-- <ojdbc8.version>19.3.0.0</ojdbc8.version> -->
 
@@ -55,7 +55,7 @@
         <org.slf4j.version>2.0.1</org.slf4j.version>
 
         <maven-resources-plugin.version>3.3.0</maven-resources-plugin.version>
-        <maven-compiler-plugin.version>3.10.1</maven-compiler-plugin.version>
+        <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
         <maven-surefire-plugin.version>3.0.0-M9</maven-surefire-plugin.version>
         <maven-shade-plugin.version>3.2.1</maven-shade-plugin.version>
         <maven-jar-plugin.version>3.3.0</maven-jar-plugin.version>
@@ -76,7 +76,7 @@
 
         <pdfbox.version>2.0.27</pdfbox.version>
 
-        <org.yaml.version>1.33</org.yaml.version>
+        <org.yaml.version>2.0</org.yaml.version>
 
         <jacoco-maven-plugin.version>0.8.8</jacoco-maven-plugin.version>
 
@@ -648,7 +648,7 @@
         <dependency>
             <groupId>com.google.crypto.tink</groupId>
             <artifactId>tink</artifactId>
-            <version>1.7.0</version>
+            <version>1.8.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.google.protobuf</groupId>
@@ -659,12 +659,12 @@
         <dependency>
             <groupId>com.google.crypto.tink</groupId>
             <artifactId>tink-awskms</artifactId>
-            <version>1.7.0</version>
+            <version>1.8.0</version>
         </dependency>
         <dependency>
             <groupId>com.google.crypto.tink</groupId>
             <artifactId>tink-gcpkms</artifactId>
-            <version>1.7.0</version>
+            <version>1.8.0</version>
         </dependency>
 
         <!--YAML -->
@@ -692,13 +692,6 @@
             <artifactId>jacoco-maven-plugin</artifactId>
             <version>${jacoco-maven-plugin.version}</version>
             <type>maven-plugin</type>
-        </dependency>
-
-        <!-- https://mvnrepository.com/artifact/me.tongfei/progressbar -->
-        <dependency>
-            <groupId>me.tongfei</groupId>
-            <artifactId>progressbar</artifactId>
-            <version>0.9.5</version>
         </dependency>
     </dependencies>
 

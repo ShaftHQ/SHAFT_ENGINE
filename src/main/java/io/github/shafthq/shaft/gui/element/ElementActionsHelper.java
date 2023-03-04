@@ -4,9 +4,10 @@ import com.shaft.cli.FileActions;
 import com.shaft.gui.element.SikuliActions;
 import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
-import io.github.shafthq.shaft.gui.browser.JavaScriptWaitManager;
 import io.github.shafthq.shaft.gui.image.ImageProcessingActions;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
+import io.github.shafthq.shaft.gui.locator.ShadowLocatorBuilder;
+import io.github.shafthq.shaft.tools.io.helpers.ReportHelper;
 import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import io.github.shafthq.shaft.tools.support.JavaHelper;
 import io.github.shafthq.shaft.tools.support.JavaScriptHelper;
@@ -28,7 +29,6 @@ import java.awt.*;
 import java.time.Duration;
 import java.util.List;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ElementActionsHelper {
     public static final String OBFUSCATED_STRING = "•";
@@ -77,7 +77,7 @@ public class ElementActionsHelper {
                 } catch (InterruptedException e) {
                     ReportManagerHelper.logDiscrete(e);
                 }
-                currentScreenImage = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+                currentScreenImage = ScreenshotManager.takeViewportScreenshot(driver);
                 coordinates = ImageProcessingActions.findImageWithinCurrentPage(elementReferenceScreenshot, currentScreenImage);
                 if (!Collections.emptyList().equals(coordinates)) {
                     isFound = true;
@@ -90,7 +90,7 @@ public class ElementActionsHelper {
         } else {
             // reference screenshot doesn't exist
             ReportManager.log("Reference screenshot not found. Kindly confirm the image exists under this path: \"" + elementReferenceScreenshot + "\"");
-            currentScreenImage = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
+            currentScreenImage = ScreenshotManager.takeViewportScreenshot(driver);
             returnedValue.add(currentScreenImage);
             returnedValue.add(new byte[0]);
             returnedValue.add(Collections.emptyList());
@@ -110,7 +110,11 @@ public class ElementActionsHelper {
     }
 
     private static boolean isValidToCheckForVisibility(By elementLocator, boolean checkForVisibility) {
-        return checkForVisibility && !formatLocatorToString(elementLocator).contains("input[@type='file']")
+        var locatorString = formatLocatorToString(elementLocator).toLowerCase();
+        return checkForVisibility
+                && !locatorString.contains("type='file'")
+                && !locatorString.contains("type=\"file\"")
+                && !locatorString.contains("frame")
                 && !elementLocator.equals(By.tagName("html"));
     }
 
@@ -140,33 +144,47 @@ public class ElementActionsHelper {
 
     public static List<Object> waitForElementPresence(WebDriver driver, By elementLocator, int numberOfAttempts, boolean checkForVisibility) {
         boolean isValidToCheckForVisibility = isValidToCheckForVisibility(elementLocator, checkForVisibility);
-
         var isMobileExecution = DriverFactoryHelper.isMobileNativeExecution() || DriverFactoryHelper.isMobileWebExecution();
 
         try {
-            JavaScriptWaitManager.waitForLazyLoading(driver);
-            AtomicBoolean attemptedToUseActionsToScrollToElement = new AtomicBoolean(false);
+//            JavaScriptWaitManager.waitForLazyLoading(driver);
             return new FluentWait<>(driver)
                     .withTimeout(Duration.ofMillis(
                             DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT * numberOfAttempts))
                     .pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY))
                     .ignoreAll(getExpectedExceptions(isValidToCheckForVisibility))
                     .until(nestedDriver -> {
-                        WebElement targetElement = nestedDriver.findElement(elementLocator);
+                        WebElement targetElement;
+                        if (formatLocatorToString(elementLocator).toLowerCase().contains("shadow") && ShadowLocatorBuilder.shadowDomLocator != null) {
+                            targetElement = driver.findElement(ShadowLocatorBuilder.shadowDomLocator).getShadowRoot().findElement(ShadowLocatorBuilder.cssSelector);
+                        } else {
+                            targetElement = nestedDriver.findElement(elementLocator);
+                        }
                         if (isValidToCheckForVisibility) {
                             if (!isMobileExecution) {
-                                if (isSafariBrowser() || isFirefoxBrowser() || attemptedToUseActionsToScrollToElement.get()) {
-                                    ((Locatable) targetElement).getCoordinates().inViewPort();
-                                } else {
-                                    attemptedToUseActionsToScrollToElement.set(true);
-                                    new Actions(driver).scrollToElement(targetElement).perform();
+                                try {
+                                    // native Javascript scroll to center (smooth / auto)
+                                    ((JavascriptExecutor) driver).executeScript("""
+                                            arguments[0].scrollIntoView({behavior: "smooth", block: "center", inline: "center"});""", targetElement);
+                                } catch (Throwable throwable) {
+                                    try {
+                                        // w3c compliant scroll
+                                        new Actions(driver).scrollToElement(targetElement).perform();
+                                    } catch (Throwable throwable1) {
+                                        // old school selenium scroll
+                                        ((Locatable) targetElement).getCoordinates().inViewPort();
+                                    }
                                 }
                             } else {
                                 targetElement.isDisplayed();
                             }
                         }
                         var elementInformation = new ArrayList<>();
-                        elementInformation.add(nestedDriver.findElements(elementLocator).size());
+                        if (formatLocatorToString(elementLocator).toLowerCase().contains("shadow") && ShadowLocatorBuilder.shadowDomLocator != null) {
+                            elementInformation.add(driver.findElement(ShadowLocatorBuilder.shadowDomLocator).getShadowRoot().findElements(ShadowLocatorBuilder.cssSelector).size());
+                        } else {
+                            elementInformation.add(nestedDriver.findElements(elementLocator).size());
+                        }
                         elementInformation.add(targetElement);
                         return elementInformation;
                     });
@@ -178,12 +196,19 @@ public class ElementActionsHelper {
             elementInformation.add(null);
             elementInformation.add(timeoutException);
             return elementInformation;
+        } catch (org.openqa.selenium.InvalidSelectorException invalidSelectorException) {
+            // In case the selector is not valid
+            ReportManager.logDiscrete(invalidSelectorException.getMessage());
+            var elementInformation = new ArrayList<>();
+            elementInformation.add(0);
+            elementInformation.add(null);
+            elementInformation.add(invalidSelectorException);
+            return elementInformation;
         }
     }
 
     public static List<Object> scrollToFindElement(WebDriver driver, By elementLocator) {
         try {
-            JavaScriptWaitManager.waitForLazyLoading(driver);
             return new FluentWait<>(driver)
                     .withTimeout(Duration.ofMillis(
                             DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT))
@@ -219,7 +244,6 @@ public class ElementActionsHelper {
 
         if (!DriverFactoryHelper.isMobileNativeExecution()) {
             try {
-                JavaScriptWaitManager.waitForLazyLoading(driver);
                 (new WebDriverWait(driver, Duration.ofMillis(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT)))
                         .until(ExpectedConditions.elementToBeClickable(elementLocator));
 
@@ -237,9 +261,10 @@ public class ElementActionsHelper {
                         .until(nestedDriver -> {
                             if (actionToExecute.isPresent()) {
                                 switch (actionToExecute.get().toLowerCase()) {
-                                    case "click" -> driver.findElement(elementLocator).click();
+                                    case "click" ->
+                                            ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).click();
                                     case "clickandhold" ->
-                                            (new Actions(driver)).clickAndHold(driver.findElement(elementLocator)).build().perform();
+                                            (new Actions(driver)).clickAndHold(((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1))).build().perform();
                                 }
                             }
                             return true;
@@ -283,7 +308,7 @@ public class ElementActionsHelper {
 
     public static void clickUsingJavascript(WebDriver driver, By elementLocator) {
         if (DriverFactoryHelper.isWebExecution()) {
-            ((JavascriptExecutor) driver).executeScript("arguments[arguments.length - 1].click();", driver.findElement(elementLocator));
+            ((JavascriptExecutor) driver).executeScript("arguments[arguments.length - 1].click();", ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)));
         }
     }
 
@@ -294,7 +319,7 @@ public class ElementActionsHelper {
             js.executeAsyncScript(jQueryLoader /* , http://localhost:8080/jquery-1.7.2.js */);
             String dragAndDropHelper = JavaScriptHelper.ELEMENT_DRAG_AND_DROP.getValue();
             dragAndDropHelper = dragAndDropHelper + "$(arguments[0]).simulateDragDrop({dropTarget:arguments[1]});";
-            ((JavascriptExecutor) driver).executeScript(dragAndDropHelper, driver.findElement(sourceElementLocator), driver.findElement(destinationElementLocator));
+            ((JavascriptExecutor) driver).executeScript(dragAndDropHelper, ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, sourceElementLocator).get(1)), ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, destinationElementLocator).get(1)));
         }
     }
 
@@ -312,7 +337,7 @@ public class ElementActionsHelper {
     public static void submitFormUsingJavascript(WebDriver driver, By elementLocator) {
         if (DriverFactoryHelper.isWebExecution()) {
             ((JavascriptExecutor) driver).executeScript("arguments[0].submit();",
-                    driver.findElement(elementLocator));
+                    ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)));
         }
     }
 
@@ -320,9 +345,9 @@ public class ElementActionsHelper {
         if (DriverFactoryHelper.isWebExecution()) {
 
             if (Boolean.TRUE.equals(desiredIsVisibleState)) {
-                ((JavascriptExecutor) driver).executeScript("arguments[0].setAttribute('style', 'display:block !important;');", driver.findElement(elementLocator));
+                ((JavascriptExecutor) driver).executeScript("arguments[0].setAttribute('style', 'display:block !important;');", ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)));
             } else {
-                ((JavascriptExecutor) driver).executeScript("arguments[0].setAttribute('style', 'display:none');", driver.findElement(elementLocator));
+                ((JavascriptExecutor) driver).executeScript("arguments[0].setAttribute('style', 'display:none');", ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)));
             }
         }
     }
@@ -330,13 +355,20 @@ public class ElementActionsHelper {
     public static boolean setValueUsingJavascript(WebDriver driver, By elementLocator, String value) {
         try {
             if (DriverFactoryHelper.isWebExecution()) {
-                ((JavascriptExecutor) driver).executeScript("arguments[0].value='" + value + "';", driver.findElement(elementLocator));
+                ((JavascriptExecutor) driver).executeScript("arguments[0].value='" + value + "';", ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)));
             }
             return true;
         } catch (Exception e) {
             ReportManagerHelper.logDiscrete(e);
             return false;
         }
+    }
+
+    public static String suggestNewXpathUsingJavascript(WebDriver driver, WebElement targetElement) {
+        ReportHelper.disableLogging();
+        var suggestedXpath = suggestNewXpathUsingJavascript(driver, targetElement, null);
+        ReportHelper.enableLogging();
+        return suggestedXpath;
     }
 
     public static String suggestNewXpathUsingJavascript(WebDriver driver, WebElement targetElement, By deprecatedElementLocator) {
@@ -550,7 +582,6 @@ public class ElementActionsHelper {
     private static void performType(WebDriver driver, By elementLocator, String text) {
         ArrayList<Class<? extends Exception>> expectedExceptions = getExpectedExceptions(true);
         try {
-            JavaScriptWaitManager.waitForLazyLoading(driver);
             new FluentWait<>(driver)
                     .withTimeout(Duration.ofSeconds(5))
                     .pollingEvery(Duration.ofSeconds(1))
@@ -617,27 +648,25 @@ public class ElementActionsHelper {
         var matchingElementsInformation = getMatchingElementsInformation(driver, elementLocator, Optional.empty(), Optional.of(checkForVisibility));
 
         if (elementLocator != null) {
-            if (!(elementLocator instanceof RelativeLocator.RelativeBy)) {
-                // in case of regular locator
-                switch (Integer.parseInt(matchingElementsInformation.get(0).toString())) {
-                    case 0 ->
-                            Assert.fail("zero elements found matching this locator \"" + formatLocatorToString(elementLocator) + "\"", (Throwable) matchingElementsInformation.get(2));
-//                            failAction(driver, "zero elements found matching this locator", null, (Throwable) matchingElementsInformation.get(2));
-                    case 1 -> {
-                        return matchingElementsInformation;
+            // in case of regular locator
+            switch (Integer.parseInt(matchingElementsInformation.get(0).toString())) {
+                case 0 -> {
+                    if (matchingElementsInformation.size() > 2) {
+                        Assert.fail("zero elements found matching this locator \"" + formatLocatorToString(elementLocator) + "\"", (Throwable) matchingElementsInformation.get(2));
                     }
-                    default -> {
-                        if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckElementLocatorIsUnique")))) {
-//                            failAction(driver, "multiple elements found matching this locator",
-//                                    elementLocator);
-                            Assert.fail("multiple elements found matching this locator \"" + formatLocatorToString(elementLocator) + "\"");
-                        }
-                        return matchingElementsInformation;
+                    Assert.fail("zero elements found matching this locator \"" + formatLocatorToString(elementLocator) + "\"");
+                }
+                case 1 -> {
+                    return matchingElementsInformation;
+                }
+                default -> {
+                    if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckElementLocatorIsUnique")))
+                            && !(elementLocator instanceof RelativeLocator.RelativeBy)) {
+                        Assert.fail("multiple elements found matching this locator \"" + formatLocatorToString(elementLocator) + "\"");
                     }
+                    return matchingElementsInformation;
                 }
             }
-            //in case of relativeLocator
-            return matchingElementsInformation;
         } else {
             // in case locator is null
             failAction(driver, "element locator is NULL.", null);
@@ -653,7 +682,6 @@ public class ElementActionsHelper {
             elementInformation.add(null);
             return elementInformation;
         }
-//        JavaScriptWaitManager.waitForLazyLoading(driver);
         if (!elementLocator.equals(By.tagName("html"))) {
             if (numberOfAttempts.isEmpty() && checkForVisibility.isEmpty()) {
                 return ElementActionsHelper.waitForElementPresence(driver, elementLocator);
@@ -766,7 +794,7 @@ public class ElementActionsHelper {
         if (elementLocator != null) {
             elementName = formatLocatorToString(elementLocator);
             try {
-                var accessibleName = driver.findElement(elementLocator).getAccessibleName();
+                var accessibleName = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).getAccessibleName();
                 if (accessibleName != null && !accessibleName.isBlank()) {
                     elementName = accessibleName;
                 }

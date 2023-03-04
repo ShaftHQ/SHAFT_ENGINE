@@ -26,7 +26,7 @@ public class Test_ShadowDOM {
         driver = DriverFactory.getDriver();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void afterMethod() {
         BrowserActions.closeCurrentWindow(driver);
     }

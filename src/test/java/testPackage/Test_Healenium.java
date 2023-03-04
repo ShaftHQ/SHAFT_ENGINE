@@ -73,7 +73,7 @@ public class Test_Healenium {
         driver = DriverFactory.getDriver();
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
     public void afterMethod(){
         BrowserActions.closeCurrentWindow(driver);
     }

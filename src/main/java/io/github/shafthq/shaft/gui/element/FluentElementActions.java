@@ -7,6 +7,8 @@ import com.shaft.gui.element.TouchActions;
 import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
 import io.github.shafthq.shaft.driver.helpers.WizardHelpers;
 import io.github.shafthq.shaft.gui.browser.FluentBrowserActions;
+import io.github.shafthq.shaft.gui.image.ScreenshotManager;
+import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
 import io.github.shafthq.shaft.validations.helpers.WebDriverElementValidationsBuilder;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
@@ -15,6 +17,7 @@ import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.UnexpectedTagNameException;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -66,11 +69,11 @@ public class FluentElementActions {
     }
 
     public WebDriverElementValidationsBuilder assertThat(By elementLocator) {
-        return new WizardHelpers.WebDriverAssertions(DriverFactoryHelper.getDriver()).element(elementLocator);
+        return new WizardHelpers.WebDriverAssertions().element(elementLocator);
     }
 
     public WebDriverElementValidationsBuilder verifyThat(By elementLocator) {
-        return new WizardHelpers.WebDriverVerifications(DriverFactoryHelper.getDriver()).element(elementLocator);
+        return new WizardHelpers.WebDriverVerifications().element(elementLocator);
     }
 
     public int getElementsCount(By elementLocator) {
@@ -136,7 +139,29 @@ public class FluentElementActions {
         ElementActions.click(DriverFactoryHelper.getDriver().get(), elementLocator);
         return this;
     }
-
+/**
+ * Clicks on certain element using javaScript only 
+ * 
+ * @param driver is an instance of webdriver 
+ * 
+ * @param the locator of the webElement under test (By xpath, id,
+ *                       selector, name ...etc)
+ * @return a self-reference to be used to chain actions
+ */
+ public  FluentElementActions clickUsingJavascript(WebDriver driver, By elementLocator) {
+    	
+    	try {
+    	var elementName = getElementName(driver, elementLocator);
+    	List<Object> screenshot = takeScreenshot(driver, elementLocator, "click", null, true);
+    	ElementActionsHelper.clickUsingJavascript(driver, elementLocator);
+    	passAction(driver, elementLocator, "", screenshot, elementName);
+    	}
+    	catch(Exception exception) {
+    		failAction(driver, elementLocator, exception);	
+    	}
+    	
+    	return this;
+    }
     /**
      * If the element is outside the viewport, scrolls the bottom of the element to the bottom of the viewport.
      *
@@ -587,4 +612,8 @@ public class FluentElementActions {
         return ElementActions.isElementClickable(DriverFactoryHelper.getDriver().get(), elementLocator);
     }
 
+    public FluentElementActions captureScreenshot(By elementLocator) {
+        ReportManagerHelper.log("Capture element screenshot", Collections.singletonList(ScreenshotManager.prepareImageforReport(ScreenshotManager.takeElementScreenshot(DriverFactoryHelper.getDriver().get(), elementLocator), "captureScreenshot")));
+        return this;
+    }
 }

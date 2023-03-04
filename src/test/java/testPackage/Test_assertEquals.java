@@ -47,7 +47,7 @@ public class Test_assertEquals {
         driver = DriverFactory.getDriver();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void afterClass() {
         BrowserActions.closeCurrentWindow(driver);
     }
