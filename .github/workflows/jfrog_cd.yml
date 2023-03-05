@@ -1,8 +1,10 @@
 name: jFrog Continuous Delivery
-# Run This file manually if you want to create a new SHAFT_Engine release
-# This pipeline will build from master, upload the artifacts, and create the GitHub release
+# Executed automatically when a new PR is merged to master, if the release number already exists this job will fail
+# This pipeline will build from main, upload the artifacts, and create the GitHub release
 
 on:
+  push:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:

@@ -5,11 +5,11 @@
  [![Contributors)](https://img.shields.io/github/contributors/ShaftHQ/SHAFT_ENGINE?color=indigo&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/graphs/contributors)
  [![JFrog release (latest by date including pre-releases)](https://img.shields.io/github/v/release/ShaftHQ/shaft_engine?include_prereleases&color=indigo&label=Latest%20Release&style=for-the-badge)](https://automatest.jfrog.io/ui/packages/gav:%2F%2Fio.github.shafthq:SHAFT_ENGINE)
 
-[![GitHub Workflow Status (with branch)](https://img.shields.io/github/actions/workflow/status/SHAFTHQ/SHAFT_Engine/e2eTests.yml?branch=master&color=forestgreen&label=E2E%20Tests&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/e2eTests.yml)
- [![GitHub Workflow Status (with branch)](https://img.shields.io/github/actions/workflow/status/SHAFTHQ/SHAFT_Engine/jfrog_cd.yml?branch=master&color=forestgreen&label=Continuous%20Releases&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/jfrog_cd.yml)
+[![GitHub Workflow Status (with branch)](https://img.shields.io/github/actions/workflow/status/SHAFTHQ/SHAFT_Engine/e2eTests.yml?branch=main&color=forestgreen&label=E2E%20Tests&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/e2eTests.yml)
+ [![GitHub Workflow Status (with branch)](https://img.shields.io/github/actions/workflow/status/SHAFTHQ/SHAFT_Engine/codeql-analysis.yml?branch=main&label=Security&color=forestgreen&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/codeql-analysis.yml)
+
 
 [![Codacy grade](https://img.shields.io/codacy/grade/de526d8e36ad4021a2f8f5ed553e4976?style=for-the-badge&color=blue&label=Code%20Quality)](https://app.codacy.com/gh/ShaftHQ/SHAFT_ENGINE/dashboard)
- [![GitHub Workflow Status (with branch)](https://img.shields.io/github/actions/workflow/status/SHAFTHQ/SHAFT_Engine/codeql-analysis.yml?branch=master&label=Security&color=blue&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/codeql-analysis.yml)
  [![Codecov](https://img.shields.io/codecov/c/github/shafthq/shaft_engine?style=for-the-badge&label=Coverage&color=blue)](https://app.codecov.io/gh/ShaftHQ/SHAFT_ENGINE)
  
 
