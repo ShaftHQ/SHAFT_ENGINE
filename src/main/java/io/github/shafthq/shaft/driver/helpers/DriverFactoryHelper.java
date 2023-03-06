@@ -277,6 +277,7 @@ public class DriverFactoryHelper {
 
         if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
             options.addArguments("--headless=new");
+
         }
         if (Boolean.TRUE.equals(LIGHTHOUSE_EXEUTION)) {
             options.addArguments("--remote-debugging-port=" + System.getProperty("lightHouseExeution.Port") + "");
@@ -305,7 +306,6 @@ public class DriverFactoryHelper {
                 , "--metrics-recording-only"
                 , "--no-first-run"
                 , "--no-default-browser-check"
-                , "--remote-debugging-port=0"
                 , "--silent-debugger-extension-api"
                 , "--disable-extensions"
                 , "--disable-component-extensions-with-background-pages"
