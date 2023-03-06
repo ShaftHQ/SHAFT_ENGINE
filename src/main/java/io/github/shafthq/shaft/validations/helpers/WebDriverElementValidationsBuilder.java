@@ -229,6 +229,18 @@ public class WebDriverElementValidationsBuilder {
     }
 
     /**
+     * Use this to check against the provided elements text attribute after it's trimmed (all leading and trailing space removed)
+     *
+     * @return a NativeValidationsBuilder object to continue building your validation
+     */
+    public NativeValidationsBuilder textTrimmed() {
+        this.validationMethod = "elementAttributeEquals";
+        this.elementAttribute = "textTrimmed";
+        reportMessageBuilder.append("text trimmed ");
+        return new NativeValidationsBuilder(this);
+    }
+
+    /**
      * Use this to check against a certain element attribute
      *
      * @param elementCssProperty the target element css property that will be checked against
