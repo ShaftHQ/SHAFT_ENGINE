@@ -147,6 +147,7 @@ public class ValidationsHelper {
         try {
             actualValue = switch (elementAttribute.toLowerCase()) {
                 case "text" -> new ElementActions().getText(elementLocator);
+                case "texttrimmed" -> new ElementActions().getText(elementLocator).trim();
                 case "tagname" ->
                         ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).getTagName();
                 case "size" ->
