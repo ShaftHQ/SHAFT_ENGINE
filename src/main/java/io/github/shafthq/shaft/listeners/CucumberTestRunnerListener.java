@@ -9,8 +9,7 @@ import io.cucumber.plugin.ConcurrentEventListener;
 import io.cucumber.plugin.event.*;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
 import io.github.shafthq.shaft.gui.video.RecordManager;
-import io.github.shafthq.shaft.listeners.helpers.TestNGListenerHelper;
-import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 import org.testng.Reporter;
 
 import java.io.ByteArrayInputStream;
@@ -19,8 +18,8 @@ import java.net.URI;
 import java.util.Optional;
 import java.util.UUID;
 
-import static io.github.shafthq.shaft.listeners.helpers.CucumberHelper.shaftSetup;
-import static io.github.shafthq.shaft.listeners.helpers.CucumberHelper.shaftTeardown;
+import static io.github.shafthq.shaft.listeners.CucumberHelper.shaftSetup;
+import static io.github.shafthq.shaft.listeners.CucumberHelper.shaftTeardown;
 
 public class CucumberTestRunnerListener implements ConcurrentEventListener {
     private static String lastStartedScenarioName;

@@ -1,4 +1,4 @@
-package io.github.shafthq.shaft.tools.io.helpers;
+package io.github.shafthq.shaft.tools.io;
 
 import io.github.shafthq.shaft.tools.support.HTMLHelper;
 

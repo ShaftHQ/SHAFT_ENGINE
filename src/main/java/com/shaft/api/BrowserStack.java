@@ -3,7 +3,7 @@ package com.shaft.api;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
-import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 import org.openqa.selenium.MutableCapabilities;
 import org.testng.Assert;
 

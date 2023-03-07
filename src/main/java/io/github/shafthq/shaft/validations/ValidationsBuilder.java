@@ -1,7 +1,7 @@
-package io.github.shafthq.shaft.validations.helpers;
+package io.github.shafthq.shaft.validations;
 
 import com.shaft.validation.ValidationEnums;
-import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
+import io.github.shafthq.shaft.driver.DriverFactoryHelper;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 

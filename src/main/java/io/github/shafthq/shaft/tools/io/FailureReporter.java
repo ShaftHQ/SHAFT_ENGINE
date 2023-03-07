@@ -1,4 +1,4 @@
-package io.github.shafthq.shaft.tools.io.helpers;
+package io.github.shafthq.shaft.tools.io;
 
 import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.tools.support.JavaHelper;

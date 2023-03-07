@@ -693,6 +693,14 @@
             <version>${jacoco-maven-plugin.version}</version>
             <type>maven-plugin</type>
         </dependency>
+
+        <!-- https://mvnrepository.com/artifact/org.jsoup/jsoup -->
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>1.15.4</version>
+        </dependency>
+
     </dependencies>
 
     <build>

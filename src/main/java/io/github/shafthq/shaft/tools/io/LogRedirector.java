@@ -1,4 +1,4 @@
-package io.github.shafthq.shaft.tools.io.helpers;
+package io.github.shafthq.shaft.tools.io;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Logger;

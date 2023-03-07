@@ -3,13 +3,13 @@ package io.github.shafthq.shaft.gui.browser;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.TouchActions;
-import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
-import io.github.shafthq.shaft.driver.helpers.WizardHelpers;
+import io.github.shafthq.shaft.driver.DriverFactoryHelper;
+import io.github.shafthq.shaft.driver.WizardHelpers;
 import io.github.shafthq.shaft.enums.Screenshots;
 import io.github.shafthq.shaft.gui.element.FluentElementActions;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
-import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
-import io.github.shafthq.shaft.validations.helpers.WebDriverBrowserValidationsBuilder;
+import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
+import io.github.shafthq.shaft.validations.WebDriverBrowserValidationsBuilder;
 import org.openqa.selenium.Cookie;
 
 import java.io.ByteArrayInputStream;

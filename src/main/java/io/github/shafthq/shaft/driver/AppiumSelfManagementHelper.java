@@ -1,10 +1,10 @@
-package io.github.shafthq.shaft.driver.helpers;
+package io.github.shafthq.shaft.driver;
 
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.properties.Properties;
-import io.github.shafthq.shaft.tools.io.helpers.ReportHelper;
+import io.github.shafthq.shaft.tools.io.ReportHelper;
 import io.qameta.allure.Step;
 import lombok.Getter;
 import org.apache.commons.lang3.SystemUtils;

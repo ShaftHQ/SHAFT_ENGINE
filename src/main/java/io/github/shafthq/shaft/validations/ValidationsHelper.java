@@ -1,17 +1,17 @@
-package io.github.shafthq.shaft.validations.helpers;
+package io.github.shafthq.shaft.validations;
 
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.ValidationEnums.*;
-import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
+import io.github.shafthq.shaft.driver.DriverFactoryHelper;
 import io.github.shafthq.shaft.enums.Browsers;
 import io.github.shafthq.shaft.gui.browser.FluentBrowserActions;
 import io.github.shafthq.shaft.gui.element.ElementActionsHelper;
 import io.github.shafthq.shaft.gui.image.ImageProcessingActions;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
 import io.github.shafthq.shaft.properties.Properties;
-import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 import io.github.shafthq.shaft.tools.support.JavaHelper;
 import io.restassured.response.Response;
 import org.openqa.selenium.By;

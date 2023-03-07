@@ -1,7 +1,7 @@
 package com.shaft.tools.io;
 
-import io.github.shafthq.shaft.tools.io.helpers.FailureReporter;
-import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.tools.io.FailureReporter;
+import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 import io.github.shafthq.shaft.tools.support.JavaHelper;
 import org.apache.poi.EmptyFileException;
 import org.apache.poi.ss.usermodel.CellType;

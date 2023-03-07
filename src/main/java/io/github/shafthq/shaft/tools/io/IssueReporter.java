@@ -1,6 +1,6 @@
-package io.github.shafthq.shaft.tools.io.helpers;
+package io.github.shafthq.shaft.tools.io;
 
-import io.github.shafthq.shaft.validations.helpers.ValidationsHelper;
+import io.github.shafthq.shaft.validations.ValidationsHelper;
 import io.qameta.allure.model.Link;
 import io.qameta.allure.util.AnnotationUtils;
 import org.testng.ITestNGMethod;

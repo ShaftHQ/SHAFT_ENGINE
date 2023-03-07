@@ -3,7 +3,7 @@ package com.shaft.cli;
 import com.google.common.hash.Hashing;
 import com.shaft.tools.io.PdfFileManager;
 import com.shaft.tools.io.ReportManager;
-import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 import io.github.shafthq.shaft.tools.support.JavaHelper;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;

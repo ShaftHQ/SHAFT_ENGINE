@@ -1,4 +1,4 @@
-package io.github.shafthq.shaft.validations.helpers;
+package io.github.shafthq.shaft.validations;
 
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;

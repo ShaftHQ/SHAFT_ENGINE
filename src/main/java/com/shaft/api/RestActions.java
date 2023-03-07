@@ -9,7 +9,7 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Validations;
 import eu.medsea.mimeutil.MimeUtil;
 import eu.medsea.mimeutil.MimeUtil2;
-import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 import io.github.shafthq.shaft.tools.support.JavaHelper;
 import io.restassured.builder.MultiPartSpecBuilder;
 import io.restassured.builder.RequestSpecBuilder;

@@ -1,9 +1,9 @@
 package io.github.shafthq.shaft.listeners;
 
 import com.shaft.tools.io.ReportManager;
-import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
+import io.github.shafthq.shaft.driver.DriverFactoryHelper;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
-import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 import io.github.shafthq.shaft.tools.support.JavaHelper;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Sequence;

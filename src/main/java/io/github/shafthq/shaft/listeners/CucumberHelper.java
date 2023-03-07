@@ -1,12 +1,12 @@
-package io.github.shafthq.shaft.listeners.helpers;
+package io.github.shafthq.shaft.listeners;
 
 import com.shaft.driver.DriverFactory;
 import io.github.shafthq.shaft.gui.image.ImageProcessingActions;
 import io.github.shafthq.shaft.properties.PropertiesHelper;
-import io.github.shafthq.shaft.tools.io.helpers.CheckpointCounter;
-import io.github.shafthq.shaft.tools.io.helpers.ProjectStructureManager;
-import io.github.shafthq.shaft.tools.io.helpers.ReportHelper;
-import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.tools.io.CheckpointCounter;
+import io.github.shafthq.shaft.tools.io.ProjectStructureManager;
+import io.github.shafthq.shaft.tools.io.ReportHelper;
+import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 import io.github.shafthq.shaft.tools.security.GoogleTink;
 import org.testng.Reporter;
 

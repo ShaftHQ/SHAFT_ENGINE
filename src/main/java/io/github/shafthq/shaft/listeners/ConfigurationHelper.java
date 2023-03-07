@@ -1,8 +1,8 @@
-package io.github.shafthq.shaft.listeners.helpers;
+package io.github.shafthq.shaft.listeners;
 
 import com.shaft.driver.DriverFactory;
-import io.github.shafthq.shaft.tools.io.helpers.CheckpointCounter;
-import io.github.shafthq.shaft.tools.io.helpers.ReportHelper;
+import io.github.shafthq.shaft.tools.io.CheckpointCounter;
+import io.github.shafthq.shaft.tools.io.ReportHelper;
 import org.testng.ITestContext;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterSuite;

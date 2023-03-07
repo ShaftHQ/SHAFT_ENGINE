@@ -1,11 +1,11 @@
-package io.github.shafthq.shaft.validations.helpers;
+package io.github.shafthq.shaft.validations;
 
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.tools.io.PdfFileManager;
 import com.shaft.validation.ValidationEnums;
-import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
+import io.github.shafthq.shaft.driver.DriverFactoryHelper;
 import io.github.shafthq.shaft.gui.browser.JavaScriptWaitManager;
 import io.restassured.response.Response;
 import org.openqa.selenium.By;

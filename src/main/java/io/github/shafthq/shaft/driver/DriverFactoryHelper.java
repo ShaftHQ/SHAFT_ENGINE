@@ -1,4 +1,4 @@
-package io.github.shafthq.shaft.driver.helpers;
+package io.github.shafthq.shaft.driver;
 
 import com.epam.healenium.SelfHealingDriver;
 import com.mysql.cj.util.StringUtils;
@@ -18,8 +18,8 @@ import io.github.shafthq.shaft.gui.video.RecordManager;
 import io.github.shafthq.shaft.properties.Properties;
 import io.github.shafthq.shaft.properties.PropertiesHelper;
 import io.github.shafthq.shaft.properties.PropertyFileManager;
-import io.github.shafthq.shaft.tools.io.helpers.FailureReporter;
-import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.tools.io.FailureReporter;
+import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 import io.github.shafthq.shaft.tools.support.JavaHelper;
 import io.qameta.allure.Step;
 import lombok.AccessLevel;

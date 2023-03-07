@@ -1,6 +1,6 @@
-package io.github.shafthq.shaft.listeners.helpers;
+package io.github.shafthq.shaft.listeners;
 
-import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 import io.github.shafthq.shaft.tools.tms.XrayIntegrationHelper;
 import io.qameta.allure.*;
 import org.testng.IInvokedMethod;
