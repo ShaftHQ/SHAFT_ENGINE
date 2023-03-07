@@ -9,7 +9,7 @@
  [![GitHub Workflow Status (with branch)](https://img.shields.io/github/actions/workflow/status/SHAFTHQ/SHAFT_Engine/codeql-analysis.yml?branch=main&label=Security&color=forestgreen&style=for-the-badge)](https://github.com/ShaftHQ/SHAFT_ENGINE/actions/workflows/codeql-analysis.yml)
 
 
-[![Codacy grade](https://img.shields.io/codacy/grade/de526d8e36ad4021a2f8f5ed553e4976?style=for-the-badge&color=blue&label=Code%20Quality)](https://app.codacy.com/gh/ShaftHQ/SHAFT_ENGINE/dashboard)
+[![Codacy grade](https://img.shields.io/codacy/grade/4d6d48aba396411fa3170184330ba089?style=for-the-badge&color=blue&label=Code%20Quality)](https://www.codacy.com/gh/ShaftHQ/SHAFT_ENGINE/dashboard)
  [![Codecov](https://img.shields.io/codecov/c/github/shafthq/shaft_engine?style=for-the-badge&label=Coverage&color=blue)](https://app.codecov.io/gh/ShaftHQ/SHAFT_ENGINE)
  
 
