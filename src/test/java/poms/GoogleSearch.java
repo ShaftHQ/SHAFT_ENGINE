@@ -1,22 +1,21 @@
 package poms;
 
-import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
-import com.shaft.validation.ValidationEnums;
 import com.shaft.validation.Validations;
+import lombok.Getter;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
 public class GoogleSearch {
     WebDriver driver;
 
-     String url = "https://www.google.com/ncr";
-     String urlAfterRedirection = "https://www.google.com";
-     
-    public static By googleLogo_image = By.xpath("//*[@id='hplogo' or @alt='Google']");
+    @Getter
+    static By searchBox_textField = By.xpath("//input[@id='lst-ib' or @class='lst' or @name='q']");
+    String url = "https://www.google.com/ncr";
 
-    By searchBox_textField = By.xpath("//input[@id='lst-ib' or @class='lst' or @name='q']");
+    public static By googleLogo_image = By.xpath("//*[@id='hplogo' or @alt='Google']");
+    String urlAfterRedirection = "https://www.google.com";
 
     public GoogleSearch(WebDriver driver) {
         this.driver = driver;

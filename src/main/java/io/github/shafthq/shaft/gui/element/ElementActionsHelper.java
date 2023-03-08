@@ -554,11 +554,13 @@ public class ElementActionsHelper {
     }
 
     private static String confirmTypingWasSuccessful(ElementInformation elementInformation, TextDetectionStrategy successfulTextLocationStrategy) {
+        //get a fresh instance of the element
+        var updatedElementInformation = ElementInformation.fromList(identifyUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator()));
         TextDetectionStrategy updatedSuccessfulTextLocationStrategy = successfulTextLocationStrategy;
         if (updatedSuccessfulTextLocationStrategy.equals(TextDetectionStrategy.UNDEFINED)) {
-            updatedSuccessfulTextLocationStrategy = determineSuccessfulTextLocationStrategy(elementInformation);
+            updatedSuccessfulTextLocationStrategy = determineSuccessfulTextLocationStrategy(updatedElementInformation);
         }
-        return readTextBasedOnSuccessfulLocationStrategy(elementInformation, updatedSuccessfulTextLocationStrategy);
+        return readTextBasedOnSuccessfulLocationStrategy(updatedElementInformation, updatedSuccessfulTextLocationStrategy);
     }
 
     private static TextDetectionStrategy determineSuccessfulTextLocationStrategy(ElementInformation elementInformation) {
@@ -619,10 +621,14 @@ public class ElementActionsHelper {
     public static boolean performClipboardActions(WebDriver driver, By elementLocator, String action, Keys CommandOrControl) {
         try {
             switch (action.toLowerCase()) {
-                case "copy" -> (new Actions(driver)).sendKeys(Keys.chord(CommandOrControl, "c")).perform();
-                case "paste" -> (new Actions(driver)).sendKeys(Keys.chord(CommandOrControl, "v")).perform();
-                case "cut" -> (new Actions(driver)).sendKeys(Keys.chord(CommandOrControl, "x")).perform();
-                case "select all" -> (new Actions(driver)).sendKeys(Keys.chord(CommandOrControl, "a")).perform();
+                case "copy" ->
+                        (new Actions(driver)).keyDown(CommandOrControl).sendKeys("c").keyUp(CommandOrControl).build().perform();
+                case "paste" ->
+                        (new Actions(driver)).keyDown(CommandOrControl).sendKeys("v").keyUp(CommandOrControl).build().perform();
+                case "cut" ->
+                        (new Actions(driver)).keyDown(CommandOrControl).sendKeys("x").keyUp(CommandOrControl).build().perform();
+                case "select all" ->
+                        (new Actions(driver)).keyDown(CommandOrControl).sendKeys("a").keyUp(CommandOrControl).build().perform();
                 case "unselect" -> (new Actions(driver)).sendKeys(Keys.ESCAPE).perform();
                 default -> {
                     return false;

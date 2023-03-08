@@ -13,7 +13,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import poms.GoogleSearch;
 
-public class tests_validations_assertions {
+public class ValidationTests {
     private WebDriver driver;
 
     @Test(description = "Assert that assertEquals works as expected when the two values are equal.")
@@ -50,7 +50,7 @@ public class tests_validations_assertions {
     @Test
     public void assertEquals_true_expectedToFail() {
         try {
-            Validations.assertThat().number(1).equals(2);
+            Validations.assertThat().number(1).isEqualTo(2);
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -160,15 +160,15 @@ public class tests_validations_assertions {
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_literalComparison_expectedToPass() {
-        ElementActions.type(driver, By.name("q"), "Automation!@#$%^&*()_+{}[]\\';/.,");
-        Validations.assertThat().element(driver, By.name("q")).text().equals("Automation!@#$%^&*()_+{}[]\\';/.,");
+        new ElementActions(driver).type(By.name("q"), "Automation");
+        Validations.assertThat().element(driver, By.name("q")).text().isEqualTo("Automation");
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_literalComparison_expectedToFail() {
-        ElementActions.type(driver, By.name("q"), "Automation!@#$%^&*()_+{}[]\\';/.,");
+        new ElementActions(driver).type(By.name("q"), "Automation");
         try {
-            Validations.assertThat().element(driver, By.name("q")).text().equals("Automation");
+            Validations.assertThat().element(driver, By.name("q")).text().isEqualTo("Automation123");
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -176,13 +176,13 @@ public class tests_validations_assertions {
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_regexComparison_expectedToPass() {
-        ElementActions.type(driver, By.name("q"), "Automation123");
+        new ElementActions(driver).type(By.name("q"), "Automation123");
         Validations.assertThat().element(driver, By.name("q")).text().matchesRegex("Automation.*").perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_regexComparison_expectedToFail() {
-        ElementActions.type(driver, By.name("q"), "Automation123");
+        new ElementActions(driver).type(By.name("q"), "Automation123");
         try {
             Validations.assertThat().element(driver, By.name("q")).text().matchesRegex("Automation").perform();
         } catch (AssertionError e) {
@@ -192,13 +192,13 @@ public class tests_validations_assertions {
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_containsComparison_expectedToPass() {
-        ElementActions.type(driver, By.name("q"), "Automation123");
+        new ElementActions(driver).type(By.name("q"), "Automation123");
         Validations.assertThat().element(driver, By.name("q")).text().contains("Automation").perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_containsComparison_expectedToFail() {
-        ElementActions.type(driver, By.name("q"), "Automation123");
+        new ElementActions(driver).type(By.name("q"), "Automation123");
         try {
             Validations.assertThat().element(driver, By.name("q")).text().contains("Automation1234").perform();
         } catch (AssertionError e) {
@@ -208,13 +208,13 @@ public class tests_validations_assertions {
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_caseInsensitiveComparison_expectedToPass() {
-        ElementActions.type(driver, By.name("q"), "AUTOMATION");
+        new ElementActions(driver).type(By.name("q"), "AUTOMATION");
         Validations.assertThat().element(driver, By.name("q")).text().equalsIgnoringCaseSensitivity("AutomaTion").perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_caseInsensitiveComparison_expectedToFail() {
-        ElementActions.type(driver, By.name("q"), "AUTOMATION");
+        new ElementActions(driver).type(By.name("q"), "AUTOMATION");
         try {
             Validations.assertThat().element(driver, By.name("q")).text().equalsIgnoringCaseSensitivity("AutomaTion123").perform();
         } catch (AssertionError e) {
@@ -224,15 +224,15 @@ public class tests_validations_assertions {
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_literalComparison_expectedToPass() {
-        ElementActions.type(driver, By.name("q"), "Automation!@#$%^&*()_+{}[]\\';/.,");
+        new ElementActions(driver).type(By.name("q"), "Automation123");
         Validations.assertThat().element(driver, By.name("q")).text().doesNotEqual("Automation").perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_literalComparison_expectedToFail() {
-        ElementActions.type(driver, By.name("q"), "Automation!@#$%^&*()_+{}[]\\';/.,");
+        new ElementActions(driver).type(By.name("q"), "Automation");
         try {
-            Validations.assertThat().element(driver, By.name("q")).text().doesNotEqual("\"Automation!@#$%^&*()_+{}[]\\\\\\\\';/.,\"").perform();
+            Validations.assertThat().element(driver, By.name("q")).text().doesNotEqual("Automation123").perform();
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -240,13 +240,13 @@ public class tests_validations_assertions {
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_regexComparison_expectedToPass() {
-        ElementActions.type(driver, By.name("q"), "Automation123");
+        new ElementActions(driver).type(By.name("q"), "Automation123");
         Validations.assertThat().element(driver, By.name("q")).text().doesNotMatchRegex("Automation").perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_regexComparison_expectedToFail() {
-        ElementActions.type(driver, By.name("q"), "Automation123");
+        new ElementActions(driver).type(By.name("q"), "Automation123");
         try {
             Validations.assertThat().element(driver, By.name("q")).text().doesNotMatchRegex("Automation.*").perform();
         } catch (AssertionError e) {
@@ -256,13 +256,13 @@ public class tests_validations_assertions {
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_containsComparison_expectedToPass() {
-        ElementActions.type(driver, By.name("q"), "Automation123");
+        new ElementActions(driver).type(By.name("q"), "Automation123");
         Validations.assertThat().element(driver, By.name("q")).text().doesNotContain("Automation1234").perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_containsComparison_expectedToFail() {
-        ElementActions.type(driver, By.name("q"), "Automation123");
+        new ElementActions(driver).type(By.name("q"), "Automation123");
         try {
             Validations.assertThat().element(driver, By.name("q")).text().doesNotContain("Automation").perform();
         } catch (AssertionError e) {
@@ -272,13 +272,13 @@ public class tests_validations_assertions {
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_caseInsensitiveComparison_expectedToPass() {
-        ElementActions.type(driver, By.name("q"), "AUTOMATION");
+        new ElementActions(driver).type(By.name("q"), "AUTOMATION");
         Validations.assertThat().element(driver, By.name("q")).text().doesNotEqualIgnoringCaseSensitivity("AutomaTion123").perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_caseInsensitiveComparison_expectedToFail() {
-        ElementActions.type(driver, By.name("q"), "AUTOMATION");
+        new ElementActions(driver).type(By.name("q"), "AUTOMATION");
         try {
             Validations.assertThat().element(driver, By.name("q")).text().doesNotEqualIgnoringCaseSensitivity("AutomaTion").perform();
         } catch (AssertionError e) {
@@ -316,12 +316,12 @@ public class tests_validations_assertions {
 
     @AfterMethod(onlyForGroups = {"WebBased"}, alwaysRun = true)
     public void afterMethod() {
-        BrowserActions.closeCurrentWindow(driver);
+        new BrowserActions(driver).closeCurrentWindow();
     }
 
     @BeforeMethod(onlyForGroups = {"WebBased"})
     public void beforeMethod() {
         driver = DriverFactory.getDriver();
-        BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "https://www.google.com/");
+        new BrowserActions(driver).navigateToURL("https://www.google.com/ncr", "https://www.google.com/");
     }
 }

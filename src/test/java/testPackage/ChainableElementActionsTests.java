@@ -6,13 +6,14 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-public class Test_chainableElementActions {
+public class ChainableElementActionsTests {
     SHAFT.GUI.WebDriver driver;
 
     @BeforeMethod
-    public void beforeMethod(){
+    public void beforeMethod() {
         driver = new SHAFT.GUI.WebDriver();
     }
+
     @Test
     public void chainElementActions() {
         driver.browser().navigateToURL("https://www.google.com/ncr", "https://www.google.com");
@@ -23,7 +24,7 @@ public class Test_chainableElementActions {
                 .type(searchBox, "chained type 2")
                 .typeAppend(searchBox, "345");
 
-        driver.assertThat().element(searchBox).text().equals("chained type 2345");
+        driver.assertThat().element(searchBox).text().isEqualTo("chained type 2345");
     }
 
     @AfterMethod(alwaysRun = true)
