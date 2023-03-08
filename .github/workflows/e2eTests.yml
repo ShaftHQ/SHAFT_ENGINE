@@ -31,9 +31,7 @@ jobs:
         run: docker ps
       - name: Run tests
         continue-on-error: true
-        run: |
-          mvn -e test "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=MozillaFirefox" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*Test_MobileEmulation.*], !%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*android.*],!%regex[.*mobile.*], !%regex[.*Mobile.*], !%regex[.*ios.*], !%regex[.*Windows.*], !%regex[.*BasicAuthentication.*]"
-          bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r ./target/jacoco/jacoco.xml
+        run: mvn -e test "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=MozillaFirefox" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*Test_MobileEmulation.*], !%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*android.*],!%regex[.*mobile.*], !%regex[.*Mobile.*], !%regex[.*ios.*], !%regex[.*Windows.*], !%regex[.*BasicAuthentication.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -80,9 +78,7 @@ jobs:
         run: docker ps
       - name: Run tests
         continue-on-error: true
-        run: |
-          mvn -e test "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=GoogleChrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*Test_MobileEmulation.*], !%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*android.*],!%regex[.*mobile.*], !%regex[.*Mobile.*], !%regex[.*ios.*], !%regex[.*Windows.*], !%regex[.*BasicAuthentication.*]"
-          bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r ./target/jacoco/jacoco.xml
+        run: mvn -e test "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=GoogleChrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*Test_MobileEmulation.*], !%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*android.*],!%regex[.*mobile.*], !%regex[.*Mobile.*], !%regex[.*ios.*], !%regex[.*Windows.*], !%regex[.*BasicAuthentication.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -129,9 +125,7 @@ jobs:
         run: docker ps
       - name: Run tests
         continue-on-error: true
-        run: |
-          mvn -e test "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*Test_MobileEmulation.*], !%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*android.*],!%regex[.*mobile.*], !%regex[.*Mobile.*], !%regex[.*ios.*], !%regex[.*Windows.*], !%regex[.*BasicAuthentication.*]"
-          bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r ./target/jacoco/jacoco.xml
+        run: mvn -e test "-DexecutionAddress=localhost:4444" "-DtargetOperatingSystem=LINUX" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*Test_MobileEmulation.*], !%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*android.*],!%regex[.*mobile.*], !%regex[.*Mobile.*], !%regex[.*ios.*], !%regex[.*Windows.*], !%regex[.*BasicAuthentication.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -174,9 +168,7 @@ jobs:
           check-latest: true
       - name: Run tests
         continue-on-error: true
-        run: |
-          mvn -e test "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*Test_MobileEmulation.*], !%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*android.*],!%regex[.*mobile.*], !%regex[.*Mobile.*], !%regex[.*ios.*], !%regex[.*Windows.*], !%regex[.*BasicAuthentication.*]"
-          bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r ./target/jacoco/jacoco.xml
+        run: mvn -e test "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=MicrosoftEdge" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*Test_MobileEmulation.*], !%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*android.*],!%regex[.*mobile.*], !%regex[.*Mobile.*], !%regex[.*ios.*], !%regex[.*Windows.*], !%regex[.*BasicAuthentication.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -219,9 +211,7 @@ jobs:
           check-latest: true
       - name: Run tests
         continue-on-error: true
-        run: |
-          mvn -e test "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=GoogleChrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*Test_MobileEmulation.*], !%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*android.*],!%regex[.*mobile.*], !%regex[.*Mobile.*], !%regex[.*ios.*], !%regex[.*Windows.*], !%regex[.*BasicAuthentication.*], !%regex[.*SafariCompatible.*]"
-          bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r ./target/jacoco/jacoco.xml
+        run: mvn -e test "-DexecutionAddress=local" "-DtargetOperatingSystem=WINDOWS" "-DtargetBrowserName=GoogleChrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*Test_MobileEmulation.*], !%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*android.*],!%regex[.*mobile.*], !%regex[.*Mobile.*], !%regex[.*ios.*], !%regex[.*Windows.*], !%regex[.*BasicAuthentication.*], !%regex[.*SafariCompatible.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -264,9 +254,7 @@ jobs:
           check-latest: true
       - name: Run tests
         continue-on-error: true
-        run: |
-          mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=SAFARI" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*tests_browserActions.*], %regex[.*Test_chainableElementActions.*], !%regex[.*Test_MobileEmulation.*], !%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*android.*],!%regex[.*mobile.*], !%regex[.*Mobile.*], !%regex[.*ios.*], !%regex[.*Windows.*], !%regex[.*BasicAuthentication.*]"
-          bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r ./target/jacoco/jacoco.xml
+        run: mvn -e test "-DretryMaximumNumberOfAttempts=2" "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=SAFARI" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*tests_browserActions.*], %regex[.*Test_chainableElementActions.*], !%regex[.*Test_MobileEmulation.*], !%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*android.*],!%regex[.*mobile.*], !%regex[.*Mobile.*], !%regex[.*ios.*], !%regex[.*Windows.*], !%regex[.*BasicAuthentication.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -311,9 +299,7 @@ jobs:
         uses: browser-actions/setup-chrome@latest
       - name: Run tests
         continue-on-error: true
-        run: |
-          mvn -e test "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=GoogleChrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*Test_MobileEmulation.*], !%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*android.*],!%regex[.*mobile.*], !%regex[.*Mobile.*], !%regex[.*ios.*], !%regex[.*Windows.*], !%regex[.*BasicAuthentication.*]"
-          bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r ./target/jacoco/jacoco.xml
+        run: mvn -e test "-DexecutionAddress=local" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=GoogleChrome" "-DheadlessExecution=true" "-DgenerateAllureReportArchive=true" "-Dtest=!%regex[.*Test_MobileEmulation.*], !%regex[.*Test_Healenium.*], !%regex[.*selfRelease.*], !%regex[.*BuildAndRelease.*], !%regex[.*checksum.*], !%regex[.*cucumber.*], !%regex[.*sikulix.*], !%regex[.*imageComparison.*], !%regex[.*FileActions.*], !%regex[.*TerminalActions.*], !%regex[.*localShell.*], !%regex[.*fullPageScreenshotWithHeader.*], !%regex[.*dbConnection.*], !%regex[.*Appium.*], !%regex[.*android.*],!%regex[.*mobile.*], !%regex[.*Mobile.*], !%regex[.*ios.*], !%regex[.*Windows.*], !%regex[.*BasicAuthentication.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -461,9 +447,7 @@ jobs:
 
       - name: Run tests
         continue-on-error: true
-        run: |
-          mvn -e test "-DexecutionAddress=localhost:4723" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-Dmobile_app=src/test/resources/TestDataFiles/apps/ApiDemos-debug.apk" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*android.*]"
-          bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r ./target/jacoco/jacoco.xml
+        run: mvn -e test "-DexecutionAddress=localhost:4723" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-Dmobile_app=src/test/resources/TestDataFiles/apps/ApiDemos-debug.apk" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*android.*]"
 
       - name: Upload Initial Emulator screenshot
         if: always()
@@ -517,9 +501,7 @@ jobs:
           check-latest: true
       - name: Run tests
         continue-on-error: true
-        run: |
-          mvn -e test "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.platformVersion=13.0" "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appName=ApiDemos-debug.apk" "-DbrowserStack.appRelativeFilePath=src/test/resources/testDataFiles/apps/ApiDemos-debug.apk" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*android.*]"
-          bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r ./target/jacoco/jacoco.xml
+        run: mvn -e test "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.platformVersion=13.0" "-DbrowserStack.deviceName=Google Pixel 7" "-DbrowserStack.appName=ApiDemos-debug.apk" "-DbrowserStack.appRelativeFilePath=src/test/resources/testDataFiles/apps/ApiDemos-debug.apk" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*android.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -564,9 +546,7 @@ jobs:
           check-latest: true
       - name: Run tests
         continue-on-error: true
-        run: |
-          mvn -e test "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=IOS" "-Dmobile_automationName=XCuiTest" "-DbrowserStack.osVersion=16" "-DbrowserStack.deviceName=iPhone 14" "-Dmobile_browserName=SAFARI" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
-          bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r ./target/jacoco/jacoco.xml
+        run: mvn -e test "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=IOS" "-Dmobile_automationName=XCuiTest" "-DbrowserStack.osVersion=16" "-DbrowserStack.deviceName=iPhone 14" "-Dmobile_browserName=SAFARI" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -611,9 +591,7 @@ jobs:
           check-latest: true
       - name: Run tests
         continue-on-error: true
-        run: |
-          mvn -e test "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.osVersion=13.0" "-DbrowserStack.deviceName=Samsung Galaxy S23" "-Dmobile_browserName=CHROME" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
-          bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r ./target/jacoco/jacoco.xml
+        run: mvn -e test "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=ANDROID" "-Dmobile_automationName=UIAutomator2" "-DbrowserStack.osVersion=13.0" "-DbrowserStack.deviceName=Samsung Galaxy S23" "-Dmobile_browserName=CHROME" "-DbrowserStack.appName=" "-DbrowserStack.appRelativeFilePath=" "-DbrowserStack.appUrl=" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*MobileWebTest.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -658,9 +636,7 @@ jobs:
           check-latest: true
       - name: Run tests
         continue-on-error: true
-        run: |
-          mvn -e test "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Monterey" "-DbrowserStack.browserVersion=15.3" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*tests_browserActions.*], %regex[.*Test_chainableElementActions.*]"
-          bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r ./target/jacoco/jacoco.xml
+        run: mvn -e test "-DexecutionAddress=browserstack" "-DtargetOperatingSystem=MAC" "-DtargetBrowserName=Safari" "-DbrowserStack.os=OS X" "-DbrowserStack.osVersion=Monterey" "-DbrowserStack.browserVersion=15.3" "-DgenerateAllureReportArchive=true" "-Dtest=%regex[.*tests_browserActions.*], %regex[.*Test_chainableElementActions.*]"
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -723,13 +699,11 @@ jobs:
                echo "$RUNNER_OS not supported"
                exit 1
           fi
-          bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r ./target/jacoco/jacoco.xml
       - name: Run tests on Windows
         if: runner.os == 'Windows'
         continue-on-error: true
         run: |
           mvn test -DexecutionAddress="local" -DtargetOperatingSystem="WINDOWS" -DmaximumPerformanceMode="2" -DtargetBrowserName="MicrosoftEdge" -DgenerateAllureReportArchive="true" -Dtest=".*CucumberTestRunner.*"
-          bash <(curl -Ls https://coverage.codacy.com/get.sh) report -r ./target/jacoco/jacoco.xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
