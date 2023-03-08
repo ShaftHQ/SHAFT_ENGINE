@@ -5,11 +5,12 @@ import com.shaft.cli.FileActions;
 import com.shaft.tools.io.ReportManager;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
-import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
+import io.github.shafthq.shaft.driver.DriverFactoryHelper;
 import io.github.shafthq.shaft.gui.browser.FluentBrowserActions;
 import io.github.shafthq.shaft.gui.element.ElementActionsHelper;
+import io.github.shafthq.shaft.gui.element.ElementInformation;
 import io.github.shafthq.shaft.gui.element.FluentElementActions;
-import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Actions;
@@ -910,7 +911,7 @@ public class ElementActions extends FluentElementActions {
     public static void setValueUsingJavaScript(WebDriver driver, By elementLocator, String value) {
         try {
             var elementName = getElementName(driver, elementLocator);
-            Boolean valueSetSuccessfully = ElementActionsHelper.setValueUsingJavascript(driver, elementLocator, value);
+            Boolean valueSetSuccessfully = ElementActionsHelper.setValueUsingJavascript(elementLocator, value);
             if (Boolean.TRUE.equals(valueSetSuccessfully)) {
                 passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), value, null, elementName);
             } else {
@@ -1004,8 +1005,9 @@ public class ElementActions extends FluentElementActions {
     @Deprecated
     public static void type(WebDriver driver, By elementLocator, String text) {
         try {
-            String actualResult = typeWrapper(driver, elementLocator, text);
-            var elementName = getElementName(driver, elementLocator);
+            var elementInformation = ElementInformation.fromList(identifyUniqueElementIgnoringVisibility(driver, elementLocator));
+            String actualResult = typeWrapper(elementInformation, text);
+            var elementName = elementInformation.getElementName();
             if (actualResult != null && actualResult.equals(text)) {
                 passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), text, null, elementName);
             } else if (actualResult == null) {
@@ -1122,8 +1124,9 @@ public class ElementActions extends FluentElementActions {
     @Deprecated
     public static void typeSecure(WebDriver driver, By elementLocator, String text) {
         try {
-            String actualResult = typeWrapper(driver, elementLocator, text);
-            var elementName = getElementName(driver, elementLocator);
+            var elementInformation = ElementInformation.fromList(identifyUniqueElementIgnoringVisibility(driver, elementLocator));
+            String actualResult = typeWrapper(elementInformation, text);
+            var elementName = (String) elementInformation.getElementName();
             if (actualResult != null && actualResult.equals(text)) {
                 passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), ElementActionsHelper.OBFUSCATED_STRING.repeat(text.length()), null, elementName);
             } else if (actualResult == null) {
