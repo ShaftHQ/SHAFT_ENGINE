@@ -11,7 +11,7 @@ public class GoogleSearch {
     WebDriver driver;
 
     @Getter
-    static By searchBox_textField = By.xpath("//input[@id='lst-ib' or @class='lst' or @name='q']");
+    static By searchBox_textField = By.xpath("//*[@id='lst-ib' or @class='lst' or @name='q']");
     String url = "https://www.google.com/ncr";
 
     public static By googleLogo_image = By.xpath("//*[@id='hplogo' or @alt='Google']");

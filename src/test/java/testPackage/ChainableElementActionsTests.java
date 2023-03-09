@@ -5,6 +5,7 @@ import org.openqa.selenium.By;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import poms.GoogleSearch;
 
 public class ChainableElementActionsTests {
     SHAFT.GUI.WebDriver driver;
@@ -18,7 +19,7 @@ public class ChainableElementActionsTests {
     public void chainElementActions() {
         driver.browser().navigateToURL("https://www.google.com/ncr", "https://www.google.com");
 
-        By searchBox = By.name("q");
+        By searchBox = GoogleSearch.getSearchBox_textField();
 
         driver.element().type(searchBox, "chained type 1")
                 .type(searchBox, "chained type 2")

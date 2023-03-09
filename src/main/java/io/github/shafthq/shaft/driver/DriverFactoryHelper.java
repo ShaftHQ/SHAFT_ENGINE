@@ -13,6 +13,7 @@ import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import io.appium.java_client.remote.options.UnhandledPromptBehavior;
 import io.github.bonigarcia.wdm.WebDriverManager;
+import io.github.bonigarcia.wdm.config.WebDriverManagerException;
 import io.github.shafthq.shaft.gui.browser.BrowserActionsHelpers;
 import io.github.shafthq.shaft.gui.video.RecordManager;
 import io.github.shafthq.shaft.properties.Properties;
@@ -288,7 +289,8 @@ public class DriverFactoryHelper {
 
         // https://github.com/GoogleChrome/chrome-launcher/blob/main/docs/chrome-flags-for-tools.md
         // https://docs.google.com/spreadsheets/d/1n-vw_PCPS45jX3Jt9jQaAhFqBY6Ge1vWF_Pa0k7dCk4/edit#gid=1265672696
-        options.addArguments("--enable-automation"
+        options.addArguments("--remote-allow-origins=*",
+                "--enable-automation"
                 , "--disable-background-timer-throttling"
                 , "--disable-backgrounding-occluded-windows"
                 , "--disable-features=CalculateNativeWinOcclusion"
@@ -438,7 +440,7 @@ public class DriverFactoryHelper {
             }
 //            ReportManager.log("Successfully Opened " + JavaHelper.convertToSentenceCase(driverType.getValue()) + ".");
             ReportManager.log(initialLog.replace("Attempting to run locally on", "Successfully Opened") + ".");
-        } catch (SessionNotCreatedException exception) {
+        } catch (SessionNotCreatedException | WebDriverManagerException exception) {
             failAction("Failed to create new Browser Session", exception);
         }
     }

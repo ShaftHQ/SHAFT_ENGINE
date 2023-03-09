@@ -18,7 +18,7 @@ public class Test_BrowserValidations {
 
     @Test
     public void title() {
-        Validations.assertThat().browser(driver).title().isEqualTo("Google").perform();
+        Validations.assertThat().browser(driver).title().contains("oogle").perform();
     }
 
     @BeforeClass

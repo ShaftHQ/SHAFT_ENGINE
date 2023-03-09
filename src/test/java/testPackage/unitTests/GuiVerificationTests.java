@@ -6,11 +6,12 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import poms.GoogleSearch;
 
 public class GuiVerificationTests {
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
 
-    private final By searchBar_textField = SHAFT.GUI.Locator.hasTagName("input").containsAttribute("name", "q").build();
+    private final By searchBar_textField = GoogleSearch.getSearchBox_textField();
 
     @Test
     public void test_textTrimmed1() {

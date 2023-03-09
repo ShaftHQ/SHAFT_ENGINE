@@ -1,7 +1,6 @@
 package io.github.shafthq.shaft.properties;
 
 import com.shaft.tools.io.ReportManager;
-import io.github.shafthq.shaft.enums.Browsers;
 import org.aeonbits.owner.Config.Sources;
 import org.aeonbits.owner.ConfigFactory;
 
@@ -21,7 +20,7 @@ public interface Web extends EngineProperties {
     }
 
     @Key("targetBrowserName")
-    @DefaultValue(Browsers.CHROME)
+    @DefaultValue("chrome")
     String targetBrowserName();
 
     @Key("headlessExecution")
