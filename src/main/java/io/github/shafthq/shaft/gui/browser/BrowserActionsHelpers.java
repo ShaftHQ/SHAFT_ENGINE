@@ -4,7 +4,7 @@ import com.google.common.net.InternetDomainName;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
-import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 import io.github.shafthq.shaft.tools.support.JavaHelper;
 import io.github.shafthq.shaft.tools.support.JavaScriptHelper;
 import lombok.SneakyThrows;

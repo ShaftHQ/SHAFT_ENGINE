@@ -3,6 +3,7 @@ package testPackage;
 import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.validation.Validations;
 import org.openqa.selenium.WebDriver;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -31,6 +32,7 @@ public class Test_clipboardActions {
             searchObject.cutQuery();
             searchObject.pasteQuery();
             searchObject.pasteQuery();
+            Validations.assertThat().element(driver, GoogleSearch.getSearchBox_textField()).text().equals("FIRSTFIRST");
         }else{
             ReportManager.log("Native actions don't work on MAC.");
         }

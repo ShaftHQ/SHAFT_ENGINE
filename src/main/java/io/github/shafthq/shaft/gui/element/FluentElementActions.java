@@ -4,12 +4,12 @@ import com.google.common.base.Throwables;
 import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.TouchActions;
-import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
-import io.github.shafthq.shaft.driver.helpers.WizardHelpers;
+import io.github.shafthq.shaft.driver.DriverFactoryHelper;
+import io.github.shafthq.shaft.driver.WizardHelpers;
 import io.github.shafthq.shaft.gui.browser.FluentBrowserActions;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
-import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
-import io.github.shafthq.shaft.validations.helpers.WebDriverElementValidationsBuilder;
+import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
+import io.github.shafthq.shaft.validations.WebDriverElementValidationsBuilder;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
@@ -139,15 +139,15 @@ public class FluentElementActions {
         ElementActions.click(DriverFactoryHelper.getDriver().get(), elementLocator);
         return this;
     }
-/**
- * Clicks on certain element using javaScript only 
- * 
- * @param driver is an instance of webdriver 
- * 
- * @param the locator of the webElement under test (By xpath, id,
- *                       selector, name ...etc)
- * @return a self-reference to be used to chain actions
- */
+
+    /**
+     * Clicks on certain element using javaScript only
+     *
+     * @param driver         is an instance of webdriver
+     * @param elementLocator the locator of the webElement under test (By xpath, id,
+     *                       selector, name ...etc)
+     * @return a self-reference to be used to chain actions
+     */
  public  FluentElementActions clickUsingJavascript(WebDriver driver, By elementLocator) {
     	
     	try {

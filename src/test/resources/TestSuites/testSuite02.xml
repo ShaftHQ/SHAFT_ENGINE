@@ -3,7 +3,7 @@
 <suite name="Suite02" verbose="10">
     <test name="Test01">
         <classes>
-            <class name="testPackage.unitTests.tests_validations_assertions">
+            <class name="testPackage.unitTests.ValidationTests">
                 <methods>
                     <include name="assertEquals_true_expectedToPass"/>
                     <include name="assertEquals_true_expectedToFail"/>

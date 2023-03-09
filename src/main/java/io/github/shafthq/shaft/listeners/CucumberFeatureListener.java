@@ -26,8 +26,7 @@ import io.cucumber.plugin.ConcurrentEventListener;
 import io.cucumber.plugin.event.*;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
 import io.github.shafthq.shaft.gui.video.RecordManager;
-import io.github.shafthq.shaft.listeners.helpers.TestNGListenerHelper;
-import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 import io.qameta.allure.Allure;
 import io.qameta.allure.AllureLifecycle;
 import io.qameta.allure.cucumber7jvm.testsourcemodel.TestSourcesModelProxy;
@@ -45,8 +44,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static io.github.shafthq.shaft.listeners.helpers.CucumberHelper.shaftSetup;
-import static io.github.shafthq.shaft.listeners.helpers.CucumberHelper.shaftTeardown;
+import static io.github.shafthq.shaft.listeners.CucumberHelper.shaftSetup;
+import static io.github.shafthq.shaft.listeners.CucumberHelper.shaftTeardown;
 import static io.qameta.allure.util.ResultsUtils.*;
 
 /**

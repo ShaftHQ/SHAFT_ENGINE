@@ -5,8 +5,8 @@ import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 import com.shaft.tools.io.ReportManager;
-import io.github.shafthq.shaft.tools.io.helpers.ReportHelper;
-import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.tools.io.ReportHelper;
+import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 import org.apache.commons.lang3.SystemUtils;
 import org.testng.Assert;
 

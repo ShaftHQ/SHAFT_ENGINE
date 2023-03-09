@@ -1,6 +1,6 @@
 package com.shaft.validation;
 
-import io.github.shafthq.shaft.validations.helpers.ValidationsBuilder;
+import io.github.shafthq.shaft.validations.ValidationsBuilder;
 
 public class Validations {
     private Validations() {
