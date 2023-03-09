@@ -140,7 +140,6 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
 
     /**
      * gets invoked at the very last (after attachTestArtifacts generation phase), before TestNG exits the JVM.
-     * </ul>
      */
     @Override
     public void onExecutionFinish() {

@@ -80,6 +80,7 @@ public class BrowserStack {
      * @param deviceName Name of the Target device
      * @param osVersion  Version of the Target operating system
      * @param appUrl     Url of the target app that was previously uploaded to be tested via BrowserStack
+     * @return native app capabilities
      */
     public static MutableCapabilities setupNativeAppExecution(String username, String password, String deviceName, String osVersion, String appUrl) {
         ReportManager.logDiscrete("Setting up BrowserStack configuration for existing native app version...");
