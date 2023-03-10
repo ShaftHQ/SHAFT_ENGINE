@@ -53,7 +53,7 @@ jobs:
           path: "extent-reports/ExtentReports_*.html"
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
-        if: ${{ github.repository == 'ShaftHQ/SHAFT_ENGINE' }}
+        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
         with:
           check_name: Ubuntu_Firefox_Grid Test Results
           files: |
@@ -100,7 +100,7 @@ jobs:
           path: "extent-reports/ExtentReports_*.html"
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
-        if: ${{ github.repository == 'ShaftHQ/SHAFT_ENGINE' }}
+        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
         with:
           check_name: Ubuntu_Chrome_Grid Test Results
           files: |
@@ -147,7 +147,7 @@ jobs:
           path: "extent-reports/ExtentReports_*.html"
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
-        if: ${{ github.repository == 'ShaftHQ/SHAFT_ENGINE' }}
+        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
         with:
           check_name: Ubuntu_Edge_Grid Test Results
           files: |
@@ -190,7 +190,7 @@ jobs:
           path: "extent-reports/ExtentReports_*.html"
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action/composite@v2
-        if: ${{ github.repository == 'ShaftHQ/SHAFT_ENGINE' }}
+        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
         with:
           check_name: Windows_Edge_Local Test Results
           files: |
@@ -233,7 +233,7 @@ jobs:
           path: "extent-reports/ExtentReports_*.html"
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action/composite@v2
-        if: ${{ github.repository == 'ShaftHQ/SHAFT_ENGINE' }}
+        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
         with:
           check_name: Windows_Chrome_Local Test Results
           files: |
@@ -276,7 +276,7 @@ jobs:
           path: "extent-reports/ExtentReports_*.html"
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action/composite@v2
-        if: ${{ github.repository == 'ShaftHQ/SHAFT_ENGINE' }}
+        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
         with:
           check_name: MacOSX_Safari_Local Test Results
           files: |
@@ -321,7 +321,7 @@ jobs:
           path: "extent-reports/ExtentReports_*.html"
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action/composite@v2
-        if: ${{ github.repository == 'ShaftHQ/SHAFT_ENGINE' }}
+        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
         with:
           check_name: MacOSX_Chrome_Local Test Results
           files: |
@@ -485,7 +485,7 @@ jobs:
           path: "extent-reports/ExtentReports_*.html"
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action/composite@v2
-        if: ${{ github.repository == 'ShaftHQ/SHAFT_ENGINE' }}
+        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
         with:
           check_name: Android_Native_Emulator Test Results
           files: |
@@ -530,7 +530,7 @@ jobs:
           path: "extent-reports/ExtentReports_*.html"
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action/composite@v2
-        if: ${{ github.repository == 'ShaftHQ/SHAFT_ENGINE' }}
+        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
         with:
           check_name: Android_Native_BrowserStack Test Results
           files: |
@@ -575,7 +575,7 @@ jobs:
           path: "extent-reports/ExtentReports_*.html"
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action/composite@v2
-        if: ${{ github.repository == 'ShaftHQ/SHAFT_ENGINE' }}
+        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
         with:
           check_name: iOS_Web_SAFARI_BrowserStack_Extent Test Results
           files: |
@@ -620,7 +620,7 @@ jobs:
           path: "extent-reports/ExtentReports_*.html"
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action/composite@v2
-        if: ${{ github.repository == 'ShaftHQ/SHAFT_ENGINE' }}
+        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
         with:
           check_name: Android_Web_Chrome_BrowserStack Test Results
           files: |
@@ -665,7 +665,7 @@ jobs:
           path: "extent-reports/ExtentReports_*.html"
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
-        if: ${{ github.repository == 'ShaftHQ/SHAFT_ENGINE' }}
+        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
         with:
           check_name: MacOSX_Safari_BrowserStack Test Results
           files: |
@@ -718,7 +718,7 @@ jobs:
           path: "extent-reports/ExtentReports_*.html"
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
-        if: ${{ github.repository == 'ShaftHQ/SHAFT_ENGINE' }}
+        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
         with:
           check_name: Ubuntu_Chrome_Cucumber_Grid Test Results
           files: |
@@ -764,8 +764,8 @@ jobs:
           name: Windows_Edge_Cucumber_Extent
           path: "extent-reports/ExtentReports_*.html"
       - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        if: ${{ github.repository == 'ShaftHQ/SHAFT_ENGINE' }}
+        uses: EnricoMi/publish-unit-test-result-action/composite@v2
+        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
         with:
           check_name: Windows_Edge_Cucumber Test Results
           files: |
@@ -810,9 +810,10 @@ jobs:
           name: MacOSX_Safari_Cucumber_BrowserStack_Extent
           path: "extent-reports/ExtentReports_*.html"
       - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        if: ${{ github.repository == 'ShaftHQ/SHAFT_ENGINE' }}
+        uses: EnricoMi/publish-unit-test-result-action/composite@v2
+        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
         with:
           check_name: MacOSX_Safari_Cucumber_BrowserStack Test Results
           files: |
             target/surefire-reports/TEST-*.xml
+     
