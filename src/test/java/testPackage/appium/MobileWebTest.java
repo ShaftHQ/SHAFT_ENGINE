@@ -9,12 +9,13 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import org.testng.asserts.SoftAssert;
+import poms.GoogleSearch;
 
 public class MobileWebTest {
     SHAFT.GUI.WebDriver driver;
     SHAFT.TestData.JSON testData;
 
-    By searchBox = By.name("q");
+    By searchBox = GoogleSearch.getSearchBox_textField();
     By resultStats = By.id("result-stats");
 
     @Test

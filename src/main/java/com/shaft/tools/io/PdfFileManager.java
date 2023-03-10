@@ -1,7 +1,7 @@
 package com.shaft.tools.io;
 
 import com.shaft.cli.FileActions;
-import io.github.shafthq.shaft.tools.io.helpers.FailureReporter;
+import io.github.shafthq.shaft.tools.io.FailureReporter;
 import io.github.shafthq.shaft.tools.support.JavaHelper;
 import org.apache.commons.io.FileUtils;
 import org.apache.pdfbox.cos.COSDocument;

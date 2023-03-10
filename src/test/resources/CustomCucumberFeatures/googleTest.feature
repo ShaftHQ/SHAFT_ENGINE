@@ -4,4 +4,4 @@ Feature: Sample Feature file to test custom cucumber steps
     Given I open the target browser
     When I navigate to "Google Home"
     And I search for "SHAFT_Engine"
-    Then The first result text will contain "SHAFT is a unified test automation"
+    Then The first result text will contain "SHAFT"

@@ -5,7 +5,7 @@ import com.shaft.driver.DriverFactory;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.enums.Browsers;
-import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 import lombok.Getter;
 import org.apache.commons.io.FileUtils;
 import org.openqa.selenium.MutableCapabilities;

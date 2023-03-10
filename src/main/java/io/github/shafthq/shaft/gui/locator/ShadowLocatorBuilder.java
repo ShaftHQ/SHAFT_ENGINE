@@ -1,6 +1,6 @@
 package io.github.shafthq.shaft.gui.locator;
 
-import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
+import io.github.shafthq.shaft.driver.DriverFactoryHelper;
 import io.github.shafthq.shaft.gui.element.ElementActionsHelper;
 import org.openqa.selenium.By;
 

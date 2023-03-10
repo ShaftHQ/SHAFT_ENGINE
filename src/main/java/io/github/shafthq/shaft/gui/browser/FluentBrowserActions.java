@@ -3,13 +3,13 @@ package io.github.shafthq.shaft.gui.browser;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.TouchActions;
-import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
-import io.github.shafthq.shaft.driver.helpers.WizardHelpers;
+import io.github.shafthq.shaft.driver.DriverFactoryHelper;
+import io.github.shafthq.shaft.driver.WizardHelpers;
 import io.github.shafthq.shaft.enums.Screenshots;
 import io.github.shafthq.shaft.gui.element.FluentElementActions;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
-import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
-import io.github.shafthq.shaft.validations.helpers.WebDriverBrowserValidationsBuilder;
+import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
+import io.github.shafthq.shaft.validations.WebDriverBrowserValidationsBuilder;
 import org.openqa.selenium.Cookie;
 
 import java.io.ByteArrayInputStream;
@@ -67,6 +67,7 @@ public class FluentBrowserActions {
      * For other driver types attempts to attach the current page source (for web)
      * or accessibility tree (for mobile)
      *
+     * @return a self-reference to be used to chain actions
      */
     public FluentBrowserActions capturePageSnapshot() {
         BrowserActions.capturePageSnapshot(DriverFactoryHelper.getDriver().get());
@@ -133,6 +134,7 @@ public class FluentBrowserActions {
      *
      * @param targetUrl a string that represents the URL that you wish to navigate
      *                  to
+     * @return a self-reference to be used to chain actions
      */
     public FluentBrowserActions navigateToURL(String targetUrl) {
         BrowserActions.navigateToURL(DriverFactoryHelper.getDriver().get(), targetUrl);
@@ -150,6 +152,7 @@ public class FluentBrowserActions {
      *                                  that should be present after redirection,
      *                                  this string is used to confirm successful
      *                                  navigation
+     * @return a self-reference to be used to chain actions
      */
     public FluentBrowserActions navigateToURL(String targetUrl, String targetUrlAfterRedirection) {
         BrowserActions.navigateToURL(DriverFactoryHelper.getDriver().get(), targetUrl, targetUrlAfterRedirection);
@@ -163,6 +166,7 @@ public class FluentBrowserActions {
 
     /**
      * Navigates one step back from the browsers history
+     * @return a self-reference to be used to chain actions
      */
     public FluentBrowserActions navigateBack() {
         BrowserActions.navigateBack(DriverFactoryHelper.getDriver().get());
@@ -171,6 +175,7 @@ public class FluentBrowserActions {
 
     /**
      * Navigates one step forward from the browsers history
+     * @return a self-reference to be used to chain actions
      */
     public FluentBrowserActions navigateForward() {
         BrowserActions.navigateForward(DriverFactoryHelper.getDriver().get());
@@ -179,6 +184,7 @@ public class FluentBrowserActions {
 
     /**
      * Attempts to refresh the current page
+     * @return a self-reference to be used to chain actions
      */
     public FluentBrowserActions refreshCurrentPage() {
         BrowserActions.refreshCurrentPage(DriverFactoryHelper.getDriver().get());
@@ -187,6 +193,7 @@ public class FluentBrowserActions {
 
     /**
      * Closes the current browser window
+     * @return a self-reference to be used to chain actions
      */
     public FluentBrowserActions closeCurrentWindow() {
         BrowserActions.closeCurrentWindow(DriverFactoryHelper.getDriver().get());
@@ -195,6 +202,7 @@ public class FluentBrowserActions {
 
     /**
      * Maximizes current window size based on screen size minus 5%
+     * @return a self-reference to be used to chain actions
      */
     public FluentBrowserActions maximizeWindow() {
         BrowserActions.maximizeWindow(DriverFactoryHelper.getDriver().get());
@@ -206,6 +214,7 @@ public class FluentBrowserActions {
      *
      * @param width  the desired new width of the target window
      * @param height the desired new height of the target window
+     * @return a self-reference to be used to chain actions
      */
     public FluentBrowserActions setWindowSize(int width, int height) {
         BrowserActions.setWindowSize(DriverFactoryHelper.getDriver().get(), width, height);
@@ -214,6 +223,7 @@ public class FluentBrowserActions {
 
     /**
      * Resize the window to fill the current screen
+     * @return a self-reference to be used to chain actions
      */
     public FluentBrowserActions fullScreenWindow() {
         BrowserActions.fullScreenWindow(DriverFactoryHelper.getDriver().get());
@@ -225,6 +235,7 @@ public class FluentBrowserActions {
      * Switches focus to another Tab
      *
      * @param URL The name of the URL you want to navigate to
+     * @return a self-reference to be used to chain actions
      */
     public FluentBrowserActions switchToNewTab(String URL) {
         BrowserActions.switchToNewTab(DriverFactoryHelper.getDriver().get(), URL);

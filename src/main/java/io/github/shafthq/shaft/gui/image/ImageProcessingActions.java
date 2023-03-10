@@ -11,9 +11,9 @@ import com.assertthat.selenium_shutterbug.utils.image.UnableToCompareImagesExcep
 import com.shaft.cli.FileActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Validations;
-import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
-import io.github.shafthq.shaft.tools.io.helpers.FailureReporter;
-import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.driver.DriverFactoryHelper;
+import io.github.shafthq.shaft.tools.io.FailureReporter;
+import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 import nu.pattern.OpenCV;
 import org.opencv.core.Point;
 import org.opencv.core.*;
