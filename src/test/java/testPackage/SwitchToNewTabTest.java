@@ -9,17 +9,18 @@ import org.openqa.selenium.WebDriver;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import poms.GoogleSearch;
 
-public class Test_SwitchToNewTab {
-	ThreadLocal<WebDriver> driver = new ThreadLocal<>();
+public class SwitchToNewTabTest {
+    ThreadLocal<WebDriver> driver = new ThreadLocal<>();
 
-	@Test
-	public void SwitchToNewTabTest() {
-		BrowserActions.navigateToURL(driver.get(), "https://duckduckgo.com/?");
-		BrowserActions.switchToNewTab(driver.get(), "https://www.google.com/");
-		By searchbar = By.cssSelector("input[name=q]");
-		new ElementActions(driver.get()).type(searchbar, "SHAFT_Engine").keyPress(searchbar, Keys.ENTER);
-	}
+    @Test
+    public void SwitchToNewTabTest() {
+        new BrowserActions(driver.get()).navigateToURL("https://duckduckgo.com/?");
+        new BrowserActions(driver.get()).switchToNewTab("https://www.google.com/");
+        By searchbar = GoogleSearch.getSearchBox_textField();
+        new ElementActions(driver.get()).type(searchbar, "SHAFT_Engine").keyPress(searchbar, Keys.ENTER);
+    }
 
 	@BeforeMethod
 	public void beforeMethod() {

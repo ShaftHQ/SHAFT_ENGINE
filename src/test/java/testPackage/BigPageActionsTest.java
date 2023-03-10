@@ -17,8 +17,6 @@ public class BigPageActionsTest {
                         This is a long message
                         it will have line breaks
                         and special characters ...######$%^&&*!!""")
-                .type(By.id("user_login_64082348e41a3"), "TEST_NAME")
-                .typeSecure(By.id("user_pass_64082348e41a3"), "TEST_NAME")
                 .type(By.id("et_pb_contact_name_1"), "TEST_NAME")
                 .type(By.id("et_pb_contact_email_1"), "email@email.email")
                 .type(By.id("et_pb_contact_message_1"), """
