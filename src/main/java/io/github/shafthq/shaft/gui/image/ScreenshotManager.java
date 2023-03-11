@@ -2,6 +2,7 @@ package io.github.shafthq.shaft.gui.image;
 
 import com.epam.healenium.SelfHealingDriver;
 import com.shaft.cli.FileActions;
+import com.shaft.gui.browser.BrowserActions;
 import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.driver.DriverFactoryHelper;
 import io.github.shafthq.shaft.enums.Screenshots;
@@ -10,6 +11,7 @@ import io.github.shafthq.shaft.gui.element.ElementActionsHelper;
 import io.github.shafthq.shaft.properties.Properties;
 import io.github.shafthq.shaft.properties.PropertyFileManager;
 import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
+import io.github.shafthq.shaft.gui.browser.FluentBrowserActions;
 import org.imgscalr.Scalr;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfByte;
@@ -562,6 +564,10 @@ public class ScreenshotManager {
                         + testCaseName + ".gif";
                 gifRelativePathWithFileName = SCREENSHOT_FOLDER_PATH + SCREENSHOT_FOLDER_NAME + gifFileName;
 
+                // get the width and height of the current window of the browser
+                var height = Integer.valueOf(new BrowserActions().getWindowHeight());
+                var width = Integer.valueOf(new BrowserActions().getWindowWidth());
+
                 // grab the output image type from the first image in the sequence
                 BufferedImage firstImage = ImageIO.read(new ByteArrayInputStream(screenshot));
 
@@ -578,11 +584,10 @@ public class ScreenshotManager {
                         new AnimatedGifManager(gifOutputStream.get(), firstImage.getType(), GIF_FRAME_DELAY));
 
                 // draw initial blank image to set the size of the GIF...
-                BufferedImage initialImage = new BufferedImage(firstImage.getWidth(), firstImage.getHeight(),
-                        firstImage.getType());
+                BufferedImage initialImage = new BufferedImage(width, height,firstImage.getType());
                 Graphics2D initialImageGraphics = initialImage.createGraphics();
                 initialImageGraphics.setBackground(Color.WHITE);
-                initialImageGraphics.clearRect(0, 0, firstImage.getWidth(), firstImage.getHeight());
+                initialImageGraphics.clearRect(0, 0, width, height);
 
                 // write out initialImage to the sequence...
                 gifWriter.get().writeToSequence(overlayShaftEngineLogo(initialImage));
