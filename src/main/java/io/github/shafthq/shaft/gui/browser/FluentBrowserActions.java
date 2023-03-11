@@ -1,29 +1,46 @@
 package io.github.shafthq.shaft.gui.browser;
 
-import com.shaft.gui.browser.BrowserActions;
+import com.shaft.driver.DriverFactory;
 import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.TouchActions;
+import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.driver.DriverFactoryHelper;
 import io.github.shafthq.shaft.driver.WizardHelpers;
 import io.github.shafthq.shaft.enums.Screenshots;
+import io.github.shafthq.shaft.gui.element.ElementActionsHelper;
 import io.github.shafthq.shaft.gui.element.FluentElementActions;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
 import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
+import io.github.shafthq.shaft.tools.support.JavaScriptHelper;
 import io.github.shafthq.shaft.validations.WebDriverBrowserValidationsBuilder;
-import org.openqa.selenium.Cookie;
+import org.openqa.selenium.*;
+import org.openqa.selenium.devtools.DevTools;
+import org.openqa.selenium.devtools.HasDevTools;
+import org.openqa.selenium.remote.Augmenter;
 
 import java.io.ByteArrayInputStream;
+import java.net.URI;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Predicate;
 
-import static io.github.shafthq.shaft.gui.browser.BrowserActionsHelpers.failAction;
+import static io.github.shafthq.shaft.gui.browser.BrowserActionsHelpers.*;
 
 public class FluentBrowserActions {
+    private static FluentBrowserActions INSTANCE;
 
-    public FluentBrowserActions() {
-        JavaScriptWaitManager.waitForLazyLoading(DriverFactoryHelper.getDriver().get());
+    protected FluentBrowserActions() {
+    }
+
+    public synchronized static FluentBrowserActions getInstance() {
+        JavaScriptWaitManager.waitForLazyLoading();
+        if (INSTANCE == null) {
+            INSTANCE = new FluentBrowserActions();
+        }
+        return INSTANCE;
     }
 
     public TouchActions performTouchAction() {
@@ -71,7 +88,8 @@ public class FluentBrowserActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentBrowserActions capturePageSnapshot() {
-        BrowserActions.capturePageSnapshot(DriverFactoryHelper.getDriver().get());
+        var serializedPageData = BrowserActionsHelpers.capturePageSnapshot(DriverFactoryHelper.getDriver().get(), true);
+        passAction(DriverFactoryHelper.getDriver().get(), serializedPageData);
         return this;
     }
 
@@ -81,7 +99,14 @@ public class FluentBrowserActions {
      * @return the URL that's currently open in the current page
      */
     public String getCurrentURL() {
-        return BrowserActions.getCurrentURL(DriverFactoryHelper.getDriver().get());
+        var currentURL = "";
+        try {
+            currentURL = DriverFactoryHelper.getDriver().get().getCurrentUrl();
+            passAction(DriverFactoryHelper.getDriver().get(), currentURL);
+        } catch (Exception rootCauseException) {
+            failAction(DriverFactoryHelper.getDriver().get(), currentURL, rootCauseException);
+        }
+        return currentURL;
     }
 
     /**
@@ -90,7 +115,14 @@ public class FluentBrowserActions {
      * @return the title of the current window
      */
     public String getCurrentWindowTitle() {
-        return BrowserActions.getCurrentWindowTitle(DriverFactoryHelper.getDriver().get());
+        var currentWindowTitle = "";
+        try {
+            currentWindowTitle = DriverFactoryHelper.getDriver().get().getTitle();
+            passAction(DriverFactoryHelper.getDriver().get(), currentWindowTitle);
+        } catch (Exception rootCauseException) {
+            failAction(DriverFactoryHelper.getDriver().get(), currentWindowTitle, rootCauseException);
+        }
+        return currentWindowTitle;
     }
 
     /**
@@ -99,7 +131,14 @@ public class FluentBrowserActions {
      * @return the source of the current page
      */
     public String getPageSource() {
-        return BrowserActions.getPageSource(DriverFactoryHelper.getDriver().get());
+        var pageSource = "";
+        try {
+            pageSource = DriverFactoryHelper.getDriver().get().getPageSource();
+            passAction(DriverFactoryHelper.getDriver().get(), pageSource);
+        } catch (Exception rootCauseException) {
+            failAction(DriverFactoryHelper.getDriver().get(), pageSource, rootCauseException);
+        }
+        return pageSource;
     }
 
     /**
@@ -108,7 +147,14 @@ public class FluentBrowserActions {
      * @return the window handle for the current window
      */
     public String getWindowHandle() {
-        return BrowserActions.getWindowHandle(DriverFactoryHelper.getDriver().get());
+        var windowHandle = "";
+        try {
+            windowHandle = DriverFactoryHelper.getDriver().get().getWindowHandle();
+            passAction(DriverFactoryHelper.getDriver().get(), windowHandle);
+        } catch (Exception rootCauseException) {
+            failAction(DriverFactoryHelper.getDriver().get(), windowHandle, rootCauseException);
+        }
+        return windowHandle;
     }
 
     /**
@@ -117,7 +163,14 @@ public class FluentBrowserActions {
      * @return the position of the current window
      */
     public String getWindowPosition() {
-        return BrowserActions.getWindowPosition(DriverFactoryHelper.getDriver().get());
+        var windowPosition = "";
+        try {
+            windowPosition = DriverFactoryHelper.getDriver().get().manage().window().getPosition().toString();
+            passAction(DriverFactoryHelper.getDriver().get(), windowPosition);
+        } catch (Exception rootCauseException) {
+            failAction(DriverFactoryHelper.getDriver().get(), windowPosition, rootCauseException);
+        }
+        return windowPosition;
     }
 
     /**
@@ -126,7 +179,14 @@ public class FluentBrowserActions {
      * @return the size of the current window
      */
     public String getWindowSize() {
-        return BrowserActions.getWindowSize(DriverFactoryHelper.getDriver().get());
+        var windowSize = "";
+        try {
+            windowSize = DriverFactoryHelper.getDriver().get().manage().window().getSize().toString();
+            passAction(DriverFactoryHelper.getDriver().get(), windowSize);
+        } catch (Exception rootCauseException) {
+            failAction(DriverFactoryHelper.getDriver().get(), windowSize, rootCauseException);
+        }
+        return windowSize;
     }
 
     /**
@@ -138,8 +198,7 @@ public class FluentBrowserActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentBrowserActions navigateToURL(String targetUrl) {
-        BrowserActions.navigateToURL(DriverFactoryHelper.getDriver().get(), targetUrl);
-        return this;
+        return navigateToURL(targetUrl, targetUrl);
     }
 
     /**
@@ -156,13 +215,100 @@ public class FluentBrowserActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentBrowserActions navigateToURL(String targetUrl, String targetUrlAfterRedirection) {
-        BrowserActions.navigateToURL(DriverFactoryHelper.getDriver().get(), targetUrl, targetUrlAfterRedirection);
+        String modifiedTargetUrl = targetUrl;
+        var baseUrl = System.getProperty("baseURL").trim();
+
+        if (!baseUrl.isBlank() && targetUrl.startsWith("./")) {
+            // valid use case for baseURL property ==> property is not blank && the target url starts with ./
+            modifiedTargetUrl = (baseUrl.endsWith("/")) ? baseUrl + targetUrl.replace("./", "") : baseUrl + targetUrl.replace("./", "/");
+        }
+
+        if (targetUrl.equals(targetUrlAfterRedirection)) {
+            ReportManager.logDiscrete(
+                    "Target URL: \"" + modifiedTargetUrl + "\"");
+        } else {
+            ReportManager.logDiscrete(
+                    "Target URL: \"" + modifiedTargetUrl + "\", and after redirection: \"" + targetUrlAfterRedirection + "\"");
+        }
+//         force stop any current navigation
+        //noinspection SpellCheckingInspection
+        try {
+            ((JavascriptExecutor) DriverFactoryHelper.getDriver().get()).executeScript("return window.stop;");
+        } catch (Exception rootCauseException) {
+            ReportManagerHelper.logDiscrete(rootCauseException);
+            /*
+             * org.openqa.selenium.NoSuchSessionException: Session ID is null. Using
+             * WebDriver after calling quit()? Build info: version: '3.141.59', revision:
+             * 'e82be7d358', time: '2018-11-14T08:17:03' System info: host:
+             * 'gcp-test-automation-sys-187-jenkins-fullaccess', ip: '10.128.0.11', os.name:
+             * 'Linux', os.arch: 'amd64', os.version: '4.15.0-1027-gcp', java.version:
+             * '1.8.0_202' Driver info: driver.version: RemoteWebDriver
+             */
+        }
+        try {
+            JavaScriptWaitManager.waitForLazyLoading();
+            String initialSource = DriverFactoryHelper.getDriver().get().getPageSource();
+            String initialURL = DriverFactoryHelper.getDriver().get().getCurrentUrl();
+            // remove trailing slash which may cause comparing the current and target urls
+            // to fail
+            if (initialURL.endsWith("/")) {
+                initialURL = initialURL.substring(0, initialURL.length() - 1);
+            }
+            ReportManager.logDiscrete("Initial URL: \"" + initialURL + "\"");
+            if (!initialURL.equals(modifiedTargetUrl)) {
+                // navigate to new url
+                navigateToNewURL(DriverFactoryHelper.getDriver().get(), initialURL, modifiedTargetUrl, targetUrlAfterRedirection);
+                JavaScriptWaitManager.waitForLazyLoading();
+                if ((ElementActionsHelper.getElementsCount(DriverFactoryHelper.getDriver().get(), By.tagName("html")) == 1)
+                        && (!DriverFactoryHelper.getDriver().get().getPageSource().equalsIgnoreCase(initialSource))) {
+                    confirmThatWebsiteIsNotDown(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
+                    passAction(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
+                } else {
+                    failAction(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
+                }
+            } else {
+                // already on the same page
+                DriverFactoryHelper.getDriver().get().navigate().refresh();
+                JavaScriptWaitManager.waitForLazyLoading();
+                if (ElementActionsHelper.getElementsCount(DriverFactoryHelper.getDriver().get(), By.tagName("html")) == 1) {
+                    confirmThatWebsiteIsNotDown(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
+                    passAction(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
+                }
+            }
+        } catch (Exception rootCauseException) {
+            failAction(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl, rootCauseException);
+        }
         return this;
     }
 
     public FluentBrowserActions navigateToURLWithBasicAuthentication(String targetUrl, String username, String password, String targetUrlAfterAuthentication) {
-        BrowserActions.navigateToURLWithBasicAuthentication(DriverFactoryHelper.getDriver().get(), targetUrl, username, password, targetUrlAfterAuthentication);
-        return this;
+        try {
+            String domainName = getDomainNameFromURL(targetUrl);
+            if (System.getProperty("executionAddress").equals("local")) {
+                Predicate<URI> uriPredicate = uri -> uri.getHost().contains(domainName);
+                ((HasAuthentication) DriverFactoryHelper.getDriver().get()).register(uriPredicate, UsernameAndPassword.of(username, password));
+            } else {
+                AtomicReference<DevTools> devToolsAtomicReference = new AtomicReference<>();
+                DriverFactoryHelper.getDriver().set(new Augmenter().addDriverAugmentation("chrome",
+                        HasAuthentication.class,
+                        (caps, exec) -> (whenThisMatches, useTheseCredentials) -> {
+                            devToolsAtomicReference.get()
+                                    .createSessionIfThereIsNotOne();
+                            devToolsAtomicReference.get().getDomains()
+                                    .network()
+                                    .addAuthHandler(whenThisMatches,
+                                            useTheseCredentials);
+                        }).augment(DriverFactoryHelper.getDriver().get()));
+                DevTools devTools = ((HasDevTools) DriverFactoryHelper.getDriver().get()).getDevTools();
+                devTools.createSession();
+                devToolsAtomicReference.set(devTools);
+                ((HasAuthentication) DriverFactoryHelper.getDriver().get()).register(UsernameAndPassword.of(username, password));
+            }
+        } catch (Exception e) {
+            ReportManagerHelper.logDiscrete(e);
+            targetUrl = formatURLForBasicAuthentication(username, password, targetUrl);
+        }
+        return navigateToURL(targetUrl, targetUrlAfterAuthentication);
     }
 
     /**
@@ -170,7 +316,21 @@ public class FluentBrowserActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentBrowserActions navigateBack() {
-        BrowserActions.navigateBack(DriverFactoryHelper.getDriver().get());
+        String initialURL;
+        var newURL = "";
+        try {
+            initialURL = DriverFactoryHelper.getDriver().get().getCurrentUrl();
+            DriverFactoryHelper.getDriver().get().navigate().back();
+            BrowserActionsHelpers.waitUntilURLIsNot(DriverFactoryHelper.getDriver().get(), initialURL);
+            newURL = DriverFactoryHelper.getDriver().get().getCurrentUrl();
+            if (!newURL.equals(initialURL)) {
+                passAction(DriverFactoryHelper.getDriver().get(), newURL);
+            } else {
+                failAction(DriverFactoryHelper.getDriver().get(), newURL);
+            }
+        } catch (Exception rootCauseException) {
+            failAction(DriverFactoryHelper.getDriver().get(), newURL, rootCauseException);
+        }
         return this;
     }
 
@@ -179,7 +339,22 @@ public class FluentBrowserActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentBrowserActions navigateForward() {
-        BrowserActions.navigateForward(DriverFactoryHelper.getDriver().get());
+        String initialURL;
+        var newURL = "";
+        try {
+            initialURL = DriverFactoryHelper.getDriver().get().getCurrentUrl();
+            DriverFactoryHelper.getDriver().get().navigate().forward();
+            JavaScriptWaitManager.waitForLazyLoading();
+            BrowserActionsHelpers.waitUntilURLIsNot(DriverFactoryHelper.getDriver().get(), initialURL);
+            newURL = DriverFactoryHelper.getDriver().get().getCurrentUrl();
+            if (!newURL.equals(initialURL)) {
+                passAction(DriverFactoryHelper.getDriver().get(), newURL);
+            } else {
+                failAction(DriverFactoryHelper.getDriver().get(), newURL);
+            }
+        } catch (Exception rootCauseException) {
+            failAction(DriverFactoryHelper.getDriver().get(), newURL, rootCauseException);
+        }
         return this;
     }
 
@@ -188,7 +363,8 @@ public class FluentBrowserActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentBrowserActions refreshCurrentPage() {
-        BrowserActions.refreshCurrentPage(DriverFactoryHelper.getDriver().get());
+        DriverFactoryHelper.getDriver().get().navigate().refresh();
+        passAction(DriverFactoryHelper.getDriver().get(), DriverFactoryHelper.getDriver().get().getPageSource());
         return this;
     }
 
@@ -197,7 +373,26 @@ public class FluentBrowserActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentBrowserActions closeCurrentWindow() {
-        BrowserActions.closeCurrentWindow(DriverFactoryHelper.getDriver().get());
+        if (DriverFactoryHelper.getDriver().get() != null) {
+            try {
+                // TODO: handle session timeout while attempting to close empty window
+                String lastPageSource = DriverFactoryHelper.getDriver().get().getPageSource();
+                DriverFactory.closeAllDrivers();
+                passAction(lastPageSource);
+            } catch (WebDriverException rootCauseException) {
+                if (rootCauseException.getMessage() != null
+                        && (rootCauseException.getMessage().contains("was terminated due to TIMEOUT") || rootCauseException.getMessage().contains("Session ID is null"))) {
+                    passAction(null);
+                } else {
+                    failAction(rootCauseException);
+                }
+            } catch (Exception rootCauseException) {
+                failAction(rootCauseException);
+            }
+        } else {
+            ReportManager.logDiscrete("Window is already closed and driver object is null.");
+            passAction(null);
+        }
         return this;
     }
 
@@ -206,7 +401,50 @@ public class FluentBrowserActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentBrowserActions maximizeWindow() {
-        BrowserActions.maximizeWindow(DriverFactoryHelper.getDriver().get());
+        Dimension initialWindowSize;
+        Dimension currentWindowSize;
+        var targetWidth = 1920;
+        var targetHeight = 1080;
+
+        initialWindowSize = DriverFactoryHelper.getDriver().get().manage().window().getSize();
+        ReportManager.logDiscrete("Initial window size: " + initialWindowSize.toString());
+
+        String targetBrowserName = System.getProperty("targetBrowserName").trim();
+        String targetOperatingSystem = System.getProperty("targetOperatingSystem").trim();
+        String executionAddress = System.getProperty("executionAddress").trim();
+
+        // try selenium WebDriver maximize
+        currentWindowSize = attemptMaximizeUsingSeleniumWebDriver(DriverFactoryHelper.getDriver().get(), executionAddress, targetBrowserName,
+                targetOperatingSystem);
+        if ((initialWindowSize.height == currentWindowSize.height)
+                && (initialWindowSize.width == currentWindowSize.width)) {
+            // attempt resize using toolkit
+            currentWindowSize = attemptMaximizeUsingToolkitAndJavascript(DriverFactoryHelper.getDriver().get(), targetWidth, targetHeight);
+
+            if ((currentWindowSize.height != targetHeight)
+                    || (currentWindowSize.width != targetWidth)) {
+                // happens with headless firefox browsers // remote // linux and windows
+                // also happens with chrome/windows
+
+                // attempt resize using WebDriver manage window
+                currentWindowSize = attemptMaximizeUsingSeleniumWebDriverManageWindow(DriverFactoryHelper.getDriver().get(), targetWidth, targetHeight);
+            }
+
+            if ((currentWindowSize.height != targetHeight)
+                    || (currentWindowSize.width != targetWidth)) {
+                // attempt setting window to fullscreen
+                fullScreenWindow();
+
+                currentWindowSize = DriverFactoryHelper.getDriver().get().manage().window().getSize();
+                ReportManager.logDiscrete("Window size after fullScreenWindow: " + currentWindowSize.toString());
+            }
+
+            if ((currentWindowSize.height != targetHeight)
+                    || (currentWindowSize.width != targetWidth)) {
+                ReportManager.logDiscrete("skipping window maximization due to unknown error, marking step as passed.");
+            }
+        }
+        passAction(DriverFactoryHelper.getDriver().get(), "New screen size is now: " + currentWindowSize);
         return this;
     }
 
@@ -218,7 +456,37 @@ public class FluentBrowserActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentBrowserActions setWindowSize(int width, int height) {
-        BrowserActions.setWindowSize(DriverFactoryHelper.getDriver().get(), width, height);
+        Dimension initialWindowSize;
+        Dimension currentWindowSize;
+
+        initialWindowSize = DriverFactoryHelper.getDriver().get().manage().window().getSize();
+        ReportManager.logDiscrete("Initial window size: " + initialWindowSize.toString());
+
+        DriverFactoryHelper.getDriver().get().manage().window().setPosition(new Point(0, 0));
+        DriverFactoryHelper.getDriver().get().manage().window().setSize(new Dimension(width, height));
+        // apparently we need to add +1 here to ensure that the new window size matches
+        // the expected window size
+
+        currentWindowSize = DriverFactoryHelper.getDriver().get().manage().window().getSize();
+        ReportManager.logDiscrete("Window size after SWD: " + currentWindowSize.toString());
+
+        if ((initialWindowSize.height == currentWindowSize.height)
+                && (initialWindowSize.width == currentWindowSize.width)) {
+            ((JavascriptExecutor) DriverFactoryHelper.getDriver().get()).executeScript(JavaScriptHelper.WINDOW_FOCUS.getValue());
+            ((JavascriptExecutor) DriverFactoryHelper.getDriver().get()).executeScript(JavaScriptHelper.WINDOW_RESET_LOCATION.getValue());
+            ((JavascriptExecutor) DriverFactoryHelper.getDriver().get()).executeScript(JavaScriptHelper.WINDOW_RESIZE.getValue()
+                    .replace("$WIDTH", String.valueOf(width)).replace("$HEIGHT", String.valueOf(height)));
+
+            currentWindowSize = DriverFactoryHelper.getDriver().get().manage().window().getSize();
+            ReportManager.logDiscrete("Window size after JavascriptExecutor: " + currentWindowSize.toString());
+        }
+
+        if ((initialWindowSize.height == currentWindowSize.height)
+                && (initialWindowSize.width == currentWindowSize.width)) {
+            ReportManager.logDiscrete("skipping window resizing due to unknown error, marking step as passed.");
+        }
+
+        passAction(DriverFactoryHelper.getDriver().get(), "New screen size is now: " + currentWindowSize);
         return this;
     }
 
@@ -227,7 +495,18 @@ public class FluentBrowserActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentBrowserActions fullScreenWindow() {
-        BrowserActions.fullScreenWindow(DriverFactoryHelper.getDriver().get());
+        Dimension initialWindowSize = DriverFactoryHelper.getDriver().get().manage().window().getSize();
+        ReportManager.logDiscrete("Initial Windows Size: " + initialWindowSize.width + "x" + initialWindowSize.height);
+
+        if (!System.getProperty("executionAddress").trim().equalsIgnoreCase("local")
+                && System.getProperty("headlessExecution").trim().equalsIgnoreCase("true")) {
+            maximizeWindow();
+        } else {
+            DriverFactoryHelper.getDriver().get().manage().window().fullscreen();
+        }
+
+        ReportManager.logDiscrete("Current Windows Size after fullScreen: " + DriverFactoryHelper.getDriver().get().manage().window().getSize().width + "x" + DriverFactoryHelper.getDriver().get().manage().window().getSize().height);
+        passAction(DriverFactoryHelper.getDriver().get(), DriverFactoryHelper.getDriver().get().getPageSource());
         return this;
     }
 
@@ -235,11 +514,23 @@ public class FluentBrowserActions {
     /**
      * Switches focus to another Tab
      *
-     * @param URL The name of the URL you want to navigate to
+     * @param url The name of the URL you want to navigate to
      * @return a self-reference to be used to chain actions
      */
-    public FluentBrowserActions switchToNewTab(String URL) {
-        BrowserActions.switchToNewTab(DriverFactoryHelper.getDriver().get(), URL);
+    public FluentBrowserActions switchToNewTab(String url) {
+        try {
+            var handleBeforeNavigation = DriverFactoryHelper.getDriver().get().getWindowHandle();
+            DriverFactoryHelper.getDriver().get().switchTo().newWindow(WindowType.TAB).navigate().to(url);
+            var handleAfterNavigation = DriverFactoryHelper.getDriver().get().getWindowHandle();
+            if (!handleBeforeNavigation.equals(handleAfterNavigation)) {
+                ReportManager.logDiscrete("Old Tab Handle: \"" + handleBeforeNavigation + "\", New Tab handle : \"" + handleAfterNavigation + "\"");
+                passAction(DriverFactoryHelper.getDriver().get(), url);
+            } else {
+                failAction(DriverFactoryHelper.getDriver().get(), url);
+            }
+        } catch (Exception rootCauseException) {
+            failAction(DriverFactoryHelper.getDriver().get(), url, rootCauseException);
+        }
         return this;
     }
 
@@ -252,19 +543,25 @@ public class FluentBrowserActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentBrowserActions switchToWindow(String nameOrHandle) {
-        BrowserActions.switchToWindow(DriverFactoryHelper.getDriver().get(), nameOrHandle);
+        if (DriverFactoryHelper.getDriver().get().getWindowHandles().contains(nameOrHandle)) {
+            DriverFactoryHelper.getDriver().get().switchTo().window(nameOrHandle);
+            passAction(DriverFactoryHelper.getDriver().get(), nameOrHandle);
+        } else {
+            failAction(DriverFactoryHelper.getDriver().get(), nameOrHandle);
+        }
         return this;
     }
 
     /**
      * Adds a cookie to the current browsing context.
      *
-     * @param name The cookie's name
+     * @param key   The cookie's name
      * @param value The cookie's name
      * @return a self-reference to be used to chain actions
      */
-    public FluentBrowserActions addCookie(String name, String value) {
-        BrowserActions.addCookie(DriverFactoryHelper.getDriver().get(), name, value);
+    public FluentBrowserActions addCookie(String key, String value) {
+        DriverFactoryHelper.getDriver().get().manage().addCookie(new Cookie(key, value));
+        passAction(DriverFactoryHelper.getDriver().get(), "Add Cookie", "Key: " + key + " | Value: " + value);
         return this;
     }
 
@@ -275,7 +572,11 @@ public class FluentBrowserActions {
      * @return the cookie.
      */
     public Cookie getCookie(String cookieName) {
-        return BrowserActions.getCookie(DriverFactoryHelper.getDriver().get(), cookieName);
+        Cookie cookie = DriverFactoryHelper.getDriver().get().manage().getCookieNamed(cookieName);
+        if (cookie == null) {
+            failAction(DriverFactoryHelper.getDriver().get(), "Get Cookie", cookieName);
+        }
+        return cookie;
     }
 
     /**
@@ -284,7 +585,9 @@ public class FluentBrowserActions {
      * @return A Set of cookies for the current browsing context.
      */
     public Set<Cookie> getAllCookies() {
-        return BrowserActions.getAllCookies(DriverFactoryHelper.getDriver().get());
+        Set<Cookie> cookies = DriverFactoryHelper.getDriver().get().manage().getCookies();
+        passAction("");
+        return cookies;
     }
 
     /**
@@ -294,7 +597,9 @@ public class FluentBrowserActions {
      * @return te cookie domain;
      */
     public String getCookieDomain(String cookieName) {
-        return BrowserActions.getCookieDomain(DriverFactoryHelper.getDriver().get(), cookieName);
+        String cookieDomain = getCookie(cookieName).getDomain();
+        passAction(DriverFactoryHelper.getDriver().get(), "Get Cookie Domain with name: " + cookieName, cookieDomain);
+        return cookieDomain;
     }
 
     /**
@@ -304,7 +609,9 @@ public class FluentBrowserActions {
      * @return the cookie value;
      */
     public String getCookieValue(String cookieName) {
-        return BrowserActions.getCookieValue(DriverFactoryHelper.getDriver().get(), cookieName);
+        String cookieValue = getCookie(cookieName).getValue();
+        passAction(DriverFactoryHelper.getDriver().get(), "Get Cookie Value with name: " + cookieName, cookieValue);
+        return cookieValue;
     }
 
     /**
@@ -314,7 +621,9 @@ public class FluentBrowserActions {
      * @return the cookie path;
      */
     public String getCookiePath(String cookieName) {
-        return BrowserActions.getCookiePath(DriverFactoryHelper.getDriver().get(), cookieName);
+        String cookiePath = getCookie(cookieName).getPath();
+        passAction(DriverFactoryHelper.getDriver().get(), "Get Cookie Path with name: " + cookieName, cookiePath);
+        return cookiePath;
     }
 
     /**
@@ -324,7 +633,8 @@ public class FluentBrowserActions {
      * @return a self-reference to be used to chain actions.
      */
     public FluentBrowserActions deleteCookie(String cookieName) {
-        BrowserActions.deleteCookie(DriverFactoryHelper.getDriver().get(), cookieName);
+        DriverFactoryHelper.getDriver().get().manage().deleteCookieNamed(cookieName);
+        passAction(DriverFactoryHelper.getDriver().get(), "Delete Cookie", cookieName);
         return this;
     }
 
@@ -334,7 +644,8 @@ public class FluentBrowserActions {
      * @return a self-reference to be used to chain actions.
      */
     public FluentBrowserActions deleteAllCookies() {
-        BrowserActions.deleteAllCookies(DriverFactoryHelper.getDriver().get());
+        DriverFactoryHelper.getDriver().get().manage().deleteAllCookies();
+        passAction("");
         return this;
     }
 

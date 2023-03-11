@@ -50,7 +50,7 @@ public class FluentElementActions {
     }
 
     public FluentBrowserActions performBrowserAction() {
-        return new FluentBrowserActions();
+        return FluentBrowserActions.getInstance();
     }
 
     public TouchActions touch() {
@@ -62,7 +62,7 @@ public class FluentElementActions {
     }
 
     public FluentBrowserActions browser() {
-        return new FluentBrowserActions();
+        return FluentBrowserActions.getInstance();
     }
 
     public FluentElementActions and() {

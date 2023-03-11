@@ -5,6 +5,7 @@ import com.shaft.driver.DriverFactory;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Validations;
+import io.github.shafthq.shaft.gui.browser.FluentBrowserActions;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.testng.annotations.AfterMethod;
@@ -32,7 +33,7 @@ public class Test_uploadFile {
     @BeforeMethod
     public void beforeMethod() {
         driver.set(DriverFactory.getDriver());
-        BrowserActions.setWindowSize(driver.get(), 1920, 1080);
+        FluentBrowserActions.getInstance().setWindowSize(1920, 1080);
     }
 
     @AfterMethod(alwaysRun = true)

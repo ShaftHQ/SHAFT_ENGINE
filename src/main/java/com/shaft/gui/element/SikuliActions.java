@@ -359,7 +359,7 @@ public class SikuliActions {
 
     private void initializeSikuliEngineForCurrentScreen() {
         if (DriverFactoryHelper.isWebExecution()) {
-            JavaScriptWaitManager.waitForLazyLoading(DriverFactoryHelper.getDriver().get());
+            JavaScriptWaitManager.waitForLazyLoading();
         }
         Settings.setShowActions(false);
         Settings.ActionLogs = true;

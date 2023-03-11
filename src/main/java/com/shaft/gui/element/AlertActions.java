@@ -31,7 +31,7 @@ public class AlertActions {
     }
 
     public FluentBrowserActions browser() {
-        return new FluentBrowserActions();
+        return FluentBrowserActions.getInstance();
     }
 
     public AlertActions and() {

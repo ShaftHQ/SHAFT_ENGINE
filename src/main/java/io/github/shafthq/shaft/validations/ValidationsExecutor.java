@@ -5,7 +5,6 @@ import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.tools.io.PdfFileManager;
 import com.shaft.validation.ValidationEnums;
-import io.github.shafthq.shaft.driver.DriverFactoryHelper;
 import io.github.shafthq.shaft.gui.browser.JavaScriptWaitManager;
 import io.restassured.response.Response;
 import org.openqa.selenium.By;
@@ -136,7 +135,7 @@ public class ValidationsExecutor {
      * Execute this validation
      */
     public void perform() {
-        JavaScriptWaitManager.waitForLazyLoading(DriverFactoryHelper.getDriver().get());
+        JavaScriptWaitManager.waitForLazyLoading();
         if ("".equals(customReportMessage)) {
             customReportMessage = reportMessageBuilder.toString();
         }

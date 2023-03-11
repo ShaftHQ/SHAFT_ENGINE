@@ -5,7 +5,6 @@ import com.mysql.cj.util.StringUtils;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactory.DriverType;
 import com.shaft.driver.SHAFT;
-import com.shaft.gui.browser.BrowserActions;
 import com.shaft.tools.io.ReportManager;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.Setting;
@@ -15,6 +14,7 @@ import io.appium.java_client.remote.options.UnhandledPromptBehavior;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import io.github.bonigarcia.wdm.config.WebDriverManagerException;
 import io.github.shafthq.shaft.gui.browser.BrowserActionsHelpers;
+import io.github.shafthq.shaft.gui.browser.FluentBrowserActions;
 import io.github.shafthq.shaft.gui.video.RecordManager;
 import io.github.shafthq.shaft.properties.Properties;
 import io.github.shafthq.shaft.properties.PropertiesHelper;
@@ -842,7 +842,7 @@ public class DriverFactoryHelper {
                         && (
                         targetBrowserName.contains(Browser.SAFARI.browserName().toLowerCase())
                                 || targetBrowserName.contains(Browser.FIREFOX.browserName().toLowerCase()))) {
-                    new BrowserActions().maximizeWindow();
+                    FluentBrowserActions.getInstance().maximizeWindow();
                 }
             }
             // start session recording

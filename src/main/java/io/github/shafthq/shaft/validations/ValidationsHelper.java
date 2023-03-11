@@ -228,12 +228,12 @@ public class ValidationsHelper {
         String actualValue;
         try {
             actualValue = switch (browserAttribute.toLowerCase()) {
-                case "currenturl", "url" -> new FluentBrowserActions().getCurrentURL();
-                case "pagesource" -> new FluentBrowserActions().getPageSource();
-                case "title" -> new FluentBrowserActions().getCurrentWindowTitle();
-                case "windowhandle" -> new FluentBrowserActions().getWindowHandle();
-                case "windowposition" -> new FluentBrowserActions().getWindowPosition();
-                case "windowsize" -> new FluentBrowserActions().getWindowSize();
+                case "currenturl", "url" -> FluentBrowserActions.getInstance().getCurrentURL();
+                case "pagesource" -> FluentBrowserActions.getInstance().getPageSource();
+                case "title" -> FluentBrowserActions.getInstance().getCurrentWindowTitle();
+                case "windowhandle" -> FluentBrowserActions.getInstance().getWindowHandle();
+                case "windowposition" -> FluentBrowserActions.getInstance().getWindowPosition();
+                case "windowsize" -> FluentBrowserActions.getInstance().getWindowSize();
                 default -> "";
             };
         } catch (Throwable e) {
