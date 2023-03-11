@@ -1,8 +1,6 @@
 package poms;
 
-import com.shaft.driver.SHAFT;
 import com.shaft.validation.Validations;
-import io.github.shafthq.shaft.gui.element.ElementActionsHelper;
 import io.github.shafthq.shaft.gui.element.FluentElementActions;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
@@ -11,7 +9,6 @@ public class GoogleSearchResults {
     WebDriver driver;
     By resultsStats_label = By.id("appbar");
     By next_button = By.xpath("//span[text()='Next']");
-    By searchResult_box = By.xpath("//div[@class='srg']//div[@class='g']");
 
     public GoogleSearchResults(WebDriver driver) {
         this.driver = driver;
@@ -25,17 +22,8 @@ public class GoogleSearchResults {
                     .perform();
     }
 
-    public void verifyResultsStatsExists() {
-            Validations.verifyThat().element(driver, resultsStats_label)
-                    .exists().perform();
-    }
-
     public void clickNext() {
-        new FluentElementActions(driver).scrollToElement(next_button).click(next_button);
-    }
-
-    public void assert10ResultsPerPage() {
-        SHAFT.Validations.assertThat().number(10).equals(ElementActionsHelper.getElementsCount(driver, searchResult_box));
+        FluentElementActions.getInstance().scrollToElement(next_button).click(next_button);
     }
 
 }

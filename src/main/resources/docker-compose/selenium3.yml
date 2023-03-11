@@ -1,4 +1,4 @@
-# This file can be used to quickly setup a selenium grid with one hub and two nodes
+# This file can be used to quickly set up a selenium grid with one hub and two nodes
 # https://github.com/SeleniumHQ/docker-selenium
 # docker-compose -f selenium3.yml up --scale chrome=1 --remove-orphans -d
 # add '-d' option for detached execution
@@ -9,7 +9,7 @@ services:
    selenium-hub:
       image: selenium/hub:3.141.59
       ports:
-      - 4444:4444
+        - "4444:4444"
       environment:
         GRID_MAX_SESSION: 5
         GRID_BROWSER_TIMEOUT: 300

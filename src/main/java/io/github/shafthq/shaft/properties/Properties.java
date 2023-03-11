@@ -1,6 +1,7 @@
 package io.github.shafthq.shaft.properties;
 import com.google.common.annotations.Beta;
 
+@SuppressWarnings({"GrazieInspection", "CommentedOutCode"})
 @Beta
 public class Properties {
     //TODO: implement missing interfaces

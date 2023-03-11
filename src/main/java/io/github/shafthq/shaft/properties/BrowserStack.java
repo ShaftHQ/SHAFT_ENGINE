@@ -4,6 +4,7 @@ import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.Config.Sources;
 import org.aeonbits.owner.ConfigFactory;
 
+@SuppressWarnings({"SpellCheckingInspection", "unused"})
 @Sources({"system:properties",
         "file:src/main/resources/properties/browserStack.properties",
         "file:src/main/resources/properties/default/browserStack.properties",

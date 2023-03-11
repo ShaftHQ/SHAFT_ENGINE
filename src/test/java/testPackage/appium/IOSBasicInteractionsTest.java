@@ -11,14 +11,14 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-public class iosBasicInteractionsTest {
+public class IOSBasicInteractionsTest {
     private WebDriver driver;
 
     @Test
     public void test() {
-        ElementActions.performTouchAction(driver).tap(AppiumBy.accessibilityId("Text Button"));
+        ElementActions.getInstance().performTouchAction().tap(AppiumBy.accessibilityId("Text Button"));
         System.setProperty("forceCheckTextWasTypedCorrectly", "false");
-        ElementActions.type(driver, AppiumBy.accessibilityId("Text Input"), "hello@browserstack.com" + "\n");
+        ElementActions.getInstance().type(AppiumBy.accessibilityId("Text Input"), "hello@browserstack.com" + "\n");
         Validations.assertThat()
                 .element(driver, AppiumBy.accessibilityId("Text Output"))
                 .text()
@@ -26,6 +26,7 @@ public class iosBasicInteractionsTest {
                 .perform();
     }
 
+    @SuppressWarnings("CommentedOutCode")
     @BeforeClass
     public void setup() {
         // common attributes
@@ -33,10 +34,10 @@ public class iosBasicInteractionsTest {
         SHAFT.Properties.mobile.set().automationName("XCUITest");
         System.setProperty("mobile_appWaitActivity", "*");
 
-        // local self managed instance routing to browserstack for ios
+        // local self-managed instance routing to browserstack for ios
 //        SHAFT.Properties.mobile.set().selfManaged(true);
 
-//         local appium server (for local and github actions execution)
+//         local appium server (for local and GitHub actions execution)
         SHAFT.Properties.platform.set().executionAddress("localhost:4723");
         SHAFT.Properties.mobile.set().app(System.getProperty("testDataFolderPath") + "apps/BStackSampleApp.ipa");
 

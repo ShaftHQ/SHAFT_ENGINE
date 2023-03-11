@@ -20,6 +20,7 @@ public class WizardHelpers {
 
     public static class WebDriverVerifications {
 
+        @SuppressWarnings("unused")
         public WebDriverVerifications(ThreadLocal<WebDriver> driverThreadLocal) {
         }
 
@@ -57,6 +58,7 @@ public class WizardHelpers {
         }
     }
 
+    @SuppressWarnings("unused")
     public static class StandaloneVerifications {
         public StandaloneVerifications() {
 

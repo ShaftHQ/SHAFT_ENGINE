@@ -1,34 +1,46 @@
 package io.github.shafthq.shaft.gui.element;
 
 import com.google.common.base.Throwables;
+import com.shaft.cli.FileActions;
 import com.shaft.gui.element.AlertActions;
-import com.shaft.gui.element.ElementActions;
+import com.shaft.gui.element.SikuliActions;
 import com.shaft.gui.element.TouchActions;
+import com.shaft.tools.io.ReportManager;
+import io.appium.java_client.android.AndroidDriver;
+import io.appium.java_client.ios.IOSDriver;
 import io.github.shafthq.shaft.driver.DriverFactoryHelper;
 import io.github.shafthq.shaft.driver.WizardHelpers;
+import io.github.shafthq.shaft.enums.ClipboardAction;
 import io.github.shafthq.shaft.gui.browser.FluentBrowserActions;
+import io.github.shafthq.shaft.gui.browser.JavaScriptWaitManager;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
 import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 import io.github.shafthq.shaft.validations.WebDriverElementValidationsBuilder;
-import org.openqa.selenium.By;
-import org.openqa.selenium.Keys;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
+import org.openqa.selenium.NoSuchElementException;
+import org.openqa.selenium.*;
+import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.Select;
 import org.openqa.selenium.support.ui.UnexpectedTagNameException;
+import org.sikuli.script.App;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.nio.file.FileSystems;
+import java.util.*;
 
 import static io.github.shafthq.shaft.gui.element.ElementActionsHelper.*;
 
+@SuppressWarnings({"UnusedReturnValue", "unused"})
 public class FluentElementActions {
-    public FluentElementActions(WebDriver driver) {
-        new FluentElementActions();
+    private static final ThreadLocal<FluentElementActions> INSTANCE = new ThreadLocal<>();
+
+    protected FluentElementActions() {
     }
 
-    public FluentElementActions() {
+    public synchronized static FluentElementActions getInstance() {
+        JavaScriptWaitManager.waitForLazyLoading();
+        if (INSTANCE.get() == null) {
+            INSTANCE.set(new FluentElementActions());
+        }
+        return INSTANCE.get();
     }
 
     /**
@@ -49,7 +61,15 @@ public class FluentElementActions {
     }
 
     public FluentBrowserActions performBrowserAction() {
-        return new FluentBrowserActions();
+        return FluentBrowserActions.getInstance();
+    }
+
+    public SikuliActions performSikuliAction() {
+        return new SikuliActions();
+    }
+
+    public SikuliActions performSikuliAction(App applicationWindow) {
+        return new SikuliActions(applicationWindow);
     }
 
     public TouchActions touch() {
@@ -61,7 +81,15 @@ public class FluentElementActions {
     }
 
     public FluentBrowserActions browser() {
-        return new FluentBrowserActions();
+        return FluentBrowserActions.getInstance();
+    }
+
+    public SikuliActions sikulix() {
+        return new SikuliActions();
+    }
+
+    public SikuliActions sikulix(App applicationWindow) {
+        return new SikuliActions(applicationWindow);
     }
 
     public FluentElementActions and() {
@@ -123,8 +151,13 @@ public class FluentElementActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentElementActions executeNativeMobileCommand(String command, Map<String, String> parameters) {
-        ElementActions.executeNativeMobileCommand(DriverFactoryHelper.getDriver().get(), command,
-                parameters);
+        try {
+            ElementActionsHelper.executeNativeMobileCommandUsingJavascript(DriverFactoryHelper.getDriver().get(), command, parameters);
+            var testData = "Command: " + command + ", Parameters: " + parameters;
+            passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), testData, null, null);
+        } catch (Exception rootCauseException) {
+            failAction(DriverFactoryHelper.getDriver().get(), null, rootCauseException);
+        }
         return this;
     }
 
@@ -136,32 +169,69 @@ public class FluentElementActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentElementActions click(By elementLocator) {
-        ElementActions.click(DriverFactoryHelper.getDriver().get(), elementLocator);
+        if (DriverFactoryHelper.isMobileNativeExecution()) {
+            new TouchActions(DriverFactoryHelper.getDriver().get()).tap(elementLocator);
+        } else {
+            // Waits for the element to be clickable, and then clicks it.
+            try {
+                var elementName = getElementName(DriverFactoryHelper.getDriver().get(), elementLocator);
+                try {
+                    // adding hover before clicking an element to enable styles to show in the
+                    // execution screenshots and to solve issues clicking on certain elements.
+                    (new Actions(DriverFactoryHelper.getDriver().get())).moveToElement(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1))).perform();
+                } catch (Exception t) {
+//                    ReportManagerHelper.logDiscrete(t);
+                }
+                List<Object> screenshot = takeScreenshot(DriverFactoryHelper.getDriver().get(), elementLocator, "click", null, true);
+                // takes screenshot before clicking the element out of view
+                // wait for element to be clickable
+                try {
+                    WebElement element = (WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1);
+                    //noinspection ResultOfMethodCallIgnored
+                    Boolean.FALSE.equals(ElementActionsHelper.waitForElementToBeClickable(DriverFactoryHelper.getDriver().get(), elementLocator, "click"));
+                } catch (Exception exception) {
+                    failAction(DriverFactoryHelper.getDriver().get(), elementLocator, exception);
+                }
+                // issue: if performing a navigation after clicking on the login button,
+                // navigation is triggered immediately and hence it fails.
+                // solution: wait for any possible navigation that may be triggered by this
+                // click action to conclude
+                // removed to enhance performance, and replaced with a process to assert after
+                // every navigation
+                passAction(DriverFactoryHelper.getDriver().get(), elementLocator, "", screenshot, elementName);
+            } catch (Throwable throwable) {
+                // has to be throwable to catch assertion errors in case element was not found
+                if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
+                    ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
+                } else {
+                    ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+                }
+            }
+        }
         return this;
     }
 
     /**
      * Clicks on certain element using javaScript only
      *
-     * @param driver         is an instance of webdriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      * @return a self-reference to be used to chain actions
      */
- public  FluentElementActions clickUsingJavascript(WebDriver driver, By elementLocator) {
-    	
-    	try {
-    	var elementName = getElementName(driver, elementLocator);
-    	List<Object> screenshot = takeScreenshot(driver, elementLocator, "click", null, true);
-    	ElementActionsHelper.clickUsingJavascript(driver, elementLocator);
-    	passAction(driver, elementLocator, "", screenshot, elementName);
-    	}
-    	catch(Exception exception) {
-    		failAction(driver, elementLocator, exception);	
-    	}
-    	
-    	return this;
+    public FluentElementActions clickUsingJavascript(By elementLocator) {
+
+        try {
+            var elementName = getElementName(DriverFactoryHelper.getDriver().get(), elementLocator);
+            List<Object> screenshot = takeScreenshot(DriverFactoryHelper.getDriver().get(), elementLocator, "clickUsingJavascript", null, true);
+            ElementActionsHelper.clickUsingJavascript(DriverFactoryHelper.getDriver().get(), elementLocator);
+            passAction(DriverFactoryHelper.getDriver().get(), elementLocator, "", screenshot, elementName);
+        } catch (Exception exception) {
+            failAction(DriverFactoryHelper.getDriver().get(), elementLocator, exception);
+        }
+
+        return this;
     }
+
     /**
      * If the element is outside the viewport, scrolls the bottom of the element to the bottom of the viewport.
      *
@@ -170,7 +240,16 @@ public class FluentElementActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentElementActions scrollToElement(By elementLocator) {
-        ElementActions.scrollToElement(DriverFactoryHelper.getDriver().get(), elementLocator);
+        // if mobile, call swipeElementIntoView(null, targetElementLocator, swipeDirection); for convenience
+        if (DriverFactoryHelper.isMobileNativeExecution()) {
+            performTouchAction().swipeElementIntoView(elementLocator, TouchActions.SwipeDirection.DOWN);
+        }
+        try {
+            ElementActionsHelper.scrollToFindElement(DriverFactoryHelper.getDriver().get(), elementLocator);
+            passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, getElementName(DriverFactoryHelper.getDriver().get(), elementLocator));
+        } catch (Exception throwable) {
+            failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+        }
         return this;
     }
 
@@ -182,7 +261,22 @@ public class FluentElementActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentElementActions clickAndHold(By elementLocator) {
-        ElementActions.clickAndHold(DriverFactoryHelper.getDriver().get(), elementLocator);
+        try {
+            var elementName = getElementName(DriverFactoryHelper.getDriver().get(), elementLocator);
+            List<Object> screenshot = takeScreenshot(DriverFactoryHelper.getDriver().get(), elementLocator, "clickAndHold", null, true);
+            WebElement element = (WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1);
+            if (Boolean.FALSE.equals(ElementActionsHelper.waitForElementToBeClickable(DriverFactoryHelper.getDriver().get(), elementLocator, "clickAndHold"))) {
+                failAction(DriverFactoryHelper.getDriver().get(), "element is not clickable", elementLocator);
+            }
+            passAction(DriverFactoryHelper.getDriver().get(), elementLocator, "", screenshot, elementName);
+        } catch (Throwable throwable) {
+            // has to be throwable to catch assertion errors in case element was not found
+            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
+            } else {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+            }
+        }
         return this;
     }
 
@@ -196,8 +290,23 @@ public class FluentElementActions {
      *                       "select all", "unselect"
      * @return a self-reference to be used to chain actions
      */
-    public FluentElementActions clipboardActions(By elementLocator, String action) {
-        ElementActions.clipboardActions(DriverFactoryHelper.getDriver().get(), elementLocator, action);
+    public FluentElementActions clipboardActions(By elementLocator, ClipboardAction action) {
+        try {
+            var elementName = getElementName(DriverFactoryHelper.getDriver().get(), elementLocator);
+            boolean wasActionPerformed;
+            if (System.getProperty("targetOperatingSystem").contains("Mac")) {
+                wasActionPerformed = ElementActionsHelper.performClipboardActions(DriverFactoryHelper.getDriver().get(), action, Keys.COMMAND);
+            } else {
+                wasActionPerformed = ElementActionsHelper.performClipboardActions(DriverFactoryHelper.getDriver().get(), action, Keys.CONTROL);
+            }
+            if (Boolean.TRUE.equals(wasActionPerformed)) {
+                passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), action.getValue(), null, elementName);
+            } else {
+                failAction(DriverFactoryHelper.getDriver().get(), action.getValue(), elementLocator);
+            }
+        } catch (Exception throwable) {
+            failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+        }
         return this;
     }
 
@@ -209,7 +318,26 @@ public class FluentElementActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentElementActions doubleClick(By elementLocator) {
-        ElementActions.doubleClick(DriverFactoryHelper.getDriver().get(), elementLocator);
+        try {
+            var elementName = getElementName(DriverFactoryHelper.getDriver().get(), elementLocator);
+            // takes screenshot before clicking the element out of view
+            var screenshot = ElementActionsHelper.takeScreenshot(DriverFactoryHelper.getDriver().get(), elementLocator, "doubleClick", null, true);
+            List<List<Object>> attachments = new LinkedList<>();
+            attachments.add(screenshot);
+            try {
+                (new Actions(DriverFactoryHelper.getDriver().get())).moveToElement(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1))).doubleClick().perform();
+            } catch (Exception e) {
+                failAction(DriverFactoryHelper.getDriver().get(), elementLocator, e);
+            }
+            passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, attachments, elementName);
+        } catch (Throwable throwable) {
+            // has to be throwable to catch assertion errors in case element was not found
+            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
+            } else {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+            }
+        }
         return this;
     }
 
@@ -226,7 +354,50 @@ public class FluentElementActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentElementActions dragAndDrop(By sourceElementLocator, By destinationElementLocator) {
-        ElementActions.dragAndDrop(DriverFactoryHelper.getDriver().get(), sourceElementLocator, destinationElementLocator);
+        try {
+            Exception exception = new Exception();
+            var elementName = getElementName(DriverFactoryHelper.getDriver().get(), sourceElementLocator);
+            // replaced canFindUniqueElementForInternalUse, with countFoundElements for
+            // destinationElement to bypass the check for element visibility
+            // get source element start location
+            String startLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), sourceElementLocator).get(1)).getLocation().toString();
+            // attempt to perform drag and drop
+            try {
+                ElementActionsHelper.dragAndDropUsingJavascript(DriverFactoryHelper.getDriver().get(), sourceElementLocator, destinationElementLocator);
+            } catch (Exception rootCauseException) {
+                exception = rootCauseException;
+                ReportManagerHelper.logDiscrete(rootCauseException);
+            }
+            // get source element end location
+            String endLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), sourceElementLocator).get(1)).getLocation().toString();
+            String reportMessage = "Start point: " + startLocation + ", End point: " + endLocation;
+            if (!endLocation.equals(startLocation)) {
+                passAction(DriverFactoryHelper.getDriver().get(), sourceElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, elementName);
+            } else {
+                try {
+                    ElementActionsHelper.dragAndDropUsingActions(DriverFactoryHelper.getDriver().get(), sourceElementLocator, destinationElementLocator);
+                } catch (Exception rootCauseException) {
+                    if (!exception.equals(new Exception())) {
+                        rootCauseException.addSuppressed(exception);
+                    }
+                    failAction(DriverFactoryHelper.getDriver().get(), sourceElementLocator, rootCauseException);
+                }
+                // get source element end location
+                endLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), sourceElementLocator).get(1)).getLocation().toString();
+                if (!endLocation.equals(startLocation)) {
+                    passAction(DriverFactoryHelper.getDriver().get(), sourceElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, elementName);
+                } else {
+                    failAction(DriverFactoryHelper.getDriver().get(), reportMessage, sourceElementLocator);
+                }
+            }
+        } catch (Throwable throwable) {
+            //has to be throwable to catch element not found exception
+            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
+                failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
+            } else {
+                failAction(DriverFactoryHelper.getDriver().get(), sourceElementLocator, throwable);
+            }
+        }
         return this;
     }
 
@@ -243,7 +414,26 @@ public class FluentElementActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentElementActions dragAndDropByOffset(By sourceElementLocator, int xOffset, int yOffset) {
-        ElementActions.dragAndDropByOffset(DriverFactoryHelper.getDriver().get(), sourceElementLocator, xOffset, yOffset);
+        try {
+            var elementName = getElementName(DriverFactoryHelper.getDriver().get(), sourceElementLocator);
+            WebElement sourceElement = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), sourceElementLocator).get(1));
+            String startLocation = sourceElement.getLocation().toString();
+            // attempt to perform drag and drop
+            try {
+                (new Actions(DriverFactoryHelper.getDriver().get())).dragAndDropBy(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), sourceElementLocator).get(1)), xOffset, yOffset).build()
+                        .perform();
+            } catch (Exception rootCauseException) {
+                failAction(DriverFactoryHelper.getDriver().get(), sourceElementLocator, rootCauseException);
+            }
+            String endLocation = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), sourceElementLocator).get(1)).getLocation().toString();
+            if (!endLocation.equals(startLocation)) {
+                passAction(DriverFactoryHelper.getDriver().get(), sourceElementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "Start point: " + startLocation + ", End point: " + endLocation, null, elementName);
+            } else {
+                failAction(DriverFactoryHelper.getDriver().get(), "Start point = End point: " + endLocation, sourceElementLocator);
+            }
+        } catch (Exception throwable) {
+            failAction(DriverFactoryHelper.getDriver().get(), sourceElementLocator, throwable);
+        }
         return this;
     }
 
@@ -283,8 +473,28 @@ public class FluentElementActions {
      * @param attributeName  the target attribute of the webElement under test
      * @return the value of the target attribute of the webElement under test
      */
+    @SuppressWarnings("SpellCheckingInspection")
     public String getAttribute(By elementLocator, String attributeName) {
-        return ElementActions.getAttribute(DriverFactoryHelper.getDriver().get(), elementLocator, attributeName);
+        ReportManager.logDiscrete("Attempting to getAttribute \"" + attributeName + "\" from elementLocator \"" + elementLocator + "\".");
+        try {
+            var elementName = getElementName(DriverFactoryHelper.getDriver().get(), elementLocator);
+            try {
+                String elementAttribute = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)).getAttribute(attributeName);
+                passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementAttribute, null, elementName);
+                return elementAttribute;
+            } catch (UnsupportedCommandException rootCauseException) {
+                failAction(DriverFactoryHelper.getDriver().get(), elementLocator, rootCauseException);
+                return null;
+            }
+        } catch (Throwable throwable) {
+            // has to be throwable to catch assertion errors in case element was not found
+            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
+            } else {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+            }
+        }
+        return null;
     }
 
     /**
@@ -303,7 +513,20 @@ public class FluentElementActions {
      * @return the value of the target CSS property of the webElement under test
      */
     public String getCSSProperty(By elementLocator, String propertyName) {
-        return ElementActions.getCSSProperty(DriverFactoryHelper.getDriver().get(), elementLocator, propertyName);
+        try {
+            var elementName = getElementName(DriverFactoryHelper.getDriver().get(), elementLocator);
+            String elementCssProperty = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)).getCssValue(propertyName);
+            passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementCssProperty, null, elementName);
+            return elementCssProperty;
+        } catch (Throwable throwable) {
+            // has to be throwable to catch assertion errors in case element was not found
+            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
+            } else {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+            }
+        }
+        return null;
 
     }
 
@@ -314,7 +537,16 @@ public class FluentElementActions {
      * @return The current context handle
      */
     public String getContext() {
-        return ElementActions.getContext(DriverFactoryHelper.getDriver().get());
+        String context = "";
+        if (DriverFactoryHelper.getDriver().get() instanceof AndroidDriver androidDriver) {
+            context = androidDriver.getContext();
+        } else if (DriverFactoryHelper.getDriver().get() instanceof IOSDriver iosDriver) {
+            context = iosDriver.getContext();
+        } else {
+            failAction(DriverFactoryHelper.getDriver().get(), null);
+        }
+        passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), context, null, null);
+        return context;
     }
 
     /**
@@ -325,7 +557,14 @@ public class FluentElementActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentElementActions setContext(String context) {
-        ElementActions.setContext(DriverFactoryHelper.getDriver().get(), context);
+        if (DriverFactoryHelper.getDriver().get() instanceof AndroidDriver androidDriver) {
+            androidDriver.context(context);
+        } else if (DriverFactoryHelper.getDriver().get() instanceof IOSDriver iosDriver) {
+            iosDriver.context(context);
+        } else {
+            failAction(DriverFactoryHelper.getDriver().get(), context, null);
+        }
+        passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), context, null, null);
         return this;
     }
 
@@ -336,7 +575,16 @@ public class FluentElementActions {
      * @return list of context handles
      */
     public List<String> getContextHandles() {
-        return ElementActions.getContextHandles(DriverFactoryHelper.getDriver().get());
+        List<String> windowHandles = new ArrayList<>();
+        if (DriverFactoryHelper.getDriver().get() instanceof AndroidDriver androidDriver) {
+            windowHandles.addAll(androidDriver.getContextHandles());
+        } else if (DriverFactoryHelper.getDriver().get() instanceof IOSDriver iosDriver) {
+            windowHandles.addAll(iosDriver.getContextHandles());
+        } else {
+            failAction(DriverFactoryHelper.getDriver().get(), null);
+        }
+        passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(windowHandles), null, null);
+        return windowHandles;
     }
 
     /**
@@ -347,7 +595,31 @@ public class FluentElementActions {
      * @return the text value of the target webElement
      */
     public String getText(By elementLocator) {
-        return ElementActions.getText(DriverFactoryHelper.getDriver().get(), elementLocator);
+        try {
+            var elementName = getElementName(DriverFactoryHelper.getDriver().get(), elementLocator);
+            String elementText = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)).getText();
+            if ((elementText == null || elementText.trim().equals("")) && !DriverFactoryHelper.isMobileNativeExecution()) {
+                elementText = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)).getAttribute(ElementActionsHelper.TextDetectionStrategy.CONTENT.getValue());
+            }
+            if ((elementText == null || elementText.trim().equals("")) && !DriverFactoryHelper.isMobileNativeExecution()) {
+                elementText = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)).getAttribute(ElementActionsHelper.TextDetectionStrategy.VALUE.getValue());
+            }
+            if (elementText == null) {
+                elementText = "";
+            }
+            passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), elementText, null, elementName);
+            return elementText;
+        } catch (Throwable throwable) {
+            // has to be throwable to catch assertion errors in case element was not found
+            var rootCauseClassName = Throwables.getRootCause(throwable).getClass().getName();
+            if (rootCauseClassName.equals(org.openqa.selenium.NoSuchElementException.class.getName())
+                    || rootCauseClassName.equals(org.openqa.selenium.InvalidSelectorException.class.getName())) {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
+            } else {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+            }
+        }
+        return null;
     }
 
     /**
@@ -357,7 +629,9 @@ public class FluentElementActions {
      * @return window handle
      */
     public String getWindowHandle() {
-        return ElementActions.getWindowHandle(DriverFactoryHelper.getDriver().get());
+        String nameOrHandle = DriverFactoryHelper.getDriver().get().getWindowHandle();
+        passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), nameOrHandle, null, null);
+        return nameOrHandle;
     }
 
     /**
@@ -367,7 +641,9 @@ public class FluentElementActions {
      * @return list of window handles
      */
     public List<String> getWindowHandles() {
-        return ElementActions.getWindowHandles(DriverFactoryHelper.getDriver().get());
+        List<String> windowHandles = new ArrayList<>(DriverFactoryHelper.getDriver().get().getWindowHandles());
+        passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(windowHandles), null, null);
+        return windowHandles;
     }
 
     /**
@@ -380,7 +656,22 @@ public class FluentElementActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentElementActions hover(By elementLocator) {
-        ElementActions.hover(DriverFactoryHelper.getDriver().get(), elementLocator);
+        try {
+            var elementName = getElementName(DriverFactoryHelper.getDriver().get(), elementLocator);
+            try {
+                (new Actions(DriverFactoryHelper.getDriver().get())).moveToElement(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1))).perform();
+            } catch (Exception rootCauseException) {
+                failAction(DriverFactoryHelper.getDriver().get(), elementLocator, rootCauseException);
+            }
+            passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, elementName);
+        } catch (Throwable throwable) {
+            // has to be throwable to catch assertion errors in case element was not found
+            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
+            } else {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+            }
+        }
         return this;
     }
 
@@ -397,7 +688,8 @@ public class FluentElementActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentElementActions hoverAndClick(List<By> hoverElementLocators, By clickableElementLocator) {
-        ElementActions.hoverAndClick(DriverFactoryHelper.getDriver().get(), hoverElementLocators, clickableElementLocator);
+        hoverElementLocators.forEach(this::hover);
+        click(clickableElementLocator);
         return this;
     }
 
@@ -406,11 +698,24 @@ public class FluentElementActions {
      *
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
-     * @param keys           the key that should be pressed
+     * @param key            the key that should be pressed
      * @return a self-reference to be used to chain actions
      */
-    public FluentElementActions keyPress(By elementLocator, Keys keys) {
-        ElementActions.keyPress(DriverFactoryHelper.getDriver().get(), elementLocator, keys);
+    public FluentElementActions keyPress(By elementLocator, Keys key) {
+        try {
+            var elementName = getElementName(DriverFactoryHelper.getDriver().get(), elementLocator);
+            List<Object> screenshot = takeScreenshot(DriverFactoryHelper.getDriver().get(), elementLocator, "keyPress", null, true);
+            // takes screenshot before moving the element out of view
+            ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)).sendKeys(key);
+            passAction(DriverFactoryHelper.getDriver().get(), elementLocator, key.name(), screenshot, elementName);
+        } catch (Throwable throwable) {
+            // has to be throwable to catch assertion errors in case element was not found
+            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), key.name(), null, throwable);
+            } else {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), key.name(), elementLocator, throwable);
+            }
+        }
         return this;
     }
 
@@ -424,7 +729,35 @@ public class FluentElementActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentElementActions select(By elementLocator, String text) {
-        ElementActions.select(DriverFactoryHelper.getDriver().get(), elementLocator, text);
+        try {
+            var elementName = getElementName(DriverFactoryHelper.getDriver().get(), elementLocator);
+            //add forced check that the select element actually has options and is not empty
+            if (!Boolean.TRUE.equals(ElementActionsHelper.waitForElementTextToBeNot(DriverFactoryHelper.getDriver().get(), elementLocator, ""))) {
+                failAction(DriverFactoryHelper.getDriver().get(), text, elementLocator);
+            }
+            boolean isOptionFound = false;
+            var availableOptionsList = (new Select(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)))).getOptions();
+            for (int i = 0; i < availableOptionsList.size(); i++) {
+                String visibleText = availableOptionsList.get(i).getText();
+                String value = availableOptionsList.get(i).getAttribute("value");
+                if (visibleText.trim().equals(text) || value.trim().equals(text)) {
+                    (new Select(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)))).selectByIndex(i);
+                    passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), text, null, elementName);
+                    isOptionFound = true;
+                    break;
+                }
+            }
+            if (Boolean.FALSE.equals(isOptionFound)) {
+                failAction(DriverFactoryHelper.getDriver().get(), text, elementLocator);
+            }
+        } catch (Throwable throwable) {
+            // has to be throwable to catch assertion errors in case element was not found
+            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), text, null, throwable);
+            } else {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), text, elementLocator, throwable);
+            }
+        }
         return this;
     }
 
@@ -438,7 +771,17 @@ public class FluentElementActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentElementActions setValueUsingJavaScript(By elementLocator, String value) {
-        ElementActions.setValueUsingJavaScript(DriverFactoryHelper.getDriver().get(), elementLocator, value);
+        try {
+            var elementName = getElementName(DriverFactoryHelper.getDriver().get(), elementLocator);
+            Boolean valueSetSuccessfully = ElementActionsHelper.setValueUsingJavascript(elementLocator, value);
+            if (Boolean.TRUE.equals(valueSetSuccessfully)) {
+                passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), value, null, elementName);
+            } else {
+                failAction(DriverFactoryHelper.getDriver().get(), elementLocator);
+            }
+        } catch (Exception throwable) {
+            failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+        }
         return this;
     }
 
@@ -450,7 +793,17 @@ public class FluentElementActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentElementActions submitFormUsingJavaScript(By elementLocator) {
-        ElementActions.submitFormUsingJavaScript(DriverFactoryHelper.getDriver().get(), elementLocator);
+        try {
+            var elementName = getElementName(DriverFactoryHelper.getDriver().get(), elementLocator);
+            try {
+                ElementActionsHelper.submitFormUsingJavascript(DriverFactoryHelper.getDriver().get(), elementLocator);
+                passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, elementName);
+            } catch (Exception rootCauseException) {
+                failAction(DriverFactoryHelper.getDriver().get(), elementLocator, rootCauseException);
+            }
+        } catch (Exception throwable) {
+            failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+        }
         return this;
     }
 
@@ -464,7 +817,21 @@ public class FluentElementActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentElementActions switchToIframe(By elementLocator) {
-        ElementActions.switchToIframe(DriverFactoryHelper.getDriver().get(), elementLocator);
+        try {
+            DriverFactoryHelper.getDriver().get().switchTo().frame(((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)));
+            // note to self: remove elementLocator in case of bug in screenshot manager
+            boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
+            ReportManagerHelper.setDiscreteLogging(true);
+            passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), String.valueOf(elementLocator), null, null);
+            ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
+        } catch (Throwable throwable) {
+            // has to be throwable to catch assertion errors in case element was not found
+            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
+            } else {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+            }
+        }
         return this;
     }
 
@@ -477,7 +844,15 @@ public class FluentElementActions {
      */
     @SuppressWarnings("UnusedReturnValue")
     public FluentElementActions switchToDefaultContent() {
-        ElementActions.switchToDefaultContent(DriverFactoryHelper.getDriver().get());
+        try {
+            DriverFactoryHelper.getDriver().get().switchTo().defaultContent();
+            boolean discreetLoggingState = ReportManagerHelper.getDiscreteLogging();
+            ReportManagerHelper.setDiscreteLogging(true);
+            passAction(DriverFactoryHelper.getDriver().get(), null, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, null);
+            ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
+        } catch (Exception rootCauseException) {
+//            failAction(DriverFactoryHelper.getDriver().get(), null, rootCauseException);
+        }
         // if there is no last used driver or no drivers in the drivers list, do
         // nothing...
 //        return new FluentElementActions(Objects.requireNonNull(DriverFactoryHelper.getDriver()).get());
@@ -495,7 +870,26 @@ public class FluentElementActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentElementActions type(By elementLocator, String text) {
-        ElementActions.type(DriverFactoryHelper.getDriver().get(), elementLocator, text);
+        try {
+            var elementInformation = ElementInformation.fromList(identifyUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver().get(), elementLocator));
+            String actualResult = typeWrapper(elementInformation, text);
+            var elementName = elementInformation.getElementName();
+            if (actualResult != null && actualResult.equals(text)) {
+                passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), text, null, elementName);
+            } else if (actualResult == null) {
+                failAction(DriverFactoryHelper.getDriver().get(), elementLocator);
+            } else {
+                failAction(DriverFactoryHelper.getDriver().get(), "Expected to type: \"" + text + "\", but ended up with: \"" + actualResult + "\"",
+                        elementLocator);
+            }
+        } catch (Throwable throwable) {
+            // it has to be throwable so that it can catch any underlying assertion error
+            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
+                failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
+            } else {
+                failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+            }
+        }
         return this;
     }
 
@@ -510,7 +904,20 @@ public class FluentElementActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentElementActions typeAppend(By elementLocator, String text) {
-        ElementActions.typeAppend(DriverFactoryHelper.getDriver().get(), elementLocator, text);
+        try {
+            if (text != null) {
+                var elementName = getElementName(DriverFactoryHelper.getDriver().get(), elementLocator);
+                ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)).sendKeys(text);
+                passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), text, null, elementName);
+            }
+        } catch (Throwable throwable) {
+            // has to be throwable to catch assertion errors in case element was not found
+            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
+            } else {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+            }
+        }
         return this;
     }
 
@@ -518,13 +925,55 @@ public class FluentElementActions {
      * ValidationEnums the required file path into an input[type='file'] button, to
      * successfully upload the target file.
      *
-     * @param elementLocator   the locator of the webElement under test (By xpath,
-     *                         id, selector, name ...etc)
-     * @param absoluteFilePath the full path to the file that needs to be uploaded
+     * @param elementLocator the locator of the webElement under test (By xpath,
+     *                       id, selector, name ...etc)
+     * @param filePath       the full path to the file that needs to be uploaded, it can be absolute or relative
+     *                       path, Engine will detect that
      * @return a self-reference to be used to chain actions
      */
-    public FluentElementActions typeFileLocationForUpload(By elementLocator, String absoluteFilePath) {
-        ElementActions.typeFileLocationForUpload(DriverFactoryHelper.getDriver().get(), elementLocator, absoluteFilePath);
+    public FluentElementActions typeFileLocationForUpload(By elementLocator, String filePath) {
+        var absoluteFilePath = filePath;
+        if (filePath.startsWith("src")) {
+            absoluteFilePath = FileActions.getInstance().getAbsolutePath(filePath);
+        }
+
+        String internalAbsoluteFilePath = absoluteFilePath.replace("/", FileSystems.getDefault().getSeparator());
+        try {
+            var elementName = getElementName(DriverFactoryHelper.getDriver().get(), elementLocator);
+            List<Object> screenshot = takeScreenshot(DriverFactoryHelper.getDriver().get(), elementLocator, "typeFileLocationForUpload", null, true);
+            // takes screenshot before clicking the element out of view
+            try {
+                ((WebElement) ElementActionsHelper.identifyUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)).sendKeys(internalAbsoluteFilePath);
+            } catch (InvalidArgumentException e) {
+                //this happens when the file path doesn't exist
+                failAction(DriverFactoryHelper.getDriver().get(), internalAbsoluteFilePath, elementLocator, e);
+            } catch (ElementNotInteractableException | NoSuchElementException exception1) {
+                ElementActionsHelper.changeWebElementVisibilityUsingJavascript(DriverFactoryHelper.getDriver().get(), elementLocator, true);
+                try {
+                    ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)).sendKeys(internalAbsoluteFilePath);
+                } catch (WebDriverException rootCauseException) {
+                    rootCauseException.addSuppressed(exception1);
+                    // happened for the first time on MacOSX due to incorrect file path separator
+                    failAction(DriverFactoryHelper.getDriver().get(), internalAbsoluteFilePath, elementLocator, rootCauseException);
+                }
+                try {
+                    ElementActionsHelper.changeWebElementVisibilityUsingJavascript(DriverFactoryHelper.getDriver().get(), elementLocator, false);
+                } catch (NoSuchElementException | StaleElementReferenceException e) {
+                    // this exception is sometimes thrown on firefox after the upload has been
+                    // successful, since we don't have to return the style to what it was, then it's
+                    // okay to do nothing here.
+                    ReportManagerHelper.logDiscrete(e);
+                }
+            }
+            passAction(DriverFactoryHelper.getDriver().get(), elementLocator, internalAbsoluteFilePath, screenshot, elementName);
+        } catch (Throwable throwable) {
+            // has to be throwable to catch assertion errors in case element was not found
+            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
+            } else {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+            }
+        }
         return this;
     }
 
@@ -540,7 +989,26 @@ public class FluentElementActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentElementActions typeSecure(By elementLocator, String text) {
-        ElementActions.typeSecure(DriverFactoryHelper.getDriver().get(), elementLocator, text);
+        try {
+            var elementInformation = ElementInformation.fromList(identifyUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver().get(), elementLocator));
+            String actualResult = typeWrapper(elementInformation, text);
+            var elementName = (String) elementInformation.getElementName();
+            if (actualResult != null && actualResult.equals(text)) {
+                passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), ElementActionsHelper.OBFUSCATED_STRING.repeat(text.length()), null, elementName);
+            } else if (actualResult == null) {
+                failAction(DriverFactoryHelper.getDriver().get(), elementLocator);
+            } else {
+                failAction(DriverFactoryHelper.getDriver().get(), "Expected to type: \"" + text + "\", but ended up with: \""
+                        + actualResult + "\"", elementLocator);
+            }
+        } catch (Throwable throwable) {
+            // it has to be throwable so that it can catch any underlying assertion error
+            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
+                failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
+            } else {
+                failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+            }
+        }
         return this;
     }
 
@@ -552,13 +1020,48 @@ public class FluentElementActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentElementActions waitToBeReady(By elementLocator) {
-        ElementActions.waitForElementToBePresent(DriverFactoryHelper.getDriver().get(), elementLocator, true);
+        return waitToBeReady(elementLocator, true);
+    }
+
+    public FluentElementActions waitToBeReady(By elementLocator, boolean isExpectedToBeVisible) {
+        ReportManager.logDiscrete("Waiting for element to be present; elementLocator \"" + elementLocator + "\", isExpectedToBeVisible\"" + isExpectedToBeVisible + "\"...");
+        String reportMessage = "waited for the element's state of visibility to be (" + isExpectedToBeVisible
+                + "). Element locator (" + formatLocatorToString(elementLocator) + ")";
+        int elementCountIgnoringVisibility = Integer.parseInt(getMatchingElementsInformation(DriverFactoryHelper.getDriver().get(), elementLocator, 1, false).get(0).toString());
+        try {
+            if (elementCountIgnoringVisibility >= 1) {
+                boolean isDisplayed = ((WebElement) identifyUniqueElementIgnoringVisibility(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)).isDisplayed();
+                //element is present
+                if (isExpectedToBeVisible == isDisplayed) {
+                    //either expected to be visible and is displayed, or not expected to be visible and not displayed
+                    passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, getElementName(DriverFactoryHelper.getDriver().get(), elementLocator));
+                } else //noinspection ConstantValue
+                    if (!isExpectedToBeVisible && isDisplayed) {
+                        // Element is displayed and needed to wait until it's invisible
+                        if (ElementActionsHelper.waitForElementInvisibility(elementLocator)) {
+                            passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, getElementName(DriverFactoryHelper.getDriver().get(), elementLocator));
+                        } else {
+                            // Element still exists after timeout
+                            failAction(DriverFactoryHelper.getDriver().get(), reportMessage, elementLocator);
+                        }
+                    } else {
+                        // Element is not displayed
+                        failAction(DriverFactoryHelper.getDriver().get(), reportMessage, elementLocator);
+                    }
+            } else {
+                //action should fail because the element doesn't exist
+                failAction(DriverFactoryHelper.getDriver().get(), reportMessage, elementLocator);
+            }
+        } catch (AssertionError assertionError) {
+            // in case element was not found
+            failAction(DriverFactoryHelper.getDriver().get(), reportMessage, null, assertionError);
+        }
         return this;
     }
 
     @Deprecated
     public FluentElementActions waitForElementToBePresent(By elementLocator) {
-        return waitToBeReady(elementLocator);
+        return waitToBeReady(elementLocator, true);
     }
 
     /**
@@ -569,8 +1072,7 @@ public class FluentElementActions {
      * @return a self-reference to be used to chain actions
      */
     public FluentElementActions waitToBeInvisible(By elementLocator) {
-        ElementActions.waitForElementToBePresent(DriverFactoryHelper.getDriver().get(), elementLocator, false);
-        return this;
+        return waitToBeReady(elementLocator, false);
     }
 
     /**
@@ -584,7 +1086,19 @@ public class FluentElementActions {
      */
     @SuppressWarnings("UnusedReturnValue")
     public FluentElementActions waitForTextToChange(By elementLocator, String initialValue) {
-        ElementActions.waitForTextToChange(DriverFactoryHelper.getDriver().get(), elementLocator, initialValue);
+        try {
+            var elementName = getElementName(DriverFactoryHelper.getDriver().get(), elementLocator);
+            if (!Boolean.TRUE.equals(ElementActionsHelper.waitForElementTextToBeNot(DriverFactoryHelper.getDriver().get(), elementLocator, initialValue))) {
+                failAction(DriverFactoryHelper.getDriver().get(), initialValue, elementLocator);
+            }
+            try {
+                passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "from: \"" + initialValue + "\", to: \"" + getText(elementLocator) + "\"", null, elementName);
+            } catch (Exception e) {
+                passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "from: \"" + initialValue + "\", to a new value.", null, elementName);
+            }
+        } catch (Exception throwable) {
+            failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+        }
         return this;
     }
 
@@ -597,7 +1111,20 @@ public class FluentElementActions {
      * element is not displayed
      */
     public boolean isElementDisplayed(By elementLocator) {
-        return ElementActions.isElementDisplayed(DriverFactoryHelper.getDriver().get(), elementLocator);
+        try {
+            var elementName = getElementName(DriverFactoryHelper.getDriver().get(), elementLocator);
+            boolean isDisplayed = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)).isDisplayed();
+            passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, elementName);
+            return isDisplayed;
+        } catch (Throwable throwable) {
+            // has to be throwable to catch assertion errors in case element was not found
+            if (Throwables.getRootCause(throwable).getClass().getName().equals(org.openqa.selenium.NoSuchElementException.class.getName())) {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), null, throwable);
+            } else {
+                ElementActionsHelper.failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+            }
+        }
+        return false;
     }
 
     /**
@@ -609,11 +1136,26 @@ public class FluentElementActions {
      * element is not clickable
      */
     public boolean isElementClickable(By elementLocator) {
-        return ElementActions.isElementClickable(DriverFactoryHelper.getDriver().get(), elementLocator);
+        try {
+            var elementName = getElementName(DriverFactoryHelper.getDriver().get(), elementLocator);
+            if (ElementActionsHelper.waitForElementToBeClickable(DriverFactoryHelper.getDriver().get(), elementLocator, "")) {
+                //element is clickable
+                passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "element is clickable", null, elementName);
+                return true;
+            } else {
+                //element is not clickable
+                passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "element is not clickable", null, elementName);
+                return false;
+            }
+        } catch (Exception throwable) {
+            failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+            //unreachable code
+            return false;
+        }
     }
 
     public FluentElementActions captureScreenshot(By elementLocator) {
-        ReportManagerHelper.log("Capture element screenshot", Collections.singletonList(ScreenshotManager.prepareImageforReport(ScreenshotManager.takeElementScreenshot(DriverFactoryHelper.getDriver().get(), elementLocator), "captureScreenshot")));
+        ReportManagerHelper.log("Capture element screenshot", Collections.singletonList(ScreenshotManager.prepareImageForReport(ScreenshotManager.takeElementScreenshot(DriverFactoryHelper.getDriver().get(), elementLocator), "captureScreenshot")));
         return this;
     }
 }

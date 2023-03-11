@@ -3,6 +3,7 @@ package com.shaft.dsl.gui;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 
+@SuppressWarnings("unused")
 public class TextBox extends Element {
 
     public TextBox(By locator) {

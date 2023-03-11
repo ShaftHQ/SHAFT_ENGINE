@@ -2,6 +2,7 @@ package io.github.shafthq.shaft.validations;
 
 import com.shaft.validation.ValidationEnums;
 
+@SuppressWarnings("unused")
 public class JSONValidationsBuilder extends NativeValidationsBuilder {
     //TODO: implement all the methods
     public JSONValidationsBuilder(RestValidationsBuilder restValidationsBuilder) {

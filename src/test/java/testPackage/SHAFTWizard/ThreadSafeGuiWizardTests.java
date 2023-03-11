@@ -11,7 +11,7 @@ import org.testng.annotations.Test;
 import org.testng.asserts.SoftAssert;
 import poms.GoogleSearch;
 
-public class Test_Wizard_GUI_ThreadSafe {
+public class ThreadSafeGuiWizardTests {
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
     private static final ThreadLocal<SHAFT.TestData.JSON> testData = new ThreadLocal<>();
 
@@ -36,6 +36,7 @@ public class Test_Wizard_GUI_ThreadSafe {
         Assert.assertNotEquals(nativeWebDriver.findElement(resultStats).getText(), "");
     }
 
+    @SuppressWarnings("CommentedOutCode")
     @BeforeClass
     public void beforeClass() {
         //BrowserStack Web

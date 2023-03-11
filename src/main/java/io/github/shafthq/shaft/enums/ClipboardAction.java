@@ -1,10 +1,10 @@
 package io.github.shafthq.shaft.enums;
 
-public enum Screenshots {
-    ELEMENT("element"), VIEWPORT("regular"), FULL("fullpage");
+public enum ClipboardAction {
+    COPY("copy"), PASTE("paste"), CUT("cut"), SELECT_ALL("select all"), UNSELECT_ALL("unselect");
     final String value;
 
-    Screenshots(String value) {
+    ClipboardAction(String value) {
         this.value = value;
     }
 

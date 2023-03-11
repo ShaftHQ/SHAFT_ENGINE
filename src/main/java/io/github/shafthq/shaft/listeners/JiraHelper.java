@@ -7,6 +7,7 @@ import org.testng.IInvokedMethod;
 import org.testng.ITestNGMethod;
 import org.testng.ITestResult;
 
+import java.lang.annotation.Annotation;
 import java.util.List;
 
 import static io.github.shafthq.shaft.tools.tms.XrayIntegrationHelper.createIssue;
@@ -53,8 +54,8 @@ public class JiraHelper {
     }
 
     @SuppressWarnings("unchecked")
-    private static boolean annotationPresent(IInvokedMethod method, Class clazz) {
-        return method.getTestMethod().getConstructorOrMethod().getMethod().isAnnotationPresent(clazz);
+    private static boolean annotationPresent(IInvokedMethod method, Class<?> clazz) {
+        return method.getTestMethod().getConstructorOrMethod().getMethod().isAnnotationPresent((Class<? extends Annotation>) clazz);
     }
 
     /**

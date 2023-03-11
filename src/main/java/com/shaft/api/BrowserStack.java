@@ -10,6 +10,7 @@ import org.testng.Assert;
 import java.io.File;
 import java.util.*;
 
+@SuppressWarnings("SpellCheckingInspection")
 public class BrowserStack {
     private static final String hubUrl = "hub-cloud.browserstack.com";
     private static final String serviceUri = "https://api-cloud.browserstack.com/";

@@ -35,8 +35,8 @@ public class JavaScriptWaitManager {
     /**
      * Waits for jQuery, Angular, and/or Javascript if present on the current page.
      */
-    public static void waitForLazyLoading(WebDriver driver) {
-        setDriver(driver);
+    public static void waitForLazyLoading() {
+        setDriver(DriverFactoryHelper.getDriver().get());
         if (Boolean.TRUE.equals(WAIT_FOR_LAZY_LOADING)
                 && !DriverFactoryHelper.isMobileNativeExecution()) {
             try {

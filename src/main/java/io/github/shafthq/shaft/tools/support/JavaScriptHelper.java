@@ -1,5 +1,6 @@
 package io.github.shafthq.shaft.tools.support;
 
+@SuppressWarnings({"SpellCheckingInspection"})
 public enum JavaScriptHelper {
     LOAD_JQUERY("""
             /** dynamically load jQuery */
@@ -285,7 +286,7 @@ public enum JavaScriptHelper {
     ELEMENT_SCROLL_TO_VIEWPORT(
             "(function(){'use strict';var api;api=function(x,y){var elm,scrollX,scrollY,newX,newY;scrollX=window.pageXOffset;scrollY=window.pageYOffset;window.scrollTo(x,y);newX=x-window.pageXOffset;newY=y-window.pageYOffset;elm=this.elementFromPoint(newX,newY);window.scrollTo(scrollX,scrollY);return elm;};this.document.elementFromAbsolutePoint=api;}).call(this);return document.elementFromAbsolutePoint(arguments[0], arguments[1]);"),
     WINDOW_FOCUS("window.focus();"), WINDOW_RESET_LOCATION("window.moveTo(0,0);"),
-    WINDOW_RESIZE("window.resizeTo($WIDTH,$HEIGHT);"), NAVIGATION_STOP("return window.stop;"),
+    WINDOW_RESIZE("window.resizeTo($WIDTH,$HEIGHT);"),
     DOCUMENT_READYSTATE("return document.readyState");
 
     private final String value;

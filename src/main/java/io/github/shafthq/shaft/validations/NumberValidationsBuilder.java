@@ -54,6 +54,7 @@ public class NumberValidationsBuilder {
      * @param expectedValue the test data / expected value for the number under test
      * @return boolean value true if passed and throws AssertionError if failed (return value can be safely ignored)
      */
+    @SuppressWarnings("EqualsWhichDoesntCheckParameterClass")
     @Override
     public boolean equals(Object expectedValue) {
         isEqualTo((Number) expectedValue).perform();

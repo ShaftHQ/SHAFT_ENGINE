@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Executors;
 
+@SuppressWarnings("unused")
 public class DatabaseActions {
     private DatabaseType dbType;
     private String dbServerIP;
@@ -24,7 +25,7 @@ public class DatabaseActions {
      * needed to create new connections and perform queries
      *
      * @param databaseType database type that you want to connect with:
-     *                     DatabaseType.MY_SQL ,SQL_SERVER,POSTGRE_SQL.
+     *                     DatabaseType.MY_SQL ,SQL_SERVER,POSTGRES_SQL.
      * @param ip           IP address that has database installation that we need to
      *                     connect to (e.g. 72.55.136.25)
      * @param port         port of database installation on the server (e.g. 3306)
@@ -401,8 +402,9 @@ public class DatabaseActions {
         } else {
             switch (dbType) {
                 case MY_SQL -> connectionString = "jdbc:mysql://" + dbServerIP + ":" + dbPort + "/" + dbName;
-                case SQL_SERVER -> connectionString = "jdbc:sqlserver://" + dbServerIP + ":" + dbPort + ";databaseName=" + dbName;
-                case POSTGRE_SQL -> connectionString = "jdbc:postgresql://" + dbServerIP + ":" + dbPort + "/" + dbName;
+                case SQL_SERVER ->
+                        connectionString = "jdbc:sqlserver://" + dbServerIP + ":" + dbPort + ";databaseName=" + dbName;
+                case POSTGRES_SQL -> connectionString = "jdbc:postgresql://" + dbServerIP + ":" + dbPort + "/" + dbName;
                 case ORACLE -> connectionString = "jdbc:oracle:thin:@" + dbServerIP + ":" + dbPort + ":" + dbName;
                 case ORACLE_SERVICE_NAME -> connectionString = "jdbc:oracle:thin:@" + dbServerIP + ":" + dbPort + "/" + dbName;
                 case IBM_DB2 -> connectionString = "jdbc:db2://" + dbServerIP + ":" + dbPort + "/" + dbName;
@@ -415,7 +417,7 @@ public class DatabaseActions {
         try {
             DriverManager.setLoginTimeout(Integer.parseInt(System.getProperty("databaseLoginTimeout")));
             connection = DriverManager.getConnection(connectionString, username, password);
-            if (!dbType.toString().equals("MY_SQL") && !dbType.toString().equals("POSTGRE_SQL")) {
+            if (!dbType.toString().equals("MY_SQL") && !dbType.toString().equals("POSTGRES_SQL")) {
                 // com.mysql.jdbc.JDBC4Connection.setNetworkTimeout
                 // org.postgresql.jdbc4.Jdbc4Connection.setNetworkTimeout
                 connection.setNetworkTimeout(Executors.newFixedThreadPool(1),
@@ -442,7 +444,7 @@ public class DatabaseActions {
             statement.setQueryTimeout(Integer.parseInt(System.getProperty("databaseQueryTimeout")));
         } catch (SQLFeatureNotSupportedException rootCauseException) {
             if (!rootCauseException.getMessage().contains("org.postgresql.jdbc4.Jdbc4Statement.setQueryTimeout")) {
-                    failAction(connection.toString(), rootCauseException);
+                failAction(connection.toString(), rootCauseException);
             }
         } catch (SQLException rootCauseException) {
             failAction(connection.toString(), rootCauseException);
@@ -459,6 +461,7 @@ public class DatabaseActions {
     }
 
     private String getReportMessage(String queryType, String query) {
+        //noinspection SuspiciousRegexArgument
         return "Database Type: \"" + dbType + "\"" +
                 "| Server: \"" + dbServerIP + ":" + dbPort + "\"" +
                 "| Name: \"" + dbName + "\"" +
@@ -469,7 +472,7 @@ public class DatabaseActions {
     }
 
     public enum DatabaseType {
-        MY_SQL, SQL_SERVER, POSTGRE_SQL, ORACLE, ORACLE_SERVICE_NAME, IBM_DB2
+        MY_SQL, SQL_SERVER, POSTGRES_SQL, ORACLE, ORACLE_SERVICE_NAME, IBM_DB2
     }
 
 }

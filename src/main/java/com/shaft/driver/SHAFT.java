@@ -53,7 +53,7 @@ public class SHAFT {
             }
 
             public FluentElementActions element() {
-                return new FluentElementActions();
+                return FluentElementActions.getInstance();
             }
 
             public TouchActions touch() {
@@ -61,7 +61,7 @@ public class SHAFT {
             }
 
             public FluentBrowserActions browser() {
-                return new FluentBrowserActions();
+                return FluentBrowserActions.getInstance();
             }
 
             public AlertActions alert() {
@@ -81,6 +81,7 @@ public class SHAFT {
              *
              * @return the current Selenium WebDriver instance for custom manipulation
              */
+            @SuppressWarnings("CommentedOutCode")
             public org.openqa.selenium.WebDriver getDriver() {
                 /*
                  * Decorator is not working for appium drivers as per the following issues/articles

@@ -9,7 +9,7 @@ import java.util.Arrays;
 import java.util.List;
 
 public class FailureReporter {
-    public static void fail(Class failedFileManager, String message, Throwable throwable) {
+    public static void fail(Class<?> failedFileManager, String message, Throwable throwable) {
         String actionName = "fail";
 
         for (StackTraceElement stackTraceElement : Arrays.stream(Thread.currentThread().getStackTrace()).toList()) {

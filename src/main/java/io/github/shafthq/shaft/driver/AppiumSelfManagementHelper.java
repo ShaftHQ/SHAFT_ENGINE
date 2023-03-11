@@ -19,14 +19,17 @@ import java.util.LinkedList;
 public class AppiumSelfManagementHelper {
     // TODO: implement new environment variables for dockerized instance (or remove the code)
     private static AppiumSelfManagementHelper singleInstance = null;
+    @SuppressWarnings("FieldCanBeLocal")
     private final String cliToolsVersion = "9477386_latest";
+    @SuppressWarnings("FieldCanBeLocal")
     private final String nodeJsVersion = "v18.14.0";
     @Getter
     private static final boolean terminateAppiumContainersAfterExecution = false;
 
     private final String androidSelfManagedEnvironmentLocation = System.getProperty("user.home") + File.separator + ".shaft" + File.separator + "android" + File.separator;
-    private final String subpathToBin = "cmdline-tools" + File.separator + "latest" + File.separator + "bin";
-    private final String subpathToPlatform = "platform-tools";
+    private final String subPathToBin = "cmdline-tools" + File.separator + "latest" + File.separator + "bin";
+    @SuppressWarnings("FieldCanBeLocal")
+    private final String subPathToPlatform = "platform-tools";
 
     private AppiumSelfManagementHelper() {
         System.setProperty("videoParams_recordVideo", "true");
@@ -58,18 +61,13 @@ public class AppiumSelfManagementHelper {
 //            prepareAppiumSelfManagedEnvironment.shutdown();
 //        });
 
-//        if (!prepareAppiumSelfManagedEnvironment.awaitTermination(longDownloadTimeout, TimeUnit.SECONDS)) {
-//            prepareAppiumSelfManagedEnvironment.shutdownNow();
-//            Assert.fail("Appium self-managed execution environment was still not ready after " + TimeUnit.SECONDS.toMinutes(longDownloadTimeout) + " minutes.");
-//        }
     }
 
     @Step("Setting up Appium self-managed execution environment")
-    public static AppiumSelfManagementHelper setupAppiumSelfManagedExecutionPrerequisites() {
+    public static void setupAppiumSelfManagedExecutionPrerequisites() {
         if (singleInstance == null) {
             singleInstance = new AppiumSelfManagementHelper();
         }
-        return singleInstance;
     }
 
     @Step("Setting up Android SDK CLI tools")
@@ -82,7 +80,7 @@ public class AppiumSelfManagementHelper {
         // setting a static and self-managed android home directory is the better approach to fully control all downloaded binaries
         System.setProperty("ANDROID_HOME", androidSelfManagedEnvironmentLocation);
 
-        if (!FileActions.getInstance().doesFileExist(System.getProperty("ANDROID_HOME") + subpathToBin)) {
+        if (!FileActions.getInstance().doesFileExist(System.getProperty("ANDROID_HOME") + subPathToBin)) {
             String url = "https://dl.google.com/android/repository/commandlinetools-${OS}-" + cliToolsVersion + ".zip";
             if (SystemUtils.IS_OS_MAC) {
                 url = url.replace("${OS}", "mac");
@@ -96,17 +94,15 @@ public class AppiumSelfManagementHelper {
             ReportHelper.disableLogging();
             try {
                 FileActions.getInstance().unpackArchive(new URL(url), androidSelfManagedEnvironmentLocation);
-                FileActions.getInstance().copyFolder(androidSelfManagedEnvironmentLocation + "cmdline-tools" + File.separator + "bin", androidSelfManagedEnvironmentLocation + subpathToBin);
+                FileActions.getInstance().copyFolder(androidSelfManagedEnvironmentLocation + "cmdline-tools" + File.separator + "bin", androidSelfManagedEnvironmentLocation + subPathToBin);
                 ReportManager.logDiscrete("Successfully prepared Android SDK CLI tools.");
             } catch (Throwable throwable) {
                 ReportHelper.enableLogging();
                 Assert.fail("Failed to prepare Android SDK CLI tools.", throwable);
             }
-//            // this only runs if the thread succeeds
-//            System.setProperty("ANDROID_HOME", androidSelfManagedEnvironmentLocation);
         }
 
-        ReportManager.logDiscrete("Found Android SDK CLI Tools at " + System.getProperty("ANDROID_HOME") + subpathToBin);
+        ReportManager.logDiscrete("Found Android SDK CLI Tools at " + System.getProperty("ANDROID_HOME") + subPathToBin);
     }
 
     @Step("Setting up Android packages")
@@ -121,9 +117,9 @@ public class AppiumSelfManagementHelper {
         // add only the missing properties as user environment variables
         if (!path.contains(ANDROID_HOME + "cmdline-tools" + File.separator + "latest;"))
             path = ANDROID_HOME + "cmdline-tools" + File.separator + "latest;" + path;
-        if (!path.contains(ANDROID_HOME + subpathToBin + ";")) path = ANDROID_HOME + subpathToBin + ";" + path;
-        if (!path.contains(ANDROID_HOME + subpathToPlatform + ";"))
-            path = ANDROID_HOME + subpathToPlatform + ";" + path;
+        if (!path.contains(ANDROID_HOME + subPathToBin + ";")) path = ANDROID_HOME + subPathToBin + ";" + path;
+        if (!path.contains(ANDROID_HOME + subPathToPlatform + ";"))
+            path = ANDROID_HOME + subPathToPlatform + ";" + path;
         if (!path.contains(ANDROID_HOME + "bin;")) path = ANDROID_HOME + "bin;" + path;
         if (!path.contains(ANDROID_HOME + "bin;")) path = ANDROID_HOME + "lib;" + path;
 

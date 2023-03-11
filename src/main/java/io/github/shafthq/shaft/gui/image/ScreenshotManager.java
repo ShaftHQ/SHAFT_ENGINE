@@ -35,14 +35,15 @@ import java.util.Date;
 import java.util.List;
 
 public class ScreenshotManager {
-    private static final String SCREENSHOT_FOLDERPATH = System.getProperty("allureResultsFolderPath").trim()
+    private static final String SCREENSHOT_FOLDER_PATH = System.getProperty("allureResultsFolderPath").trim()
             + "/screenshots/";
-    private static final String SCREENSHOT_FOLDERNAME = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
-    private static final String SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT = System
+    private static final String SCREENSHOT_FOLDER_NAME = new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date());
+    private static final String SCREENSHOT_PARAMS_WHEN_TO_TAKE_A_SCREENSHOT = System
             .getProperty("screenshotParams_whenToTakeAScreenshot");
-    private static final Boolean SCREENSHOT_PARAMS_HIGHLIGHTELEMENTS = Boolean
+    private static final Boolean SCREENSHOT_PARAMS_HIGHLIGHT_ELEMENTS = Boolean
             .valueOf(System.getProperty("screenshotParams_highlightElements"));
-    private static Screenshots SCREENSHOT_PARAMS_SCREENSHOTTYPE = setScreenshotType();
+    private static final String SCREENSHOT_PARAMS_SKIPPED_ELEMENTS_FROM_SCREENSHOT = System
+            .getProperty("screenshotParams_skippedElementsFromScreenshot");
 
     private static Screenshots setScreenshotType() {
         switch (System.getProperty("screenshotParams_screenshotType").toLowerCase().trim()) {
@@ -61,22 +62,21 @@ public class ScreenshotManager {
         }
     }
 
-    private static String SCREENSHOT_PARAMS_HIGHLIGHTMETHOD = System
-            .getProperty("screenshotParams_highlightMethod");
-    private static final String SCREENSHOT_PARAMS_SKIPPEDELEMENTSFROMSCREENSHOT = System
-            .getProperty("screenshotParams_skippedElementsFromScreenshot");
+    private static final Float SCREENSHOT_PARAMS_WATERMARK_OPACITY = Float
+            .valueOf(System.getProperty("screenshotParams_watermarkOpacity").trim());
+    private static final int RETRIES_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION = 1;
     private static final Boolean SCREENSHOT_PARAMS_WATERMARK = Boolean
             .valueOf(System.getProperty("screenshotParams_watermark").trim());
-    private static final Float SCREENSHOT_PARAMS_WATERMARKOPACITY = Float
-            .valueOf(System.getProperty("screenshotParams_watermarkOpacity").trim());
-    private static final int RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION = 1;
+    private static Screenshots SCREENSHOT_PARAMS_SCREENSHOT_TYPE = setScreenshotType();
+    private static String SCREENSHOT_PARAMS_HIGHLIGHT_METHOD = System
+            .getProperty("screenshotParams_highlightMethod");
     private static final Boolean CREATE_GIF = Boolean.valueOf(System.getProperty("createAnimatedGif").trim());
     private static final int GIF_FRAME_DELAY = Integer.parseInt(System.getProperty("animatedGif_frameDelay").trim());
     private static final int GIF_SIZE = 1280;
     // TODO: parameterize the detailed gif value
     private static final Boolean DETAILED_GIF = true;
     private static final String DETAILED_GIF_REGEX = "(verify.*)|(assert.*)|(click.*)|(tap.*)|(key.*)|(navigate.*)";
-    private static String AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH = "";
+    private static String AI_AIDED_ELEMENT_IDENTIFICATION_FOLDER_PATH = "";
     private static String screenshotFileName = "Screenshot";
     private static By targetElementLocator;
     private static boolean globalPassFailStatus = false;
@@ -90,22 +90,22 @@ public class ScreenshotManager {
         throw new IllegalStateException("Utility class");
     }
 
-    public static String getAiAidedElementIdentificationFolderpath() {
-        if (AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH.isEmpty()) {
+    public static String getAiAidedElementIdentificationFolderPath() {
+        if (AI_AIDED_ELEMENT_IDENTIFICATION_FOLDER_PATH.isEmpty()) {
             // fixes https://github.com/ShaftHQ/SHAFT_ENGINE/issues/808 by respecting OS/Platform information for mobile native
-            AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH = Properties.paths.dynamicObjectRepository()
+            AI_AIDED_ELEMENT_IDENTIFICATION_FOLDER_PATH = Properties.paths.dynamicObjectRepository()
                     + Properties.platform.targetPlatform() + "/";
             if (DriverFactoryHelper.isMobileNativeExecution()) {
                 if (!Properties.mobile.platformVersion().isEmpty()) {
-                    AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH += Properties.mobile.platformVersion() + "/";
+                    AI_AIDED_ELEMENT_IDENTIFICATION_FOLDER_PATH += Properties.mobile.platformVersion() + "/";
                 }
             } else {
                 //mobile web, or desktop web
-                AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH += Properties.web.targetBrowserName() + "/";
+                AI_AIDED_ELEMENT_IDENTIFICATION_FOLDER_PATH += Properties.web.targetBrowserName() + "/";
             }
-            return AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH.replace(".", "_").replace(" ", "_");
+            return AI_AIDED_ELEMENT_IDENTIFICATION_FOLDER_PATH.replace(".", "_").replace(" ", "_");
         } else {
-            return AI_AIDED_ELEMENT_IDENTIFICATION_FOLDERPATH;
+            return AI_AIDED_ELEMENT_IDENTIFICATION_FOLDER_PATH;
         }
     }
 
@@ -113,7 +113,7 @@ public class ScreenshotManager {
      * Used if there is no element locator. passFailStatus; true means pass and
      * false means fail.
      *
-     * @param driver         the current instance of Selenium webdriver
+     * @param driver         the current instance of Selenium WebDriver
      * @param actionName     the name of the triggering action
      * @param passFailStatus A flag to determine whether the action has passed or
      *                       failed
@@ -135,7 +135,7 @@ public class ScreenshotManager {
      * Used if there is an element locator. passFailStatus; true means pass and
      * false means fail.
      *
-     * @param driver         the current instance of Selenium webdriver
+     * @param driver         the current instance of Selenium WebDriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      * @param actionName     the name of the triggering action
@@ -159,12 +159,12 @@ public class ScreenshotManager {
     }
 
     private static boolean takeScreenshot(String actionName, boolean passFailStatus) {
-        return (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("Always"))
-                || (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("ValidationPointsOnly")
+        return (SCREENSHOT_PARAMS_WHEN_TO_TAKE_A_SCREENSHOT.equals("Always"))
+                || (SCREENSHOT_PARAMS_WHEN_TO_TAKE_A_SCREENSHOT.equals("ValidationPointsOnly")
                 && (actionName.toLowerCase().contains("assert")
                 || actionName.toLowerCase().contains("verify")
                 || actionName.toLowerCase().contains("validate")))
-                || (SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT.equals("FailuresOnly") && (!passFailStatus))
+                || (SCREENSHOT_PARAMS_WHEN_TO_TAKE_A_SCREENSHOT.equals("FailuresOnly") && (!passFailStatus))
                 || (!passFailStatus);
         // take screenshot if set to always,
         //OR if set to validation points only and actionName contains verify or assert
@@ -181,11 +181,10 @@ public class ScreenshotManager {
             globalPassFailAppendedText = "failed";
         }
 
-        boolean takeScreenshot = "Always".equals(SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT)
-                || ("ValidationPointsOnly".equals(SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT)
+        boolean takeScreenshot = "Always".equals(SCREENSHOT_PARAMS_WHEN_TO_TAKE_A_SCREENSHOT)
+                || ("ValidationPointsOnly".equals(SCREENSHOT_PARAMS_WHEN_TO_TAKE_A_SCREENSHOT)
                 && (actionName.toLowerCase().contains("assert")
                 || actionName.toLowerCase().contains("verify")))
-//                || ("FailuresOnly".equals(SCREENSHOT_PARAMS_WHENTOTAKEASCREENSHOT) && (!passFailStatus))
                 || !passFailStatus;
 
         if (takeScreenshot || (CREATE_GIF && (DETAILED_GIF || actionName.matches(DETAILED_GIF_REGEX)))) {
@@ -199,13 +198,13 @@ public class ScreenshotManager {
              */
             byte[] src = null;
             try {
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                switch (SCREENSHOT_PARAMS_SCREENSHOTTYPE) {
+                ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                switch (SCREENSHOT_PARAMS_SCREENSHOT_TYPE) {
                     case ELEMENT:
                         if (element != null) {
                             try {
-                                ImageIO.write(screen.capture(screen.wait(element).getRect()).getImage(), "png", baos);
-                                src = baos.toByteArray();
+                                ImageIO.write(screen.capture(screen.wait(element).getRect()).getImage(), "png", byteArrayOutputStream);
+                                src = byteArrayOutputStream.toByteArray();
                                 break;
                             } catch (org.sikuli.script.FindFailed e) {
                                 //do nothing and fall into the next type of screenshot
@@ -213,13 +212,13 @@ public class ScreenshotManager {
                         }
                     case VIEWPORT:
                         if (applicationWindow != null) {
-                            ImageIO.write(screen.capture(applicationWindow.waitForWindow()).getImage(), "png", baos);
-                            src = baos.toByteArray();
+                            ImageIO.write(screen.capture(applicationWindow.waitForWindow()).getImage(), "png", byteArrayOutputStream);
+                            src = byteArrayOutputStream.toByteArray();
                             break;
                         }
                     case FULL:
-                        ImageIO.write(screen.capture().getImage(), "png", baos);
-                        src = baos.toByteArray();
+                        ImageIO.write(screen.capture().getImage(), "png", byteArrayOutputStream);
+                        src = byteArrayOutputStream.toByteArray();
                         break;
                     default:
                         break;
@@ -231,7 +230,7 @@ public class ScreenshotManager {
 
             startOrAppendToAnimatedGif(src);
             if (takeScreenshot) {
-                return prepareImageforReport(src, actionName);
+                return prepareImageForReport(src, actionName);
             } else {
                 return null;
             }
@@ -248,12 +247,12 @@ public class ScreenshotManager {
             if (!System.getProperty("setParallel").equals("NONE")) {
                 //in case of parallel execution, force regular screenshots
                 return takeViewportScreenshot(driver);
-            } else if (SCREENSHOT_PARAMS_SKIPPEDELEMENTSFROMSCREENSHOT.length() > 0) {
+            } else if (SCREENSHOT_PARAMS_SKIPPED_ELEMENTS_FROM_SCREENSHOT.length() > 0) {
                 List<WebElement> skippedElementsList = new ArrayList<>();
-                String[] skippedElementLocators = SCREENSHOT_PARAMS_SKIPPEDELEMENTSFROMSCREENSHOT.split(";");
+                String[] skippedElementLocators = SCREENSHOT_PARAMS_SKIPPED_ELEMENTS_FROM_SCREENSHOT.split(";");
                 for (String locator : skippedElementLocators) {
                     if (ElementActionsHelper.getElementsCount(driver, By.xpath(locator),
-                            RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1) {
+                            RETRIES_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION) == 1) {
                         skippedElementsList.add(((WebElement) ElementActionsHelper.identifyUniqueElement(driver, By.xpath(locator)).get(1)));
                     }
                 }
@@ -306,7 +305,7 @@ public class ScreenshotManager {
      * Internal use only. Considers the screenshotParams_whenToTakeAScreenshot
      * parameter.
      *
-     * @param driver         the current instance of Selenium webdriver
+     * @param driver         the current instance of Selenium WebDriver
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      * @param appendedText   the text that needs to be appended to the name of the
@@ -327,7 +326,7 @@ public class ScreenshotManager {
                 System.setProperty("org.uncommons.reportng.escape-output", "false");
 
                 /*
-                 * Declare regularElementStyle, the WebElemnt, and Javascript Executor to
+                 * Declare regularElementStyle, the WebElement, and Javascript Executor to
                  * highlight and unhighlight the WebElement
                  */
                 String regularElementStyle = "";
@@ -340,23 +339,23 @@ public class ScreenshotManager {
                      * If an elementLocator was passed, store regularElementStyle and highlight that
                      * element before taking the screenshot
                      */
-                    if (takeScreenshot && Boolean.TRUE.equals(SCREENSHOT_PARAMS_HIGHLIGHTELEMENTS) && elementLocator != null){
+                    if (takeScreenshot && Boolean.TRUE.equals(SCREENSHOT_PARAMS_HIGHLIGHT_ELEMENTS) && elementLocator != null) {
                         try {
                             // catching https://github.com/ShaftHQ/SHAFT_ENGINE/issues/640
-                            Mat img = Imgcodecs.imdecode(new MatOfByte(), Imgcodecs.IMREAD_COLOR);
+                            @SuppressWarnings("unused") Mat img = Imgcodecs.imdecode(new MatOfByte(), Imgcodecs.IMREAD_COLOR);
                         } catch (java.lang.UnsatisfiedLinkError unsatisfiedLinkError) {
                             ReportManagerHelper.logDiscrete(unsatisfiedLinkError);
                             ReportManager.logDiscrete("Caught an UnsatisfiedLinkError, switching element highlighting method to JavaScript instead of AI.");
-                            SCREENSHOT_PARAMS_HIGHLIGHTMETHOD = "JavaScript";
+                            SCREENSHOT_PARAMS_HIGHLIGHT_METHOD = "JavaScript";
                         } catch (Exception exception) {
                             //do nothing in case of any other exception
                             //expected to throw org.opencv.core.CvException if removed
                         }
 
-                        int elementCount = ElementActionsHelper.getElementsCount(driver, elementLocator, RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION);
+                        int elementCount = ElementActionsHelper.getElementsCount(driver, elementLocator, RETRIES_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION);
                         boolean isRelativeLocator = elementLocator instanceof RelativeLocator.RelativeBy;
                         if ((!isRelativeLocator && elementCount == 1) || (isRelativeLocator && elementCount >= 1)) {
-                            if ("JavaScript".equals(SCREENSHOT_PARAMS_HIGHLIGHTMETHOD)) {
+                            if ("JavaScript".equals(SCREENSHOT_PARAMS_HIGHLIGHT_METHOD)) {
                                 element = ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1));
                                 js = (JavascriptExecutor) driver;
                                 regularElementStyle = highlightElementAndReturnDefaultStyle(element, js,
@@ -399,11 +398,11 @@ public class ScreenshotManager {
                      * screenshot
                      *
                      */
-                    if (takeScreenshot && SCREENSHOT_PARAMS_HIGHLIGHTMETHOD.equals("JavaScript") && js != null) {
+                    if (takeScreenshot && SCREENSHOT_PARAMS_HIGHLIGHT_METHOD.equals("JavaScript") && js != null) {
                         js.executeScript("arguments[0].setAttribute('style', arguments[1]);", element, regularElementStyle);
                     }
 
-                    if (takeScreenshot && !SCREENSHOT_PARAMS_HIGHLIGHTMETHOD.equals("JavaScript") && elementLocation != null) {
+                    if (takeScreenshot && !SCREENSHOT_PARAMS_HIGHLIGHT_METHOD.equals("JavaScript") && elementLocation != null) {
                         Color color;
                         if (globalPassFailStatus) {
                             color = new Color(67, 176, 42); // selenium-green
@@ -414,7 +413,7 @@ public class ScreenshotManager {
                     }
                     startOrAppendToAnimatedGif(src);
                     if (takeScreenshot) {
-                        return prepareImageforReport(src, actionName);
+                        return prepareImageForReport(src, actionName);
                     } else {
                         return new ArrayList<>();
                     }
@@ -434,13 +433,13 @@ public class ScreenshotManager {
         }
 
         if (DriverFactoryHelper.isWebExecution()) {
-            return switch (SCREENSHOT_PARAMS_SCREENSHOTTYPE) {
+            return switch (SCREENSHOT_PARAMS_SCREENSHOT_TYPE) {
                 case FULL -> {
                     try {
                         yield takeFullPageScreenshot(driver);
                     } catch (Exception throwable) {
                         ReportManagerHelper.logDiscrete(throwable);
-                        SCREENSHOT_PARAMS_SCREENSHOTTYPE = Screenshots.VIEWPORT;
+                        SCREENSHOT_PARAMS_SCREENSHOT_TYPE = Screenshots.VIEWPORT;
                         yield takeScreenshot(driver);
                     }
                 }
@@ -448,7 +447,7 @@ public class ScreenshotManager {
                 default -> ScreenshotManager.takeViewportScreenshot(driver);
             };
         }else {
-            if (SCREENSHOT_PARAMS_SCREENSHOTTYPE.equals(Screenshots.ELEMENT)) {
+            if (SCREENSHOT_PARAMS_SCREENSHOT_TYPE.equals(Screenshots.ELEMENT)) {
                 return takeElementScreenshot(driver, targetElementLocator, true);
             } else {
                 return ScreenshotManager.takeViewportScreenshot(driver);
@@ -460,7 +459,7 @@ public class ScreenshotManager {
             returnRegularScreenshotInCaseOfFailure) {
         try {
             if (targetElementLocator != null && ElementActionsHelper.getElementsCount(driver, targetElementLocator,
-                    RETRIESBEFORETHROWINGELEMENTNOTFOUNDEXCEPTION) == 1) {
+                    RETRIES_BEFORE_THROWING_ELEMENT_NOT_FOUND_EXCEPTION) == 1) {
                 return ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, targetElementLocator).get(1)).getScreenshotAs(OutputType.BYTES);
             } else {
                 if (returnRegularScreenshotInCaseOfFailure) {
@@ -488,7 +487,7 @@ public class ScreenshotManager {
         return fileName;
     }
 
-    public static List<Object> prepareImageforReport(byte[] image, String actionName) {
+    public static List<Object> prepareImageForReport(byte[] image, String actionName) {
         if (image != null && image.length > 0) {
             /*
              * Declare screenshot file name
@@ -530,7 +529,7 @@ public class ScreenshotManager {
         }
 
         try {
-            JavaScriptWaitManager.waitForLazyLoading(DriverFactoryHelper.getDriver().get());
+            JavaScriptWaitManager.waitForLazyLoading();
         } catch (Exception e) {
             ReportManagerHelper.logDiscrete(e);
         }
@@ -538,17 +537,17 @@ public class ScreenshotManager {
     }
 
     private static String setHighlightedElementStyle() {
-        String backgroud;
+        String background;
         String backgroundColor;
 
         if (globalPassFailStatus) {
-            backgroud = "#46aad2";
+            background = "#46aad2";
             backgroundColor = "#A5D2A5";
         } else {
-            backgroud = "#FFFF99";
+            background = "#FFFF99";
             backgroundColor = "#FFFF99";
         }
-        return "outline-offset:-3px !important; outline:3px solid #808080 !important; background:" + backgroud
+        return "outline-offset:-3px !important; outline:3px solid #808080 !important; background:" + background
                 + " !important; background-color:" + backgroundColor
                 + " !important; color:#000000 !important; -webkit-transition: none !important; -moz-transition: none !important; -o-transition: none !important; transition: none !important;";
 
@@ -561,7 +560,7 @@ public class ScreenshotManager {
                 testCaseName = ReportManagerHelper.getTestMethodName();
                 String gifFileName = FileSystems.getDefault().getSeparator() + System.currentTimeMillis() + "_"
                         + testCaseName + ".gif";
-                gifRelativePathWithFileName = SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME + gifFileName;
+                gifRelativePathWithFileName = SCREENSHOT_FOLDER_PATH + SCREENSHOT_FOLDER_NAME + gifFileName;
 
                 // grab the output image type from the first image in the sequence
                 BufferedImage firstImage = ImageIO.read(new ByteArrayInputStream(screenshot));
@@ -570,7 +569,7 @@ public class ScreenshotManager {
                 firstImage = Scalr.resize(firstImage, Scalr.Method.BALANCED, GIF_SIZE);
 
                 // create a new BufferedOutputStream
-                FileActions.getInstance().createFile(SCREENSHOT_FOLDERPATH + SCREENSHOT_FOLDERNAME, gifFileName);
+                FileActions.getInstance().createFile(SCREENSHOT_FOLDER_PATH + SCREENSHOT_FOLDER_NAME, gifFileName);
                 gifOutputStream.set(new FileImageOutputStream(new File(gifRelativePathWithFileName)));
 
                 // create a gif sequence with the type of the first image, 500 milliseconds
@@ -609,7 +608,7 @@ public class ScreenshotManager {
 
                 screenshotGraphics.drawImage(screenshot, 0, 0, null);
                 screenshotGraphics.setComposite(
-                        AlphaComposite.getInstance(AlphaComposite.SRC_OVER, SCREENSHOT_PARAMS_WATERMARKOPACITY));
+                        AlphaComposite.getInstance(AlphaComposite.SRC_OVER, SCREENSHOT_PARAMS_WATERMARK_OPACITY));
 
                 BufferedImage shaftLogo;
                 // read from custom location
@@ -633,15 +632,15 @@ public class ScreenshotManager {
         }
 
         // Create a buffered image with transparency
-        BufferedImage bimage = new BufferedImage(img.getWidth(null), img.getHeight(null), BufferedImage.TYPE_INT_ARGB);
+        BufferedImage bufferedImage = new BufferedImage(img.getWidth(null), img.getHeight(null), BufferedImage.TYPE_INT_ARGB);
 
         // Draw the image on to the buffered image
-        Graphics2D bGr = bimage.createGraphics();
+        Graphics2D bGr = bufferedImage.createGraphics();
         bGr.drawImage(img, 0, 0, null);
         bGr.dispose();
 
         // Return the buffered image
-        return bimage;
+        return bufferedImage;
     }
 
     private static void startOrAppendToAnimatedGif(byte[] screenshot) {

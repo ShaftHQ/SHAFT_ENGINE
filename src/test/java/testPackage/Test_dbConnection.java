@@ -28,7 +28,7 @@ public class Test_dbConnection {
 
     @Test
     public void test_PostgreSQLConnection() {
-        DatabaseActions dbActions = new DatabaseActions(DatabaseType.POSTGRE_SQL, "", "", "", "", "");
+        DatabaseActions dbActions = new DatabaseActions(DatabaseType.POSTGRES_SQL, "", "", "", "", "");
         ResultSet queryResult = dbActions.executeSelectQuery("select * from account");
         Validations.assertThat().object(DatabaseActions.getResult(queryResult))
                 .contains("")

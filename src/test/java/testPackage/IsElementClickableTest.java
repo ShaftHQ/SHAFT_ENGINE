@@ -10,14 +10,14 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-public class Test_IsElementClickable {
+public class IsElementClickableTest {
 
     private WebDriver driver;
 
     @Test
     public void testIsElementClickable() {
-        BrowserActions.navigateToURL(driver, "https://the-internet.herokuapp.com/");
-        Validations.assertThat().object(ElementActions.isElementClickable(driver, By.linkText("File Upload"))).isTrue().perform();
+        BrowserActions.getInstance().navigateToURL("https://the-internet.herokuapp.com/");
+        Validations.assertThat().object(ElementActions.getInstance().isElementClickable(By.linkText("File Upload"))).isTrue().perform();
     }
 
     @BeforeMethod
@@ -27,6 +27,6 @@ public class Test_IsElementClickable {
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        BrowserActions.closeCurrentWindow(driver);
+        BrowserActions.getInstance().closeCurrentWindow();
     }
 }
