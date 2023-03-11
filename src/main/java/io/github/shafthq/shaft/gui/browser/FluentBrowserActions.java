@@ -196,16 +196,30 @@ public class FluentBrowserActions {
      * @return the height of the current window
      */
     public String getWindowHeight() {
-        return BrowserActions.getWindowHeight(DriverFactoryHelper.getDriver().get());
+        var windowHeight = "";
+        try {
+            windowHeight = String.valueOf(DriverFactoryHelper.getDriver().get().manage().window().getSize().getHeight());
+            passAction(DriverFactoryHelper.getDriver().get(), windowHeight);
+        } catch (Exception rootCauseException) {
+            failAction(DriverFactoryHelper.getDriver().get(), windowHeight, rootCauseException);
+        }
+        return windowHeight;
     }
 
     /**
      * Gets the current window size and returns it as a string
      *
-     * @return the height of the current window
+     * @return the width of the current window
      */
     public String getWindowWidth() {
-        return BrowserActions.getWindowWidth(DriverFactoryHelper.getDriver().get());
+        var windowWidth = "";
+        try {
+            windowWidth = String.valueOf(DriverFactoryHelper.getDriver().get().manage().window().getSize().getWidth());
+            passAction(DriverFactoryHelper.getDriver().get(), windowWidth);
+        } catch (Exception rootCauseException) {
+            failAction(DriverFactoryHelper.getDriver().get(), windowWidth, rootCauseException);
+        }
+        return windowWidth;
     }
 
     /**

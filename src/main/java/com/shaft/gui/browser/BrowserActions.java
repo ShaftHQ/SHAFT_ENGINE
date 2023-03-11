@@ -143,14 +143,8 @@ public class BrowserActions extends FluentBrowserActions {
      */
     @Deprecated
     public static String getWindowHeight(WebDriver driver) {
-        var windowSize = "";
-        try {
-            windowSize = String.valueOf(driver.manage().window().getSize().getHeight());
-            passAction(driver, windowSize);
-        } catch (Exception rootCauseException) {
-            failAction(driver, windowSize, rootCauseException);
-        }
-        return windowSize;
+        return FluentBrowserActions.getInstance().getWindowHeight();
+
     }
     /**
      * Gets the current window size and returns it as a string
@@ -160,24 +154,17 @@ public class BrowserActions extends FluentBrowserActions {
      */
     @Deprecated
     public static String getWindowWidth(WebDriver driver) {
-        var windowSize = "";
-        try {
-            windowSize = String.valueOf(driver.manage().window().getSize().getWidth());
-            passAction(driver, windowSize);
-        } catch (Exception rootCauseException) {
-            failAction(driver, windowSize, rootCauseException);
-        }
-        return windowSize;
+        return FluentBrowserActions.getInstance().getWindowWidth();
     }
 
-    /**
-     * Navigates to targetUrl in case the current URL is different, else refreshes
-     * the current page
-     *
-     * @param driver    the current instance of Selenium WebDriver
-     * @param targetUrl a string that represents the URL that you wish to navigate
-     *                  to
-     */
+        /**
+         * Navigates to targetUrl in case the current URL is different, else refreshes
+         * the current page
+         *
+         * @param driver    the current instance of Selenium WebDriver
+         * @param targetUrl a string that represents the URL that you wish to navigate
+         *                  to
+         */
     @Deprecated
     public static void navigateToURL(WebDriver driver, String targetUrl) {
         FluentBrowserActions.getInstance().navigateToURL(targetUrl);

@@ -98,8 +98,6 @@ public class BrowserActionsHelpers {
         message = message + ".";
 
         message = message.replace("Browser Action: ", "");
-        if (Properties.web.targetBrowserName().equals("MozillaFirefox")){
-        }else {
         if (driver != null && !message.equals("Capture page snapshot.")) {
             attachments.add(ScreenshotManager.captureScreenShot(driver, actionName, passFailStatus));
             ReportManagerHelper.log(message, attachments);
@@ -107,7 +105,6 @@ public class BrowserActionsHelpers {
             ReportManagerHelper.log(message, attachments);
         } else {
             ReportManager.log(message);
-        }
         }
         return message;
     }
