@@ -3,8 +3,10 @@ package poms;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.Validations;
+import io.github.shafthq.shaft.enums.ClipboardAction;
 import lombok.Getter;
 import org.openqa.selenium.By;
+import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
 
 public class GoogleSearch {
@@ -14,6 +16,7 @@ public class GoogleSearch {
     static By searchBox_textField = By.xpath("//*[@id='lst-ib' or @class='lst' or @name='q']");
     String url = "https://www.google.com/ncr";
 
+    @SuppressWarnings("SpellCheckingInspection")
     public static By googleLogo_image = By.xpath("//*[@id='hplogo' or @alt='Google']");
     String urlAfterRedirection = "https://www.google.com";
 
@@ -22,36 +25,36 @@ public class GoogleSearch {
     }
 
     public void navigateToURL() {
-        BrowserActions.navigateToURL(driver, url, urlAfterRedirection);
+        BrowserActions.getInstance().navigateToURL(url, urlAfterRedirection);
     }
 
     public void searchForQuery(String searchQuery) {
-        ElementActions.type(driver, searchBox_textField, searchQuery);
-        ElementActions.keyPress(driver, searchBox_textField, "Enter");
+        ElementActions.getInstance().type(searchBox_textField, searchQuery);
+        ElementActions.getInstance().keyPress(searchBox_textField, Keys.ENTER);
     }
 
     public void typeQuery(String searchQuery) {
-        ElementActions.type(driver, searchBox_textField, searchQuery);
+        ElementActions.getInstance().type(searchBox_textField, searchQuery);
     }
 
     public void copyQuery() {
-        ElementActions.clipboardActions(driver, searchBox_textField, "copy");
+        ElementActions.getInstance().clipboardActions(searchBox_textField, ClipboardAction.COPY);
     }
 
     public void pasteQuery() {
-        ElementActions.clipboardActions(driver, searchBox_textField, "paste");
+        ElementActions.getInstance().clipboardActions(searchBox_textField, ClipboardAction.PASTE);
     }
 
     public void cutQuery() {
-        ElementActions.clipboardActions(driver, searchBox_textField, "cut");
+        ElementActions.getInstance().clipboardActions(searchBox_textField, ClipboardAction.CUT);
     }
 
     public void selectQuery() {
-        ElementActions.clipboardActions(driver, searchBox_textField, "select all");
+        ElementActions.getInstance().clipboardActions(searchBox_textField, ClipboardAction.SELECT_ALL);
     }
 
     public void unSelectQuery() {
-        ElementActions.clipboardActions(driver, searchBox_textField, "unselect");
+        ElementActions.getInstance().clipboardActions(searchBox_textField, ClipboardAction.UNSELECT_ALL);
     }
 
     public void assertPageIsOpen() {
@@ -60,10 +63,4 @@ public class GoogleSearch {
                     .exists()
                     .perform();
     }
-
-    public void verifyPageTitle(String expectedValue) {
-        Validations.verifyThat().browser(driver).title().isEqualTo(expectedValue).perform();
-        Validations.verifyThat().browser(driver).title().doesNotEqual("Not Google").perform();
-    }
-
 }

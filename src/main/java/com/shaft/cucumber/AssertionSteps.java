@@ -6,6 +6,7 @@ import io.cucumber.java.en.Then;
 
 import java.util.Objects;
 
+@SuppressWarnings("SpellCheckingInspection")
 public class AssertionSteps {
     private final ThreadLocal<SHAFT.GUI.WebDriver> driver;
 

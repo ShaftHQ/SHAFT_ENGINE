@@ -22,9 +22,6 @@ public class MobileWebTest {
     public void test() {
         driver.browser().navigateToURL("https://www.google.com/");
         driver.verifyThat().browser().title().isEqualTo("Google").perform();
-//        driver.element().type(searchBox, testData.getTestData("searchQuery"))
-//                .keyPress(searchBox, Keys.ENTER);
-//        driver.assertThat().element(resultStats).text().doesNotEqual("").withCustomReportMessage("Check that result stats is not empty").perform();
     }
 
     //@Test
@@ -36,6 +33,7 @@ public class MobileWebTest {
         Assert.assertNotEquals(nativeWebDriver.findElement(resultStats).getText(), "");
     }
 
+    @SuppressWarnings("CommentedOutCode")
     @BeforeClass
     public void beforeClass() {
 //        // common attributes android

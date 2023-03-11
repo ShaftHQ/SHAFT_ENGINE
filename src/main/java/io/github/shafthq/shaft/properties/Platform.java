@@ -39,6 +39,7 @@ public interface Platform extends EngineProperties {
         return new SetProperty();
     }
 
+    @SuppressWarnings("unused")
     class SetProperty implements EngineProperties.SetProperty {
         public void crossBrowserMode(String value) {
             setProperty("SHAFT.CrossBrowserMode", value);

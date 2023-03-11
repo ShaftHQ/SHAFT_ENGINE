@@ -6,6 +6,7 @@ import io.github.shafthq.shaft.gui.element.FluentElementActions;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
+@SuppressWarnings("unused")
 public abstract class Element {
     static WebDriver driver;
     final By locator;
@@ -13,7 +14,7 @@ public abstract class Element {
 
     protected Element(By locator) {
         this.locator = locator;
-        elementActions = new FluentElementActions(driver);
+        elementActions = FluentElementActions.getInstance();
     }
 
     public static WebDriver getDriver() {

@@ -52,11 +52,11 @@ public class TouchActions {
      * @return a FluentElementActions object
      */
     public FluentElementActions performElementAction() {
-        return new FluentElementActions(DriverFactoryHelper.getDriver().get());
+        return FluentElementActions.getInstance();
     }
 
     public FluentElementActions element() {
-        return new FluentElementActions(DriverFactoryHelper.getDriver().get());
+        return FluentElementActions.getInstance();
     }
 
     public TouchActions and() {
@@ -123,8 +123,8 @@ public class TouchActions {
         List<Integer> coordinates = (List<Integer>) objects.get(2);
 
         // Prepare screenshots for reporting
-        var screenshot = ScreenshotManager.prepareImageforReport(currentScreenImage, "tap - Current Screen Image");
-        var referenceScreenshot = ScreenshotManager.prepareImageforReport(referenceImage, "tap - Reference Screenshot");
+        var screenshot = ScreenshotManager.prepareImageForReport(currentScreenImage, "tap - Current Screen Image");
+        var referenceScreenshot = ScreenshotManager.prepareImageForReport(referenceImage, "tap - Reference Screenshot");
         List<List<Object>> attachments = new LinkedList<>();
         attachments.add(referenceScreenshot);
         attachments.add(screenshot);
@@ -501,8 +501,8 @@ public class TouchActions {
         List<Integer> coordinates = (List<Integer>) visualIdentificationObjects.get(2);
 
         // prepare attachments
-        var screenshot = ScreenshotManager.prepareImageforReport(currentScreenImage, "waitUntilElementIsVisible - Current Screen Image");
-        var referenceScreenshot = ScreenshotManager.prepareImageforReport(referenceImage, "waitUntilElementIsVisible - Reference Screenshot");
+        var screenshot = ScreenshotManager.prepareImageForReport(currentScreenImage, "waitUntilElementIsVisible - Current Screen Image");
+        var referenceScreenshot = ScreenshotManager.prepareImageForReport(referenceImage, "waitUntilElementIsVisible - Reference Screenshot");
         List<List<Object>> attachments = new LinkedList<>();
         attachments.add(referenceScreenshot);
         attachments.add(screenshot);
@@ -539,6 +539,7 @@ public class TouchActions {
         // Prepare attachments for reporting
         List<List<Object>> attachments = new LinkedList<>();
         try {
+            //noinspection CaughtExceptionImmediatelyRethrown
             try {
                 if (DriverFactoryHelper.getDriver().get() instanceof AppiumDriver appiumDriver) {
                     // appium native application
@@ -548,8 +549,8 @@ public class TouchActions {
                     List<Integer> coordinates = (List<Integer>) visualIdentificationObjects.get(2);
 
                     // prepare attachments
-                    var screenshot = ScreenshotManager.prepareImageforReport(currentScreenImage, "swipeElementIntoView - Current Screen Image");
-                    var referenceScreenshot = ScreenshotManager.prepareImageforReport(referenceImage, "swipeElementIntoView - Reference Screenshot");
+                    var screenshot = ScreenshotManager.prepareImageForReport(currentScreenImage, "swipeElementIntoView - Current Screen Image");
+                    var referenceScreenshot = ScreenshotManager.prepareImageForReport(referenceImage, "swipeElementIntoView - Reference Screenshot");
                     attachments = new LinkedList<>();
                     attachments.add(referenceScreenshot);
                     attachments.add(screenshot);
@@ -566,8 +567,8 @@ public class TouchActions {
                     List<Integer> coordinates = (List<Integer>) objects.get(2);
 
                     // prepare attachments
-                    var screenshot = ScreenshotManager.prepareImageforReport(currentScreenImage, "swipeElementIntoView - Current Screen Image");
-                    var referenceScreenshot = ScreenshotManager.prepareImageforReport(referenceImage, "swipeElementIntoView - Reference Screenshot");
+                    var screenshot = ScreenshotManager.prepareImageForReport(currentScreenImage, "swipeElementIntoView - Current Screen Image");
+                    var referenceScreenshot = ScreenshotManager.prepareImageForReport(referenceImage, "swipeElementIntoView - Reference Screenshot");
                     attachments = new LinkedList<>();
                     attachments.add(referenceScreenshot);
                     attachments.add(screenshot);

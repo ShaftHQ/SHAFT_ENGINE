@@ -35,6 +35,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@SuppressWarnings("unused")
 public class ReportManagerHelper {
     private static final String TIMESTAMP_FORMAT = "dd-MM-yyyy HH:mm:ss.SSSS aaa";
     @Getter
@@ -565,7 +566,7 @@ public class ReportManagerHelper {
         return augmentedText.toString();
     }
 
-    private static String createSeparator(char ch) {
+    private static String createSeparator(@SuppressWarnings("SameParameterValue") char ch) {
         return String.valueOf(ch).repeat(144);
     }
 
@@ -641,9 +642,9 @@ public class ReportManagerHelper {
 
     private static void createAttachment(String attachmentType, String attachmentName, InputStream attachmentContent) {
         if (attachmentContent != null) {
-            var baos = new ByteArrayOutputStream();
+            var byteArrayOutputStream = new ByteArrayOutputStream();
             try {
-                attachmentContent.transferTo(baos);
+                attachmentContent.transferTo(byteArrayOutputStream);
             } catch (IOException e) {
                 var error = "Error while creating Attachment";
                 if (logger == null) {
@@ -653,11 +654,12 @@ public class ReportManagerHelper {
                 Reporter.log(error, false);
             }
             String attachmentDescription = attachmentType + " - " + attachmentName;
-            attachBasedOnFileType(attachmentType, attachmentName, baos, attachmentDescription);
-            logAttachmentAction(attachmentType, attachmentName, baos);
+            attachBasedOnFileType(attachmentType, attachmentName, byteArrayOutputStream, attachmentDescription);
+            logAttachmentAction(attachmentType, attachmentName, byteArrayOutputStream);
         }
     }
 
+    @SuppressWarnings("SpellCheckingInspection")
     private static void attachBasedOnFileType(String attachmentType, String attachmentName,
                                               ByteArrayOutputStream attachmentContent, String attachmentDescription) {
         var content = new ByteArrayInputStream(attachmentContent.toByteArray());
@@ -803,7 +805,6 @@ public class ReportManagerHelper {
         allureBinaryPath = allureExtractionLocation + "allure-" + allureVersion + File.separator + "bin" + File.separator + "allure";
         if (!FileActions.getInstance().doesFileExist(allureBinaryPath)) {
             try {
-                //Runtime.getRuntime().exec("taskkill /F /IM java.exe");
                 FileActions.getInstance().deleteFolder(allureExtractionLocation);
             } catch (AssertionError e) {
                 ReportManager.logDiscrete("Couldn't clear the allure extraction directory. Kindly terminate any running java process or restart your machine to fix this issue.");

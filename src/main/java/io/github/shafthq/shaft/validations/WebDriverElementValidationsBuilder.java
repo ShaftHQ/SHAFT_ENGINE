@@ -4,6 +4,7 @@ import com.shaft.validation.ValidationEnums;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 
+@SuppressWarnings("unused")
 public class WebDriverElementValidationsBuilder {
     protected final ValidationEnums.ValidationCategory validationCategory;
     protected final WebDriver driver;

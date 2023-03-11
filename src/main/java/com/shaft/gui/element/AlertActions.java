@@ -12,6 +12,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.time.Duration;
 
+@SuppressWarnings("unused")
 public class AlertActions {
 
     public AlertActions(WebDriver driver) {
@@ -30,7 +31,7 @@ public class AlertActions {
     }
 
     public FluentBrowserActions browser() {
-        return new FluentBrowserActions();
+        return FluentBrowserActions.getInstance();
     }
 
     public AlertActions and() {
@@ -49,7 +50,7 @@ public class AlertActions {
     }
 
     public FluentElementActions performElementAction() {
-        return new FluentElementActions(DriverFactoryHelper.getDriver().get());
+        return FluentElementActions.getInstance();
     }
 
     public boolean isAlertPresent() {
@@ -68,6 +69,7 @@ public class AlertActions {
         }
     }
 
+    @SuppressWarnings("UnusedReturnValue")
     public AlertActions acceptAlert() {
         try {
             waitForAlertToBePresent();
@@ -79,6 +81,7 @@ public class AlertActions {
         return this;
     }
 
+    @SuppressWarnings("UnusedReturnValue")
     public AlertActions dismissAlert() {
         try {
             waitForAlertToBePresent();
@@ -103,6 +106,7 @@ public class AlertActions {
         }
     }
 
+    @SuppressWarnings("UnusedReturnValue")
     public AlertActions typeIntoPromptAlert(String text) {
         try {
             waitForAlertToBePresent();

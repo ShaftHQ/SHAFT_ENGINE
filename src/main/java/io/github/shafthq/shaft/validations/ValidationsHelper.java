@@ -5,7 +5,6 @@ import com.shaft.cli.FileActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.validation.ValidationEnums.*;
 import io.github.shafthq.shaft.driver.DriverFactoryHelper;
-import io.github.shafthq.shaft.enums.Browsers;
 import io.github.shafthq.shaft.gui.browser.FluentBrowserActions;
 import io.github.shafthq.shaft.gui.element.ElementActionsHelper;
 import io.github.shafthq.shaft.gui.image.ImageProcessingActions;
@@ -17,6 +16,7 @@ import io.restassured.response.Response;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.remote.Browser;
 import org.testng.Assert;
 
 import java.io.File;
@@ -29,7 +29,7 @@ import static io.restassured.module.jsv.JsonSchemaValidator.matchesJsonSchema;
 
 public class ValidationsHelper {
     //TODO: implement element attribute and element exists validations for sikuli actions
-    static ThreadLocal<ArrayList<String>> optionalCustomLogMessage = new ThreadLocal<>();
+    static final ThreadLocal<ArrayList<String>> optionalCustomLogMessage = new ThreadLocal<>();
     private static By lastUsedElementLocator = null;
     private static final Boolean discreetLoggingState = Boolean.valueOf(System.getProperty("alwaysLogDiscreetly"));
     private static List<String> verificationFailuresList = new ArrayList<>();
@@ -132,6 +132,7 @@ public class ValidationsHelper {
         }
     }
 
+    @SuppressWarnings("SpellCheckingInspection")
     protected static void validateElementAttribute(ValidationCategory validationCategory, WebDriver driver, By elementLocator, String elementAttribute,
                                                    String expectedValue, ValidationComparisonType validationComparisonType, ValidationType validationType,
                                                    String... optionalCustomLogMessage) {
@@ -148,10 +149,8 @@ public class ValidationsHelper {
             actualValue = switch (elementAttribute.toLowerCase()) {
                 case "text" -> new ElementActions().getText(elementLocator);
                 case "texttrimmed" -> new ElementActions().getText(elementLocator).trim();
-                case "tagname" ->
-                        ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).getTagName();
-                case "size" ->
-                        ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).getSize().toString();
+                case "tagname" -> ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).getTagName();
+                case "size" -> ((WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1)).getSize().toString();
                 case "selectedtext" -> new ElementActions().getSelectedText(elementLocator);
                 default -> new ElementActions().getAttribute(elementLocator, elementAttribute);
             };
@@ -216,6 +215,7 @@ public class ValidationsHelper {
 
     }
 
+    @SuppressWarnings({"SpellCheckingInspection", "unused"})
     protected static void validateBrowserAttribute(ValidationCategory validationCategory, WebDriver driver, String browserAttribute,
                                                    String expectedValue, ValidationComparisonType validationComparisonType, ValidationType validationType,
                                                    String... optionalCustomLogMessage) {
@@ -228,12 +228,12 @@ public class ValidationsHelper {
         String actualValue;
         try {
             actualValue = switch (browserAttribute.toLowerCase()) {
-                case "currenturl", "url" -> new FluentBrowserActions().getCurrentURL();
-                case "pagesource" -> new FluentBrowserActions().getPageSource();
-                case "title" -> new FluentBrowserActions().getCurrentWindowTitle();
-                case "windowhandle" -> new FluentBrowserActions().getWindowHandle();
-                case "windowposition" -> new FluentBrowserActions().getWindowPosition();
-                case "windowsize" -> new FluentBrowserActions().getWindowSize();
+                case "currenturl", "url" -> FluentBrowserActions.getInstance().getCurrentURL();
+                case "pagesource" -> FluentBrowserActions.getInstance().getPageSource();
+                case "title" -> FluentBrowserActions.getInstance().getCurrentWindowTitle();
+                case "windowhandle" -> FluentBrowserActions.getInstance().getWindowHandle();
+                case "windowposition" -> FluentBrowserActions.getInstance().getWindowPosition();
+                case "windowsize" -> FluentBrowserActions.getInstance().getWindowSize();
                 default -> "";
             };
         } catch (Throwable e) {
@@ -292,7 +292,7 @@ public class ValidationsHelper {
         }
     }
 
-    protected static void validateFileExists(ValidationCategory validationCategory, String fileFolderName, String fileName, int numberOfRetries,
+    protected static void validateFileExists(ValidationCategory validationCategory, String fileFolderName, String fileName, @SuppressWarnings("SameParameterValue") int numberOfRetries,
                                              ValidationType validationType, String... optionalCustomLogMessage) {
         processCustomLogMessage(optionalCustomLogMessage);
         boolean expectedValue = ValidationType.POSITIVE.equals(validationType);
@@ -352,7 +352,7 @@ public class ValidationsHelper {
         lastUsedElementLocator = elementLocator;
         //TODO: remove this temporary fix when this bug is fixed with shutterbug
         //https://github.com/assertthat/selenium-shutterbug/issues/105
-        if (Properties.web.targetBrowserName().equals(Browsers.SAFARI)) {
+        if (Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
             visualValidationEngine = VisualValidationEngine.EXACT_OPENCV;
         }
 
@@ -430,7 +430,7 @@ public class ValidationsHelper {
     }
 
     private static void fail(ValidationCategory validationCategory, String expectedValue, String actualValue,
-                             Object validationComparisonType, ValidationType validationType, Throwable failureReason, List<List<Object>> externalAttachments) {
+                             Object validationComparisonType, ValidationType validationType, @SuppressWarnings("SameParameterValue") Throwable failureReason, List<List<Object>> externalAttachments) {
         // reset state in case of failure to force reporting the failure
         ReportManagerHelper.setDiscreteLogging(discreetLoggingState);
 
@@ -457,7 +457,7 @@ public class ValidationsHelper {
     }
 
     protected static void validateJSONFileContent(ValidationCategory validationCategory, Response response, String referenceJsonFilePath,
-                                                  RestActions.ComparisonType comparisonType, String jsonPathToTargetArray, ValidationType validationType, String... optionalCustomLogMessage) {
+                                                  RestActions.ComparisonType comparisonType, @SuppressWarnings("SameParameterValue") String jsonPathToTargetArray, ValidationType validationType, String... optionalCustomLogMessage) {
         processCustomLogMessage(optionalCustomLogMessage);
         boolean expectedValue = ValidationType.POSITIVE.equals(validationType);
         StringBuilder reportedExpectedValue = new StringBuilder();
@@ -491,7 +491,7 @@ public class ValidationsHelper {
     }
 
     protected static void validateResponseFileSchema(ValidationCategory validationCategory, Response response, String referenceJsonFilePath,
-                                                     RestActions.ComparisonType comparisonType, String jsonPathToTargetArray, ValidationType validationType, String... optionalCustomLogMessage) {
+                                                     RestActions.ComparisonType comparisonType, @SuppressWarnings("SameParameterValue") String jsonPathToTargetArray, ValidationType validationType, String... optionalCustomLogMessage) {
 
         processCustomLogMessage(optionalCustomLogMessage);
         boolean expectedValue = ValidationType.POSITIVE.equals(validationType);

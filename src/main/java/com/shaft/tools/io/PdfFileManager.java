@@ -13,6 +13,7 @@ import org.apache.pdfbox.text.PDFTextStripper;
 import java.io.File;
 import java.io.IOException;
 
+@SuppressWarnings("unused")
 public class PdfFileManager {
 
     private final File file;
@@ -209,6 +210,7 @@ public class PdfFileManager {
 
     }
 
+    @SuppressWarnings("unused")
     public enum DeleteFileAfterValidationStatus {
         TRUE, FALSE
     }

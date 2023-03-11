@@ -48,6 +48,7 @@ public class FileValidationsBuilder {
      *
      * @return a NativeValidationsBuilder object to continue building your validation
      */
+    @SuppressWarnings("unused")
     public NativeValidationsBuilder checksum() {
         this.validationMethod = "fileChecksum";
         reportMessageBuilder.append("checksum ");
