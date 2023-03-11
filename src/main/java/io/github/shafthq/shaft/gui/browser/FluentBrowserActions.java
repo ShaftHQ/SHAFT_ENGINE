@@ -191,6 +191,24 @@ public class FluentBrowserActions {
     }
 
     /**
+     * Gets the current window size and returns it as a string
+     *
+     * @return the height of the current window
+     */
+    public String getWindowHeight() {
+        return BrowserActions.getWindowHeight(DriverFactoryHelper.getDriver().get());
+    }
+
+    /**
+     * Gets the current window size and returns it as a string
+     *
+     * @return the height of the current window
+     */
+    public String getWindowWidth() {
+        return BrowserActions.getWindowWidth(DriverFactoryHelper.getDriver().get());
+    }
+
+    /**
      * Navigates to targetUrl in case the current URL is different, else refreshes
      * the current page
      *
