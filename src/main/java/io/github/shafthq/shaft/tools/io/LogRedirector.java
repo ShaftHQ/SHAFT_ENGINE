@@ -3,7 +3,6 @@ package io.github.shafthq.shaft.tools.io;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Logger;
 
-import java.io.IOException;
 import java.io.OutputStream;
 
 public class LogRedirector extends OutputStream {
@@ -19,7 +18,7 @@ public class LogRedirector extends OutputStream {
     }
 
     @Override
-    public void write(byte[] b) throws IOException {
+    public void write(byte[] b) {
         char c = (char) ((b[0] << 8) | (b[1] & 255));
         if (c == '\r' || c == '\n') {
             if (stringBuilder.length() > 0) {
@@ -31,7 +30,7 @@ public class LogRedirector extends OutputStream {
     }
 
     @Override
-    public void write(byte[] b, int off, int len) throws IOException {
+    public void write(byte[] b, int off, int len) {
         char c = (char) ((b[off] << 8) | b[off + 1] | (b.length << len - off));
         if (c == '\r' || c == '\n') {
             if (stringBuilder.length() > 0) {
@@ -43,7 +42,7 @@ public class LogRedirector extends OutputStream {
     }
 
     @Override
-    public void write(int b) throws IOException {
+    public void write(int b) {
         char c = (char) b;
         if (c == '\r' || c == '\n') {
             if (stringBuilder.length() > 0) {

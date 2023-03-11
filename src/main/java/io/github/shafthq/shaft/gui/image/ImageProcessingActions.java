@@ -38,6 +38,7 @@ import java.util.*;
 
 import static io.github.shafthq.shaft.gui.element.ElementActionsHelper.formatLocatorToString;
 
+@SuppressWarnings("SpellCheckingInspection")
 public class ImageProcessingActions {
     private static final String DIRECTORY_PROCESSING = "/processingDirectory/";
     private static final String DIRECTORY_FAILED = "/failedImagesDirectory/";
@@ -286,6 +287,7 @@ public class ImageProcessingActions {
                 double matchAccuracy;
 
                 org.opencv.core.Point matchLoc;
+                //noinspection ConstantValue
                 if (matchMethod == Imgproc.TM_SQDIFF || matchMethod == Imgproc.TM_SQDIFF_NORMED) {
                     matchLoc = mmr.minLoc;
                     minMaxVal = mmr.minVal;
@@ -352,19 +354,17 @@ public class ImageProcessingActions {
     }
 
     public static List<Integer> findImageWithinCurrentPage(String referenceImagePath, byte[] currentPageScreenshot) {
-            int maxNumberOfAttempts = 3;
-            int attempts = 0;
-            List<Integer> foundLocation = Collections.emptyList();
-            do {
-                try {
-                    foundLocation = attemptToFindImageUsingOpenCV(referenceImagePath, currentPageScreenshot, attempts);
-                } catch (Exception e) {
-                    if (attempts >= maxNumberOfAttempts) {
-                        throw e;
-                    }
-                }
-                attempts++;
-            } while (Collections.emptyList().equals(foundLocation) && attempts < maxNumberOfAttempts);
+        int maxNumberOfAttempts = 3;
+        int attempts = 0;
+        List<Integer> foundLocation = Collections.emptyList();
+        do {
+            try {
+                foundLocation = attemptToFindImageUsingOpenCV(referenceImagePath, currentPageScreenshot, attempts);
+            } catch (Exception e) {
+                ReportManagerHelper.logDiscrete(e);
+            }
+            attempts++;
+        } while (Collections.emptyList().equals(foundLocation) && attempts < maxNumberOfAttempts);
         return foundLocation;
     }
 
@@ -420,8 +420,8 @@ public class ImageProcessingActions {
                 }
                 return actualResult;
             }else{
-                    ReportManager.logDiscrete("Passing the test and saving a reference image");
-                    FileActions.getInstance().writeToFile(aiFolderPath, hashedLocatorName + ".png", elementScreenshot);
+                ReportManager.logDiscrete("Passing the test and saving a reference image");
+                FileActions.getInstance().writeToFile(aiFolderPath, hashedLocatorName + ".png", elementScreenshot);
                 return true;
             }
         }
@@ -430,17 +430,17 @@ public class ImageProcessingActions {
             String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
 
             boolean doesReferenceFileExist = FileActions.getInstance().doesFileExist(referenceImagePath);
-             if (!doesReferenceFileExist || !ImageProcessingActions.findImageWithinCurrentPage(referenceImagePath, elementScreenshot).equals(Collections.emptyList())) {
-                    //pass: element found and matched || first time element
-                    if (!doesReferenceFileExist) {
-                        ReportManager.logDiscrete("Passing the test and saving a reference image");
-                        FileActions.getInstance().writeToFile(aiFolderPath, hashedLocatorName + ".png", elementScreenshot);
-                    }
-                    return true;
-                } else {
-                    //fail: element doesn't match
-                    return false;
+            if (!doesReferenceFileExist || !ImageProcessingActions.findImageWithinCurrentPage(referenceImagePath, elementScreenshot).equals(Collections.emptyList())) {
+                //pass: element found and matched || first time element
+                if (!doesReferenceFileExist) {
+                    ReportManager.logDiscrete("Passing the test and saving a reference image");
+                    FileActions.getInstance().writeToFile(aiFolderPath, hashedLocatorName + ".png", elementScreenshot);
                 }
+                return true;
+            } else {
+                //fail: element doesn't match
+                return false;
+            }
         }//all the other cases of Eyes
         Eyes eyes = new Eyes();
         // Define global settings

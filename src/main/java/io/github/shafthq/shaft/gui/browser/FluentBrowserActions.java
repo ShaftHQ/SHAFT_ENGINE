@@ -15,6 +15,7 @@ import org.openqa.selenium.Cookie;
 import java.io.ByteArrayInputStream;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 
 import static io.github.shafthq.shaft.gui.browser.BrowserActionsHelpers.failAction;
@@ -282,7 +283,7 @@ public class FluentBrowserActions {
      *
      * @return A Set of cookies for the current browsing context.
      */
-    public Set getAllCookies() {
+    public Set<Cookie> getAllCookies() {
         return BrowserActions.getAllCookies(DriverFactoryHelper.getDriver().get());
     }
 
@@ -338,7 +339,7 @@ public class FluentBrowserActions {
     }
 
     /**
-     * Use this action to return a full page screenshot. This is a synonym to {@link  FluentBrowserActions#captureScreenshot(Screenshots type)} if you pass Screenshots.FULL
+     * Use this action to return a full page screenshot. This is a synonym to {@link  FluentBrowserActions#captureScreenshot(Screenshots type)} if you pass `Screenshots.FULL`
      *
      * @return a self-reference for chainable actions
      */
@@ -349,7 +350,7 @@ public class FluentBrowserActions {
     /**
      * Use this action to return a page screenshot. If you want to capture a screenshot then use this method instead {@see FluentBrowserActions#captureSnapshot()}
      *
-     * @param type can either be Screenshots.FULL, or Screenshots.VIEWPORT
+     * @param type can either be `Screenshots.FULL`, or `Screenshots.VIEWPORT`
      * @return a self-reference for chainable actions
      */
     public FluentBrowserActions captureScreenshot(Screenshots type) {
@@ -379,7 +380,7 @@ public class FluentBrowserActions {
         } else if (pageSnapshot.startsWith("<html")) {
             logMessage = "Capture page HTML";
         }
-        ReportManagerHelper.log(logMessage, Arrays.asList(Arrays.asList(logMessage, ScreenshotManager.generateAttachmentFileName("captureSnapshot"), new ByteArrayInputStream(pageSnapshot.getBytes()))));
+        ReportManagerHelper.log(logMessage, List.of(Arrays.asList(logMessage, ScreenshotManager.generateAttachmentFileName("captureSnapshot"), new ByteArrayInputStream(pageSnapshot.getBytes()))));
         return this;
     }
 }

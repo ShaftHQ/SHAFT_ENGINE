@@ -4,7 +4,8 @@ Tink is an open source library by Google that facilitates encryption/decryption
 These are the basic business requirements:
 
 - All test data under the test data directory (already a property) should be encrypted manually by the user using the
-  CMD tool. We should provide the user with a bat file that they can double-click and it will encrypt all their data for
+  CMD tool. We should provide the user with a bat file that they can double-click, and it will encrypt all their data
+  for
   them recursively. This is done outside the engine.
 - All test data under the test data directory (already a property) should be decrypted automatically and recursively by
   SHAFT before any test execution.

@@ -156,7 +156,7 @@ public class RequestBuilder {
     }
 
     /**
-     * Sets the content type for the API request that you're currently building. By default, this value is set to ContentType.ANY but you can change it by calling this method.
+     * Sets the content type for the API request that you're currently building. By default, this value is set to `ContentType.ANY` but you can change it by calling this method.
      *
      * @param contentType Enumeration of common IANA content-types. This may be used to specify a request or response content-type more easily than specifying the full string each time. Example: ContentType.ANY
      * @return a self-reference to be used to continue building your API request
@@ -167,7 +167,7 @@ public class RequestBuilder {
     }
 
     /**
-     * Sets the content type for the API request that you're currently building. By default, this value is set to ContentType.ANY but you can change it by calling this method.
+     * Sets the content type for the API request that you're currently building. By default, this value is set to `ContentType.ANY` but you can change it by calling this method.
      *
      * @param contentType String value representing IANA content-type.
      * @return a self-reference to be used to continue building your API request
@@ -240,7 +240,7 @@ public class RequestBuilder {
     }
 
     /**
-     * Set the authentication method that will be used by the API request that you're currently building. By default, this value is set to AuthenticationType.NONE but you can change it by calling this method. If you use thie method the authentication token will be saved automatically for all the following requests using the same session.
+     * Set the authentication method that will be used by the API request that you're currently building. By default, this value is set to `AuthenticationType.NONE` but you can change it by calling this method. If you use thie method the authentication token will be saved automatically for all the following requests using the same session.
      *
      * @param username           the value of the username that you will be using to authenticate the current API request.
      * @param password           the value of the password that you will be using to authenticate the current API request.

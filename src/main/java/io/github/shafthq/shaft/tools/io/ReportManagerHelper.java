@@ -565,7 +565,7 @@ public class ReportManagerHelper {
         return augmentedText.toString();
     }
 
-    private static String createSeparator(char ch) {
+    private static String createSeparator(@SuppressWarnings("SameParameterValue") char ch) {
         return String.valueOf(ch).repeat(144);
     }
 

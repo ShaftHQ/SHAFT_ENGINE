@@ -36,6 +36,7 @@ public class Test_Wizard_GUI_ThreadSafe {
         Assert.assertNotEquals(nativeWebDriver.findElement(resultStats).getText(), "");
     }
 
+    @SuppressWarnings("CommentedOutCode")
     @BeforeClass
     public void beforeClass() {
         //BrowserStack Web

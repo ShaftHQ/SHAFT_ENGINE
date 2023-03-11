@@ -26,6 +26,7 @@ import java.util.function.Predicate;
 import static io.github.shafthq.shaft.gui.browser.BrowserActionsHelpers.*;
 
 //TODO: Move body of implementation into the Fluent Actions class to fix internal "Deprecated member is still used" warnings
+@SuppressWarnings("unused")
 public class BrowserActions extends FluentBrowserActions {
 
     public BrowserActions() {
@@ -237,6 +238,7 @@ public class BrowserActions extends FluentBrowserActions {
                     "Target URL: \"" + modifiedTargetUrl + "\", and after redirection: \"" + targetUrlAfterRedirection + "\"");
         }
 //         force stop any current navigation
+        //noinspection SpellCheckingInspection
         try {
             ((JavascriptExecutor) driver).executeScript("return window.stop;");
         } catch (Exception rootCauseException) {

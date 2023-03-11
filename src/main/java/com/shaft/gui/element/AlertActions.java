@@ -12,6 +12,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.time.Duration;
 
+@SuppressWarnings("unused")
 public class AlertActions {
 
     public AlertActions(WebDriver driver) {

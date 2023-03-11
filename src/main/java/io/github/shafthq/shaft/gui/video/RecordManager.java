@@ -99,7 +99,7 @@ public class RecordManager {
 
     public static InputStream getVideoRecording() {
         InputStream inputStream = null;
-        String pathToRecording = "";
+        String pathToRecording;
         String testMethodName = ReportManagerHelper.getTestMethodName();
 
         if (Boolean.TRUE.equals(RECORD_VIDEO) && recorder.get() != null) {

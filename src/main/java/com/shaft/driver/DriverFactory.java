@@ -13,6 +13,7 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.remote.Browser;
 import org.sikuli.script.App;
 
+@SuppressWarnings("UnusedReturnValue")
 public class DriverFactory {
 
     /**

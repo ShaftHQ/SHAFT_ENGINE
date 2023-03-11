@@ -134,6 +134,7 @@ public class SikuliActions {
         } catch (IOException | FindFailed rootCauseException) {
             ElementActionsHelper.failAction(screen, applicationWindow, element, formatTextForReport(text), rootCauseException);
         }
+        //noinspection SuspiciousRegexArgument
         ElementActionsHelper.passAction(screen, applicationWindow, element, formatTextForReport(text).replaceAll(".", "•"));
         return this;
     }

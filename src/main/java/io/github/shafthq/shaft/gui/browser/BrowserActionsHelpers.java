@@ -167,6 +167,7 @@ public class BrowserActionsHelpers {
         }
     }
 
+    @SuppressWarnings("SpellCheckingInspection")
     public static Dimension attemptMaximizeUsingSeleniumWebDriver(WebDriver driver, String executionAddress,
                                                                   String targetBrowserName, String targetOperatingSystem) {
         if ((!"local".equals(executionAddress) && !"GoogleChrome".equals(targetBrowserName))

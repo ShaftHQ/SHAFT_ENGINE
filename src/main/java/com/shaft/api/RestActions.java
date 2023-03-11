@@ -198,7 +198,7 @@ public class RestActions {
     public static String getResponseJSONValue(Object response, String jsonPath) {
         String searchPool = "";
         try {
-            if (response instanceof HashMap hashMapResponse) {
+            if (response instanceof HashMap<?, ?> hashMapResponse) {
                 JSONObject obj = new JSONObject(hashMapResponse);
                 searchPool = io.restassured.path.json.JsonPath.from(obj.toString()).getString(jsonPath);
             } else if (response instanceof Response responseObject) {
@@ -250,10 +250,10 @@ public class RestActions {
     }
 
     /**
-     * Extracts a string value from an object of a list by reference of another attribute inside of the same object
+     * Extracts a string value from an object of a list by reference of another attribute inside the same object
      *
      * @param response                 The target API response object
-     * @param jsonPathToList           The JSON path to the list of object inside of the full response
+     * @param jsonPathToList           The JSON path to the list of object inside the full response
      * @param jsonPathToValueNeeded    The JSON path to the attribute value you need to extract inside an object from the list. for example: id
      * @param jsonPathToValueReference The JSON path that refers to the needed attribute value inside an object from the list. for example: username
      * @param valueReference           The attribute value of the reference JSON path
@@ -648,6 +648,7 @@ public class RestActions {
         return null;
     }
 
+    @SuppressWarnings("UnusedAssignment")
     private static int identifyBodyObjectType(Object body) {
         JSONParser parser = new JSONParser();
         try {

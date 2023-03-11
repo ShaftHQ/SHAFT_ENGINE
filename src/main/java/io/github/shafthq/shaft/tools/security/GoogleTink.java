@@ -22,7 +22,7 @@ import java.security.GeneralSecurityException;
 import java.util.Optional;
 
 public class GoogleTink {
-    static byte[] aad = "This is SHAFT_Engine".getBytes();
+    static final byte[] aad = "This is SHAFT_Engine".getBytes();
     static String keysetFilename;
     static String kms;
     static String masterKeyUri;
@@ -86,7 +86,7 @@ public class GoogleTink {
             ciphertext = internal_encrypt(FileActions.getInstance().readFileAsByteArray(relativeFolderPath + targetFileName));
             FileActions.getInstance().writeToFile(relativeFolderPath, targetFileName, ciphertext);
             ReportManager.log("Successfully Encrypted \"" + targetFileName + "\".");
-        } catch (GeneralSecurityException | IOException e) {
+        } catch (GeneralSecurityException e) {
             FailureReporter.fail(GoogleTink.class, "Failed to Encrypt \"" + targetFileName + "\".", e);
         }
     }
@@ -97,7 +97,7 @@ public class GoogleTink {
             decryptedtext = internal_decrypt(FileActions.getInstance().readFileAsByteArray(relativeFolderPath + targetFileName));
             FileActions.getInstance().writeToFile(relativeFolderPath, targetFileName, decryptedtext);
             ReportManager.log("Successfully Decrypted \"" + targetFileName + "\".");
-        } catch (GeneralSecurityException | IOException e) {
+        } catch (GeneralSecurityException e) {
             ReportManagerHelper.logDiscrete(e);
             ReportManager.log("Failed to Decrypt \"" + targetFileName + "\". It may already be in plaintext.");
 //            Assert.fail("Failed to Decrypt \""+targetFileName+"\".", e);
@@ -114,12 +114,12 @@ public class GoogleTink {
         }
     }
 
-    private static byte[] internal_encrypt(byte[] plaintext) throws GeneralSecurityException, IOException {
+    private static byte[] internal_encrypt(byte[] plaintext) throws GeneralSecurityException {
         //  AEAD (Authenticated Encryption with Associated Data)
         return aead.encrypt(plaintext, aad);
     }
 
-    private static byte[] internal_decrypt(byte[] ciphertext) throws GeneralSecurityException, IOException {
+    private static byte[] internal_decrypt(byte[] ciphertext) throws GeneralSecurityException {
         //  AEAD (Authenticated Encryption with Associated Data)
         return aead.decrypt(ciphertext, aad);
     }

@@ -539,6 +539,7 @@ public class TouchActions {
         // Prepare attachments for reporting
         List<List<Object>> attachments = new LinkedList<>();
         try {
+            //noinspection CaughtExceptionImmediatelyRethrown
             try {
                 if (DriverFactoryHelper.getDriver().get() instanceof AppiumDriver appiumDriver) {
                     // appium native application

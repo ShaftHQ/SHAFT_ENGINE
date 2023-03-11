@@ -26,8 +26,7 @@ public class CheckpointCounter {
 
     public static void attach() {
         StringBuilder detailsBuilder = new StringBuilder();
-        checkpoints.entrySet()
-                .forEach(entry -> detailsBuilder.append(String.format(HTMLHelper.CHECKPOINT_DETAILS_FORMAT.getValue(), entry.getKey(), entry.getValue().get(0), entry.getValue().get(1), entry.getValue().get(2))));
+        checkpoints.forEach((key, value) -> detailsBuilder.append(String.format(HTMLHelper.CHECKPOINT_DETAILS_FORMAT.getValue(), key, value.get(0), value.get(1), value.get(2))));
 
         ReportManagerHelper.attach("HTML",
                 "Checkpoints Report",

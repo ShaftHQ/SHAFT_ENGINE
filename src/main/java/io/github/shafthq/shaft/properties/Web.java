@@ -71,6 +71,7 @@ public interface Web extends EngineProperties {
         /**
          * @param value io.github.shafthq.shaft.enums.Browsers
          */
+        @SuppressWarnings("SpellCheckingInspection")
         public void targetBrowserName(String value) {
             setProperty("targetBrowserName", value);
         }

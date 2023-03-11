@@ -37,6 +37,7 @@ public class WebDriverBrowserValidationsBuilder {
      *
      * @return a NativeValidationsBuilder object to continue building your validation
      */
+    @SuppressWarnings("SpellCheckingInspection")
     public NativeValidationsBuilder url() {
         this.validationMethod = "browserAttributeEquals";
         this.browserAttribute = "currenturl";

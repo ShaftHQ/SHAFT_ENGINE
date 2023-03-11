@@ -26,6 +26,7 @@ public class iosBasicInteractionsTest {
                 .perform();
     }
 
+    @SuppressWarnings("CommentedOutCode")
     @BeforeClass
     public void setup() {
         // common attributes

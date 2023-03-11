@@ -81,6 +81,7 @@ public class SHAFT {
              *
              * @return the current Selenium WebDriver instance for custom manipulation
              */
+            @SuppressWarnings("CommentedOutCode")
             public org.openqa.selenium.WebDriver getDriver() {
                 /*
                  * Decorator is not working for appium drivers as per the following issues/articles

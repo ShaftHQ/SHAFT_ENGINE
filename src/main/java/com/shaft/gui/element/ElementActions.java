@@ -74,6 +74,7 @@ public class ElementActions extends FluentElementActions {
      * @param elementLocator the locator of the webElement under test (By xpath, id,
      *                       selector, name ...etc)
      */
+    @SuppressWarnings("ResultOfMethodCallIgnored")
     @Deprecated
     public static void click(WebDriver driver, By elementLocator) {
         if (DriverFactoryHelper.isMobileNativeExecution()) {
@@ -94,7 +95,7 @@ public class ElementActions extends FluentElementActions {
                 // wait for element to be clickable
                 try {
                     WebElement element = (WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1);
-                    Boolean.FALSE.equals(ElementActionsHelper.waitForElementToBeClickable(driver, elementLocator, Optional.of("click")));
+                    Boolean.FALSE.equals(ElementActionsHelper.waitForElementToBeClickable(driver, elementLocator, "click"));
                 } catch (Exception exception) {
                     failAction(driver, elementLocator, exception);
                 }
@@ -150,7 +151,7 @@ public class ElementActions extends FluentElementActions {
             var elementName = getElementName(driver, elementLocator);
             // TODO: take screenshot before clicking the element away
             WebElement element = (WebElement) ElementActionsHelper.identifyUniqueElement(driver, elementLocator).get(1);
-            if (Boolean.FALSE.equals(ElementActionsHelper.waitForElementToBeClickable(driver, elementLocator, Optional.of("clickAndHold")))) {
+            if (Boolean.FALSE.equals(ElementActionsHelper.waitForElementToBeClickable(driver, elementLocator, "clickAndHold"))) {
                 failAction(driver, "element is not clickable", elementLocator);
             }
             passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), null, null, elementName);
@@ -384,6 +385,7 @@ public class ElementActions extends FluentElementActions {
      * @param attributeName  the target attribute of the webElement under test
      * @return the value of the target attribute of the webElement under test
      */
+    @SuppressWarnings("SpellCheckingInspection")
     @Deprecated
     public static String getAttribute(WebDriver driver, By elementLocator, String attributeName) {
         ReportManager.logDiscrete("Attempting to getAttribute \"" + attributeName + "\" from elementLocator \"" + elementLocator + "\".");
@@ -627,7 +629,7 @@ public class ElementActions extends FluentElementActions {
      */
     @Deprecated
     public static int getElementsCount(WebDriver driver, By elementLocator) {
-        return Integer.parseInt(ElementActionsHelper.getMatchingElementsInformation(driver, elementLocator, Optional.empty(), Optional.empty()).get(0).toString());
+        return Integer.parseInt(ElementActionsHelper.getMatchingElementsInformation(driver, elementLocator, 1, false).get(0).toString());
     }
 
     /**
@@ -706,7 +708,7 @@ public class ElementActions extends FluentElementActions {
     public static boolean isElementClickable(WebDriver driver, By elementLocator) {
         try {
             var elementName = getElementName(driver, elementLocator);
-            if (ElementActionsHelper.waitForElementToBeClickable(driver, elementLocator, Optional.empty())) {
+            if (ElementActionsHelper.waitForElementToBeClickable(driver, elementLocator, "")) {
                 //element is clickable
                 passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "element is clickable", null, elementName);
                 return true;
@@ -1152,15 +1154,13 @@ public class ElementActions extends FluentElementActions {
      * @param elementLocator the locator of the webElement under test (By xpath,
      *                       id, selector, name ...etc)
      */
+    @SuppressWarnings("ConstantValue")
     @Deprecated
     public static void waitForElementToBePresent(WebDriver driver, By elementLocator, boolean isExpectedToBeVisible) {
         ReportManager.logDiscrete("Waiting for element to be present; elementLocator \"" + elementLocator + "\", isExpectedToBeVisible\"" + isExpectedToBeVisible + "\"...");
         String reportMessage = "waited for the element's state of visibility to be (" + isExpectedToBeVisible
                 + "). Element locator (" + formatLocatorToString(elementLocator) + ")";
-
-        int elementCountIgnoringVisibility = Integer.valueOf(getMatchingElementsInformation(driver, elementLocator, Optional.of(1), Optional.of(false)).get(0).toString());
-//        int elementCountVisibileOnly = Integer.valueOf(getMatchingElementsInformation(driver, elementLocator, Optional.of(numberOfTries), Optional.of(true)).get(0).toString());
-
+        int elementCountIgnoringVisibility = Integer.parseInt(getMatchingElementsInformation(driver, elementLocator, 1, false).get(0).toString());
         try {
             if (elementCountIgnoringVisibility >= 1) {
                 boolean isDisplayed = ((WebElement) identifyUniqueElementIgnoringVisibility(driver, elementLocator).get(1)).isDisplayed();
@@ -1168,7 +1168,7 @@ public class ElementActions extends FluentElementActions {
                 if (isExpectedToBeVisible == isDisplayed) {
                     //either expected to be visible and is displayed, or not expected to be visible and not displayed
                     passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, getElementName(driver, elementLocator));
-                } else if (isExpectedToBeVisible == false && isDisplayed) {
+                } else if (!isExpectedToBeVisible && isDisplayed) {
                     // Element is displayed and needed to wait until it's invisible
                     if (ElementActionsHelper.waitForElementInvisibility(elementLocator)) {
                         passAction(driver, elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), reportMessage, null, getElementName(driver, elementLocator));

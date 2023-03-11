@@ -125,8 +125,8 @@ public class RestValidationsBuilder {
      *
      * @param jsonPath JSONPath of the target value; the JSONPath expression that will be evaluated in order to extract the desired value [without the trailing $.]
      *                 , please refer to these urls for examples:
-     *                 https://support.smartbear.com/alertsite/docs/monitors/api/endpoint/jsonpath.html
-     *                 http://jsonpath.com/
+     *                 <a href="https://support.smartbear.com/alertsite/docs/monitors/api/endpoint/jsonpath.html">smartbear.com/jsonpath</a>
+     *                 <a href="http://jsonpath.com/">jsonpath.com/</a>
      * @return a NativeValidationsBuilder object to continue building your validation
      */
     public NativeValidationsBuilder extractedJsonValue(String jsonPath) {
@@ -141,8 +141,8 @@ public class RestValidationsBuilder {
      *
      * @param jsonPath JSONPath of the target value; the JSONPath expression that will be evaluated in order to extract the desired value [without the trailing $.]
      *                 , please refer to these urls for examples:
-     *                 https://support.smartbear.com/alertsite/docs/monitors/api/endpoint/jsonpath.html
-     *                 http://jsonpath.com/
+     *                 <a href="https://support.smartbear.com/alertsite/docs/monitors/api/endpoint/jsonpath.html">smartbear.com/jsonpath</a>
+     *                 <a href="http://jsonpath.com/">jsonpath.com/</a>
      * @return a NativeValidationsBuilder object to continue building your validation
      */
     public NativeValidationsBuilder extractedJsonValueAsList(String jsonPath) {
