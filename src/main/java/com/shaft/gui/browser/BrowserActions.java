@@ -192,6 +192,40 @@ public class BrowserActions extends FluentBrowserActions {
         }
         return windowSize;
     }
+    /**
+     * Gets the current window size and returns it as a string
+     *
+     * @param driver the current instance of Selenium WebDriver
+     * @return the Height of the current window
+     */
+    @Deprecated
+    public static String getWindowHeight(WebDriver driver) {
+        var windowSize = "";
+        try {
+            windowSize = String.valueOf(driver.manage().window().getSize().getHeight());
+            passAction(driver, windowSize);
+        } catch (Exception rootCauseException) {
+            failAction(driver, windowSize, rootCauseException);
+        }
+        return windowSize;
+    }
+    /**
+     * Gets the current window size and returns it as a string
+     *
+     * @param driver the current instance of Selenium WebDriver
+     * @return the Width of the current window
+     */
+    @Deprecated
+    public static String getWindowWidth(WebDriver driver) {
+        var windowSize = "";
+        try {
+            windowSize = String.valueOf(driver.manage().window().getSize().getWidth());
+            passAction(driver, windowSize);
+        } catch (Exception rootCauseException) {
+            failAction(driver, windowSize, rootCauseException);
+        }
+        return windowSize;
+    }
 
     /**
      * Navigates to targetUrl in case the current URL is different, else refreshes

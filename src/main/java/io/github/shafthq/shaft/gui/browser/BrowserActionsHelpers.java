@@ -4,6 +4,7 @@ import com.google.common.net.InternetDomainName;
 import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
+import io.github.shafthq.shaft.properties.Properties;
 import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 import io.github.shafthq.shaft.tools.support.JavaHelper;
 import io.github.shafthq.shaft.tools.support.JavaScriptHelper;
@@ -97,6 +98,8 @@ public class BrowserActionsHelpers {
         message = message + ".";
 
         message = message.replace("Browser Action: ", "");
+        if (Properties.web.targetBrowserName().equals("MozillaFirefox")){
+        }else {
         if (driver != null && !message.equals("Capture page snapshot.")) {
             attachments.add(ScreenshotManager.captureScreenShot(driver, actionName, passFailStatus));
             ReportManagerHelper.log(message, attachments);
@@ -104,6 +107,7 @@ public class BrowserActionsHelpers {
             ReportManagerHelper.log(message, attachments);
         } else {
             ReportManager.log(message);
+        }
         }
         return message;
     }
