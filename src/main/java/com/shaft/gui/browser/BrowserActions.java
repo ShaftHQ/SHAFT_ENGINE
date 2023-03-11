@@ -33,7 +33,7 @@ public class BrowserActions extends FluentBrowserActions {
 
     @Deprecated
     public static FluentElementActions performElementAction(WebDriver driver) {
-        return new FluentElementActions();
+        return FluentElementActions.getInstance();
     }
 
     @Deprecated

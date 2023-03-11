@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Executors;
 
+@SuppressWarnings("unused")
 public class DatabaseActions {
     private DatabaseType dbType;
     private String dbServerIP;
@@ -443,7 +444,7 @@ public class DatabaseActions {
             statement.setQueryTimeout(Integer.parseInt(System.getProperty("databaseQueryTimeout")));
         } catch (SQLFeatureNotSupportedException rootCauseException) {
             if (!rootCauseException.getMessage().contains("org.postgresql.jdbc4.Jdbc4Statement.setQueryTimeout")) {
-                    failAction(connection.toString(), rootCauseException);
+                failAction(connection.toString(), rootCauseException);
             }
         } catch (SQLException rootCauseException) {
             failAction(connection.toString(), rootCauseException);

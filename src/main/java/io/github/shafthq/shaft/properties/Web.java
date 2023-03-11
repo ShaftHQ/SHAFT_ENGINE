@@ -4,6 +4,7 @@ import com.shaft.tools.io.ReportManager;
 import org.aeonbits.owner.Config.Sources;
 import org.aeonbits.owner.ConfigFactory;
 
+@SuppressWarnings("unused")
 @Sources({"system:properties",
         "file:src/main/resources/properties/WebCapabilities.properties",
         "file:src/main/resources/properties/default/WebCapabilities.properties",
@@ -71,7 +72,6 @@ public interface Web extends EngineProperties {
         /**
          * @param value io.github.shafthq.shaft.enums.Browsers
          */
-        @SuppressWarnings("SpellCheckingInspection")
         public void targetBrowserName(String value) {
             setProperty("targetBrowserName", value);
         }

@@ -53,7 +53,7 @@ public class SHAFT {
             }
 
             public FluentElementActions element() {
-                return new FluentElementActions();
+                return FluentElementActions.getInstance();
             }
 
             public TouchActions touch() {

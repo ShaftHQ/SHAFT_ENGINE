@@ -7,6 +7,7 @@ import org.openqa.selenium.WebDriver;
 
 import static io.github.shafthq.shaft.gui.element.ElementActionsHelper.formatLocatorToString;
 
+@SuppressWarnings("unused")
 public class ValidationsBuilder {
     protected final ValidationEnums.ValidationCategory validationCategory;
     protected String validationMethod;

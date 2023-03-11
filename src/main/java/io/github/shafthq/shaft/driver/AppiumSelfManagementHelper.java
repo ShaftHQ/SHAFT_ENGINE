@@ -19,13 +19,16 @@ import java.util.LinkedList;
 public class AppiumSelfManagementHelper {
     // TODO: implement new environment variables for dockerized instance (or remove the code)
     private static AppiumSelfManagementHelper singleInstance = null;
+    @SuppressWarnings("FieldCanBeLocal")
     private final String cliToolsVersion = "9477386_latest";
+    @SuppressWarnings("FieldCanBeLocal")
     private final String nodeJsVersion = "v18.14.0";
     @Getter
     private static final boolean terminateAppiumContainersAfterExecution = false;
 
     private final String androidSelfManagedEnvironmentLocation = System.getProperty("user.home") + File.separator + ".shaft" + File.separator + "android" + File.separator;
     private final String subPathToBin = "cmdline-tools" + File.separator + "latest" + File.separator + "bin";
+    @SuppressWarnings("FieldCanBeLocal")
     private final String subPathToPlatform = "platform-tools";
 
     private AppiumSelfManagementHelper() {

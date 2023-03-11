@@ -1,9 +1,11 @@
 package io.github.shafthq.shaft.gui.element;
 
 import com.shaft.cli.FileActions;
+import com.shaft.driver.SHAFT;
 import com.shaft.gui.element.SikuliActions;
 import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.driver.DriverFactoryHelper;
+import io.github.shafthq.shaft.enums.ClipboardAction;
 import io.github.shafthq.shaft.gui.image.ImageProcessingActions;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
 import io.github.shafthq.shaft.gui.locator.ShadowLocatorBuilder;
@@ -17,6 +19,7 @@ import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.interactions.Locatable;
+import org.openqa.selenium.remote.Browser;
 import org.openqa.selenium.support.locators.RelativeLocator;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.FluentWait;
@@ -31,7 +34,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.*;
 
-@SuppressWarnings("UnusedReturnValue")
+@SuppressWarnings({"UnusedReturnValue", "unused"})
 public class ElementActionsHelper {
     public static final String OBFUSCATED_STRING = "•";
     private static final boolean GET_ELEMENT_HTML = true; //TODO: expose parameter
@@ -122,14 +125,6 @@ public class ElementActionsHelper {
                 && !elementLocator.equals(By.tagName("html"));
     }
 
-    private static boolean isSafariBrowser() {
-        return DriverFactoryHelper.getTargetBrowserName().toLowerCase().contains("safari");
-    }
-
-    private static boolean isFirefoxBrowser() {
-        return DriverFactoryHelper.getTargetBrowserName().toLowerCase().contains("firefox");
-    }
-
     public static ArrayList<Class<? extends Exception>> getExpectedExceptions(boolean isValidToCheckForVisibility) {
         ArrayList<Class<? extends Exception>> expectedExceptions = new ArrayList<>();
         expectedExceptions.add(org.openqa.selenium.NoSuchElementException.class);
@@ -139,7 +134,7 @@ public class ElementActionsHelper {
             expectedExceptions.add(org.openqa.selenium.InvalidElementStateException.class);
             expectedExceptions.add(org.openqa.selenium.interactions.MoveTargetOutOfBoundsException.class);
         }
-        if (isSafariBrowser()) {
+        if (SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
             // the generic exception is added to handle a case with WebKit whereby the browser doesn't state the cause of the issue
             expectedExceptions.add(org.openqa.selenium.WebDriverException.class);
         }
@@ -545,7 +540,7 @@ public class ElementActionsHelper {
         var attemptClearBeforeTypingUsingBackspace = Boolean.parseBoolean(System.getProperty("attemptClearBeforeTypingUsingBackspace"));
         if (attemptClearBeforeTypingUsingBackspace) {
             String elementText = readTextBasedOnSuccessfulLocationStrategy(elementInformation, successfulTextLocationStrategy);
-            for (var character : elementText.toCharArray()) {
+            for (var ignored : elementText.toCharArray()) {
                 try {
                     (elementInformation.getFirstElement()).sendKeys(Keys.BACK_SPACE);
                 } catch (WebDriverException webDriverException) {
@@ -620,14 +615,18 @@ public class ElementActionsHelper {
         return "";
     }
 
-    public static boolean performClipboardActions(WebDriver driver, By elementLocator, String action, Keys CommandOrControl) {
+    public static boolean performClipboardActions(WebDriver driver, ClipboardAction action, Keys CommandOrControl) {
         try {
-            switch (action.toLowerCase()) {
-                case "copy" -> (new Actions(driver)).keyDown(CommandOrControl).sendKeys("c").keyUp(CommandOrControl).build().perform();
-                case "paste" -> (new Actions(driver)).keyDown(CommandOrControl).sendKeys("v").keyUp(CommandOrControl).build().perform();
-                case "cut" -> (new Actions(driver)).keyDown(CommandOrControl).sendKeys("x").keyUp(CommandOrControl).build().perform();
-                case "select all" -> (new Actions(driver)).keyDown(CommandOrControl).sendKeys("a").keyUp(CommandOrControl).build().perform();
-                case "unselect" -> (new Actions(driver)).sendKeys(Keys.ESCAPE).perform();
+            switch (action) {
+                case COPY ->
+                        (new Actions(driver)).keyDown(CommandOrControl).sendKeys("c").keyUp(CommandOrControl).build().perform();
+                case PASTE ->
+                        (new Actions(driver)).keyDown(CommandOrControl).sendKeys("v").keyUp(CommandOrControl).build().perform();
+                case CUT ->
+                        (new Actions(driver)).keyDown(CommandOrControl).sendKeys("x").keyUp(CommandOrControl).build().perform();
+                case SELECT_ALL ->
+                        (new Actions(driver)).keyDown(CommandOrControl).sendKeys("a").keyUp(CommandOrControl).build().perform();
+                case UNSELECT_ALL -> (new Actions(driver)).sendKeys(Keys.ESCAPE).perform();
                 default -> {
                     return false;
                 }
@@ -882,6 +881,7 @@ public class ElementActionsHelper {
         }
     }
 
+    @SuppressWarnings("SpellCheckingInspection")
     private static String createReportMessage(String actionName, String testData, String elementName, Boolean passFailStatus) {
         String message = "";
 

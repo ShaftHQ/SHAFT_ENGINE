@@ -38,6 +38,7 @@ public class RecordManager {
     }
 
     //TODO: the animated GIF should follow the same path as the video
+    @SuppressWarnings("SpellCheckingInspection")
     public static void startVideoRecording(WebDriver driver) {
         if (Boolean.TRUE.equals(RECORD_VIDEO)
                 && !isRecordingStarted
@@ -126,6 +127,7 @@ public class RecordManager {
         return inputStream;
     }
 
+    @SuppressWarnings("SpellCheckingInspection")
     private static File encodeRecording(String pathToRecording) {
         File source = new File(pathToRecording);
         File target = new File(pathToRecording.replace("avi", "mp4"));

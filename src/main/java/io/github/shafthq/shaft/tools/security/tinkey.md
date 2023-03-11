@@ -11,7 +11,7 @@ These are the basic business requirements:
   SHAFT before any test execution.
 - To automatically decrypt the data, SHAFT will accept some properties from the user to show the name of the key and any
   other parameters required by tinkey.
-- This should be implemented to support both local keys and remote keys as per tinkeys documentation.
+- This should be implemented to support both local keys and remote keys as per TinKey's documentation.
 - All decrypted test data should be deleted automatically by SHAFT after any execution to ensure that only the encrypted
   files exist in SHAFT's test data directory.
 - This concludes the initial business requirements, with area for future enhancements.

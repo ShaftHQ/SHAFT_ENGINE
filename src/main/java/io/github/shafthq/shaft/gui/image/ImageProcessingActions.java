@@ -337,7 +337,7 @@ public class ImageProcessingActions {
                             new Scalar(67, 176, 42), 2, 8, 0); // selenium-green
                     ByteArrayOutputStream baos = new ByteArrayOutputStream();
                     ImageIO.write((BufferedImage) HighGui.toBufferedImage(img_original), "png", baos);
-                    var screenshot = ScreenshotManager.prepareImageforReport(baos.toByteArray(), "AI identified element");
+                    var screenshot = ScreenshotManager.prepareImageForReport(baos.toByteArray(), "AI identified element");
                     List<List<Object>> attachments = new LinkedList<>();
                     attachments.add(screenshot);
                     ReportManagerHelper.log("Successfully identified the element using AI; OpenCV. " + accuracyMessage, attachments);
@@ -377,7 +377,7 @@ public class ImageProcessingActions {
     public static byte[] getReferenceImage(By elementLocator) {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
         if (aiFolderPath.isEmpty()) {
-            aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
+            aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderPath();
         }
         String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
         if (FileActions.getInstance().doesFileExist(referenceImagePath)) {
@@ -598,6 +598,7 @@ public class ImageProcessingActions {
         }
     }
 
+    @SuppressWarnings("unused")
     public enum VisualValidationEngine {
         EXACT_SHUTTERBUG,
         EXACT_OPENCV,

@@ -11,13 +11,13 @@ import org.testng.annotations.Test;
 import org.testng.asserts.SoftAssert;
 import poms.GoogleSearch;
 
-public class Test_Wizard_GUI {
+public class GUIWizardTests {
     SHAFT.GUI.WebDriver driver;
     SHAFT.TestData.JSON testData;
 
     By searchBox = GoogleSearch.getSearchBox_textField();
     By resultStats = By.id("result-stats");
-    
+
     //locators of test_ClickUsingJavaScript
     By emailField = By.xpath("//input[@name='user-name']");
     By passwordField = By.xpath("//input[@name='password']");
@@ -46,14 +46,14 @@ public class Test_Wizard_GUI {
     
     @Test
     public void test_ClickUsingJavaScript() {
-    	driver.browser().navigateToURL("https://www.saucedemo.com");
-		driver.element().type(emailField, "standard_user");
-		driver.element().type(passwordField, "secret_sauce");
-		driver.element().clickUsingJavascript(driver.getDriver(), loginButton);
-		driver.element().clickUsingJavascript(driver.getDriver(), product1);
-		driver.element().clickUsingJavascript(driver.getDriver(), shoppingCartButton);
-		driver.verifyThat().element(productName).text().equals("Sauce Labs Backpack");
-		  }
+        driver.browser().navigateToURL("https://www.saucedemo.com")
+                .element().type(emailField, "standard_user")
+                .type(passwordField, "secret_sauce")
+                .clickUsingJavascript(loginButton)
+                .clickUsingJavascript(product1)
+                .clickUsingJavascript(shoppingCartButton)
+                .verifyThat(productName).text().isEqualTo("Sauce Labs Backpack").perform();
+    }
 
 
     @BeforeClass

@@ -13,6 +13,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
+@SuppressWarnings("unused")
 public class YAMLFileManager {
     public final static String KEY_CONTAINS_LIST_REGEX = "^[-a-zA-Z\\d_!@#$%^&*()+=|\\\\/?><\"'{}~]*(\\[\\d+])+$";
     public final static String NUMBER_IN_SQUARE_BRACKETS_REGEX = "\\[\\d+]";
@@ -52,7 +53,7 @@ public class YAMLFileManager {
         ReportManagerHelper.log(
                 "Loaded Test Data: \"" + filePath + "\".",
                 List.of(testDataFileAttachment)
-                );
+        );
     }
 
     /**

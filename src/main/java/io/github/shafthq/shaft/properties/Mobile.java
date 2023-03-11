@@ -5,6 +5,7 @@ import io.appium.java_client.remote.AutomationName;
 import org.aeonbits.owner.Config.Sources;
 import org.aeonbits.owner.ConfigFactory;
 
+@SuppressWarnings("unused")
 @Sources({"system:properties",
         "file:src/main/resources/properties/MobileCapabilities.properties",
         "file:src/main/resources/properties/default/MobileCapabilities.properties",

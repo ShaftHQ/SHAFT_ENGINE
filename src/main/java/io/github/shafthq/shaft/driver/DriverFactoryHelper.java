@@ -211,7 +211,7 @@ public class DriverFactoryHelper {
                 }
                 // Enable BiDi
                 ffOptions.setCapability("webSocketUrl", true);
-                //merge customWebdriverCapabilities.properties
+                //merge customWebDriverCapabilities.properties
                 ffOptions = ffOptions.merge(PropertyFileManager.getCustomWebDriverDesiredCapabilities());
                 //merge hardcoded custom options
                 if (customDriverOptions != null) {
@@ -231,7 +231,7 @@ public class DriverFactoryHelper {
                     proxy.setSslProxy(proxyServerSettings);
                     ieOptions.setProxy(proxy);
                 }
-                //merge customWebdriverCapabilities.properties
+                //merge customWebDriverCapabilities.properties
                 ieOptions = ieOptions.merge(PropertyFileManager.getCustomWebDriverDesiredCapabilities());
                 //merge hardcoded custom options
                 if (customDriverOptions != null) {
@@ -259,7 +259,7 @@ public class DriverFactoryHelper {
                     proxy.setSslProxy(proxyServerSettings);
                     sfOptions.setProxy(proxy);
                 }
-                //merge customWebdriverCapabilities.properties
+                //merge customWebDriverCapabilities.properties
                 sfOptions = sfOptions.merge(PropertyFileManager.getCustomWebDriverDesiredCapabilities());
                 //merge hardcoded custom options
                 if (customDriverOptions != null) {
@@ -273,6 +273,7 @@ public class DriverFactoryHelper {
         }
     }
 
+    @SuppressWarnings("SpellCheckingInspection")
     private static ChromiumOptions<?> setupChromiumOptions(ChromiumOptions<?> options, MutableCapabilities customDriverOptions) {
         options.setCapability(CapabilityType.PLATFORM_NAME, Properties.platform.targetPlatform());
 
@@ -716,6 +717,7 @@ public class DriverFactoryHelper {
         }
     }
 
+    @SuppressWarnings("SpellCheckingInspection")
     private static DesiredCapabilities initializeMobileDesiredCapabilities() {
         var desiredCapabilities = new DesiredCapabilities();
 

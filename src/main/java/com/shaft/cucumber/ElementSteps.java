@@ -2,6 +2,7 @@ package com.shaft.cucumber;
 
 import com.shaft.driver.SHAFT;
 import io.cucumber.java.en.When;
+import io.github.shafthq.shaft.enums.ClipboardAction;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
 
@@ -14,7 +15,6 @@ public class ElementSteps {
         this.driver = Objects.requireNonNullElseGet(driver, ThreadLocal::new);
     }
 
-    @SuppressWarnings("SpellCheckingInspection")
     protected static By getLocatorFromTypeAndValue(String locatorType, String locatorValue) {
         switch (locatorType.toLowerCase()) {
             case "id" -> {
@@ -68,7 +68,6 @@ public class ElementSteps {
      * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue the value/expression of the desired element locator
      */
-    @SuppressWarnings("SpellCheckingInspection")
     @When("I Type {string} securely into the element found by {string}: {string}")
     public void typeSecure(String text, String locatorType, String locatorValue) {
         driver.get().element().typeSecure(getLocatorFromTypeAndValue(locatorType, locatorValue), text);
@@ -82,7 +81,6 @@ public class ElementSteps {
      * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue the value/expression of the desired element locator
      */
-    @SuppressWarnings("SpellCheckingInspection")
     @When("I Append the text {string} to the element found by {string}: {string}")
     public void typeAppend(String text, String locatorType, String locatorValue) {
         driver.get().element().typeAppend(getLocatorFromTypeAndValue(locatorType, locatorValue), text);
@@ -96,7 +94,6 @@ public class ElementSteps {
      * @param locatorType      can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue     the value/expression of the desired element locator
      */
-    @SuppressWarnings("SpellCheckingInspection")
     @When("I Upload the file {string} to the element found by {string}: {string}")
     public void typeFileLocationForUpload(String absoluteFilePath, String locatorType, String locatorValue) {
         driver.get().element().typeFileLocationForUpload(getLocatorFromTypeAndValue(locatorType, locatorValue), absoluteFilePath);
@@ -122,7 +119,6 @@ public class ElementSteps {
      * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue the value/expression of the desired element locator
      */
-    @SuppressWarnings("SpellCheckingInspection")
     @When("I Click the element found by {string}: {string}")
     public void click(String locatorType, String locatorValue) {
         driver.get().element().click(getLocatorFromTypeAndValue(locatorType, locatorValue));
@@ -134,7 +130,6 @@ public class ElementSteps {
      * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue the value/expression of the desired element locator
      */
-    @SuppressWarnings("SpellCheckingInspection")
     @When("I Click and hold the element found by {string}: {string}")
     public void clickAndHold(String locatorType, String locatorValue) {
         driver.get().element().clickAndHold(getLocatorFromTypeAndValue(locatorType, locatorValue));
@@ -149,10 +144,9 @@ public class ElementSteps {
      * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue the value/expression of the desired element locator
      */
-    @SuppressWarnings("SpellCheckingInspection")
     @When("I use the clipboard to perform {string} on the element found by {string}: {string}")
     public void clipboardActions(String action, String locatorType, String locatorValue) {
-        driver.get().element().clipboardActions(getLocatorFromTypeAndValue(locatorType, locatorValue), action);
+        driver.get().element().clipboardActions(getLocatorFromTypeAndValue(locatorType, locatorValue), ClipboardAction.valueOf(action));
     }
 
     /**
@@ -161,7 +155,6 @@ public class ElementSteps {
      * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue the value/expression of the desired element locator
      */
-    @SuppressWarnings("SpellCheckingInspection")
     @When("I Double-click the element found by {string}: {string}")
     public void doubleClick(String locatorType, String locatorValue) {
         driver.get().element().doubleClick(getLocatorFromTypeAndValue(locatorType, locatorValue));
@@ -175,7 +168,6 @@ public class ElementSteps {
      * @param destinationLocatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param destinationLocatorValue the value/expression of the target element locator that's droppable
      */
-    @SuppressWarnings("SpellCheckingInspection")
     @When("I Drag the element found by {string}: {string} and drop it on the element found by {string}: {string}")
     public void dragAndDrop(String sourceLocatorType, String sourceLocatorValue, String destinationLocatorType, String destinationLocatorValue) {
         driver.get().element().dragAndDrop(getLocatorFromTypeAndValue(sourceLocatorType, sourceLocatorValue), getLocatorFromTypeAndValue(destinationLocatorType, destinationLocatorValue));
@@ -191,7 +183,6 @@ public class ElementSteps {
      * @param yOffset      the vertical offset by which the element should
      *                     be moved
      */
-    @SuppressWarnings("SpellCheckingInspection")
     @When("I Drag the element found by {string}: {string} and drop it by offset x={int} and y={int}")
     public void dragAndDropByOffset(String locatorType, String locatorValue, int xOffset, int yOffset) {
         driver.get().element().dragAndDropByOffset(getLocatorFromTypeAndValue(locatorType, locatorValue), xOffset, yOffset);
@@ -203,7 +194,6 @@ public class ElementSteps {
      * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue the value/expression of the desired element locator
      */
-    @SuppressWarnings("SpellCheckingInspection")
     @When("I Hover over the element found by {string}: {string}")
     public void hover(String locatorType, String locatorValue) {
         driver.get().element().hover(getLocatorFromTypeAndValue(locatorType, locatorValue));
@@ -216,7 +206,6 @@ public class ElementSteps {
      * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue the value/expression of the desired element locator
      */
-    @SuppressWarnings("SpellCheckingInspection")
     @When("I Select {string} from the drop-down list element found by {string}: {string}")
     public void select(String text, String locatorType, String locatorValue) {
         driver.get().element().select(getLocatorFromTypeAndValue(locatorType, locatorValue), text);
@@ -229,7 +218,6 @@ public class ElementSteps {
      * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue the value/expression of the desired element locator
      */
-    @SuppressWarnings("SpellCheckingInspection")
     @When("I Set the value {string} into the element found by {string}: {string}")
     public void setValueUsingJavaScript(String value, String locatorType, String locatorValue) {
         driver.get().element().setValueUsingJavaScript(getLocatorFromTypeAndValue(locatorType, locatorValue), value);
@@ -241,7 +229,6 @@ public class ElementSteps {
      * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue the value/expression of the desired element locator
      */
-    @SuppressWarnings("SpellCheckingInspection")
     @When("I Submit the form found by {string}: {string}")
     public void submitFormUsingJavaScript(String locatorType, String locatorValue) {
         driver.get().element().submitFormUsingJavaScript(getLocatorFromTypeAndValue(locatorType, locatorValue));
@@ -253,13 +240,11 @@ public class ElementSteps {
      * multiplied by the default element identification timeout (in the POM.xml
      * file)
      *
-     * @param numberOfTries the number of times to try and wait for the element to achieve the desired stateOfPresence (default is 1)
-     * @param locatorType   can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
-     * @param locatorValue  the value/expression of the desired element locator
+     * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
+     * @param locatorValue the value/expression of the desired element locator
      */
-    @SuppressWarnings("SpellCheckingInspection")
-    @When("I Wait for {int} attempt(s) for the element found by {string}: {string} to be present")
-    public void waitForElementToBePresent(int numberOfTries, String locatorType, String locatorValue) {
+    @When("I Wait for the element found by {string}: {string} to be present")
+    public void waitForElementToBePresent(String locatorType, String locatorValue) {
         driver.get().element().waitToBeReady(getLocatorFromTypeAndValue(locatorType, locatorValue));
     }
 
@@ -269,13 +254,11 @@ public class ElementSteps {
      * multiplied by the default element identification timeout (in the POM.xml
      * file)
      *
-     * @param numberOfTries the number of times to try and wait for the element to achieve the desired stateOfPresence (default is 1)
      * @param locatorType   can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue  the value/expression of the desired element locator
      */
-    @SuppressWarnings("SpellCheckingInspection")
-    @When("I Wait for {int} attempt(s) for the element found by {string}: {string} to be not present")
-    public void waitForElementToBeNotPresent(int numberOfTries, String locatorType, String locatorValue) {
+    @When("I Wait for the element found by {string}: {string} to be not present")
+    public void waitForElementToBeNotPresent(String locatorType, String locatorValue) {
         driver.get().element().waitToBeInvisible(getLocatorFromTypeAndValue(locatorType, locatorValue));
     }
 
@@ -289,16 +272,16 @@ public class ElementSteps {
      * @param locatorValue  the value/expression of the desired element locator
      * @param initialValue  the initial text value of the target webElement
      */
-    @SuppressWarnings("SpellCheckingInspection")
     @When("I Wait for the text inside the element found by {string}: {string} to change from the initial value {string}")
     public void waitForTextToChange(String locatorType, String locatorValue, String initialValue) {
         driver.get().element().waitForTextToChange(getLocatorFromTypeAndValue(locatorType, locatorValue), initialValue);
 
     }
 
+    @SuppressWarnings("unused")
     protected enum LocatorType {
-        ID("id"), @SuppressWarnings("SpellCheckingInspection") TAG_NAME("tagname"), CLASS_NAME("classname"), NAME("name"), @SuppressWarnings("SpellCheckingInspection") LINK_TEXT("linktext"),
-        @SuppressWarnings("SpellCheckingInspection") PARTIAL_LINK_TEXT("partiallinktext"), @SuppressWarnings("SpellCheckingInspection") CSS_SELECTOR("cssselector"), XPATH("xpath");
+        ID("id"), TAG_NAME("tagname"), CLASS_NAME("classname"), NAME("name"), LINK_TEXT("linktext"),
+        PARTIAL_LINK_TEXT("partiallinktext"), CSS_SELECTOR("cssselector"), XPATH("xpath");
 
         private final String value;
 

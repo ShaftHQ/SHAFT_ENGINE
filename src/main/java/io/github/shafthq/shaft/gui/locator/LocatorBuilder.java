@@ -22,6 +22,7 @@ public class LocatorBuilder {
     @Setter
     private static Locators mode = Locators.XPATH;
 
+    @SuppressWarnings("unused")
     private LocatorBuilder() {
         // do nothing
     }

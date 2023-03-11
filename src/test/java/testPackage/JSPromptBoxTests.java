@@ -11,7 +11,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-public class Test_JSPromptBox {
+public class JSPromptBoxTests {
     private static final By JS_PromptAlert = By.xpath("//button[contains(text(),'Click for JS Prompt')]");
     private static final By JS_ResultText = By.id("result");
     private static WebDriver driver;
@@ -19,18 +19,18 @@ public class Test_JSPromptBox {
     @BeforeClass
     public void navigateToJSAlertPage() {
         driver = DriverFactory.getDriver();
-        BrowserActions.navigateToURL(driver, "http://the-internet.herokuapp.com/javascript_alerts");
+        BrowserActions.getInstance().navigateToURL("http://the-internet.herokuapp.com/javascript_alerts");
     }
 
     @AfterClass(alwaysRun = true)
     public void tearDownDriver() {
-        BrowserActions.closeCurrentWindow(driver);
+        BrowserActions.getInstance().closeCurrentWindow();
     }
 
     @Test
     public void dismissAlert() {
-        ElementActions.click(driver, JS_PromptAlert);
-        ElementActions.performAlertAction(driver).dismissAlert();
+        ElementActions.getInstance().click(JS_PromptAlert);
+        ElementActions.getInstance().performAlertAction().dismissAlert();
     }
 
     @Test(dependsOnMethods = "dismissAlert")
@@ -40,27 +40,27 @@ public class Test_JSPromptBox {
 
     @Test(dependsOnMethods = "assertOnCancelAlertResultText")
     public void getAlertText() {
-        ElementActions.click(driver, JS_PromptAlert);
-        ReportManager.logDiscrete("Alert text is: [" + ElementActions.performAlertAction(driver).getAlertText() + "]");
-        Validations.assertThat().object(ElementActions.performAlertAction(driver).getAlertText()).isEqualTo("I am a JS prompt").perform();
+        ElementActions.getInstance().click(JS_PromptAlert);
+        ReportManager.logDiscrete("Alert text is: [" + ElementActions.getInstance().performAlertAction().getAlertText() + "]");
+        Validations.assertThat().object(ElementActions.getInstance().performAlertAction().getAlertText()).isEqualTo("I am a JS prompt").perform();
     }
 
     @Test(dependsOnMethods = "getAlertText")
     public void acceptPromptAlertWithoutTypingTextMessage() {
-        ElementActions.click(driver, JS_PromptAlert);
-        ElementActions.performAlertAction(driver).acceptAlert();
+        ElementActions.getInstance().click(JS_PromptAlert);
+        ElementActions.getInstance().performAlertAction().acceptAlert();
     }
 
     @Test(dependsOnMethods = "acceptPromptAlertWithoutTypingTextMessage")
     public void assertOnConfirmPromptAlertWithoutTypingTextMessageResultText() {
-        Validations.assertThat().element(driver, JS_ResultText).text().contains("You entered:").perform();
+        Validations.assertThat().element(JS_ResultText).text().contains("You entered:").perform();
     }
 
     @Test(dependsOnMethods = "assertOnConfirmPromptAlertWithoutTypingTextMessageResultText")
     public void acceptPromptAlertWithTextMessage() {
-        ElementActions.click(driver, JS_PromptAlert);
-        ElementActions.performAlertAction(driver).typeIntoPromptAlert("Prompt Alert text message");
-        ElementActions.performAlertAction(driver).acceptAlert();
+        ElementActions.getInstance().click(JS_PromptAlert);
+        ElementActions.getInstance().performAlertAction().typeIntoPromptAlert("Prompt Alert text message");
+        ElementActions.getInstance().performAlertAction().acceptAlert();
     }
 
     @Test(dependsOnMethods = "acceptPromptAlertWithTextMessage")

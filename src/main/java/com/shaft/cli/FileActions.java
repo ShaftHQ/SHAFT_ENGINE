@@ -306,6 +306,7 @@ public class FileActions {
         writeToFile(fileFolderName, fileName, textToBytes);
     }
 
+    @SuppressWarnings("unused")
     public String readPDF(String fileFolderName, String fileName) {
         return new PdfFileManager(fileFolderName + fileName).readFileContent();
     }

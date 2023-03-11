@@ -215,7 +215,7 @@ public class ValidationsHelper {
 
     }
 
-    @SuppressWarnings("SpellCheckingInspection")
+    @SuppressWarnings({"SpellCheckingInspection", "unused"})
     protected static void validateBrowserAttribute(ValidationCategory validationCategory, WebDriver driver, String browserAttribute,
                                                    String expectedValue, ValidationComparisonType validationComparisonType, ValidationType validationType,
                                                    String... optionalCustomLogMessage) {
@@ -611,7 +611,6 @@ public class ValidationsHelper {
         }
     }
 
-    @SuppressWarnings("SpellCheckingInspection")
     private static void reportValidationState(ValidationCategory validationCategory, String expectedValue, String actualValue,
                                               Object validationComparisonOrComparativeRelationType, ValidationType validationType,
                                               ValidationState validationState, Throwable failureReason, List<List<Object>> externalAttachments) {

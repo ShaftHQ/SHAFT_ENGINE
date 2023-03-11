@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
+@SuppressWarnings("unused")
 public class SikuliActions {
     private Screen screen;
     private App applicationWindow;

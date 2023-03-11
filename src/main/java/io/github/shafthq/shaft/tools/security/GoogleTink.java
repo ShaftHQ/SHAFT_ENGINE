@@ -17,6 +17,7 @@ import io.github.shafthq.shaft.tools.io.FailureReporter;
 import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.Optional;
@@ -92,10 +93,10 @@ public class GoogleTink {
     }
 
     public static void decrypt(String relativeFolderPath, String targetFileName) {
-        byte[] decryptedtext;
+        byte[] decryptedText;
         try {
-            decryptedtext = internal_decrypt(FileActions.getInstance().readFileAsByteArray(relativeFolderPath + targetFileName));
-            FileActions.getInstance().writeToFile(relativeFolderPath, targetFileName, decryptedtext);
+            decryptedText = internal_decrypt(FileActions.getInstance().readFileAsByteArray(relativeFolderPath + targetFileName));
+            FileActions.getInstance().writeToFile(relativeFolderPath, targetFileName, decryptedText);
             ReportManager.log("Successfully Decrypted \"" + targetFileName + "\".");
         } catch (GeneralSecurityException e) {
             ReportManagerHelper.logDiscrete(e);
@@ -107,10 +108,10 @@ public class GoogleTink {
     private static KeysetHandle internal_loadKeyset() throws IOException, GeneralSecurityException {
         if (!"".equals(masterKeyUri)) {
             // working with encrypted keyset https://developers.google.com/tink/generate-encrypted-keyset
-            return KeysetHandle.read(JsonKeysetReader.withFile(new File(keysetFilename)), new AwsKmsClient().getAead(masterKeyUri));
+            return KeysetHandle.read(JsonKeysetReader.withInputStream(new FileInputStream(keysetFilename)), new AwsKmsClient().getAead(masterKeyUri));
         } else {
             // working with plaintext keyset https://developers.google.com/tink/generate-plaintext-keyset
-            return CleartextKeysetHandle.read(JsonKeysetReader.withFile(new File(keysetFilename)));
+            return CleartextKeysetHandle.read(JsonKeysetReader.withInputStream(new FileInputStream(keysetFilename)));
         }
     }
 

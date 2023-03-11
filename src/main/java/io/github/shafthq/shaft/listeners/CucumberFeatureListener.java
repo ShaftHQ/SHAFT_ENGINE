@@ -125,6 +125,7 @@ public class CucumberFeatureListener implements ConcurrentEventListener {
         testSources.addTestSourceReadEvent(event.getUri(), event);
     }
 
+    @SuppressWarnings("unused")
     private void handleFeatureFinishedHandler(final TestRunFinished event){
         // custom code
         shaftTeardown();

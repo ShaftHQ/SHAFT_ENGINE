@@ -6,6 +6,7 @@ import com.shaft.validation.ValidationEnums;
 import io.github.shafthq.shaft.tools.support.JavaHelper;
 
 
+@SuppressWarnings("unused")
 public class RestValidationsBuilder {
     protected final ValidationEnums.ValidationCategory validationCategory;
     protected String validationMethod;
@@ -125,7 +126,7 @@ public class RestValidationsBuilder {
      *
      * @param jsonPath JSONPath of the target value; the JSONPath expression that will be evaluated in order to extract the desired value [without the trailing $.]
      *                 , please refer to these urls for examples:
-     *                 <a href="https://support.smartbear.com/alertsite/docs/monitors/api/endpoint/jsonpath.html">smartbear.com/jsonpath</a>
+     *                 <a href="https://support.smartbear.com/alertsite/docs/monitors/api/endpoint/jsonpath.html">SmartBear.com/jsonpath</a>
      *                 <a href="http://jsonpath.com/">jsonpath.com/</a>
      * @return a NativeValidationsBuilder object to continue building your validation
      */
@@ -141,7 +142,7 @@ public class RestValidationsBuilder {
      *
      * @param jsonPath JSONPath of the target value; the JSONPath expression that will be evaluated in order to extract the desired value [without the trailing $.]
      *                 , please refer to these urls for examples:
-     *                 <a href="https://support.smartbear.com/alertsite/docs/monitors/api/endpoint/jsonpath.html">smartbear.com/jsonpath</a>
+     *                 <a href="https://support.smartbear.com/alertsite/docs/monitors/api/endpoint/jsonpath.html">SmartBear.com/jsonpath</a>
      *                 <a href="http://jsonpath.com/">jsonpath.com/</a>
      * @return a NativeValidationsBuilder object to continue building your validation
      */

@@ -54,10 +54,10 @@ import static io.restassured.config.HttpClientConfig.httpClientConfig;
 
 @SuppressWarnings("unused")
 public class RestActions {
-    private static final String ARGUMENTSEPARATOR = "?";
+    private static final String ARGUMENT_SEPARATOR = "?";
     private static final String ERROR_NOT_FOUND = "Either actual value is \"null\" or couldn't find anything that matches with the desired ";
     private static final String ERROR_INCORRECT_JSONPATH = "Incorrect jsonPath ";
-    private static final String ERROR_INCORRECT_XMLPATH = "Incorrect xmlPath ";
+    private static final String ERROR_INCORRECT_XML_PATH = "Incorrect xmlPath ";
     private static final String ERROR_FAILED_TO_PARSE_JSON = "Failed to parse the JSON document";
     private static final String GRAPHQL_END_POINT = "graphql";
     private static boolean AUTOMATICALLY_ASSERT_RESPONSE_STATUS_CODE = true;
@@ -127,14 +127,14 @@ public class RestActions {
             return parseJsonBody(body);
         } catch (Exception e) {
             // response is not parsable to JSON
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
             ObjectOutputStream oos;
             try {
-                oos = new ObjectOutputStream(baos);
+                oos = new ObjectOutputStream(byteArrayOutputStream);
                 oos.writeObject(body);
                 oos.flush();
                 oos.close();
-                return new ByteArrayInputStream(baos.toByteArray());
+                return new ByteArrayInputStream(byteArrayOutputStream.toByteArray());
             } catch (IOException ioe) {
                 if (body.getClass().getName().toLowerCase().contains("restassured")) {
                     // if it's a string response body
@@ -281,7 +281,7 @@ public class RestActions {
         try {
             searchPool = response.xmlPath().getString(xmlPath);
         } catch (ClassCastException rootCauseException) {
-            ReportManager.log(ERROR_INCORRECT_XMLPATH + "\"" + xmlPath + "\"");
+            ReportManager.log(ERROR_INCORRECT_XML_PATH + "\"" + xmlPath + "\"");
             failAction(xmlPath, rootCauseException);
 
         }
@@ -300,7 +300,7 @@ public class RestActions {
         try {
             output = ((Node) response).getAttribute(xmlPath);
         } catch (ClassCastException rootCauseException) {
-            ReportManager.log(ERROR_INCORRECT_XMLPATH + "\"" + xmlPath + "\"");
+            ReportManager.log(ERROR_INCORRECT_XML_PATH + "\"" + xmlPath + "\"");
             failAction(xmlPath, rootCauseException);
 
         }
@@ -319,7 +319,7 @@ public class RestActions {
         try {
             output = response.xmlPath().get(xmlPath);
         } catch (ClassCastException rootCauseException) {
-            ReportManager.log(ERROR_INCORRECT_XMLPATH + "\"" + xmlPath + "\"");
+            ReportManager.log(ERROR_INCORRECT_XML_PATH + "\"" + xmlPath + "\"");
             failAction(xmlPath, rootCauseException);
 
         }
@@ -685,10 +685,10 @@ public class RestActions {
             return 1; // json
         } catch (Exception e) {
             // response is not parsable to JSON
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
             ObjectOutputStream oos;
             try {
-                oos = new ObjectOutputStream(baos);
+                oos = new ObjectOutputStream(byteArrayOutputStream);
                 oos.writeObject(body);
                 oos.flush();
                 oos.close();
@@ -1013,6 +1013,7 @@ public class RestActions {
 
         builder.addCookies(sessionCookies);
         builder.addHeaders(sessionHeaders);
+        //noinspection DataFlowIssue
         builder = setConfigs(builder, sessionConfigs);
 
         // fixing issue with non-unicode content being encoded with a non UTF-8 charset
@@ -1076,7 +1077,7 @@ public class RestActions {
 
     protected String prepareRequestURL(String serviceURI, String urlArguments, String serviceName) {
         if (urlArguments != null && !urlArguments.equals("")) {
-            return serviceURI + serviceName + ARGUMENTSEPARATOR + urlArguments;
+            return serviceURI + serviceName + ARGUMENT_SEPARATOR + urlArguments;
         } else {
             return serviceURI + serviceName;
         }
@@ -1099,8 +1100,8 @@ public class RestActions {
     }
 
     private void prepareRequestBody(RequestSpecBuilder builder, Object body, String contentType) {
-        if (body instanceof String bodystr && bodystr.contains("\n")) {
-            builder.setBody(bodystr);
+        if (body instanceof String bodyString && bodyString.contains("\n")) {
+            builder.setBody(bodyString);
         } else if (body instanceof org.json.JSONObject || body instanceof org.json.JSONArray) {
             builder.setBody(body.toString());
         } else {
@@ -1122,17 +1123,17 @@ public class RestActions {
                                     ParametersType parametersType) {
         parameters.forEach(param -> {
             if (param.get(1).getClass().equals(File.class)) {
-                MultiPartSpecBuilder multispec = new MultiPartSpecBuilder(param.get(1));
-                multispec.controlName(param.get(0).toString());
+                MultiPartSpecBuilder multiPartSpecBuilder = new MultiPartSpecBuilder(param.get(1));
+                multiPartSpecBuilder.controlName(param.get(0).toString());
                 String fileName = ((File) param.get(1)).getName();
-                multispec.fileName(fileName);
+                multiPartSpecBuilder.fileName(fileName);
                 String mimeType;
                 mimeType = URLConnection.guessContentTypeFromName(((File) param.get(1)).getName());
                 if (mimeType == null) {
                     mimeType = MimeUtil2.getMostSpecificMimeType(MimeUtil.getMimeTypes(fileName)).toString();
                 }
-                multispec.mimeType(mimeType);
-                builder.addMultiPart(multispec.build());
+                multiPartSpecBuilder.mimeType(mimeType);
+                builder.addMultiPart(multiPartSpecBuilder.build());
                 // override the default content type as part of the specs
                 builder.setContentType("multipart/form-data");
             } else {
@@ -1216,9 +1217,9 @@ public class RestActions {
                             .withCustomReportMessage("Evaluating the actual response status code "+statusCode+" against the expected one "+targetStatusCode+"...")
                             .perform();
                 } else {
-                    Validations.assertThat().object(statusCode>=200 && statusCode<300)
+                    Validations.assertThat().object(statusCode >= 200 && statusCode < 300)
                             .isTrue()
-                            .withCustomReportMessage("Evaluating the actual response status code is between 200 and 299 which means it was successfull as per https://www.w3.org/Protocols/HTTP/HTRESP.html...")
+                            .withCustomReportMessage("Evaluating that the response is successful (Status code is between 200 and 299)...")
                             .perform();
                 }
             }

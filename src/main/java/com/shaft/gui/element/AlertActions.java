@@ -50,7 +50,7 @@ public class AlertActions {
     }
 
     public FluentElementActions performElementAction() {
-        return new FluentElementActions(DriverFactoryHelper.getDriver().get());
+        return FluentElementActions.getInstance();
     }
 
     public boolean isAlertPresent() {
@@ -69,6 +69,7 @@ public class AlertActions {
         }
     }
 
+    @SuppressWarnings("UnusedReturnValue")
     public AlertActions acceptAlert() {
         try {
             waitForAlertToBePresent();
@@ -80,6 +81,7 @@ public class AlertActions {
         return this;
     }
 
+    @SuppressWarnings("UnusedReturnValue")
     public AlertActions dismissAlert() {
         try {
             waitForAlertToBePresent();
@@ -104,6 +106,7 @@ public class AlertActions {
         }
     }
 
+    @SuppressWarnings("UnusedReturnValue")
     public AlertActions typeIntoPromptAlert(String text) {
         try {
             waitForAlertToBePresent();

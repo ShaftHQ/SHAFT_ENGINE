@@ -21,6 +21,7 @@ import java.util.UUID;
 import static io.github.shafthq.shaft.listeners.CucumberHelper.shaftSetup;
 import static io.github.shafthq.shaft.listeners.CucumberHelper.shaftTeardown;
 
+@SuppressWarnings("unused")
 public class CucumberTestRunnerListener implements ConcurrentEventListener {
     private static String lastStartedScenarioName;
 

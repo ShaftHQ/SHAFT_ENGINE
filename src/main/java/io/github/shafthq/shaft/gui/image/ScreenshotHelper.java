@@ -108,9 +108,9 @@ public class ScreenshotHelper {
             showScroll(driver);
             showHideElements(driver, false, skipElements);
 
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            ImageIO.write(resultingImage, "png", baos);
-            return baos.toByteArray();
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            ImageIO.write(resultingImage, "png", byteArrayOutputStream);
+            return byteArrayOutputStream.toByteArray();
         }
     }
 
@@ -149,7 +149,7 @@ public class ScreenshotHelper {
 
     private static void waitUntilItIsScrolledToPosition(WebDriver driver, int scrollPosition)
             throws InterruptedException {
-        int time = 250;// SCREENSHOT_FULLPAGE_SCROLLTIMEOUT
+        int time = 250;// SCREENSHOT_FULLPAGE_SCROLL_TIMEOUT
         boolean isScrolledToPosition = false;
         while (time >= 0 && !isScrolledToPosition) {
             Thread.sleep(50);

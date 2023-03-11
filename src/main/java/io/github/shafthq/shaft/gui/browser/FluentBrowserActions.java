@@ -29,18 +29,19 @@ import java.util.function.Predicate;
 
 import static io.github.shafthq.shaft.gui.browser.BrowserActionsHelpers.*;
 
+@SuppressWarnings("unused")
 public class FluentBrowserActions {
-    private static FluentBrowserActions INSTANCE;
+    private static final ThreadLocal<FluentBrowserActions> INSTANCE = new ThreadLocal<>();
 
     protected FluentBrowserActions() {
     }
 
     public synchronized static FluentBrowserActions getInstance() {
         JavaScriptWaitManager.waitForLazyLoading();
-        if (INSTANCE == null) {
-            INSTANCE = new FluentBrowserActions();
+        if (INSTANCE.get() == null) {
+            INSTANCE.set(new FluentBrowserActions());
         }
-        return INSTANCE;
+        return INSTANCE.get();
     }
 
     public TouchActions performTouchAction() {
@@ -52,7 +53,7 @@ public class FluentBrowserActions {
     }
 
     public FluentElementActions performElementAction() {
-        return new FluentElementActions();
+        return FluentElementActions.getInstance();
     }
 
     public TouchActions touch() {
@@ -64,7 +65,7 @@ public class FluentBrowserActions {
     }
 
     public FluentElementActions element() {
-        return new FluentElementActions();
+        return FluentElementActions.getInstance();
     }
 
     public FluentBrowserActions and() {
@@ -258,7 +259,8 @@ public class FluentBrowserActions {
             if (!initialURL.equals(modifiedTargetUrl)) {
                 // navigate to new url
                 navigateToNewURL(DriverFactoryHelper.getDriver().get(), initialURL, modifiedTargetUrl, targetUrlAfterRedirection);
-                JavaScriptWaitManager.waitForLazyLoading();
+                // TODO: confirm that this doesn't cause a false positive navigation succeeded/failed bug, if it does, simply uncomment this line
+//                JavaScriptWaitManager.waitForLazyLoading();
                 if ((ElementActionsHelper.getElementsCount(DriverFactoryHelper.getDriver().get(), By.tagName("html")) == 1)
                         && (!DriverFactoryHelper.getDriver().get().getPageSource().equalsIgnoreCase(initialSource))) {
                     confirmThatWebsiteIsNotDown(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
@@ -269,7 +271,8 @@ public class FluentBrowserActions {
             } else {
                 // already on the same page
                 DriverFactoryHelper.getDriver().get().navigate().refresh();
-                JavaScriptWaitManager.waitForLazyLoading();
+                // TODO: confirm that this doesn't cause a false positive navigation succeeded/failed bug, if it does, simply uncomment this line
+//                JavaScriptWaitManager.waitForLazyLoading();
                 if (ElementActionsHelper.getElementsCount(DriverFactoryHelper.getDriver().get(), By.tagName("html")) == 1) {
                     confirmThatWebsiteIsNotDown(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
                     passAction(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
@@ -542,6 +545,7 @@ public class FluentBrowserActions {
      *                     ElementActions.getWindowHandle(WebDriver driver)
      * @return a self-reference to be used to chain actions
      */
+    @SuppressWarnings("UnusedReturnValue")
     public FluentBrowserActions switchToWindow(String nameOrHandle) {
         if (DriverFactoryHelper.getDriver().get().getWindowHandles().contains(nameOrHandle)) {
             DriverFactoryHelper.getDriver().get().switchTo().window(nameOrHandle);
@@ -668,9 +672,9 @@ public class FluentBrowserActions {
         var logText = "Capture " + type.getValue().toLowerCase() + " screenshot";
         switch (type) {
             case FULL ->
-                    ReportManagerHelper.log(logText, Collections.singletonList(ScreenshotManager.prepareImageforReport(ScreenshotManager.takeFullPageScreenshot(DriverFactoryHelper.getDriver().get()), "captureScreenshot")));
+                    ReportManagerHelper.log(logText, Collections.singletonList(ScreenshotManager.prepareImageForReport(ScreenshotManager.takeFullPageScreenshot(DriverFactoryHelper.getDriver().get()), "captureScreenshot")));
             case VIEWPORT ->
-                    ReportManagerHelper.log(logText, Collections.singletonList(ScreenshotManager.prepareImageforReport(ScreenshotManager.takeViewportScreenshot(DriverFactoryHelper.getDriver().get()), "captureScreenshot")));
+                    ReportManagerHelper.log(logText, Collections.singletonList(ScreenshotManager.prepareImageForReport(ScreenshotManager.takeViewportScreenshot(DriverFactoryHelper.getDriver().get()), "captureScreenshot")));
             case ELEMENT ->
                     failAction(DriverFactoryHelper.getDriver().get(), "Were you trying to use driver.element().captureScreenshot() instead?");
         }

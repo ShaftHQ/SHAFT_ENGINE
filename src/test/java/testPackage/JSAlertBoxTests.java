@@ -11,7 +11,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-public class Test_JSAlertBox {
+public class JSAlertBoxTests {
 
     private static final By JS_AlertBox = By.xpath("//button[contains(text(),'Click for JS Alert')]");
     private static final By JS_ResultText = By.id("result");
@@ -20,25 +20,25 @@ public class Test_JSAlertBox {
     @BeforeClass
     public void navigateToJSAlertPage() {
         driver = DriverFactory.getDriver();
-        BrowserActions.navigateToURL(driver, "http://the-internet.herokuapp.com/javascript_alerts");
+        BrowserActions.getInstance().navigateToURL("http://the-internet.herokuapp.com/javascript_alerts");
     }
 
     @AfterClass(alwaysRun = true)
     public void tearDownDriver() {
-        BrowserActions.closeCurrentWindow(driver);
+        BrowserActions.getInstance().closeCurrentWindow();
     }
 
     @Test
     public void getJSAlertText() {
-        ElementActions.click(driver, JS_AlertBox);
-        ReportManager.logDiscrete("Alert text is: [" + ElementActions.performAlertAction(driver).getAlertText() + "]");
-        Validations.assertThat().object(ElementActions.performAlertAction(driver).getAlertText()).isEqualTo("I am a JS Alert").perform();
+        ElementActions.getInstance().click(JS_AlertBox);
+        ReportManager.logDiscrete("Alert text is: [" + ElementActions.getInstance().performAlertAction().getAlertText() + "]");
+        Validations.assertThat().object(ElementActions.getInstance().performAlertAction().getAlertText()).isEqualTo("I am a JS Alert").perform();
     }
 
     @Test(dependsOnMethods = "getJSAlertText")
     public void acceptAlert() {
-        ElementActions.click(driver, JS_AlertBox);
-        ElementActions.performAlertAction(driver).acceptAlert();
+        ElementActions.getInstance().click(JS_AlertBox);
+        ElementActions.getInstance().performAlertAction().acceptAlert();
     }
 
     @Test(dependsOnMethods = "acceptAlert")
