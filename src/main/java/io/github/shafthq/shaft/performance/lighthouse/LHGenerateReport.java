@@ -10,7 +10,7 @@ import java.text.SimpleDateFormat;
 
 public class LHGenerateReport {
     WebDriver driver;
-    String CurrentURL;
+    String PortNum;
 
     public LHGenerateReport(WebDriver driver) {
         this.driver = driver;
@@ -18,12 +18,14 @@ public class LHGenerateReport {
 
     public void generateLightHouseReport() {
         String commandToGenerateLightHouseReport;
+        PortNum=System.getProperty("lightHouseExeution.port");
+
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("lightHouseExeution").trim()))) {
             if (SystemUtils.IS_OS_WINDOWS) {
-                commandToGenerateLightHouseReport = ("cmd.exe /c node GenerateLHScript.js --url="+ driver.getCurrentUrl() + " --port="+ System.getProperty("lightHouseExeution.Port") + "  --outputType=html --reportName=" + getPageName() + " ");
+                commandToGenerateLightHouseReport = ("cmd.exe /c node GenerateLHScript.js --url="+ driver.getCurrentUrl() + " --port="+ PortNum + "  --outputType=html --reportName=" + getPageName() + " ");
 
             } else {
-                commandToGenerateLightHouseReport = ("node GenerateLHScript.js  --url="+ driver.getCurrentUrl() + " --port=" + System.getProperty("lightHouseExeution.Port") + "  --outputType=html --reportName=" + getPageName() +"'");
+                commandToGenerateLightHouseReport = ("node GenerateLHScript.js  --url="+ driver.getCurrentUrl() + " --port=" + PortNum + "  --outputType=html --reportName=" + getPageName() +"'");
 
             }
             //TerminalActions.getInstance(true, true).performTerminalCommand(commandToGenerateLightHouseReport);
