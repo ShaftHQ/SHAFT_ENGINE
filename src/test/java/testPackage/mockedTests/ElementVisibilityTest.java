@@ -39,14 +39,14 @@ public class ElementVisibilityTest {
         driver.get().assertThat().element(locator).isHidden().perform();
     }
 
-    @Test(expectedExceptions = {AssertionError.class}, expectedExceptionsMessageRegExp = ".*Failed to Wait for element to be present.*")
+    @Test(expectedExceptions = {AssertionError.class}, expectedExceptionsMessageRegExp = ".*Failed to Wait to be ready.*")
     public void elementDoesntExistAndExpectedToBeVisible() {
         driver.get().browser().navigateToURL(testElement.replace("${HIDDEN}", "hidden"));
         driver.get().element().waitToBeInvisible(By.id("bla"));
         driver.get().assertThat().element(locator).isVisible().perform();
     }
 
-    @Test(expectedExceptions = {AssertionError.class}, expectedExceptionsMessageRegExp = ".*Failed to Wait for element to be present.*")
+    @Test(expectedExceptions = {AssertionError.class}, expectedExceptionsMessageRegExp = ".*Failed to Wait to be ready.*")
     public void elementDoesntExistAndExpectedToBeHidden() {
         driver.get().browser().navigateToURL(testElement.replace("${HIDDEN}", ""));
         driver.get().element().waitToBeReady(By.id("bla"));
