@@ -248,6 +248,71 @@ public enum HTMLHelper {
             </center>
             </body>
             </html>"""),
+
+    EXECUTION_SUMMARY("""
+            <!DOCTYPE html>
+            <html lang="en">
+                        
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content=
+                        "width=device-width, initial-scale=1.0">
+                        
+                <title>Execution Summary Report</title>
+                        
+                <link rel="stylesheet" type="text/css"
+                      href="https://colorlib.com/etc/tb/Table_Fixed_Header/vendor/bootstrap/css/bootstrap.min.css">
+                <br>
+                <style>
+                            body {
+                              background-color: #e9edf1;
+                            }
+                            .content {
+                              max-width: 1400px;
+                              margin: auto;
+                              background-color:white;
+                            }
+                            .piechart {
+                                display: block;
+                                position: relative;
+                                width: 220px;
+                                height: 220px;
+                                border-radius: 50%;
+                                background-image: conic-gradient(
+                                    MediumSeaGreen ${CASES_PASSED_PERCENTAGE}deg,
+                                    Tomato 0);
+                            }
+                        
+                            body,
+                            .piechart {
+                                display: block;
+                                justify-content: center;
+                                align-items: center;
+                            }
+                        
+                </style>
+            </head>
+                        
+            <body>
+            <center>
+                <h1>Execution Summary Report</h1>
+                <br>
+                <div class="content">
+                    <h2><br><br>Summary</h2>
+                    <br>
+                    <div class="piechart"></div>
+                    <br>
+                    <h3><b>Total</b>:&nbsp${CASES_TOTAL}&nbsp|&nbsp<font style="color:MediumSeaGreen;"><b>Passed:</b>&nbsp${CASES_PASSED}</font>&nbsp|&nbsp<font
+                            style="color:Tomato;"><b>Failed:</b>&nbsp${CASES_FAILED}</font>&nbsp|&nbsp<font
+                            style="color:Orange;"><b>Skipped:</b>&nbsp${CASES_SKIPPED}</font></h3>
+                    <div class="limiter">
+                    </div>
+                    <br><br>
+                </div>
+            </center>
+            </body>
+            </html>
+            """),
     CHECKPOINT_DETAILS_FORMAT("<tr class=\"row100 body\"><td class=\"cell100 column1\">%d</td><td class=\"cell100 column2\">%s</td><td class=\"cell100 column3\">%s</td><td class=\"cell100 column4\">%s</td></tr>");
 
     private final String value;

@@ -2,6 +2,7 @@ package io.github.shafthq.shaft.listeners;
 
 import io.github.shafthq.shaft.gui.image.ImageProcessingActions;
 import io.github.shafthq.shaft.properties.PropertiesHelper;
+import io.github.shafthq.shaft.tools.io.ExecutionSummaryReport;
 import io.github.shafthq.shaft.tools.io.IssueReporter;
 import io.github.shafthq.shaft.tools.io.ProjectStructureManager;
 import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
@@ -15,10 +16,15 @@ import org.testng.xml.XmlTest;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.List;
 
 public class TestNGListener implements IAlterSuiteListener, IAnnotationTransformer,
-        IExecutionListener, ISuiteListener, IInvokedMethodListener {
+        IExecutionListener, ISuiteListener, IInvokedMethodListener, ITestListener {
+
+    List<ITestNGMethod> passedTests = new ArrayList<ITestNGMethod>();
+    List<ITestNGMethod> failedTests = new ArrayList<ITestNGMethod>();
+    List<ITestNGMethod> skippedTests = new ArrayList<ITestNGMethod>();
 
     @Getter
     private static XmlTest xmlTest;
@@ -144,10 +150,27 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Override
     public void onExecutionFinish() {
         ReportManagerHelper.setDiscreteLogging(true);
+        ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size());
         JiraHelper.reportExecutionStatusToJira();
         GoogleTink.encrypt();
         ReportManagerHelper.generateAllureReportArchive();
         ReportManagerHelper.openAllureReportAfterExecution();
         ReportManagerHelper.logEngineClosure();
     }
+
+    @Override
+    public void onTestSuccess(ITestResult result) {
+        passedTests.add(result.getMethod());
+    }
+
+    @Override
+    public void onTestFailure(ITestResult result) {
+        failedTests.add(result.getMethod());
+    }
+
+    @Override
+    public void onTestSkipped(ITestResult result) {
+        skippedTests.add(result.getMethod());
+    }
+
 }
