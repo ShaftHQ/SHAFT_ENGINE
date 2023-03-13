@@ -1,16 +1,19 @@
-const puppeteer = require('puppeteer');
-const lighthouse = require('lighthouse');
-var argv = require('optimist').argv;
-const open = require('open');
-//----------------------------
-const fs = require('fs');
-const desktopConfig = require('lighthouse/lighthouse-core/config/desktop-config.js');
+import puppeteer from 'puppeteer';
+import fs from 'fs';
+import lighthouse from 'lighthouse';
+import optimist from 'optimist';
+var argv =optimist.argv;
+import open from 'open';
+import path from 'path';
+const __dirname = path.resolve();
+import desktopConfig from 'lighthouse/core/config/desktop-config.js';
 // -------- Configs ----------
 var Url = argv.url;
 var Port = argv.port;
 var LogLevel='info';
 var OutputType=argv.outputType; // html , json
 var ReportName=argv.reportName;
+
 //----------------------------
 
 (async() => {
