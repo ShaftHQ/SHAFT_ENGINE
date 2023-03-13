@@ -11,7 +11,6 @@ import io.github.shafthq.shaft.gui.element.ElementActionsHelper;
 import io.github.shafthq.shaft.properties.Properties;
 import io.github.shafthq.shaft.properties.PropertyFileManager;
 import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
-import io.github.shafthq.shaft.gui.browser.FluentBrowserActions;
 import org.imgscalr.Scalr;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfByte;
