@@ -3,7 +3,7 @@ package com.shaft.cli;
 import com.google.common.hash.Hashing;
 import com.shaft.tools.io.PdfFileManager;
 import com.shaft.tools.io.ReportManager;
-import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 import io.github.shafthq.shaft.tools.support.JavaHelper;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -48,7 +48,7 @@ public class FileActions {
 
     /**
      * Copies files from sourceDirectory to destinationDirectory using the provided
-     * terminalSession. References: <a href="https://www.computerhope.com/unix/ucp.htm">computerhope</a>
+     * terminalSession. References: <a href="https://www.computerhope.com/unix/ucp.htm">computer hope/unix/ucp.htm</a>
      * <a href="https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/robocopy">robocopy</a>
      *
      * @param terminalSession      an object that determines the type of
@@ -306,6 +306,7 @@ public class FileActions {
         writeToFile(fileFolderName, fileName, textToBytes);
     }
 
+    @SuppressWarnings("unused")
     public String readPDF(String fileFolderName, String fileName) {
         return new PdfFileManager(fileFolderName + fileName).readFileContent();
     }
@@ -517,11 +518,10 @@ public class FileActions {
     @SuppressWarnings("UnusedReturnValue")
     public boolean zipFiles(String srcFolder, String destZipFile) {
         boolean result = false;
-        try {
-            if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("debugMode")))){
+        try (var fileWalker = Files.walk(Paths.get(srcFolder))) {
+            if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("debugMode")))) {
                 var log = new StringBuilder();
-                Files.walk(Paths.get(srcFolder))
-                        .filter(Files::isRegularFile)
+                fileWalker.filter(Files::isRegularFile)
                         .forEach(filePath -> {
                             log.append(filePath.toString());
                             log.append("\n");

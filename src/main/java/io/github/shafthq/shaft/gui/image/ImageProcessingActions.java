@@ -11,9 +11,9 @@ import com.assertthat.selenium_shutterbug.utils.image.UnableToCompareImagesExcep
 import com.shaft.cli.FileActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Validations;
-import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
-import io.github.shafthq.shaft.tools.io.helpers.FailureReporter;
-import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.driver.DriverFactoryHelper;
+import io.github.shafthq.shaft.tools.io.FailureReporter;
+import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 import nu.pattern.OpenCV;
 import org.opencv.core.Point;
 import org.opencv.core.*;
@@ -38,6 +38,7 @@ import java.util.*;
 
 import static io.github.shafthq.shaft.gui.element.ElementActionsHelper.formatLocatorToString;
 
+@SuppressWarnings("SpellCheckingInspection")
 public class ImageProcessingActions {
     private static final String DIRECTORY_PROCESSING = "/processingDirectory/";
     private static final String DIRECTORY_FAILED = "/failedImagesDirectory/";
@@ -286,6 +287,7 @@ public class ImageProcessingActions {
                 double matchAccuracy;
 
                 org.opencv.core.Point matchLoc;
+                //noinspection ConstantValue
                 if (matchMethod == Imgproc.TM_SQDIFF || matchMethod == Imgproc.TM_SQDIFF_NORMED) {
                     matchLoc = mmr.minLoc;
                     minMaxVal = mmr.minVal;
@@ -335,7 +337,7 @@ public class ImageProcessingActions {
                             new Scalar(67, 176, 42), 2, 8, 0); // selenium-green
                     ByteArrayOutputStream baos = new ByteArrayOutputStream();
                     ImageIO.write((BufferedImage) HighGui.toBufferedImage(img_original), "png", baos);
-                    var screenshot = ScreenshotManager.prepareImageforReport(baos.toByteArray(), "AI identified element");
+                    var screenshot = ScreenshotManager.prepareImageForReport(baos.toByteArray(), "AI identified element");
                     List<List<Object>> attachments = new LinkedList<>();
                     attachments.add(screenshot);
                     ReportManagerHelper.log("Successfully identified the element using AI; OpenCV. " + accuracyMessage, attachments);
@@ -352,19 +354,17 @@ public class ImageProcessingActions {
     }
 
     public static List<Integer> findImageWithinCurrentPage(String referenceImagePath, byte[] currentPageScreenshot) {
-            int maxNumberOfAttempts = 3;
-            int attempts = 0;
-            List<Integer> foundLocation = Collections.emptyList();
-            do {
-                try {
-                    foundLocation = attemptToFindImageUsingOpenCV(referenceImagePath, currentPageScreenshot, attempts);
-                } catch (Exception e) {
-                    if (attempts >= maxNumberOfAttempts) {
-                        throw e;
-                    }
-                }
-                attempts++;
-            } while (Collections.emptyList().equals(foundLocation) && attempts < maxNumberOfAttempts);
+        int maxNumberOfAttempts = 3;
+        int attempts = 0;
+        List<Integer> foundLocation = Collections.emptyList();
+        do {
+            try {
+                foundLocation = attemptToFindImageUsingOpenCV(referenceImagePath, currentPageScreenshot, attempts);
+            } catch (Exception e) {
+                ReportManagerHelper.logDiscrete(e);
+            }
+            attempts++;
+        } while (Collections.emptyList().equals(foundLocation) && attempts < maxNumberOfAttempts);
         return foundLocation;
     }
 
@@ -377,7 +377,7 @@ public class ImageProcessingActions {
     public static byte[] getReferenceImage(By elementLocator) {
         String hashedLocatorName = ImageProcessingActions.formatElementLocatorToImagePath(elementLocator);
         if (aiFolderPath.isEmpty()) {
-            aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderpath();
+            aiFolderPath = ScreenshotManager.getAiAidedElementIdentificationFolderPath();
         }
         String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
         if (FileActions.getInstance().doesFileExist(referenceImagePath)) {
@@ -420,8 +420,8 @@ public class ImageProcessingActions {
                 }
                 return actualResult;
             }else{
-                    ReportManager.logDiscrete("Passing the test and saving a reference image");
-                    FileActions.getInstance().writeToFile(aiFolderPath, hashedLocatorName + ".png", elementScreenshot);
+                ReportManager.logDiscrete("Passing the test and saving a reference image");
+                FileActions.getInstance().writeToFile(aiFolderPath, hashedLocatorName + ".png", elementScreenshot);
                 return true;
             }
         }
@@ -430,17 +430,17 @@ public class ImageProcessingActions {
             String referenceImagePath = aiFolderPath + hashedLocatorName + ".png";
 
             boolean doesReferenceFileExist = FileActions.getInstance().doesFileExist(referenceImagePath);
-             if (!doesReferenceFileExist || !ImageProcessingActions.findImageWithinCurrentPage(referenceImagePath, elementScreenshot).equals(Collections.emptyList())) {
-                    //pass: element found and matched || first time element
-                    if (!doesReferenceFileExist) {
-                        ReportManager.logDiscrete("Passing the test and saving a reference image");
-                        FileActions.getInstance().writeToFile(aiFolderPath, hashedLocatorName + ".png", elementScreenshot);
-                    }
-                    return true;
-                } else {
-                    //fail: element doesn't match
-                    return false;
+            if (!doesReferenceFileExist || !ImageProcessingActions.findImageWithinCurrentPage(referenceImagePath, elementScreenshot).equals(Collections.emptyList())) {
+                //pass: element found and matched || first time element
+                if (!doesReferenceFileExist) {
+                    ReportManager.logDiscrete("Passing the test and saving a reference image");
+                    FileActions.getInstance().writeToFile(aiFolderPath, hashedLocatorName + ".png", elementScreenshot);
                 }
+                return true;
+            } else {
+                //fail: element doesn't match
+                return false;
+            }
         }//all the other cases of Eyes
         Eyes eyes = new Eyes();
         // Define global settings
@@ -598,6 +598,7 @@ public class ImageProcessingActions {
         }
     }
 
+    @SuppressWarnings("unused")
     public enum VisualValidationEngine {
         EXACT_SHUTTERBUG,
         EXACT_OPENCV,

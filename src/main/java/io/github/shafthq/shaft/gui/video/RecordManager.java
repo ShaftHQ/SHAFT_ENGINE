@@ -8,8 +8,8 @@ import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.android.AndroidStartScreenRecordingOptions;
 import io.appium.java_client.ios.IOSDriver;
 import io.appium.java_client.ios.IOSStartScreenRecordingOptions;
-import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
-import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.driver.DriverFactoryHelper;
+import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 import org.apache.commons.io.FileUtils;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
@@ -38,6 +38,7 @@ public class RecordManager {
     }
 
     //TODO: the animated GIF should follow the same path as the video
+    @SuppressWarnings("SpellCheckingInspection")
     public static void startVideoRecording(WebDriver driver) {
         if (Boolean.TRUE.equals(RECORD_VIDEO)
                 && !isRecordingStarted
@@ -99,7 +100,7 @@ public class RecordManager {
 
     public static InputStream getVideoRecording() {
         InputStream inputStream = null;
-        String pathToRecording = "";
+        String pathToRecording;
         String testMethodName = ReportManagerHelper.getTestMethodName();
 
         if (Boolean.TRUE.equals(RECORD_VIDEO) && recorder.get() != null) {
@@ -126,6 +127,7 @@ public class RecordManager {
         return inputStream;
     }
 
+    @SuppressWarnings("SpellCheckingInspection")
     private static File encodeRecording(String pathToRecording) {
         File source = new File(pathToRecording);
         File target = new File(pathToRecording.replace("avi", "mp4"));

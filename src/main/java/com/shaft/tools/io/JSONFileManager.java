@@ -1,8 +1,8 @@
 package com.shaft.tools.io;
 
 import com.shaft.cli.FileActions;
-import io.github.shafthq.shaft.tools.io.helpers.FailureReporter;
-import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.tools.io.FailureReporter;
+import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 import io.github.shafthq.shaft.tools.support.JavaHelper;
 import io.restassured.path.json.JsonPath;
 import io.restassured.path.json.exception.JsonPathException;
@@ -17,6 +17,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+@SuppressWarnings("unused")
 public class JSONFileManager {
     private final String jsonFilePath;
     private static final ThreadLocal<FileReader> reader = new ThreadLocal<>();
@@ -44,7 +45,7 @@ public class JSONFileManager {
     }
 
     /**
-     * Used internally to remove x. from the beginning of any jsonpath. This matches the generated jsonpaths by online helper tools such as <a href="https://jsonpathfinder.com/">https://jsonpathfinder.com/</a>
+     * Used internally to remove x. from the beginning of any jsonpath. This matches the generated Json Paths by online helper tools such as <a href="https://jsonpathfinder.com/">https://jsonpathfinder.com/</a>
      *
      * @param jsonPath the generated jsonpath
      * @return a clean jsonpath without the x. at the beginning of the string

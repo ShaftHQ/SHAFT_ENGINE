@@ -2,6 +2,7 @@ package com.shaft.cucumber;
 
 import com.shaft.driver.SHAFT;
 import io.cucumber.java.en.When;
+import io.github.shafthq.shaft.enums.ClipboardAction;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
 
@@ -52,6 +53,7 @@ public class ElementSteps {
      * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue the value/expression of the desired element locator
      */
+    @SuppressWarnings("SpellCheckingInspection")
     @When("I Type {string} into the element found by {string}: {string}")
 //    @عندما("اقوم بكتابة {string} بداخل مربع الكتابة المحدد بإستخدام {string} بقيمة {string}")
     public void type(String text, String locatorType, String locatorValue) {
@@ -104,6 +106,7 @@ public class ElementSteps {
      * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue the value/expression of the desired element locator
      */
+    @SuppressWarnings("SpellCheckingInspection")
     @When("I Press the {string} key into the element found by {string}: {string}")
 //    @عندما("اقوم بالضغط على زر {string} بداخل عنصر الويب المحدد بإستخدام {string} بقيمة {string}")
     public void keyPress(String key, String locatorType, String locatorValue) {
@@ -143,7 +146,7 @@ public class ElementSteps {
      */
     @When("I use the clipboard to perform {string} on the element found by {string}: {string}")
     public void clipboardActions(String action, String locatorType, String locatorValue) {
-        driver.get().element().clipboardActions(getLocatorFromTypeAndValue(locatorType, locatorValue), action);
+        driver.get().element().clipboardActions(getLocatorFromTypeAndValue(locatorType, locatorValue), ClipboardAction.valueOf(action));
     }
 
     /**
@@ -237,12 +240,11 @@ public class ElementSteps {
      * multiplied by the default element identification timeout (in the POM.xml
      * file)
      *
-     * @param numberOfTries the number of times to try and wait for the element to achieve the desired stateOfPresence (default is 1)
-     * @param locatorType   can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
-     * @param locatorValue  the value/expression of the desired element locator
+     * @param locatorType  can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
+     * @param locatorValue the value/expression of the desired element locator
      */
-    @When("I Wait for {int} attempt(s) for the element found by {string}: {string} to be present")
-    public void waitForElementToBePresent(int numberOfTries, String locatorType, String locatorValue) {
+    @When("I Wait for the element found by {string}: {string} to be present")
+    public void waitForElementToBePresent(String locatorType, String locatorValue) {
         driver.get().element().waitToBeReady(getLocatorFromTypeAndValue(locatorType, locatorValue));
     }
 
@@ -252,12 +254,11 @@ public class ElementSteps {
      * multiplied by the default element identification timeout (in the POM.xml
      * file)
      *
-     * @param numberOfTries the number of times to try and wait for the element to achieve the desired stateOfPresence (default is 1)
      * @param locatorType   can be {id, tagname, classname, name, linktext, partiallinktext, cssselector, xpath}
      * @param locatorValue  the value/expression of the desired element locator
      */
-    @When("I Wait for {int} attempt(s) for the element found by {string}: {string} to be not present")
-    public void waitForElementToBeNotPresent(int numberOfTries, String locatorType, String locatorValue) {
+    @When("I Wait for the element found by {string}: {string} to be not present")
+    public void waitForElementToBeNotPresent(String locatorType, String locatorValue) {
         driver.get().element().waitToBeInvisible(getLocatorFromTypeAndValue(locatorType, locatorValue));
     }
 
@@ -277,6 +278,7 @@ public class ElementSteps {
 
     }
 
+    @SuppressWarnings("unused")
     protected enum LocatorType {
         ID("id"), TAG_NAME("tagname"), CLASS_NAME("classname"), NAME("name"), LINK_TEXT("linktext"),
         PARTIAL_LINK_TEXT("partiallinktext"), CSS_SELECTOR("cssselector"), XPATH("xpath");

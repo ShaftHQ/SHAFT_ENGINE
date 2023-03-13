@@ -13,16 +13,17 @@ import com.google.crypto.tink.signature.SignatureConfig;
 import com.google.crypto.tink.streamingaead.StreamingAeadConfig;
 import com.shaft.cli.FileActions;
 import com.shaft.tools.io.ReportManager;
-import io.github.shafthq.shaft.tools.io.helpers.FailureReporter;
-import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.tools.io.FailureReporter;
+import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.Optional;
 
 public class GoogleTink {
-    static byte[] aad = "This is SHAFT_Engine".getBytes();
+    static final byte[] aad = "This is SHAFT_Engine".getBytes();
     static String keysetFilename;
     static String kms;
     static String masterKeyUri;
@@ -86,18 +87,18 @@ public class GoogleTink {
             ciphertext = internal_encrypt(FileActions.getInstance().readFileAsByteArray(relativeFolderPath + targetFileName));
             FileActions.getInstance().writeToFile(relativeFolderPath, targetFileName, ciphertext);
             ReportManager.log("Successfully Encrypted \"" + targetFileName + "\".");
-        } catch (GeneralSecurityException | IOException e) {
+        } catch (GeneralSecurityException e) {
             FailureReporter.fail(GoogleTink.class, "Failed to Encrypt \"" + targetFileName + "\".", e);
         }
     }
 
     public static void decrypt(String relativeFolderPath, String targetFileName) {
-        byte[] decryptedtext;
+        byte[] decryptedText;
         try {
-            decryptedtext = internal_decrypt(FileActions.getInstance().readFileAsByteArray(relativeFolderPath + targetFileName));
-            FileActions.getInstance().writeToFile(relativeFolderPath, targetFileName, decryptedtext);
+            decryptedText = internal_decrypt(FileActions.getInstance().readFileAsByteArray(relativeFolderPath + targetFileName));
+            FileActions.getInstance().writeToFile(relativeFolderPath, targetFileName, decryptedText);
             ReportManager.log("Successfully Decrypted \"" + targetFileName + "\".");
-        } catch (GeneralSecurityException | IOException e) {
+        } catch (GeneralSecurityException e) {
             ReportManagerHelper.logDiscrete(e);
             ReportManager.log("Failed to Decrypt \"" + targetFileName + "\". It may already be in plaintext.");
 //            Assert.fail("Failed to Decrypt \""+targetFileName+"\".", e);
@@ -107,19 +108,19 @@ public class GoogleTink {
     private static KeysetHandle internal_loadKeyset() throws IOException, GeneralSecurityException {
         if (!"".equals(masterKeyUri)) {
             // working with encrypted keyset https://developers.google.com/tink/generate-encrypted-keyset
-            return KeysetHandle.read(JsonKeysetReader.withFile(new File(keysetFilename)), new AwsKmsClient().getAead(masterKeyUri));
+            return KeysetHandle.read(JsonKeysetReader.withInputStream(new FileInputStream(keysetFilename)), new AwsKmsClient().getAead(masterKeyUri));
         } else {
             // working with plaintext keyset https://developers.google.com/tink/generate-plaintext-keyset
-            return CleartextKeysetHandle.read(JsonKeysetReader.withFile(new File(keysetFilename)));
+            return CleartextKeysetHandle.read(JsonKeysetReader.withInputStream(new FileInputStream(keysetFilename)));
         }
     }
 
-    private static byte[] internal_encrypt(byte[] plaintext) throws GeneralSecurityException, IOException {
+    private static byte[] internal_encrypt(byte[] plaintext) throws GeneralSecurityException {
         //  AEAD (Authenticated Encryption with Associated Data)
         return aead.encrypt(plaintext, aad);
     }
 
-    private static byte[] internal_decrypt(byte[] ciphertext) throws GeneralSecurityException, IOException {
+    private static byte[] internal_decrypt(byte[] ciphertext) throws GeneralSecurityException {
         //  AEAD (Authenticated Encryption with Associated Data)
         return aead.decrypt(ciphertext, aad);
     }

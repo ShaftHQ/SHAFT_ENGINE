@@ -1,5 +1,6 @@
 package io.github.shafthq.shaft.tools.support;
 
+@SuppressWarnings("SpellCheckingInspection")
 public enum HTMLHelper {
     CHECKPOINT_COUNTER("""
             <!DOCTYPE html>

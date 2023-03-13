@@ -6,13 +6,14 @@ import com.shaft.cli.TerminalActions;
 import com.shaft.db.DatabaseActions;
 import com.shaft.db.DatabaseActions.DatabaseType;
 import com.shaft.tools.io.ReportManager;
-import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
+import io.github.shafthq.shaft.driver.DriverFactoryHelper;
 import io.github.shafthq.shaft.listeners.TestNGListener;
 import org.openqa.selenium.MutableCapabilities;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.remote.Browser;
 import org.sikuli.script.App;
 
+@SuppressWarnings({"UnusedReturnValue", "unused"})
 public class DriverFactory {
 
     /**

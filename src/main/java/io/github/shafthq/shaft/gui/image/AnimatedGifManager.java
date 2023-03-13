@@ -8,6 +8,7 @@ import java.awt.image.RenderedImage;
 import java.io.IOException;
 import java.util.Iterator;
 
+@SuppressWarnings("ConstantValue")
 public class AnimatedGifManager {
     private static final ThreadLocal<ImageWriter> gifWriter = new ThreadLocal<>();
     private static final ThreadLocal<ImageWriteParam> imageWriteParam = new ThreadLocal<>();

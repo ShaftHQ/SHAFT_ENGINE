@@ -10,6 +10,7 @@ import io.cucumber.java.en.When;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
+import poms.GoogleSearch;
 
 public class steps {
     /**
@@ -34,7 +35,7 @@ public class steps {
     }
     @When("I search for {string}")
     public void i_search_for(String query) {
-        By searchBox = By.name("q");
+        By searchBox = GoogleSearch.getSearchBox_textField();
         new ElementActions(driver).type(searchBox, "SHAFT_Engine")
                 .keyPress(searchBox, Keys.ENTER);
     }

@@ -6,7 +6,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.shaft.cli.FileActions;
 import com.shaft.tools.io.ReportManager;
-import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 import io.restassured.config.RestAssuredConfig;
 import io.restassured.config.SSLConfig;
 import io.restassured.http.ContentType;
@@ -143,12 +143,29 @@ public class XrayIntegrationHelper {
     public static String createIssue(List<String> files, String testCaseName, String description) {
         setup();
         try {
+            String issueRequestBody = """
+                    {
+                      "fields":{
+                        "project":{
+                          "key":"${PROJECT_KEY}"
+                        },
+                        "summary":"${BUG_SUMMERY}",
+                        "description":"Reported By SHAFT Automation Engine|| Execution Log ${BUG_DESCRIPTION}",
+                        "assignee":{
+                          "name":"${ASSIGNEE_NAME}"
+                        },
+                        "issuetype":{
+                          "name":"Bug"
+                        }
+                      }
+                    }
+                    """;
             Response response = given()
                     .config(config().encoderConfig(encoderConfig().encodeContentTypeAs("application/json", ContentType.JSON)))
                     .relaxedHTTPSValidation().contentType("application/json")
                     .header("Authorization", authType + _JiraAuthorization)
                     .when()
-                    .body(getCreateIssueRequestBody()
+                    .body(issueRequestBody
                             .replace("${PROJECT_KEY}", _ProjectKey)
                             .replace("${BUG_SUMMERY}", "Execution Bug: " + testCaseName)
                             .replace("${BUG_DESCRIPTION}", description
@@ -178,6 +195,7 @@ public class XrayIntegrationHelper {
      * @param issueID -> the created bug ID.
      * @param files   -> list of the failed testcase attachments.
      */
+    @SuppressWarnings("SpellCheckingInspection")
     public static void attachFilesToIssue(String issueID, List<String> files) {
         setup();
         try {
@@ -206,59 +224,34 @@ public class XrayIntegrationHelper {
     public static void link2Tickets(String ticketID, String linkedToID) {
         setup();
         try {
+            String linkJIRATicketRequestBody = """
+                    {
+                       "update":{
+                         "issuelinks":[
+                           {
+                             "add":{
+                               "type":{
+                                 "name":"Relates"
+                               },
+                               "outwardIssue":{
+                                 "key":"${TICKET_ID}"
+                               }
+                             }
+                           }
+                         ]
+                       }
+                     }
+                    """;
             given()
                     .config(config().encoderConfig(encoderConfig().encodeContentTypeAs("application/json", ContentType.JSON)))
                     .relaxedHTTPSValidation().contentType("application/json")
                     .header("Authorization", authType + _JiraAuthorization)
                     .when()
-                    .body(getLinkJIRATicketRequestBody()
-                            .replace("${TICKET_ID}", linkedToID)
-                    )
+                    .body(linkJIRATicketRequestBody.replace("${TICKET_ID}", linkedToID))
                     .put("/rest/api/2/issue/" + ticketID)
                     .then().log().all().extract().response();
         } catch (Exception e) {
             ReportManagerHelper.logDiscrete(e);
         }
-    }
-
-    private static String getCreateIssueRequestBody() {
-        return """
-                {
-                  "fields":{
-                    "project":{
-                      "key":"${PROJECT_KEY}"
-                    },
-                    "summary":"${BUG_SUMMERY}",
-                    "description":"Reported By SHAFT Automation Engine|| Execution Log ${BUG_DESCRIPTION}",
-                    "assignee":{
-                      "name":"${ASSIGNEE_NAME}"
-                    },
-                    "issuetype":{
-                      "name":"Bug"
-                    }
-                  }
-                }
-                """;
-    }
-
-    private static String getLinkJIRATicketRequestBody() {
-        return """
-                {
-                   "update":{
-                     "issuelinks":[
-                       {
-                         "add":{
-                           "type":{
-                             "name":"Relates"
-                           },
-                           "outwardIssue":{
-                             "key":"${TICKET_ID}"
-                           }
-                         }
-                       }
-                     ]
-                   }
-                 }
-                """;
     }
 }

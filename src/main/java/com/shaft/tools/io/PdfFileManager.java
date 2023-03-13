@@ -1,7 +1,7 @@
 package com.shaft.tools.io;
 
 import com.shaft.cli.FileActions;
-import io.github.shafthq.shaft.tools.io.helpers.FailureReporter;
+import io.github.shafthq.shaft.tools.io.FailureReporter;
 import io.github.shafthq.shaft.tools.support.JavaHelper;
 import org.apache.commons.io.FileUtils;
 import org.apache.pdfbox.cos.COSDocument;
@@ -13,6 +13,7 @@ import org.apache.pdfbox.text.PDFTextStripper;
 import java.io.File;
 import java.io.IOException;
 
+@SuppressWarnings("unused")
 public class PdfFileManager {
 
     private final File file;
@@ -209,6 +210,7 @@ public class PdfFileManager {
 
     }
 
+    @SuppressWarnings("unused")
     public enum DeleteFileAfterValidationStatus {
         TRUE, FALSE
     }

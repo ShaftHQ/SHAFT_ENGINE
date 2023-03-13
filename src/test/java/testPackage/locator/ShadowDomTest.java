@@ -24,7 +24,7 @@ public class ShadowDomTest {
 
     @Test
     public void shaftLocator() {
-        if (!SHAFT.Properties.web.targetBrowserName().equals(Browser.FIREFOX.browserName())) {
+        if (!SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.FIREFOX.browserName())) {
             driver.browser().navigateToURL("http://watir.com/examples/shadow_dom.html");
             By shadowDom = SHAFT.GUI.Locator.hasAnyTagName().hasId("shadow_host").build();
             By shadowElement = SHAFT.GUI.Locator.hasAnyTagName().hasId("shadow_content").insideShadowDom(shadowDom).build();
@@ -34,7 +34,7 @@ public class ShadowDomTest {
 
     @BeforeMethod
     public void beforeMethod() {
-        if (!SHAFT.Properties.web.targetBrowserName().equals(Browser.FIREFOX.browserName())) {
+        if (!SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.FIREFOX.browserName())) {
             LocatorBuilder.setMode(Locators.CSS);
             driver = new SHAFT.GUI.WebDriver();
         }
@@ -42,7 +42,7 @@ public class ShadowDomTest {
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        if (!SHAFT.Properties.web.targetBrowserName().equals(Browser.FIREFOX.browserName())) {
+        if (!SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.FIREFOX.browserName())) {
             LocatorBuilder.setMode(Locators.XPATH);
             driver.quit();
         }

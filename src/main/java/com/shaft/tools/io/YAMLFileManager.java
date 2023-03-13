@@ -1,7 +1,7 @@
 package com.shaft.tools.io;
 
-import io.github.shafthq.shaft.tools.io.helpers.FailureReporter;
-import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.tools.io.FailureReporter;
+import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 import io.github.shafthq.shaft.tools.support.JavaHelper;
 import org.yaml.snakeyaml.Yaml;
 
@@ -13,6 +13,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
+@SuppressWarnings("unused")
 public class YAMLFileManager {
     public final static String KEY_CONTAINS_LIST_REGEX = "^[-a-zA-Z\\d_!@#$%^&*()+=|\\\\/?><\"'{}~]*(\\[\\d+])+$";
     public final static String NUMBER_IN_SQUARE_BRACKETS_REGEX = "\\[\\d+]";
@@ -52,7 +53,7 @@ public class YAMLFileManager {
         ReportManagerHelper.log(
                 "Loaded Test Data: \"" + filePath + "\".",
                 List.of(testDataFileAttachment)
-                );
+        );
     }
 
     /**

@@ -6,11 +6,12 @@ import org.openqa.selenium.Keys;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+import poms.GoogleSearch;
 
 public class Test_MobileEmulation {
     SHAFT.GUI.WebDriver driver;
 
-    By searchBox = By.name("q");
+    By searchBox = GoogleSearch.getSearchBox_textField();
     By resultStats = By.id("result-stats");
 
     @Test

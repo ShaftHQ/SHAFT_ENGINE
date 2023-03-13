@@ -22,11 +22,12 @@ public class LocatorBuilder {
     @Setter
     private static Locators mode = Locators.XPATH;
 
+    @SuppressWarnings("unused")
     private LocatorBuilder() {
         // do nothing
     }
 
-    private LocatorBuilder(String tagName, ArrayList<String> parameters, String order) {
+    private LocatorBuilder(String tagName, ArrayList<String> parameters, @SuppressWarnings("SameParameterValue") String order) {
         this.tagName = tagName;
         this.parameters = parameters;
         this.order = order;

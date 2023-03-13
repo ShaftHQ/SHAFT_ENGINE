@@ -1,10 +1,10 @@
 package io.github.shafthq.shaft.properties;
 
 import com.shaft.tools.io.ReportManager;
-import io.github.shafthq.shaft.enums.Browsers;
 import org.aeonbits.owner.Config.Sources;
 import org.aeonbits.owner.ConfigFactory;
 
+@SuppressWarnings("unused")
 @Sources({"system:properties",
         "file:src/main/resources/properties/WebCapabilities.properties",
         "file:src/main/resources/properties/default/WebCapabilities.properties",
@@ -21,7 +21,7 @@ public interface Web extends EngineProperties {
     }
 
     @Key("targetBrowserName")
-    @DefaultValue(Browsers.CHROME)
+    @DefaultValue("chrome")
     String targetBrowserName();
 
     @Key("headlessExecution")

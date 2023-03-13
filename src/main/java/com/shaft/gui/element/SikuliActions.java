@@ -1,11 +1,11 @@
 package com.shaft.gui.element;
 
-import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
+import io.github.shafthq.shaft.driver.DriverFactoryHelper;
 import io.github.shafthq.shaft.gui.browser.JavaScriptWaitManager;
 import io.github.shafthq.shaft.gui.element.ElementActionsHelper;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
 import io.github.shafthq.shaft.gui.video.RecordManager;
-import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 import org.apache.commons.io.IOUtils;
 import org.sikuli.basics.Settings;
 import org.sikuli.script.*;
@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
+@SuppressWarnings("unused")
 public class SikuliActions {
     private Screen screen;
     private App applicationWindow;
@@ -134,6 +135,7 @@ public class SikuliActions {
         } catch (IOException | FindFailed rootCauseException) {
             ElementActionsHelper.failAction(screen, applicationWindow, element, formatTextForReport(text), rootCauseException);
         }
+        //noinspection SuspiciousRegexArgument
         ElementActionsHelper.passAction(screen, applicationWindow, element, formatTextForReport(text).replaceAll(".", "•"));
         return this;
     }
@@ -358,7 +360,7 @@ public class SikuliActions {
 
     private void initializeSikuliEngineForCurrentScreen() {
         if (DriverFactoryHelper.isWebExecution()) {
-            JavaScriptWaitManager.waitForLazyLoading(DriverFactoryHelper.getDriver().get());
+            JavaScriptWaitManager.waitForLazyLoading();
         }
         Settings.setShowActions(false);
         Settings.ActionLogs = true;

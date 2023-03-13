@@ -4,6 +4,7 @@ import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 
 
+@SuppressWarnings("unused")
 public class Label extends Element {
 
     public Label(By locator) {

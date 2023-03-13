@@ -1,7 +1,7 @@
 package io.github.shafthq.shaft.gui.browser;
 
-import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
-import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
+import io.github.shafthq.shaft.driver.DriverFactoryHelper;
+import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 import io.github.shafthq.shaft.tools.support.JavaScriptHelper;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.NoSuchSessionException;
@@ -35,8 +35,8 @@ public class JavaScriptWaitManager {
     /**
      * Waits for jQuery, Angular, and/or Javascript if present on the current page.
      */
-    public static void waitForLazyLoading(WebDriver driver) {
-        setDriver(driver);
+    public static void waitForLazyLoading() {
+        setDriver(DriverFactoryHelper.getDriver().get());
         if (Boolean.TRUE.equals(WAIT_FOR_LAZY_LOADING)
                 && !DriverFactoryHelper.isMobileNativeExecution()) {
             try {

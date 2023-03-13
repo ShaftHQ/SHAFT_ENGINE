@@ -4,13 +4,14 @@ Tink is an open source library by Google that facilitates encryption/decryption
 These are the basic business requirements:
 
 - All test data under the test data directory (already a property) should be encrypted manually by the user using the
-  CMD tool. We should provide the user with a bat file that they can double-click and it will encrypt all their data for
+  CMD tool. We should provide the user with a bat file that they can double-click, and it will encrypt all their data
+  for
   them recursively. This is done outside the engine.
 - All test data under the test data directory (already a property) should be decrypted automatically and recursively by
   SHAFT before any test execution.
 - To automatically decrypt the data, SHAFT will accept some properties from the user to show the name of the key and any
   other parameters required by tinkey.
-- This should be implemented to support both local keys and remote keys as per tinkeys documentation.
+- This should be implemented to support both local keys and remote keys as per TinKey's documentation.
 - All decrypted test data should be deleted automatically by SHAFT after any execution to ensure that only the encrypted
   files exist in SHAFT's test data directory.
 - This concludes the initial business requirements, with area for future enhancements.

@@ -15,13 +15,13 @@ import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.YAMLFileManager;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
-import io.github.shafthq.shaft.driver.helpers.DriverFactoryHelper;
-import io.github.shafthq.shaft.driver.helpers.WizardHelpers;
+import io.github.shafthq.shaft.driver.DriverFactoryHelper;
+import io.github.shafthq.shaft.driver.WizardHelpers;
 import io.github.shafthq.shaft.gui.browser.FluentBrowserActions;
 import io.github.shafthq.shaft.gui.element.FluentElementActions;
 import io.github.shafthq.shaft.listeners.WebDriverListener;
-import io.github.shafthq.shaft.tools.io.helpers.ReportManagerHelper;
-import io.github.shafthq.shaft.validations.helpers.RestValidationsBuilder;
+import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
+import io.github.shafthq.shaft.validations.RestValidationsBuilder;
 import io.restassured.config.RestAssuredConfig;
 import io.restassured.response.Response;
 import org.openqa.selenium.MutableCapabilities;
@@ -53,7 +53,7 @@ public class SHAFT {
             }
 
             public FluentElementActions element() {
-                return new FluentElementActions();
+                return FluentElementActions.getInstance();
             }
 
             public TouchActions touch() {
@@ -61,7 +61,7 @@ public class SHAFT {
             }
 
             public FluentBrowserActions browser() {
-                return new FluentBrowserActions();
+                return FluentBrowserActions.getInstance();
             }
 
             public AlertActions alert() {
@@ -81,6 +81,7 @@ public class SHAFT {
              *
              * @return the current Selenium WebDriver instance for custom manipulation
              */
+            @SuppressWarnings("CommentedOutCode")
             public org.openqa.selenium.WebDriver getDriver() {
                 /*
                  * Decorator is not working for appium drivers as per the following issues/articles

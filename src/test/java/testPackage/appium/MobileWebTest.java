@@ -9,21 +9,19 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import org.testng.asserts.SoftAssert;
+import poms.GoogleSearch;
 
 public class MobileWebTest {
     SHAFT.GUI.WebDriver driver;
     SHAFT.TestData.JSON testData;
 
-    By searchBox = By.name("q");
+    By searchBox = GoogleSearch.getSearchBox_textField();
     By resultStats = By.id("result-stats");
 
     @Test
     public void test() {
         driver.browser().navigateToURL("https://www.google.com/");
         driver.verifyThat().browser().title().isEqualTo("Google").perform();
-//        driver.element().type(searchBox, testData.getTestData("searchQuery"))
-//                .keyPress(searchBox, Keys.ENTER);
-//        driver.assertThat().element(resultStats).text().doesNotEqual("").withCustomReportMessage("Check that result stats is not empty").perform();
     }
 
     //@Test
@@ -35,6 +33,7 @@ public class MobileWebTest {
         Assert.assertNotEquals(nativeWebDriver.findElement(resultStats).getText(), "");
     }
 
+    @SuppressWarnings("CommentedOutCode")
     @BeforeClass
     public void beforeClass() {
 //        // common attributes android
