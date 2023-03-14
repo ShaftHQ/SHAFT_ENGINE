@@ -135,15 +135,36 @@ public class BrowserActions extends FluentBrowserActions {
     public static String getWindowSize(WebDriver driver) {
         return FluentBrowserActions.getInstance().getWindowSize();
     }
-
     /**
-     * Navigates to targetUrl in case the current URL is different, else refreshes
-     * the current page
+     * Gets the current window size and returns it as a string
      *
-     * @param driver    the current instance of Selenium WebDriver
-     * @param targetUrl a string that represents the URL that you wish to navigate
-     *                  to
+     * @param driver the current instance of Selenium WebDriver
+     * @return the Height of the current window
      */
+    @Deprecated
+    public static String getWindowHeight(WebDriver driver) {
+        return FluentBrowserActions.getInstance().getWindowHeight();
+
+    }
+    /**
+     * Gets the current window size and returns it as a string
+     *
+     * @param driver the current instance of Selenium WebDriver
+     * @return the Width of the current window
+     */
+    @Deprecated
+    public static String getWindowWidth(WebDriver driver) {
+        return FluentBrowserActions.getInstance().getWindowWidth();
+    }
+
+        /**
+         * Navigates to targetUrl in case the current URL is different, else refreshes
+         * the current page
+         *
+         * @param driver    the current instance of Selenium WebDriver
+         * @param targetUrl a string that represents the URL that you wish to navigate
+         *                  to
+         */
     @Deprecated
     public static void navigateToURL(WebDriver driver, String targetUrl) {
         FluentBrowserActions.getInstance().navigateToURL(targetUrl);
