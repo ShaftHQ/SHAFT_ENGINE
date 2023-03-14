@@ -49,6 +49,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         ReportManagerHelper.logEngineVersion();
         ImageProcessingActions.loadOpenCV();
 
+        ReportManagerHelper.cleanExecutionSummaryReportDirectory();
         ReportManagerHelper.initializeAllureReportingEnvironment();
         ReportManagerHelper.initializeExtentReportingEnvironment();
 

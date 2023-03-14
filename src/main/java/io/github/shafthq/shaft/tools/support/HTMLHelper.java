@@ -280,6 +280,7 @@ public enum HTMLHelper {
                                 border-radius: 50%;
                                 background-image: conic-gradient(
                                     MediumSeaGreen ${CASES_PASSED_PERCENTAGE}deg,
+                                    Orange ${CASES_SKIPPED_PERCENTAGE}deg,
                                     Tomato 0);
                             }
                         
@@ -288,6 +289,10 @@ public enum HTMLHelper {
                                 display: block;
                                 justify-content: center;
                                 align-items: center;
+                            }
+                            .alignleft {
+                            	float: left;
+                            	padding: 15px
                             }
                         
                 </style>
@@ -298,7 +303,8 @@ public enum HTMLHelper {
                 <h1>Execution Summary Report</h1>
                 <br>
                 <div class="content">
-                    <h2><br><br>Summary</h2>
+                    <h2 class="alignleft">${DATE}</h2>
+                    <br><br>
                     <br>
                     <div class="piechart"></div>
                     <br>
