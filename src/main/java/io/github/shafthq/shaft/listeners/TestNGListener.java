@@ -143,6 +143,11 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         IssueReporter.updateIssuesLog(iTestResult);
         TestNGListenerHelper.updateConfigurationMethodLogs(iTestResult);
         ReportManagerHelper.setDiscreteLogging(Boolean.parseBoolean(System.getProperty("alwaysLogDiscreetly")));
+        switch (iTestResult.getStatus()) {
+            case ITestResult.SUCCESS -> passedTests.add(iTestResult.getMethod());
+            case ITestResult.FAILURE -> failedTests.add(iTestResult.getMethod());
+            case ITestResult.SKIP -> skippedTests.add(iTestResult.getMethod());
+        }
     }
 
     /**
@@ -159,19 +164,19 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         ReportManagerHelper.logEngineClosure();
     }
 
-    @Override
-    public void onTestSuccess(ITestResult result) {
-        passedTests.add(result.getMethod());
-    }
-
-    @Override
-    public void onTestFailure(ITestResult result) {
-        failedTests.add(result.getMethod());
-    }
-
-    @Override
-    public void onTestSkipped(ITestResult result) {
-        skippedTests.add(result.getMethod());
-    }
+//    @Override
+//    public void onTestSuccess(ITestResult result) {
+//        passedTests.add(result.getMethod());
+//    }
+//
+//    @Override
+//    public void onTestFailure(ITestResult result) {
+//        failedTests.add(result.getMethod());
+//    }
+//
+//    @Override
+//    public void onTestSkipped(ITestResult result) {
+//        skippedTests.add(result.getMethod());
+//    }
 
 }
