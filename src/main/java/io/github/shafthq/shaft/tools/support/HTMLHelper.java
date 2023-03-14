@@ -279,9 +279,9 @@ public enum HTMLHelper {
                                 height: 220px;
                                 border-radius: 50%;
                                 background-image: conic-gradient(
-                                    MediumSeaGreen ${CASES_PASSED_PERCENTAGE}deg,
-                                    Orange ${CASES_SKIPPED_PERCENTAGE}deg,
-                                    Tomato 0);
+                                    MediumSeaGreen 0.00% ${CASES_PASSED_PERCENTAGE_PIE}%,
+                                    Tomato ${CASES_PASSED_PERCENTAGE_PIE}% ${CASES_FAILED_PERCENTAGE_PIE}%,
+                                    Orange ${CASES_FAILED_PERCENTAGE_PIE}%);
                             }
                         
                             body,
@@ -308,6 +308,8 @@ public enum HTMLHelper {
                     <br>
                     <div class="piechart"></div>
                     <br>
+                    <h2>${CASES_PASSED_PERCENTAGE}%</h2>
+                    <br><br>
                     <h3><b>Total</b>:&nbsp${CASES_TOTAL}&nbsp|&nbsp<font style="color:MediumSeaGreen;"><b>Passed:</b>&nbsp${CASES_PASSED}</font>&nbsp|&nbsp<font
                             style="color:Tomato;"><b>Failed:</b>&nbsp${CASES_FAILED}</font>&nbsp|&nbsp<font
                             style="color:Orange;"><b>Skipped:</b>&nbsp${CASES_SKIPPED}</font></h3>
