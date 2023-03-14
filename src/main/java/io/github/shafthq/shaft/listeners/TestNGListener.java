@@ -22,9 +22,9 @@ import java.util.List;
 public class TestNGListener implements IAlterSuiteListener, IAnnotationTransformer,
         IExecutionListener, ISuiteListener, IInvokedMethodListener, ITestListener {
 
-    List<ITestNGMethod> passedTests = new ArrayList<ITestNGMethod>();
-    List<ITestNGMethod> failedTests = new ArrayList<ITestNGMethod>();
-    List<ITestNGMethod> skippedTests = new ArrayList<ITestNGMethod>();
+    private static List<ITestNGMethod> passedTests = new ArrayList<ITestNGMethod>();
+    private static List<ITestNGMethod> failedTests = new ArrayList<ITestNGMethod>();
+    private static List<ITestNGMethod> skippedTests = new ArrayList<ITestNGMethod>();
 
     @Getter
     private static XmlTest xmlTest;
@@ -143,11 +143,6 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         IssueReporter.updateIssuesLog(iTestResult);
         TestNGListenerHelper.updateConfigurationMethodLogs(iTestResult);
         ReportManagerHelper.setDiscreteLogging(Boolean.parseBoolean(System.getProperty("alwaysLogDiscreetly")));
-        switch (iTestResult.getStatus()) {
-            case ITestResult.SUCCESS -> passedTests.add(iTestResult.getMethod());
-            case ITestResult.FAILURE -> failedTests.add(iTestResult.getMethod());
-            case ITestResult.SKIP -> skippedTests.add(iTestResult.getMethod());
-        }
     }
 
     /**
@@ -164,19 +159,19 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         ReportManagerHelper.logEngineClosure();
     }
 
-//    @Override
-//    public void onTestSuccess(ITestResult result) {
-//        passedTests.add(result.getMethod());
-//    }
-//
-//    @Override
-//    public void onTestFailure(ITestResult result) {
-//        failedTests.add(result.getMethod());
-//    }
-//
-//    @Override
-//    public void onTestSkipped(ITestResult result) {
-//        skippedTests.add(result.getMethod());
-//    }
+    @Override
+    public void onTestSuccess(ITestResult result) {
+        passedTests.add(result.getMethod());
+    }
+
+    @Override
+    public void onTestFailure(ITestResult result) {
+        failedTests.add(result.getMethod());
+    }
+
+    @Override
+    public void onTestSkipped(ITestResult result) {
+        skippedTests.add(result.getMethod());
+    }
 
 }
