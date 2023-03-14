@@ -10,6 +10,7 @@ public class ExecutionSummaryReport {
 
     public static void generateExecutionSummaryReport(int passed, int failed, int skipped) {
         int total = passed + failed + skipped;
+        ReportManagerHelper.logExecutionSummary(String.valueOf(total), String.valueOf(passed), String.valueOf(failed), String.valueOf(skipped));
         new SHAFT.CLI().file().writeToFile(System.getProperty("executionSummaryReportFolderPath"),
                 "ExecutionSummaryReport_" + new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa").format(System.currentTimeMillis()) + ".html",
                 HTMLHelper.EXECUTION_SUMMARY.getValue()

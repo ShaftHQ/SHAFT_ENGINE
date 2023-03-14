@@ -253,6 +253,12 @@ public class ReportManagerHelper {
                 + className + "." + testMethodName + "'");
     }
 
+    public static void logExecutionSummary(String total, String passed, String failed, String skipped) {
+        String copyrights = "Test Execution Summary Results" + "\n"
+                + "Total Cases: " + total + " --> Passed: " + passed + " | Failed: " + failed + " | Skipped: " + skipped;
+        createImportantReportEntry(copyrights);
+    }
+
     public static String formatStackTraceToLogEntry(Throwable t) {
         return formatStackTraceToLogEntry(t, false);
     }
