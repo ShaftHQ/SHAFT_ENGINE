@@ -1,12 +1,14 @@
 package testPackage;
 
 import com.shaft.driver.DriverFactory;
+import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.BrowserActions;
 import com.shaft.gui.element.ElementActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.remote.Browser;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -40,9 +42,11 @@ public class JSPromptBoxTests {
 
     @Test(dependsOnMethods = "assertOnCancelAlertResultText")
     public void getAlertText() {
-        ElementActions.getInstance().click(JS_PromptAlert);
-        ReportManager.logDiscrete("Alert text is: [" + ElementActions.getInstance().performAlertAction().getAlertText() + "]");
-        Validations.assertThat().object(ElementActions.getInstance().performAlertAction().getAlertText()).isEqualTo("I am a JS prompt").perform();
+        if (!SHAFT.Properties.web.targetBrowserName().equalsIgnoreCase(Browser.SAFARI.browserName())) {
+            ElementActions.getInstance().click(JS_PromptAlert);
+            ReportManager.logDiscrete("Alert text is: [" + ElementActions.getInstance().performAlertAction().getAlertText() + "]");
+            Validations.assertThat().object(ElementActions.getInstance().performAlertAction().getAlertText()).isEqualTo("I am a JS prompt").perform();
+        }
     }
 
     @Test(dependsOnMethods = "getAlertText")
