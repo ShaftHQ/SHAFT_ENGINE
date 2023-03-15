@@ -8,10 +8,12 @@ import path from 'path';
 const __dirname = path.resolve();
 import desktopConfig from 'lighthouse/core/config/desktop-config.js';
 // -------- Configs ----------
-var Url = argv.url;
+var text = argv.url;
+var Url = text.replaceAll("N898", "&");
+//Url=Url.replace("'&'", "&");
 var Port = argv.port;
 var LogLevel='info';
-var OutputType=argv.outputType; // html , json
+var OutputType='html'; // argv.outputType; // html , json
 var ReportName=argv.reportName;
 
 //----------------------------
@@ -32,6 +34,6 @@ var ReportName=argv.reportName;
     fs.writeFileSync(__dirname +'/LH-reports/'+ReportName+'.'+OutputType, reportHtml);
     // Disconnect from the session
     await browser.disconnect();
-    await open(__dirname +'/LH-reports/'+ReportName+'.'+OutputType, reportHtml);
+//    await open(__dirname +'/LH-reports/'+ReportName+'.'+OutputType);
 
 })();
