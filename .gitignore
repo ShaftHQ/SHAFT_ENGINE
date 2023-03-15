@@ -2,6 +2,7 @@
 /allure-results/
 /allure-report/
 /extent-reports/
+/execution-summary/
 /test-output/
 /reports/
 /generatedReport_*.zip

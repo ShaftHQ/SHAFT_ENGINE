@@ -69,6 +69,7 @@ public class ReportManagerHelper {
     @Getter
     private static String extentReportFileName = "";
     private static boolean generateExtentReports = true;
+    private static String executionSummaryReportFolderPath = "";
 
     private ReportManagerHelper() {
         throw new IllegalStateException("Utility class");
@@ -250,6 +251,12 @@ public class ReportManagerHelper {
         // (or null for the first test)
         createImportantReportEntry("Starting execution of " + JavaHelper.convertToSentenceCase(configurationMethodType).toLowerCase() + " configuration method\n'"
                 + className + "." + testMethodName + "'");
+    }
+
+    public static void logExecutionSummary(String total, String passed, String failed, String skipped) {
+        String copyrights = "Test Execution Summary Results" + "\n"
+                + "Total Cases: " + total + " --> Passed: " + passed + " | Failed: " + failed + " | Skipped: " + skipped;
+        createImportantReportEntry(copyrights);
     }
 
     public static String formatStackTraceToLogEntry(Throwable t) {
@@ -919,6 +926,11 @@ public class ReportManagerHelper {
             FileActions.getInstance().zipFiles("generatedReport/", "generatedReport_" + new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date()) + ".zip");
         }
         FileActions.getInstance().deleteFile("generatedReport/");
+    }
+
+    public static void cleanExecutionSummaryReportDirectory() {
+        executionSummaryReportFolderPath = System.getProperty("executionSummaryReportFolderPath");
+        FileActions.getInstance().deleteFolder(executionSummaryReportFolderPath.substring(0, executionSummaryReportFolderPath.length() - 1));
     }
 
     public static void log(String logText, List<List<Object>> attachments) {
