@@ -889,7 +889,7 @@ public class ReportManagerHelper {
         commandsToOpenAllureReport = Arrays.asList("#!/bin/bash",
                 "parent_path=$( cd '$(dirname '${BASH_SOURCE[0]}')' ; pwd -P )",
                 "cd '$parent_path/allure/allure-" + System.getProperty(ALLURE_VERSION_PROPERTY_NAME) + "/bin/'",
-                "bash allure open '$parent_path/allure-report'", "exit");
+                "bash allure serve '$parent_path/allure-results'", "exit");
         FileActions.getInstance().writeToFile("generatedReport/", "open_allure_report.sh", commandsToOpenAllureReport);
 
         // create windows batch file
@@ -898,7 +898,7 @@ public class ReportManagerHelper {
                 ":: set JAVA_HOME=" + System.getProperty("java.home"),
                 ":: set path=%JAVA_HOME%\\bin;%path%",
                 "set path=allure\\allure-" + System.getProperty(ALLURE_VERSION_PROPERTY_NAME) + "\\bin;%path%",
-                "allure open allure-report", "pause", "exit");
+                "allure serve allure-results\n"+"", "pause", "exit");
         FileActions.getInstance().writeToFile("generatedReport/", "open_allure_report.bat", commandsToOpenAllureReport);
     }
 
@@ -923,6 +923,7 @@ public class ReportManagerHelper {
     private static void createAllureReportArchiveAndCleanGeneratedDirectory() {
         if (FileActions.getInstance().doesFileExist(allureExtractionLocation)) {
             FileActions.getInstance().copyFolder(FileActions.getInstance().getAbsolutePath(allureExtractionLocation), "generatedReport/allure");
+            FileActions.getInstance().copyFolder("allure-results", "generatedReport/allure-results");
             FileActions.getInstance().zipFiles("generatedReport/", "generatedReport_" + new SimpleDateFormat("yyyyMMdd-HHmmss").format(new Date()) + ".zip");
         }
         FileActions.getInstance().deleteFile("generatedReport/");
