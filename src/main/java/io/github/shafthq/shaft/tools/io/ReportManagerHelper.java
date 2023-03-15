@@ -898,7 +898,7 @@ public class ReportManagerHelper {
                 ":: set JAVA_HOME=" + System.getProperty("java.home"),
                 ":: set path=%JAVA_HOME%\\bin;%path%",
                 "set path=allure\\allure-" + System.getProperty(ALLURE_VERSION_PROPERTY_NAME) + "\\bin;%path%",
-                "allure serve allure-results\n"+"", "pause", "exit");
+                "allure serve allure-results", "pause", "exit");
         FileActions.getInstance().writeToFile("generatedReport/", "open_allure_report.bat", commandsToOpenAllureReport);
     }
 
