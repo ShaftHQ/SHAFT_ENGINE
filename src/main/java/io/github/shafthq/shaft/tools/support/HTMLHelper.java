@@ -489,7 +489,7 @@ public enum HTMLHelper {
                     <th class="cell100 column1">Id</th>
                     <th class="cell100 column2">Suite</th>
                     <th class="cell100 column3">Name</th>
-                    <th class="cell100 column3">Status</th>
+                    <th class="cell100 column4">Status</th>
                     </tr>
                     </thead>
                     </table>
