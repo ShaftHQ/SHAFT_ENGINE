@@ -151,11 +151,11 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Override
     public void onExecutionFinish() {
         ReportManagerHelper.setDiscreteLogging(true);
-        ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size());
         JiraHelper.reportExecutionStatusToJira();
         GoogleTink.encrypt();
         ReportManagerHelper.generateAllureReportArchive();
         ReportManagerHelper.openAllureReportAfterExecution();
+        ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size());
         ReportManagerHelper.logEngineClosure();
     }
 
@@ -167,11 +167,15 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Override
     public void onTestFailure(ITestResult result) {
         failedTests.add(result.getMethod());
+        ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
+                result.getMethod().getMethodName(), result.getMethod().getDescription(), "FAILED");
     }
 
     @Override
     public void onTestSkipped(ITestResult result) {
         skippedTests.add(result.getMethod());
+        ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
+                result.getMethod().getMethodName(), result.getMethod().getDescription(), "SKIPPED");
     }
 
 }
