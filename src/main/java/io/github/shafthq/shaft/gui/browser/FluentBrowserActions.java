@@ -734,6 +734,6 @@ public class FluentBrowserActions {
 
     public void generateLightHouseReport() {
         new LightHouseGenerateReport(DriverFactoryHelper.getDriver().get()).generateLightHouseReport();
-
     }
+
 }

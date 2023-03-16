@@ -6,13 +6,11 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 public class Test_LightHouse {
-   // WebDriver driver;
    SHAFT.GUI.WebDriver driver;
+
     @BeforeClass
     public void beforeClass() {
-     //   driver = DriverFactory.getDriver();
          driver = new SHAFT.GUI.WebDriver();
-
     }
 
     @Test (description = " Generate Lighthouse report for Google.com ")
