@@ -192,6 +192,38 @@ public class FluentBrowserActions {
     }
 
     /**
+     * Gets the current window size and returns it as a string
+     *
+     * @return the height of the current window
+     */
+    public String getWindowHeight() {
+        var windowHeight = "";
+        try {
+            windowHeight = String.valueOf(DriverFactoryHelper.getDriver().get().manage().window().getSize().getHeight());
+            passAction(DriverFactoryHelper.getDriver().get(), windowHeight);
+        } catch (Exception rootCauseException) {
+            failAction(DriverFactoryHelper.getDriver().get(), windowHeight, rootCauseException);
+        }
+        return windowHeight;
+    }
+
+    /**
+     * Gets the current window size and returns it as a string
+     *
+     * @return the width of the current window
+     */
+    public String getWindowWidth() {
+        var windowWidth = "";
+        try {
+            windowWidth = String.valueOf(DriverFactoryHelper.getDriver().get().manage().window().getSize().getWidth());
+            passAction(DriverFactoryHelper.getDriver().get(), windowWidth);
+        } catch (Exception rootCauseException) {
+            failAction(DriverFactoryHelper.getDriver().get(), windowWidth, rootCauseException);
+        }
+        return windowWidth;
+    }
+
+    /**
      * Navigates to targetUrl in case the current URL is different, else refreshes
      * the current page
      *

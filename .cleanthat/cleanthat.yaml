@@ -1,5 +1,6 @@
 syntax_version: "2023-01-09"
 meta:
+  full_clean_on_configuration_change: true
   labels:
   - "cleanthat"
   refs:

@@ -95,9 +95,13 @@ public class androidBasicInteractionsTest {
 
     @Test
     public void visualElementIdentification_samedpi() {
+        var referenceImageFile = "content.png";
+        if (SHAFT.Properties.platform.executionAddress().toLowerCase().contains("browserstack")) {
+            referenceImageFile = "content_local.png";
+        }
         driver.touch()
-                .swipeElementIntoView("src/main/resources/dynamicObjectRepository/Android/content.png", TouchActions.SwipeDirection.DOWN)
-                .tap("src/main/resources/dynamicObjectRepository/Android/content.png");
+                .swipeElementIntoView("src/main/resources/dynamicObjectRepository/Android/" + referenceImageFile, TouchActions.SwipeDirection.DOWN)
+                .tap("src/main/resources/dynamicObjectRepository/Android/" + referenceImageFile);
 
         driver.assertThat().element(AppiumBy.accessibilityId("Assets")).exists().perform();
     }
