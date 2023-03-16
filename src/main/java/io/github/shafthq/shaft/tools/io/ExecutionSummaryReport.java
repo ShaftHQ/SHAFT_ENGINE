@@ -47,4 +47,25 @@ public class ExecutionSummaryReport {
         ReportManagerHelper.logExecutionSummary(String.valueOf(total), String.valueOf(passed), String.valueOf(failed), String.valueOf(skipped));
     }
 
+
+    public enum ExecutionSummaryReportStatus {
+        FAILED,
+        SKIPPED
+    }
+
+    public enum ExecutionSummaryReportStatusIcon {
+        FAILED("#10060"), SKIPPED("#128679");
+
+        private String value;
+
+        ExecutionSummaryReportStatusIcon(String type) {
+            this.value = type;
+        }
+
+        protected String getValue() {
+            return value;
+        }
+    }
+
+
 }

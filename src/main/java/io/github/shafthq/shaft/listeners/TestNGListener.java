@@ -168,14 +168,14 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     public void onTestFailure(ITestResult result) {
         failedTests.add(result.getMethod());
         ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
-                result.getMethod().getMethodName(), result.getMethod().getDescription(), "FAILED");
+                result.getMethod().getMethodName(), result.getMethod().getDescription(), "&#10060; FAILED");
     }
 
     @Override
     public void onTestSkipped(ITestResult result) {
         skippedTests.add(result.getMethod());
         ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
-                result.getMethod().getMethodName(), result.getMethod().getDescription(), "SKIPPED");
+                result.getMethod().getMethodName(), result.getMethod().getDescription(), "&#128679; SKIPPED");
     }
 
 }
