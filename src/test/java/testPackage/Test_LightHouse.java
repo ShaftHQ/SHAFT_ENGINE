@@ -1,33 +1,31 @@
 package testPackage;
 
-import com.shaft.driver.DriverFactory;
-import com.shaft.gui.browser.BrowserActions;
-import io.github.shafthq.shaft.performance.lighthouse.LHGenerateReport;
-import org.openqa.selenium.WebDriver;
+import com.shaft.driver.SHAFT;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 public class Test_LightHouse {
-    WebDriver driver;
+   // WebDriver driver;
+   SHAFT.GUI.WebDriver driver;
     @BeforeClass
     public void beforeClass() {
-        driver = DriverFactory.getDriver();
+     //   driver = DriverFactory.getDriver();
+         driver = new SHAFT.GUI.WebDriver();
 
     }
 
     @Test (description = " Generate Lighthouse report for Google.com ")
     public void RunLightHouseGoogleSearch() {
-        BrowserActions.navigateToURL(driver, "https://www.google.com/search?q=shaft_engine&safe=active&ssui=on");
-        new LHGenerateReport(driver).generateLightHouseReport();
-
-//        BrowserActions.navigateToURL(driver, "https://assets-es-pprd.dxlpreprod.local.vodafone.es/mves/login");
-//        new LHGenerateReport(driver).generateLightHouseReport();
+        driver.browser().navigateToURL("https://www.google.com/search?q=shaft_engine&safe=active&ssui=on");
+        driver.browser().generateLightHouseReport();
+//        driver.browser().navigateToURL("https://assets-es-pprd.dxlpreprod.local.vodafone.es/mves/login");
+//        driver.browser().generateLightHouseReport();
     }
 
     @AfterClass
     public void afterClass() {
-        driver.close();
+        driver.quit();
     }
 
 }
