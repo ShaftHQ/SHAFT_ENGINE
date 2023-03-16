@@ -363,7 +363,7 @@ public enum HTMLHelper {
                                 }
                                 .table100{
                                     position: relative;
-                                    padding-top:60px;
+                                    padding-top:15px;
                                     padding-bottom:60px
                                 }
                                 .table100-head{
@@ -459,6 +459,12 @@ public enum HTMLHelper {
                                 .column4{
                                     width:13%
                                 }
+                                hr.rounded {
+                                	border-top: 8px solid #bbb;
+                                	border-radius: 5px;
+                                	margin-left: 35px;
+                                 	margin-right: 35px;
+                                }
                         
                 </style>
             </head>
@@ -478,7 +484,11 @@ public enum HTMLHelper {
                     <h3><b>Total</b>:&nbsp${CASES_TOTAL}&nbsp|&nbsp
                         <font style="color:MediumSeaGreen;"><b>Passed:</b>&nbsp${CASES_PASSED}</font>&nbsp|&nbsp
                         <font style="color:Tomato;"><b>Failed:</b>&nbsp${CASES_FAILED}</font>&nbsp|&nbsp
-                        <font style="color:Orange;"><b>Skipped:</b>&nbsp${CASES_SKIPPED}</font></h3>
+                        <font style="color:Orange;"><b>Skipped:</b>&nbsp${CASES_SKIPPED}</font>
+                    </h3>
+                    <br><br>
+                    <hr class="rounded">
+                    <h4 style="display:inline;">Cases Details</h4> <h5 style="display:inline; color:Grey">(Failed/Skipped)</h5>
                     <div class="limiter">
                     <div class="container-table100">
                     <div class="wrap-table100">
