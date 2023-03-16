@@ -11,11 +11,11 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.List;
 
-public class LHGenerateReport {
+public class LightHouseGenerateReport {
     WebDriver driver;
     String PortNum;
     String PageName;
-    public LHGenerateReport(WebDriver driver) {
+    public LightHouseGenerateReport(WebDriver driver) {
         this.driver = driver;
         }
 
@@ -29,7 +29,7 @@ public class LHGenerateReport {
                 commandToGenerateLightHouseReport = ("cmd.exe /c node GenerateLHScript.js --url=\"" +driver.getCurrentUrl()+ "\" --port="+ PortNum + " --reportName=" + PageName + " ");
                 commandToGenerateLightHouseReport=commandToGenerateLightHouseReport.replace("&","N898");
             } else {
-                commandToGenerateLightHouseReport = ("node GenerateLHScript.js  --url="+ driver.getCurrentUrl() + " --port=" + PortNum + " --outputType=html --reportName=" + PageName +"'");
+                commandToGenerateLightHouseReport = ("node GenerateLHScript.js  --url="+ driver.getCurrentUrl() + " --port=" + PortNum + " --outputType=html --reportName=" + PageName +" ");
                 commandToGenerateLightHouseReport=commandToGenerateLightHouseReport.replace("&","N898");
             }
             //TerminalActions.getInstance(true, true).performTerminalCommand(commandToGenerateLightHouseReport);

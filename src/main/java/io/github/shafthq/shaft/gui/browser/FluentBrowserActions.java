@@ -10,6 +10,7 @@ import io.github.shafthq.shaft.enums.Screenshots;
 import io.github.shafthq.shaft.gui.element.ElementActionsHelper;
 import io.github.shafthq.shaft.gui.element.FluentElementActions;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
+import io.github.shafthq.shaft.performance.lighthouse.LightHouseGenerateReport;
 import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 import io.github.shafthq.shaft.tools.support.JavaScriptHelper;
 import io.github.shafthq.shaft.validations.WebDriverBrowserValidationsBuilder;
@@ -697,5 +698,10 @@ public class FluentBrowserActions {
         }
         ReportManagerHelper.log(logMessage, List.of(Arrays.asList(logMessage, ScreenshotManager.generateAttachmentFileName("captureSnapshot"), new ByteArrayInputStream(pageSnapshot.getBytes()))));
         return this;
+    }
+
+    public void generateLightHouseReport() {
+        new LightHouseGenerateReport(DriverFactoryHelper.getDriver().get()).generateLightHouseReport();
+
     }
 }
