@@ -451,13 +451,13 @@ public enum HTMLHelper {
                                     padding-left:40px
                                 }
                                 .column2{
-                                    width:33%
+                                    width:25%
                                 }
                                 .column3{
-                                    width:50%
+                                    width:55%
                                 }
                                 .column4{
-                                    width:10%
+                                    width:13%
                                 }
                         
                 </style>
