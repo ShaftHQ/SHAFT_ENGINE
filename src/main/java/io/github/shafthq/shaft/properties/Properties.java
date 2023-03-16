@@ -23,4 +23,5 @@ public class Properties {
 //    public static Tinkey tinkey;
 //    public static Visuals visuals;
     public static Web web;
+    public static LambdaTest LambdaTest;
 }
