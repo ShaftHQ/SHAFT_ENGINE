@@ -16,6 +16,7 @@ import org.testng.xml.XmlTest;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -25,6 +26,11 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     private static List<ITestNGMethod> passedTests = new ArrayList<ITestNGMethod>();
     private static List<ITestNGMethod> failedTests = new ArrayList<ITestNGMethod>();
     private static List<ITestNGMethod> skippedTests = new ArrayList<ITestNGMethod>();
+
+    private static String executionStartTime = "";
+    private static long executionStartTime2;
+    private static String executionEndTime = "";
+    private static long executionEndTime2;
 
     @Getter
     private static XmlTest xmlTest;
@@ -81,6 +87,8 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Override
     public void onStart(ISuite suite) {
         TestNGListenerHelper.setTotalNumberOfTests(suite);
+        executionStartTime = new SimpleDateFormat("HH:mm:ss").format(System.currentTimeMillis());
+        executionStartTime2 = System.currentTimeMillis();
     }
 
     /**
@@ -155,7 +163,9 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         GoogleTink.encrypt();
         ReportManagerHelper.generateAllureReportArchive();
         ReportManagerHelper.openAllureReportAfterExecution();
-        ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size());
+        executionEndTime = new SimpleDateFormat("HH:mm:ss").format(System.currentTimeMillis());
+        executionEndTime2 = System.currentTimeMillis();
+        ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size(), executionStartTime, executionEndTime, executionStartTime2, executionEndTime2);
         ReportManagerHelper.logEngineClosure();
     }
 
