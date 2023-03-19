@@ -179,7 +179,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         failedTests.add(result.getMethod());
         ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
                 result.getMethod().getMethodName(), result.getMethod().getDescription(),
-                ExecutionSummaryReport.ExecutionSummaryReportStatusIcon.FAILED.getValue() + ExecutionSummaryReport.ExecutionSummaryReportStatus.FAILED.name());
+                ExecutionSummaryReport.StatusIcon.FAILED.getValue() + ExecutionSummaryReport.Status.FAILED.name());
     }
 
     @Override
@@ -187,7 +187,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         skippedTests.add(result.getMethod());
         ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
                 result.getMethod().getMethodName(), result.getMethod().getDescription(),
-                ExecutionSummaryReport.ExecutionSummaryReportStatusIcon.SKIPPED.getValue() + ExecutionSummaryReport.ExecutionSummaryReportStatus.SKIPPED.name());
+                ExecutionSummaryReport.StatusIcon.SKIPPED.getValue() + ExecutionSummaryReport.Status.SKIPPED.name());
     }
 
 }

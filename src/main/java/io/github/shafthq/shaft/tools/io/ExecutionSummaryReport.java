@@ -56,7 +56,7 @@ public class ExecutionSummaryReport {
 
         String duration = "";
         if (durationWithMillis > 0 && durationWithMillis < 1000) {
-            duration = durationWithMillis + "millis";
+            duration = durationWithMillis + " millis";
         } else if (durationWithMillis >= 1000 && durationWithMillis < 60000) {
             duration = String.format("%02d sec, %02d millis",
                     TimeUnit.MILLISECONDS.toSeconds(durationWithMillis),
@@ -76,17 +76,17 @@ public class ExecutionSummaryReport {
         return duration;
     }
 
-    public enum ExecutionSummaryReportStatus {
+    public enum Status {
         FAILED,
         SKIPPED
     }
 
-    public enum ExecutionSummaryReportStatusIcon {
+    public enum StatusIcon {
         FAILED("&#10060; "), SKIPPED("&#128679; ");
 
         private String value;
 
-        ExecutionSummaryReportStatusIcon(String type) {
+        StatusIcon(String type) {
             this.value = type;
         }
 
