@@ -26,7 +26,7 @@ public class ExecutionSummaryReport {
         casesDetails.put(casesDetails.size() + 1, entry);
     }
 
-    public static void generateExecutionSummaryReport(int passed, int failed, int skipped, String startTime, String endTime, long startTime2, long endTime2) {
+    public static void generateExecutionSummaryReport(int passed, int failed, int skipped, long startTime, long endTime) {
         int total = passed + failed + skipped;
 
         StringBuilder detailsBuilder = new StringBuilder();
@@ -35,10 +35,10 @@ public class ExecutionSummaryReport {
         new SHAFT.CLI().file().writeToFile(System.getProperty("executionSummaryReportFolderPath"),
                 "ExecutionSummaryReport_" + new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa").format(System.currentTimeMillis()) + ".html",
                 HTMLHelper.EXECUTION_SUMMARY.getValue()
-                        .replace("${DATE}", new SimpleDateFormat("dd/MM/yyyy").format(System.currentTimeMillis()))
-                        .replace("${START_TIME}", startTime)
-                        .replace("${END_TIME}", endTime)
-                        .replace("${TOTAL_TIME}", executionDuration(startTime2, endTime2))
+                        .replace("${DATE}", new SimpleDateFormat("dd/MM/yyyy").format(endTime))
+                        .replace("${START_TIME}", new SimpleDateFormat("HH:mm:ss").format(startTime))
+                        .replace("${END_TIME}", new SimpleDateFormat("HH:mm:ss").format(endTime))
+                        .replace("${TOTAL_TIME}", executionDuration(startTime, endTime))
                         .replace("${CASES_PASSED_PERCENTAGE}", String.valueOf(new DecimalFormat("0.00").format((float) passed * 100 / total)))
                         .replace("${CASES_PASSED_PERCENTAGE_PIE}", String.valueOf(passed * 100 / total))
                         .replace("${CASES_FAILED_PERCENTAGE_PIE}", String.valueOf((failed * 100 / total) + (passed * 100 / total)))
