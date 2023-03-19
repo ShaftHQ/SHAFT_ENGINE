@@ -583,16 +583,21 @@ public class ScreenshotManager {
                         new AnimatedGifManager(gifOutputStream.get(), firstImage.getType(), GIF_FRAME_DELAY));
 
                 // draw initial blank image to set the size of the GIF...
-                BufferedImage initialImage = new BufferedImage(width, height,firstImage.getType());
+                BufferedImage initialImage;
+                if (Properties.web.targetBrowserName().equalsIgnoreCase("GoogleChrome")) {
+                    initialImage = new BufferedImage(width / 2, height / 2, firstImage.getType());
+                } else {
+                    initialImage = new BufferedImage(width, height, firstImage.getType());
+                }
                 Graphics2D initialImageGraphics = initialImage.createGraphics();
                 initialImageGraphics.setBackground(Color.WHITE);
+                initialImageGraphics.setColor(Color.WHITE);
                 initialImageGraphics.clearRect(0, 0, width, height);
-
                 // write out initialImage to the sequence...
-                gifWriter.get().writeToSequence(overlayShaftEngineLogo(initialImage));
+                gifWriter.get().writeToSequence(initialImage);
                 initialImageGraphics.dispose();
                 // write out first image to the sequence...
-                gifWriter.get().writeToSequence(overlayShaftEngineLogo(firstImage));
+                gifWriter.get().writeToSequence(overlayShaftEngineLogo(toBufferedImage(firstImage)));
             } catch (NullPointerException | NoSuchSessionException e) {
                 // this happens in case the start animated Gif is triggered in a none-test
                 // method
@@ -616,7 +621,7 @@ public class ScreenshotManager {
 
                 BufferedImage shaftLogo;
                 // read from custom location
-                String watermarkImagePath = PropertyFileManager.getDefaultPropertiesFolderPath().replace("properties/default/", System.getProperty("watermarkImagePath"));
+                String watermarkImagePath = PropertyFileManager.getCUSTOM_PROPERTIES_FOLDER_PATH().replace("properties", System.getProperty("watermarkImagePath"));
                 shaftLogo = ImageIO.read(new File(watermarkImagePath));
                 shaftLogo = toBufferedImage(
                         shaftLogo.getScaledInstance(screenshot.getWidth() / 8, -1, Image.SCALE_SMOOTH));
@@ -666,6 +671,14 @@ public class ScreenshotManager {
                 //scaling it down
                 image = Scalr.resize(image, Scalr.Method.BALANCED, GIF_SIZE);
                 gifWriter.get().writeToSequence(overlayShaftEngineLogo(image));
+                BufferedImage nextImage = new BufferedImage(image.getWidth(), image.getHeight(),image.getType());
+                Graphics2D initialImageGraphics = nextImage.createGraphics();
+                initialImageGraphics.setBackground(Color.WHITE);
+                initialImageGraphics.setColor(Color.WHITE);
+                initialImageGraphics.clearRect(0, 0, image.getWidth(), image.getHeight());
+                gifWriter.get().writeToSequence(toBufferedImage(nextImage));
+                initialImageGraphics.dispose();
+
             }
         } catch (NoSuchSessionException e) {
             // this happens when attempting to append to a non-existing gif, expected
