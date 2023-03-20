@@ -69,7 +69,7 @@ public class ReportHelper {
 
     public static void attachExtentReport() {
         ReportManagerHelper.extentReportsFlush();
-        if (Boolean.parseBoolean(System.getProperty("attachExtentReportToAllureReport").trim())) {
+        if (Boolean.parseBoolean(System.getProperty("attachExtentReportsToAllureReport").trim())) {
             if (Boolean.parseBoolean(System.getProperty("generateExtentReports").trim()) && FileActions.getInstance().doesFileExist(ReportManagerHelper.getExtentReportFileName())) {
                 ReportManagerHelper.attach("HTML", "Extent Emailable Execution Report", FileActions.getInstance().readFile(ReportManagerHelper.getExtentReportFileName()));
             }
