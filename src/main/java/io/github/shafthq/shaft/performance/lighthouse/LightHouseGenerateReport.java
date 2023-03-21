@@ -29,7 +29,7 @@ public class LightHouseGenerateReport {
                 commandToGenerateLightHouseReport = ("cmd.exe /c node GenerateLHScript.js --url=\"" +driver.getCurrentUrl()+ "\" --port="+ PortNum + " --reportName=" + PageName + " ");
                 commandToGenerateLightHouseReport=commandToGenerateLightHouseReport.replace("&","N898");
             } else {
-                commandToGenerateLightHouseReport = ("node GenerateLHScript.js  --url="+ driver.getCurrentUrl() + " --port=" + PortNum + " --outputType=html --reportName=" + PageName +" ");
+                commandToGenerateLightHouseReport = ("node GenerateLHScript.js --url=\""+ driver.getCurrentUrl()+ "\" --port=" + PortNum + " --reportName=" + PageName +" ");
                 commandToGenerateLightHouseReport=commandToGenerateLightHouseReport.replace("&","N898");
             }
             //TerminalActions.getInstance(true, true).performTerminalCommand(commandToGenerateLightHouseReport);
