@@ -291,10 +291,6 @@ public enum HTMLHelper {
                                 justify-content: center;
                                 align-items: center;
                             }
-                            .alignleft {
-                            	float: left;
-                            	padding: 15px
-                            }
                                 .table100 .ps__rail-y{
                                     width:9px;
                                     background-color:transparent;
@@ -474,8 +470,8 @@ public enum HTMLHelper {
                 <h1>Execution Summary Report</h1>
                 <br>
                 <div class="content">
-                    <h2 class="alignleft">${DATE}</h2>
-                    <br><br>
+                    <h2 style="clear:both; padding-top: 15px; margin-bottom: 3px">${DATE}</h2>
+                    <h5 style="clear:both; color:Grey">${START_TIME} - ${END_TIME} (${TOTAL_TIME}) </h5>
                     <br>
                     <div class="piechart"></div>
                     <br>
