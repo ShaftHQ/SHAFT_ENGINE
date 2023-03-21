@@ -26,6 +26,9 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     private static List<ITestNGMethod> failedTests = new ArrayList<ITestNGMethod>();
     private static List<ITestNGMethod> skippedTests = new ArrayList<ITestNGMethod>();
 
+    private static long executionStartTime;
+    private static long executionEndTime;
+
     @Getter
     private static XmlTest xmlTest;
 
@@ -81,6 +84,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Override
     public void onStart(ISuite suite) {
         TestNGListenerHelper.setTotalNumberOfTests(suite);
+        executionStartTime = System.currentTimeMillis();
     }
 
     /**
@@ -151,11 +155,12 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Override
     public void onExecutionFinish() {
         ReportManagerHelper.setDiscreteLogging(true);
-        ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size());
         JiraHelper.reportExecutionStatusToJira();
         GoogleTink.encrypt();
         ReportManagerHelper.generateAllureReportArchive();
         ReportManagerHelper.openAllureReportAfterExecution();
+        executionEndTime = System.currentTimeMillis();
+        ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size(), executionStartTime, executionEndTime);
         ReportManagerHelper.logEngineClosure();
     }
 
@@ -167,11 +172,17 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Override
     public void onTestFailure(ITestResult result) {
         failedTests.add(result.getMethod());
+        ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
+                result.getMethod().getMethodName(), result.getMethod().getDescription(),
+                ExecutionSummaryReport.StatusIcon.FAILED.getValue() + ExecutionSummaryReport.Status.FAILED.name());
     }
 
     @Override
     public void onTestSkipped(ITestResult result) {
         skippedTests.add(result.getMethod());
+        ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
+                result.getMethod().getMethodName(), result.getMethod().getDescription(),
+                ExecutionSummaryReport.StatusIcon.SKIPPED.getValue() + ExecutionSummaryReport.Status.SKIPPED.name());
     }
 
 }
