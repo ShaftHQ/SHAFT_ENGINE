@@ -525,9 +525,9 @@ public class DriverFactoryHelper {
         if (Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())
                 || Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
             if (appiumCapabilities == null) {
-                appiumCapabilities = initializeMobileDesiredCapabilities();
+                appiumCapabilities = initializeMobileDesiredCapabilities(appiumCapabilities);
             } else {
-                appiumCapabilities.merge(initializeMobileDesiredCapabilities());
+                appiumCapabilities.merge(initializeMobileDesiredCapabilities(appiumCapabilities));
             }
         }
 
@@ -723,7 +723,7 @@ public class DriverFactoryHelper {
     }
 
     @SuppressWarnings("SpellCheckingInspection")
-    private static DesiredCapabilities initializeMobileDesiredCapabilities() {
+    private static DesiredCapabilities initializeMobileDesiredCapabilities(DesiredCapabilities Desiredcapabilities) {
         var desiredCapabilities = new DesiredCapabilities();
 
         if (!isMobileWebExecution()) {
@@ -751,22 +751,51 @@ public class DriverFactoryHelper {
         if (!isMobileWebExecution() && Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
             // experimental android capabilities
             // https://github.com/appium/appium-uiautomator2-driver
-            desiredCapabilities.setCapability("appium:appWaitActivity", "*");
-            desiredCapabilities.setCapability("appium:fullReset", "true");
-            desiredCapabilities.setCapability("appium:printPageSourceOnFindFailure", "true");
-            desiredCapabilities.setCapability("appium:fullReset", "true");
-            desiredCapabilities.setCapability("appium:disableWindowAnimation", "true");
-            desiredCapabilities.setCapability("appium:forceAppLaunch", "true");
-            desiredCapabilities.setCapability("appium:autoGrantPermissions", "true");
+            // Check if user sent any capability then don't take the deafult
+
+            if(Desiredcapabilities.getCapability("appium:fullReset") == null)
+                desiredCapabilities.setCapability("appium:fullReset", true);
+
+            if(Desiredcapabilities.getCapability("appium:appWaitActivity") == null)
+                desiredCapabilities.setCapability("appium:appWaitActivity", "*");
+
+            if(Desiredcapabilities.getCapability("appium:printPageSourceOnFindFailure") == null)
+                desiredCapabilities.setCapability("appium:printPageSourceOnFindFailure", true);
+
+            if(Desiredcapabilities.getCapability("appium:disableWindowAnimation") == null)
+            desiredCapabilities.setCapability("appium:disableWindowAnimation", true);
+
+            if(Desiredcapabilities.getCapability("appium:forceAppLaunch") == null)
+            desiredCapabilities.setCapability("appium:forceAppLaunch", true);
+
+            if(Desiredcapabilities.getCapability("appium:autoGrantPermissions") == null)
+            desiredCapabilities.setCapability("appium:autoGrantPermissions", true);
+
 //            desiredCapabilities.setCapability("appium:otherApps", ",,,");
-            desiredCapabilities.setCapability("appium:allowTestPackages", "true");
-            desiredCapabilities.setCapability("appium:enforceAppInstall", "true");
-            desiredCapabilities.setCapability("appium:clearDeviceLogsOnStart", "true");
-            desiredCapabilities.setCapability("appium:ignoreHiddenApiPolicyError", "true");
-            desiredCapabilities.setCapability("appium:isHeadless", "true");
-            desiredCapabilities.setCapability("appium:noSign", "true");
-            desiredCapabilities.setCapability("appium:enableWebviewDetailsCollection", "true");
-            desiredCapabilities.setCapability("appium:showChromedriverLog", "true");
+
+            if(Desiredcapabilities.getCapability("appium:allowTestPackages") == null)
+            desiredCapabilities.setCapability("appium:allowTestPackages", true);
+
+            if(Desiredcapabilities.getCapability("appium:enforceAppInstall") == null)
+            desiredCapabilities.setCapability("appium:enforceAppInstall", false);
+
+            if(Desiredcapabilities.getCapability("appium:clearDeviceLogsOnStart") == null)
+            desiredCapabilities.setCapability("appium:clearDeviceLogsOnStart", true);
+
+            if(Desiredcapabilities.getCapability("appium:ignoreHiddenApiPolicyError") == null)
+            desiredCapabilities.setCapability("appium:ignoreHiddenApiPolicyError", true);
+
+            if(Desiredcapabilities.getCapability("appium:isHeadless") == null)
+            desiredCapabilities.setCapability("appium:isHeadless", true);
+
+            if(Desiredcapabilities.getCapability("appium:noSign") == null)
+            desiredCapabilities.setCapability("appium:noSign", true);
+
+            if(Desiredcapabilities.getCapability("appium:enableWebviewDetailsCollection") == null)
+            desiredCapabilities.setCapability("appium:enableWebviewDetailsCollection", true);
+
+            if(Desiredcapabilities.getCapability("appium:showChromedriverLog") == null)
+            desiredCapabilities.setCapability("appium:showChromedriverLog", true);
         }
         return desiredCapabilities;
     }
