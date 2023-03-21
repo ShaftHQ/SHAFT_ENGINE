@@ -60,7 +60,7 @@ public class ExecutionSummaryReport {
         } else if (durationWithMillis >= 1000 && durationWithMillis < 60000) {
             duration = String.format("%02d sec, %02d millis",
                     TimeUnit.MILLISECONDS.toSeconds(durationWithMillis),
-                    durationWithMillis - TimeUnit.MINUTES.toMillis(TimeUnit.MILLISECONDS.toSeconds(durationWithMillis))
+                    TimeUnit.MILLISECONDS.toMillis(durationWithMillis) - TimeUnit.SECONDS.toMillis(TimeUnit.MILLISECONDS.toSeconds(durationWithMillis))
             );
         } else if (durationWithMillis >= 60000 && durationWithMillis < 3600000) {
             duration = String.format("%02d min, %02d sec",
@@ -70,7 +70,7 @@ public class ExecutionSummaryReport {
         } else if (durationWithMillis >= 3600000) {
             duration = String.format("%02d hr, %02d min",
                     TimeUnit.MILLISECONDS.toHours(durationWithMillis),
-                    TimeUnit.MILLISECONDS.toMinutes(durationWithMillis) - TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toHours(durationWithMillis))
+                    TimeUnit.MILLISECONDS.toMinutes(durationWithMillis) - TimeUnit.HOURS.toMinutes(TimeUnit.MILLISECONDS.toHours(durationWithMillis))
             );
         }
         return duration;
