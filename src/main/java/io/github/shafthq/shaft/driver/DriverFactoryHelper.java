@@ -58,6 +58,7 @@ public class DriverFactoryHelper {
     private static String TARGET_HUB_URL;
     private static Boolean MOBILE_EMULATION;
     private static Boolean MOBILE_EMULATION_CUSTOM_DEVICE;
+    private static Boolean LIGHTHOUSE_EXEUTION;
     private static final String WEB_DRIVER_MANAGER_MESSAGE = "Identifying OS/Driver combination and selecting the correct driver version automatically. Please note that if a new driver executable will be downloaded it may take some time...";
     private static final String WEB_DRIVER_MANAGER_DOCKERIZED_MESSAGE = "Identifying target OS/Browser and setting up the dockerized environment automatically. Please note that if a new docker container will be downloaded it may take some time...";
     private static int PAGE_LOAD_TIMEOUT;
@@ -280,6 +281,11 @@ public class DriverFactoryHelper {
         if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
             options.addArguments("--headless=new");
         }
+        // Add if condtion to start the new session if flag=true on specific port
+        if (Boolean.TRUE.equals(LIGHTHOUSE_EXEUTION)) {
+            options.addArguments("--remote-debugging-port=" + System.getProperty("lightHouseExeution.port") + "");
+            options.addArguments("--no-sandbox");
+        }
         if (Boolean.TRUE.equals(AUTO_MAXIMIZE)
                 && !Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())
                 && !Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())
@@ -303,7 +309,6 @@ public class DriverFactoryHelper {
                 , "--metrics-recording-only"
                 , "--no-first-run"
                 , "--no-default-browser-check"
-                , "--remote-debugging-port=0"
                 , "--silent-debugger-extension-api"
                 , "--disable-extensions"
                 , "--disable-component-extensions-with-background-pages"
@@ -520,9 +525,9 @@ public class DriverFactoryHelper {
         if (Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())
                 || Platform.IOS.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
             if (appiumCapabilities == null) {
-                appiumCapabilities = initializeMobileDesiredCapabilities();
+                appiumCapabilities = initializeMobileDesiredCapabilities(appiumCapabilities);
             } else {
-                appiumCapabilities.merge(initializeMobileDesiredCapabilities());
+                appiumCapabilities.merge(initializeMobileDesiredCapabilities(appiumCapabilities));
             }
         }
 
@@ -718,7 +723,7 @@ public class DriverFactoryHelper {
     }
 
     @SuppressWarnings("SpellCheckingInspection")
-    private static DesiredCapabilities initializeMobileDesiredCapabilities() {
+    private static DesiredCapabilities initializeMobileDesiredCapabilities(DesiredCapabilities Desiredcapabilities) {
         var desiredCapabilities = new DesiredCapabilities();
 
         if (!isMobileWebExecution()) {
@@ -746,22 +751,51 @@ public class DriverFactoryHelper {
         if (!isMobileWebExecution() && Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
             // experimental android capabilities
             // https://github.com/appium/appium-uiautomator2-driver
-            desiredCapabilities.setCapability("appium:appWaitActivity", "*");
-            desiredCapabilities.setCapability("appium:fullReset", "true");
-            desiredCapabilities.setCapability("appium:printPageSourceOnFindFailure", "true");
-            desiredCapabilities.setCapability("appium:fullReset", "true");
-            desiredCapabilities.setCapability("appium:disableWindowAnimation", "true");
-            desiredCapabilities.setCapability("appium:forceAppLaunch", "true");
-            desiredCapabilities.setCapability("appium:autoGrantPermissions", "true");
+            // Check if user sent any capability then don't take the deafult
+
+            if(Desiredcapabilities.getCapability("appium:fullReset") == null)
+                desiredCapabilities.setCapability("appium:fullReset", true);
+
+            if(Desiredcapabilities.getCapability("appium:appWaitActivity") == null)
+                desiredCapabilities.setCapability("appium:appWaitActivity", "*");
+
+            if(Desiredcapabilities.getCapability("appium:printPageSourceOnFindFailure") == null)
+                desiredCapabilities.setCapability("appium:printPageSourceOnFindFailure", true);
+
+            if(Desiredcapabilities.getCapability("appium:disableWindowAnimation") == null)
+            desiredCapabilities.setCapability("appium:disableWindowAnimation", true);
+
+            if(Desiredcapabilities.getCapability("appium:forceAppLaunch") == null)
+            desiredCapabilities.setCapability("appium:forceAppLaunch", true);
+
+            if(Desiredcapabilities.getCapability("appium:autoGrantPermissions") == null)
+            desiredCapabilities.setCapability("appium:autoGrantPermissions", true);
+
 //            desiredCapabilities.setCapability("appium:otherApps", ",,,");
-            desiredCapabilities.setCapability("appium:allowTestPackages", "true");
-            desiredCapabilities.setCapability("appium:enforceAppInstall", "true");
-            desiredCapabilities.setCapability("appium:clearDeviceLogsOnStart", "true");
-            desiredCapabilities.setCapability("appium:ignoreHiddenApiPolicyError", "true");
-            desiredCapabilities.setCapability("appium:isHeadless", "true");
-            desiredCapabilities.setCapability("appium:noSign", "true");
-            desiredCapabilities.setCapability("appium:enableWebviewDetailsCollection", "true");
-            desiredCapabilities.setCapability("appium:showChromedriverLog", "true");
+
+            if(Desiredcapabilities.getCapability("appium:allowTestPackages") == null)
+            desiredCapabilities.setCapability("appium:allowTestPackages", true);
+
+            if(Desiredcapabilities.getCapability("appium:enforceAppInstall") == null)
+            desiredCapabilities.setCapability("appium:enforceAppInstall", false);
+
+            if(Desiredcapabilities.getCapability("appium:clearDeviceLogsOnStart") == null)
+            desiredCapabilities.setCapability("appium:clearDeviceLogsOnStart", true);
+
+            if(Desiredcapabilities.getCapability("appium:ignoreHiddenApiPolicyError") == null)
+            desiredCapabilities.setCapability("appium:ignoreHiddenApiPolicyError", true);
+
+            if(Desiredcapabilities.getCapability("appium:isHeadless") == null)
+            desiredCapabilities.setCapability("appium:isHeadless", true);
+
+            if(Desiredcapabilities.getCapability("appium:noSign") == null)
+            desiredCapabilities.setCapability("appium:noSign", true);
+
+            if(Desiredcapabilities.getCapability("appium:enableWebviewDetailsCollection") == null)
+            desiredCapabilities.setCapability("appium:enableWebviewDetailsCollection", true);
+
+            if(Desiredcapabilities.getCapability("appium:showChromedriverLog") == null)
+            desiredCapabilities.setCapability("appium:showChromedriverLog", true);
         }
         return desiredCapabilities;
     }
@@ -870,5 +904,6 @@ public class DriverFactoryHelper {
         SCRIPT_TIMEOUT = Integer.parseInt(System.getProperty("scriptExecutionTimeout"));
         MOBILE_EMULATION = SHAFT.Properties.web.isMobileEmulation();
         MOBILE_EMULATION_CUSTOM_DEVICE = SHAFT.Properties.web.mobileEmulation_isCustomDevice();
+        LIGHTHOUSE_EXEUTION = Boolean.valueOf(System.getProperty("lightHouseExeution").trim());
     }
 }
