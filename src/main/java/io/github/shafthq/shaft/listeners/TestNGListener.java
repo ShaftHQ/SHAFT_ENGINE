@@ -26,6 +26,9 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     private static List<ITestNGMethod> failedTests = new ArrayList<ITestNGMethod>();
     private static List<ITestNGMethod> skippedTests = new ArrayList<ITestNGMethod>();
 
+    private static long executionStartTime;
+    private static long executionEndTime;
+
     @Getter
     private static XmlTest xmlTest;
 
@@ -81,6 +84,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Override
     public void onStart(ISuite suite) {
         TestNGListenerHelper.setTotalNumberOfTests(suite);
+        executionStartTime = System.currentTimeMillis();
     }
 
     /**
@@ -155,7 +159,8 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         GoogleTink.encrypt();
         ReportManagerHelper.generateAllureReportArchive();
         ReportManagerHelper.openAllureReportAfterExecution();
-        ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size());
+        executionEndTime = System.currentTimeMillis();
+        ExecutionSummaryReport.generateExecutionSummaryReport(passedTests.size(), failedTests.size(), skippedTests.size(), executionStartTime, executionEndTime);
         ReportManagerHelper.logEngineClosure();
     }
 
@@ -169,7 +174,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         failedTests.add(result.getMethod());
         ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
                 result.getMethod().getMethodName(), result.getMethod().getDescription(),
-                ExecutionSummaryReport.ExecutionSummaryReportStatusIcon.FAILED.getValue() + ExecutionSummaryReport.ExecutionSummaryReportStatus.FAILED.name());
+                ExecutionSummaryReport.StatusIcon.FAILED.getValue() + ExecutionSummaryReport.Status.FAILED.name());
     }
 
     @Override
@@ -177,7 +182,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         skippedTests.add(result.getMethod());
         ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
                 result.getMethod().getMethodName(), result.getMethod().getDescription(),
-                ExecutionSummaryReport.ExecutionSummaryReportStatusIcon.SKIPPED.getValue() + ExecutionSummaryReport.ExecutionSummaryReportStatus.SKIPPED.name());
+                ExecutionSummaryReport.StatusIcon.SKIPPED.getValue() + ExecutionSummaryReport.Status.SKIPPED.name());
     }
 
 }

@@ -8,6 +8,7 @@ import java.text.SimpleDateFormat;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.concurrent.TimeUnit;
 
 public class ExecutionSummaryReport {
 
@@ -25,7 +26,7 @@ public class ExecutionSummaryReport {
         casesDetails.put(casesDetails.size() + 1, entry);
     }
 
-    public static void generateExecutionSummaryReport(int passed, int failed, int skipped) {
+    public static void generateExecutionSummaryReport(int passed, int failed, int skipped, long startTime, long endTime) {
         int total = passed + failed + skipped;
 
         StringBuilder detailsBuilder = new StringBuilder();
@@ -34,7 +35,10 @@ public class ExecutionSummaryReport {
         new SHAFT.CLI().file().writeToFile(System.getProperty("executionSummaryReportFolderPath"),
                 "ExecutionSummaryReport_" + new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa").format(System.currentTimeMillis()) + ".html",
                 HTMLHelper.EXECUTION_SUMMARY.getValue()
-                        .replace("${DATE}", new SimpleDateFormat("dd/MM/yyyy").format(System.currentTimeMillis()))
+                        .replace("${DATE}", new SimpleDateFormat("dd/MM/yyyy").format(endTime))
+                        .replace("${START_TIME}", new SimpleDateFormat("HH:mm:ss").format(startTime))
+                        .replace("${END_TIME}", new SimpleDateFormat("HH:mm:ss").format(endTime))
+                        .replace("${TOTAL_TIME}", executionDuration(startTime, endTime))
                         .replace("${CASES_PASSED_PERCENTAGE}", String.valueOf(new DecimalFormat("0.00").format((float) passed * 100 / total)))
                         .replace("${CASES_PASSED_PERCENTAGE_PIE}", String.valueOf(passed * 100 / total))
                         .replace("${CASES_FAILED_PERCENTAGE_PIE}", String.valueOf((failed * 100 / total) + (passed * 100 / total)))
@@ -47,17 +51,42 @@ public class ExecutionSummaryReport {
         ReportManagerHelper.logExecutionSummary(String.valueOf(total), String.valueOf(passed), String.valueOf(failed), String.valueOf(skipped));
     }
 
-    public enum ExecutionSummaryReportStatus {
+    private static String executionDuration(long startTime, long endTime) {
+        long durationWithMillis = TimeUnit.MILLISECONDS.toMillis(endTime - startTime);
+
+        String duration = "";
+        if (durationWithMillis > 0 && durationWithMillis < 1000) {
+            duration = durationWithMillis + " millis";
+        } else if (durationWithMillis >= 1000 && durationWithMillis < 60000) {
+            duration = String.format("%02d sec, %02d millis",
+                    TimeUnit.MILLISECONDS.toSeconds(durationWithMillis),
+                    TimeUnit.MILLISECONDS.toMillis(durationWithMillis) - TimeUnit.SECONDS.toMillis(TimeUnit.MILLISECONDS.toSeconds(durationWithMillis))
+            );
+        } else if (durationWithMillis >= 60000 && durationWithMillis < 3600000) {
+            duration = String.format("%02d min, %02d sec",
+                    TimeUnit.MILLISECONDS.toMinutes(durationWithMillis),
+                    TimeUnit.MILLISECONDS.toSeconds(durationWithMillis) - TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(durationWithMillis))
+            );
+        } else if (durationWithMillis >= 3600000) {
+            duration = String.format("%02d hr, %02d min",
+                    TimeUnit.MILLISECONDS.toHours(durationWithMillis),
+                    TimeUnit.MILLISECONDS.toMinutes(durationWithMillis) - TimeUnit.HOURS.toMinutes(TimeUnit.MILLISECONDS.toHours(durationWithMillis))
+            );
+        }
+        return duration;
+    }
+
+    public enum Status {
         FAILED,
         SKIPPED
     }
 
-    public enum ExecutionSummaryReportStatusIcon {
+    public enum StatusIcon {
         FAILED("&#10060; "), SKIPPED("&#128679; ");
 
         private String value;
 
-        ExecutionSummaryReportStatusIcon(String type) {
+        StatusIcon(String type) {
             this.value = type;
         }
 
