@@ -60,7 +60,7 @@ public class ExecutionSummaryReport {
         } else if (durationWithMillis >= 1000 && durationWithMillis < 60000) {
             duration = String.format("%02d sec, %02d millis",
                     TimeUnit.MILLISECONDS.toSeconds(durationWithMillis),
-                    durationWithMillis - TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toSeconds(durationWithMillis))
+                    durationWithMillis - TimeUnit.MINUTES.toMillis(TimeUnit.MILLISECONDS.toSeconds(durationWithMillis))
             );
         } else if (durationWithMillis >= 60000 && durationWithMillis < 3600000) {
             duration = String.format("%02d min, %02d sec",
