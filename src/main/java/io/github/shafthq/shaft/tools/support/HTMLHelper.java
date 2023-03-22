@@ -264,6 +264,7 @@ public enum HTMLHelper {
                 <link rel="stylesheet" type="text/css"
                       href="https://colorlib.com/etc/tb/Table_Fixed_Header/vendor/bootstrap/css/bootstrap.min.css">
                 <br>
+                <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
                 <style>
                             body {
                               background-color: #e9edf1;
@@ -461,6 +462,10 @@ public enum HTMLHelper {
                                 	margin-left: 35px;
                                  	margin-right: 35px;
                                 }
+                                .rcorner {
+                                	border-radius: 10px;
+                                	border: 1px solid #696969;
+                                	padding-left: 15px;
                         
                 </style>
             </head>
@@ -484,12 +489,21 @@ public enum HTMLHelper {
                     </h3>
                     <br><br>
                     <hr class="rounded">
-                    <h4 style="display:inline;">Cases Details</h4> <h5 style="display:inline; color:Grey">(Failed/Skipped)</h5>
+                    <h4 style="display:inline;">Test Cases Details</h4>
                     <div class="limiter">
                     <div class="container-table100">
                     <div class="wrap-table100">
                     <div class="table100 ver5 m-b-110">
                     <div class="table100-head">
+                    <b>
+                    	<input class="rcorner" id="search" type="text" placeholder="Search for test cases.. ">
+                    </b>
+                    <select id='searchDropDown'>
+                        <option value="">Status</option>
+                    	<option value='passed'>${PASSED_DROPDOWN_OPTION}</option>
+                    	<option value='failed'>${FAILED_DROPDOWN_OPTION}</option>
+                    	<option value='skipped'>${SKIPPED_DROPDOWN_OPTION}</option>
+                    </select>
                     <table>
                     <thead>
                     <tr class="row100 head">
@@ -503,7 +517,7 @@ public enum HTMLHelper {
                     </div>
                     <div class="table100-body js-pscroll ps ps--active-y">
                     <table>
-                    <tbody>${CASES_DETAILS}</tbody>
+                    <tbody id="table">${CASES_DETAILS}</tbody>
                     </table>
                     <div class="ps__rail-x" style="left: 0px; bottom: 0px;"><div class="ps__thumb-x" tabindex="0" style="left: 0px; width: 0px;"></div></div></div>
                     </div>
@@ -512,6 +526,25 @@ public enum HTMLHelper {
                     </div>
                     <br><br>
                 </div>
+                
+                    <script>
+                        $(document).ready(function() {
+                            $("#search").on("keyup", function() {
+                                var value = $(this).val().toLowerCase();
+                                $("#table tr").filter(function() {
+                                    $(this).toggle($(this).text()
+                                    .toLowerCase().indexOf(value) > -1)
+                                });
+                            });
+            				$("#searchDropDown").on("change", function(){
+            					var value = $(this).val().toLowerCase();
+            					 $("#table tr").filter(function() {
+                                    $(this).toggle($(this).text()
+                                    .toLowerCase().indexOf(value) > -1)
+                                });
+            				});
+                        });
+                    </script>
             </center>
             </body>
             </html>
