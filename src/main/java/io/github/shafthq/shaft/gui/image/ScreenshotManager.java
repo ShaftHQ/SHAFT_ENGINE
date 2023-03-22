@@ -583,19 +583,17 @@ public class ScreenshotManager {
                         new AnimatedGifManager(gifOutputStream.get(), firstImage.getType(), GIF_FRAME_DELAY));
 
                 // draw initial blank image to set the size of the GIF...
-                BufferedImage initialImage;
-                if (Properties.web.targetBrowserName().equalsIgnoreCase("GoogleChrome")) {
-                    initialImage = new BufferedImage(width / 2, height / 2, firstImage.getType());
-                } else {
-                    initialImage = new BufferedImage(width, height, firstImage.getType());
-                }
+                BufferedImage  initialImage = new BufferedImage(width, height, firstImage.getType());
+                initialImage = new BufferedImage(firstImage.getWidth(), firstImage.getHeight(), firstImage.getType());
                 Graphics2D initialImageGraphics = initialImage.createGraphics();
                 initialImageGraphics.setBackground(Color.WHITE);
                 initialImageGraphics.setColor(Color.WHITE);
                 initialImageGraphics.clearRect(0, 0, width, height);
+
                 // write out initialImage to the sequence...
                 gifWriter.get().writeToSequence(initialImage);
                 initialImageGraphics.dispose();
+                
                 // write out first image to the sequence...
                 gifWriter.get().writeToSequence(overlayShaftEngineLogo(toBufferedImage(firstImage)));
             } catch (NullPointerException | NoSuchSessionException e) {
