@@ -23,10 +23,7 @@ import io.github.shafthq.shaft.tools.io.FailureReporter;
 import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 import io.github.shafthq.shaft.tools.support.JavaHelper;
 import io.qameta.allure.Step;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NonNull;
-import lombok.SneakyThrows;
+import lombok.*;
 import org.apache.logging.log4j.Level;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeOptions;
@@ -76,6 +73,8 @@ public class DriverFactoryHelper {
     private static DesiredCapabilities appiumCapabilities;
     @Getter(AccessLevel.PUBLIC)
     private static boolean killSwitch = false;
+    @Getter(AccessLevel.PUBLIC) @Setter(AccessLevel.PUBLIC)
+    private static Dimension currentWindowSize = new Dimension(1920,1080);
 
     private static final long appiumServerInitializationTimeout = TimeUnit.MINUTES.toSeconds(10); // seconds
     private static final int appiumServerInitializationPollingInterval = 1; // seconds
@@ -292,7 +291,7 @@ public class DriverFactoryHelper {
                 && !Platform.MAC.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
             options.addArguments("--start-maximized");
         } else {
-            options.addArguments("--window-position=0,0", "--window-size=1920,1080");
+            options.addArguments("--window-position=0,0", "--window-size="+currentWindowSize.getWidth()+","+currentWindowSize.getHeight());
         }
 
         // https://github.com/GoogleChrome/chrome-launcher/blob/main/docs/chrome-flags-for-tools.md
@@ -490,7 +489,7 @@ public class DriverFactoryHelper {
                     .dockerShmSize("2gb")
                     .enableVnc()
                     .viewOnly()
-                    .dockerScreenResolution("1920x1080x24")
+                    .dockerScreenResolution(currentWindowSize.getWidth()+"x"+currentWindowSize.getHeight()+"x24")
 //                    .dockerVolumes("\\local\\path:\\container\\path")
                     .enableRecording()
                     .dockerRecordingOutput(System.getProperty("video.folder"))
@@ -869,7 +868,7 @@ public class DriverFactoryHelper {
             }
 
             if (Boolean.TRUE.equals(HEADLESS_EXECUTION)) {
-                driver.get().manage().window().setSize(new Dimension(1920, 1080));
+                driver.get().manage().window().setSize(new Dimension(currentWindowSize.getWidth(), currentWindowSize.getHeight()));
             }
 
             if (!isMobileExecution) {

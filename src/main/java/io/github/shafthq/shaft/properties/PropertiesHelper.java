@@ -38,7 +38,14 @@ public class PropertiesHelper {
 
     public static void postProcessing() {
         overrideTargetOperatingSystemForLocalExecution();
+        overrideScreenShotTypeForAnimatedGIF();
         setMobilePlatform();
+    }
+
+    private static void overrideScreenShotTypeForAnimatedGIF() {
+        if(Boolean.valueOf(System.getProperty("createAnimatedGif").trim())){
+            System.setProperty("screenshotParams_screenshotType","Regular");
+        }
     }
 
     private static void overrideTargetOperatingSystemForLocalExecution() {
