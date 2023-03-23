@@ -2,6 +2,7 @@ package io.github.shafthq.shaft.gui.image;
 
 import com.epam.healenium.SelfHealingDriver;
 import com.shaft.cli.FileActions;
+import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.driver.DriverFactoryHelper;
 import io.github.shafthq.shaft.enums.Screenshots;
@@ -616,7 +617,7 @@ public class ScreenshotManager {
                         AlphaComposite.getInstance(AlphaComposite.SRC_OVER, SCREENSHOT_PARAMS_WATERMARK_OPACITY));
                 BufferedImage shaftLogo;
                 // read from custom location
-                String watermarkImagePath = System.getProperty("watermarkImagePath");
+                String watermarkImagePath = Properties.internal.watermarkImagePath();
                 shaftLogo = ImageIO.read(new URL(watermarkImagePath));
                 shaftLogo = toBufferedImage(
                         shaftLogo.getScaledInstance(screenshot.getWidth() / 8, -1, Image.SCALE_SMOOTH));

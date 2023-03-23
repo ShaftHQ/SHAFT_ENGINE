@@ -10,7 +10,7 @@ public class Properties {
 //    public static Capabilities capabilities;
     public static Platform platform;
     //    public static Healenium healenium;
-//    public static Internal internal;
+    public static Internal internal;
 //    public static Jira jira;
 //    public static Log4j log4j;
     public static Mobile mobile;
