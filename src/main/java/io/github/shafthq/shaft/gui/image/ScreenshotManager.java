@@ -2,7 +2,6 @@ package io.github.shafthq.shaft.gui.image;
 
 import com.epam.healenium.SelfHealingDriver;
 import com.shaft.cli.FileActions;
-import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.driver.DriverFactoryHelper;
 import io.github.shafthq.shaft.enums.Screenshots;
@@ -20,7 +19,6 @@ import org.openqa.selenium.support.locators.RelativeLocator;
 import org.sikuli.script.App;
 import org.sikuli.script.Pattern;
 import org.sikuli.script.Screen;
-
 import javax.imageio.ImageIO;
 import javax.imageio.stream.FileImageOutputStream;
 import javax.imageio.stream.ImageOutputStream;
