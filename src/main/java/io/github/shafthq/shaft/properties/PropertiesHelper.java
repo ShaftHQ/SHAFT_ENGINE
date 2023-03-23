@@ -34,11 +34,19 @@ public class PropertiesHelper {
         Properties.web = ConfigFactory.create(Web.class);
         Properties.mobile = ConfigFactory.create(Mobile.class);
         Properties.browserStack = ConfigFactory.create(BrowserStack.class);
+        Properties.internal = ConfigFactory.create(Internal.class);
     }
 
     public static void postProcessing() {
         overrideTargetOperatingSystemForLocalExecution();
+        overrideScreenShotTypeForAnimatedGIF();
         setMobilePlatform();
+    }
+
+    private static void overrideScreenShotTypeForAnimatedGIF() {
+        if(Boolean.valueOf(System.getProperty("createAnimatedGif").trim())){
+            System.setProperty("screenshotParams_screenshotType","Regular");
+        }
     }
 
     private static void overrideTargetOperatingSystemForLocalExecution() {

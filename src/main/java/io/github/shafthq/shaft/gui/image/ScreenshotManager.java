@@ -2,14 +2,12 @@ package io.github.shafthq.shaft.gui.image;
 
 import com.epam.healenium.SelfHealingDriver;
 import com.shaft.cli.FileActions;
-import com.shaft.gui.browser.BrowserActions;
 import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.driver.DriverFactoryHelper;
 import io.github.shafthq.shaft.enums.Screenshots;
 import io.github.shafthq.shaft.gui.browser.JavaScriptWaitManager;
 import io.github.shafthq.shaft.gui.element.ElementActionsHelper;
 import io.github.shafthq.shaft.properties.Properties;
-import io.github.shafthq.shaft.properties.PropertyFileManager;
 import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 import org.imgscalr.Scalr;
 import org.opencv.core.Mat;
@@ -21,13 +19,13 @@ import org.openqa.selenium.support.locators.RelativeLocator;
 import org.sikuli.script.App;
 import org.sikuli.script.Pattern;
 import org.sikuli.script.Screen;
-
 import javax.imageio.ImageIO;
 import javax.imageio.stream.FileImageOutputStream;
 import javax.imageio.stream.ImageOutputStream;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
+import java.net.URL;
 import java.nio.file.FileSystems;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -564,8 +562,8 @@ public class ScreenshotManager {
                 gifRelativePathWithFileName = SCREENSHOT_FOLDER_PATH + SCREENSHOT_FOLDER_NAME + gifFileName;
 
                 // get the width and height of the current window of the browser
-                var height = Integer.valueOf(new BrowserActions().getWindowHeight());
-                var width = Integer.valueOf(new BrowserActions().getWindowWidth());
+                var height =  DriverFactoryHelper.getCurrentWindowSize().getHeight();
+                var width = DriverFactoryHelper.getCurrentWindowSize().getWidth();
 
                 // grab the output image type from the first image in the sequence
                 BufferedImage firstImage = ImageIO.read(new ByteArrayInputStream(screenshot));
@@ -583,16 +581,18 @@ public class ScreenshotManager {
                         new AnimatedGifManager(gifOutputStream.get(), firstImage.getType(), GIF_FRAME_DELAY));
 
                 // draw initial blank image to set the size of the GIF...
-                BufferedImage initialImage = new BufferedImage(width, height,firstImage.getType());
+                BufferedImage initialImage = new BufferedImage(width, height, firstImage.getType());
                 Graphics2D initialImageGraphics = initialImage.createGraphics();
                 initialImageGraphics.setBackground(Color.WHITE);
+                initialImageGraphics.setColor(Color.WHITE);
                 initialImageGraphics.clearRect(0, 0, width, height);
 
                 // write out initialImage to the sequence...
-                gifWriter.get().writeToSequence(overlayShaftEngineLogo(initialImage));
+                gifWriter.get().writeToSequence(initialImage);
                 initialImageGraphics.dispose();
+
                 // write out first image to the sequence...
-                gifWriter.get().writeToSequence(overlayShaftEngineLogo(firstImage));
+                gifWriter.get().writeToSequence(overlayShaftEngineLogo(toBufferedImage(firstImage)));
             } catch (NullPointerException | NoSuchSessionException e) {
                 // this happens in case the start animated Gif is triggered in a none-test
                 // method
@@ -613,11 +613,10 @@ public class ScreenshotManager {
                 screenshotGraphics.drawImage(screenshot, 0, 0, null);
                 screenshotGraphics.setComposite(
                         AlphaComposite.getInstance(AlphaComposite.SRC_OVER, SCREENSHOT_PARAMS_WATERMARK_OPACITY));
-
                 BufferedImage shaftLogo;
                 // read from custom location
-                String watermarkImagePath = PropertyFileManager.getDefaultPropertiesFolderPath().replace("properties/default/", System.getProperty("watermarkImagePath"));
-                shaftLogo = ImageIO.read(new File(watermarkImagePath));
+                String watermarkImagePath = Properties.internal.watermarkImagePath();
+                shaftLogo = ImageIO.read(new URL(watermarkImagePath));
                 shaftLogo = toBufferedImage(
                         shaftLogo.getScaledInstance(screenshot.getWidth() / 8, -1, Image.SCALE_SMOOTH));
                 screenshotGraphics.drawImage(shaftLogo, screenshot.getWidth() - shaftLogo.getWidth(),

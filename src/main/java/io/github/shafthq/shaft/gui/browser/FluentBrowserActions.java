@@ -200,7 +200,6 @@ public class FluentBrowserActions {
         var windowHeight = "";
         try {
             windowHeight = String.valueOf(DriverFactoryHelper.getDriver().get().manage().window().getSize().getHeight());
-            passAction(DriverFactoryHelper.getDriver().get(), windowHeight);
         } catch (Exception rootCauseException) {
             failAction(DriverFactoryHelper.getDriver().get(), windowHeight, rootCauseException);
         }
@@ -216,7 +215,6 @@ public class FluentBrowserActions {
         var windowWidth = "";
         try {
             windowWidth = String.valueOf(DriverFactoryHelper.getDriver().get().manage().window().getSize().getWidth());
-            passAction(DriverFactoryHelper.getDriver().get(), windowWidth);
         } catch (Exception rootCauseException) {
             failAction(DriverFactoryHelper.getDriver().get(), windowWidth, rootCauseException);
         }
