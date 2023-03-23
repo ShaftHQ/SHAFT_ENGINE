@@ -478,7 +478,7 @@ public enum HTMLHelper {
                     <h2 style="clear:both; padding-top: 15px; margin-bottom: 3px">${DATE}</h2>
                     <h5 style="clear:both; color:Grey">${START_TIME} - ${END_TIME} (${TOTAL_TIME}) </h5>
                     <br>
-                    <div class="piechart"></div>
+                    <div style="border: 1px solid Grey" class="piechart"></div>
                     <br>
                     <h2>${CASES_PASSED_PERCENTAGE}%</h2>
                     <br><br>
