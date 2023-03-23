@@ -46,6 +46,9 @@ public class ExecutionSummaryReport {
                         .replace("${CASES_PASSED}", String.valueOf(passed))
                         .replace("${CASES_FAILED}", String.valueOf(failed))
                         .replace("${CASES_SKIPPED}", String.valueOf(skipped))
+                        .replace("${PASSED_DROPDOWN_OPTION}", StatusIcon.PASSED.getValue() + Status.PASSED.name())
+                        .replace("${FAILED_DROPDOWN_OPTION}", StatusIcon.FAILED.getValue() + Status.FAILED.name())
+                        .replace("${SKIPPED_DROPDOWN_OPTION}", StatusIcon.SKIPPED.getValue() + Status.SKIPPED.name())
                         .replace("${CASES_DETAILS}", detailsBuilder));
 
         ReportManagerHelper.logExecutionSummary(String.valueOf(total), String.valueOf(passed), String.valueOf(failed), String.valueOf(skipped));
@@ -77,12 +80,11 @@ public class ExecutionSummaryReport {
     }
 
     public enum Status {
-        FAILED,
-        SKIPPED
+        PASSED, FAILED, SKIPPED
     }
 
     public enum StatusIcon {
-        FAILED("&#10060; "), SKIPPED("&#128679; ");
+        PASSED("&#9989; "), FAILED("&#10060; "), SKIPPED("&#128679; ");
 
         private String value;
 
@@ -94,6 +96,5 @@ public class ExecutionSummaryReport {
             return value;
         }
     }
-
 
 }
