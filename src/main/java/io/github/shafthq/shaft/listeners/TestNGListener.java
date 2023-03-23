@@ -167,6 +167,9 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     @Override
     public void onTestSuccess(ITestResult result) {
         passedTests.add(result.getMethod());
+        ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
+                result.getMethod().getMethodName(), result.getMethod().getDescription(),
+                ExecutionSummaryReport.StatusIcon.PASSED.getValue() + ExecutionSummaryReport.Status.PASSED.name());
     }
 
     @Override
