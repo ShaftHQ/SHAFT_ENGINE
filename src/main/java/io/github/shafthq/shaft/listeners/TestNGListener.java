@@ -168,7 +168,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     public void onTestSuccess(ITestResult result) {
         passedTests.add(result.getMethod());
         ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
-                result.getMethod().getMethodName(), result.getMethod().getDescription(),
+                result.getMethod().getMethodName(), result.getMethod().getDescription(), "",
                 ExecutionSummaryReport.StatusIcon.PASSED.getValue() + ExecutionSummaryReport.Status.PASSED.name());
     }
 
@@ -176,7 +176,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     public void onTestFailure(ITestResult result) {
         failedTests.add(result.getMethod());
         ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
-                result.getMethod().getMethodName(), result.getMethod().getDescription(),
+                result.getMethod().getMethodName(), result.getMethod().getDescription(), result.getThrowable().getMessage(),
                 ExecutionSummaryReport.StatusIcon.FAILED.getValue() + ExecutionSummaryReport.Status.FAILED.name());
     }
 
@@ -184,7 +184,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     public void onTestSkipped(ITestResult result) {
         skippedTests.add(result.getMethod());
         ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
-                result.getMethod().getMethodName(), result.getMethod().getDescription(),
+                result.getMethod().getMethodName(), result.getMethod().getDescription(), result.getThrowable().getMessage(),
                 ExecutionSummaryReport.StatusIcon.SKIPPED.getValue() + ExecutionSummaryReport.Status.SKIPPED.name());
     }
 
