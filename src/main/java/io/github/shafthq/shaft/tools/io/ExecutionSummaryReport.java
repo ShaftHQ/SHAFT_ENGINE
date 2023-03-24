@@ -14,7 +14,7 @@ public class ExecutionSummaryReport {
 
     private static final HashMap<Integer, ArrayList<?>> casesDetails = new HashMap<>();
 
-    public static void casesDetailsIncrement(String caseSuite, String caseName, String caseDescription, String status) {
+    public static void casesDetailsIncrement(String caseSuite, String caseName, String caseDescription,String errorMessage, String status) {
         ArrayList<String> entry = new ArrayList<>();
         entry.add(caseSuite);
         if (caseDescription != null && !caseDescription.equals("")) {
@@ -22,6 +22,7 @@ public class ExecutionSummaryReport {
         } else {
             entry.add(caseName);
         }
+        entry.add(errorMessage);
         entry.add(status);
         casesDetails.put(casesDetails.size() + 1, entry);
     }
@@ -30,7 +31,7 @@ public class ExecutionSummaryReport {
         int total = passed + failed + skipped;
 
         StringBuilder detailsBuilder = new StringBuilder();
-        casesDetails.forEach((key, value) -> detailsBuilder.append(String.format(HTMLHelper.EXECUTION_SUMMARY_DETAILS_FORMAT.getValue(), key, value.get(0), value.get(1), value.get(2))));
+        casesDetails.forEach((key, value) -> detailsBuilder.append(String.format(HTMLHelper.EXECUTION_SUMMARY_DETAILS_FORMAT.getValue(), key, value.get(0), value.get(1), value.get(2), value.get(3))));
 
         new SHAFT.CLI().file().writeToFile(System.getProperty("executionSummaryReportFolderPath"),
                 "ExecutionSummaryReport_" + new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa").format(System.currentTimeMillis()) + ".html",

@@ -426,7 +426,7 @@ public enum HTMLHelper {
                                 }
                                 .table100.ver5 .table100-head th{
                                     padding-top:25px;
-                                    padding-bottom:25px
+                                    padding-bottom:10px
                                 }
                                 .table100.ver5{
                                     overflow:hidden
@@ -444,17 +444,20 @@ public enum HTMLHelper {
                                     background-color:#ccc
                                 }
                                 .column1{
-                                    width:7%;
+                                    width:5%;
                                     padding-left:40px
                                 }
                                 .column2{
-                                    width:25%
+                                    width:20%
                                 }
                                 .column3{
-                                    width:55%
+                                    width:40%
                                 }
                                 .column4{
-                                    width:13%
+                                    width:25%
+                                }
+                                .column5{
+                                    width:10%
                                 }
                                 hr.rounded {
                                 	border-top: 8px solid #bbb;
@@ -504,13 +507,15 @@ public enum HTMLHelper {
                     	<option value='failed'>${FAILED_DROPDOWN_OPTION}</option>
                     	<option value='skipped'>${SKIPPED_DROPDOWN_OPTION}</option>
                     </select>
+                    <br>
                     <table>
                     <thead>
                     <tr class="row100 head">
                     <th class="cell100 column1">Id</th>
                     <th class="cell100 column2">Suite</th>
                     <th class="cell100 column3">Name</th>
-                    <th class="cell100 column4">Status</th>
+                    <th class="cell100 column4">Error</th>
+                    <th class="cell100 column5">Status</th>
                     </tr>
                     </thead>
                     </table>
@@ -549,7 +554,7 @@ public enum HTMLHelper {
             </body>
             </html>
             """),
-    EXECUTION_SUMMARY_DETAILS_FORMAT("<tr class=\"row100 body\"><td class=\"cell100 column1\">%d</td><td class=\"cell100 column2\">%s</td><td class=\"cell100 column3\">%s</td><td class=\"cell100 column4\">%s</td></tr>");
+    EXECUTION_SUMMARY_DETAILS_FORMAT("<tr class=\"row100 body\"><td class=\"cell100 column1\">%d</td><td class=\"cell100 column2\">%s</td><td class=\"cell100 column3\">%s</td><td class=\"cell100 column4\">%s</td><td class=\"cell100 column5\">%s</td></tr>");
 
     private final String value;
 
