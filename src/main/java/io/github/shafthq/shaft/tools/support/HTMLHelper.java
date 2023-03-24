@@ -350,6 +350,10 @@ public enum HTMLHelper {
                                     font-weight:unset;
                                     padding-right:10px
                                 }
+                                th{
+                                	position: sticky;
+                                	top: 0
+                                }
                                 .table100-head th{
                                     padding-top:18px;
                                     padding-bottom:18px
@@ -386,7 +390,9 @@ public enum HTMLHelper {
                                     color:#555;
                                     line-height:1.4;
                                     text-transform:uppercase;
-                                    background-color:transparent
+                                    background-color:white;
+                                    padding-top:25px;
+                                    padding-bottom:10px
                                 }
                                 .table100.ver5 td{
                                     font-family: Roboto,sans-serif;
@@ -423,10 +429,6 @@ public enum HTMLHelper {
                                 .table100.ver5 tr:hover td{
                                     background-color:#ebebeb;
                                     cursor:pointer
-                                }
-                                .table100.ver5 .table100-head th{
-                                    padding-top:25px;
-                                    padding-bottom:10px
                                 }
                                 .table100.ver5{
                                     overflow:hidden
@@ -508,6 +510,8 @@ public enum HTMLHelper {
                     	<option value='skipped'>${SKIPPED_DROPDOWN_OPTION}</option>
                     </select>
                     <br>
+                    </div>
+                    <div class="table100-body js-pscroll ps ps--active-y">
                     <table>
                     <thead>
                     <tr class="row100 head">
@@ -518,10 +522,6 @@ public enum HTMLHelper {
                     <th class="cell100 column5">Status</th>
                     </tr>
                     </thead>
-                    </table>
-                    </div>
-                    <div class="table100-body js-pscroll ps ps--active-y">
-                    <table>
                     <tbody id="table">${CASES_DETAILS}</tbody>
                     </table>
                     <div class="ps__rail-x" style="left: 0px; bottom: 0px;"><div class="ps__thumb-x" tabindex="0" style="left: 0px; width: 0px;"></div></div></div>
