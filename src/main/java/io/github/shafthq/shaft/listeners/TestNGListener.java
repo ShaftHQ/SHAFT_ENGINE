@@ -169,7 +169,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         passedTests.add(result.getMethod());
         ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
                 result.getMethod().getMethodName(), result.getMethod().getDescription(), "",
-                ExecutionSummaryReport.StatusIcon.PASSED.getValue() + ExecutionSummaryReport.Status.PASSED.name());
+                ExecutionSummaryReport.StatusIcon.PASSED.getValue() + ExecutionSummaryReport.Status.PASSED.name(), TestNGListenerHelper.testHasIssueAnnotation(result));
     }
 
     @Override
@@ -177,7 +177,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         failedTests.add(result.getMethod());
         ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
                 result.getMethod().getMethodName(), result.getMethod().getDescription(), result.getThrowable().getMessage(),
-                ExecutionSummaryReport.StatusIcon.FAILED.getValue() + ExecutionSummaryReport.Status.FAILED.name());
+                ExecutionSummaryReport.StatusIcon.FAILED.getValue() + ExecutionSummaryReport.Status.FAILED.name(), TestNGListenerHelper.testHasIssueAnnotation(result));
     }
 
     @Override
@@ -185,7 +185,7 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
         skippedTests.add(result.getMethod());
         ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
                 result.getMethod().getMethodName(), result.getMethod().getDescription(), result.getThrowable().getMessage(),
-                ExecutionSummaryReport.StatusIcon.SKIPPED.getValue() + ExecutionSummaryReport.Status.SKIPPED.name());
+                ExecutionSummaryReport.StatusIcon.SKIPPED.getValue() + ExecutionSummaryReport.Status.SKIPPED.name(), TestNGListenerHelper.testHasIssueAnnotation(result));
     }
 
 }

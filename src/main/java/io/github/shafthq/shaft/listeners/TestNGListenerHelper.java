@@ -246,6 +246,16 @@ public class TestNGListenerHelper {
         }
     }
 
+    public static Boolean testHasIssueAnnotation(ITestResult iTestResult) {
+        var method = iTestResult.getMethod().getConstructorOrMethod().getMethod();
+        Issue issue = method.getAnnotation(Issue.class);
+        Boolean hasIssue = false;
+        if (issue != null) {
+            hasIssue = true;
+        }
+        return hasIssue;
+    }
+
     public static void failFast(ITestResult iTestResult) {
         // implementing the new kill switch at the start of every test method
         if (DriverFactoryHelper.isKillSwitch()) {

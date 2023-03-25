@@ -466,13 +466,16 @@ public enum HTMLHelper {
                                     width:20%
                                 }
                                 .column3{
-                                    width:40%
+                                    width:35%
                                 }
                                 .column4{
                                     width:25%
                                 }
                                 .column5{
                                     width:10%
+                                }
+                                .column6{
+                                    width:5%
                                 }
                                 hr.rounded {
                                 	border-top: 8px solid #bbb;
@@ -555,6 +558,7 @@ public enum HTMLHelper {
                     <th class="cell100 column3">Name</th>
                     <th class="cell100 column4">Error</th>
                     <th class="cell100 column5">Status</th>
+                    <th class="cell100 column6">Has issue</th>
                     </tr>
                     </thead>
                     <tbody id="table">${CASES_DETAILS}</tbody>
@@ -593,7 +597,7 @@ public enum HTMLHelper {
             </body>
             </html>
             """),
-    EXECUTION_SUMMARY_DETAILS_FORMAT("<tr class=\"row100 body\"><td class=\"cell100 column1\">%d</td><td class=\"cell100 column2\">%s</td><td class=\"cell100 column3\">%s</td><td class=\"cell100 column4\">%s</td><td class=\"cell100 column5\">%s</td></tr>");
+    EXECUTION_SUMMARY_DETAILS_FORMAT("<tr class=\"row100 body\"><td class=\"cell100 column1\">%d</td><td class=\"cell100 column2\">%s</td><td class=\"cell100 column3\">%s</td><td class=\"cell100 column4\">%s</td><td class=\"cell100 column5\">%s</td><td class=\"cell100 column6\">%s</td></tr>");
 
     private final String value;
 
