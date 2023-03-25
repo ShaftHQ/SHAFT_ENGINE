@@ -56,6 +56,7 @@ public class ExecutionSummaryReport {
         new SHAFT.CLI().file().writeToFile(System.getProperty("executionSummaryReportFolderPath"),
                 "ExecutionSummaryReport_" + new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa").format(System.currentTimeMillis()) + ".html",
                 HTMLHelper.EXECUTION_SUMMARY.getValue()
+                        .replace("${LOGO_URL}", SHAFT.Properties.internal.watermarkImagePath())
                         .replace("${DATE}", new SimpleDateFormat("dd/MM/yyyy").format(endTime))
                         .replace("${START_TIME}", new SimpleDateFormat("HH:mm:ss").format(startTime))
                         .replace("${END_TIME}", new SimpleDateFormat("HH:mm:ss").format(endTime))

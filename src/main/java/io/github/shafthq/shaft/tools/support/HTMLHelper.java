@@ -504,7 +504,7 @@ public enum HTMLHelper {
                         
             <body>
             <center>
-            	<img src="https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/src/main/resources/images/shaft_white_bg.png" alt="SHAFT logo" width="200" height="100" id="logo">
+            	<img src="${LOGO_URL}" alt="SHAFT logo" width="200" height="100" id="logo">
                 <h1>Execution Summary Report</h1>
                 <br>
                 <div class="content">
