@@ -515,16 +515,16 @@ public enum HTMLHelper {
                     <br>
                     <h2>${CASES_PASSED_PERCENTAGE}%</h2>
                     <br><br>
-                    <h3><b>Total Cases</b>:&nbsp${CASES_TOTAL}&nbsp[&nbsp
-                        <font style="color:MediumSeaGreen;"><b>Passed:</b>&nbsp${CASES_PASSED}</font>&nbsp|&nbsp
-                        <font style="color:Tomato;"><b>Failed:</b>&nbsp${CASES_FAILED}</font>&nbsp|&nbsp
-                        <font style="color:Orange;"><b>Skipped:</b>&nbsp${CASES_SKIPPED}</font>&nbsp]&nbsp
+                    <h3><b>Total Cases</b>:&nbsp${CASES_TOTAL}&nbsp&nbsp[
+                        <font style="color:MediumSeaGreen;"><b>Passed:</b>&nbsp${CASES_PASSED}</font>&nbsp|
+                        <font style="color:Tomato;"><b>Failed:</b>&nbsp${CASES_FAILED}</font>&nbsp|
+                        <font style="color:Orange;"><b>Skipped:</b>&nbsp${CASES_SKIPPED}</font>&nbsp]
                     </h3>
                     <br>
                     <hr class="rounded1">
-                     <h4><b>Total Validations</b>:&nbsp${VALIDATION_TOTAL}&nbsp[&nbsp
-                        <font style="color:MediumSeaGreen;"><b>Passed:</b>&nbsp${VALIDATION_PASSED}</font>&nbsp|&nbsp
-                        <font style="color:Tomato;"><b>Failed:</b>&nbsp${VALIDATION_FAILED}</font>&nbsp]&nbsp
+                     <h4><b>Total Validations</b>:&nbsp${VALIDATION_TOTAL}&nbsp&nbsp[
+                        <font style="color:MediumSeaGreen;"><b>Passed:</b>&nbsp${VALIDATION_PASSED}</font>&nbsp|
+                        <font style="color:Tomato;"><b>Failed:</b>&nbsp${VALIDATION_FAILED}</font>&nbsp]
                     </h4>
                     <br>
                     <div class="piechart1"></div>
