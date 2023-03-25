@@ -285,6 +285,19 @@ public enum HTMLHelper {
                                     Tomato ${CASES_PASSED_PERCENTAGE_PIE}% ${CASES_FAILED_PERCENTAGE_PIE}%,
                                     Orange ${CASES_FAILED_PERCENTAGE_PIE}%);
                             }
+                            .piechart1 {
+                                 display: block;
+                                 position: relative;
+                                 width: 120px;
+                                 height: 120px;
+                                 border-radius: 50%;
+                                 background-image: conic-gradient(
+                                    MediumSeaGreen ${VALIDATION_PASSED_PERCENTAGE_PIE}deg,
+                                    Tomato 0);
+                            }
+                            #logo{
+                            	margin: 0 15px 0 0;
+                            }
                         
                             body,
                             .piechart {
@@ -467,16 +480,28 @@ public enum HTMLHelper {
                                 	margin-left: 35px;
                                  	margin-right: 35px;
                                 }
+                                hr.rounded1 {
+                                    border-top: 2px solid #bbb;
+                                    border-radius: 2px;
+                                    margin-left: 35px;
+                                    margin-right: 35px;
+                                }
                                 .rcorner {
                                 	border-radius: 10px;
                                 	border: 1px solid #696969;
                                 	padding-left: 15px;
+                                }
+                                .issue {
+                                    margin-left: 50px;
+                                    margin-right: 50px;
+                                }
                         
                 </style>
             </head>
                         
             <body>
             <center>
+            	<img src="https://raw.githubusercontent.com/ShaftHQ/SHAFT_ENGINE/main/src/main/resources/images/shaft_white_bg.png" alt="SHAFT logo" width="200" height="100" id="logo">
                 <h1>Execution Summary Report</h1>
                 <br>
                 <div class="content">
@@ -487,12 +512,22 @@ public enum HTMLHelper {
                     <br>
                     <h2>${CASES_PASSED_PERCENTAGE}%</h2>
                     <br><br>
-                    <h3><b>Total</b>:&nbsp${CASES_TOTAL}&nbsp|&nbsp
+                    <h3><b>Total Cases</b>:&nbsp${CASES_TOTAL}&nbsp[&nbsp
                         <font style="color:MediumSeaGreen;"><b>Passed:</b>&nbsp${CASES_PASSED}</font>&nbsp|&nbsp
                         <font style="color:Tomato;"><b>Failed:</b>&nbsp${CASES_FAILED}</font>&nbsp|&nbsp
-                        <font style="color:Orange;"><b>Skipped:</b>&nbsp${CASES_SKIPPED}</font>
+                        <font style="color:Orange;"><b>Skipped:</b>&nbsp${CASES_SKIPPED}</font>&nbsp]&nbsp
                     </h3>
-                    <br><br>
+                    <br>
+                    <hr class="rounded1">
+                     <h4><b>Total Validations</b>:&nbsp${VALIDATION_TOTAL}&nbsp[&nbsp
+                        <font style="color:MediumSeaGreen;"><b>Passed:</b>&nbsp${VALIDATION_PASSED}</font>&nbsp|&nbsp
+                        <font style="color:Tomato;"><b>Failed:</b>&nbsp${VALIDATION_FAILED}</font>&nbsp]&nbsp
+                    </h4>
+                    <br>
+                    <div class="piechart1"></div>
+                    <br>
+                    <h4>${VALIDATION_PASSED_PERCENTAGE}%</h4>
+                    <br>
                     <hr class="rounded">
                     <h4 style="display:inline;">Test Cases Details</h4>
                     <div class="limiter">
@@ -525,8 +560,12 @@ public enum HTMLHelper {
                     <tbody id="table">${CASES_DETAILS}</tbody>
                     </table>
                     <div class="ps__rail-x" style="left: 0px; bottom: 0px;"><div class="ps__thumb-x" tabindex="0" style="left: 0px; width: 0px;"></div></div></div>
+                    <br>
                     </div>
                     </div>
+                    <hr class="rounded">
+                    <br>
+                    <h4 class="issue">${ISSUE_SUMMARY}</h4>
                     </div>
                     </div>
                     <br><br>

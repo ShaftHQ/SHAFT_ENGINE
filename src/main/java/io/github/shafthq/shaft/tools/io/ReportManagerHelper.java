@@ -977,6 +977,7 @@ public class ReportManagerHelper {
                 ReportManager.logDiscrete(logText);
                 writeNestedStepsToReport(customLogText, attachments);
                 CheckpointCounter.increment(type, customLogMessages.get(0), status);
+                ExecutionSummaryReport.validationsIncrement(status);
             } else {
                 if (attachments != null && !attachments.isEmpty() && !attachments.get(0).isEmpty()) {
                     writeStepToReport(logText, attachments);
@@ -984,6 +985,7 @@ public class ReportManagerHelper {
                     writeStepToReport(logText);
                 }
                 CheckpointCounter.increment(type, logText, status);
+                ExecutionSummaryReport.validationsIncrement(status);
             }
         }
     }
