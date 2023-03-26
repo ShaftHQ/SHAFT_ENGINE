@@ -285,6 +285,19 @@ public enum HTMLHelper {
                                     Tomato ${CASES_PASSED_PERCENTAGE_PIE}% ${CASES_FAILED_PERCENTAGE_PIE}%,
                                     Orange ${CASES_FAILED_PERCENTAGE_PIE}%);
                             }
+                            .piechart1 {
+                                 display: block;
+                                 position: relative;
+                                 width: 120px;
+                                 height: 120px;
+                                 border-radius: 50%;
+                                 background-image: conic-gradient(
+                                    MediumSeaGreen ${VALIDATION_PASSED_PERCENTAGE_PIE}deg,
+                                    Tomato 0);
+                            }
+                            #logo{
+                            	margin: 0 15px 0 0;
+                            }
                         
                             body,
                             .piechart {
@@ -350,6 +363,10 @@ public enum HTMLHelper {
                                     font-weight:unset;
                                     padding-right:10px
                                 }
+                                th{
+                                	position: sticky;
+                                	top: 0
+                                }
                                 .table100-head th{
                                     padding-top:18px;
                                     padding-bottom:18px
@@ -386,7 +403,9 @@ public enum HTMLHelper {
                                     color:#555;
                                     line-height:1.4;
                                     text-transform:uppercase;
-                                    background-color:transparent
+                                    background-color:white;
+                                    padding-top:25px;
+                                    padding-bottom:10px
                                 }
                                 .table100.ver5 td{
                                     font-family: Roboto,sans-serif;
@@ -424,10 +443,6 @@ public enum HTMLHelper {
                                     background-color:#ebebeb;
                                     cursor:pointer
                                 }
-                                .table100.ver5 .table100-head th{
-                                    padding-top:25px;
-                                    padding-bottom:25px
-                                }
                                 .table100.ver5{
                                     overflow:hidden
                                 }
@@ -444,17 +459,23 @@ public enum HTMLHelper {
                                     background-color:#ccc
                                 }
                                 .column1{
-                                    width:7%;
+                                    width:5%;
                                     padding-left:40px
                                 }
                                 .column2{
-                                    width:25%
+                                    width:20%
                                 }
                                 .column3{
-                                    width:55%
+                                    width:35%
                                 }
                                 .column4{
-                                    width:13%
+                                    width:25%
+                                }
+                                .column5{
+                                    width:10%
+                                }
+                                .column6{
+                                    width:5%
                                 }
                                 hr.rounded {
                                 	border-top: 8px solid #bbb;
@@ -462,16 +483,28 @@ public enum HTMLHelper {
                                 	margin-left: 35px;
                                  	margin-right: 35px;
                                 }
+                                hr.rounded1 {
+                                    border-top: 2px solid #bbb;
+                                    border-radius: 2px;
+                                    margin-left: 35px;
+                                    margin-right: 35px;
+                                }
                                 .rcorner {
                                 	border-radius: 10px;
                                 	border: 1px solid #696969;
                                 	padding-left: 15px;
+                                }
+                                .issue {
+                                    margin-left: 50px;
+                                    margin-right: 50px;
+                                }
                         
                 </style>
             </head>
                         
             <body>
             <center>
+            	<img src="${LOGO_URL}" alt="SHAFT logo" width="200" height="100" id="logo">
                 <h1>Execution Summary Report</h1>
                 <br>
                 <div class="content">
@@ -482,12 +515,29 @@ public enum HTMLHelper {
                     <br>
                     <h2>${CASES_PASSED_PERCENTAGE}%</h2>
                     <br><br>
-                    <h3><b>Total</b>:&nbsp${CASES_TOTAL}&nbsp|&nbsp
-                        <font style="color:MediumSeaGreen;"><b>Passed:</b>&nbsp${CASES_PASSED}</font>&nbsp|&nbsp
-                        <font style="color:Tomato;"><b>Failed:</b>&nbsp${CASES_FAILED}</font>&nbsp|&nbsp
-                        <font style="color:Orange;"><b>Skipped:</b>&nbsp${CASES_SKIPPED}</font>
+                    <h3><b>Total Cases</b>:&nbsp${CASES_TOTAL}&nbsp&nbsp[
+                        <font style="color:MediumSeaGreen;"><b>Passed:</b>&nbsp${CASES_PASSED}</font>&nbsp|
+                        <font style="color:Tomato;"><b>Failed:</b>&nbsp${CASES_FAILED}</font>&nbsp|
+                        <font style="color:Orange;"><b>Skipped:</b>&nbsp${CASES_SKIPPED}</font>&nbsp]
                     </h3>
-                    <br><br>
+                    <br>
+                    <hr class="rounded1">
+                     <h4><b>Total Validations</b>:&nbsp${VALIDATION_TOTAL}&nbsp&nbsp[
+                        <font style="color:MediumSeaGreen;"><b>Passed:</b>&nbsp${VALIDATION_PASSED}</font>&nbsp|
+                        <font style="color:Tomato;"><b>Failed:</b>&nbsp${VALIDATION_FAILED}</font>&nbsp]
+                    </h4>
+                    <br>
+                    <div class="piechart1"></div>
+                    <br>
+                    <h4>${VALIDATION_PASSED_PERCENTAGE}%</h4>
+                    <br>
+                    <hr class="rounded1">
+                    <h5><b>Total Issues</b>:&nbsp${TOTAL_ISSUES}&nbsp&nbsp[
+                        <font style="color:Tomato;"><b>No Open issues for Failed Tests:</b>&nbsp${NO_OPEN_ISSUES_FAILED}</font>&nbsp|
+                        <font style="color:Orange;"><b>Open issues for Passed Tests:</b>&nbsp${OPEN_ISSUES_PASSED}</font>&nbsp|
+                        <font style="color:MediumSeaGreen;"><b>Open issues for Failed Tests:</b>&nbsp${OPEN_ISSUES_FAILED}</font>&nbsp]
+                    </h5>
+                    <br>
                     <hr class="rounded">
                     <h4 style="display:inline;">Test Cases Details</h4>
                     <div class="limiter">
@@ -504,22 +554,24 @@ public enum HTMLHelper {
                     	<option value='failed'>${FAILED_DROPDOWN_OPTION}</option>
                     	<option value='skipped'>${SKIPPED_DROPDOWN_OPTION}</option>
                     </select>
+                    <br>
+                    </div>
+                    <div class="table100-body js-pscroll ps ps--active-y">
                     <table>
                     <thead>
                     <tr class="row100 head">
                     <th class="cell100 column1">Id</th>
                     <th class="cell100 column2">Suite</th>
                     <th class="cell100 column3">Name</th>
-                    <th class="cell100 column4">Status</th>
+                    <th class="cell100 column4">Error</th>
+                    <th class="cell100 column5">Status</th>
+                    <th class="cell100 column6">Has issue</th>
                     </tr>
                     </thead>
-                    </table>
-                    </div>
-                    <div class="table100-body js-pscroll ps ps--active-y">
-                    <table>
                     <tbody id="table">${CASES_DETAILS}</tbody>
                     </table>
                     <div class="ps__rail-x" style="left: 0px; bottom: 0px;"><div class="ps__thumb-x" tabindex="0" style="left: 0px; width: 0px;"></div></div></div>
+                    <br>
                     </div>
                     </div>
                     </div>
@@ -549,7 +601,7 @@ public enum HTMLHelper {
             </body>
             </html>
             """),
-    EXECUTION_SUMMARY_DETAILS_FORMAT("<tr class=\"row100 body\"><td class=\"cell100 column1\">%d</td><td class=\"cell100 column2\">%s</td><td class=\"cell100 column3\">%s</td><td class=\"cell100 column4\">%s</td></tr>");
+    EXECUTION_SUMMARY_DETAILS_FORMAT("<tr class=\"row100 body\"><td class=\"cell100 column1\">%d</td><td class=\"cell100 column2\">%s</td><td class=\"cell100 column3\">%s</td><td class=\"cell100 column4\">%s</td><td class=\"cell100 column5\">%s</td><td class=\"cell100 column6\">%s</td></tr>");
 
     private final String value;
 

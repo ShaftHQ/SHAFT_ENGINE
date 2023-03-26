@@ -168,24 +168,24 @@ public class TestNGListener implements IAlterSuiteListener, IAnnotationTransform
     public void onTestSuccess(ITestResult result) {
         passedTests.add(result.getMethod());
         ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
-                result.getMethod().getMethodName(), result.getMethod().getDescription(),
-                ExecutionSummaryReport.StatusIcon.PASSED.getValue() + ExecutionSummaryReport.Status.PASSED.name());
+                result.getMethod().getMethodName(), result.getMethod().getDescription(), "",
+                ExecutionSummaryReport.StatusIcon.PASSED.getValue() + ExecutionSummaryReport.Status.PASSED.name(), TestNGListenerHelper.testHasIssueAnnotation(result));
     }
 
     @Override
     public void onTestFailure(ITestResult result) {
         failedTests.add(result.getMethod());
         ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
-                result.getMethod().getMethodName(), result.getMethod().getDescription(),
-                ExecutionSummaryReport.StatusIcon.FAILED.getValue() + ExecutionSummaryReport.Status.FAILED.name());
+                result.getMethod().getMethodName(), result.getMethod().getDescription(), result.getThrowable().getMessage(),
+                ExecutionSummaryReport.StatusIcon.FAILED.getValue() + ExecutionSummaryReport.Status.FAILED.name(), TestNGListenerHelper.testHasIssueAnnotation(result));
     }
 
     @Override
     public void onTestSkipped(ITestResult result) {
         skippedTests.add(result.getMethod());
         ExecutionSummaryReport.casesDetailsIncrement(result.getMethod().getQualifiedName().replace("." + result.getMethod().getMethodName(), ""),
-                result.getMethod().getMethodName(), result.getMethod().getDescription(),
-                ExecutionSummaryReport.StatusIcon.SKIPPED.getValue() + ExecutionSummaryReport.Status.SKIPPED.name());
+                result.getMethod().getMethodName(), result.getMethod().getDescription(), result.getThrowable().getMessage(),
+                ExecutionSummaryReport.StatusIcon.SKIPPED.getValue() + ExecutionSummaryReport.Status.SKIPPED.name(), TestNGListenerHelper.testHasIssueAnnotation(result));
     }
 
 }
