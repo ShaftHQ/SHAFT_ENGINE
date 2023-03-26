@@ -320,6 +320,15 @@ public class ElementActionsHelper {
         return true;
     }
 
+    /**
+     * Waits for the attribute of the specified element to be a specific value.
+     *
+     * @param driver         the WebDriver instance used to interact with the browser
+     * @param elementLocator the locator used to find the element
+     * @param att            the name of the attribute to wait for
+     * @param expectedValue  the expected value of the attribute
+     * @return true if the attribute value matches the expected value within the timeout period, otherwise false
+     */
     public static boolean waitForElementAttributeToBe(WebDriver driver, By elementLocator, String att,
                                                       String expectedValue) {
         try {
