@@ -1092,10 +1092,38 @@ public class FluentElementActions {
                 failAction(DriverFactoryHelper.getDriver().get(), initialValue, elementLocator);
             }
             try {
-                passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "from: \"" + initialValue + "\", to: \"" + getText(elementLocator) + "\"", null, elementName);
+                passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        "from: \"" + initialValue + "\", to: \"" + getText(elementLocator) + "\"", null, elementName);
             } catch (Exception e) {
-                passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), "from: \"" + initialValue + "\", to a new value.", null, elementName);
+                passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(),
+                        "from: \"" + initialValue + "\", to a new value.", null, elementName);
             }
+        } catch (Exception throwable) {
+            failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
+        }
+        return this;
+    }
+
+    /**
+     * Waits dynamically for a specific element's attribute to be a certain value.
+     * Waits until the default element identification timeout
+     *
+     * @param elementLocator   the locator of the webElement under test (By xpath, id,
+     *                         selector, name ...etc)
+     * @param att              the attribute name of the target webElement
+     * @param expectedAttValue the expected value of the attribute
+     * @return a self-reference to be used to chain actions
+     */
+    public FluentElementActions waitToAttribute(By elementLocator, String att, String expectedAttValue) {
+        try {
+            var elementName = getElementName(DriverFactoryHelper.getDriver().get(), elementLocator);
+            if (Boolean.FALSE.equals(ElementActionsHelper
+                    .waitForElementAttributeToBe(DriverFactoryHelper.getDriver().get(), elementLocator,
+                            att, expectedAttValue))) {
+                failAction(DriverFactoryHelper.getDriver().get(), elementLocator);
+            }
+            passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(),
+                    "wait for element attribute \"" + att + "\" to be \"" + expectedAttValue + "\"", null, elementName);
         } catch (Exception throwable) {
             failAction(DriverFactoryHelper.getDriver().get(), elementLocator, throwable);
         }
