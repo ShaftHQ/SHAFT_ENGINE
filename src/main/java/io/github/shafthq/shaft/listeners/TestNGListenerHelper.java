@@ -33,7 +33,7 @@ public class TestNGListenerHelper {
         }
     }
 
-    public static void updateConfigurationMethodLogs(ITestResult iTestResult) {
+    public static synchronized void updateConfigurationMethodLogs(ITestResult iTestResult) {
         if (iTestResult.getMethod().isTest()) {
             //attach before configuration logs to the current test
             beforeMethods.forEach(TestNGListenerHelper::attachTestArtifacts);
