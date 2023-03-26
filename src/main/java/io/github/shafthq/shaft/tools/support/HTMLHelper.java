@@ -531,6 +531,13 @@ public enum HTMLHelper {
                     <br>
                     <h4>${VALIDATION_PASSED_PERCENTAGE}%</h4>
                     <br>
+                    <hr class="rounded1">
+                    <h5><b>Total Issues</b>:&nbsp${TOTAL_ISSUES}&nbsp&nbsp[
+                        <font style="color:Tomato;"><b>No Open issues for Failed Tests = :</b>&nbsp${NO_OPEN_ISSUES_FAILED}</font>&nbsp|
+                        <font style="color:Orange;"><b>Open issues for Passed Tests =:</b>&nbsp${OPEN_ISSUES_PASSED}</font>&nbsp|
+                        <font style="color:MediumSeaGreen;"><b>Open issues for Failed Tests = :</b>&nbsp${OPEN_ISSUES_FAILED}</font>&nbsp]
+                    </h5>
+                    <br>
                     <hr class="rounded">
                     <h4 style="display:inline;">Test Cases Details</h4>
                     <div class="limiter">
@@ -567,9 +574,6 @@ public enum HTMLHelper {
                     <br>
                     </div>
                     </div>
-                    <hr class="rounded">
-                    <br>
-                    <h4 class="issue">${ISSUE_SUMMARY}</h4>
                     </div>
                     </div>
                     <br><br>

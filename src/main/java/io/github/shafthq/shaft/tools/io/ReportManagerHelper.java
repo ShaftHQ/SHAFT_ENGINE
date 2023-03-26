@@ -100,6 +100,19 @@ public class ReportManagerHelper {
         ReportManagerHelper.listOfNewIssuesForFailedTests = listOfNewIssuesForFailedTests;
     }
 
+    public static int getIssueCounter() {
+        return (issueCounter - 1);
+    }
+    public static int getFailedTestsWithoutOpenIssuesCounter() {
+        return failedTestsWithoutOpenIssuesCounter;
+    }
+    public static int getOpenIssuesForPassedTestsCounter() {
+        return openIssuesForPassedTestsCounter;
+    }
+    public static int getOpenIssuesForFailedTestsCounters() {
+        return openIssuesForFailedTestsCounter;
+    }
+
     public static void logIssue(String issue) {
         if (issuesLog.trim().equals("")) {
             issuesLog += issueCounter + ", " + issue.trim();
