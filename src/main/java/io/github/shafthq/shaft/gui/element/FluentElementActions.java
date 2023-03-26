@@ -1111,7 +1111,7 @@ public class FluentElementActions {
      * @param elementLocator   the locator of the webElement under test (By xpath, id,
      *                         selector, name ...etc)
      * @param att              the attribute name of the target webElement
-     * @param expectedAttValue the wait for attribute value
+     * @param expectedAttValue the expected value of the attribute
      * @return a self-reference to be used to chain actions
      */
     public FluentElementActions waitToAttribute(By elementLocator, String att, String expectedAttValue) {
