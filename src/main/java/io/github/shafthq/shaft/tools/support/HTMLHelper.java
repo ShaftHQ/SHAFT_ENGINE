@@ -285,6 +285,19 @@ public enum HTMLHelper {
                                     Tomato ${CASES_PASSED_PERCENTAGE_PIE}% ${CASES_FAILED_PERCENTAGE_PIE}%,
                                     Orange ${CASES_FAILED_PERCENTAGE_PIE}%);
                             }
+                            .piechart1 {
+                                 display: block;
+                                 position: relative;
+                                 width: 120px;
+                                 height: 120px;
+                                 border-radius: 50%;
+                                 background-image: conic-gradient(
+                                    MediumSeaGreen ${VALIDATION_PASSED_PERCENTAGE_PIE}deg,
+                                    Tomato 0);
+                            }
+                            #logo{
+                            	margin: 0 15px 0 0;
+                            }
                         
                             body,
                             .piechart {
@@ -453,7 +466,7 @@ public enum HTMLHelper {
                                     width:20%
                                 }
                                 .column3{
-                                    width:40%
+                                    width:35%
                                 }
                                 .column4{
                                     width:25%
@@ -461,22 +474,37 @@ public enum HTMLHelper {
                                 .column5{
                                     width:10%
                                 }
+                                .column6{
+                                    width:5%
+                                }
                                 hr.rounded {
                                 	border-top: 8px solid #bbb;
                                 	border-radius: 5px;
                                 	margin-left: 35px;
                                  	margin-right: 35px;
                                 }
+                                hr.rounded1 {
+                                    border-top: 2px solid #bbb;
+                                    border-radius: 2px;
+                                    margin-left: 35px;
+                                    margin-right: 35px;
+                                }
                                 .rcorner {
                                 	border-radius: 10px;
                                 	border: 1px solid #696969;
                                 	padding-left: 15px;
+                                }
+                                .issue {
+                                    margin-left: 50px;
+                                    margin-right: 50px;
+                                }
                         
                 </style>
             </head>
                         
             <body>
             <center>
+            	<img src="${LOGO_URL}" alt="SHAFT logo" width="200" height="100" id="logo">
                 <h1>Execution Summary Report</h1>
                 <br>
                 <div class="content">
@@ -487,12 +515,22 @@ public enum HTMLHelper {
                     <br>
                     <h2>${CASES_PASSED_PERCENTAGE}%</h2>
                     <br><br>
-                    <h3><b>Total</b>:&nbsp${CASES_TOTAL}&nbsp|&nbsp
-                        <font style="color:MediumSeaGreen;"><b>Passed:</b>&nbsp${CASES_PASSED}</font>&nbsp|&nbsp
-                        <font style="color:Tomato;"><b>Failed:</b>&nbsp${CASES_FAILED}</font>&nbsp|&nbsp
-                        <font style="color:Orange;"><b>Skipped:</b>&nbsp${CASES_SKIPPED}</font>
+                    <h3><b>Total Cases</b>:&nbsp${CASES_TOTAL}&nbsp&nbsp[
+                        <font style="color:MediumSeaGreen;"><b>Passed:</b>&nbsp${CASES_PASSED}</font>&nbsp|
+                        <font style="color:Tomato;"><b>Failed:</b>&nbsp${CASES_FAILED}</font>&nbsp|
+                        <font style="color:Orange;"><b>Skipped:</b>&nbsp${CASES_SKIPPED}</font>&nbsp]
                     </h3>
-                    <br><br>
+                    <br>
+                    <hr class="rounded1">
+                     <h4><b>Total Validations</b>:&nbsp${VALIDATION_TOTAL}&nbsp&nbsp[
+                        <font style="color:MediumSeaGreen;"><b>Passed:</b>&nbsp${VALIDATION_PASSED}</font>&nbsp|
+                        <font style="color:Tomato;"><b>Failed:</b>&nbsp${VALIDATION_FAILED}</font>&nbsp]
+                    </h4>
+                    <br>
+                    <div class="piechart1"></div>
+                    <br>
+                    <h4>${VALIDATION_PASSED_PERCENTAGE}%</h4>
+                    <br>
                     <hr class="rounded">
                     <h4 style="display:inline;">Test Cases Details</h4>
                     <div class="limiter">
@@ -520,13 +558,18 @@ public enum HTMLHelper {
                     <th class="cell100 column3">Name</th>
                     <th class="cell100 column4">Error</th>
                     <th class="cell100 column5">Status</th>
+                    <th class="cell100 column6">Has issue</th>
                     </tr>
                     </thead>
                     <tbody id="table">${CASES_DETAILS}</tbody>
                     </table>
                     <div class="ps__rail-x" style="left: 0px; bottom: 0px;"><div class="ps__thumb-x" tabindex="0" style="left: 0px; width: 0px;"></div></div></div>
+                    <br>
                     </div>
                     </div>
+                    <hr class="rounded">
+                    <br>
+                    <h4 class="issue">${ISSUE_SUMMARY}</h4>
                     </div>
                     </div>
                     <br><br>
@@ -554,7 +597,7 @@ public enum HTMLHelper {
             </body>
             </html>
             """),
-    EXECUTION_SUMMARY_DETAILS_FORMAT("<tr class=\"row100 body\"><td class=\"cell100 column1\">%d</td><td class=\"cell100 column2\">%s</td><td class=\"cell100 column3\">%s</td><td class=\"cell100 column4\">%s</td><td class=\"cell100 column5\">%s</td></tr>");
+    EXECUTION_SUMMARY_DETAILS_FORMAT("<tr class=\"row100 body\"><td class=\"cell100 column1\">%d</td><td class=\"cell100 column2\">%s</td><td class=\"cell100 column3\">%s</td><td class=\"cell100 column4\">%s</td><td class=\"cell100 column5\">%s</td><td class=\"cell100 column6\">%s</td></tr>");
 
     private final String value;
 
