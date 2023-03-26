@@ -72,11 +72,14 @@ public class ExecutionSummaryReport {
                         .replace("${VALIDATION_TOTAL}", String.valueOf(validations.size()))
                         .replace("${VALIDATION_PASSED}", String.valueOf(passedValidations))
                         .replace("${VALIDATION_FAILED}", String.valueOf(failedValidations))
+                        .replace("${TOTAL_ISSUES}", String.valueOf(ReportManagerHelper.getIssueCounter()))
+                        .replace("${NO_OPEN_ISSUES_FAILED}", String.valueOf(ReportManagerHelper.getFailedTestsWithoutOpenIssuesCounter()))
+                        .replace("${OPEN_ISSUES_PASSED}", String.valueOf(ReportManagerHelper.getOpenIssuesForPassedTestsCounter()))
+                        .replace("${OPEN_ISSUES_FAILED}", String.valueOf(ReportManagerHelper.getOpenIssuesForFailedTestsCounters()))
                         .replace("${PASSED_DROPDOWN_OPTION}", StatusIcon.PASSED.getValue() + Status.PASSED.name())
                         .replace("${FAILED_DROPDOWN_OPTION}", StatusIcon.FAILED.getValue() + Status.FAILED.name())
                         .replace("${SKIPPED_DROPDOWN_OPTION}", StatusIcon.SKIPPED.getValue() + Status.SKIPPED.name())
-                        .replace("${CASES_DETAILS}", detailsBuilder)
-                        .replace("${ISSUE_SUMMARY}", ReportManagerHelper.prepareIssuesLog().replace("Kindly check the attached Issue details.", "")));
+                        .replace("${CASES_DETAILS}", detailsBuilder));
 
         ReportManagerHelper.logExecutionSummary(String.valueOf(total), String.valueOf(passed), String.valueOf(failed), String.valueOf(skipped));
     }
