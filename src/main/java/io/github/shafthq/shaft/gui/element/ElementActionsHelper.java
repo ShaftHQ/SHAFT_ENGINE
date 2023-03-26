@@ -320,6 +320,18 @@ public class ElementActionsHelper {
         return true;
     }
 
+    public static boolean waitForElementAttributeToBe(WebDriver driver, By elementLocator, String att,
+                                                      String expectedValue) {
+        try {
+            (new WebDriverWait(driver, Duration.ofMillis(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT)))
+                    .until(ExpectedConditions.attributeToBe(elementLocator, att, expectedValue));
+        } catch (org.openqa.selenium.TimeoutException e) {
+            ReportManagerHelper.logDiscrete(e);
+            return false;
+        }
+        return true;
+    }
+
     public static WebElement getWebElementFromPointUsingJavascript(WebDriver driver, List<Integer> point, boolean scrollToElement) {
         if (DriverFactoryHelper.isWebExecution()) {
             if (Boolean.TRUE.equals(scrollToElement)) {
