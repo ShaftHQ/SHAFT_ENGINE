@@ -33,6 +33,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @SuppressWarnings("unused")
@@ -977,6 +978,7 @@ public class ReportManagerHelper {
                 ReportManager.logDiscrete(logText);
                 writeNestedStepsToReport(customLogText, attachments);
                 CheckpointCounter.increment(type, customLogMessages.get(0), status);
+                ExecutionSummaryReport.validationsIncrement(status);
             } else {
                 if (attachments != null && !attachments.isEmpty() && !attachments.get(0).isEmpty()) {
                     writeStepToReport(logText, attachments);
@@ -984,6 +986,7 @@ public class ReportManagerHelper {
                     writeStepToReport(logText);
                 }
                 CheckpointCounter.increment(type, logText, status);
+                ExecutionSummaryReport.validationsIncrement(status);
             }
         }
     }
@@ -1050,4 +1053,30 @@ public class ReportManagerHelper {
     public static void logDiscrete(String logText, org.apache.logging.log4j.Level logLevel) {
         createLogEntry(logText, logLevel);
     }
+
+    public static String getExecutionDuration(long startTime, long endTime) {
+        long durationWithMillis = TimeUnit.MILLISECONDS.toMillis(endTime - startTime);
+
+        String duration = "";
+        if (durationWithMillis > 0 && durationWithMillis < 1000) {
+            duration = durationWithMillis + " millis";
+        } else if (durationWithMillis >= 1000 && durationWithMillis < 60000) {
+            duration = String.format("%02d sec, %02d millis",
+                    TimeUnit.MILLISECONDS.toSeconds(durationWithMillis),
+                    TimeUnit.MILLISECONDS.toMillis(durationWithMillis) - TimeUnit.SECONDS.toMillis(TimeUnit.MILLISECONDS.toSeconds(durationWithMillis))
+            );
+        } else if (durationWithMillis >= 60000 && durationWithMillis < 3600000) {
+            duration = String.format("%02d min, %02d sec",
+                    TimeUnit.MILLISECONDS.toMinutes(durationWithMillis),
+                    TimeUnit.MILLISECONDS.toSeconds(durationWithMillis) - TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(durationWithMillis))
+            );
+        } else if (durationWithMillis >= 3600000) {
+            duration = String.format("%02d hr, %02d min",
+                    TimeUnit.MILLISECONDS.toHours(durationWithMillis),
+                    TimeUnit.MILLISECONDS.toMinutes(durationWithMillis) - TimeUnit.HOURS.toMinutes(TimeUnit.MILLISECONDS.toHours(durationWithMillis))
+            );
+        }
+        return duration;
+    }
+
 }
