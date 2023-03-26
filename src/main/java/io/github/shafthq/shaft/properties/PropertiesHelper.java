@@ -35,6 +35,7 @@ public class PropertiesHelper {
         Properties.mobile = ConfigFactory.create(Mobile.class);
         Properties.browserStack = ConfigFactory.create(BrowserStack.class);
         Properties.internal = ConfigFactory.create(Internal.class);
+        Properties.flags = ConfigFactory.create(Flags.class);
     }
 
     public static void postProcessing() {
