@@ -13,6 +13,8 @@ import org.openqa.selenium.Dimension;
 import org.openqa.selenium.Point;
 import org.openqa.selenium.*;
 import org.openqa.selenium.bidi.BiDiException;
+import org.openqa.selenium.bidi.browsingcontext.BrowsingContext;
+import org.openqa.selenium.bidi.browsingcontext.ReadinessState;
 import org.openqa.selenium.chromium.ChromiumDriver;
 import org.openqa.selenium.devtools.DevToolsException;
 import org.openqa.selenium.support.ui.ExpectedConditions;
@@ -147,7 +149,9 @@ public class BrowserActionsHelpers {
         }
 
         try {
-            driver.navigate().to(internalURL);
+//            driver.navigate().to(internalURL);
+            // upgrading to w3c compliant browsing context for navigation
+            new BrowsingContext(driver, driver.getWindowHandle()).navigate(internalURL, ReadinessState.COMPLETE);
         } catch (WebDriverException rootCauseException) {
             failAction(driver, targetUrl, rootCauseException);
         }
