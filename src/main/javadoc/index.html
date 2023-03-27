@@ -1569,23 +1569,23 @@
 
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
-                                        <label class="col-md-4 control-label" for="forceCheckForElementVisibility">Force
+                                        <label class="col-md-4 control-label" for="forceCheckStatusOfRemoteServer">Force
                                             check
-                                            for element visibility
+                                            remote server is reachable
                                         </label>
-                                        <div class="col-md-4" id="forceCheckForElementVisibility">
+                                        <div class="col-md-4" id="forceCheckStatusOfRemoteServer">
                                             <div class="radio-inline">
-                                                <label for="forceCheckForElementVisibility-0">
-                                                    <input checked="checked" id="forceCheckForElementVisibility-0"
-                                                           name="forceCheckForElementVisibility" type="radio"
+                                                <label for="forceCheckStatusOfRemoteServer-0">
+                                                    <input id="forceCheckStatusOfRemoteServer-0"
+                                                           name="forceCheckStatusOfRemoteServer" type="radio"
                                                            value="true">
                                                     Enabled
                                                 </label>
                                             </div>
                                             <div class="radio-inline">
-                                                <label for="forceCheckForElementVisibility-1">
-                                                    <input id="forceCheckForElementVisibility-1"
-                                                           name="forceCheckForElementVisibility" type="radio"
+                                                <label for="forceCheckStatusOfRemoteServer-1">
+                                                    <input checked="checked" id="forceCheckStatusOfRemoteServer-1"
+                                                           name="forceCheckStatusOfRemoteServer" type="radio"
                                                            value="false">
                                                     Disabled
                                                 </label>
@@ -1611,6 +1611,32 @@
                                                 <label for="forceCheckElementLocatorIsUnique-1">
                                                     <input id="forceCheckElementLocatorIsUnique-1"
                                                            name="forceCheckElementLocatorIsUnique" type="radio"
+                                                           value="false">
+                                                    Disabled
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label" for="forceCheckForElementVisibility">Force
+                                            check
+                                            for element visibility
+                                        </label>
+                                        <div class="col-md-4" id="forceCheckForElementVisibility">
+                                            <div class="radio-inline">
+                                                <label for="forceCheckForElementVisibility-0">
+                                                    <input checked="checked" id="forceCheckForElementVisibility-0"
+                                                           name="forceCheckForElementVisibility" type="radio"
+                                                           value="true">
+                                                    Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="forceCheckForElementVisibility-1">
+                                                    <input id="forceCheckForElementVisibility-1"
+                                                           name="forceCheckForElementVisibility" type="radio"
                                                            value="false">
                                                     Disabled
                                                 </label>
@@ -3072,6 +3098,7 @@ for (i = 0; i < close.length; i++) {
     function generatePlatformFlags() {
         const retryMaximumNumberOfAttempts = $("input[name=retryMaximumNumberOfAttempts]:checked").val();
         const autoMaximizeBrowserWindow = $("input[name=autoMaximizeBrowserWindow]:checked").val();
+        const forceCheckStatusOfRemoteServer = $("input[name=forceCheckStatusOfRemoteServer]:checked").val();
         const forceCheckForElementVisibility = $("input[name=forceCheckForElementVisibility]:checked").val();
         const forceCheckElementLocatorIsUnique = $("input[name=forceCheckElementLocatorIsUnique]:checked").val();
         const forceCheckTextWasTypedCorrectly = $("input[name=forceCheckTextWasTypedCorrectly]:checked").val();
