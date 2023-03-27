@@ -52,13 +52,7 @@ jobs:
           name: Ubuntu_Firefox_Grid_Extent
           path: "extent-reports/ExtentReports_*.html"
       - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
-        with:
-          check_name: Ubuntu_Firefox_Grid Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
-
+      
   Ubuntu_Chrome_Grid:
     runs-on: ubuntu-22.04
     timeout-minutes: 60
@@ -98,14 +92,7 @@ jobs:
         with:
           name: Ubuntu_Chrome_Grid_Extent
           path: "extent-reports/ExtentReports_*.html"
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
-        with:
-          check_name: Ubuntu_Chrome_Grid Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
-
+      
   Ubuntu_Edge_Grid:
     runs-on: ubuntu-22.04
     timeout-minutes: 60
@@ -145,14 +132,7 @@ jobs:
         with:
           name: Ubuntu_Edge_Grid_Extent
           path: "extent-reports/ExtentReports_*.html"
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
-        with:
-          check_name: Ubuntu_Edge_Grid Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
-
+      
   Windows_Edge_Local:
     runs-on: windows-latest
     timeout-minutes: 60
@@ -188,14 +168,7 @@ jobs:
         with:
           name: Windows_Edge_Local_Extent
           path: "extent-reports/ExtentReports_*.html"
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action/composite@v2
-        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
-        with:
-          check_name: Windows_Edge_Local Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
-
+      
   Windows_Chrome_Local:
     runs-on: windows-latest
     timeout-minutes: 60
@@ -231,14 +204,7 @@ jobs:
         with:
           name: Windows_Chrome_Local_Extent
           path: "extent-reports/ExtentReports_*.html"
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action/composite@v2
-        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
-        with:
-          check_name: Windows_Chrome_Local Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
-
+      
   MacOSX_Safari_Local:
     runs-on: macOS-12
     timeout-minutes: 60
@@ -274,14 +240,7 @@ jobs:
         with:
           name: MacOSX_Safari_Local_Extent
           path: "extent-reports/ExtentReports_*.html"
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action/composite@v2
-        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
-        with:
-          check_name: MacOSX_Safari_Local Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
-
+      
   MacOSX_Chrome_Local:
     runs-on: macOS-12
     timeout-minutes: 60
@@ -319,13 +278,8 @@ jobs:
         with:
           name: MacOSX_Chrome_Local_Extent
           path: "extent-reports/ExtentReports_*.html"
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action/composite@v2
-        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
-        with:
-          check_name: MacOSX_Chrome_Local Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
+
+
 
   Android_Native_Emulator:
     runs-on: macOS-12
@@ -483,14 +437,7 @@ jobs:
         with:
           name: Android_Native_Emulator_Extent
           path: "extent-reports/ExtentReports_*.html"
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action/composite@v2
-        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
-        with:
-          check_name: Android_Native_Emulator Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
-
+      
   Android_Native_BrowserStack:
     runs-on: macOS-12
     timeout-minutes: 45
@@ -528,14 +475,7 @@ jobs:
         with:
           name: Android_Native_BrowserStack_Extent
           path: "extent-reports/ExtentReports_*.html"
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action/composite@v2
-        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
-        with:
-          check_name: Android_Native_BrowserStack Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
-
+      
   iOS_Web_SAFARI_BrowserStack:
     runs-on: macOS-12
     timeout-minutes: 45
@@ -573,13 +513,6 @@ jobs:
         with:
           name: iOS_Web_SAFARI_BrowserStack_Extent
           path: "extent-reports/ExtentReports_*.html"
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action/composite@v2
-        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
-        with:
-          check_name: iOS_Web_SAFARI_BrowserStack_Extent Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
 
   Android_Web_Chrome_BrowserStack:
     runs-on: macOS-12
@@ -618,14 +551,7 @@ jobs:
         with:
           name: Android_Web_Chrome_BrowserStack_Extent
           path: "extent-reports/ExtentReports_*.html"
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action/composite@v2
-        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
-        with:
-          check_name: Android_Web_Chrome_BrowserStack Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
-
+      
   MacOSX_Safari_BrowserStack:
     runs-on: ubuntu-22.04
     timeout-minutes: 45
@@ -663,14 +589,7 @@ jobs:
         with:
           name: MacOSX_Safari_BrowserStack_Extent
           path: "extent-reports/ExtentReports_*.html"
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
-        with:
-          check_name: MacOSX_Safari_BrowserStack Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
-
+  
   Ubuntu_Chrome_Cucumber_Grid:
     runs-on: ubuntu-22.04
     steps:
@@ -716,13 +635,6 @@ jobs:
         with:
           name: Ubuntu_Chrome_Cucumber_Grid_Extent
           path: "extent-reports/ExtentReports_*.html"
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
-        with:
-          check_name: Ubuntu_Chrome_Cucumber_Grid Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
 
   Windows_Edge_Cucumber:
     runs-on: windows-latest
@@ -763,14 +675,7 @@ jobs:
         with:
           name: Windows_Edge_Cucumber_Extent
           path: "extent-reports/ExtentReports_*.html"
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action/composite@v2
-        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
-        with:
-          check_name: Windows_Edge_Cucumber Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
-
+      
   MacOSX_Safari_Cucumber_BrowserStack:
     runs-on: macOS-12
     steps:
@@ -809,10 +714,5 @@ jobs:
         with:
           name: MacOSX_Safari_Cucumber_BrowserStack_Extent
           path: "extent-reports/ExtentReports_*.html"
-      - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action/composite@v2
-        if: ${{ (github.repository == 'ShaftHQ/SHAFT_ENGINE') && (github.event_name == 'pull_request') }}
-        with:
-          check_name: MacOSX_Safari_Cucumber_BrowserStack Test Results
-          files: |
-            target/surefire-reports/TEST-*.xml
+       
+
