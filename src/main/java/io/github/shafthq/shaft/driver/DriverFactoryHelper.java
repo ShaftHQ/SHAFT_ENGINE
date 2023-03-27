@@ -200,7 +200,7 @@ public class DriverFactoryHelper {
                     ffOptions.addArguments("-headless");
                 }
                 ffOptions.setLogLevel(FirefoxDriverLogLevel.WARN);
-                ffOptions.setPageLoadStrategy(PageLoadStrategy.EAGER);
+                ffOptions.setPageLoadStrategy(PageLoadStrategy.NONE);
                 ffOptions.setPageLoadTimeout(Duration.ofSeconds(PAGE_LOAD_TIMEOUT));
                 ffOptions.setScriptTimeout(Duration.ofSeconds(SCRIPT_TIMEOUT));
                 //Add Proxy Setting if found
@@ -351,7 +351,7 @@ public class DriverFactoryHelper {
         options.setExperimentalOption("prefs", chromePreferences);
         options.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.ACCEPT_AND_NOTIFY);
         options.setCapability(CapabilityType.ACCEPT_INSECURE_CERTS, true);
-        options.setPageLoadStrategy(PageLoadStrategy.EAGER); // https://www.skptricks.com/2018/08/timed-out-receiving-message-from-renderer-selenium.html
+        options.setPageLoadStrategy(PageLoadStrategy.NONE); // https://www.skptricks.com/2018/08/timed-out-receiving-message-from-renderer-selenium.html
         options.setPageLoadTimeout(Duration.ofSeconds(PAGE_LOAD_TIMEOUT));
         options.setScriptTimeout(Duration.ofSeconds(SCRIPT_TIMEOUT));
         //Add Proxy Setting if found
@@ -765,7 +765,7 @@ public class DriverFactoryHelper {
             //TODO: support custom driver options here in case the browser is chrome
             //https://chromedriver.chromium.org/capabilities
             desiredCapabilities.setCapability("browserName", SHAFT.Properties.mobile.browserName());
-            desiredCapabilities.setCapability("pageLoadStrategy", PageLoadStrategy.EAGER);
+            desiredCapabilities.setCapability("pageLoadStrategy", PageLoadStrategy.NONE);
         }
 
         if (!isMobileWebExecution() && Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {
