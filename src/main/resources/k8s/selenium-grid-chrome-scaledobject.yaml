@@ -1,0 +1,18 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: selenium-chrome-scaledobject
+  namespace: selenium-grid
+  labels:
+    deploymentName: selenium-chrome-node
+spec:
+  scaleTargetRef:
+    name: selenium-chrome-node
+  pollingInterval: 5
+  minReplicaCount: 1
+  maxReplicaCount: 20
+  triggers:
+    - type: selenium-grid
+      metadata:
+        url: 'http://selenium-router.selenium-grid.svc:4444/graphql'
+        browserName: 'chrome'
