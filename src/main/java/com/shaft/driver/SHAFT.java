@@ -35,6 +35,17 @@ import java.util.List;
 public class SHAFT {
     public static class GUI {
         public static class WebDriver {
+            public static WebDriver initialize() {
+                return new WebDriver();
+            }
+
+            public static WebDriver initialize(DriverFactory.DriverType driverType) {
+                return new WebDriver(driverType);
+            }
+
+            public static WebDriver initialize(DriverFactory.DriverType driverType, MutableCapabilities mutableCapabilities) {
+                return new WebDriver(driverType, mutableCapabilities);
+            }
 
             public WebDriver() {
                 DriverFactory.getDriver();
@@ -123,6 +134,9 @@ public class SHAFT {
         }
 
         public static class SikuliDriver {
+            public static SikuliDriver initialize(String applicationName) {
+                return new SikuliDriver(applicationName);
+            }
 
             private final App sikuliApp;
 
@@ -143,9 +157,14 @@ public class SHAFT {
             }
         }
     }
+
     public static class API {
         private final RestActions session;
         private String serviceURI;
+
+        public static API initialize(String serviceURI) {
+            return new API(serviceURI);
+        }
 
         public API(String serviceURI) {
             session = new RestActions(serviceURI);
@@ -225,22 +244,30 @@ public class SHAFT {
     }
 
     public static class CLI {
-        public TerminalActions terminal() {
+        private CLI() {
+            throw new IllegalStateException("Utility class");
+        }
+
+        public static TerminalActions terminal() {
             return new TerminalActions();
         }
 
-        public FileActions file() {
+        public static FileActions file() {
             return new FileActions();
         }
     }
 
     public static class DB {
-        public DatabaseActions performDatabaseActions(DatabaseActions.DatabaseType databaseType, String ip, String port, String name, String username,
-                                                      String password) {
+        private DB() {
+            throw new IllegalStateException("Utility class");
+        }
+
+        public static DatabaseActions performDatabaseActions(DatabaseActions.DatabaseType databaseType, String ip, String port, String name, String username,
+                                                             String password) {
             return new DatabaseActions(databaseType, ip, port, name, username, password);
         }
 
-        public DatabaseActions performDatabaseActions(String customConnectionString) {
+        public static DatabaseActions performDatabaseActions(String customConnectionString) {
             return new DatabaseActions(customConnectionString);
         }
     }

@@ -4,8 +4,8 @@ import com.shaft.driver.DriverFactory;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class Test_ElementValidations {
@@ -57,14 +57,14 @@ public class Test_ElementValidations {
         Validations.assertThat().element(driver.get(), button).cssProperty("appearance").matchesRegex("(auto|button)").perform();
     }
 
-    @BeforeClass
-    public void beforeClass() {
+    @BeforeMethod
+    public void beforeMethod() {
         driver.set(DriverFactory.getDriver());
         driver.get().navigate().to("data:text/html,<script>var result;</script><button alt='Google' onclick='result=\"Clicked\"'>Go</button>");
     }
 
-    @AfterClass(alwaysRun = true)
-    public void afterClass() {
+    @AfterMethod(alwaysRun = true)
+    public void afterMethod() {
         DriverFactory.closeAllDrivers();
     }
 }

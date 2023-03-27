@@ -1,6 +1,7 @@
 package io.github.shafthq.shaft.driver;
 
 import com.epam.healenium.SelfHealingDriver;
+import com.google.common.base.Throwables;
 import com.mysql.cj.util.StringUtils;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactory.DriverType;
@@ -447,6 +448,24 @@ public class DriverFactoryHelper {
 //            ReportManager.log("Successfully Opened " + JavaHelper.convertToSentenceCase(driverType.getValue()) + ".");
             ReportManager.log(initialLog.replace("Attempting to run locally on", "Successfully Opened") + ".");
         } catch (SessionNotCreatedException | WebDriverManagerException exception) {
+            if (driverType.equals(DriverType.SAFARI)
+                    && Throwables.getRootCause(exception).getMessage().toLowerCase().contains("safari instance is already paired with another webdriver session")) {
+                //this issue happens when running locally via safari/mac platform
+                // sample failure can be found here: https://github.com/ShaftHQ/SHAFT_ENGINE/actions/runs/4527911969/jobs/7974202314#step:4:46621
+                // attempting blind fix by trying to quit existing driver if any
+                try {
+                    driver.get().quit();
+                    driver.remove();
+                } catch (Throwable throwable) {
+                    // ignore
+                }
+                // attempting blind fix by trying to quit existing safari instances if any
+                try {
+                    SHAFT.CLI.terminal().performTerminalCommand("osascript -e \"tell application \\\"Safari\\\" to quit\"\n");
+                } catch (Throwable throwable) {
+                    // ignore
+                }
+            }
             failAction("Failed to create new Browser Session", exception);
         }
     }
