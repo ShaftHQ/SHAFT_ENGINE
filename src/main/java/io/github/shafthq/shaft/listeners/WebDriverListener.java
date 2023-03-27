@@ -1,5 +1,6 @@
 package io.github.shafthq.shaft.listeners;
 
+import com.shaft.driver.SHAFT;
 import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.driver.DriverFactoryHelper;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
@@ -71,16 +72,18 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     }
 
     public void beforeFindElement(WebDriver driver, By locator) {
-        try {
-            new FluentWait<>(driver)
-                    .withTimeout(Duration.ofMillis(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT))
-                    .pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY))
-                    .ignoreAll(getExpectedExceptions(false))
-                    .until(nestedDriver -> nestedDriver.findElement(locator));
-        } catch (org.openqa.selenium.TimeoutException timeoutException) {
-            // In case the element was not found / not visible and the timeout expired
-            ReportManager.logDiscrete(timeoutException.getMessage() + " || " + timeoutException.getCause().getMessage().substring(0, timeoutException.getCause().getMessage().indexOf("\n")));
-            throw timeoutException;
+        if (SHAFT.Properties.flags.respectBuiltInWaitsInNativeMode()) {
+            try {
+                new FluentWait<>(driver)
+                        .withTimeout(Duration.ofMillis(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT))
+                        .pollingEvery(Duration.ofMillis(ELEMENT_IDENTIFICATION_POLLING_DELAY))
+                        .ignoreAll(getExpectedExceptions(false))
+                        .until(nestedDriver -> nestedDriver.findElement(locator));
+            } catch (org.openqa.selenium.TimeoutException timeoutException) {
+                // In case the element was not found / not visible and the timeout expired
+                ReportManager.logDiscrete(timeoutException.getMessage() + " || " + timeoutException.getCause().getMessage().substring(0, timeoutException.getCause().getMessage().indexOf("\n")));
+                throw timeoutException;
+            }
         }
     }
 
@@ -158,12 +161,14 @@ public class WebDriverListener implements org.openqa.selenium.support.events.Web
     }
 
     public void beforeClick(WebElement element) {
-        try {
-            (new WebDriverWait(DriverFactoryHelper.getDriver().get(), Duration.ofMillis(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT)))
-                    .until(ExpectedConditions.elementToBeClickable(element));
-        } catch (org.openqa.selenium.TimeoutException timeoutException) {
-            ReportManagerHelper.logDiscrete(timeoutException);
-            throw timeoutException;
+        if (SHAFT.Properties.flags.respectBuiltInWaitsInNativeMode()) {
+            try {
+                (new WebDriverWait(DriverFactoryHelper.getDriver().get(), Duration.ofMillis(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT)))
+                        .until(ExpectedConditions.elementToBeClickable(element));
+            } catch (org.openqa.selenium.TimeoutException timeoutException) {
+                ReportManagerHelper.logDiscrete(timeoutException);
+                throw timeoutException;
+            }
         }
         try {
             ReportManager.log("Click " + getElementName(element) + ".");

@@ -45,6 +45,10 @@ public interface Flags extends EngineProperties {
     @DefaultValue("true")
     boolean forceCheckNavigationWasSuccessful();
 
+    @Key("respectBuiltInWaitsInNativeMode")
+    @DefaultValue("true")
+    boolean respectBuiltInWaitsInNativeMode();
+
     @Key("forceCheckStatusOfRemoteServer")
     @DefaultValue("false")
     boolean forceCheckStatusOfRemoteServer();
@@ -100,6 +104,10 @@ public interface Flags extends EngineProperties {
 
         public void forceCheckStatusOfRemoteServer(boolean value) {
             setProperty("forceCheckStatusOfRemoteServer", String.valueOf(value));
+        }
+
+        public void respectBuiltInWaitsInNativeMode(boolean value) {
+            setProperty("respectBuiltInWaitsInNativeMode", String.valueOf(value));
         }
 
         public void clickUsingJavascriptWhenWebDriverClickFails(boolean value) {

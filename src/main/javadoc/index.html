@@ -1646,6 +1646,31 @@
 
                                     <!-- Multiple Radios -->
                                     <div class="form-group">
+                                        <label class="col-md-4 control-label" for="respectBuiltInWaitsInNativeMode">Respect
+                                            SHAFT's built-in waits in native mode
+                                        </label>
+                                        <div class="col-md-4" id="respectBuiltInWaitsInNativeMode">
+                                            <div class="radio-inline">
+                                                <label for="respectBuiltInWaitsInNativeMode-0">
+                                                    <input checked="checked" id="respectBuiltInWaitsInNativeMode-0"
+                                                           name="respectBuiltInWaitsInNativeMode" type="radio"
+                                                           value="true">
+                                                    Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="respectBuiltInWaitsInNativeMode-1">
+                                                    <input id="respectBuiltInWaitsInNativeMode-1"
+                                                           name="respectBuiltInWaitsInNativeMode" type="radio"
+                                                           value="false">
+                                                    Disabled
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Multiple Radios -->
+                                    <div class="form-group">
                                         <label class="col-md-4 control-label" for="forceCheckTextWasTypedCorrectly">Force
                                             check
                                             text was typed correctly
@@ -3101,6 +3126,7 @@ for (i = 0; i < close.length; i++) {
         const forceCheckStatusOfRemoteServer = $("input[name=forceCheckStatusOfRemoteServer]:checked").val();
         const forceCheckForElementVisibility = $("input[name=forceCheckForElementVisibility]:checked").val();
         const forceCheckElementLocatorIsUnique = $("input[name=forceCheckElementLocatorIsUnique]:checked").val();
+        const respectBuiltInWaitsInNativeMode = $("input[name=respectBuiltInWaitsInNativeMode]:checked").val();
         const forceCheckTextWasTypedCorrectly = $("input[name=forceCheckTextWasTypedCorrectly]:checked").val();
         const attemptClearBeforeTypingUsingBackspace = $("input[name=attemptClearBeforeTypingUsingBackspace]:checked").val();
         const forceCheckNavigationWasSuccessful = $("input[name=forceCheckNavigationWasSuccessful]:checked").val();
@@ -3113,8 +3139,10 @@ for (i = 0; i < close.length; i++) {
         let data =
             'retryMaximumNumberOfAttempts=' + retryMaximumNumberOfAttempts + '\r\n' +
             'autoMaximizeBrowserWindow=' + autoMaximizeBrowserWindow + '\r\n' +
+            'forceCheckStatusOfRemoteServer=' + forceCheckStatusOfRemoteServer + '\r\n' +
             'forceCheckForElementVisibility=' + forceCheckForElementVisibility + '\r\n' +
             'forceCheckElementLocatorIsUnique=' + forceCheckElementLocatorIsUnique + '\r\n' +
+            'respectBuiltInWaitsInNativeMode=' + respectBuiltInWaitsInNativeMode + '\r\n' +
             'forceCheckTextWasTypedCorrectly=' + forceCheckTextWasTypedCorrectly + '\r\n' +
             'attemptClearBeforeTypingUsingBackspace=' + attemptClearBeforeTypingUsingBackspace + '\r\n' +
             'forceCheckNavigationWasSuccessful=' + forceCheckNavigationWasSuccessful + '\r\n' +
