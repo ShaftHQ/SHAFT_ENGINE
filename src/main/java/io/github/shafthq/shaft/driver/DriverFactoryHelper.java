@@ -557,9 +557,11 @@ public class DriverFactoryHelper {
         ReportManager.logDiscrete("Attempting to connect to remote server for up to " + TimeUnit.SECONDS.toMinutes(appiumServerInitializationTimeout) + "min.");
         try {
             TARGET_HUB_URL = TARGET_HUB_URL.contains("0.0.0.0") ? TARGET_HUB_URL.replace("0.0.0.0", "localhost") : TARGET_HUB_URL;
-            var statusCode = attemptRemoteServerPing();
-            ReportManager.logDiscrete("Remote server is online, established successful connection with status code: "+statusCode+".");
-        } catch (Throwable throwable) {
+            if (Properties.flags.forceCheckStatusOfRemoteServer()) {
+                var statusCode = attemptRemoteServerPing();
+                ReportManager.logDiscrete("Remote server is online, established successful connection with status code: " + statusCode + ".");
+            }
+            } catch (Throwable throwable) {
             ReportManagerHelper.logDiscrete(throwable, Level.DEBUG);
             failAction("Failed to connect to remote server.", throwable);
         }

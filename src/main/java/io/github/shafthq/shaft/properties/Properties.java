@@ -16,7 +16,7 @@ public class Properties {
     public static Mobile mobile;
     public static Paths paths;
     //    public static Pattern pattern;
-//    public static Flags flags;
+    public static Flags flags;
 //    public static Reporting reporting;
 //    public static TestNG testNG;
 //    public static Timeouts timeouts;
