@@ -4,41 +4,33 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Logger;
 
 import java.io.OutputStream;
+import java.util.Objects;
 
 public class LogRedirector extends OutputStream {
     private final Logger logger;
     private final Level level;
-    //    private final OutputStream outputStream;
     private StringBuilder stringBuilder;
 
     public LogRedirector(Logger logger, Level level) {
         this.logger = logger;
         this.level = level;
         stringBuilder = new StringBuilder();
+        if (level.equals(Level.INFO))
+            stringBuilder.append("Custom Log: ");
     }
 
     @Override
     public void write(byte[] b) {
-        char c = (char) ((b[0] << 8) | (b[1] & 255));
-        if (c == '\r' || c == '\n') {
-            if (stringBuilder.length() > 0) {
-                logger.log(level, stringBuilder.toString());
-                stringBuilder = new StringBuilder();
-            }
-        } else
-            stringBuilder.append(c);
+        write(b, 0, b.length);
     }
 
     @Override
     public void write(byte[] b, int off, int len) {
-        char c = (char) ((b[off] << 8) | b[off + 1] | (b.length << len - off));
-        if (c == '\r' || c == '\n') {
-            if (stringBuilder.length() > 0) {
-                logger.log(level, stringBuilder.toString());
-                stringBuilder = new StringBuilder();
-            }
-        } else
-            stringBuilder.append(c);
+        Objects.checkFromIndexSize(off, len, b.length);
+        // len == 0 condition implicitly handled by loop bounds
+        for (int i = 0; i < len; i++) {
+            write(b[off + i]);
+        }
     }
 
     @Override
