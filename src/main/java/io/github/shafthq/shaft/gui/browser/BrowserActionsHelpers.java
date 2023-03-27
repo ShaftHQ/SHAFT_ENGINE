@@ -112,12 +112,28 @@ public class BrowserActionsHelpers {
         List<String> navigationErrorMessages = Arrays.asList("This site can’t be reached", "Unable to connect",
                 "Safari Can’t Connect to the Server", "This page can't be displayed", "Invalid URL",
                 "<head></head><body></body>");
-        // TODO: get page loop outside the foreach loop
-        navigationErrorMessages.forEach(errorMessage -> {
-            if (driver.getPageSource().contains(errorMessage)) {
-                failAction(driver, "Error message: \"" + errorMessage + "\", Target URL: \"" + targetUrl + "\"");
-            }
-        });
+        //TODO: get page loop outside the foreach loop
+        try {
+            navigationErrorMessages.forEach(errorMessage -> {
+                var pageSource = driver.getPageSource();
+                if (pageSource != null && pageSource.contains(errorMessage)) {
+                    failAction(driver, "Error message: \"" + errorMessage + "\", Target URL: \"" + targetUrl + "\"");
+                }
+            });
+        } catch (org.openqa.selenium.JavascriptException javascriptException) {
+            // this happens in some cases with local execution on windows
+            /*
+            Caused by: org.openqa.selenium.JavascriptException: javascript error: Cannot read properties of null (reading 'outerHTML')
+            (Session info: chrome=111.0.5563.111)
+            Build info: version: '4.8.2', revision: '826dbfc730'
+            System info: os.name: 'Windows 11', os.arch: 'amd64', os.version: '10.0', java.version: '17.0.3.1'
+            Driver info: org.openqa.selenium.chrome.ChromeDriver
+            Command: [3650f46d33000b7ed76f29f53d7810b6, getPageSource {}]
+            */
+            // try again
+            JavaScriptWaitManager.waitForLazyLoading();
+            confirmThatWebsiteIsNotDown(driver, targetUrl);
+        }
     }
 
     public static void navigateToNewURL(WebDriver driver, String initialURL, String targetUrl, String targetUrlAfterRedirection) {
