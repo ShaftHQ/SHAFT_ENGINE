@@ -149,9 +149,11 @@ public class BrowserActionsHelpers {
         }
 
         try {
-//            driver.navigate().to(internalURL);
             // upgrading to w3c compliant browsing context for navigation
             new BrowsingContext(driver, driver.getWindowHandle()).navigate(internalURL, ReadinessState.COMPLETE);
+        } catch (java.lang.IllegalArgumentException illegalArgumentException) {
+            // Caused by: java.lang.IllegalArgumentException: WebDriver instance must support BiDi protocol
+            driver.navigate().to(internalURL);
         } catch (WebDriverException rootCauseException) {
             failAction(driver, targetUrl, rootCauseException);
         }
