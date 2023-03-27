@@ -35,15 +35,15 @@ import java.util.List;
 public class SHAFT {
     public static class GUI {
         public static class WebDriver {
-            public static WebDriver initialize() {
+            public static WebDriver getInstance() {
                 return new WebDriver();
             }
 
-            public static WebDriver initialize(DriverFactory.DriverType driverType) {
+            public static WebDriver getInstance(DriverFactory.DriverType driverType) {
                 return new WebDriver(driverType);
             }
 
-            public static WebDriver initialize(DriverFactory.DriverType driverType, MutableCapabilities mutableCapabilities) {
+            public static WebDriver getInstance(DriverFactory.DriverType driverType, MutableCapabilities mutableCapabilities) {
                 return new WebDriver(driverType, mutableCapabilities);
             }
 
@@ -134,7 +134,7 @@ public class SHAFT {
         }
 
         public static class SikuliDriver {
-            public static SikuliDriver initialize(String applicationName) {
+            public static SikuliDriver getInstance(String applicationName) {
                 return new SikuliDriver(applicationName);
             }
 
@@ -162,7 +162,7 @@ public class SHAFT {
         private final RestActions session;
         private String serviceURI;
 
-        public static API initialize(String serviceURI) {
+        public static API getInstance(String serviceURI) {
             return new API(serviceURI);
         }
 

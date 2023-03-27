@@ -30,7 +30,7 @@ public class steps {
     @When("I navigate to {string}")
     public void i_navigate_to(String pageName) {
         if (pageName.equals("Google Home")) {
-            BrowserActions.navigateToURL(driver, "https://www.google.com/ncr", "https://www.google.com");
+            BrowserActions.getInstance().navigateToURL("https://www.google.com/ncr", "https://www.google.com");
         }
     }
     @When("I search for {string}")

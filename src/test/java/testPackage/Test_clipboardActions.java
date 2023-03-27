@@ -45,6 +45,6 @@ public class Test_clipboardActions {
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        BrowserActions.closeCurrentWindow(driver);
+        BrowserActions.getInstance().closeCurrentWindow();
     }
 }
