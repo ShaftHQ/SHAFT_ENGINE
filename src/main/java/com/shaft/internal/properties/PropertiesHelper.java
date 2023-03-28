@@ -36,6 +36,8 @@ public class PropertiesHelper {
         Properties.browserStack = ConfigFactory.create(BrowserStack.class);
         Properties.internal = ConfigFactory.create(Internal.class);
         Properties.flags = ConfigFactory.create(Flags.class);
+        Properties.cucumber = ConfigFactory.create(Cucumber.class);
+
     }
 
     public static void postProcessing() {

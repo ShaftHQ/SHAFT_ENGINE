@@ -6,7 +6,7 @@ import com.google.common.annotations.Beta;
 public class Properties {
     //TODO: implement missing interfaces
     public static BrowserStack browserStack;
-    //    public static Cucumber cucumber;
+    public static Cucumber cucumber;
 //    public static Capabilities capabilities;
     public static Platform platform;
     //    public static Healenium healenium;
