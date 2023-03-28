@@ -1,7 +1,7 @@
 package com.shaft.db;
 
+import com.shaft.internal.tools.io.ReportManagerHelper;
 import com.shaft.tools.io.ReportManager;
-import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
 import org.testng.Assert;
 
 import java.sql.*;

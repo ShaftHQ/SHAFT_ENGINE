@@ -1,7 +1,7 @@
 package testPackage;
 
 import com.shaft.driver.SHAFT;
-import io.github.shafthq.shaft.listeners.TestNGListener;
+import com.shaft.listeners.TestNGListener;
 import org.openqa.selenium.By;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;

@@ -1,8 +1,8 @@
 package com.shaft.cucumber;
 
 import com.shaft.driver.SHAFT;
+import com.shaft.internal.enums.ClipboardAction;
 import io.cucumber.java.en.When;
-import io.github.shafthq.shaft.enums.ClipboardAction;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
 

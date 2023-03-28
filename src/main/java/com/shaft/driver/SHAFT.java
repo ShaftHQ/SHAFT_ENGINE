@@ -6,22 +6,22 @@ import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
 import com.shaft.db.DatabaseActions;
+import com.shaft.driver.internal.DriverFactoryHelper;
+import com.shaft.driver.internal.WizardHelpers;
+import com.shaft.gui.browser.internal.FluentBrowserActions;
 import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.SikuliActions;
 import com.shaft.gui.element.TouchActions;
+import com.shaft.gui.element.internal.FluentElementActions;
+import com.shaft.internal.tools.io.ReportManagerHelper;
+import com.shaft.internal.validations.RestValidationsBuilder;
+import com.shaft.listeners.internal.WebDriverListener;
 import com.shaft.tools.io.ExcelFileManager;
 import com.shaft.tools.io.JSONFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.YAMLFileManager;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
-import io.github.shafthq.shaft.driver.DriverFactoryHelper;
-import io.github.shafthq.shaft.driver.WizardHelpers;
-import io.github.shafthq.shaft.gui.browser.FluentBrowserActions;
-import io.github.shafthq.shaft.gui.element.FluentElementActions;
-import io.github.shafthq.shaft.listeners.WebDriverListener;
-import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
-import io.github.shafthq.shaft.validations.RestValidationsBuilder;
 import io.restassured.config.RestAssuredConfig;
 import io.restassured.response.Response;
 import org.openqa.selenium.MutableCapabilities;
@@ -130,7 +130,7 @@ public class SHAFT {
         }
 
         @Beta
-        public static class Locator extends io.github.shafthq.shaft.gui.locator.Locator {
+        public static class Locator extends com.shaft.internal.gui.locator.Locator {
         }
 
         public static class SikuliDriver {
@@ -325,7 +325,7 @@ public class SHAFT {
     }
 
     @Beta
-    public static class Properties extends io.github.shafthq.shaft.properties.Properties {
+    public static class Properties extends com.shaft.internal.properties.Properties {
     }
 
     public static class Report {

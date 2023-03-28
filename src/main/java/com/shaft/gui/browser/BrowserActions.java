@@ -1,10 +1,10 @@
 package com.shaft.gui.browser;
 
+import com.shaft.gui.browser.internal.FluentBrowserActions;
 import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.SikuliActions;
 import com.shaft.gui.element.TouchActions;
-import io.github.shafthq.shaft.gui.browser.FluentBrowserActions;
-import io.github.shafthq.shaft.gui.element.FluentElementActions;
+import com.shaft.gui.element.internal.FluentElementActions;
 import org.openqa.selenium.Cookie;
 import org.openqa.selenium.WebDriver;
 import org.sikuli.script.App;

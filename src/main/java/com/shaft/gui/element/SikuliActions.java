@@ -1,11 +1,11 @@
 package com.shaft.gui.element;
 
-import io.github.shafthq.shaft.driver.DriverFactoryHelper;
-import io.github.shafthq.shaft.gui.browser.JavaScriptWaitManager;
-import io.github.shafthq.shaft.gui.element.ElementActionsHelper;
-import io.github.shafthq.shaft.gui.image.ScreenshotManager;
-import io.github.shafthq.shaft.gui.video.RecordManager;
-import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
+import com.shaft.driver.internal.DriverFactoryHelper;
+import com.shaft.gui.browser.internal.JavaScriptWaitManager;
+import com.shaft.gui.element.internal.ElementActionsHelper;
+import com.shaft.internal.gui.image.ScreenshotManager;
+import com.shaft.internal.gui.video.RecordManager;
+import com.shaft.internal.tools.io.ReportManagerHelper;
 import org.apache.commons.io.IOUtils;
 import org.sikuli.basics.Settings;
 import org.sikuli.script.*;

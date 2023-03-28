@@ -1,8 +1,8 @@
 package com.shaft.dsl.gui;
 
 import com.shaft.gui.element.ElementActions;
+import com.shaft.gui.element.internal.FluentElementActions;
 import com.shaft.validation.Validations;
-import io.github.shafthq.shaft.gui.element.FluentElementActions;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 

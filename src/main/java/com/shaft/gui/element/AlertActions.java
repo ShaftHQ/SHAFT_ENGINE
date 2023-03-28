@@ -1,10 +1,10 @@
 package com.shaft.gui.element;
 
+import com.shaft.driver.internal.DriverFactoryHelper;
+import com.shaft.gui.browser.internal.FluentBrowserActions;
+import com.shaft.gui.element.internal.ElementActionsHelper;
+import com.shaft.gui.element.internal.FluentElementActions;
 import com.shaft.tools.io.ReportManager;
-import io.github.shafthq.shaft.driver.DriverFactoryHelper;
-import io.github.shafthq.shaft.gui.browser.FluentBrowserActions;
-import io.github.shafthq.shaft.gui.element.ElementActionsHelper;
-import io.github.shafthq.shaft.gui.element.FluentElementActions;
 import org.openqa.selenium.NoAlertPresentException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
