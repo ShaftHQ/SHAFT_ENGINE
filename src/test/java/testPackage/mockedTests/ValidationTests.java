@@ -1,20 +1,18 @@
-package testPackage.unitTests;
+package testPackage.mockedTests;
 
-import com.shaft.driver.DriverFactory;
-import com.shaft.gui.browser.BrowserActions;
-import com.shaft.gui.element.ElementActions;
+import com.shaft.driver.SHAFT;
 import com.shaft.internal.tools.io.ReportManagerHelper;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.By;
-import org.openqa.selenium.WebDriver;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import poms.GoogleSearch;
 
 public class ValidationTests {
-    private WebDriver driver;
+    private final By locator = SHAFT.GUI.Locator.hasTagName("input").build();
+    private SHAFT.GUI.WebDriver driver;
+    private String defaultElementIdentificationTimeout;
 
     @Test(description = "Assert that assertEquals works as expected when the two values are equal.")
     public void assertEquals_true_expectedToPass() {
@@ -114,13 +112,13 @@ public class ValidationTests {
 
     @Test(groups = {"WebBased"})
     public void assertElementExists_true_expectedToPass() {
-        Validations.assertThat().element(driver, GoogleSearch.googleLogo_image).exists().perform();
+        driver.element().assertThat(locator).exists().perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementExists_true_expectedToFail() {
         try {
-            Validations.assertThat().element(driver, By.id("fakeElement")).exists().perform();
+            driver.element().assertThat(By.id("fakeElement")).exists().perform();
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -128,13 +126,13 @@ public class ValidationTests {
 
     @Test(groups = {"WebBased"})
     public void assertElementExists_false_expectedToPass() {
-        Validations.assertThat().element(driver, By.id("fakeElement")).doesNotExist().perform();
+        driver.element().assertThat(By.id("fakeElement")).doesNotExist().perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementExists_false_expectedToFail() {
         try {
-            Validations.assertThat().element(driver, By.id("hplogo")).doesNotExist().perform();
+            driver.element().assertThat(locator).doesNotExist().perform();
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -143,7 +141,7 @@ public class ValidationTests {
     @Test(groups = {"WebBased"})
     public void assertElementExists_true_multipleElementsFound_expectedToFail() {
         try {
-            Validations.assertThat().element(driver, By.xpath("//div")).exists().perform();
+            driver.element().assertThat(By.xpath("//div")).exists().perform();
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -152,7 +150,7 @@ public class ValidationTests {
     @Test(groups = {"WebBased"})
     public void assertElementExists_false_multipleElementsFound_expectedToFail() {
         try {
-            Validations.assertThat().element(driver, By.xpath("//div")).doesNotExist().perform();
+            driver.element().assertThat(By.xpath("//div")).doesNotExist().perform();
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -160,15 +158,15 @@ public class ValidationTests {
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_literalComparison_expectedToPass() {
-        new ElementActions(driver).type(GoogleSearch.getSearchBox_textField(), "Automation");
-        Validations.assertThat().element(driver, GoogleSearch.getSearchBox_textField()).text().isEqualTo("Automation");
+        driver.element().type(locator, "Automation")
+                .assertThat(locator).text().isEqualTo("Automation").perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_literalComparison_expectedToFail() {
-        new ElementActions(driver).type(GoogleSearch.getSearchBox_textField(), "Automation");
+        driver.element().type(locator, "Automation");
         try {
-            Validations.assertThat().element(driver, GoogleSearch.getSearchBox_textField()).text().isEqualTo("Automation123");
+            driver.element().assertThat(locator).text().isEqualTo("Automation123").perform();
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -176,15 +174,15 @@ public class ValidationTests {
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_regexComparison_expectedToPass() {
-        new ElementActions(driver).type(GoogleSearch.getSearchBox_textField(), "Automation123");
-        Validations.assertThat().element(driver, GoogleSearch.getSearchBox_textField()).text().matchesRegex("Automation.*").perform();
+        driver.element().type(locator, "Automation123")
+                .assertThat(locator).text().matchesRegex("Automation.*").perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_regexComparison_expectedToFail() {
-        new ElementActions(driver).type(GoogleSearch.getSearchBox_textField(), "Automation123");
+        driver.element().type(locator, "Automation123");
         try {
-            Validations.assertThat().element(driver, GoogleSearch.getSearchBox_textField()).text().matchesRegex("Automation").perform();
+            driver.element().assertThat(locator).text().matchesRegex("Automation").perform();
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -192,15 +190,15 @@ public class ValidationTests {
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_containsComparison_expectedToPass() {
-        new ElementActions(driver).type(GoogleSearch.getSearchBox_textField(), "Automation123");
-        Validations.assertThat().element(driver, GoogleSearch.getSearchBox_textField()).text().contains("Automation").perform();
+        driver.element().type(locator, "Automation123")
+                .assertThat(locator).text().contains("Automation").perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_containsComparison_expectedToFail() {
-        new ElementActions(driver).type(GoogleSearch.getSearchBox_textField(), "Automation123");
+        driver.element().type(locator, "Automation123");
         try {
-            Validations.assertThat().element(driver, GoogleSearch.getSearchBox_textField()).text().contains("Automation1234").perform();
+            driver.element().assertThat(locator).text().contains("Automation1234").perform();
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -208,15 +206,15 @@ public class ValidationTests {
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_caseInsensitiveComparison_expectedToPass() {
-        new ElementActions(driver).type(GoogleSearch.getSearchBox_textField(), "AUTOMATION");
-        Validations.assertThat().element(driver, GoogleSearch.getSearchBox_textField()).text().equalsIgnoringCaseSensitivity("AutomaTion").perform();
+        driver.element().type(locator, "AUTOMATION")
+                .assertThat(locator).text().equalsIgnoringCaseSensitivity("AutomaTion").perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_true_caseInsensitiveComparison_expectedToFail() {
-        new ElementActions(driver).type(GoogleSearch.getSearchBox_textField(), "AUTOMATION");
+        driver.element().type(locator, "AUTOMATION");
         try {
-            Validations.assertThat().element(driver, GoogleSearch.getSearchBox_textField()).text().equalsIgnoringCaseSensitivity("AutomaTion123").perform();
+            driver.element().assertThat(locator).text().equalsIgnoringCaseSensitivity("AutomaTion123").perform();
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -224,15 +222,15 @@ public class ValidationTests {
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_literalComparison_expectedToPass() {
-        new ElementActions(driver).type(GoogleSearch.getSearchBox_textField(), "Automation123");
-        Validations.assertThat().element(driver, GoogleSearch.getSearchBox_textField()).text().doesNotEqual("Automation").perform();
+        driver.element().type(locator, "Automation123")
+                .assertThat(locator).text().doesNotEqual("Automation").perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_literalComparison_expectedToFail() {
-        new ElementActions(driver).type(GoogleSearch.getSearchBox_textField(), "Automation");
+        driver.element().type(locator, "Automation");
         try {
-            Validations.assertThat().element(driver, GoogleSearch.getSearchBox_textField()).text().doesNotEqual("Automation123").perform();
+            driver.element().assertThat(locator).text().doesNotEqual("Automation123").perform();
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -240,15 +238,15 @@ public class ValidationTests {
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_regexComparison_expectedToPass() {
-        new ElementActions(driver).type(GoogleSearch.getSearchBox_textField(), "Automation123");
-        Validations.assertThat().element(driver, GoogleSearch.getSearchBox_textField()).text().doesNotMatchRegex("Automation").perform();
+        driver.element().type(locator, "Automation123")
+                .assertThat(locator).text().doesNotMatchRegex("Automation").perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_regexComparison_expectedToFail() {
-        new ElementActions(driver).type(GoogleSearch.getSearchBox_textField(), "Automation123");
+        driver.element().type(locator, "Automation123");
         try {
-            Validations.assertThat().element(driver, GoogleSearch.getSearchBox_textField()).text().doesNotMatchRegex("Automation.*").perform();
+            driver.element().assertThat(locator).text().doesNotMatchRegex("Automation.*").perform();
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -256,15 +254,15 @@ public class ValidationTests {
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_containsComparison_expectedToPass() {
-        new ElementActions(driver).type(GoogleSearch.getSearchBox_textField(), "Automation123");
-        Validations.assertThat().element(driver, GoogleSearch.getSearchBox_textField()).text().doesNotContain("Automation1234").perform();
+        driver.element().type(locator, "Automation123")
+                .assertThat(locator).text().doesNotContain("Automation1234").perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_containsComparison_expectedToFail() {
-        new ElementActions(driver).type(GoogleSearch.getSearchBox_textField(), "Automation123");
+        driver.element().type(locator, "Automation123");
         try {
-            Validations.assertThat().element(driver, GoogleSearch.getSearchBox_textField()).text().doesNotContain("Automation").perform();
+            driver.element().assertThat(locator).text().doesNotContain("Automation").perform();
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -272,15 +270,15 @@ public class ValidationTests {
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_caseInsensitiveComparison_expectedToPass() {
-        new ElementActions(driver).type(GoogleSearch.getSearchBox_textField(), "AUTOMATION");
-        Validations.assertThat().element(driver, GoogleSearch.getSearchBox_textField()).text().doesNotEqualIgnoringCaseSensitivity("AutomaTion123").perform();
+        driver.element().type(locator, "AUTOMATION")
+                .assertThat(locator).text().doesNotContain("AutomaTion123").perform();
     }
 
     @Test(groups = {"WebBased"})
     public void assertElementAttribute_false_caseInsensitiveComparison_expectedToFail() {
-        new ElementActions(driver).type(GoogleSearch.getSearchBox_textField(), "AUTOMATION");
+        driver.element().type(locator, "AUTOMATION");
         try {
-            Validations.assertThat().element(driver, GoogleSearch.getSearchBox_textField()).text().doesNotEqualIgnoringCaseSensitivity("AutomaTion").perform();
+            driver.element().assertThat(locator).text().doesNotEqualIgnoringCaseSensitivity("AutomaTion").perform();
         } catch (AssertionError e) {
             Assert.assertTrue(true);
         }
@@ -316,12 +314,16 @@ public class ValidationTests {
 
     @AfterMethod(onlyForGroups = {"WebBased"}, alwaysRun = true)
     public void afterMethod() {
-        new BrowserActions(driver).closeCurrentWindow();
+        System.setProperty("defaultElementIdentificationTimeout", defaultElementIdentificationTimeout);
+        driver.quit();
     }
 
     @BeforeMethod(onlyForGroups = {"WebBased"})
     public void beforeMethod() {
-        driver = DriverFactory.getDriver();
-        new BrowserActions(driver).navigateToURL("https://www.google.com/ncr", "https://www.google.com/");
+        defaultElementIdentificationTimeout = System.getProperty("defaultElementIdentificationTimeout");
+        System.setProperty("defaultElementIdentificationTimeout", "2");
+        driver = SHAFT.GUI.WebDriver.getInstance();
+        String testElement = "data:text/html,<input type=\"text\"><br><br>";
+        driver.browser().navigateToURL(testElement);
     }
 }
