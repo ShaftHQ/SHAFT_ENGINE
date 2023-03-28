@@ -211,8 +211,8 @@ public class ReportManagerHelper {
         if (logger == null) {
             initializeLogger();
         }
-        System.setErr(new PrintStream(new LogRedirector(logger, Level.WARN)));
         System.setOut(new PrintStream(new LogRedirector(logger, Level.INFO)));
+        System.setErr(new PrintStream(new LogRedirector(logger, Level.WARN)));
         String engineVersion = "Powered by "
                 + System.getProperty(SHAFT_ENGINE_VERSION_PROPERTY_NAME);
         createImportantReportEntry(engineVersion);
@@ -598,7 +598,8 @@ public class ReportManagerHelper {
         String log = System.lineSeparator() +
                 createSeparator('-') +
                 addSpacing(logText.trim()) +
-                createSeparator('-');
+                createSeparator('-') +
+                System.lineSeparator();
 
         Reporter.log(log, false);
         if (logger == null) {

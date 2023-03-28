@@ -89,6 +89,7 @@ public class FluentBrowserActions {
      *
      * @return a self-reference to be used to chain actions
      */
+    @SuppressWarnings("UnusedReturnValue")
     public FluentBrowserActions capturePageSnapshot() {
         var serializedPageData = BrowserActionsHelpers.capturePageSnapshot(DriverFactoryHelper.getDriver().get(), true);
         passAction(DriverFactoryHelper.getDriver().get(), serializedPageData);
@@ -137,6 +138,10 @@ public class FluentBrowserActions {
         try {
             pageSource = DriverFactoryHelper.getDriver().get().getPageSource();
             passAction(DriverFactoryHelper.getDriver().get(), pageSource);
+        } catch (org.openqa.selenium.JavascriptException javascriptException) {
+            //try again
+            JavaScriptWaitManager.waitForLazyLoading();
+            return getPageSource();
         } catch (Exception rootCauseException) {
             failAction(DriverFactoryHelper.getDriver().get(), pageSource, rootCauseException);
         }
@@ -290,8 +295,7 @@ public class FluentBrowserActions {
             if (!initialURL.equals(modifiedTargetUrl)) {
                 // navigate to new url
                 navigateToNewURL(DriverFactoryHelper.getDriver().get(), initialURL, modifiedTargetUrl, targetUrlAfterRedirection);
-                // TODO: confirm that this doesn't cause a false positive navigation succeeded/failed bug, if it does, simply uncomment this line
-//                JavaScriptWaitManager.waitForLazyLoading();
+                JavaScriptWaitManager.waitForLazyLoading();
                 if ((ElementActionsHelper.getElementsCount(DriverFactoryHelper.getDriver().get(), By.tagName("html")) == 1)
                         && (!DriverFactoryHelper.getDriver().get().getPageSource().equalsIgnoreCase(initialSource))) {
                     confirmThatWebsiteIsNotDown(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
@@ -302,8 +306,6 @@ public class FluentBrowserActions {
             } else {
                 // already on the same page
                 DriverFactoryHelper.getDriver().get().navigate().refresh();
-                // TODO: confirm that this doesn't cause a false positive navigation succeeded/failed bug, if it does, simply uncomment this line
-//                JavaScriptWaitManager.waitForLazyLoading();
                 if (ElementActionsHelper.getElementsCount(DriverFactoryHelper.getDriver().get(), By.tagName("html")) == 1) {
                     confirmThatWebsiteIsNotDown(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
                     passAction(DriverFactoryHelper.getDriver().get(), modifiedTargetUrl);
@@ -315,6 +317,7 @@ public class FluentBrowserActions {
         return this;
     }
 
+    @SuppressWarnings("UnusedReturnValue")
     public FluentBrowserActions navigateToURLWithBasicAuthentication(String targetUrl, String username, String password, String targetUrlAfterAuthentication) {
         try {
             String domainName = getDomainNameFromURL(targetUrl);
@@ -398,7 +401,7 @@ public class FluentBrowserActions {
      */
     public FluentBrowserActions refreshCurrentPage() {
         DriverFactoryHelper.getDriver().get().navigate().refresh();
-        passAction(DriverFactoryHelper.getDriver().get(), DriverFactoryHelper.getDriver().get().getPageSource());
+        passAction(DriverFactoryHelper.getDriver().get(), getPageSource());
         return this;
     }
 
@@ -551,6 +554,7 @@ public class FluentBrowserActions {
      * @param url The name of the URL you want to navigate to
      * @return a self-reference to be used to chain actions
      */
+    @SuppressWarnings("UnusedReturnValue")
     public FluentBrowserActions switchToNewTab(String url) {
         try {
             var handleBeforeNavigation = DriverFactoryHelper.getDriver().get().getWindowHandle();
@@ -667,6 +671,7 @@ public class FluentBrowserActions {
      * @param cookieName The name of the cookie to delete.
      * @return a self-reference to be used to chain actions.
      */
+    @SuppressWarnings("UnusedReturnValue")
     public FluentBrowserActions deleteCookie(String cookieName) {
         DriverFactoryHelper.getDriver().get().manage().deleteCookieNamed(cookieName);
         passAction(DriverFactoryHelper.getDriver().get(), "Delete Cookie", cookieName);
@@ -678,6 +683,7 @@ public class FluentBrowserActions {
      *
      * @return a self-reference to be used to chain actions.
      */
+    @SuppressWarnings("UnusedReturnValue")
     public FluentBrowserActions deleteAllCookies() {
         DriverFactoryHelper.getDriver().get().manage().deleteAllCookies();
         passAction("");
@@ -689,6 +695,7 @@ public class FluentBrowserActions {
      *
      * @return a self-reference for chainable actions
      */
+    @SuppressWarnings("UnusedReturnValue")
     public FluentBrowserActions captureScreenshot() {
         return this.captureScreenshot(Screenshots.FULL);
     }
@@ -718,6 +725,7 @@ public class FluentBrowserActions {
      *
      * @return a self-reference for chainable actions
      */
+    @SuppressWarnings("UnusedReturnValue")
     public FluentBrowserActions captureSnapshot() {
         var logMessage = "";
         var pageSnapshot = BrowserActionsHelpers.capturePageSnapshot(DriverFactoryHelper.getDriver().get(), true);

@@ -5,7 +5,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-public class tests_browserActions {
+public class BrowserActionsTests {
     private static final ThreadLocal<SHAFT.GUI.WebDriver> driver = new ThreadLocal<>();
 
     @Test
@@ -90,7 +90,6 @@ public class tests_browserActions {
 
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
-        driver.get().browser().navigateToURL("https://duckduckgo.com/?");
         driver.get().browser().closeCurrentWindow();
     }
 }

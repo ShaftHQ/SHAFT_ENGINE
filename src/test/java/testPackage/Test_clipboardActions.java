@@ -5,8 +5,8 @@ import com.shaft.gui.browser.BrowserActions;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.validation.Validations;
 import org.openqa.selenium.WebDriver;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import poms.GoogleSearch;
 
@@ -33,18 +33,18 @@ public class Test_clipboardActions {
             searchObject.pasteQuery();
             searchObject.pasteQuery();
             Validations.assertThat().element(driver, GoogleSearch.getSearchBox_textField()).text().equals("FIRSTFIRST");
-        }else{
+        } else {
             ReportManager.log("Native actions don't work on MAC.");
         }
     }
 
-    @BeforeClass // Set-up method, to be run once before the first test
-    public void beforeClass() {
+    @BeforeMethod // Set-up method, to be run once before the first test
+    public void beforeMethod() {
         driver = DriverFactory.getDriver();
     }
 
-    @AfterClass(alwaysRun = true)
-    public void afterClass() {
-        BrowserActions.closeCurrentWindow(driver);
+    @AfterMethod(alwaysRun = true)
+    public void afterMethod() {
+        BrowserActions.getInstance().closeCurrentWindow();
     }
 }

@@ -5,7 +5,6 @@ import io.github.shafthq.shaft.tools.support.HTMLHelper;
 
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -52,7 +51,7 @@ public class ExecutionSummaryReport {
         StringBuilder detailsBuilder = new StringBuilder();
         casesDetails.forEach((key, value) -> detailsBuilder.append(String.format(HTMLHelper.EXECUTION_SUMMARY_DETAILS_FORMAT.getValue(), key, value.get(0), value.get(1), value.get(2), value.get(3), value.get(4))));
 
-        new SHAFT.CLI().file().writeToFile(System.getProperty("executionSummaryReportFolderPath"),
+        SHAFT.CLI.file().writeToFile(System.getProperty("executionSummaryReportFolderPath"),
                 "ExecutionSummaryReport_" + new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss-SSSS-aaa").format(System.currentTimeMillis()) + ".html",
                 HTMLHelper.EXECUTION_SUMMARY.getValue()
                         .replace("${LOGO_URL}", SHAFT.Properties.internal.watermarkImagePath())

@@ -1,6 +1,7 @@
 package io.github.shafthq.shaft.driver;
 
 import com.epam.healenium.SelfHealingDriver;
+import com.google.common.base.Throwables;
 import com.mysql.cj.util.StringUtils;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.DriverFactory.DriverType;
@@ -199,7 +200,7 @@ public class DriverFactoryHelper {
                     ffOptions.addArguments("-headless");
                 }
                 ffOptions.setLogLevel(FirefoxDriverLogLevel.WARN);
-                ffOptions.setPageLoadStrategy(PageLoadStrategy.EAGER);
+                ffOptions.setPageLoadStrategy(PageLoadStrategy.NONE);
                 ffOptions.setPageLoadTimeout(Duration.ofSeconds(PAGE_LOAD_TIMEOUT));
                 ffOptions.setScriptTimeout(Duration.ofSeconds(SCRIPT_TIMEOUT));
                 //Add Proxy Setting if found
@@ -350,7 +351,7 @@ public class DriverFactoryHelper {
         options.setExperimentalOption("prefs", chromePreferences);
         options.setUnhandledPromptBehaviour(UnexpectedAlertBehaviour.ACCEPT_AND_NOTIFY);
         options.setCapability(CapabilityType.ACCEPT_INSECURE_CERTS, true);
-        options.setPageLoadStrategy(PageLoadStrategy.EAGER); // https://www.skptricks.com/2018/08/timed-out-receiving-message-from-renderer-selenium.html
+        options.setPageLoadStrategy(PageLoadStrategy.NONE); // https://www.skptricks.com/2018/08/timed-out-receiving-message-from-renderer-selenium.html
         options.setPageLoadTimeout(Duration.ofSeconds(PAGE_LOAD_TIMEOUT));
         options.setScriptTimeout(Duration.ofSeconds(SCRIPT_TIMEOUT));
         //Add Proxy Setting if found
@@ -447,6 +448,24 @@ public class DriverFactoryHelper {
 //            ReportManager.log("Successfully Opened " + JavaHelper.convertToSentenceCase(driverType.getValue()) + ".");
             ReportManager.log(initialLog.replace("Attempting to run locally on", "Successfully Opened") + ".");
         } catch (SessionNotCreatedException | WebDriverManagerException exception) {
+            if (driverType.equals(DriverType.SAFARI)
+                    && Throwables.getRootCause(exception).getMessage().toLowerCase().contains("safari instance is already paired with another webdriver session")) {
+                //this issue happens when running locally via safari/mac platform
+                // sample failure can be found here: https://github.com/ShaftHQ/SHAFT_ENGINE/actions/runs/4527911969/jobs/7974202314#step:4:46621
+                // attempting blind fix by trying to quit existing driver if any
+                try {
+                    driver.get().quit();
+                    driver.remove();
+                } catch (Throwable throwable) {
+                    // ignore
+                }
+                // attempting blind fix by trying to quit existing safari instances if any
+                try {
+                    SHAFT.CLI.terminal().performTerminalCommand("osascript -e \"tell application \\\"Safari\\\" to quit\"\n");
+                } catch (Throwable throwable) {
+                    // ignore
+                }
+            }
             failAction("Failed to create new Browser Session", exception);
         }
     }
@@ -746,7 +765,7 @@ public class DriverFactoryHelper {
             //TODO: support custom driver options here in case the browser is chrome
             //https://chromedriver.chromium.org/capabilities
             desiredCapabilities.setCapability("browserName", SHAFT.Properties.mobile.browserName());
-            desiredCapabilities.setCapability("pageLoadStrategy", PageLoadStrategy.EAGER);
+            desiredCapabilities.setCapability("pageLoadStrategy", PageLoadStrategy.NONE);
         }
 
         if (!isMobileWebExecution() && Platform.ANDROID.toString().equalsIgnoreCase(SHAFT.Properties.platform.targetPlatform())) {

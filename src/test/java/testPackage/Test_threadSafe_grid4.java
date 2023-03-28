@@ -40,7 +40,7 @@ public class Test_threadSafe_grid4 {
     }
 
     private void runTestSteps(){
-        BrowserActions.navigateToURL(driver.get(), "https://duckduckgo.com/?");
+        BrowserActions.getInstance().navigateToURL("https://duckduckgo.com/?");
         new ElementActions(driver.get()).type(searchBar, "SHAFT_Engine")
                 .keyPress(searchBar, Keys.ENTER);
         Validations.assertThat()
@@ -49,6 +49,6 @@ public class Test_threadSafe_grid4 {
                 .contains("ShaftHQ/SHAFT_ENGINE")
                 .withCustomReportMessage("Asserting that the second search result contains 'ShaftHQ/SHAFT_ENGINE'")
                 .perform();
-        BrowserActions.closeCurrentWindow(driver.get());
+        BrowserActions.getInstance().closeCurrentWindow();
     }
 }

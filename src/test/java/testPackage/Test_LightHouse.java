@@ -21,7 +21,7 @@ public class Test_LightHouse {
 //        driver.browser().generateLightHouseReport();
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public void afterClass() {
         driver.quit();
     }
