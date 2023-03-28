@@ -6,6 +6,7 @@ import com.shaft.gui.element.SikuliActions;
 import com.shaft.tools.io.ReportManager;
 import io.github.shafthq.shaft.driver.DriverFactoryHelper;
 import io.github.shafthq.shaft.enums.ClipboardAction;
+import io.github.shafthq.shaft.enums.ElementAction;
 import io.github.shafthq.shaft.gui.image.ImageProcessingActions;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
 import io.github.shafthq.shaft.gui.locator.ShadowLocatorBuilder;
@@ -143,7 +144,7 @@ public class ElementActionsHelper {
     }
 
     //TODO: keep enhancing this method until we only need to make ONE WebDriver call per element in case of Type and Click (including element name)
-    public static List<Object> waitForElementPresence(WebDriver driver, By elementLocator, int numberOfAttempts, boolean checkForVisibility) {
+    public static List<Object> waitForElementPresence(WebDriver driver, By elementLocator, int numberOfAttempts, boolean checkForVisibility, Object... action) {
         boolean isValidToCheckForVisibility = isValidToCheckForVisibility(elementLocator, checkForVisibility);
         var isMobileExecution = DriverFactoryHelper.isMobileNativeExecution() || DriverFactoryHelper.isMobileWebExecution();
 
@@ -208,7 +209,10 @@ public class ElementActionsHelper {
                             }
                             elementInformation.setElementName(elementName);
                         }
-
+                        // attempt to perform action inside the loop to guarantee higher odds of success and reduced webdriver calls
+                        if (action != null && action.length > 0) {
+                            elementInformation.setActionResult(performAction(elementInformation.getFirstElement(), (ElementAction) action[0], action[1]));
+                        }
                         return elementInformation.toList();
                         // int numberOfFoundElements
                         // WebElement firstElement
@@ -234,6 +238,24 @@ public class ElementActionsHelper {
             elementInformation.add(invalidSelectorException);
             return elementInformation;
         }
+    }
+
+    private static String performAction(WebElement element, ElementAction action, Object parameter) {
+        switch (action) {
+            case CLEAR -> element.clear();
+            case BACKSPACE -> element.sendKeys(Keys.BACK_SPACE);
+            case GET_TEXT -> {
+                return element.getText();
+            }
+            case GET_VALUE -> {
+                return element.getAttribute(TextDetectionStrategy.VALUE.getValue());
+            }
+            case GET_CONTENT -> {
+                return element.getAttribute(TextDetectionStrategy.CONTENT.getValue());
+            }
+            case SEND_KEYS -> element.sendKeys((CharSequence) parameter);
+        }
+        return "";
     }
 
     public static List<Object> scrollToFindElement(WebDriver driver, By elementLocator) {
@@ -275,7 +297,6 @@ public class ElementActionsHelper {
             try {
                 (new WebDriverWait(driver, Duration.ofMillis(DEFAULT_ELEMENT_IDENTIFICATION_TIMEOUT)))
                         .until(ExpectedConditions.elementToBeClickable(elementLocator));
-
 
                 var expectedExceptions = getExpectedExceptions(true);
                 if (!clickUsingJavascriptWhenWebDriverClickFails) {
@@ -556,7 +577,7 @@ public class ElementActionsHelper {
         try {
             (elementInformation.getFirstElement()).clear();
         } catch (WebDriverException webDriverException) {
-            ((WebElement) identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator()).get(1)).clear();
+            performActionAgainstUniqueElement(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator(), ElementAction.CLEAR);
         }
         // attempt clear using letter by letter backspace
         var attemptClearBeforeTypingUsingBackspace = Boolean.parseBoolean(System.getProperty("attemptClearBeforeTypingUsingBackspace"));
@@ -566,7 +587,7 @@ public class ElementActionsHelper {
                 try {
                     (elementInformation.getFirstElement()).sendKeys(Keys.BACK_SPACE);
                 } catch (WebDriverException webDriverException) {
-                    ((WebElement) identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator()).get(1)).sendKeys(Keys.BACK_SPACE);
+                    performActionAgainstUniqueElement(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator(), ElementAction.BACKSPACE);
                 }
             }
         }
@@ -613,7 +634,7 @@ public class ElementActionsHelper {
                 try {
                     temp = (elementInformation.getFirstElement()).getText();
                 } catch (WebDriverException webDriverException) {
-                    temp = ((WebElement) identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator()).get(1)).getText();
+                    temp = ElementInformation.fromList(performActionAgainstUniqueElement(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator(), ElementAction.GET_TEXT)).getActionResult();
                 }
                 return (temp == null) ? "" : temp;
             }
@@ -621,7 +642,7 @@ public class ElementActionsHelper {
                 try {
                     temp = (elementInformation.getFirstElement()).getAttribute(TextDetectionStrategy.CONTENT.getValue());
                 } catch (WebDriverException webDriverException) {
-                    temp = ((WebElement) identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator()).get(1)).getAttribute(TextDetectionStrategy.CONTENT.getValue());
+                    temp = ElementInformation.fromList(performActionAgainstUniqueElement(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator(), ElementAction.GET_CONTENT)).getActionResult();
                 }
                 return (temp == null) ? "" : temp;
             }
@@ -629,7 +650,7 @@ public class ElementActionsHelper {
                 try {
                     temp = (elementInformation.getFirstElement()).getAttribute(TextDetectionStrategy.VALUE.getValue());
                 } catch (WebDriverException webDriverException) {
-                    temp = ((WebElement) identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator()).get(1)).getAttribute(TextDetectionStrategy.VALUE.getValue());
+                    temp = ElementInformation.fromList(performActionAgainstUniqueElement(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator(), ElementAction.GET_VALUE)).getActionResult();
                 }
                 return (temp == null) ? "" : temp;
             }
@@ -664,20 +685,7 @@ public class ElementActionsHelper {
         try {
             (elementInformation.getFirstElement()).sendKeys(text);
         } catch (WebDriverException webDriverException) {
-            ArrayList<Class<? extends Exception>> expectedExceptions = getExpectedExceptions(true);
-            try {
-                new FluentWait<>(DriverFactoryHelper.getDriver().get())
-                        .withTimeout(Duration.ofSeconds(5))
-                        .pollingEvery(Duration.ofSeconds(1))
-                        .ignoreAll(expectedExceptions)
-                        .until(nestedDriver -> {
-                            nestedDriver.findElement((elementInformation.getLocator())).sendKeys(text);
-                            return true;
-                        });
-            } catch (TimeoutException e) {
-                // In case typing failed and the timeout expired
-                ReportManagerHelper.logDiscrete(e);
-            }
+            performActionAgainstUniqueElement(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator(), ElementAction.SEND_KEYS, text);
         }
     }
 
@@ -686,9 +694,7 @@ public class ElementActionsHelper {
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckTextWasTypedCorrectly")))) {
             successfulTextLocationStrategy = determineSuccessfulTextLocationStrategy(elementInformation);
         }
-
         clearBeforeTyping(elementInformation, successfulTextLocationStrategy);
-
         if (!"".equals(targetText)) {
             performType(elementInformation, targetText);
         }
@@ -721,6 +727,10 @@ public class ElementActionsHelper {
         return false;
     }
 
+    public static List<Object> performActionAgainstUniqueElement(WebDriver driver, By elementLocator, Object... action) {
+        return identifyUniqueElement(driver, elementLocator, true, action);
+    }
+
     public static List<Object> identifyUniqueElement(WebDriver driver, By elementLocator) {
         return identifyUniqueElement(driver, elementLocator, true);
     }
@@ -730,8 +740,8 @@ public class ElementActionsHelper {
     }
 
     private static List<Object> identifyUniqueElement(WebDriver driver, By elementLocator,
-                                                      boolean checkForVisibility) {
-        var matchingElementsInformation = getMatchingElementsInformation(driver, elementLocator, 1, checkForVisibility);
+                                                      boolean checkForVisibility, Object... action) {
+        var matchingElementsInformation = getMatchingElementsInformation(driver, elementLocator, 1, checkForVisibility, action);
 
         if (elementLocator != null) {
             // in case of regular locator
@@ -761,7 +771,7 @@ public class ElementActionsHelper {
         return matchingElementsInformation;
     }
 
-    public static List<Object> getMatchingElementsInformation(WebDriver driver, By elementLocator, int numberOfAttempts, boolean checkForVisibility) {
+    public static List<Object> getMatchingElementsInformation(WebDriver driver, By elementLocator, int numberOfAttempts, boolean checkForVisibility, Object... action) {
         if (elementLocator == null) {
             var elementInformation = new ArrayList<>();
             elementInformation.add(0);
@@ -769,7 +779,7 @@ public class ElementActionsHelper {
             return elementInformation;
         }
         if (!elementLocator.equals(By.tagName("html"))) {
-            return ElementActionsHelper.waitForElementPresence(driver, elementLocator, numberOfAttempts, checkForVisibility);
+            return ElementActionsHelper.waitForElementPresence(driver, elementLocator, numberOfAttempts, checkForVisibility, action);
         } else {
             //if locator is just tag-name html
             var elementInformation = new ArrayList<>();

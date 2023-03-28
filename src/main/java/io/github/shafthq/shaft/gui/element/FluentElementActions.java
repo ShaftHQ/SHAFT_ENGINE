@@ -11,6 +11,7 @@ import io.appium.java_client.ios.IOSDriver;
 import io.github.shafthq.shaft.driver.DriverFactoryHelper;
 import io.github.shafthq.shaft.driver.WizardHelpers;
 import io.github.shafthq.shaft.enums.ClipboardAction;
+import io.github.shafthq.shaft.enums.ElementAction;
 import io.github.shafthq.shaft.gui.browser.FluentBrowserActions;
 import io.github.shafthq.shaft.gui.browser.JavaScriptWaitManager;
 import io.github.shafthq.shaft.gui.image.ScreenshotManager;
@@ -596,13 +597,27 @@ public class FluentElementActions {
      */
     public String getText(By elementLocator) {
         try {
-            var elementName = getElementName(DriverFactoryHelper.getDriver().get(), elementLocator);
-            String elementText = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)).getText();
-            if ((elementText == null || elementText.trim().equals("")) && !DriverFactoryHelper.isMobileNativeExecution()) {
-                elementText = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)).getAttribute(ElementActionsHelper.TextDetectionStrategy.CONTENT.getValue());
+            var elementInformation = ElementInformation.fromList(identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator));
+            var elementName = elementInformation.getElementName();
+            String elementText;
+            try {
+                elementText = (elementInformation.getFirstElement()).getText();
+            } catch (WebDriverException webDriverException) {
+                elementText = ElementInformation.fromList(performActionAgainstUniqueElement(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator(), ElementAction.GET_TEXT)).getActionResult();
             }
             if ((elementText == null || elementText.trim().equals("")) && !DriverFactoryHelper.isMobileNativeExecution()) {
-                elementText = ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)).getAttribute(ElementActionsHelper.TextDetectionStrategy.VALUE.getValue());
+                try {
+                    elementText = (elementInformation.getFirstElement()).getAttribute(ElementActionsHelper.TextDetectionStrategy.CONTENT.getValue());
+                } catch (WebDriverException webDriverException) {
+                    elementText = ElementInformation.fromList(performActionAgainstUniqueElement(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator(), ElementAction.GET_CONTENT)).getActionResult();
+                }
+            }
+            if ((elementText == null || elementText.trim().equals("")) && !DriverFactoryHelper.isMobileNativeExecution()) {
+                try {
+                    elementText = (elementInformation.getFirstElement()).getAttribute(ElementActionsHelper.TextDetectionStrategy.VALUE.getValue());
+                } catch (WebDriverException webDriverException) {
+                    elementText = ElementInformation.fromList(performActionAgainstUniqueElement(DriverFactoryHelper.getDriver().get(), elementInformation.getLocator(), ElementAction.GET_VALUE)).getActionResult();
+                }
             }
             if (elementText == null) {
                 elementText = "";
@@ -906,8 +921,8 @@ public class FluentElementActions {
     public FluentElementActions typeAppend(By elementLocator, String text) {
         try {
             if (text != null) {
-                var elementName = getElementName(DriverFactoryHelper.getDriver().get(), elementLocator);
-                ((WebElement) ElementActionsHelper.identifyUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator).get(1)).sendKeys(text);
+                var elementInformation = ElementInformation.fromList(performActionAgainstUniqueElement(DriverFactoryHelper.getDriver().get(), elementLocator, ElementAction.SEND_KEYS, text));
+                var elementName = elementInformation.getElementName();
                 passAction(DriverFactoryHelper.getDriver().get(), elementLocator, Thread.currentThread().getStackTrace()[1].getMethodName(), text, null, elementName);
             }
         } catch (Throwable throwable) {

@@ -28,6 +28,10 @@ public class ElementInformation {
         @Getter
         private String elementName = "";
 
+        @Setter
+        @Getter
+        private String actionResult = "";
+
         public static ElementInformation fromList(List<Object> elementInformation) {
                 var temp = new ElementInformation();
                 temp.setNumberOfFoundElements((int) elementInformation.get(0));
@@ -36,6 +40,7 @@ public class ElementInformation {
                 temp.setOuterHTML((String) elementInformation.get(3));
                 temp.setInnerHTML((String) elementInformation.get(4));
                 temp.setElementName((String) elementInformation.get(5));
+                temp.setActionResult((String) elementInformation.get(6));
                 return temp;
         }
 
@@ -47,6 +52,7 @@ public class ElementInformation {
                 temp.add(outerHTML);
                 temp.add(innerHTML);
                 temp.add(elementName);
+                temp.add(actionResult);
                 return temp;
         }
 }
