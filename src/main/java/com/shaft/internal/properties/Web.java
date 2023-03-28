@@ -5,11 +5,7 @@ import org.aeonbits.owner.Config.Sources;
 import org.aeonbits.owner.ConfigFactory;
 
 @SuppressWarnings("unused")
-@Sources({"system:properties",
-        "file:src/main/resources/properties/WebCapabilities.properties",
-        "file:src/main/resources/properties/default/WebCapabilities.properties",
-        "classpath:WebCapabilities.properties",
-})
+@Sources({"system:properties", "file:src/main/resources/properties/WebCapabilities.properties", "file:src/main/resources/properties/default/WebCapabilities.properties", "classpath:WebCapabilities.properties"})
 public interface Web extends EngineProperties {
     private static void setProperty(String key, String value) {
         var updatedProps = new java.util.Properties();
@@ -34,27 +30,27 @@ public interface Web extends EngineProperties {
 
     @Key("mobileEmulation.isCustomDevice")
     @DefaultValue("false")
-    boolean mobileEmulation_isCustomDevice();
+    boolean mobileEmulationIsCustomDevice();
 
     @Key("mobileEmulation.deviceName")
     @DefaultValue("")
-    String mobileEmulation_deviceName();
+    String mobileEmulationDeviceName();
 
     @Key("mobileEmulation.width")
     @DefaultValue("")
-    String mobileEmulation_width();
+    String mobileEmulationWidth();
 
     @Key("mobileEmulation.height")
     @DefaultValue("")
-    String mobileEmulation_height();
+    String mobileEmulationHeight();
 
     @Key("mobileEmulation.pixelRatio")
     @DefaultValue("")
-    String mobileEmulation_pixelRatio();
+    String mobileEmulationPixelRatio();
 
     @Key("mobileEmulation.userAgent")
     @DefaultValue("")
-    String mobileEmulation_userAgent();
+    String mobileEmulationUserAgent();
 
     @Key("baseURL")
     @DefaultValue("")
@@ -84,27 +80,27 @@ public interface Web extends EngineProperties {
             setProperty("isMobileEmulation", String.valueOf(value));
         }
 
-        public void mobileEmulation_isCustomDevice(boolean value) {
+        public void mobileEmulationIsCustomDevice(boolean value) {
             setProperty("mobileEmulation.isCustomDevice", String.valueOf(value));
         }
 
-        public void mobileEmulation_deviceName(String value) {
+        public void mobileEmulationDeviceName(String value) {
             setProperty("mobileEmulation.deviceName", value);
         }
 
-        public void mobileEmulation_width(String value) {
+        public void mobileEmulationWidth(String value) {
             setProperty("mobileEmulation.width", value);
         }
 
-        public void mobileEmulation_height(String value) {
+        public void mobileEmulationHeight(String value) {
             setProperty("mobileEmulation.height", value);
         }
 
-        public void mobileEmulation_pixelRatio(String value) {
+        public void mobileEmulationPixelRatio(String value) {
             setProperty("mobileEmulation.pixelRatio", value);
         }
 
-        public void mobileEmulation_userAgent(String value) {
+        public void mobileEmulationUserAgent(String value) {
             setProperty("mobileEmulation.userAgent", value);
         }
     }

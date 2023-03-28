@@ -37,7 +37,11 @@ public class PropertiesHelper {
         Properties.internal = ConfigFactory.create(Internal.class);
         Properties.flags = ConfigFactory.create(Flags.class);
         Properties.cucumber = ConfigFactory.create(Cucumber.class);
-
+        Properties.capabilities=ConfigFactory.create(Capabilities.class);
+        Properties.healenium=ConfigFactory.create(Healenium.class);
+        Properties.jira=ConfigFactory.create(Jira.class);
+        Properties.pattern=ConfigFactory.create(Pattern.class);
+        Properties.reporting=ConfigFactory.create(Reporting.class);
     }
 
     public static void postProcessing() {

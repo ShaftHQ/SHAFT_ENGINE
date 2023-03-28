@@ -133,7 +133,6 @@ public interface Cucumber extends EngineProperties {
             setProperty("cucumber.publish.quiet", String.valueOf(value));
         }
 
-
     }
 
 }
