@@ -600,7 +600,7 @@ public class DriverFactoryHelper {
                 ((AppiumDriver) driver.get()).setSetting(Setting.MJPEG_SCALING_FACTOR, 25);
                 ((AppiumDriver) driver.get()).setSetting(Setting.MJPEG_SERVER_SCREENSHOT_QUALITY, 100);
                 ((AppiumDriver) driver.get()).setSetting("mjpegBilinearFiltering", true);
-                ((AppiumDriver) driver.get()).setSetting("limitXPathContextScope", false);
+                // ((AppiumDrver) driver.get()).setSetting("limitXPathContextScope", false);
 //                ((AppiumDriver) driver).setSetting("disableIdLocatorAutocompletion", true);
 //        https://github.com/appium/appium-uiautomator2-driver#mobile-deeplink
 //        http://code2test.com/appium-tutorial/how-to-use-uiselector-in-appium/
