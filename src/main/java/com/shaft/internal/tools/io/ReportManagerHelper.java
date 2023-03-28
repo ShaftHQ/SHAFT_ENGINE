@@ -11,6 +11,7 @@ import com.aventstack.extentreports.reporter.configuration.ViewName;
 import com.shaft.api.RestActions;
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
+import com.shaft.driver.SHAFT;
 import com.shaft.internal.properties.PropertyFileManager;
 import com.shaft.internal.tools.support.JavaHelper;
 import com.shaft.listeners.CucumberFeatureListener;
@@ -947,6 +948,12 @@ public class ReportManagerHelper {
     public static void cleanExecutionSummaryReportDirectory() {
         executionSummaryReportFolderPath = System.getProperty("executionSummaryReportFolderPath");
         FileActions.getInstance().deleteFolder(executionSummaryReportFolderPath.substring(0, executionSummaryReportFolderPath.length() - 1));
+    }
+
+    public static void openExecutionSummaryReportAfterExecution() {
+        if (Boolean.parseBoolean(System.getProperty("openExecutionSummaryReportAfterExecution").trim())) {
+            SHAFT.CLI.terminal().performTerminalCommand(".\\execution-summary/ExecutionSummaryReport_*.html");
+        }
     }
 
     public static void log(String logText, List<List<Object>> attachments) {
