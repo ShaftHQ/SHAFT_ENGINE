@@ -1,8 +1,8 @@
 package com.shaft.tools.io;
 
-import io.github.shafthq.shaft.tools.io.FailureReporter;
-import io.github.shafthq.shaft.tools.io.ReportManagerHelper;
-import io.github.shafthq.shaft.tools.support.JavaHelper;
+import com.shaft.internal.tools.io.FailureReporter;
+import com.shaft.internal.tools.io.ReportManagerHelper;
+import com.shaft.internal.tools.support.JavaHelper;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.FileInputStream;

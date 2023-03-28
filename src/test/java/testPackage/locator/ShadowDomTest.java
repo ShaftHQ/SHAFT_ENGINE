@@ -1,8 +1,8 @@
 package testPackage.locator;
 
 import com.shaft.driver.SHAFT;
-import io.github.shafthq.shaft.gui.locator.LocatorBuilder;
-import io.github.shafthq.shaft.gui.locator.Locators;
+import com.shaft.internal.gui.locator.LocatorBuilder;
+import com.shaft.internal.gui.locator.Locators;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.remote.Browser;

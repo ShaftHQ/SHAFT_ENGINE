@@ -1,11 +1,11 @@
 package com.shaft.gui.element;
 
 import com.google.common.base.Throwables;
+import com.shaft.driver.internal.DriverFactoryHelper;
+import com.shaft.gui.browser.internal.FluentBrowserActions;
+import com.shaft.gui.element.internal.ElementActionsHelper;
+import com.shaft.gui.element.internal.FluentElementActions;
 import com.shaft.tools.io.ReportManager;
-import io.github.shafthq.shaft.driver.DriverFactoryHelper;
-import io.github.shafthq.shaft.gui.browser.FluentBrowserActions;
-import io.github.shafthq.shaft.gui.element.ElementActionsHelper;
-import io.github.shafthq.shaft.gui.element.FluentElementActions;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
@@ -15,7 +15,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import static io.github.shafthq.shaft.gui.element.ElementActionsHelper.*;
+import static com.shaft.gui.element.internal.ElementActionsHelper.*;
 
 //TODO: Move body of implementation into the Fluent Actions class to fix internal "Deprecated member is still used" warnings
 public class ElementActions extends FluentElementActions {
