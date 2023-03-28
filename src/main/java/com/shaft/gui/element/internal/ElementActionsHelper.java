@@ -910,7 +910,7 @@ public class ElementActionsHelper {
         }
 
         if (rootCauseException.length >= 1) {
-            Assert.fail(message, rootCauseException[0]);
+            Assert.fail(message + " " + rootCauseException[0].getMessage(), rootCauseException[0]);
         } else {
             Assert.fail(message);
         }
