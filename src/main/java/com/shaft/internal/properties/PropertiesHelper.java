@@ -28,7 +28,6 @@ public class PropertiesHelper {
 
     public static void loadProperties() {
         //load property objects
-        //TODO: implement missing property interfaces
         Properties.paths = ConfigFactory.create(Paths.class);
         Properties.platform = ConfigFactory.create(Platform.class);
         Properties.web = ConfigFactory.create(Web.class);
@@ -42,6 +41,11 @@ public class PropertiesHelper {
         Properties.jira=ConfigFactory.create(Jira.class);
         Properties.pattern=ConfigFactory.create(Pattern.class);
         Properties.reporting=ConfigFactory.create(Reporting.class);
+        Properties.tinkey=ConfigFactory.create(Tinkey.class);
+        Properties.testNG=ConfigFactory.create(TestNG.class);
+        Properties.log4j=ConfigFactory.create(Log4j.class);
+        Properties.visuals=ConfigFactory.create(Visuals.class);
+        Properties.timeouts=ConfigFactory.create(Timeouts.class);
     }
 
     public static void postProcessing() {
