@@ -210,8 +210,12 @@ public class ElementActionsHelper {
                             elementInformation.setElementName(elementName);
                         }
                         // attempt to perform action inside the loop to guarantee higher odds of success and reduced webdriver calls
-                        if (action != null && action.length > 0) {
-                            elementInformation.setActionResult(performAction(elementInformation.getFirstElement(), (ElementAction) action[0], action[1]));
+                        var len = action != null ? action.length : 0;
+                        switch (len) {
+                            case 1 ->
+                                    elementInformation.setActionResult(performAction(elementInformation.getFirstElement(), (ElementAction) action[0], ""));
+                            case 2 ->
+                                    elementInformation.setActionResult(performAction(elementInformation.getFirstElement(), (ElementAction) action[0], action[1]));
                         }
                         return elementInformation.toList();
                         // int numberOfFoundElements
@@ -695,25 +699,24 @@ public class ElementActionsHelper {
             successfulTextLocationStrategy = determineSuccessfulTextLocationStrategy(elementInformation);
         }
         clearBeforeTyping(elementInformation, successfulTextLocationStrategy);
-        if (!"".equals(targetText)) {
-            performType(elementInformation, targetText);
-        }
+        var adjustedTargetText = targetText != null && targetText != "" ? targetText : "";
+        performType(elementInformation, adjustedTargetText);
         if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckTextWasTypedCorrectly")))) {
             String actualText = confirmTypingWasSuccessful(elementInformation, successfulTextLocationStrategy);
-            if (targetText.equals(actualText) || OBFUSCATED_STRING.repeat(targetText.length()).equals(actualText)) {
-                return targetText;
+            if (adjustedTargetText.equals(actualText) || OBFUSCATED_STRING.repeat(adjustedTargetText.length()).equals(actualText)) {
+                return adjustedTargetText;
             } else {
                 // attempt once to type using javascript then confirm typing was successful
                 // again
-                ElementActionsHelper.setValueUsingJavascript(elementInformation, targetText);
+                ElementActionsHelper.setValueUsingJavascript(elementInformation, adjustedTargetText);
                 var textAfterSettingValueUsingJavascript = readTextBasedOnSuccessfulLocationStrategy(elementInformation, TextDetectionStrategy.VALUE);
                 if ("".equals(textAfterSettingValueUsingJavascript) && successfulTextLocationStrategy.equals(TextDetectionStrategy.UNDEFINED)) {
-                    return targetText;
+                    return adjustedTargetText;
                 }
                 return textAfterSettingValueUsingJavascript;
             }
         } else {
-            return targetText;
+            return adjustedTargetText;
         }
     }
 
