@@ -951,7 +951,7 @@ public class ReportManagerHelper {
     }
 
     public static void openExecutionSummaryReportAfterExecution() {
-        if (Boolean.parseBoolean(System.getProperty("openExecutionSummaryReportAfterExecution").trim())) {
+        if (SHAFT.Properties.reporting.openExecutionSummaryReportAfterExecution()) {
             SHAFT.CLI.terminal().performTerminalCommand(".\\" + System.getProperty("executionSummaryReportFolderPath") + "ExecutionSummaryReport_*.html");
         }
     }
