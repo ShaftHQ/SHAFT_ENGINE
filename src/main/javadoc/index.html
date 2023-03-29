@@ -2093,7 +2093,7 @@
                                         <div class="col-md-4" id="openAllureReportAfterExecution">
                                             <div class="radio-inline">
                                                 <label for="openAllureReportAfterExecution-0">
-                                                    <input checked="checked" id="openAllureReportAfterExecution-0"
+                                                    <input id="openAllureReportAfterExecution-0"
                                                            name="openAllureReportAfterExecution" type="radio"
                                                            value="true">
                                                     Enabled
@@ -2101,7 +2101,7 @@
                                             </div>
                                             <div class="radio-inline">
                                                 <label for="openAllureReportAfterExecution-1">
-                                                    <input id="openAllureReportAfterExecution-1"
+                                                    <input checked="checked" id="openAllureReportAfterExecution-1"
                                                            name="openAllureReportAfterExecution" type="radio"
                                                            value="false">
                                                     Disabled
@@ -2114,6 +2114,66 @@
                                         <p><strong>Hint:</strong> <br/>• Enabling this setting will serve and open the allure report automatically after every test run.
                                         </p>
                                         </span>
+                                    </div>
+									
+									<!-- Multiple Radios -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label"
+                                               for="openExecutionSummaryReportAfterExecution"> Automatically Open Execution Summary Report
+                                        </label>
+                                        <div class="col-md-4" id="openExecutionSummaryReportAfterExecution">
+                                            <div class="radio-inline">
+                                                <label for="openExecutionSummaryReportAfterExecution-0">
+                                                    <input checked="checked"
+                                                           id="openExecutionSummaryReportAfterExecution-0"
+                                                           name="openExecutionSummaryReportAfterExecution"
+                                                           type="radio"
+                                                           value="true"> Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="openExecutionSummaryReportAfterExecution-1">
+                                                    <input id="openExecutionSummaryReportAfterExecution-1"
+                                                           name="openExecutionSummaryReportAfterExecution"
+                                                           type="radio"
+                                                           value="false"> Disabled
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="note info">
+                                        <span class="help-block">
+                                        <p><strong>Hint:</strong> <br/>• Enabling this setting will open a lightweight summary report html file after every test execution with the most important info.</span>
+                                    </div>
+									
+									<!-- Multiple Radios -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label"
+                                               for="openLighthouseReportWhileExecution"> Open Lighthouse Report While Execution
+                                        </label>
+                                        <div class="col-md-4" id="openLighthouseReportWhileExecution">
+                                            <div class="radio-inline">
+                                                <label for="openLighthouseReportWhileExecution-0">
+                                                    <input checked="checked"
+                                                           id="openLighthouseReportWhileExecution-0"
+                                                           name="openLighthouseReportWhileExecution"
+                                                           type="radio"
+                                                           value="true"> Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="openLighthouseReportWhileExecution-1">
+                                                    <input id="openLighthouseReportWhileExecution-1"
+                                                           name="openLighthouseReportWhileExecution"
+                                                           type="radio"
+                                                           value="false"> Disabled
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="note info">
+                                        <span class="help-block">
+                                        <p><strong>Hint:</strong> <br/>• .</span>
                                     </div>
 
                                     <hr/>
@@ -2328,6 +2388,35 @@
                                     <div class="note info">
                                         <span class="help-block">
                                         <p><strong>Hint:</strong> <br/>• Enabling this setting will reset the extent report before every test run, while disabling it will allow you to keep track of your old reports.</span>
+                                    </div>
+									
+									<!-- Multiple Radios -->
+                                    <div class="form-group">
+                                        <label class="col-md-4 control-label"
+                                               for="attachExtentReportToAllureReport"> Attach extent report to allure report
+                                        </label>
+                                        <div class="col-md-4" id="attachExtentReportToAllureReport">
+                                            <div class="radio-inline">
+                                                <label for="attachExtentReportToAllureReport-0">
+                                                    <input id="attachExtentReportToAllureReport-0"
+                                                           name="attachExtentReportToAllureReport"
+                                                           type="radio"
+                                                           value="true"> Enabled
+                                                </label>
+                                            </div>
+                                            <div class="radio-inline">
+                                                <label for="attachExtentReportToAllureReport-1">
+                                                    <input checked="checked" id="attachExtentReportToAllureReport-1"
+                                                           name="attachExtentReportToAllureReport"
+                                                           type="radio"
+                                                           value="false"> Disabled
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="note info">
+                                        <span class="help-block">
+                                        <p><strong>Hint:</strong> <br/>• Enabling this setting will Attach extent report to allure report in the tear down "Attaching Reports" section.</span>
                                     </div>
 
                                     <!-- Button -->
@@ -3265,6 +3354,9 @@ for (i = 0; i < close.length; i++) {
         const openAllureReportAfterExecution = $("input[name=openAllureReportAfterExecution]:checked").val();
         const generateExtentReports = $("input[name=generateExtentReports]:checked").val();
         const cleanExtentReportsDirectoryBeforeExecution = $("input[name=cleanExtentReportsDirectoryBeforeExecution]:checked").val();
+		const attachExtentReportToAllureReport = $("input[name=attachExtentReportToAllureReport]:checked").val();
+		const openExecutionSummaryReportAfterExecution = $("input[name=openExecutionSummaryReportAfterExecution]:checked").val();
+		const openLighthouseReportWhileExecution = $("input[name=openLighthouseReportWhileExecution]:checked").val();
 
         // This variable stores all the data.
         let data =
@@ -3276,7 +3368,10 @@ for (i = 0; i < close.length; i++) {
             'generateAllureReportArchive=' + generateAllureReportArchive + '\r\n' +
             'openAllureReportAfterExecution=' + openAllureReportAfterExecution + '\r\n' +
             'generateExtentReports=' + generateExtentReports + '\r\n' +
-            'cleanExtentReportsDirectoryBeforeExecution=' + cleanExtentReportsDirectoryBeforeExecution + '\r\n';
+            'cleanExtentReportsDirectoryBeforeExecution=' + cleanExtentReportsDirectoryBeforeExecution + '\r\n' +
+			'attachExtentReportToAllureReport=' + attachExtentReportToAllureReport + '\r\n' +
+			'openExecutionSummaryReportAfterExecution=' + openExecutionSummaryReportAfterExecution + '\r\n' +
+			'openLighthouseReportWhileExecution=' + openLighthouseReportWhileExecution + '\r\n';
 
         downloadFile(data, 'Reporting.properties');
         setTimeout(function(){ document.getElementById("Reporting.properties").style.opacity = "1"; }, 400);

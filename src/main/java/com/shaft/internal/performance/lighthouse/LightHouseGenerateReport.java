@@ -35,13 +35,13 @@ public class LightHouseGenerateReport {
             //TerminalActions.getInstance(true, true).performTerminalCommand(commandToGenerateLightHouseReport);
             ( new TerminalActions()).performTerminalCommand(commandToGenerateLightHouseReport);
             writeReportPathToFilesInProjectDirectory(PageName);
-            openLighthouseReportwhileExecution();
+            openLighthouseReportWhileExecution();
         }
     }
 
-        public  void openLighthouseReportwhileExecution() {
+        public  void openLighthouseReportWhileExecution() {
             String commandToOpenLighthouseReport;
-            if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("openLighthouseReportwhileExecution").trim()))) {
+            if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("openLighthouseReportWhileExecution").trim()))) {
                 if (SystemUtils.IS_OS_WINDOWS) {
                     commandToOpenLighthouseReport = ("cmd.exe /c node OpenLHReport.js");
                 } else {
