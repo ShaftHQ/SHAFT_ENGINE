@@ -41,7 +41,7 @@ public interface Reporting extends EngineProperties {
     boolean generateAllureReportArchive();
 
     @Key("openAllureReportAfterExecution")
-    @DefaultValue("true")
+    @DefaultValue("false")
     boolean openAllureReportAfterExecution();
 
     @Key("generateExtentReports")
@@ -56,9 +56,13 @@ public interface Reporting extends EngineProperties {
     @DefaultValue("false")
     boolean attachExtentReportsToAllureReport();
 
-    @Key("openLighthouseReportwhileExecution")
+    @Key("openLighthouseReportWhileExecution")
     @DefaultValue("true")
-    boolean openLighthouseReportwhileExecution();
+    boolean openLighthouseReportWhileExecution();
+
+    @Key("openExecutionSummaryReportAfterExecution")
+    @DefaultValue("true")
+    boolean openExecutionSummaryReportAfterExecution();
 
     default SetProperty set() {
         return new SetProperty();
@@ -68,6 +72,10 @@ public interface Reporting extends EngineProperties {
 
         public void captureElementName(boolean value) {
             setProperty("captureElementName", String.valueOf(value));
+        }
+
+        public void forceCheckForElementVisibility(boolean value) {
+            setProperty("forceCheckForElementVisibility", String.valueOf(value));
         }
 
         public void captureWebDriverLogs(boolean value) {
@@ -106,8 +114,12 @@ public interface Reporting extends EngineProperties {
             setProperty("attachExtentReportsToAllureReport", String.valueOf(value));
         }
 
-        public void openLighthouseReportwhileExecution(boolean value) {
-            setProperty("openLighthouseReportwhileExecution", String.valueOf(value));
+        public void openLighthouseReportWhileExecution(boolean value) {
+            setProperty("openLighthouseReportWhileExecution", String.valueOf(value));
+        }
+
+        public void openExecutionSummaryReportAfterExecution(boolean value) {
+            setProperty("openExecutionSummaryReportAfterExecution", String.valueOf(value));
         }
 
     }
