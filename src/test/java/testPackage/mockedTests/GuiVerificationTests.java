@@ -2,7 +2,6 @@ package testPackage.mockedTests;
 
 import com.shaft.driver.SHAFT;
 import org.openqa.selenium.By;
-import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -24,14 +23,10 @@ public class GuiVerificationTests {
         driver.get().assertThat().element(locator).textTrimmed().isEqualTo("te st").perform();
     }
 
-    @Test
+    @Test(expectedExceptions = {AssertionError.class})
     public void test_textTrimmed_expectedToFail() {
         driver.get().element().type(locator, " te st ");
-        try {
-            driver.get().assertThat().element(locator).textTrimmed().isEqualTo("test").perform();
-        } catch (AssertionError e) {
-            Assert.assertTrue(true);
-        }
+        driver.get().assertThat().element(locator).textTrimmed().isEqualTo("test").perform();
     }
 
     @BeforeMethod(alwaysRun = true)

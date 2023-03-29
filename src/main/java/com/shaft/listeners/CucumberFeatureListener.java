@@ -16,10 +16,10 @@
 package com.shaft.listeners;
 
 import com.shaft.cli.FileActions;
-import com.shaft.internal.gui.image.ScreenshotManager;
-import com.shaft.internal.gui.video.RecordManager;
-import com.shaft.internal.tools.io.ReportManagerHelper;
+import com.shaft.gui.internal.image.ScreenshotManager;
+import com.shaft.gui.internal.video.RecordManager;
 import com.shaft.listeners.internal.TestNGListenerHelper;
+import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.cucumber.core.feature.FeatureParser;
 import io.cucumber.core.resource.Resource;
 import io.cucumber.messages.types.Examples;

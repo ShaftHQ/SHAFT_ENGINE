@@ -1,8 +1,8 @@
 package com.shaft.gui.browser.internal;
 
 import com.shaft.driver.internal.DriverFactoryHelper;
-import com.shaft.internal.tools.io.ReportManagerHelper;
-import com.shaft.internal.tools.support.JavaScriptHelper;
+import com.shaft.tools.internal.support.JavaScriptHelper;
+import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.NoSuchSessionException;
 import org.openqa.selenium.WebDriver;

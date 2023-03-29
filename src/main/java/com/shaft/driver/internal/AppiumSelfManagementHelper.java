@@ -2,13 +2,13 @@ package com.shaft.driver.internal;
 
 import com.shaft.cli.FileActions;
 import com.shaft.cli.TerminalActions;
-import com.shaft.internal.properties.Properties;
-import com.shaft.internal.tools.io.ReportHelper;
+import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.FailureReporter;
+import com.shaft.tools.io.internal.ReportHelper;
 import io.qameta.allure.Step;
 import lombok.Getter;
 import org.apache.commons.lang3.SystemUtils;
-import org.testng.Assert;
 
 import java.io.File;
 import java.net.URL;
@@ -98,7 +98,7 @@ public class AppiumSelfManagementHelper {
                 ReportManager.logDiscrete("Successfully prepared Android SDK CLI tools.");
             } catch (Throwable throwable) {
                 ReportHelper.enableLogging();
-                Assert.fail("Failed to prepare Android SDK CLI tools.", throwable);
+                FailureReporter.fail(AppiumSelfManagementHelper.class, "Failed to prepare Android SDK CLI tools.", throwable);
             }
         }
 
@@ -158,7 +158,7 @@ public class AppiumSelfManagementHelper {
                         "avdmanager  create avd -n " + getAvdName() + " -d pixel --package " + packages.get(packages.size() - 1)));
                 ReportManager.logDiscrete("Successfully prepared android packages.");
             } catch (Throwable throwable) {
-                Assert.fail("Failed to prepare android packages.", throwable);
+                FailureReporter.fail(AppiumSelfManagementHelper.class, "Failed to prepare android packages.", throwable);
             }
         }
     }
@@ -181,7 +181,7 @@ public class AppiumSelfManagementHelper {
 
             ReportManager.logDiscrete("Successfully launched emulator.");
         } catch (Throwable throwable) {
-            Assert.fail("Failed to launch emulator.", throwable);
+            FailureReporter.fail(AppiumSelfManagementHelper.class, "Failed to launch emulator.", throwable);
         }
     }
 
@@ -209,7 +209,7 @@ public class AppiumSelfManagementHelper {
                 FileActions.getInstance().unpackArchive(new URL(url), androidSelfManagedEnvironmentLocation + "npm" + File.separator);
                 ReportManager.logDiscrete("Successfully prepared Node.js.");
             } catch (Throwable throwable) {
-                Assert.fail("Failed to prepare Node.js.", throwable);
+                FailureReporter.fail(AppiumSelfManagementHelper.class, "Failed to prepare Node.js.", throwable);
             }
         }
     }

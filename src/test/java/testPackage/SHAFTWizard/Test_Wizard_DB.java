@@ -6,6 +6,6 @@ public class Test_Wizard_DB {
 
 //    @Test
     public void test() {
-        SHAFT.DB.performDatabaseActions("").executeSelectQuery("");
+        SHAFT.DB.getInstance("").executeSelectQuery("");
     }
 }
