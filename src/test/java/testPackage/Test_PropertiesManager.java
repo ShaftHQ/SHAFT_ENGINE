@@ -1,7 +1,7 @@
 package testPackage;
 
 import com.shaft.driver.SHAFT;
-import com.shaft.internal.properties.Properties;
+import com.shaft.properties.internal.Properties;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
