@@ -1,6 +1,6 @@
 package testPackage;
 
-import com.shaft.internal.gui.image.ImageProcessingActions;
+import com.shaft.gui.internal.image.ImageProcessingActions;
 import org.testng.annotations.Test;
 
 public class Test_imageComparison {

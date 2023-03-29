@@ -3,18 +3,20 @@ package com.shaft.gui.element.internal;
 import com.shaft.cli.FileActions;
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactoryHelper;
+import com.shaft.enums.internal.ClipboardAction;
+import com.shaft.enums.internal.ElementAction;
+import com.shaft.gui.element.ElementActions;
 import com.shaft.gui.element.SikuliActions;
-import com.shaft.internal.enums.ClipboardAction;
-import com.shaft.internal.enums.ElementAction;
-import com.shaft.internal.gui.image.ImageProcessingActions;
-import com.shaft.internal.gui.image.ScreenshotManager;
-import com.shaft.internal.gui.locator.ShadowLocatorBuilder;
-import com.shaft.internal.tools.io.ReportHelper;
-import com.shaft.internal.tools.io.ReportManagerHelper;
-import com.shaft.internal.tools.support.JavaHelper;
-import com.shaft.internal.tools.support.JavaScriptHelper;
-import com.shaft.internal.validations.ValidationsHelper;
+import com.shaft.gui.internal.image.ImageProcessingActions;
+import com.shaft.gui.internal.image.ScreenshotManager;
+import com.shaft.gui.internal.locator.ShadowLocatorBuilder;
+import com.shaft.tools.internal.support.JavaHelper;
+import com.shaft.tools.internal.support.JavaScriptHelper;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.FailureReporter;
+import com.shaft.tools.io.internal.ReportHelper;
+import com.shaft.tools.io.internal.ReportManagerHelper;
+import com.shaft.validation.internal.ValidationsHelper;
 import org.jsoup.Jsoup;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.*;
@@ -28,7 +30,6 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import org.sikuli.script.App;
 import org.sikuli.script.Pattern;
 import org.sikuli.script.Screen;
-import org.testng.Assert;
 
 import java.awt.*;
 import java.time.Duration;
@@ -751,9 +752,9 @@ public class ElementActionsHelper {
             switch (Integer.parseInt(matchingElementsInformation.get(0).toString())) {
                 case 0 -> {
                     if (matchingElementsInformation.size() > 2 && matchingElementsInformation.get(2) instanceof Throwable) {
-                        Assert.fail("zero elements found matching this locator \"" + formatLocatorToString(elementLocator) + "\"", (Throwable) matchingElementsInformation.get(2));
+                        FailureReporter.fail(ElementActions.class, "zero elements found matching this locator \"" + formatLocatorToString(elementLocator) + "\"", (Throwable) matchingElementsInformation.get(2));
                     }
-                    Assert.fail("zero elements found matching this locator \"" + formatLocatorToString(elementLocator) + "\"");
+                    FailureReporter.fail("zero elements found matching this locator \"" + formatLocatorToString(elementLocator) + "\"");
                 }
                 case 1 -> {
                     return matchingElementsInformation;
@@ -761,7 +762,7 @@ public class ElementActionsHelper {
                 default -> {
                     if (Boolean.TRUE.equals(Boolean.valueOf(System.getProperty("forceCheckElementLocatorIsUnique")))
                             && !(elementLocator instanceof RelativeLocator.RelativeBy)) {
-                        Assert.fail("multiple elements found matching this locator \"" + formatLocatorToString(elementLocator) + "\"");
+                        FailureReporter.fail("multiple elements found matching this locator \"" + formatLocatorToString(elementLocator) + "\"");
                     }
                     return matchingElementsInformation;
                 }
@@ -910,9 +911,9 @@ public class ElementActionsHelper {
         }
 
         if (rootCauseException.length >= 1) {
-            Assert.fail(message, rootCauseException[0]);
+            FailureReporter.fail(ElementActions.class, message, rootCauseException[0]);
         } else {
-            Assert.fail(message);
+            FailureReporter.fail(message);
         }
     }
 

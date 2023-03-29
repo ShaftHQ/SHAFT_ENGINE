@@ -2,10 +2,10 @@ package com.shaft.listeners.internal;
 
 import com.shaft.driver.SHAFT;
 import com.shaft.driver.internal.DriverFactoryHelper;
-import com.shaft.internal.gui.image.ScreenshotManager;
-import com.shaft.internal.tools.io.ReportManagerHelper;
-import com.shaft.internal.tools.support.JavaHelper;
+import com.shaft.gui.internal.image.ScreenshotManager;
+import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.ReportManagerHelper;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Sequence;
 import org.openqa.selenium.support.ui.ExpectedConditions;

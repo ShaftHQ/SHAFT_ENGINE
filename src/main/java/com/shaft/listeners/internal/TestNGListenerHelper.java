@@ -1,11 +1,11 @@
 package com.shaft.listeners.internal;
 
 import com.shaft.driver.internal.DriverFactoryHelper;
-import com.shaft.internal.gui.image.ScreenshotManager;
-import com.shaft.internal.gui.video.RecordManager;
-import com.shaft.internal.properties.Properties;
-import com.shaft.internal.tools.io.ReportManagerHelper;
+import com.shaft.gui.internal.image.ScreenshotManager;
+import com.shaft.gui.internal.video.RecordManager;
+import com.shaft.properties.internal.Properties;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.qameta.allure.Issue;
 import io.qameta.allure.Issues;
 import org.testng.*;

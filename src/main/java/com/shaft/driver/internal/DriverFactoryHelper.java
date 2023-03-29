@@ -8,14 +8,14 @@ import com.shaft.driver.DriverFactory.DriverType;
 import com.shaft.driver.SHAFT;
 import com.shaft.gui.browser.internal.BrowserActionsHelpers;
 import com.shaft.gui.browser.internal.FluentBrowserActions;
-import com.shaft.internal.gui.video.RecordManager;
-import com.shaft.internal.properties.Properties;
-import com.shaft.internal.properties.PropertiesHelper;
-import com.shaft.internal.properties.PropertyFileManager;
-import com.shaft.internal.tools.io.FailureReporter;
-import com.shaft.internal.tools.io.ReportManagerHelper;
-import com.shaft.internal.tools.support.JavaHelper;
+import com.shaft.gui.internal.video.RecordManager;
+import com.shaft.properties.internal.Properties;
+import com.shaft.properties.internal.PropertiesHelper;
+import com.shaft.properties.internal.PropertyFileManager;
+import com.shaft.tools.internal.support.JavaHelper;
 import com.shaft.tools.io.ReportManager;
+import com.shaft.tools.io.internal.FailureReporter;
+import com.shaft.tools.io.internal.ReportManagerHelper;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.Setting;
 import io.appium.java_client.android.AndroidDriver;
@@ -923,7 +923,7 @@ public class DriverFactoryHelper {
         PAGE_LOAD_TIMEOUT = Integer.parseInt(System.getProperty("pageLoadTimeout"));
         SCRIPT_TIMEOUT = Integer.parseInt(System.getProperty("scriptExecutionTimeout"));
         MOBILE_EMULATION = SHAFT.Properties.web.isMobileEmulation();
-        MOBILE_EMULATION_CUSTOM_DEVICE = SHAFT.Properties.web.mobileEmulation_isCustomDevice();
+        MOBILE_EMULATION_CUSTOM_DEVICE = SHAFT.Properties.web.mobileEmulationIsCustomDevice();
         LIGHTHOUSE_EXEUTION = Boolean.valueOf(System.getProperty("lightHouseExeution").trim());
     }
 }

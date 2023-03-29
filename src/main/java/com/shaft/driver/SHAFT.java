@@ -13,13 +13,13 @@ import com.shaft.gui.element.AlertActions;
 import com.shaft.gui.element.SikuliActions;
 import com.shaft.gui.element.TouchActions;
 import com.shaft.gui.element.internal.FluentElementActions;
-import com.shaft.internal.tools.io.ReportManagerHelper;
-import com.shaft.internal.validations.RestValidationsBuilder;
 import com.shaft.listeners.internal.WebDriverListener;
 import com.shaft.tools.io.ExcelFileManager;
 import com.shaft.tools.io.JSONFileManager;
 import com.shaft.tools.io.ReportManager;
 import com.shaft.tools.io.YAMLFileManager;
+import com.shaft.tools.io.internal.ReportManagerHelper;
+import com.shaft.validation.internal.RestValidationsBuilder;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import io.restassured.config.RestAssuredConfig;
@@ -29,6 +29,7 @@ import org.openqa.selenium.support.events.EventFiringDecorator;
 import org.sikuli.script.App;
 
 import java.io.InputStream;
+import java.sql.ResultSet;
 import java.util.List;
 
 @SuppressWarnings("unused")
@@ -130,7 +131,7 @@ public class SHAFT {
         }
 
         @Beta
-        public static class Locator extends com.shaft.internal.gui.locator.Locator {
+        public static class Locator extends com.shaft.gui.internal.locator.Locator {
         }
 
         public static class SikuliDriver {
@@ -257,19 +258,41 @@ public class SHAFT {
         }
     }
 
-    public static class DB {
-        private DB() {
-            throw new IllegalStateException("Utility class");
+    public static class DB extends DatabaseActions {
+        public DB(String customConnectionString) {
+            super(customConnectionString);
         }
 
-        public static DatabaseActions performDatabaseActions(DatabaseActions.DatabaseType databaseType, String ip, String port, String name, String username,
-                                                             String password) {
-            return new DatabaseActions(databaseType, ip, port, name, username, password);
+        public DB(DatabaseActions.DatabaseType databaseType, String ip, String port, String name, String username,
+                  String password) {
+            super(databaseType, ip, port, name, username, password);
         }
 
-        public static DatabaseActions performDatabaseActions(String customConnectionString) {
-            return new DatabaseActions(customConnectionString);
+        public static DB getInstance(DatabaseActions.DatabaseType databaseType, String ip, String port, String name, String username,
+                                     String password) {
+            return new DB(databaseType, ip, port, name, username, password);
         }
+
+        public static DB getInstance(String customConnectionString) {
+            return new DB(customConnectionString);
+        }
+
+        public static String getResult(ResultSet resultSet) {
+            return DatabaseActions.getResult(resultSet);
+        }
+
+        public static String getColumn(ResultSet resultSet, String columnName) {
+            return DatabaseActions.getColumn(resultSet, columnName);
+        }
+
+        public static String getRow(ResultSet resultSet, String columnName, String knownCellValue) {
+            return DatabaseActions.getRow(resultSet, columnName, knownCellValue);
+        }
+
+        public static int getRowCount(ResultSet resultSet) {
+            return DatabaseActions.getRowCount(resultSet);
+        }
+
     }
 
     public static class Validations {
@@ -297,6 +320,10 @@ public class SHAFT {
             public JSON(String jsonFilePath) {
                 super(jsonFilePath);
             }
+
+            public static JSONFileManager getInstance(String jsonFilePath) {
+                return new JSONFileManager(jsonFilePath);
+            }
         }
 
         public static class EXCEL extends ExcelFileManager {
@@ -308,6 +335,10 @@ public class SHAFT {
              */
             public EXCEL(String excelFilePath) {
                 super(excelFilePath);
+            }
+
+            public static ExcelFileManager getInstance(String excelFilePath) {
+                return new ExcelFileManager(excelFilePath);
             }
         }
 
@@ -321,11 +352,15 @@ public class SHAFT {
             public YAML(String yamlFilePath) {
                 super(yamlFilePath);
             }
+
+            public static YAMLFileManager getInstance(String yamlFilePath) {
+                return new YAMLFileManager(yamlFilePath);
+            }
         }
     }
 
     @Beta
-    public static class Properties extends com.shaft.internal.properties.Properties {
+    public static class Properties extends com.shaft.properties.internal.Properties {
     }
 
     public static class Report {

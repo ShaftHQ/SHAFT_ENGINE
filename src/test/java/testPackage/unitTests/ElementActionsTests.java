@@ -3,7 +3,6 @@ package testPackage.unitTests;
 import com.shaft.driver.SHAFT;
 import com.shaft.validation.ValidationEnums;
 import org.openqa.selenium.By;
-import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -45,34 +44,22 @@ public class ElementActionsTests {
                 .perform();
     }
 
-    @Test
+    @Test(expectedExceptions = {AssertionError.class})
     public void waitForElementToBePresent_true_expectedToFail() {
         driver.get().browser().navigateToURL("https://www.google.com/ncr", "www.google.com");
-        try {
-            driver.get().element().waitToBeReady(By.id("bla"));
-        } catch (AssertionError e) {
-            Assert.assertTrue(true);
-        }
+        driver.get().element().waitToBeReady(By.id("bla"));
     }
 
-    @Test
+    @Test(expectedExceptions = {AssertionError.class})
     public void waitForElementToBePresent_false_expectedToFail() {
         driver.get().browser().navigateToURL("https://www.google.com/ncr", "www.google.com");
-        try {
-            driver.get().element().waitToBeInvisible(GoogleSearch.googleLogo_image);
-        } catch (AssertionError e) {
-            Assert.assertTrue(true);
-        }
+        driver.get().element().waitToBeInvisible(GoogleSearch.googleLogo_image);
     }
 
-    @Test
+    @Test(expectedExceptions = {AssertionError.class})
     public void waitForElementToBePresent_moreThanOneElement_expectedToFail() {
         driver.get().browser().navigateToURL("https://www.google.com/ncr", "www.google.com");
-        try {
-            driver.get().element().waitToBeInvisible(By.xpath("//*"));
-        } catch (AssertionError e) {
-            Assert.assertTrue(true);
-        }
+        driver.get().element().waitToBeInvisible(By.xpath("//*"));
     }
 
     @BeforeMethod
